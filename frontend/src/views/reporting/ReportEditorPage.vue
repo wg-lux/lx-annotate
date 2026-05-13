@@ -1,32 +1,59 @@
 <template>
   <div class="d-flex flex-column gap-3">
-    <div class="card shadow-sm report-workspace-card">
-      <div class="card-header report-workspace-header">
-        <div class="report-workspace-title">
-          <div class="small text-uppercase text-muted fw-semibold">Reporting Workspace</div>
-          <h5 class="mb-1">Berichtseditor</h5>
-          <small class="text-muted">
-            Strukturierte Befunde links erfassen, den entstehenden Bericht rechts prüfen.
-          </small>
-        </div>
-        <div class="report-workspace-actions">
-          <div class="report-status-pill" :class="lastSaveStatus === 'final' ? 'is-final' : 'is-draft'">
-            {{ lastSaveStatus === 'final' ? 'Final' : flow.activeReportId ? 'Entwurf' : 'Neuer Bericht' }}
-          </div>
-          <RouterLink class="btn btn-outline-secondary btn-sm" to="/reporting/case-setup">
-            Weiteren Fall anlegen
-          </RouterLink>
+    <section class="report-editor-toolbar" aria-label="Berichtseditor">
+      <div class="report-workspace-title">
+        <div class="small text-uppercase text-muted fw-semibold tracking-label">Bericht</div>
+        <h5 class="mb-2">Bericht schreiben</h5>
+        <div class="report-editor-facts">
+          <span>{{ reportPatientLabel }}</span>
+          <span>{{ selectedExaminationDisplayName || 'Untersuchung fehlt' }}</span>
+          <span>{{ selectedTemplateName || 'Vorlage fehlt' }}</span>
         </div>
       </div>
-      <div class="card-body">
+      <div class="report-workspace-actions">
+        <div
+          class="report-status-pill"
+          :class="lastSaveStatus === 'final' ? 'is-final' : 'is-draft'"
+        >
+          {{
+            lastSaveStatus === 'final' ? 'Final' : flow.activeReportId ? 'Entwurf' : 'Neuer Bericht'
+          }}
+        </div>
+        <RouterLink class="btn btn-outline-secondary btn-sm" to="/reporting/case-setup">
+          Fall wechseln
+        </RouterLink>
+      </div>
+    </section>
+
+    <section class="report-workspace-surface">
+      <div class="report-workspace-body">
         <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
         <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
+
+        <div v-if="sectionCompletionSummary.totalSections" class="report-readiness-strip mb-3">
+          <div class="readiness-item is-primary">
+            <span>Vollständigkeit</span>
+            <strong>
+              {{ sectionCompletionSummary.completedSections }}/{{
+                sectionCompletionSummary.totalSections
+              }}
+            </strong>
+          </div>
+          <div class="readiness-item" :class="{ 'has-warning': missingRequiredCount > 0 }">
+            <span>Noch offen</span>
+            <strong>{{ missingRequiredCount }}</strong>
+          </div>
+          <div class="readiness-item">
+            <span>Bericht</span>
+            <strong>{{ reportWordCount }} Wörter</strong>
+          </div>
+        </div>
 
         <div class="report-editor-layout">
           <div class="report-editor-main">
             <MedicalBlock
-              title="Template-Kontext"
-              subtitle="Templates per Untersuchung laden und für den Bericht aktivieren"
+              title="Vorlage"
+              :subtitle="selectedExaminationDisplayName || 'Untersuchung fehlt'"
               icon="ni ni-single-copy-04"
               icon-bg-class="bg-gradient-primary"
               :is-complete="!!selectedTemplateName"
@@ -37,7 +64,7 @@
               <template #default>
                 <div class="row g-3 mb-3">
                   <div class="col-md-4">
-                    <label class="form-label">KB-Modul</label>
+                    <label class="form-label">Modul</label>
                     <input
                       class="form-control"
                       :value="selectedKbModule"
@@ -47,20 +74,30 @@
                   </div>
                   <div class="col-md-4">
                     <label class="form-label">Untersuchung</label>
-                    <input class="form-control" :value="selectedExaminationDisplayName || ''" readonly />
+                    <input
+                      class="form-control"
+                      :value="selectedExaminationDisplayName || ''"
+                      readonly
+                    />
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label">Template</label>
+                    <label class="form-label">Vorlage</label>
                     <select
                       class="form-select"
                       :value="selectedTemplateName || ''"
                       :disabled="loading || templateLoading || !templateOptions.length"
-                      @change="onTemplateSelectionChange(($event.target as HTMLSelectElement).value)"
+                      @change="
+                        onTemplateSelectionChange(($event.target as HTMLSelectElement).value)
+                      "
                     >
                       <option value="" disabled>
-                        {{ templateLoading ? 'Templates laden...' : 'Template wählen' }}
+                        {{ templateLoading ? 'Vorlagen laden...' : 'Vorlage wählen' }}
                       </option>
-                      <option v-for="template in templateOptions" :key="template.name" :value="template.name">
+                      <option
+                        v-for="template in templateOptions"
+                        :key="template.name"
+                        :value="template.name"
+                      >
                         {{ template.name }}
                       </option>
                     </select>
@@ -73,10 +110,14 @@
                     :disabled="loading || templateLoading || !selectedExaminationName"
                     @click="refreshTemplatesForExamination"
                   >
-                    Templates laden
+                    Vorlagen laden
                   </button>
-                  <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="loadLatestReportMeta">
-                    Letzten Report laden
+                  <button
+                    class="btn btn-outline-secondary btn-sm"
+                    :disabled="loading"
+                    @click="loadLatestReportMeta"
+                  >
+                    Letzten Bericht laden
                   </button>
                 </div>
                 <div v-if="templateErrorMessage" class="alert alert-danger py-2 mt-3 mb-0">
@@ -89,10 +130,10 @@
             </MedicalBlock>
 
             <div v-if="!sectionBlocks.length" class="alert alert-info">
-              Keine Template-Abschnitte geladen. Bitte zunächst ein Template auswählen.
+              Bitte eine Vorlage auswählen.
             </div>
             <div v-else-if="!currentRuntimeDraft || !currentPayload" class="alert alert-warning">
-              Kein aktiver Reporting-Entwurf geladen. Bitte zuerst zur klinischen Dokumentation wechseln.
+              Kein aktiver Entwurf geladen.
             </div>
 
             <MedicalBlock
@@ -108,15 +149,16 @@
               :loading="loading"
             >
               <template #default>
-                <div class="small text-muted mb-2">
-                  {{ section.findings.length }} Befunde · {{ section.requiredFindingsCount }} erforderlich ·
-                  {{ section.requiredClassificationsCount }} Pflicht-Klassifikationen
+                <div class="section-status-row mb-3">
+                  <span>{{ section.findings.length }} Befunde</span>
+                  <span>{{ section.requiredFindingsCount }} erforderlich</span>
+                  <span>{{ section.requiredClassificationsCount }} Pflicht-Klassifikationen</span>
                 </div>
                 <div class="mb-3">
-                  <div class="fw-semibold small mb-1">Live-Vorschau aus Entwurf</div>
+                  <div class="fw-semibold small mb-1">Aktueller Inhalt</div>
                   <div
                     v-if="getSectionPreview(section.name).findingSummaries.length"
-                    class="border rounded bg-light p-2 small"
+                    class="section-preview-box small"
                   >
                     <div
                       v-for="summary in getSectionPreview(section.name).findingSummaries"
@@ -126,19 +168,23 @@
                       {{ summary }}
                     </div>
                   </div>
-                  <div v-else class="small text-muted">
-                    Für diesen Abschnitt liegen im aktuellen Entwurf noch keine Befunde vor.
-                  </div>
+                  <div v-else class="small text-muted">Noch keine Befunde in diesem Abschnitt.</div>
                 </div>
 
-                <div class="d-flex flex-wrap gap-3 mb-3">
+                <div class="d-flex flex-wrap gap-3 mb-3 section-toggle-row">
                   <div class="form-check">
                     <input
                       class="form-check-input"
                       type="checkbox"
                       :checked="getSectionDraft(section.name).includePatientData"
                       :disabled="loading"
-                      @change="onSectionDraftToggle(section.name, 'includePatientData', ($event.target as HTMLInputElement).checked)"
+                      @change="
+                        onSectionDraftToggle(
+                          section.name,
+                          'includePatientData',
+                          ($event.target as HTMLInputElement).checked
+                        )
+                      "
                     />
                     <label class="form-check-label">Patientendaten einbeziehen</label>
                   </div>
@@ -148,19 +194,28 @@
                       type="checkbox"
                       :checked="getSectionDraft(section.name).includeExaminationData"
                       :disabled="loading"
-                      @change="onSectionDraftToggle(section.name, 'includeExaminationData', ($event.target as HTMLInputElement).checked)"
+                      @change="
+                        onSectionDraftToggle(
+                          section.name,
+                          'includeExaminationData',
+                          ($event.target as HTMLInputElement).checked
+                        )
+                      "
                     />
                     <label class="form-check-label">Untersuchungsdaten einbeziehen</label>
                   </div>
                 </div>
 
-                <label class="form-label">Abschnittsnotiz / Entwurfstext</label>
+                <label class="form-label">Notiz</label>
                 <textarea
                   class="form-control"
                   rows="4"
+                  placeholder="Text für diesen Abschnitt"
                   :disabled="loading"
                   :value="getSectionDraft(section.name).note"
-                  @input="onSectionDraftNote(section.name, ($event.target as HTMLTextAreaElement).value)"
+                  @input="
+                    onSectionDraftNote(section.name, ($event.target as HTMLTextAreaElement).value)
+                  "
                 />
               </template>
             </MedicalBlock>
@@ -172,7 +227,6 @@
               :disabled="loading"
               :options-loading="indicationOptionsLoading"
               :options-error="indicationOptionsError"
-              description="Dieser Status wird direkt auf &lt;code&gt;save-submission.indications&lt;/code&gt; gemappt. Leere Liste &lt;code&gt;[]&lt;/code&gt; löscht bestehende Indikationen auf dem Backend."
               @update-row="(idx, patch) => flow.updateIndicationRow(idx, patch)"
               @add-row="flow.addIndicationRow()"
               @remove-row="(idx) => flow.removeIndicationRow(idx)"
@@ -183,9 +237,10 @@
               <div class="fw-semibold mb-1">Vollständigkeitsübersicht</div>
               <div class="small mb-2">
                 {{ sectionCompletionSummary.completedSections }} von
-                {{ sectionCompletionSummary.totalSections }} Abschnitten vollständig
-                · {{ sectionCompletionSummary.totalMissingFindings }} fehlende Pflichtbefunde
-                · {{ sectionCompletionSummary.totalMissingClassifications }} fehlende Pflicht-Klassifikationen
+                {{ sectionCompletionSummary.totalSections }} Abschnitten vollständig ·
+                {{ sectionCompletionSummary.totalMissingFindings }} fehlende Pflichtbefunde ·
+                {{ sectionCompletionSummary.totalMissingClassifications }} fehlende
+                Pflicht-Klassifikationen
               </div>
               <div
                 v-if="!sectionCompletionSummary.incompleteSections.length"
@@ -215,8 +270,10 @@
             <div class="report-preview-card">
               <div class="report-preview-toolbar">
                 <div>
-                  <div class="small text-uppercase text-muted fw-semibold">Berichtsvorschau</div>
-                  <h6 class="mb-0">{{ selectedTemplateName || 'Unbenanntes Template' }}</h6>
+                  <div class="small text-uppercase text-muted fw-semibold tracking-label">
+                    Vorschau
+                  </div>
+                  <h6 class="mb-0">{{ selectedTemplateName || 'Unbenannte Vorlage' }}</h6>
                 </div>
                 <span class="report-status-pill compact" :class="canSave ? 'is-draft' : 'is-muted'">
                   {{ reportWordCount }} Wörter
@@ -233,7 +290,7 @@
                   <strong>{{ selectedExaminationDisplayName || 'Nicht gewählt' }}</strong>
                 </div>
                 <div>
-                  <span>Report-ID</span>
+                  <span>Bericht-ID</span>
                   <strong>{{ flow.activeReportId ? `#${flow.activeReportId}` : 'Neu' }}</strong>
                 </div>
               </div>
@@ -248,7 +305,10 @@
                   :disabled="loading || !canSave"
                   @click="saveReportSubmission('draft')"
                 >
-                  <span v-if="loading && pendingSaveStatus === 'draft'" class="spinner-border spinner-border-sm me-1" />
+                  <span
+                    v-if="loading && pendingSaveStatus === 'draft'"
+                    class="spinner-border spinner-border-sm me-1"
+                  />
                   Entwurf speichern
                 </button>
                 <button
@@ -256,7 +316,10 @@
                   :disabled="loading || !canSave"
                   @click="saveReportSubmission('final')"
                 >
-                  <span v-if="loading && pendingSaveStatus === 'final'" class="spinner-border spinner-border-sm me-1" />
+                  <span
+                    v-if="loading && pendingSaveStatus === 'final'"
+                    class="spinner-border spinner-border-sm me-1"
+                  />
                   Final speichern
                 </button>
               </div>
@@ -264,7 +327,7 @@
           </aside>
         </div>
       </div>
-    </div>
+    </section>
 
     <div class="card shadow-sm" v-if="saveWarnings.length">
       <div class="card-header">
@@ -293,17 +356,24 @@
             <input class="form-control" :value="flow.activeReportId ?? ''" readonly />
           </div>
           <div class="col-md-4">
-            <label class="form-label">Report-Version</label>
+            <label class="form-label">Berichtsversion</label>
             <input class="form-control" :value="currentReportVersion ?? ''" readonly />
           </div>
           <div class="col-md-4">
-            <label class="form-label">Status letzter Save</label>
+            <label class="form-label">Letzter Speicherstatus</label>
             <input class="form-control" :value="lastSaveStatus ?? ''" readonly />
           </div>
         </div>
         <div class="small text-muted">
           Entwurf:
-          {{ currentRuntimeDraft?.hydratedFrom === 'session_storage' || currentRuntimeDraft?.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : currentRuntimeDraft ? 'initialisiert' : 'leer' }}
+          {{
+            currentRuntimeDraft?.hydratedFrom === 'session_storage' ||
+            currentRuntimeDraft?.hydratedFrom === 'draft_api'
+              ? 'wiederhergestellt'
+              : currentRuntimeDraft
+                ? 'initialisiert'
+                : 'leer'
+          }}
           · Persistenz: {{ flow.draftPersistenceStatus }}
           <span v-if="flow.lastPersistedDraftAt">
             · Gespeichert: {{ new Date(flow.lastPersistedDraftAt).toLocaleTimeString('de-DE') }}
@@ -409,7 +479,8 @@ const {
 
 const selectedExamination = computed(
   () =>
-    examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) || null
+    examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) ||
+    null
 )
 const selectedExaminationName = computed(() => selectedExamination.value?.name || null)
 const selectedExaminationDisplayName = computed(
@@ -504,7 +575,10 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     const option = optionsById.get(indicationId)
     if (!option) continue
     if (!option.choices.some((choice) => choice.id === choiceId)) {
-      option.choices = [{ id: choiceId, label: `Unbekannte Auswahl (#${choiceId})` }, ...option.choices]
+      option.choices = [
+        { id: choiceId, label: `Unbekannte Auswahl (#${choiceId})` },
+        ...option.choices
+      ]
     }
   }
 
@@ -518,7 +592,9 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
 })
 
-const sectionDraftPreview = computed(() => JSON.stringify(flow.templateSectionDrafts || {}, null, 2))
+const sectionDraftPreview = computed(() =>
+  JSON.stringify(flow.templateSectionDrafts || {}, null, 2)
+)
 const runtimeFindingsPreview = computed(() =>
   JSON.stringify(currentPayload.value?.patientFindings || [], null, 2)
 )
@@ -529,8 +605,7 @@ const sectionCompletionSummary = computed(() => {
     const missingFindings = section.findings
       .filter((definition) => definition.required)
       .filter(
-        (definition) =>
-          !sectionFindings.some((entry) => entry.finding === definition.finding)
+        (definition) => !sectionFindings.some((entry) => entry.finding === definition.finding)
       )
       .map((definition) => definition.finding)
 
@@ -548,9 +623,7 @@ const sectionCompletionSummary = computed(() => {
           )
         )
         if (!presentInAnyFinding) {
-          missingClassificationSet.add(
-            `${definition.finding}: ${classification.classification}`
-          )
+          missingClassificationSet.add(`${definition.finding}: ${classification.classification}`)
         }
       }
     }
@@ -581,6 +654,12 @@ const sectionCompletionSummary = computed(() => {
   }
 })
 
+const missingRequiredCount = computed(
+  () =>
+    sectionCompletionSummary.value.totalMissingFindings +
+    sectionCompletionSummary.value.totalMissingClassifications
+)
+
 watch(
   [selectedKbModule, selectedTemplateName],
   ([moduleName, templateName], [, previousTemplateName]) => {
@@ -596,7 +675,10 @@ watch(
 
 watch(
   [() => flow.patientExaminationId, () => flow.selectedExaminationId],
-  ([nextPatientExaminationId, nextExaminationId], [previousPatientExaminationId, previousExaminationId]) => {
+  (
+    [nextPatientExaminationId, nextExaminationId],
+    [previousPatientExaminationId, previousExaminationId]
+  ) => {
     if (
       nextPatientExaminationId === previousPatientExaminationId &&
       nextExaminationId === previousExaminationId
@@ -740,10 +822,7 @@ function upsertIndicationOption(
   existing.choices = Array.from(choiceById.values())
 }
 
-function extractOptionsFromPayload(
-  payload: unknown,
-  optionsById: Map<number, IndicationOption>
-) {
+function extractOptionsFromPayload(payload: unknown, optionsById: Map<number, IndicationOption>) {
   if (!payload || typeof payload !== 'object') return
   const data = payload as Record<string, unknown>
   const nestedExamination =
@@ -865,7 +944,9 @@ async function loadIndicationCatalog() {
   if (selectedExaminationId && !optionsById.size) {
     try {
       const listRes = await axiosInstance.get(r(endpoints.router.examinations))
-      const rows = (Array.isArray(listRes.data?.results) ? listRes.data.results : listRes.data) as unknown[]
+      const rows = (
+        Array.isArray(listRes.data?.results) ? listRes.data.results : listRes.data
+      ) as unknown[]
       const selectedRow = Array.isArray(rows)
         ? rows.find(
             (entry) =>
@@ -1012,9 +1093,9 @@ async function refreshTemplatesForExamination() {
   if (!examName) return
   const templates = (await fetchTemplatesByExamination(examName)) || []
   if (templates.length) {
-    templateStatusMessage.value = `${templates.length} Template(s) für "${examName}" geladen.`
+    templateStatusMessage.value = `${templates.length} Vorlage(n) für "${examName}" geladen.`
   } else {
-    templateStatusMessage.value = `Keine Templates für "${examName}" gefunden.`
+    templateStatusMessage.value = `Keine Vorlagen für "${examName}" gefunden.`
   }
 }
 
@@ -1064,7 +1145,7 @@ function buildEditorPayload(): Record<string, unknown> {
 function buildRenderedText(): string {
   const fallbackAnonymizedText = flow.mediaPreload?.latestReport?.anonymizedText?.trim() || ''
   const lines: string[] = []
-  lines.push(`# ${selectedTemplateName.value || 'Unbenanntes Template'}`)
+  lines.push(`# ${selectedTemplateName.value || 'Unbenannte Vorlage'}`)
   let hasStructuredContent = false
   for (const section of sectionBlocks.value) {
     const draft = getSectionDraft(section.name)
@@ -1104,12 +1185,15 @@ async function loadLatestReportMeta() {
     const res = await axiosInstance.get(
       r(endpoints.report.patientExaminationReportsByPatientExamination(flow.patientExaminationId))
     )
-    const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as PatientExaminationReportListItem[]
+    const rows = (
+      Array.isArray(res.data?.results) ? res.data.results : res.data
+    ) as PatientExaminationReportListItem[]
     const items = Array.isArray(rows) ? rows : []
     if (!items.length) {
       flow.setActiveReportId(null)
       currentReportVersion.value = null
-      successMessage.value = 'Kein bestehender Bericht gefunden. Der nächste Save erstellt einen neuen Bericht.'
+      successMessage.value =
+        'Kein bestehender Bericht gefunden. Das nächste Speichern erstellt einen neuen Bericht.'
       return
     }
     const latest = items[0]
@@ -1133,7 +1217,7 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
     return
   }
   if (!selectedTemplateName.value) {
-    errorMessage.value = 'Template-Name ist erforderlich.'
+    errorMessage.value = 'Vorlage ist erforderlich.'
     return
   }
 
@@ -1196,7 +1280,7 @@ onMounted(async () => {
     return
   }
   if (!flow.currentRuntimeDraft) {
-    errorMessage.value = 'Kein Reporting-Entwurf geladen. Bitte zuerst die klinische Dokumentation öffnen.'
+    errorMessage.value = 'Kein Entwurf geladen. Bitte zuerst die klinische Dokumentation öffnen.'
     return
   }
   await Promise.all([ensurePatientsLoaded(), ensureExaminationsLoaded()])
@@ -1207,29 +1291,105 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.report-workspace-card {
-  border: 0;
+.report-workspace-surface {
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(20, 31, 48, 0.06);
+  background: #fff;
 }
 
-.report-workspace-header {
+.report-workspace-body {
+  padding: 1rem;
+}
+
+.report-editor-toolbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid #e9ecef;
+  padding: 1rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
   background: #fff;
+  box-shadow: 0 8px 18px rgba(20, 31, 48, 0.06);
+}
+
+.tracking-label {
+  letter-spacing: 0.08em;
 }
 
 .report-workspace-title {
   min-width: 0;
 }
 
+.report-editor-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.report-editor-facts span {
+  max-width: min(100%, 22rem);
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 999px;
+  color: #334155;
+  background: #f8fafc;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .report-workspace-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: .75rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.report-readiness-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.readiness-item {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.readiness-item.is-primary {
+  color: #fff;
+  background: #172234;
+  border-color: #172234;
+}
+
+.readiness-item.has-warning {
+  color: #842029;
+  background: #f8d7da;
+  border-color: #f5c2c7;
+}
+
+.readiness-item span {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+.readiness-item strong {
+  display: block;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .report-editor-layout {
@@ -1243,6 +1403,36 @@ onMounted(async () => {
   min-width: 0;
 }
 
+.section-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.section-status-row span {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 999px;
+  color: #334155;
+  background: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.section-preview-box {
+  padding: 0.75rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.section-toggle-row {
+  padding: 0.75rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .report-preview-panel {
   position: sticky;
   top: 1rem;
@@ -1252,7 +1442,7 @@ onMounted(async () => {
   border: 1px solid #e3e7ee;
   border-radius: 8px;
   background: #f7f9fc;
-  box-shadow: 0 10px 24px rgba(20, 35, 60, .08);
+  box-shadow: 0 10px 24px rgba(20, 35, 60, 0.08);
   overflow: hidden;
 }
 
@@ -1261,7 +1451,7 @@ onMounted(async () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1rem .75rem;
+  padding: 1rem 1rem 0.75rem;
   background: #fff;
   border-bottom: 1px solid #e9ecef;
 }
@@ -1271,9 +1461,9 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   min-height: 2rem;
-  padding: .35rem .75rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 999px;
-  font-size: .75rem;
+  font-size: 0.75rem;
   font-weight: 700;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -1304,8 +1494,8 @@ onMounted(async () => {
 .report-preview-meta {
   display: grid;
   grid-template-columns: 1fr;
-  gap: .5rem;
-  padding: .875rem 1rem;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
   border-bottom: 1px solid #e9ecef;
 }
 
@@ -1313,7 +1503,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  font-size: .8rem;
+  font-size: 0.8rem;
 }
 
 .report-preview-meta span {
@@ -1341,15 +1531,15 @@ onMounted(async () => {
   white-space: pre-wrap;
   word-break: break-word;
   color: #1f2933;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: .95rem;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.95rem;
   line-height: 1.65;
 }
 
 .report-preview-footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: .75rem;
+  gap: 0.75rem;
   padding: 0 1rem 1rem;
 }
 
@@ -1369,11 +1559,20 @@ onMounted(async () => {
 }
 
 @media (max-width: 575.98px) {
-  .report-workspace-header,
+  .report-editor-toolbar,
   .report-workspace-actions,
   .report-preview-toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .report-readiness-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .report-editor-facts span {
+    max-width: 100%;
+    white-space: normal;
   }
 
   .report-preview-footer {

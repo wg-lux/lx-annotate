@@ -32,7 +32,8 @@ const { moduleName: selectedKbModule, selectedTemplateName, templateOptions, sel
     initialModuleName: flow.selectedKbModule,
     initialTemplateName: flow.selectedTemplateName
 });
-const selectedExamination = computed(() => examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) || null);
+const selectedExamination = computed(() => examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) ||
+    null);
 const selectedExaminationName = computed(() => selectedExamination.value?.name || null);
 const selectedExaminationDisplayName = computed(() => selectedExamination.value?.displayName || selectedExaminationName.value || null);
 const selectedPatient = computed(() => flow.selectedPatientId ? patientStore.getPatientById(flow.selectedPatientId) : null);
@@ -114,7 +115,10 @@ const indicationOptionsForEditor = computed(() => {
         if (!option)
             continue;
         if (!option.choices.some((choice) => choice.id === choiceId)) {
-            option.choices = [{ id: choiceId, label: `Unbekannte Auswahl (#${choiceId})` }, ...option.choices];
+            option.choices = [
+                { id: choiceId, label: `Unbekannte Auswahl (#${choiceId})` },
+                ...option.choices
+            ];
         }
     }
     return Array.from(optionsById.values())
@@ -164,6 +168,8 @@ const sectionCompletionSummary = computed(() => {
         incompleteSections: sections.filter((section) => !section.isComplete)
     };
 });
+const missingRequiredCount = computed(() => sectionCompletionSummary.value.totalMissingFindings +
+    sectionCompletionSummary.value.totalMissingClassifications);
 watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName], [, previousTemplateName]) => {
     flow.setTemplateSelection({
         moduleName,
@@ -532,10 +538,10 @@ async function refreshTemplatesForExamination() {
         return;
     const templates = (await fetchTemplatesByExamination(examName)) || [];
     if (templates.length) {
-        templateStatusMessage.value = `${templates.length} Template(s) für "${examName}" geladen.`;
+        templateStatusMessage.value = `${templates.length} Vorlage(n) für "${examName}" geladen.`;
     }
     else {
-        templateStatusMessage.value = `Keine Templates für "${examName}" gefunden.`;
+        templateStatusMessage.value = `Keine Vorlagen für "${examName}" gefunden.`;
     }
 }
 function onModuleChange(next) {
@@ -581,7 +587,7 @@ function buildEditorPayload() {
 function buildRenderedText() {
     const fallbackAnonymizedText = flow.mediaPreload?.latestReport?.anonymizedText?.trim() || '';
     const lines = [];
-    lines.push(`# ${selectedTemplateName.value || 'Unbenanntes Template'}`);
+    lines.push(`# ${selectedTemplateName.value || 'Unbenannte Vorlage'}`);
     let hasStructuredContent = false;
     for (const section of sectionBlocks.value) {
         const draft = getSectionDraft(section.name);
@@ -627,7 +633,8 @@ async function loadLatestReportMeta() {
         if (!items.length) {
             flow.setActiveReportId(null);
             currentReportVersion.value = null;
-            successMessage.value = 'Kein bestehender Bericht gefunden. Der nächste Save erstellt einen neuen Bericht.';
+            successMessage.value =
+                'Kein bestehender Bericht gefunden. Das nächste Speichern erstellt einen neuen Bericht.';
             return;
         }
         const latest = items[0];
@@ -652,7 +659,7 @@ async function saveReportSubmission(status) {
         return;
     }
     if (!selectedTemplateName.value) {
-        errorMessage.value = 'Template-Name ist erforderlich.';
+        errorMessage.value = 'Vorlage ist erforderlich.';
         return;
     }
     pendingSaveStatus.value = status;
@@ -708,7 +715,7 @@ onMounted(async () => {
         return;
     }
     if (!flow.currentRuntimeDraft) {
-        errorMessage.value = 'Kein Reporting-Entwurf geladen. Bitte zuerst die klinische Dokumentation öffnen.';
+        errorMessage.value = 'Kein Entwurf geladen. Bitte zuerst die klinische Dokumentation öffnen.';
         return;
     }
     await Promise.all([ensurePatientsLoaded(), ensureExaminationsLoaded()]);
@@ -720,6 +727,12 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['report-editor-facts']} */ ;
+/** @type {__VLS_StyleScopedClasses['readiness-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['readiness-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['readiness-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['readiness-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['section-status-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
@@ -731,33 +744,39 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['report-preview-footer']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-editor-layout']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-preview-panel']} */ ;
-/** @type {__VLS_StyleScopedClasses['report-workspace-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-editor-toolbar']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-workspace-actions']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-preview-toolbar']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-readiness-strip']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-editor-facts']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-preview-footer']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "d-flex flex-column gap-3" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card shadow-sm report-workspace-card" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header report-workspace-header" },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
+    ...{ class: "report-editor-toolbar" },
+    'aria-label': "Berichtseditor",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "report-workspace-title" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-uppercase text-muted fw-semibold" },
+    ...{ class: "small text-uppercase text-muted fw-semibold tracking-label" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-    ...{ class: "mb-1" },
+    ...{ class: "mb-2" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-    ...{ class: "text-muted" },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-editor-facts" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+(__VLS_ctx.reportPatientLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+(__VLS_ctx.selectedExaminationDisplayName || 'Untersuchung fehlt');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+(__VLS_ctx.selectedTemplateName || 'Vorlage fehlt');
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "report-workspace-actions" },
 });
@@ -779,8 +798,11 @@ const __VLS_2 = __VLS_1({
 }, ...__VLS_functionalComponentArgsRest(__VLS_1));
 __VLS_3.slots.default;
 var __VLS_3;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
+    ...{ class: "report-workspace-surface" },
+});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body" },
+    ...{ class: "report-workspace-body" },
 });
 if (__VLS_ctx.errorMessage) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -794,6 +816,31 @@ if (__VLS_ctx.successMessage) {
     });
     (__VLS_ctx.successMessage);
 }
+if (__VLS_ctx.sectionCompletionSummary.totalSections) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "report-readiness-strip mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "readiness-item is-primary" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.sectionCompletionSummary.completedSections);
+    (__VLS_ctx.sectionCompletionSummary.totalSections);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "readiness-item" },
+        ...{ class: ({ 'has-warning': __VLS_ctx.missingRequiredCount > 0 }) },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.missingRequiredCount);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "readiness-item" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.reportWordCount);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "report-editor-layout" },
 });
@@ -803,8 +850,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 /** @type {[typeof MedicalBlock, typeof MedicalBlock, ]} */ ;
 // @ts-ignore
 const __VLS_4 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
-    title: "Template-Kontext",
-    subtitle: "Templates per Untersuchung laden und für den Bericht aktivieren",
+    title: "Vorlage",
+    subtitle: (__VLS_ctx.selectedExaminationDisplayName || 'Untersuchung fehlt'),
     icon: "ni ni-single-copy-04",
     iconBgClass: "bg-gradient-primary",
     isComplete: (!!__VLS_ctx.selectedTemplateName),
@@ -813,8 +860,8 @@ const __VLS_4 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
     loading: (__VLS_ctx.loading || __VLS_ctx.templateLoading),
 }));
 const __VLS_5 = __VLS_4({
-    title: "Template-Kontext",
-    subtitle: "Templates per Untersuchung laden und für den Bericht aktivieren",
+    title: "Vorlage",
+    subtitle: (__VLS_ctx.selectedExaminationDisplayName || 'Untersuchung fehlt'),
     icon: "ni ni-single-copy-04",
     iconBgClass: "bg-gradient-primary",
     isComplete: (!!__VLS_ctx.selectedTemplateName),
@@ -871,7 +918,7 @@ __VLS_6.slots.default;
         value: "",
         disabled: true,
     });
-    (__VLS_ctx.templateLoading ? 'Templates laden...' : 'Template wählen');
+    (__VLS_ctx.templateLoading ? 'Vorlagen laden...' : 'Vorlage wählen');
     for (const [template] of __VLS_getVForSourceType((__VLS_ctx.templateOptions))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             key: (template.name),
@@ -945,10 +992,13 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
     {
         const { default: __VLS_thisSlot } = __VLS_9.slots;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "small text-muted mb-2" },
+            ...{ class: "section-status-row mb-3" },
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (section.findings.length);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (section.requiredFindingsCount);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (section.requiredClassificationsCount);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mb-3" },
@@ -958,7 +1008,7 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
         });
         if (__VLS_ctx.getSectionPreview(section.name).findingSummaries.length) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "border rounded bg-light p-2 small" },
+                ...{ class: "section-preview-box small" },
             });
             for (const [summary] of __VLS_getVForSourceType((__VLS_ctx.getSectionPreview(section.name).findingSummaries))) {
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -974,7 +1024,7 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
             });
         }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex flex-wrap gap-3 mb-3" },
+            ...{ class: "d-flex flex-wrap gap-3 mb-3 section-toggle-row" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "form-check" },
@@ -1015,6 +1065,7 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
                 } },
             ...{ class: "form-control" },
             rows: "4",
+            placeholder: "Text für diesen Abschnitt",
             disabled: (__VLS_ctx.loading),
             value: (__VLS_ctx.getSectionDraft(section.name).note),
         });
@@ -1034,7 +1085,6 @@ const __VLS_10 = __VLS_asFunctionalComponent(IndicationsEditor, new IndicationsE
     disabled: (__VLS_ctx.loading),
     optionsLoading: (__VLS_ctx.indicationOptionsLoading),
     optionsError: (__VLS_ctx.indicationOptionsError),
-    description: "Dieser Status wird direkt auf &lt;code&gt;save-submission.indications&lt;/code&gt; gemappt. Leere Liste &lt;code&gt;[]&lt;/code&gt; löscht bestehende Indikationen auf dem Backend.",
 }));
 const __VLS_11 = __VLS_10({
     ...{ 'onUpdateRow': {} },
@@ -1047,7 +1097,6 @@ const __VLS_11 = __VLS_10({
     disabled: (__VLS_ctx.loading),
     optionsLoading: (__VLS_ctx.indicationOptionsLoading),
     optionsError: (__VLS_ctx.indicationOptionsError),
-    description: "Dieser Status wird direkt auf &lt;code&gt;save-submission.indications&lt;/code&gt; gemappt. Leere Liste &lt;code&gt;[]&lt;/code&gt; löscht bestehende Indikationen auf dem Backend.",
 }, ...__VLS_functionalComponentArgsRest(__VLS_10));
 let __VLS_13;
 let __VLS_14;
@@ -1118,12 +1167,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-uppercase text-muted fw-semibold" },
+    ...{ class: "small text-uppercase text-muted fw-semibold tracking-label" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
     ...{ class: "mb-0" },
 });
-(__VLS_ctx.selectedTemplateName || 'Unbenanntes Template');
+(__VLS_ctx.selectedTemplateName || 'Unbenannte Vorlage');
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "report-status-pill compact" },
     ...{ class: (__VLS_ctx.canSave ? 'is-draft' : 'is-muted') },
@@ -1265,7 +1314,12 @@ if (__VLS_ctx.isDebug) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "small text-muted" },
     });
-    (__VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'session_storage' || __VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : __VLS_ctx.currentRuntimeDraft ? 'initialisiert' : 'leer');
+    (__VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'session_storage' ||
+        __VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'draft_api'
+        ? 'wiederhergestellt'
+        : __VLS_ctx.currentRuntimeDraft
+            ? 'initialisiert'
+            : 'leer');
     (__VLS_ctx.flow.draftPersistenceStatus);
     if (__VLS_ctx.flow.lastPersistedDraftAt) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -1305,30 +1359,35 @@ if (__VLS_ctx.isDebug) {
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['report-workspace-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['report-workspace-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-editor-toolbar']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-workspace-title']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-uppercase']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['tracking-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-editor-facts']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-workspace-actions']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-workspace-surface']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-workspace-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-readiness-strip']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['readiness-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['readiness-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['has-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['readiness-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-editor-layout']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-editor-main']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -1366,17 +1425,13 @@ if (__VLS_ctx.isDebug) {
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['section-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['border']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['section-preview-box']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
@@ -1385,6 +1440,7 @@ if (__VLS_ctx.isDebug) {
 /** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['section-toggle-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
@@ -1413,6 +1469,7 @@ if (__VLS_ctx.isDebug) {
 /** @type {__VLS_StyleScopedClasses['text-uppercase']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['tracking-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['compact']} */ ;
@@ -1529,6 +1586,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             sectionDraftPreview: sectionDraftPreview,
             runtimeFindingsPreview: runtimeFindingsPreview,
             sectionCompletionSummary: sectionCompletionSummary,
+            missingRequiredCount: missingRequiredCount,
             loadIndicationCatalog: loadIndicationCatalog,
             getSectionDraft: getSectionDraft,
             onSectionDraftNote: onSectionDraftNote,
