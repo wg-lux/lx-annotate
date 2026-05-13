@@ -6,7 +6,8 @@ import FrameAnnotation from '../FrameAnnotation.vue'
 const hoisted = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
-  queueStore: null as any
+  queueStore: null as any,
+  fetchAiDatasetOptions: vi.fn()
 }))
 
 vi.mock('uuid', () => ({
@@ -25,6 +26,10 @@ vi.mock('@/stores/annotationQueue', () => ({
   useAnnotationQueueStore: () => hoisted.queueStore
 }))
 
+vi.mock('@/api/aiDatasetApi', () => ({
+  fetchAiDatasetOptions: hoisted.fetchAiDatasetOptions
+}))
+
 vi.mock('@/stores/auth_kc', () => ({
   useAuthKcStore: () => ({
     user: {
@@ -41,6 +46,8 @@ interface BaseStore {
   filterLabelName: string | null;
   allowRandomFallback: boolean;
   informationSource: string;
+  aiDatasetName?: string | null;
+  aiDatasetType?: string | null;
   annotatorPrincipal: string | null;
   taskQueue: any[];
   taskQuerySignature: string;
@@ -51,6 +58,7 @@ interface BaseStore {
   setFilterLabelName: any;
   setAllowRandomFallback: any;
   setInformationSource: any;
+  setAiDataset?: any;
   setAnnotatorPrincipal: any;
   clearQueue: any;
   fetchBatch: any;
@@ -68,6 +76,8 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     filterLabelName: null,
     allowRandomFallback: true,
     informationSource: 'frame_annotation_frontend',
+    aiDatasetName: null,
+    aiDatasetType: null,
     annotatorPrincipal: null,
     taskQueue: [] as any[],
     taskQuerySignature: 'random|Polyp||frame_annotation_frontend|1',
@@ -78,6 +88,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     setFilterLabelName: vi.fn(),
     setAllowRandomFallback: vi.fn(),
     setInformationSource: vi.fn(),
+    setAiDataset: vi.fn(),
     setAnnotatorPrincipal: vi.fn(),
     clearQueue: vi.fn(),
     fetchBatch: vi.fn().mockResolvedValue(undefined),
@@ -104,21 +115,70 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
   return { ...baseStore, ...overrides }
 }
 
+function installGetMock(options: { streamStatus?: number; streamBody?: Blob; streamContentType?: string } = {}) {
+  const {
+    streamStatus = 200,
+    streamBody = new Blob(['frame'], { type: options.streamContentType ?? 'image/jpeg' }),
+    streamContentType = 'image/jpeg'
+  } = options
+
+  hoisted.get.mockImplementation((url: string) => {
+    if (url === 'media/videos/label-sets/list/') {
+      return Promise.resolve({
+        data: {
+          results: [{ id: 3, name: 'Upper GI' }]
+        }
+      })
+    }
+    if (url === 'media/annotations/frames/boxes/') {
+      return Promise.resolve({ data: { results: [] } })
+    }
+    if (url.startsWith('/media/frame-')) {
+      return Promise.resolve({
+        status: streamStatus,
+        data: streamBody,
+        headers: { 'content-type': streamContentType }
+      })
+    }
+    return Promise.resolve({ data: { results: [] } })
+  })
+}
+
+function mountFrameAnnotation() {
+  return mount(FrameAnnotation, {
+    global: {
+      stubs: {
+        RouterLink: {
+          props: ['to'],
+          template: '<a><slot /></a>'
+        }
+      }
+    }
+  })
+}
+
 describe('FrameAnnotation usability audit', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
     hoisted.queueStore = buildQueueStore()
-    hoisted.get.mockResolvedValue({
-      data: {
-        results: [{ id: 3, name: 'Upper GI' }]
+    hoisted.fetchAiDatasetOptions.mockResolvedValue([
+      {
+        id: 7,
+        value: 'Dataset A',
+        label: 'Dataset A',
+        datasetType: 'image',
+        aiModelType: 'image_multilabel_classification',
+        isActive: true,
+        nameCount: 1
       }
-    })
+    ])
+    installGetMock()
     hoisted.post.mockResolvedValue({ data: { ok: true } })
   })
 
   it('zeigt zentrale UI-Texte und Primäraktionen auf Deutsch', async () => {
-    const wrapper = mount(FrameAnnotation)
+    const wrapper = mountFrameAnnotation()
     await flushPromises()
 
     const text = wrapper.text()
@@ -129,12 +189,29 @@ describe('FrameAnnotation usability audit', () => {
     expect(text).toContain('Nicht im Datensatz aufnehmen')
   })
 
+  it('zeigt waehrend des Bildladens einen sichtbaren Status an', async () => {
+    installGetMock({
+      streamStatus: 202,
+      streamBody: new Blob([JSON.stringify({ status: 'frame_extraction_pending' })], {
+        type: 'application/json'
+      }),
+      streamContentType: 'application/json'
+    })
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain(
+      'Frame wird extrahiert'
+    )
+  })
+
   it('zeigt eine verständliche Fehlermeldung, wenn das Ziel-Label im Task fehlt', async () => {
     hoisted.queueStore = buildQueueStore({
       targetLabelName: 'NichtVorhanden'
     })
 
-    const wrapper = mount(FrameAnnotation)
+    const wrapper = mountFrameAnnotation()
     await flushPromises()
 
     await wrapper.get('[data-test="positive-example-button"]').trigger('click')
@@ -161,7 +238,7 @@ describe('FrameAnnotation usability audit', () => {
         lastError: null
       })
 
-      const wrapper = mount(FrameAnnotation)
+      const wrapper = mountFrameAnnotation()
       await flushPromises()
 
       expect(wrapper.text()).toContain('Backend nicht erreichbar')

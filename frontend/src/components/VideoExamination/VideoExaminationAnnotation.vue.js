@@ -266,8 +266,8 @@ const loadSensitiveMetaForVideos = async (videoIds) => {
     const nextMap = { ...videoSensitiveMetaMap.value };
     results.forEach(({ id, data }) => {
         nextMap[id] = {
-            patient_dob: data?.patient_dob ?? null,
-            patient_gender_name: data?.patient_gender_name ?? null
+            patient_dob: data?.patientDob ?? data?.patient_dob ?? null,
+            patient_gender_name: data?.patientGenderName ?? data?.patient_gender_name ?? null
         };
     });
     videoSensitiveMetaMap.value = nextMap;

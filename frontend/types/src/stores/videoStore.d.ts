@@ -55,15 +55,26 @@ export interface TimeSegments {
 export interface BackendSegment {
     id: number;
     videoFile?: number;
+    video_file?: number;
     videoName?: string;
+    video_name?: string;
     videoId?: number;
+    video_id?: number;
     label?: number | null;
     labelName?: string | null;
+    label_name?: string | null;
     labelId?: number | null;
-    startFrameNumber: number;
-    endFrameNumber: number;
-    startTime: number;
-    endTime: number;
+    label_id?: number | null;
+    labelDisplay?: string | null;
+    label_display?: string | null;
+    startFrameNumber?: number;
+    start_frame_number?: number;
+    endFrameNumber?: number;
+    end_frame_number?: number;
+    startTime?: number;
+    start_time?: number;
+    endTime?: number;
+    end_time?: number;
     exportSegment?: boolean;
     export_segment?: boolean;
     sourceName?: string | null;
@@ -72,10 +83,10 @@ export interface BackendSegment {
     segment_origin?: 'manual' | 'prediction';
     predictionMetaId?: number | null;
     prediction_meta_id?: number | null;
-    labelDisplay?: string;
     framePredictions?: BackendFramePrediction[];
     manualFrameAnnotations?: any[];
     timeSegments?: TimeSegments | null;
+    time_segments?: TimeSegments | null;
 }
 /**
  * Frontend segment format (unified camelCase)

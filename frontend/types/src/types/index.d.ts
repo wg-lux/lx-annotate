@@ -24,16 +24,6 @@ export interface Video {
     createdAt: Date;
     updatedAt: Date;
 }
-export interface VideoSegment {
-    id: number;
-    video: number;
-    start_time: number;
-    end_time: number;
-    label?: string;
-    confidence?: number;
-    created_at: string;
-    updated_at: string;
-}
 export interface Segment {
     id: string | number;
     label: string;

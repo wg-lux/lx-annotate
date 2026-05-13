@@ -6,12 +6,59 @@
         <p class="text-sm text-muted mb-3">
           Einfache Frame-basierte Annotation für zufällige oder gefilterte Aufgaben.
         </p>
+        <div
+          v-if="isPhiRegionMode"
+          class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 py-2"
+          role="alert"
+          data-test="phi-region-mode-alert"
+        >
+          <span>
+            <strong>Patienteninformationen-Region-Modus:</strong>
+            {{ PHI_REGION_LABEL_NAME }} / {{ ANONYMIZER_INFORMATION_SOURCE }}
+          </span>
+          <RouterLink
+            v-if="phiRegionReturnRoute"
+            class="btn btn-outline-secondary btn-sm mb-0"
+            :to="phiRegionReturnRoute"
+          >
+            Zur Validierung
+          </RouterLink>
+        </div>
         <p
           v-if="queueStore.aiDatasetName && queueStore.aiDatasetType"
           class="text-sm text-primary mb-0"
         >
           Aktive KI-Datensatz-Warteschlange: {{ queueStore.aiDatasetName }} ({{ queueStore.aiDatasetType }})
         </p>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4">
+        <label for="ai-dataset-id" class="form-label">Datensatz</label>
+        <select
+          id="ai-dataset-id"
+          v-model="selectedAiDatasetId"
+          class="form-select"
+          data-test="frame-ai-dataset-select"
+          :disabled="isLoadingAiDatasets || isSubmitting"
+        >
+          <option :value="NO_DATASET_OPTION">Kein Datensatzfilter</option>
+          <option
+            v-for="datasetOption in aiDatasetOptions"
+            :key="datasetOption.id"
+            :value="String(datasetOption.id)"
+          >
+            {{ datasetOption.label }} · {{ datasetOption.datasetType }} · ID {{ datasetOption.id }}
+          </option>
+        </select>
+        <small v-if="isPatienteninformationenDatasetSelected" class="text-warning d-block mt-1">
+          Patienteninformationen-Datensätze verwenden nur Frames aus Videos mit vorhandenem Rohmaterial. Bereits zugeschnittene
+          oder nur noch anonymisiert vorliegende Videos werden ausgeschlossen.
+        </small>
+        <small v-else class="text-muted d-block mt-1">
+          Steuert, aus welchem KI-Datensatz die Frame-Warteschlange gezogen wird.
+        </small>
+        <small v-if="aiDatasetLoadError" class="text-danger d-block mt-1">
+          {{ aiDatasetLoadError }}
+        </small>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
         <label for="label-group-id" class="form-label">Label-Gruppe</label>
@@ -188,12 +235,20 @@
               >
                 <img
                   ref="frameImageElement"
-                  :src="currentTask.data.imageUrl"
+                  :src="frameImageRequestUrl"
                   class="img-fluid rounded frame-image"
                   alt="Zu annotierender Frame"
                   draggable="false"
-                  @load="syncFrameImageMetrics"
+                  @load="handleFrameImageLoad"
+                  @error="handleFrameImageError"
                 />
+                <div
+                  v-if="showFrameImageStatus"
+                  class="frame-image-status"
+                  data-test="frame-image-status"
+                >
+                  {{ frameImageStatusMessage }}
+                </div>
                 <div class="box-annotation-layer" aria-hidden="true">
                   <div
                     v-for="box in boxAnnotations"
@@ -283,12 +338,31 @@
                     </button>
                     <button
                       type="button"
+                      class="btn btn-outline-primary btn-sm mb-0"
+                      :disabled="isSavingBoxAnnotations"
+                      data-test="phi-region-mode-button"
+                      @click="usePhiRegionAnnotationPreset"
+                    >
+                      Patienteninformationen-Region
+                    </button>
+                    <button
+                      type="button"
                       class="btn btn-outline-success btn-sm mb-0"
                       :disabled="isSavingBoxAnnotations || !currentTask"
                       data-test="box-save-button"
                       @click="submitBoxAnnotations"
                     >
                       Boxen speichern
+                    </button>
+                    <button
+                      v-if="isPhiRegionMode"
+                      type="button"
+                      class="btn btn-outline-warning btn-sm mb-0"
+                      :disabled="isSavingBoxAnnotations || !currentTask"
+                      data-test="phi-empty-background-button"
+                      @click="submitEmptyPhiBackgroundFrame"
+                    >
+                      Hintergrundframe speichern
                     </button>
                     <button
                       type="button"
@@ -309,7 +383,7 @@
                       v-model.number="selectedBoxLabelId"
                       class="form-select"
                       data-test="box-label-select"
-                      :disabled="annotationLabelOptions.length === 0"
+                      :disabled="annotationLabelOptions.length === 0 || isPhiRegionMode"
                     >
                       <option :value="null">Label auswählen</option>
                       <option
@@ -320,6 +394,12 @@
                         {{ label.name }}
                       </option>
                     </select>
+                    <small v-if="isPhiRegionMode && phiRegionBoxLabel" class="text-muted d-block mt-1">
+                      Boxen werden als {{ phiRegionBoxLabel.name }} gespeichert.
+                    </small>
+                    <small v-else-if="isPhiRegionBoxLabelMissing" class="text-danger d-block mt-1">
+                      Label {{ PHI_REGION_LABEL_NAME }} fehlt in dieser Label-Gruppe.
+                    </small>
                   </div>
                   <div class="col-12 col-md-6">
                     <div class="d-flex flex-wrap gap-2">
@@ -370,7 +450,7 @@
                       data-test="anonymizer-sensitive-present-button"
                       @click="markSensitiveAnonymizerLabels(true)"
                     >
-                      PHI sichtbar
+                      Patienteninformationen sichtbar
                     </button>
                     <button
                       type="button"
@@ -379,7 +459,7 @@
                       data-test="anonymizer-sensitive-absent-button"
                       @click="markSensitiveAnonymizerLabels(false)"
                     >
-                      PHI nicht sichtbar
+                      Patienteninformationen nicht sichtbar
                     </button>
                     <button
                       type="button"
@@ -488,9 +568,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { v7 as uuidv7 } from 'uuid'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import { endpoints } from '@/types/api/endpoints'
 import { useAnnotationQueueStore } from '@/stores/annotationQueue'
 import { useAuthKcStore } from '@/stores/auth_kc'
@@ -547,7 +628,31 @@ interface ImagePoint {
   imageHeight: number
 }
 
+type FrameImageLoadState = 'idle' | 'probing' | 'loading' | 'pending' | 'loaded' | 'failed'
+
 const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation'
+const PHI_REGION_MODE_QUERY_VALUE = 'phi_region'
+const PHI_REGION_LABEL_NAME = 'sensitive_region'
+const PHI_REGION_DATASET_MODEL_TYPE = 'phi_region_detector'
+const NO_DATASET_OPTION = '__none__'
+const FRAME_IMAGE_RETRY_LIMIT = 3
+const FRAME_IMAGE_RETRY_DELAY_MS = 1200
+const PHI_REGION_LABEL_ALIASES = [
+  PHI_REGION_LABEL_NAME,
+  'phi',
+  'phi_region',
+  'protected_health_information',
+  'protected health information',
+  'patient_data_region',
+  'patient data region',
+  'anonymization_region',
+  'anonymization region',
+  'sensitive_ui_region',
+  'sensitive ui region',
+  'patienten_daten',
+  'patientendaten',
+  'sensible_region'
+]
 const ANONYMIZER_FIELD_DEFINITIONS: AnonymizerFieldDefinition[] = [
   {
     key: 'endoscope_image',
@@ -614,10 +719,16 @@ const errorMessage = ref<string | null>(null)
 const isLoadingLabelGroups = ref(false)
 const labelGroupLoadError = ref<string | null>(null)
 const labelGroupOptions = ref<LabelGroupOption[]>([])
+const aiDatasetOptions = ref<AiDatasetOption[]>([])
+const isLoadingAiDatasets = ref(false)
+const aiDatasetLoadError = ref<string | null>(null)
 const annotatorOverride = ref<string | null>(null)
 const annotatorOverrideInput = ref('')
 const frameImageElement = ref<HTMLImageElement | null>(null)
 const frameStageElement = ref<HTMLElement | null>(null)
+const frameImageRequestUrl = ref('')
+const frameImageLoadState = ref<FrameImageLoadState>('idle')
+const frameImageRetryCount = ref(0)
 const selectedBoxLabelId = ref<number | null>(null)
 const boxAnnotations = ref<FrameBoxAnnotationDraft[]>([])
 const draftBox = ref<FrameBoxAnnotationDraft | null>(null)
@@ -625,7 +736,10 @@ const activeBoxClientId = ref<string | null>(null)
 const isLoadingBoxAnnotations = ref(false)
 const isSavingBoxAnnotations = ref(false)
 const boxAnnotationError = ref<string | null>(null)
+const initialRouteQuery = new URLSearchParams(window.location.search)
 let boxDraftStart: ImagePoint | null = null
+let frameImageRetryTimer: ReturnType<typeof setTimeout> | null = null
+let frameImageProbeGeneration = 0
 let isReloadingAnnotationQueue = false
 let isBootstrappingAnnotationQueue = true
 
@@ -654,6 +768,25 @@ const allowRandomFallback = computed({
   set: (value: boolean) => queueStore.setAllowRandomFallback(value)
 })
 
+const selectedAiDatasetId = computed({
+  get: () => {
+    const match = aiDatasetOptions.value.find(
+      (dataset) =>
+        dataset.label === queueStore.aiDatasetName &&
+        dataset.datasetType === queueStore.aiDatasetType
+    )
+    return match ? String(match.id) : NO_DATASET_OPTION
+  },
+  set: (value: string) => {
+    if (value === NO_DATASET_OPTION) {
+      queueStore.setAiDataset(null, null)
+      return
+    }
+    const selected = aiDatasetOptions.value.find((dataset) => String(dataset.id) === value)
+    queueStore.setAiDataset(selected?.label ?? null, selected?.datasetType ?? null)
+  }
+})
+
 const informationSource = computed({
   get: () => queueStore.informationSource,
   set: (value: string) => queueStore.setInformationSource(value)
@@ -663,6 +796,47 @@ const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptio
 const selectedBoxLabel = computed(
   () => annotationLabelOptions.value.find((label) => label.id === selectedBoxLabelId.value) ?? null
 )
+const routePhiRegionMode = computed(() => {
+  const mode = normalizeAnonymizerLabelName(initialRouteQuery.get('mode') ?? '')
+  const targetLabel = normalizeAnonymizerLabelName(initialRouteQuery.get('targetLabel') ?? '')
+  return mode === PHI_REGION_MODE_QUERY_VALUE || targetLabel === PHI_REGION_LABEL_NAME
+})
+const isPhiRegionMode = computed(
+  () =>
+    routePhiRegionMode.value ||
+    normalizeAnonymizerLabelName(targetLabelName.value) === PHI_REGION_LABEL_NAME
+)
+const phiRegionReturnRoute = computed(() => initialRouteQuery.get('returnTo')?.trim() || '')
+const phiRegionBoxLabel = computed(() => findLabelByAliases(PHI_REGION_LABEL_ALIASES))
+const isPhiRegionBoxLabelMissing = computed(
+  () =>
+    isPhiRegionMode.value &&
+    annotationLabelOptions.value.length > 0 &&
+    phiRegionBoxLabel.value === null
+)
+const selectedAiDataset = computed(() =>
+  aiDatasetOptions.value.find(
+    (dataset) =>
+      dataset.label === queueStore.aiDatasetName &&
+      dataset.datasetType === queueStore.aiDatasetType
+  ) ?? null
+)
+const isPhiDatasetSelected = computed(
+  () => selectedAiDataset.value?.aiModelType === PHI_REGION_DATASET_MODEL_TYPE
+)
+const isPatienteninformationenDatasetSelected = computed(() => isPhiDatasetSelected.value)
+const showFrameImageStatus = computed(
+  () => !!currentTask.value && frameImageLoadState.value !== 'loaded'
+)
+const frameImageStatusMessage = computed(() => {
+  if (frameImageLoadState.value === 'pending') {
+    return `Frame wird extrahiert... neuer Versuch ${frameImageRetryCount.value}/${FRAME_IMAGE_RETRY_LIMIT}`
+  }
+  if (frameImageLoadState.value === 'failed') {
+    return 'Frame konnte nicht geladen werden. Bitte Aufgabe neu laden oder spaeter erneut versuchen.'
+  }
+  return 'Frame wird bereitgestellt...'
+})
 const visibleErrorMessage = computed(() => errorMessage.value || queueStore.lastError)
 const baseAnnotatorPrincipal = computed(() =>
   getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
@@ -765,14 +939,20 @@ function normalizeAnonymizerLabelName(value: string): string {
   return value.trim().toLowerCase().replace(/[\s-]+/g, '_')
 }
 
-function findAnonymizerLabelForDefinition(
-  definition: AnonymizerFieldDefinition
-): { id: number; name: string } | null {
-  for (const alias of definition.aliases) {
-    const label = labelOptionByNormalizedName.value.get(normalizeAnonymizerLabelName(alias))
+function findLabelByAliases(aliases: string[]): { id: number; name: string } | null {
+  for (const alias of aliases) {
+    const normalizedAlias = normalizeAnonymizerLabelName(alias)
+    if (!normalizedAlias) continue
+    const label = labelOptionByNormalizedName.value.get(normalizedAlias)
     if (label) return label
   }
   return null
+}
+
+function findAnonymizerLabelForDefinition(
+  definition: AnonymizerFieldDefinition
+): { id: number; name: string } | null {
+  return findLabelByAliases(definition.aliases)
 }
 
 function getCheckboxChecked(event: Event): boolean {
@@ -827,7 +1007,36 @@ function useAnonymizerInformationSource(): void {
   informationSource.value = ANONYMIZER_INFORMATION_SOURCE
 }
 
+function usePhiRegionAnnotationPreset(): void {
+  taskMode.value = 'random'
+  targetLabelName.value = PHI_REGION_LABEL_NAME
+  informationSource.value = ANONYMIZER_INFORMATION_SOURCE
+  ensureSelectedBoxLabel()
+}
+
+function applyRoutePreset(): void {
+  if (!routePhiRegionMode.value) return
+
+  const queryTaskMode = initialRouteQuery.get('taskMode')
+  const queryTargetLabel = initialRouteQuery.get('targetLabel')?.trim()
+  const queryInformationSource = initialRouteQuery.get('informationSource')?.trim()
+  const queryLabelGroupId = initialRouteQuery.get('labelGroupId')?.trim()
+
+  taskMode.value = queryTaskMode === 'filtered' ? 'filtered' : 'random'
+  targetLabelName.value = queryTargetLabel || PHI_REGION_LABEL_NAME
+  informationSource.value = queryInformationSource || ANONYMIZER_INFORMATION_SOURCE
+
+  if (queryLabelGroupId) {
+    selectedLabelGroupId.value = queryLabelGroupId
+  }
+}
+
 function ensureSelectedBoxLabel(): void {
+  if (isPhiRegionMode.value) {
+    selectedBoxLabelId.value = phiRegionBoxLabel.value?.id ?? null
+    return
+  }
+
   if (
     selectedBoxLabelId.value !== null &&
     annotationLabelOptions.value.some((label) => label.id === selectedBoxLabelId.value)
@@ -846,9 +1055,124 @@ function resetBoxAnnotationState(): void {
   ensureSelectedBoxLabel()
 }
 
+function clearFrameImageRetryTimer(): void {
+  if (frameImageRetryTimer !== null) {
+    clearTimeout(frameImageRetryTimer)
+    frameImageRetryTimer = null
+  }
+}
+
+function withCacheBuster(url: string): string {
+  if (!url) return ''
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}cb=${Date.now()}`
+}
+
+function resetFrameImageState(task: typeof currentTask.value): void {
+  clearFrameImageRetryTimer()
+  frameImageProbeGeneration += 1
+  frameImageRetryCount.value = 0
+  if (!task) {
+    frameImageRequestUrl.value = ''
+    frameImageLoadState.value = 'idle'
+    return
+  }
+  frameImageRequestUrl.value = ''
+  frameImageLoadState.value = 'probing'
+}
+
 function syncFrameImageMetrics(): void {
   if (!frameImageElement.value) return
   cancelBoxDraft()
+}
+
+function handleFrameImageLoad(): void {
+  clearFrameImageRetryTimer()
+  frameImageLoadState.value = 'loaded'
+  syncFrameImageMetrics()
+}
+
+function scheduleFrameImageRetry(task: NonNullable<typeof currentTask.value>): void {
+  clearFrameImageRetryTimer()
+  frameImageRetryTimer = setTimeout(() => {
+    void probeFrameImage(task)
+  }, FRAME_IMAGE_RETRY_DELAY_MS)
+}
+
+function handleFrameImageError(): void {
+  if (!currentTask.value) {
+    frameImageLoadState.value = 'failed'
+    return
+  }
+  if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+    clearFrameImageRetryTimer()
+    frameImageLoadState.value = 'failed'
+    return
+  }
+  frameImageRetryCount.value += 1
+  frameImageLoadState.value = 'pending'
+  frameImageRequestUrl.value = ''
+  scheduleFrameImageRetry(currentTask.value)
+}
+
+function readBlobText(blob: Blob): Promise<string> {
+  if (typeof blob.text === 'function') {
+    return blob.text()
+  }
+  return Promise.resolve('')
+}
+
+async function extractPendingMessage(blob: Blob): Promise<string | null> {
+  try {
+    const text = await readBlobText(blob)
+    if (!text) return null
+    const payload = JSON.parse(text) as Record<string, unknown>
+    const status = typeof payload.status === 'string' ? payload.status : null
+    if (status === 'frame_extraction_failed') {
+      return 'Frame konnte nicht extrahiert werden. Bitte spaeter erneut versuchen.'
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Promise<void> {
+  const probeGeneration = ++frameImageProbeGeneration
+  frameImageLoadState.value = frameImageRetryCount.value > 0 ? 'pending' : 'probing'
+  try {
+    const response = await axiosInstance.get(task.data.imageUrl, {
+      responseType: 'blob',
+      validateStatus: () => true
+    })
+    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
+
+    const contentType = String(response.headers?.['content-type'] ?? '').toLowerCase()
+    if (response.status === 200 && contentType.startsWith('image/')) {
+      frameImageRequestUrl.value = withCacheBuster(task.data.imageUrl)
+      frameImageLoadState.value = 'loading'
+      return
+    }
+    if (response.status === 202) {
+      if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+        frameImageLoadState.value = 'failed'
+        return
+      }
+      frameImageRetryCount.value += 1
+      frameImageLoadState.value = 'pending'
+      scheduleFrameImageRetry(task)
+      return
+    }
+    if (response.status === 409) {
+      errorMessage.value = (await extractPendingMessage(response.data)) ?? errorMessage.value
+      frameImageLoadState.value = 'failed'
+      return
+    }
+    frameImageLoadState.value = 'failed'
+  } catch {
+    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
+    frameImageLoadState.value = 'failed'
+  }
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -966,6 +1290,12 @@ function clearBoxAnnotations(): void {
   boxAnnotations.value = []
   activeBoxClientId.value = null
   cancelBoxDraft()
+}
+
+async function submitEmptyPhiBackgroundFrame(): Promise<void> {
+  usePhiRegionAnnotationPreset()
+  clearBoxAnnotations()
+  await submitBoxAnnotations()
 }
 
 function extractBoxAnnotationPayload(payload: unknown): Array<Record<string, unknown>> {
@@ -1276,6 +1606,23 @@ async function loadLabelGroups(): Promise<void> {
   }
 }
 
+async function loadAiDatasets(): Promise<void> {
+  isLoadingAiDatasets.value = true
+  aiDatasetLoadError.value = null
+  try {
+    aiDatasetOptions.value = await fetchAiDatasetOptions()
+  } catch (error: any) {
+    aiDatasetOptions.value = []
+    aiDatasetLoadError.value =
+      error?.response?.data?.detail ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'KI-Datensätze konnten nicht geladen werden.'
+  } finally {
+    isLoadingAiDatasets.value = false
+  }
+}
+
 async function loadNextTask(): Promise<void> {
   isLoadingTask.value = true
   errorMessage.value = null
@@ -1423,9 +1770,13 @@ watch(
 
 watch(
   () => currentTask.value?.id,
-  () => {
+  async () => {
+    resetFrameImageState(currentTask.value)
     syncSelectedLabelsFromTask(currentTask.value)
     ensureSelectedBoxLabel()
+    if (currentTask.value) {
+      await probeFrameImage(currentTask.value)
+    }
   }
 )
 
@@ -1440,11 +1791,17 @@ watch(
 
 onMounted(async () => {
   try {
+    applyRoutePreset()
+    await loadAiDatasets()
     await loadLabelGroups()
     await loadNextTask()
   } finally {
     isBootstrappingAnnotationQueue = false
   }
+})
+
+onUnmounted(() => {
+  clearFrameImageRetryTimer()
 })
 </script>
 
@@ -1480,6 +1837,23 @@ onMounted(async () => {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+.frame-image-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
 }
 
 .box-annotation-layer {

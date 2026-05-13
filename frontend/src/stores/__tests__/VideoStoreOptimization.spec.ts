@@ -103,6 +103,37 @@ describe('VideoStore Performance Optimization', () => {
     expect(segment.predictionMetaId).toBe(44)
   })
 
+  it('normalizes raw snake_case video segment payloads', () => {
+    const segment = backendSegmentToSegment({
+      id: 701,
+      video_id: 101,
+      label_id: 2,
+      label_name: 'blood',
+      start_time: 1.5,
+      end_time: 3,
+      start_frame_number: 75,
+      end_frame_number: 150,
+      export_segment: true,
+      source_name: 'prediction',
+      prediction_meta_id: 8
+    })
+
+    expect(segment).toMatchObject({
+      id: 701,
+      videoID: 101,
+      labelID: 2,
+      label: 'blood',
+      startTime: 1.5,
+      endTime: 3,
+      startFrameNumber: 75,
+      endFrameNumber: 150,
+      exportSegment: true,
+      sourceName: 'prediction',
+      segmentOrigin: 'prediction',
+      predictionMetaId: 8
+    })
+  })
+
   it('passes source_kind when loading a non-default segment source', async () => {
     const store = useVideoStore()
     const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>

@@ -1,11 +1,34 @@
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { v7 as uuidv7 } from 'uuid';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { fetchAiDatasetOptions } from '@/api/aiDatasetApi';
 import { endpoints } from '@/types/api/endpoints';
 import { useAnnotationQueueStore } from '@/stores/annotationQueue';
 import { useAuthKcStore } from '@/stores/auth_kc';
 import { clearAnnotatorOverride, getAnnotatorPrincipalFromAuthUser, loadAnnotatorOverride, saveAnnotatorOverride } from '@/utils/annotationPrincipal';
 const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation';
+const PHI_REGION_MODE_QUERY_VALUE = 'phi_region';
+const PHI_REGION_LABEL_NAME = 'sensitive_region';
+const PHI_REGION_DATASET_MODEL_TYPE = 'phi_region_detector';
+const NO_DATASET_OPTION = '__none__';
+const FRAME_IMAGE_RETRY_LIMIT = 3;
+const FRAME_IMAGE_RETRY_DELAY_MS = 1200;
+const PHI_REGION_LABEL_ALIASES = [
+    PHI_REGION_LABEL_NAME,
+    'phi',
+    'phi_region',
+    'protected_health_information',
+    'protected health information',
+    'patient_data_region',
+    'patient data region',
+    'anonymization_region',
+    'anonymization region',
+    'sensitive_ui_region',
+    'sensitive ui region',
+    'patienten_daten',
+    'patientendaten',
+    'sensible_region'
+];
 const ANONYMIZER_FIELD_DEFINITIONS = [
     {
         key: 'endoscope_image',
@@ -71,10 +94,16 @@ const errorMessage = ref(null);
 const isLoadingLabelGroups = ref(false);
 const labelGroupLoadError = ref(null);
 const labelGroupOptions = ref([]);
+const aiDatasetOptions = ref([]);
+const isLoadingAiDatasets = ref(false);
+const aiDatasetLoadError = ref(null);
 const annotatorOverride = ref(null);
 const annotatorOverrideInput = ref('');
 const frameImageElement = ref(null);
 const frameStageElement = ref(null);
+const frameImageRequestUrl = ref('');
+const frameImageLoadState = ref('idle');
+const frameImageRetryCount = ref(0);
 const selectedBoxLabelId = ref(null);
 const boxAnnotations = ref([]);
 const draftBox = ref(null);
@@ -82,7 +111,10 @@ const activeBoxClientId = ref(null);
 const isLoadingBoxAnnotations = ref(false);
 const isSavingBoxAnnotations = ref(false);
 const boxAnnotationError = ref(null);
+const initialRouteQuery = new URLSearchParams(window.location.search);
 let boxDraftStart = null;
+let frameImageRetryTimer = null;
+let frameImageProbeGeneration = 0;
 let isReloadingAnnotationQueue = false;
 let isBootstrappingAnnotationQueue = true;
 const selectedLabelGroupId = computed({
@@ -105,12 +137,53 @@ const allowRandomFallback = computed({
     get: () => queueStore.allowRandomFallback,
     set: (value) => queueStore.setAllowRandomFallback(value)
 });
+const selectedAiDatasetId = computed({
+    get: () => {
+        const match = aiDatasetOptions.value.find((dataset) => dataset.label === queueStore.aiDatasetName &&
+            dataset.datasetType === queueStore.aiDatasetType);
+        return match ? String(match.id) : NO_DATASET_OPTION;
+    },
+    set: (value) => {
+        if (value === NO_DATASET_OPTION) {
+            queueStore.setAiDataset(null, null);
+            return;
+        }
+        const selected = aiDatasetOptions.value.find((dataset) => String(dataset.id) === value);
+        queueStore.setAiDataset(selected?.label ?? null, selected?.datasetType ?? null);
+    }
+});
 const informationSource = computed({
     get: () => queueStore.informationSource,
     set: (value) => queueStore.setInformationSource(value)
 });
 const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? []);
 const selectedBoxLabel = computed(() => annotationLabelOptions.value.find((label) => label.id === selectedBoxLabelId.value) ?? null);
+const routePhiRegionMode = computed(() => {
+    const mode = normalizeAnonymizerLabelName(initialRouteQuery.get('mode') ?? '');
+    const targetLabel = normalizeAnonymizerLabelName(initialRouteQuery.get('targetLabel') ?? '');
+    return mode === PHI_REGION_MODE_QUERY_VALUE || targetLabel === PHI_REGION_LABEL_NAME;
+});
+const isPhiRegionMode = computed(() => routePhiRegionMode.value ||
+    normalizeAnonymizerLabelName(targetLabelName.value) === PHI_REGION_LABEL_NAME);
+const phiRegionReturnRoute = computed(() => initialRouteQuery.get('returnTo')?.trim() || '');
+const phiRegionBoxLabel = computed(() => findLabelByAliases(PHI_REGION_LABEL_ALIASES));
+const isPhiRegionBoxLabelMissing = computed(() => isPhiRegionMode.value &&
+    annotationLabelOptions.value.length > 0 &&
+    phiRegionBoxLabel.value === null);
+const selectedAiDataset = computed(() => aiDatasetOptions.value.find((dataset) => dataset.label === queueStore.aiDatasetName &&
+    dataset.datasetType === queueStore.aiDatasetType) ?? null);
+const isPhiDatasetSelected = computed(() => selectedAiDataset.value?.aiModelType === PHI_REGION_DATASET_MODEL_TYPE);
+const isPatienteninformationenDatasetSelected = computed(() => isPhiDatasetSelected.value);
+const showFrameImageStatus = computed(() => !!currentTask.value && frameImageLoadState.value !== 'loaded');
+const frameImageStatusMessage = computed(() => {
+    if (frameImageLoadState.value === 'pending') {
+        return `Frame wird extrahiert... neuer Versuch ${frameImageRetryCount.value}/${FRAME_IMAGE_RETRY_LIMIT}`;
+    }
+    if (frameImageLoadState.value === 'failed') {
+        return 'Frame konnte nicht geladen werden. Bitte Aufgabe neu laden oder spaeter erneut versuchen.';
+    }
+    return 'Frame wird bereitgestellt...';
+});
 const visibleErrorMessage = computed(() => errorMessage.value || queueStore.lastError);
 const baseAnnotatorPrincipal = computed(() => getAnnotatorPrincipalFromAuthUser(authStore.user));
 const annotatorOverrideScope = computed(() => `frame:${queueStore.selectedLabelGroupId ?? 'all'}:${informationSource.value}`);
@@ -177,13 +250,19 @@ function applySuggestedLabels() {
 function normalizeAnonymizerLabelName(value) {
     return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
 }
-function findAnonymizerLabelForDefinition(definition) {
-    for (const alias of definition.aliases) {
-        const label = labelOptionByNormalizedName.value.get(normalizeAnonymizerLabelName(alias));
+function findLabelByAliases(aliases) {
+    for (const alias of aliases) {
+        const normalizedAlias = normalizeAnonymizerLabelName(alias);
+        if (!normalizedAlias)
+            continue;
+        const label = labelOptionByNormalizedName.value.get(normalizedAlias);
         if (label)
             return label;
     }
     return null;
+}
+function findAnonymizerLabelForDefinition(definition) {
+    return findLabelByAliases(definition.aliases);
 }
 function getCheckboxChecked(event) {
     return event.target?.checked ?? false;
@@ -230,7 +309,31 @@ function clearAnonymizerLabels() {
 function useAnonymizerInformationSource() {
     informationSource.value = ANONYMIZER_INFORMATION_SOURCE;
 }
+function usePhiRegionAnnotationPreset() {
+    taskMode.value = 'random';
+    targetLabelName.value = PHI_REGION_LABEL_NAME;
+    informationSource.value = ANONYMIZER_INFORMATION_SOURCE;
+    ensureSelectedBoxLabel();
+}
+function applyRoutePreset() {
+    if (!routePhiRegionMode.value)
+        return;
+    const queryTaskMode = initialRouteQuery.get('taskMode');
+    const queryTargetLabel = initialRouteQuery.get('targetLabel')?.trim();
+    const queryInformationSource = initialRouteQuery.get('informationSource')?.trim();
+    const queryLabelGroupId = initialRouteQuery.get('labelGroupId')?.trim();
+    taskMode.value = queryTaskMode === 'filtered' ? 'filtered' : 'random';
+    targetLabelName.value = queryTargetLabel || PHI_REGION_LABEL_NAME;
+    informationSource.value = queryInformationSource || ANONYMIZER_INFORMATION_SOURCE;
+    if (queryLabelGroupId) {
+        selectedLabelGroupId.value = queryLabelGroupId;
+    }
+}
 function ensureSelectedBoxLabel() {
+    if (isPhiRegionMode.value) {
+        selectedBoxLabelId.value = phiRegionBoxLabel.value?.id ?? null;
+        return;
+    }
     if (selectedBoxLabelId.value !== null &&
         annotationLabelOptions.value.some((label) => label.id === selectedBoxLabelId.value)) {
         return;
@@ -245,10 +348,121 @@ function resetBoxAnnotationState() {
     boxDraftStart = null;
     ensureSelectedBoxLabel();
 }
+function clearFrameImageRetryTimer() {
+    if (frameImageRetryTimer !== null) {
+        clearTimeout(frameImageRetryTimer);
+        frameImageRetryTimer = null;
+    }
+}
+function withCacheBuster(url) {
+    if (!url)
+        return '';
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}cb=${Date.now()}`;
+}
+function resetFrameImageState(task) {
+    clearFrameImageRetryTimer();
+    frameImageProbeGeneration += 1;
+    frameImageRetryCount.value = 0;
+    if (!task) {
+        frameImageRequestUrl.value = '';
+        frameImageLoadState.value = 'idle';
+        return;
+    }
+    frameImageRequestUrl.value = '';
+    frameImageLoadState.value = 'probing';
+}
 function syncFrameImageMetrics() {
     if (!frameImageElement.value)
         return;
     cancelBoxDraft();
+}
+function handleFrameImageLoad() {
+    clearFrameImageRetryTimer();
+    frameImageLoadState.value = 'loaded';
+    syncFrameImageMetrics();
+}
+function scheduleFrameImageRetry(task) {
+    clearFrameImageRetryTimer();
+    frameImageRetryTimer = setTimeout(() => {
+        void probeFrameImage(task);
+    }, FRAME_IMAGE_RETRY_DELAY_MS);
+}
+function handleFrameImageError() {
+    if (!currentTask.value) {
+        frameImageLoadState.value = 'failed';
+        return;
+    }
+    if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+        clearFrameImageRetryTimer();
+        frameImageLoadState.value = 'failed';
+        return;
+    }
+    frameImageRetryCount.value += 1;
+    frameImageLoadState.value = 'pending';
+    frameImageRequestUrl.value = '';
+    scheduleFrameImageRetry(currentTask.value);
+}
+function readBlobText(blob) {
+    if (typeof blob.text === 'function') {
+        return blob.text();
+    }
+    return Promise.resolve('');
+}
+async function extractPendingMessage(blob) {
+    try {
+        const text = await readBlobText(blob);
+        if (!text)
+            return null;
+        const payload = JSON.parse(text);
+        const status = typeof payload.status === 'string' ? payload.status : null;
+        if (status === 'frame_extraction_failed') {
+            return 'Frame konnte nicht extrahiert werden. Bitte spaeter erneut versuchen.';
+        }
+        return null;
+    }
+    catch {
+        return null;
+    }
+}
+async function probeFrameImage(task) {
+    const probeGeneration = ++frameImageProbeGeneration;
+    frameImageLoadState.value = frameImageRetryCount.value > 0 ? 'pending' : 'probing';
+    try {
+        const response = await axiosInstance.get(task.data.imageUrl, {
+            responseType: 'blob',
+            validateStatus: () => true
+        });
+        if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id)
+            return;
+        const contentType = String(response.headers?.['content-type'] ?? '').toLowerCase();
+        if (response.status === 200 && contentType.startsWith('image/')) {
+            frameImageRequestUrl.value = withCacheBuster(task.data.imageUrl);
+            frameImageLoadState.value = 'loading';
+            return;
+        }
+        if (response.status === 202) {
+            if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+                frameImageLoadState.value = 'failed';
+                return;
+            }
+            frameImageRetryCount.value += 1;
+            frameImageLoadState.value = 'pending';
+            scheduleFrameImageRetry(task);
+            return;
+        }
+        if (response.status === 409) {
+            errorMessage.value = (await extractPendingMessage(response.data)) ?? errorMessage.value;
+            frameImageLoadState.value = 'failed';
+            return;
+        }
+        frameImageLoadState.value = 'failed';
+    }
+    catch {
+        if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id)
+            return;
+        frameImageLoadState.value = 'failed';
+    }
 }
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -363,6 +577,11 @@ function clearBoxAnnotations() {
     boxAnnotations.value = [];
     activeBoxClientId.value = null;
     cancelBoxDraft();
+}
+async function submitEmptyPhiBackgroundFrame() {
+    usePhiRegionAnnotationPreset();
+    clearBoxAnnotations();
+    await submitBoxAnnotations();
 }
 function extractBoxAnnotationPayload(payload) {
     if (Array.isArray(payload)) {
@@ -639,6 +858,24 @@ async function loadLabelGroups() {
         isLoadingLabelGroups.value = false;
     }
 }
+async function loadAiDatasets() {
+    isLoadingAiDatasets.value = true;
+    aiDatasetLoadError.value = null;
+    try {
+        aiDatasetOptions.value = await fetchAiDatasetOptions();
+    }
+    catch (error) {
+        aiDatasetOptions.value = [];
+        aiDatasetLoadError.value =
+            error?.response?.data?.detail ||
+                error?.response?.data?.error ||
+                error?.message ||
+                'KI-Datensätze konnten nicht geladen werden.';
+    }
+    finally {
+        isLoadingAiDatasets.value = false;
+    }
+}
 async function loadNextTask() {
     isLoadingTask.value = true;
     errorMessage.value = null;
@@ -772,9 +1009,13 @@ watch([baseAnnotatorPrincipal, annotatorOverrideScope], () => {
     syncAnnotatorOverrideFromStorage();
     applyActiveAnnotatorToQueue();
 }, { immediate: true });
-watch(() => currentTask.value?.id, () => {
+watch(() => currentTask.value?.id, async () => {
+    resetFrameImageState(currentTask.value);
     syncSelectedLabelsFromTask(currentTask.value);
     ensureSelectedBoxLabel();
+    if (currentTask.value) {
+        await probeFrameImage(currentTask.value);
+    }
 });
 watch(() => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature], async () => {
     if (isBootstrappingAnnotationQueue || isReloadingAnnotationQueue)
@@ -784,12 +1025,17 @@ watch(() => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature], as
 });
 onMounted(async () => {
     try {
+        applyRoutePreset();
+        await loadAiDatasets();
         await loadLabelGroups();
         await loadNextTask();
     }
     finally {
         isBootstrappingAnnotationQueue = false;
     }
+});
+onUnmounted(() => {
+    clearFrameImageRetryTimer();
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
@@ -815,12 +1061,80 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
     ...{ class: "text-sm text-muted mb-3" },
 });
+if (__VLS_ctx.isPhiRegionMode) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 py-2" },
+        role: "alert",
+        'data-test': "phi-region-mode-alert",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.PHI_REGION_LABEL_NAME);
+    (__VLS_ctx.ANONYMIZER_INFORMATION_SOURCE);
+    if (__VLS_ctx.phiRegionReturnRoute) {
+        const __VLS_0 = {}.RouterLink;
+        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+        // @ts-ignore
+        const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+            ...{ class: "btn btn-outline-secondary btn-sm mb-0" },
+            to: (__VLS_ctx.phiRegionReturnRoute),
+        }));
+        const __VLS_2 = __VLS_1({
+            ...{ class: "btn btn-outline-secondary btn-sm mb-0" },
+            to: (__VLS_ctx.phiRegionReturnRoute),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_1));
+        __VLS_3.slots.default;
+        var __VLS_3;
+    }
+}
 if (__VLS_ctx.queueStore.aiDatasetName && __VLS_ctx.queueStore.aiDatasetType) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "text-sm text-primary mb-0" },
     });
     (__VLS_ctx.queueStore.aiDatasetName);
     (__VLS_ctx.queueStore.aiDatasetType);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-12 col-md-6 col-lg-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "ai-dataset-id",
+    ...{ class: "form-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    id: "ai-dataset-id",
+    value: (__VLS_ctx.selectedAiDatasetId),
+    ...{ class: "form-select" },
+    'data-test': "frame-ai-dataset-select",
+    disabled: (__VLS_ctx.isLoadingAiDatasets || __VLS_ctx.isSubmitting),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: (__VLS_ctx.NO_DATASET_OPTION),
+});
+for (const [datasetOption] of __VLS_getVForSourceType((__VLS_ctx.aiDatasetOptions))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (datasetOption.id),
+        value: (String(datasetOption.id)),
+    });
+    (datasetOption.label);
+    (datasetOption.datasetType);
+    (datasetOption.id);
+}
+if (__VLS_ctx.isPatienteninformationenDatasetSelected) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-warning d-block mt-1" },
+    });
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted d-block mt-1" },
+    });
+}
+if (__VLS_ctx.aiDatasetLoadError) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-danger d-block mt-1" },
+    });
+    (__VLS_ctx.aiDatasetLoadError);
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "col-12 col-md-6 col-lg-4" },
@@ -1070,14 +1384,22 @@ else {
     });
     /** @type {typeof __VLS_ctx.frameStageElement} */ ;
     __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
-        ...{ onLoad: (__VLS_ctx.syncFrameImageMetrics) },
+        ...{ onLoad: (__VLS_ctx.handleFrameImageLoad) },
+        ...{ onError: (__VLS_ctx.handleFrameImageError) },
         ref: "frameImageElement",
-        src: (__VLS_ctx.currentTask.data.imageUrl),
+        src: (__VLS_ctx.frameImageRequestUrl),
         ...{ class: "img-fluid rounded frame-image" },
         alt: "Zu annotierender Frame",
         draggable: "false",
     });
     /** @type {typeof __VLS_ctx.frameImageElement} */ ;
+    if (__VLS_ctx.showFrameImageStatus) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "frame-image-status" },
+            'data-test': "frame-image-status",
+        });
+        (__VLS_ctx.frameImageStatusMessage);
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "box-annotation-layer" },
         'aria-hidden': "true",
@@ -1190,12 +1512,28 @@ else {
         'data-test': "anonymizer-source-button",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.usePhiRegionAnnotationPreset) },
+        type: "button",
+        ...{ class: "btn btn-outline-primary btn-sm mb-0" },
+        disabled: (__VLS_ctx.isSavingBoxAnnotations),
+        'data-test': "phi-region-mode-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.submitBoxAnnotations) },
         type: "button",
         ...{ class: "btn btn-outline-success btn-sm mb-0" },
         disabled: (__VLS_ctx.isSavingBoxAnnotations || !__VLS_ctx.currentTask),
         'data-test': "box-save-button",
     });
+    if (__VLS_ctx.isPhiRegionMode) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.submitEmptyPhiBackgroundFrame) },
+            type: "button",
+            ...{ class: "btn btn-outline-warning btn-sm mb-0" },
+            disabled: (__VLS_ctx.isSavingBoxAnnotations || !__VLS_ctx.currentTask),
+            'data-test': "phi-empty-background-button",
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.clearBoxAnnotations) },
         type: "button",
@@ -1218,7 +1556,7 @@ else {
         value: (__VLS_ctx.selectedBoxLabelId),
         ...{ class: "form-select" },
         'data-test': "box-label-select",
-        disabled: (__VLS_ctx.annotationLabelOptions.length === 0),
+        disabled: (__VLS_ctx.annotationLabelOptions.length === 0 || __VLS_ctx.isPhiRegionMode),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         value: (null),
@@ -1229,6 +1567,18 @@ else {
             value: (label.id),
         });
         (label.name);
+    }
+    if (__VLS_ctx.isPhiRegionMode && __VLS_ctx.phiRegionBoxLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block mt-1" },
+        });
+        (__VLS_ctx.phiRegionBoxLabel.name);
+    }
+    else if (__VLS_ctx.isPhiRegionBoxLabelMissing) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-danger d-block mt-1" },
+        });
+        (__VLS_ctx.PHI_REGION_LABEL_NAME);
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-12 col-md-6" },
@@ -1447,9 +1797,35 @@ if (__VLS_ctx.visibleErrorMessage) {
 /** @type {__VLS_StyleScopedClasses['text-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
@@ -1542,6 +1918,7 @@ if (__VLS_ctx.visibleErrorMessage) {
 /** @type {__VLS_StyleScopedClasses['img-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
 /** @type {__VLS_StyleScopedClasses['frame-image']} */ ;
+/** @type {__VLS_StyleScopedClasses['frame-image-status']} */ ;
 /** @type {__VLS_StyleScopedClasses['box-annotation-layer']} */ ;
 /** @type {__VLS_StyleScopedClasses['box-annotation-rect']} */ ;
 /** @type {__VLS_StyleScopedClasses['box-annotation-rect-active']} */ ;
@@ -1601,7 +1978,15 @@ if (__VLS_ctx.visibleErrorMessage) {
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -1616,6 +2001,12 @@ if (__VLS_ctx.visibleErrorMessage) {
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -1711,6 +2102,8 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             ANONYMIZER_INFORMATION_SOURCE: ANONYMIZER_INFORMATION_SOURCE,
+            PHI_REGION_LABEL_NAME: PHI_REGION_LABEL_NAME,
+            NO_DATASET_OPTION: NO_DATASET_OPTION,
             queueStore: queueStore,
             isLoadingTask: isLoadingTask,
             isSubmitting: isSubmitting,
@@ -1719,9 +2112,13 @@ const __VLS_self = (await import('vue')).defineComponent({
             isLoadingLabelGroups: isLoadingLabelGroups,
             labelGroupLoadError: labelGroupLoadError,
             labelGroupOptions: labelGroupOptions,
+            aiDatasetOptions: aiDatasetOptions,
+            isLoadingAiDatasets: isLoadingAiDatasets,
+            aiDatasetLoadError: aiDatasetLoadError,
             annotatorOverrideInput: annotatorOverrideInput,
             frameImageElement: frameImageElement,
             frameStageElement: frameStageElement,
+            frameImageRequestUrl: frameImageRequestUrl,
             selectedBoxLabelId: selectedBoxLabelId,
             boxAnnotations: boxAnnotations,
             draftBox: draftBox,
@@ -1734,8 +2131,16 @@ const __VLS_self = (await import('vue')).defineComponent({
             targetLabelName: targetLabelName,
             filterLabelName: filterLabelName,
             allowRandomFallback: allowRandomFallback,
+            selectedAiDatasetId: selectedAiDatasetId,
             informationSource: informationSource,
             annotationLabelOptions: annotationLabelOptions,
+            isPhiRegionMode: isPhiRegionMode,
+            phiRegionReturnRoute: phiRegionReturnRoute,
+            phiRegionBoxLabel: phiRegionBoxLabel,
+            isPhiRegionBoxLabelMissing: isPhiRegionBoxLabelMissing,
+            isPatienteninformationenDatasetSelected: isPatienteninformationenDatasetSelected,
+            showFrameImageStatus: showFrameImageStatus,
+            frameImageStatusMessage: frameImageStatusMessage,
             visibleErrorMessage: visibleErrorMessage,
             baseAnnotatorPrincipal: baseAnnotatorPrincipal,
             isAnnotatorOverrideActive: isAnnotatorOverrideActive,
@@ -1755,7 +2160,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             markAllAnonymizerLabels: markAllAnonymizerLabels,
             clearAnonymizerLabels: clearAnonymizerLabels,
             useAnonymizerInformationSource: useAnonymizerInformationSource,
-            syncFrameImageMetrics: syncFrameImageMetrics,
+            usePhiRegionAnnotationPreset: usePhiRegionAnnotationPreset,
+            handleFrameImageLoad: handleFrameImageLoad,
+            handleFrameImageError: handleFrameImageError,
             startBoxDraft: startBoxDraft,
             updateBoxDraft: updateBoxDraft,
             finishBoxDraft: finishBoxDraft,
@@ -1764,6 +2171,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             formatBoxAnnotation: formatBoxAnnotation,
             removeBoxAnnotation: removeBoxAnnotation,
             clearBoxAnnotations: clearBoxAnnotations,
+            submitEmptyPhiBackgroundFrame: submitEmptyPhiBackgroundFrame,
             submitBoxAnnotations: submitBoxAnnotations,
             formatConfidence: formatConfidence,
             restartAnnotationAsOverride: restartAnnotationAsOverride,

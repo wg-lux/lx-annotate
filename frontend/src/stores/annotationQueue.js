@@ -11,6 +11,8 @@ const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1';
 const INFORMATION_SOURCE_STORAGE_KEY = 'annotationQueue.informationSource.v1';
 const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1';
 const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1';
+const AI_DATASET_NAME_STORAGE_KEY = 'annotationQueue.aiDatasetName.v1';
+const AI_DATASET_TYPE_STORAGE_KEY = 'annotationQueue.aiDatasetType.v1';
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task';
 const DEBUG_DUMMY_TASK_GROUP_ID = '1';
 const DEFAULT_TARGET_LABEL_NAME = '';
@@ -300,8 +302,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     const isInitialLoading = ref(false);
     const isPrefetching = ref(false);
     const lastError = ref(null);
-    const aiDatasetName = ref(null);
-    const aiDatasetType = ref(null);
+    const aiDatasetName = ref(loadStoredText(AI_DATASET_NAME_STORAGE_KEY));
+    const aiDatasetType = ref(loadStoredText(AI_DATASET_TYPE_STORAGE_KEY));
     const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${allowRandomFallback.value ? '1' : '0'}|${samplingStrategy.value}|${predictionSegmentsOnly.value ? '1' : '0'}|${aiDatasetName.value ?? ''}|${aiDatasetType.value ?? ''}|${annotatorPrincipal.value ?? ''}`);
     watch(selectedLabelGroupId, (next) => {
         persistGroupId(next);
@@ -326,6 +328,12 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     });
     watch(predictionSegmentsOnly, (next) => {
         persistBoolean(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY, next);
+    });
+    watch(aiDatasetName, (next) => {
+        persistText(AI_DATASET_NAME_STORAGE_KEY, next);
+    });
+    watch(aiDatasetType, (next) => {
+        persistText(AI_DATASET_TYPE_STORAGE_KEY, next);
     });
     function setSelectedLabelGroupId(groupId) {
         selectedLabelGroupId.value = groupId && groupId.trim() ? groupId : null;

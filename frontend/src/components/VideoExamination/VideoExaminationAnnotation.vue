@@ -923,7 +923,9 @@ interface CreateSegmentEvent {
 }
 
 interface VideoSensitiveMeta {
+  patientDob?: string | null
   patient_dob?: string | null
+  patientGenderName?: string | null
   patient_gender_name?: string | null
 }
 
@@ -1230,8 +1232,8 @@ const loadSensitiveMetaForVideos = async (videoIds: number[]): Promise<void> => 
   const nextMap = { ...videoSensitiveMetaMap.value }
   results.forEach(({ id, data }) => {
     nextMap[id] = {
-      patient_dob: data?.patient_dob ?? null,
-      patient_gender_name: data?.patient_gender_name ?? null
+      patient_dob: data?.patientDob ?? data?.patient_dob ?? null,
+      patient_gender_name: data?.patientGenderName ?? data?.patient_gender_name ?? null
     }
   })
   videoSensitiveMetaMap.value = nextMap

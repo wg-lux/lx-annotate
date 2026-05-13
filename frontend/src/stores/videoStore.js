@@ -16,6 +16,22 @@ function normalizeSegmentList(data) {
     }
     return [];
 }
+function readField(source, ...keys) {
+    for (const key of keys) {
+        if (source[key] !== undefined && source[key] !== null)
+            return source[key];
+    }
+    return undefined;
+}
+function readStringField(source, ...keys) {
+    const value = readField(source, ...keys);
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+function readNumberField(source, ...keys) {
+    const value = readField(source, ...keys);
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
 function formatValidationErrorDetail(detail) {
     if (detail == null)
         return '';
@@ -47,35 +63,40 @@ function getBulkOperationErrorDetail(responseData, operation, identifier, index)
     return keyedDetails[String(identifier)] ?? keyedDetails[String(index)] ?? null;
 }
 export function backendSegmentToSegment(backend) {
-    const labelName = backend.labelName ?? backend.labelDisplay ?? 'unknown';
-    const normalizedSourceName = backend.sourceName ?? backend.source_name ?? null;
+    const backendRecord = backend;
+    const labelName = readStringField(backendRecord, 'labelName', 'labelDisplay', 'label_name', 'label_display') ??
+        'unknown';
+    const normalizedSourceName = readStringField(backendRecord, 'sourceName', 'source_name') ?? null;
+    const predictionMetaId = readNumberField(backendRecord, 'predictionMetaId', 'prediction_meta_id');
     const segmentOrigin = backend.segmentOrigin ??
         backend.segment_origin ??
         (normalizedSourceName === 'prediction' ? 'prediction' : undefined) ??
-        ((backend.predictionMetaId ?? backend.prediction_meta_id) != null ? 'prediction' : 'manual');
+        (predictionMetaId != null ? 'prediction' : 'manual');
+    const timeSegments = backend.timeSegments ?? backend.time_segments ?? null;
     // Optional: flatten timeSegments → frames map
     let framesMap;
-    if (backend.timeSegments?.frames?.length) {
-        framesMap = backend.timeSegments.frames.reduce((acc, frame) => {
+    if (timeSegments?.frames?.length) {
+        framesMap = timeSegments.frames.reduce((acc, frame) => {
             acc[String(frame.frameId)] = frame;
             return acc;
         }, {});
     }
     return {
-        id: backend.id,
+        id: readNumberField(backendRecord, 'id') ?? backend.id,
         label: labelName,
-        startTime: backend.startTime,
-        endTime: backend.endTime,
+        startTime: readNumberField(backendRecord, 'startTime', 'start_time') ?? 0,
+        endTime: readNumberField(backendRecord, 'endTime', 'end_time') ?? 0,
         avgConfidence: 1,
-        videoID: backend.videoId ?? backend.videoFile,
-        labelID: backend.labelId ?? (typeof backend.label === 'number' ? backend.label : null),
-        startFrameNumber: backend.startFrameNumber,
-        endFrameNumber: backend.endFrameNumber,
+        videoID: readNumberField(backendRecord, 'videoId', 'video_id', 'videoFile', 'video_file'),
+        labelID: readNumberField(backendRecord, 'labelId', 'label_id', 'label') ??
+            (typeof backend.label === 'number' ? backend.label : null),
+        startFrameNumber: readNumberField(backendRecord, 'startFrameNumber', 'start_frame_number'),
+        endFrameNumber: readNumberField(backendRecord, 'endFrameNumber', 'end_frame_number'),
         exportSegment: backend.exportSegment ?? backend.export_segment ?? false,
         frames: framesMap,
         sourceName: normalizedSourceName,
         segmentOrigin,
-        predictionMetaId: backend.predictionMetaId ?? backend.prediction_meta_id ?? null,
+        predictionMetaId: predictionMetaId ?? null,
         syncState: 'clean',
         lastSyncError: null
     };
@@ -532,7 +553,7 @@ export const useVideoStore = defineStore('video', () => {
                 const segments = rawSegments.map((backendSeg) => ensureLabelId(backendSegmentToSegment({ ...backendSeg, videoId })));
                 return {
                     id: videoId,
-                    original_file_name: video.original_file_name,
+                    original_file_name: String(video.originalFileName ?? video.original_file_name ?? ''),
                     status: video.status || 'available',
                     assignedUser: video.assignedUser || null,
                     anonymized: video.anonymized || false,
@@ -742,7 +763,7 @@ export const useVideoStore = defineStore('video', () => {
         axiosInstance
             .get(r(endpoints.anonymization.hasRaw(videoId)))
             .then((response) => {
-            hasRawVideoFile.value = response.data.has_raw_file;
+            hasRawVideoFile.value = Boolean(response.data?.hasRawFile ?? response.data?.has_raw_file ?? false);
             console.log(`Raw video file for ID ${videoId}:`, hasRawVideoFile.value);
         })
             .catch((error) => {
@@ -1054,8 +1075,8 @@ export const useVideoStore = defineStore('video', () => {
     async function setVideoExportFlag(videoId, exportSegmentsByVideo) {
         try {
             const response = await axiosInstance.patch(r(endpoints.media.videoDetail(videoId)), { export_segments_by_video: exportSegmentsByVideo });
-            const updatedValue = response.data?.export_segments_by_video ??
-                response.data?.exportSegmentsByVideo ??
+            const updatedValue = response.data?.exportSegmentsByVideo ??
+                response.data?.export_segments_by_video ??
                 exportSegmentsByVideo;
             const listVideo = videoList.value.videos.find((v) => v.id === videoId);
             if (listVideo) {
