@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Iterable
+from datetime import date, datetime
+from typing import Any, Literal, TypedDict
 
 from django.db.models import QuerySet
+from django.utils import timezone
 
 from endoreg_db.models import NetworkNode, RawPdfFile, VideoFile
 
@@ -14,6 +17,30 @@ from .hub_export_state import (
     video_hub_export_blocked_reason,
 )
 from ..models import OutboundHubTransferJob
+
+HUB_EXPORT_PRIVACY_MIN_K = 5
+
+HubExportPrivacyStatus = Literal["pass", "warning", "unavailable"]
+
+
+class HubExportPrivacySummary(TypedDict):
+    min_k: int
+    eligible_resource_count: int
+    eligible_case_count: int
+    marked_resource_count: int
+    smallest_equivalence_class_size: int | None
+    violating_equivalence_class_count: int
+    passes_k_anonymity: bool
+    status: HubExportPrivacyStatus
+
+
+class HubExportPrivacyRecord(TypedDict):
+    resource_kind: str
+    resource_id: int
+    source_center_key: str | None
+    eligible: bool
+    marked_for_upload: bool
+    sensitive_meta: Any | None
 
 
 def build_transfer_key(
@@ -78,6 +105,133 @@ def require_normal_sender_target_hub() -> NetworkNode:
     return hub_nodes[0]
 
 
+def _normalized_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
+def _year_from_date(value: Any) -> int | None:
+    if isinstance(value, datetime):
+        return value.year
+    if isinstance(value, date):
+        return value.year
+    year = getattr(value, "year", None)
+    return int(year) if isinstance(year, int) else None
+
+
+def _privacy_exam_year(sensitive_meta: Any | None) -> str:
+    year = _year_from_date(getattr(sensitive_meta, "examination_date", None))
+    return str(year) if year is not None else "unknown"
+
+
+def _privacy_age_band(sensitive_meta: Any | None) -> str:
+    pseudo_patient = getattr(sensitive_meta, "pseudo_patient", None)
+    dob = getattr(pseudo_patient, "dob", None) or getattr(
+        sensitive_meta, "patient_dob", None
+    )
+    birth_year = _year_from_date(dob)
+    if birth_year is None:
+        return "unknown"
+
+    exam_year = (
+        _year_from_date(getattr(sensitive_meta, "examination_date", None))
+        or timezone.localdate().year
+    )
+    age = max(0, exam_year - birth_year)
+    bucket_start = (age // 10) * 10
+    if bucket_start >= 90:
+        return "90+"
+    return f"{bucket_start}-{bucket_start + 9}"
+
+
+def _privacy_gender(sensitive_meta: Any | None) -> str:
+    pseudo_patient = getattr(sensitive_meta, "pseudo_patient", None)
+    gender = getattr(pseudo_patient, "gender", None)
+    if isinstance(gender, str):
+        gender_name = _normalized_text(gender)
+    else:
+        gender_name = _normalized_text(getattr(gender, "name", None))
+    return gender_name.lower() if gender_name is not None else "unknown"
+
+
+def _privacy_case_identity(record: HubExportPrivacyRecord) -> str:
+    sensitive_meta = record.get("sensitive_meta")
+    examination_hash = _normalized_text(
+        getattr(sensitive_meta, "examination_hash", None)
+    )
+    if examination_hash:
+        return f"examination_hash:{examination_hash}"
+    return f"resource:{record['resource_kind']}:{record['resource_id']}"
+
+
+def _privacy_equivalence_key(
+    record: HubExportPrivacyRecord,
+) -> tuple[str, str, str, str, str]:
+    sensitive_meta = record.get("sensitive_meta")
+    return (
+        _normalized_text(record.get("source_center_key")) or "unknown",
+        _normalized_text(record.get("resource_kind")) or "unknown",
+        _privacy_exam_year(sensitive_meta),
+        _privacy_age_band(sensitive_meta),
+        _privacy_gender(sensitive_meta),
+    )
+
+
+def build_hub_export_privacy_summary(
+    privacy_records: Iterable[HubExportPrivacyRecord],
+    *,
+    min_k: int = HUB_EXPORT_PRIVACY_MIN_K,
+) -> HubExportPrivacySummary:
+    eligible_resource_count = 0
+    marked_resource_count = 0
+    case_ids: set[str] = set()
+    equivalence_classes: dict[tuple[str, str, str, str, str], set[str]] = {}
+
+    for record in privacy_records:
+        eligible = bool(record.get("eligible"))
+        marked_for_upload = bool(record.get("marked_for_upload"))
+        if eligible:
+            eligible_resource_count += 1
+        if marked_for_upload:
+            marked_resource_count += 1
+        if not eligible and not marked_for_upload:
+            continue
+
+        case_identity = _privacy_case_identity(record)
+        case_ids.add(case_identity)
+        equivalence_key = _privacy_equivalence_key(record)
+        equivalence_classes.setdefault(equivalence_key, set()).add(case_identity)
+
+    if not equivalence_classes:
+        return {
+            "min_k": min_k,
+            "eligible_resource_count": eligible_resource_count,
+            "eligible_case_count": 0,
+            "marked_resource_count": marked_resource_count,
+            "smallest_equivalence_class_size": None,
+            "violating_equivalence_class_count": 0,
+            "passes_k_anonymity": False,
+            "status": "unavailable",
+        }
+
+    class_sizes = [len(case_id_set) for case_id_set in equivalence_classes.values()]
+    smallest_class_size = min(class_sizes)
+    violating_class_count = sum(1 for class_size in class_sizes if class_size < min_k)
+    passes_k_anonymity = violating_class_count == 0
+    return {
+        "min_k": min_k,
+        "eligible_resource_count": eligible_resource_count,
+        "eligible_case_count": len(case_ids),
+        "marked_resource_count": marked_resource_count,
+        "smallest_equivalence_class_size": smallest_class_size,
+        "violating_equivalence_class_count": violating_class_count,
+        "passes_k_anonymity": passes_k_anonymity,
+        "status": "pass" if passes_k_anonymity else "warning",
+    }
+
+
 def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, Any]:
     source_node = get_default_source_node()
     hub_nodes = list(get_active_hub_nodes().select_related("owning_center"))
@@ -104,10 +258,15 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
                 jobs_by_key[("report", int(job.raw_pdf_file_id))] = job
 
     items: list[dict[str, Any]] = []
+    privacy_records: list[HubExportPrivacyRecord] = []
 
-    videos = VideoFile.objects.select_related("state", "center").order_by(
-        "-date_created"
-    )
+    videos = VideoFile.objects.select_related(
+        "state",
+        "center",
+        "sensitive_meta",
+        "sensitive_meta__pseudo_patient",
+        "sensitive_meta__pseudo_patient__gender",
+    ).order_by("-date_created")
     for video in videos:
         state = video.state
         anonymization_status = (
@@ -116,6 +275,18 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
         eligible = is_video_hub_export_eligible(video)
         blocked_reason = "" if eligible else video_hub_export_blocked_reason(video)
         video_job = jobs_by_key.get(("video", int(video.id)))
+        marked_for_upload = video_job is not None
+        source_center_key = video.center.center_key if video.center else None
+        privacy_records.append(
+            {
+                "resource_kind": "video",
+                "resource_id": int(video.id),
+                "source_center_key": source_center_key,
+                "eligible": eligible,
+                "marked_for_upload": marked_for_upload,
+                "sensitive_meta": video.sensitive_meta,
+            }
+        )
         items.append(
             {
                 "id": video.id,
@@ -125,9 +296,9 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
                 "processed_media_present": bool(
                     video.processed_file and video.processed_file.name
                 ),
-                "source_center_key": video.center.center_key if video.center else None,
+                "source_center_key": source_center_key,
                 "source_center_name": video.center.name if video.center else None,
-                "marked_for_upload": video_job is not None,
+                "marked_for_upload": marked_for_upload,
                 "outbound_status": video_job.local_status
                 if video_job is not None
                 else "",
@@ -154,15 +325,32 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
             }
         )
 
-    reports = RawPdfFile.objects.select_related("state", "center").order_by(
-        "-date_created"
-    )
+    reports = RawPdfFile.objects.select_related(
+        "state",
+        "center",
+        "sensitive_meta",
+        "sensitive_meta__pseudo_patient",
+        "sensitive_meta__pseudo_patient__gender",
+    ).order_by("-date_created")
     for report in reports:
         state = report.state
         anonymization_status = (
             state.anonymization_status.value if state is not None else "not_started"
         )
         report_job = jobs_by_key.get(("report", int(report.id)))
+        eligible = is_report_hub_export_eligible(report)
+        marked_for_upload = report_job is not None
+        source_center_key = report.center.center_key if report.center else None
+        privacy_records.append(
+            {
+                "resource_kind": "report",
+                "resource_id": int(report.id),
+                "source_center_key": source_center_key,
+                "eligible": eligible,
+                "marked_for_upload": marked_for_upload,
+                "sensitive_meta": report.sensitive_meta,
+            }
+        )
         items.append(
             {
                 "id": report.id,
@@ -174,11 +362,9 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
                 "processed_media_present": bool(
                     report.processed_file and report.processed_file.name
                 ),
-                "source_center_key": report.center.center_key
-                if report.center
-                else None,
+                "source_center_key": source_center_key,
                 "source_center_name": report.center.name if report.center else None,
-                "marked_for_upload": report_job is not None,
+                "marked_for_upload": marked_for_upload,
                 "outbound_status": report_job.local_status
                 if report_job is not None
                 else "",
@@ -197,7 +383,7 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
                         else None
                     )
                 ),
-                "eligible": is_report_hub_export_eligible(report),
+                "eligible": eligible,
                 "created_at": report.date_created.isoformat()
                 if report.date_created
                 else None,
@@ -232,6 +418,7 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
             if source_node is None
             else ""
         ),
+        "privacy_summary": build_hub_export_privacy_summary(privacy_records),
         "items": items,
     }
 

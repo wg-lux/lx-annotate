@@ -59,6 +59,12 @@ class HubExportApiTests(TestCase):
         self.assertEqual(len(payload["items"]), 1)
         self.assertTrue(payload["items"][0]["eligible"])
         self.assertFalse(payload["items"][0]["marked_for_upload"])
+        self.assertEqual(payload["privacy_summary"]["min_k"], 5)
+        self.assertEqual(payload["privacy_summary"]["eligible_resource_count"], 1)
+        self.assertEqual(
+            payload["privacy_summary"]["smallest_equivalence_class_size"], 1
+        )
+        self.assertFalse(payload["privacy_summary"]["passes_k_anonymity"])
 
     def test_mark_and_unmark_report_for_hub_upload(self):
         mark_response = self.client.post(
