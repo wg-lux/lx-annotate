@@ -9,7 +9,9 @@ const hoisted = vi.hoisted(() => ({
     }
 }));
 vi.mock('@/api/axiosInstance', () => ({
-    default: hoisted.axios
+    default: hoisted.axios,
+    endoregApi: (path) => `/endoreg-api/${path.replace(/^\/+/, '')}`,
+    dtypesApi: (path) => `/dtypes-api/${path.replace(/^\/+/, '')}`
 }));
 import { findingsApi, getFindingsBackendMode, parseFindingsApiError } from '@/api/findingsApi';
 describe('findingsApi backend mode routing', () => {
@@ -26,10 +28,10 @@ describe('findingsApi backend mode routing', () => {
         hoisted.axios.get.mockResolvedValue({ data: [] });
         vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg');
         await findingsApi.getExaminationFindings(12);
-        expect(hoisted.axios.get).toHaveBeenLastCalledWith(`/api/${endpoints.examination.examinationFindings(12)}`);
+        expect(hoisted.axios.get).toHaveBeenLastCalledWith(`/endoreg-api/${endpoints.examination.examinationFindings(12)}`);
         vi.stubEnv('VITE_FINDINGS_BACKEND', 'dtypes_read');
         await findingsApi.getExaminationFindings(12);
-        expect(hoisted.axios.get).toHaveBeenLastCalledWith('/base_api/examinations/12/findings/');
+        expect(hoisted.axios.get).toHaveBeenLastCalledWith('/dtypes-api/examinations/12/findings/');
     });
     it('keeps endoreg-safe create contract with dedicated classification write', async () => {
         vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg');
@@ -41,11 +43,11 @@ describe('findingsApi backend mode routing', () => {
             finding: 7,
             classifications: [{ classification: 11, choice: 44 }]
         });
-        expect(hoisted.axios.post).toHaveBeenNthCalledWith(1, `/api/${endpoints.patient.patientFindings}`, {
+        expect(hoisted.axios.post).toHaveBeenNthCalledWith(1, `/endoreg-api/${endpoints.patient.patientFindings}`, {
             patientExamination: 35,
             finding: 7
         });
-        expect(hoisted.axios.post).toHaveBeenNthCalledWith(2, '/base_api/patient-findings/91/classifications/', {
+        expect(hoisted.axios.post).toHaveBeenNthCalledWith(2, '/dtypes-api/patient-findings/91/classifications/', {
             replace: true,
             classifications: [{ classification: 11, choice: 44 }]
         });
@@ -59,7 +61,7 @@ describe('findingsApi backend mode routing', () => {
             classifications: [{ classification: 5, choice: 9 }]
         });
         expect(hoisted.axios.post).toHaveBeenCalledTimes(1);
-        expect(hoisted.axios.post).toHaveBeenCalledWith('/base_api/patient-findings/', {
+        expect(hoisted.axios.post).toHaveBeenCalledWith('/dtypes-api/patient-findings/', {
             patient_examination: 88,
             finding: 6,
             classifications: [{ classification: 5, choice: 9 }]

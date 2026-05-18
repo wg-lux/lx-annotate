@@ -15,7 +15,9 @@ vi.mock('@/api/axiosInstance', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn()
-  }
+  },
+  endoregApi: (path: string) => `/endoreg-api/${path.replace(/^\/+/, '')}`,
+  dtypesApi: (path: string) => `/dtypes-api/${path.replace(/^\/+/, '')}`
 }))
 
 describe('reportTemplatesApi', () => {
@@ -252,7 +254,7 @@ describe('reportTemplatesApi', () => {
     })
 
     expect(axiosInstance.post).toHaveBeenCalledWith(
-      '/base_api/report-templates/report_template_examples/star_upper_gi_main/validate',
+      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate',
       {
         patient: 'test_patient',
         examiners: [],
@@ -337,7 +339,7 @@ describe('reportTemplatesApi', () => {
     )
 
     expect(axiosInstance.post).toHaveBeenCalledWith(
-      '/base_api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42'
+      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42'
     )
     expect(result.templateName).toBe('star_upper_gi_main')
     expect(result.ok).toBe(true)
@@ -425,11 +427,11 @@ describe('reportTemplatesApi', () => {
 
     expect(axiosInstance.post).toHaveBeenNthCalledWith(
       1,
-      '/base_api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42'
+      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42'
     )
     expect(axiosInstance.post).toHaveBeenNthCalledWith(
       2,
-      '/base_api/report-templates/report_template_examples/star_upper_gi_main/validate',
+      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate',
       expect.objectContaining({
         patient: 'patient_examination_42',
         examination: 'star_upper_gi_endoscopy'

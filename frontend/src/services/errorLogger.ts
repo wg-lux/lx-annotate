@@ -1,4 +1,6 @@
-// ✅ TypeScript Error Logger Service
+import { dtypesApi } from '@/api/axiosInstance'
+
+// TypeScript Error Logger Service
 interface ErrorContext {
   [key: string]: any
   viewport?: string
@@ -85,7 +87,7 @@ class ErrorLogger {
   private async sendErrorToBackend(errorData: ErrorData): Promise<void> {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const response = await fetch('/base_api/log-frontend-error', {
+        const response = await fetch(dtypesApi('log-frontend-error'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

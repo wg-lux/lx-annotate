@@ -35,12 +35,14 @@ def test_root_urlpatterns_state_with_base_api(monkeypatch):
     top_level_patterns = [str(pattern.pattern) for pattern in module.urlpatterns]
 
     assert "admin/" in top_level_patterns
+    assert "endoreg-api/" in top_level_patterns
     assert "api/" in top_level_patterns
     assert "oidc/" in top_level_patterns
     assert "favicon.ico" in top_level_patterns
+    assert "dtypes-api/" in top_level_patterns
     assert "base_api/" in top_level_patterns
-    assert top_level_patterns.index("api/") < top_level_patterns.index(
-        "^(?!api/|base_api/|admin/|media/|oidc/).*$"
+    assert top_level_patterns.index("endoreg-api/") < top_level_patterns.index(
+        "^(?!endoreg-api/|api/|dtypes-api/|base_api/|admin/|media/|oidc/).*$"
     )
 
 
@@ -73,7 +75,9 @@ def test_vue_spa_fallback_excludes_reserved_prefixes():
     assert resolve("/reporting/42/report-editor").url_name == "vue_spa"
 
     for reserved_path in (
+        "/endoreg-api/not-a-real-endpoint/",
         "/api/not-a-real-endpoint/",
+        "/dtypes-api/not-a-real-endpoint/",
         "/oidc/not-a-real-endpoint/",
         "/base_api/not-a-real-endpoint/",
         "/media/not-a-real-endpoint/",
@@ -114,11 +118,18 @@ def test_api_and_base_api_urls_are_both_reachable(monkeypatch):
     set_urlconf("lx_annotate.urls")
     client = Client()
 
+    dtypes_api_response = client.get(
+        "/dtypes-api/core-concepts/report_template_examples",
+        secure=True,
+    )
     base_api_response = client.get(
         "/base_api/core-concepts/report_template_examples",
         secure=True,
     )
+    endoreg_api_response = client.get("/endoreg-api/conf/", secure=True)
     api_response = client.get("/api/conf/", secure=True)
 
+    assert dtypes_api_response.status_code != 404
     assert base_api_response.status_code != 404
+    assert endoreg_api_response.status_code != 404
     assert api_response.status_code != 404

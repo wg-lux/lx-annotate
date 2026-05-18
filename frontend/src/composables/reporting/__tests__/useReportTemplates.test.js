@@ -4,7 +4,9 @@ import { useReportTemplates } from '@/composables/reporting/useReportTemplates';
 vi.mock('@/api/axiosInstance', () => ({
     default: {
         get: vi.fn()
-    }
+    },
+    endoregApi: (path) => `/endoreg-api/${path.replace(/^\/+/, '')}`,
+    dtypesApi: (path) => `/dtypes-api/${path.replace(/^\/+/, '')}`
 }));
 describe('useReportTemplates', () => {
     beforeEach(() => {
@@ -26,7 +28,7 @@ describe('useReportTemplates', () => {
             initialTemplateName: null
         });
         await catalog.fetchTemplatesByExamination('star_upper_gi_endoscopy');
-        expect(axiosInstance.get).toHaveBeenCalledWith('/base_api/report-templates/by-examination/report_template_examples/star_upper_gi_endoscopy');
+        expect(axiosInstance.get).toHaveBeenCalledWith('/dtypes-api/report-templates/by-examination/report_template_examples/star_upper_gi_endoscopy');
         expect(catalog.selectedTemplateName.value).toBe('star_upper_gi_main');
     });
     it('loads a template by explicit name endpoint when not in local options', async () => {
@@ -43,7 +45,7 @@ describe('useReportTemplates', () => {
             initialTemplateName: null
         });
         await catalog.selectTemplateByName('custom_template');
-        expect(axiosInstance.get).toHaveBeenCalledWith('/base_api/report-templates/report_template_examples/custom_template');
+        expect(axiosInstance.get).toHaveBeenCalledWith('/dtypes-api/report-templates/report_template_examples/custom_template');
         expect(catalog.selectedTemplateName.value).toBe('custom_template');
     });
     it('normalizes malformed template payloads to stable defaults', async () => {

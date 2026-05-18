@@ -4,9 +4,17 @@ import camelcaseKeys from 'camelcase-keys'
 import { useToastStore } from '@/stores/toastStore'
 import { useAuthKcStore } from '@/stores/auth_kc'
 
-// This handles requests to the local Django API
+// This handles requests to the local Django APIs.
 
-const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'api/'
+const LEGACY_API_PREFIX = import.meta.env.VITE_API_PREFIX
+const ENDOREG_API_PREFIX = import.meta.env.VITE_ENDOREG_API_PREFIX ?? LEGACY_API_PREFIX ?? 'endoreg-api/'
+const DTYPES_API_PREFIX = import.meta.env.VITE_DTYPES_API_PREFIX ?? 'dtypes-api/'
+
+function joinApiPath(prefix: string, path: string): string {
+  const normalizedPrefix = prefix.trim().replace(/^\/+|\/+$/g, '')
+  const normalizedPath = path.replace(/^\/+/, '')
+  return normalizedPrefix ? `/${normalizedPrefix}/${normalizedPath}` : `/${normalizedPath}`
+}
 const axiosInstance = axios.create({
   // Da die Vue-App als statische Dateien über Django serviert wird,
   // verwenden wir relative URLs (kein baseURL nötig)
@@ -25,14 +33,14 @@ axiosInstance.interceptors.response.use(
   (err) => {
     const toast = useToastStore()
     const auth = useAuthKcStore()
-
     const status = err?.response?.status
     const url = err?.config?.url || ''
     const suppressErrorToast =
       err?.config?.suppressErrorToast === true ||
-      url.includes('/lookup/') ||
+      url.includes('/dtypes-api/') ||
+      url.startsWith('dtypes-api/') ||
       url.includes('/base_api/') ||
-      url.includes('/media/patients/')
+      url.startsWith('base_api/')
 
     // Skip spam for polling/status requests
     const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/')
@@ -60,9 +68,19 @@ axiosInstance.interceptors.response.use(
 )
 
 
-// Helper zur Erzeugung des vollständigen API-Pfads
+// Helper for endoreg_db plus lx-annotate local API routes.
+export function endoregApi(path: string): string {
+  return joinApiPath(ENDOREG_API_PREFIX, path)
+}
+
+// Helper for lx_dtypes API routes.
+export function dtypesApi(path: string): string {
+  return joinApiPath(DTYPES_API_PREFIX, path)
+}
+
+// Compatibility helper for existing callers. Prefer endoregApi() in new code.
 export function r(path: string): string {
-  return `${API_PREFIX}${path}`
+  return endoregApi(path)
 }
 
 // Helper zur Erzeugung des API-Pfads für PDF-Endpunkte

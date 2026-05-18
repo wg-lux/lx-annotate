@@ -1,5 +1,5 @@
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance';
 export async function saveReportTemplateDefinition(payload) {
-    const response = await axiosInstance.post('/base_api/report-templates/builder/templates', payload);
+    const response = await axiosInstance.post(dtypesApi('report-templates/builder/templates'), payload);
     return response.data;
 }

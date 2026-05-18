@@ -1,6 +1,6 @@
 // frontend/src/api/mediaManagement.ts
 
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { endoregApi } from '@/api/axiosInstance'
 import { ref, readonly } from 'vue'
 import { endpoints } from '@/types/api/endpoints'
 
@@ -88,7 +88,7 @@ export class MediaManagementAPI {
    * Get comprehensive status overview of all media
    */
   static async getStatusOverview(): Promise<MediaStatusOverview> {
-    const response = await api.get(`/api/${endpoints.mediaManagement.status}`)
+    const response = await api.get(endoregApi(endpoints.mediaManagement.status))
     return response.data
   }
 
@@ -101,7 +101,7 @@ export class MediaManagementAPI {
     type: 'unfinished' | 'failed' | 'stale' | 'all' = 'unfinished',
     force: boolean = false
   ): Promise<MediaCleanupResult> {
-    const response = await api.delete(`/api/${endpoints.mediaManagement.cleanup}`, {
+    const response = await api.delete(endoregApi(endpoints.mediaManagement.cleanup), {
       params: { type, force }
     })
     return response.data
@@ -112,7 +112,7 @@ export class MediaManagementAPI {
    * @param fileId - ID of the file to remove
    */
   static async forceRemoveMedia(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.delete(`/api/${endpoints.mediaManagement.forceRemove(fileId)}`)
+    const response = await api.delete(endoregApi(endpoints.mediaManagement.forceRemove(fileId)))
     return response.data
   }
 
@@ -121,7 +121,7 @@ export class MediaManagementAPI {
    * @param fileId - ID of the file to reset
    */
   static async resetProcessingStatus(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/${endpoints.mediaManagement.resetStatus(fileId)}`)
+    const response = await api.post(endoregApi(endpoints.mediaManagement.resetStatus(fileId)))
     return response.data
   }
 
@@ -129,7 +129,7 @@ export class MediaManagementAPI {
    * Get polling coordinator information
    */
   static async getPollingCoordinatorInfo(): Promise<PollingCoordinatorInfo> {
-    const response = await api.get(`/api/${endpoints.anonymization.pollingInfo}`)
+    const response = await api.get(endoregApi(endpoints.anonymization.pollingInfo))
     return response.data
   }
 
@@ -142,7 +142,7 @@ export class MediaManagementAPI {
     cleared_count: number
     file_type_filter?: string
   }> {
-    const response = await api.delete(`/api/${endpoints.anonymization.clearLocks}`, {
+    const response = await api.delete(endoregApi(endpoints.anonymization.clearLocks), {
       params: fileType ? { type: fileType } : undefined
     })
     return response.data
@@ -157,7 +157,7 @@ export class MediaManagementAPI {
     fileId: number,
     fileType?: 'video' | 'pdf'
   ): Promise<AnonymizationStatusResponse> {
-    const response = await api.get(`/api/${endpoints.anonymization.status(fileId)}`)
+    const response = await api.get(endoregApi(endpoints.anonymization.status(fileId)))
     return response.data
   }
 
@@ -166,7 +166,7 @@ export class MediaManagementAPI {
    * @param fileId - ID of the file to process
    */
   static async startAnonymizationSafe(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/${endpoints.anonymization.start(fileId)}`)
+    const response = await api.post(endoregApi(endpoints.anonymization.start(fileId)))
     return response.data
   }
 
@@ -178,7 +178,7 @@ export class MediaManagementAPI {
     fileId: number,
     documentType?: string
   ): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/${endpoints.anonymization.validate(fileId)}`, {
+    const response = await api.post(endoregApi(endpoints.anonymization.validate(fileId)), {
       ...(documentType ? { document_type: documentType } : {})
     })
     return response.data
@@ -190,7 +190,7 @@ export class MediaManagementAPI {
    * @param fileId - ID of the video file to re-import
    */
   static async reimportVideo(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/${endpoints.media.videoReimport(fileId)}`)
+    const response = await api.post(endoregApi(endpoints.media.videoReimport(fileId)))
     return response.data
   }
 
@@ -200,7 +200,7 @@ export class MediaManagementAPI {
    * @param fileId - ID of the PDF file to re-import
    */
   static async reimportPdf(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/${endpoints.media.pdfReimport(fileId)}`)
+    const response = await api.post(endoregApi(endpoints.media.pdfReimport(fileId)))
     return response.data
   }
 
@@ -209,7 +209,7 @@ export class MediaManagementAPI {
    * @param fileId - ID of the file to delete
    */
   static async deleteMediaFile(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.delete(`/api/${endpoints.mediaManagement.forceRemove(fileId)}`)
+    const response = await api.delete(endoregApi(endpoints.mediaManagement.forceRemove(fileId)))
     return response.data
   }
 }

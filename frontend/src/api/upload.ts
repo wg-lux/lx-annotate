@@ -1,4 +1,4 @@
-import axiosInstance from './axiosInstance'
+import axiosInstance, { endoregApi } from './axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 
 export interface UploadResponse {
@@ -60,7 +60,7 @@ export const uploadFiles = async (
     '▶︎ FormData just before POST',
     fileArray.map((file, index) => [`file[${index}]`, file.name, file.size])
   )
-  const response = await axiosInstance.post(`/api/${endpoints.upload.upload}`, formData, {
+  const response = await axiosInstance.post(endoregApi(endpoints.upload.upload), formData, {
     headers: options.idempotencyKey
       ? {
           'Idempotency-Key': options.idempotencyKey

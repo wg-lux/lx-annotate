@@ -1,8 +1,9 @@
 /**
- * Typed API endpoint contract for endoreg_db routes.
+ * Typed API endpoint contract for endoreg_db and lx-annotate local routes.
  *
  * Important:
- * - Paths are relative to axios `r()` helper (which prefixes `api/`).
+ * - Paths are relative to axios `endoregApi()` or legacy `r()` helper.
+ * - lx_dtypes routes use the separate `dtypesApi()` helper.
  * - Keep trailing slashes exactly as defined in Django urls.
  */
 

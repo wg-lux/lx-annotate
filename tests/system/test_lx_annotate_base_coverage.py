@@ -276,9 +276,18 @@ def test_vue_spa_fallback_route_resolves():
     assert match.url_name == "vue_spa"
 
 
-def test_api_path_is_not_caught_by_vue_spa_fallback():
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/endoreg-api/this-route-should-not-hit-vue-spa/",
+        "/api/this-route-should-not-hit-vue-spa/",
+        "/dtypes-api/this-route-should-not-hit-vue-spa/",
+        "/base_api/this-route-should-not-hit-vue-spa/",
+    ],
+)
+def test_api_paths_are_not_caught_by_vue_spa_fallback(path):
     with pytest.raises(Resolver404):
-        resolve("/api/this-route-should-not-hit-vue-spa/")
+        resolve(path)
 
 
 def test_favicon_route_redirects_to_static_asset():

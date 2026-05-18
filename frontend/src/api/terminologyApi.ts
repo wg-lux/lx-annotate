@@ -1,6 +1,6 @@
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 
-const TERMINOLOGY_BASE = '/base_api/terminology'
+const TERMINOLOGY_BASE = dtypesApi('terminology')
 
 export type MedicalField = 'gastroenterology'
 

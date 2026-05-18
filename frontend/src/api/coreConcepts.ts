@@ -1,4 +1,4 @@
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import type {
   CitationCore,
   CitationCoreDto,
@@ -307,6 +307,6 @@ export const normalizeCoreConceptCollection = (raw: unknown): CoreConceptCollect
 }
 
 export const fetchCoreConcepts = async (moduleName: string): Promise<CoreConceptCollection> => {
-  const response = await axiosInstance.get(`/base_api/core-concepts/${moduleName}`)
+  const response = await axiosInstance.get(dtypesApi(`core-concepts/${moduleName}`))
   return normalizeCoreConceptCollection(response.data)
 }

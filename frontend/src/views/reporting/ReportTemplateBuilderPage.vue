@@ -650,7 +650,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import {
   fetchReportTemplateByName,
   fetchReportTemplatesByExamination,
@@ -1030,7 +1030,7 @@ const runtimePayloadPreview = computed(() => JSON.stringify(runtimePayload.value
 async function loadCoreConcepts() {
   catalogLoading.value = true
   try {
-    const response = await axiosInstance.get(`/base_api/core-concepts/${encodeURIComponent(moduleName.value)}`)
+    const response = await axiosInstance.get(dtypesApi(`core-concepts/${encodeURIComponent(moduleName.value)}`))
     coreConcepts.value = response.data as CoreConceptPayload
     if (!examination.value && examinationOptions.value.length) {
       examination.value = examinationOptions.value[0]

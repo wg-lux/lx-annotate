@@ -1,7 +1,7 @@
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance';
 import { extractFindingId } from '@/api/findings.contract';
 import { findingsApi } from '@/api/findingsApi';
-const REPORT_TEMPLATE_BASE = '/base_api/report-templates';
+const REPORT_TEMPLATE_BASE = dtypesApi('report-templates');
 function isRecordLike(value) {
     return !!value && typeof value === 'object' && !Array.isArray(value);
 }

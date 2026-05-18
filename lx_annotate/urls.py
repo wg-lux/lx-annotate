@@ -23,6 +23,9 @@ def lazy_urlconf(
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Canonical, explicit mount for endoreg_db plus lx-annotate local API routes.
+    lazy_urlconf("endoreg-api/", "lx_annotate.api_urls"),
+    # Legacy compatibility alias. Prefer endoreg-api/ for new frontend code.
     lazy_urlconf("api/", "lx_annotate.api_urls"),
     path("oidc/", include("mozilla_django_oidc.urls")),
     path(
@@ -36,6 +39,16 @@ urlpatterns = [
 
 urlpatterns.append(
     lazy_urlconf(
+        "dtypes-api/",
+        "lx_annotate.base_api_urls",
+        app_name="ninja",
+        namespace="lx_dtypes_api",
+    )
+)
+
+urlpatterns.append(
+    lazy_urlconf(
+        # Legacy compatibility alias. Prefer dtypes-api/ for new frontend code.
         "base_api/",
         "lx_annotate.base_api_urls",
         app_name="ninja",
@@ -46,7 +59,7 @@ urlpatterns.append(
 # Catch-all Vue SPA
 urlpatterns.append(
     re_path(
-        r"^(?!api/|base_api/|admin/|media/|oidc/).*$",
+        r"^(?!endoreg-api/|api/|dtypes-api/|base_api/|admin/|media/|oidc/).*$",
         TemplateView.as_view(template_name="base.html"),
         name="vue_spa",
     )

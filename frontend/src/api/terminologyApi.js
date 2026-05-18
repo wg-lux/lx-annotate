@@ -1,5 +1,5 @@
-import axiosInstance from '@/api/axiosInstance';
-const TERMINOLOGY_BASE = '/base_api/terminology';
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance';
+const TERMINOLOGY_BASE = dtypesApi('terminology');
 export const MEDICAL_FIELD_OPTIONS = [
     { value: 'gastroenterology', label: 'Gastroenterologie' }
 ];

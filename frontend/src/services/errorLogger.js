@@ -1,3 +1,4 @@
+import { dtypesApi } from '@/api/axiosInstance';
 class ErrorLogger {
     maxRetries = 3;
     retryDelay = 1000;
@@ -56,7 +57,7 @@ class ErrorLogger {
     async sendErrorToBackend(errorData) {
         for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
             try {
-                const response = await fetch('/base_api/log-frontend-error', {
+                const response = await fetch(dtypesApi('log-frontend-error'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

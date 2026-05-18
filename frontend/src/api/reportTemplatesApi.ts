@@ -1,4 +1,4 @@
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import { extractFindingId, type Finding, type FindingClassification, type JsonMap } from '@/api/findings.contract'
 import { findingsApi } from '@/api/findingsApi'
 import type {
@@ -34,7 +34,7 @@ import type {
   UnitValidatorExecution
 } from '@/types/reportTemplate'
 
-const REPORT_TEMPLATE_BASE = '/base_api/report-templates'
+const REPORT_TEMPLATE_BASE = dtypesApi('report-templates')
 
 function isRecordLike(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
