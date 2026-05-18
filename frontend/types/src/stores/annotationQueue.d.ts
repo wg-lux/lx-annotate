@@ -143,7 +143,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "informationSource" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "samplingStrategy" | "predictionSegmentsOnly" | "aiDatasetId" | "aiDatasetName" | "aiDatasetType" | "annotatorPrincipal" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
+}, "informationSource" | "aiDatasetId" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "samplingStrategy" | "predictionSegmentsOnly" | "aiDatasetName" | "aiDatasetType" | "annotatorPrincipal" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
     selectedLabelGroupId: import("vue").Ref<string | null, string | null>;
     taskMode: import("vue").Ref<AnnotationTaskMode, AnnotationTaskMode>;
     targetLabelName: import("vue").Ref<string, string>;

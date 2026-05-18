@@ -50,6 +50,11 @@ const navItems = computed(() => [
         to: `/reporting/${pe.value}/frame-selector`,
         requiresPatientExamination: true
     },
+    {
+        label: 'Report export',
+        to: `/reporting/${pe.value}/report-export`,
+        requiresPatientExamination: true
+    },
     { label: 'Abschluss', to: `/reporting/${pe.value}/finalized`, requiresPatientExamination: true }
 ]);
 const preferredReportStream = computed(() => pickPreferredStream(flow.mediaPreload?.latestReport?.streamOptions || []));

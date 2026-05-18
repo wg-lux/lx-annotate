@@ -433,10 +433,7 @@ if (__VLS_ctx.updatedAtLabel) {
     (__VLS_ctx.updatedAtLabel);
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "row g-4 align-items-start" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-12 col-xl-8" },
+    ...{ class: "settings-layout" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
     ...{ class: "settings-card" },
@@ -625,9 +622,6 @@ else {
         disabled: (__VLS_ctx.saving || __VLS_ctx.loading || !__VLS_ctx.isDirty),
     });
 }
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-12 col-xl-4" },
-});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
     ...{ class: "settings-card settings-card-contrast" },
 });
@@ -692,7 +686,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
-    ...{ class: "settings-card mt-4" },
+    ...{ class: "settings-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-header-row" },
@@ -784,7 +778,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 });
 (__VLS_ctx.terminology.selecting ? 'Terminologie wird geladen…' : 'Terminologie laden');
 __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
-    ...{ class: "settings-card mt-4" },
+    ...{ class: "settings-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-header-row" },
@@ -836,7 +830,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     ? 'Dimensionen werden geprüft…'
     : 'Video-Dimensionsprüfung starten');
 __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
-    ...{ class: "settings-card mt-4" },
+    ...{ class: "settings-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-header-row" },
@@ -942,7 +936,7 @@ if (__VLS_ctx.aiDatasetExportResult?.downloadUrl) {
     });
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
-    ...{ class: "settings-card mt-4" },
+    ...{ class: "settings-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-header-row" },
@@ -1042,11 +1036,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['status-chip']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-chip-busy']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-updated']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['g-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-xl-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-layout']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -1080,15 +1070,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['btn-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-xl-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-card-contrast']} */ ;
 /** @type {__VLS_StyleScopedClasses['summary-intro']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['summary-note']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
@@ -1109,7 +1096,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
@@ -1125,7 +1111,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
@@ -1147,7 +1132,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-chip']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-chip-ready']} */ ;

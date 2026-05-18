@@ -1212,7 +1212,7 @@ const submitVideoSegments = async (videoId) => {
     }
     validationRequestVideoId.value = videoId;
     // Confirm with user before validation
-    if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${videoId} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`)) {
+    if (!confirm(`Möchten Sie alle ${segmentCount} Segmentannotationen von Video ${videoId} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`)) {
         validationRequestVideoId.value = null;
         return;
     }
@@ -2269,6 +2269,7 @@ if (__VLS_ctx.duration > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             value: "manual",
         });
+        (__VLS_ctx.activeAnnotatorLabel);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             value: "prediction",
         });
