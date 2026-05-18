@@ -362,6 +362,7 @@ type SegmentBulkUpdatePayload = SegmentUpdatePayload & {
 
 type SegmentBulkMutationPayload = {
   defer_annotation_sync?: boolean
+  aiDatasetId?: number | string | null
   creates?: SegmentBulkCreatePayload[]
   updates?: SegmentBulkUpdatePayload[]
   deletes?: number[]
@@ -383,6 +384,12 @@ type SegmentBulkMutationResponse = {
   deleted_count?: number
   deferAnnotationSync?: boolean
   defer_annotation_sync?: boolean
+  aiDatasetId?: number | null
+  ai_dataset_id?: number | null
+  attachedSegmentIds?: number[]
+  attached_segment_ids?: number[]
+  datasetVideoAnnotationCount?: number
+  dataset_video_annotation_count?: number
 }
 
 type SegmentListResponse = BackendSegment[] | { results: BackendSegment[] }
@@ -456,8 +463,7 @@ export function backendSegmentToSegment(backend: BackendSegment): Segment {
   const labelName =
     readStringField(backendRecord, 'labelName', 'labelDisplay', 'label_name', 'label_display') ??
     'unknown'
-  const normalizedSourceName =
-    readStringField(backendRecord, 'sourceName', 'source_name') ?? null
+  const normalizedSourceName = readStringField(backendRecord, 'sourceName', 'source_name') ?? null
   const predictionMetaId = readNumberField(backendRecord, 'predictionMetaId', 'prediction_meta_id')
   const segmentOrigin =
     backend.segmentOrigin ??
@@ -577,9 +583,32 @@ export const useVideoStore = defineStore('video', () => {
   const resolvedVideoFps = ref<number | null>(null)
   const activeSegmentId = ref<string | number | null>(null)
   const activeVideoId = ref<number | null>(null)
+  const segmentAiDatasetId = ref<string | null>(null)
   const _fetchToken = ref<number>(0)
   const draftSegment = ref<DraftSegment | null>(null)
   const hasRawVideoFile = ref<boolean | null>(null)
+
+  function setSegmentAiDatasetId(value: string | number | null | undefined): void {
+    const normalized = value == null ? '' : String(value).trim()
+    segmentAiDatasetId.value = normalized || null
+  }
+
+  function selectedAiDatasetPayload(): { aiDatasetId?: number } {
+    const parsed = Number(segmentAiDatasetId.value)
+    return Number.isFinite(parsed) && parsed > 0 ? { aiDatasetId: parsed } : {}
+  }
+
+  function withSelectedAiDataset<T extends Record<string, any>>(
+    payload: T
+  ): T & { aiDatasetId?: number } {
+    if ('aiDatasetId' in payload || 'ai_dataset_id' in payload) {
+      return payload
+    }
+    return {
+      ...payload,
+      ...selectedAiDatasetPayload()
+    }
+  }
 
   function findSegmentById(segmentId: number): Segment | null {
     for (const label in segmentsByLabel) {
@@ -1079,7 +1108,11 @@ export const useVideoStore = defineStore('video', () => {
           segmentAnnotationsValidated:
             video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
           segmentAnnotationStatus:
-            video.segmentAnnotationStatus ?? video.segment_annotation_status ?? 'not_started',
+            video.segmentAnnotationStatus ??
+            video.segment_annotation_status ??
+            ((video.segmentAnnotationsValidated ?? video.segment_annotations_validated)
+              ? 'validated'
+              : 'not_started'),
           outsideSegmentsRemoved:
             video.outsideSegmentsRemoved ?? video.outside_segments_removed ?? false,
           postValidationRebuild:
@@ -1451,7 +1484,7 @@ export const useVideoStore = defineStore('video', () => {
   ): Promise<SegmentBulkMutationResponse> {
     const response: AxiosResponse<SegmentBulkMutationResponse> = await axiosInstance.post(
       r(endpoints.media.videoSegmentsBulkMutation(videoId)),
-      payload
+      withSelectedAiDataset(payload)
     )
     return response.data
   }
@@ -1617,7 +1650,10 @@ export const useVideoStore = defineStore('video', () => {
     options: { updateLocal?: boolean } = {}
   ): Promise<BackendSegment> {
     const url = r(endpoints.media.videoSegmentDetail(videoId, segmentId))
-    const response: AxiosResponse<BackendSegment> = await axiosInstance.patch(url, payload)
+    const response: AxiosResponse<BackendSegment> = await axiosInstance.patch(
+      url,
+      withSelectedAiDataset(payload)
+    )
 
     if (options.updateLocal !== false && currentVideo.value?.id === videoId) {
       const updatedSegment = backendSegmentToSegment(response.data)
@@ -2203,6 +2239,7 @@ export const useVideoStore = defineStore('video', () => {
     videoStreamUrl,
     timelineSegments,
     hasRawVideoFile: readonly(hasRawVideoFile),
+    segmentAiDatasetId: readonly(segmentAiDatasetId),
 
     // Actions
     buildVideoStreamUrl,
@@ -2235,6 +2272,7 @@ export const useVideoStore = defineStore('video', () => {
     updateVideoStatus,
     assignUserToVideo,
     hasRawVideoFileFn,
+    setSegmentAiDatasetId,
 
     // Backend calls this on save
     persistDirtySegments,

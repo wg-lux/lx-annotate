@@ -59,4 +59,66 @@ describe('VideoStore segment annotation status mapping', () => {
             }
         });
     });
+    it('defaults legacy validated videos to validated segment status', async () => {
+        vi.mocked(axiosInstance.get).mockImplementation(async (url) => {
+            if (url === endpoints.media.videoLabelsList) {
+                return { data: [] };
+            }
+            if (url === endpoints.media.videos) {
+                return {
+                    data: [
+                        {
+                            id: 31,
+                            original_file_name: 'legacy-validated.mp4',
+                            segment_annotations_validated: true
+                        }
+                    ]
+                };
+            }
+            return { data: {} };
+        });
+        const store = useVideoStore();
+        const result = await store.fetchAllVideos();
+        expect(result.videos[0]).toMatchObject({
+            id: 31,
+            segmentAnnotationsValidated: true,
+            segmentAnnotationStatus: 'validated'
+        });
+    });
+    it('adds the selected ai dataset id to segment bulk mutation payloads', async () => {
+        vi.mocked(axiosInstance.get).mockImplementation(async (url) => {
+            if (url === endpoints.media.videoLabelsList) {
+                return { data: [{ id: 2, name: 'outside' }] };
+            }
+            return { data: {} };
+        });
+        const store = useVideoStore();
+        await store.fetchLabels();
+        store.setSegmentAiDatasetId(300);
+        vi.mocked(axiosInstance.post).mockResolvedValue({
+            data: {
+                created: [
+                    {
+                        clientId: -1,
+                        segment: {
+                            id: 50,
+                            videoId: 7,
+                            labelId: 2,
+                            labelName: 'outside',
+                            startTime: 0,
+                            endTime: 1,
+                            startFrameNumber: 0,
+                            endFrameNumber: 50
+                        }
+                    }
+                ],
+                updated: [],
+                deleted: []
+            }
+        });
+        await store.createSegment(7, 'outside', 0, 1);
+        expect(axiosInstance.post).toHaveBeenCalledWith(endpoints.media.videoSegmentsBulkMutation(7), expect.objectContaining({
+            aiDatasetId: 300
+        }));
+    });
 });

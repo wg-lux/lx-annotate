@@ -4,6 +4,7 @@ import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
+import { fetchAiDatasetOptions } from '@/api/aiDatasetApi';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
 import { storeToRefs } from 'pinia';
 import { useToastStore } from '@/stores/toastStore';
@@ -52,8 +53,7 @@ function canAnnotateSegments(videoId) {
         isAnnotationFinished(videoId));
 }
 function isAnnotationFinished(videoId) {
-    const video = videoList.value.videos.find((v) => v.id === videoId);
-    return Boolean(video?.segmentAnnotationsValidated);
+    return getVideoSegmentAnnotationStatus(videoId) === 'validated';
 }
 function getVideoSegmentAnnotationStatus(videoId) {
     const video = videoList.value.videos.find((v) => v.id === videoId);
@@ -87,6 +87,9 @@ const isInitialLoading = ref(true);
 const lastValidationClickedVideoId = ref(null);
 const validationRequestVideoId = ref(null);
 const segmentSourceMode = ref('manual');
+const segmentAiDatasetOptions = ref([]);
+const isLoadingSegmentAiDatasets = ref(false);
+const segmentAiDatasetError = ref('');
 const isImportingPredictionSegments = ref(false);
 const predictionModelMode = ref('local');
 const selectedPredictionModelMetaId = ref(null);
@@ -118,6 +121,26 @@ const videoDropdownSearch = ref('');
 const videoDropdownFilter = ref('all');
 const videoSensitiveMetaMap = ref({});
 // Video Dropdown Watcher
+const selectedSegmentAiDatasetId = computed({
+    get: () => videoStore.segmentAiDatasetId ?? '',
+    set: (value) => {
+        videoStore.setSegmentAiDatasetId(value || null);
+    }
+});
+async function loadSegmentAiDatasetOptions() {
+    isLoadingSegmentAiDatasets.value = true;
+    segmentAiDatasetError.value = '';
+    try {
+        segmentAiDatasetOptions.value = await fetchAiDatasetOptions();
+    }
+    catch (error) {
+        console.error('[VideoExamination] AI dataset list could not be loaded:', error);
+        segmentAiDatasetError.value = 'KI-Datensätze konnten nicht geladen werden.';
+    }
+    finally {
+        isLoadingSegmentAiDatasets.value = false;
+    }
+}
 const hasUnsavedChanges = computed(() => rawSegments.value.some((s) => s.isDirty &&
     s.videoID === selectedVideoId.value &&
     (segmentSourceMode.value === 'all' || s.segmentOrigin === segmentSourceMode.value)));
@@ -494,6 +517,7 @@ onMounted(async () => {
         catch (error) {
             console.warn('[VideoExamination] Prediction model list could not be loaded:', error);
         }
+        await loadSegmentAiDatasetOptions();
         // Step 2: Load anonymization overview BEFORE videos (needed for filtering)
         await anonymizationStore.fetchOverview();
         console.log(`✅ [VideoExamination] Anonymization status loaded: ${overview.value.length} items`);
@@ -1269,19 +1293,22 @@ const normalizeOutsideBlackeningResponse = (responseData) => {
         message: String(responseData?.error ?? responseData?.message ?? '')
     };
 };
-const handleOutsideBlackeningResponseState = (responseState) => {
+const handleOutsideBlackeningResponseState = (responseState, videoId) => {
     const { outsideSegmentCount, jobStatus, message } = responseState;
     if (jobStatus === 'completed') {
         videoRef.value?.load();
+        void videoStore.fetchAllVideos();
         showSuccessMessage(`Außerhalb-Segmente geschwärzt (${outsideSegmentCount} Segmente).`);
         return true;
     }
     if (jobStatus === 'queued') {
         showSuccessMessage(`Schwärzung der Außerhalb-Segmente gestartet (${outsideSegmentCount} Segmente).`);
+        void pollSegmentValidationStatus(videoId);
         return true;
     }
     if (jobStatus === 'already_queued') {
         showSuccessMessage('Schwärzung der Außerhalb-Segmente läuft bereits.');
+        void pollSegmentValidationStatus(videoId);
         return true;
     }
     if (jobStatus === 'busy') {
@@ -1290,6 +1317,7 @@ const handleOutsideBlackeningResponseState = (responseState) => {
     }
     if (jobStatus === 'failed') {
         showErrorMessage(`Schwärzung der Außerhalb-Segmente fehlgeschlagen${message ? `: ${message}` : '.'}`, 'danger');
+        void videoStore.fetchAllVideos();
         return true;
     }
     if (jobStatus === 'noop' || (!jobStatus && outsideSegmentCount === 0)) {
@@ -1320,7 +1348,7 @@ const blackenOutsideSegmentsForSelectedVideo = async () => {
         const response = await axiosInstance.post(r(endpoints.media.videoSegmentsBlackenOutside(videoId)), {
             onlyValidated: false
         });
-        if (handleOutsideBlackeningResponseState(normalizeOutsideBlackeningResponse(response.data))) {
+        if (handleOutsideBlackeningResponseState(normalizeOutsideBlackeningResponse(response.data), videoId)) {
             return;
         }
         showErrorMessage('Unerwarteter Status beim Schwärzen der Außerhalb-Segmente.', 'danger');
@@ -1328,7 +1356,7 @@ const blackenOutsideSegmentsForSelectedVideo = async () => {
     catch (error) {
         const responseData = error?.response?.data;
         if (responseData &&
-            handleOutsideBlackeningResponseState(normalizeOutsideBlackeningResponse(responseData))) {
+            handleOutsideBlackeningResponseState(normalizeOutsideBlackeningResponse(responseData), videoId)) {
             return;
         }
         console.error('Fehler beim Schwärzen der Außerhalb-Segmente:', error);
@@ -1532,8 +1560,6 @@ const getVideoDropdownStatus = (videoId) => {
     // filters decide visibility, while this resolver alone decides row color/text.
     if (!canViewProcessedVideo(videoId))
         return 'not_usable';
-    if (isAnnotationFinished(videoId))
-        return 'annotation_validated';
     const segmentStatus = getVideoSegmentAnnotationStatus(videoId);
     if (segmentStatus === 'cleanup_queued' || segmentStatus === 'cleanup_running') {
         return 'annotation_cleanup_pending';
@@ -1541,6 +1567,8 @@ const getVideoDropdownStatus = (videoId) => {
     if (segmentStatus === 'cleanup_failed' || segmentStatus === 'cleanup_required') {
         return 'annotation_cleanup_failed';
     }
+    if (segmentStatus === 'validated')
+        return 'annotation_validated';
     return isVideoValidated(videoId) ? 'ready_for_annotation' : 'pending_anonymization_validation';
 };
 function getVideoCountByDropdownStatus(status) {
@@ -2244,6 +2272,30 @@ if (__VLS_ctx.duration > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             value: "prediction",
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: (__VLS_ctx.selectedSegmentAiDatasetId),
+            ...{ class: "form-select form-select-sm dataset-select" },
+            'data-test': "segment-ai-dataset-select",
+            disabled: (__VLS_ctx.isLoadingSegmentAiDatasets),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "",
+        });
+        for (const [dataset] of __VLS_getVForSourceType((__VLS_ctx.segmentAiDatasetOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (`${dataset.id}-${dataset.datasetType}`),
+                value: (String(dataset.id)),
+            });
+            (dataset.label);
+            (dataset.datasetType);
+            (dataset.id);
+        }
+        if (__VLS_ctx.segmentAiDatasetError) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-warning" },
+            });
+            (__VLS_ctx.segmentAiDatasetError);
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.discardSegmentChanges) },
             ...{ class: "btn btn-outline-secondary" },
@@ -2935,6 +2987,10 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['source-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -3185,6 +3241,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             lastValidationClickedVideoId: lastValidationClickedVideoId,
             validationRequestVideoId: validationRequestVideoId,
             segmentSourceMode: segmentSourceMode,
+            segmentAiDatasetOptions: segmentAiDatasetOptions,
+            isLoadingSegmentAiDatasets: isLoadingSegmentAiDatasets,
+            segmentAiDatasetError: segmentAiDatasetError,
             isImportingPredictionSegments: isImportingPredictionSegments,
             predictionModelMode: predictionModelMode,
             selectedPredictionModelMetaId: selectedPredictionModelMetaId,
@@ -3206,6 +3265,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             isVideoDropdownOpen: isVideoDropdownOpen,
             videoDropdownSearch: videoDropdownSearch,
             videoDropdownFilter: videoDropdownFilter,
+            selectedSegmentAiDatasetId: selectedSegmentAiDatasetId,
             hasUnsavedChanges: hasUnsavedChanges,
             toggleVideoDropdown: toggleVideoDropdown,
             selectVideoFromDropdown: selectVideoFromDropdown,

@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -122,6 +123,8 @@ def test_bulk_validation_with_queued_cleanup_stays_non_final(api_client, center)
     assert response.data["segment_annotation_status"] == "cleanup_queued"
     assert response.data["segment_annotations_validated"] is False
     assert response.data["outside_segments_removed"] is False
+    assert response.data["post_processing_job"]["status"] == "queued"
+    assert response.data["post_processing_job"]["task_id"] == "task-cleanup-queued"
 
     video.refresh_from_db()
     state = video.get_or_create_state()
@@ -240,3 +243,93 @@ def test_bulk_validation_dispatch_failure_returns_503(api_client, center):
     history = VideoProcessingHistory.objects.get(task_id="task-dispatch-failed")
     assert history.status == VideoProcessingHistory.STATUS_FAILURE
     assert "broker unavailable" in history.details
+
+
+def test_video_list_surfaces_failed_cleanup_job_for_frontend(api_client, center):
+    video = _make_video(center, video_hash="failed-cleanup-visible")
+    state = video.get_or_create_state()
+    state.segment_annotations_created = True
+    state.segment_annotations_validated = True
+    state.outside_segments_removed = False
+    state.save(
+        update_fields=[
+            "segment_annotations_created",
+            "segment_annotations_validated",
+            "outside_segments_removed",
+            "date_modified",
+        ]
+    )
+    failure_details = "outside-frame verification failed: majority frames not blackened"
+    VideoProcessingHistory.objects.create(
+        video=video,
+        operation=VideoProcessingHistory.OPERATION_REPROCESSING,
+        status=VideoProcessingHistory.STATUS_FAILURE,
+        task_id="failed-cleanup-visible-task",
+        details=failure_details,
+        config={
+            "kind": OUTSIDE_FRAME_BLACKENING_KIND,
+            "only_validated": False,
+        },
+    )
+
+    response = api_client.get("/api/media/videos/")
+
+    assert response.status_code == 200
+    payload = next(item for item in response.data["results"] if item["id"] == video.pk)
+    assert payload["segment_annotation_status"] == "cleanup_failed"
+    assert payload["segment_annotations_validated"] is False
+    assert payload["outside_segments_removed"] is False
+    assert (
+        payload["post_validation_rebuild"]["status"]
+        == VideoProcessingHistory.STATUS_FAILURE
+    )
+    assert (
+        payload["post_validation_rebuild"]["task_id"]
+        == "failed-cleanup-visible-task"
+    )
+    assert payload["post_validation_rebuild"]["details"] == failure_details
+
+
+def test_blacken_outside_allows_rerun_after_failed_cleanup(
+    api_client, center, monkeypatch
+):
+    video = _make_video(center, video_hash="failed-cleanup-rerun")
+    _make_segment(video, label_name="outside")
+    old_history = VideoProcessingHistory.objects.create(
+        video=video,
+        operation=VideoProcessingHistory.OPERATION_REPROCESSING,
+        status=VideoProcessingHistory.STATUS_FAILURE,
+        task_id="old-failed-cleanup-task",
+        details="outside-frame verification failed",
+        config={
+            "kind": OUTSIDE_FRAME_BLACKENING_KIND,
+            "only_validated": False,
+        },
+    )
+
+    class FakeTask:
+        @staticmethod
+        def apply_async(*args, **kwargs):
+            return SimpleNamespace(id="rerun-cleanup-task")
+
+    monkeypatch.setenv("VIDEO_POST_VALIDATION_JOB_MODE", "celery")
+    monkeypatch.setenv("CELERY_FRAME_EXTRACTION_REQUIRE_SECURE_TRANSPORT", "0")
+    monkeypatch.setattr(
+        "endoreg_db.tasks.run_video_post_validation_rebuild_task",
+        FakeTask,
+    )
+
+    response = api_client.post(
+        f"/api/media/videos/{video.pk}/segments/blacken-outside/",
+        {"only_validated": False},
+        format="json",
+    )
+
+    assert response.status_code == 202
+    assert response.data["status"] == "queued"
+    assert response.data["post_processing_job"]["task_id"] == "rerun-cleanup-task"
+    assert response.data["post_processing_job"]["history_id"] != old_history.pk
+
+    rerun_history = VideoProcessingHistory.objects.get(task_id="rerun-cleanup-task")
+    assert rerun_history.status == VideoProcessingHistory.STATUS_PENDING
+    assert rerun_history.config["kind"] == OUTSIDE_FRAME_BLACKENING_KIND

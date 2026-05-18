@@ -22,8 +22,8 @@ def center():
 
 def _make_video(center, *, video_hash: str = "post-validation-video") -> VideoFile:
     state = VideoState.objects.create(
-        frames_extracted=True,
-        frames_initialized=True,
+        frames_extracted=False,
+        frames_initialized=False,
         frame_count=1,
     )
     return VideoFile.objects.create(
@@ -70,8 +70,10 @@ def test_rebuild_success_marks_final_only_after_verification(center):
         patch.object(
             VideoFile, "create_video_without_outside_frames", return_value=True
         ),
-        patch.object(video_post_validation_jobs, "_verify_extracted_frame_contract"),
-        patch.object(video_post_validation_jobs, "_verify_outside_frames_blackened"),
+        patch.object(
+            video_post_validation_jobs,
+            "_verify_processed_video_contract",
+        ) as verify_processed_video_contract,
     ):
         result = video_post_validation_jobs._run_video_post_validation_rebuild(
             video.pk,
@@ -79,6 +81,7 @@ def test_rebuild_success_marks_final_only_after_verification(center):
         )
 
     assert result is True
+    verify_processed_video_contract.assert_called_once()
     video.refresh_from_db()
     state = video.get_or_create_state()
     assert state.outside_segments_removed is True
@@ -97,12 +100,11 @@ def test_rebuild_failure_keeps_final_flags_false(center):
         ),
         patch.object(
             video_post_validation_jobs,
-            "_verify_extracted_frame_contract",
-            side_effect=RuntimeError("frame contract failed"),
+            "_verify_processed_video_contract",
+            side_effect=RuntimeError("processed video contract failed"),
         ),
-        patch.object(video_post_validation_jobs, "_verify_outside_frames_blackened"),
     ):
-        with pytest.raises(RuntimeError, match="frame contract failed"):
+        with pytest.raises(RuntimeError, match="processed video contract failed"):
             video_post_validation_jobs._run_video_post_validation_rebuild(
                 video.pk,
                 history_id=history.pk,
@@ -114,6 +116,40 @@ def test_rebuild_failure_keeps_final_flags_false(center):
     assert state.segment_annotations_validated is False
     history.refresh_from_db()
     assert history.status == VideoProcessingHistory.STATUS_FAILURE
+
+
+def test_rebuild_failure_from_non_black_outside_frames_stays_visible(center):
+    video = _make_video(center, video_hash="rebuild-majority-non-black")
+    history = _make_history(video)
+    failure_details = (
+        "Post-validation rebuild did not leave outside frames blackened: "
+        "majority frames not blackened"
+    )
+
+    with (
+        patch.object(
+            VideoFile, "create_video_without_outside_frames", return_value=True
+        ),
+        patch.object(
+            video_post_validation_jobs,
+            "_verify_processed_video_contract",
+            side_effect=RuntimeError(failure_details),
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="majority frames not blackened"):
+            video_post_validation_jobs._run_video_post_validation_rebuild(
+                video.pk,
+                history_id=history.pk,
+            )
+
+    video.refresh_from_db()
+    state = video.get_or_create_state()
+    assert state.segment_annotations_validated is False
+    assert state.outside_segments_removed is False
+    assert resolve_segment_annotation_status(video) == "cleanup_failed"
+    history.refresh_from_db()
+    assert history.status == VideoProcessingHistory.STATUS_FAILURE
+    assert history.details == failure_details
 
 
 def test_celery_dispatch_failure_does_not_fall_back_to_thread(monkeypatch, center):

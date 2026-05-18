@@ -432,9 +432,28 @@
                   class="form-select form-select-sm source-select"
                   @change="handleSegmentSourceChange"
                 >
-                  <option value="manual">Manuelle Segmente</option>
+                  <option value="manual">Segmentannotation von {{ activeAnnotatorLabel }}</option>
                   <option value="prediction">KI-Vorhersagen</option>
                 </select>
+
+                <select
+                  v-model="selectedSegmentAiDatasetId"
+                  class="form-select form-select-sm dataset-select"
+                  data-test="segment-ai-dataset-select"
+                  :disabled="isLoadingSegmentAiDatasets"
+                >
+                  <option value="">Kein KI-Datensatz</option>
+                  <option
+                    v-for="dataset in segmentAiDatasetOptions"
+                    :key="`${dataset.id}-${dataset.datasetType}`"
+                    :value="String(dataset.id)"
+                  >
+                    {{ dataset.label }} · {{ dataset.datasetType }} · ID {{ dataset.id }}
+                  </option>
+                </select>
+                <small v-if="segmentAiDatasetError" class="text-warning">
+                  {{ segmentAiDatasetError }}
+                </small>
 
                 <button
                   class="btn btn-outline-secondary"
@@ -540,7 +559,7 @@
                   v-if="segmentSourceMode === 'prediction'"
                   class="alert alert-warning py-2 px-3 mb-0"
                 >
-                  KI-Segmente sind hier nur als Vorlage editierbar. Zum Speichern in die manuelle
+                  KI-Segmente sind zur Referenz einsehbar. Zum Speichern in die manuelle
                   Annotation den Button "Als manuelle Segmente übernehmen" verwenden.
                 </div>
                 <div class="d-flex align-items-center">
@@ -876,6 +895,7 @@ import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useMediaTypeStore } from '@/stores/mediaTypeStore'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
+import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
 import { storeToRefs } from 'pinia'
 import { useToastStore } from '@/stores/toastStore'
@@ -988,8 +1008,7 @@ function canAnnotateSegments(videoId: number): boolean {
 }
 
 function isAnnotationFinished(videoId: number): boolean {
-  const video = videoList.value.videos.find((v) => v.id === videoId)
-  return Boolean(video?.segmentAnnotationsValidated)
+  return getVideoSegmentAnnotationStatus(videoId) === 'validated'
 }
 
 function getVideoSegmentAnnotationStatus(videoId: number): SegmentAnnotationStatus {
@@ -1026,6 +1045,9 @@ const isInitialLoading = ref<boolean>(true)
 const lastValidationClickedVideoId = ref<number | null>(null)
 const validationRequestVideoId = ref<number | null>(null)
 const segmentSourceMode = ref<SegmentSourceKind>('manual')
+const segmentAiDatasetOptions = ref<AiDatasetOption[]>([])
+const isLoadingSegmentAiDatasets = ref<boolean>(false)
+const segmentAiDatasetError = ref<string>('')
 const isImportingPredictionSegments = ref<boolean>(false)
 const predictionModelMode = ref<'local' | 'huggingface'>('local')
 const selectedPredictionModelMetaId = ref<number | null>(null)
@@ -1065,6 +1087,26 @@ const videoDropdownSearch = ref<string>('')
 const videoDropdownFilter = ref<VideoDropdownFilter>('all')
 const videoSensitiveMetaMap = ref<Record<number, VideoSensitiveMeta>>({})
 // Video Dropdown Watcher
+
+const selectedSegmentAiDatasetId = computed({
+  get: () => videoStore.segmentAiDatasetId ?? '',
+  set: (value: string) => {
+    videoStore.setSegmentAiDatasetId(value || null)
+  }
+})
+
+async function loadSegmentAiDatasetOptions() {
+  isLoadingSegmentAiDatasets.value = true
+  segmentAiDatasetError.value = ''
+  try {
+    segmentAiDatasetOptions.value = await fetchAiDatasetOptions()
+  } catch (error) {
+    console.error('[VideoExamination] AI dataset list could not be loaded:', error)
+    segmentAiDatasetError.value = 'KI-Datensätze konnten nicht geladen werden.'
+  } finally {
+    isLoadingSegmentAiDatasets.value = false
+  }
+}
 
 const hasUnsavedChanges = computed(() =>
   rawSegments.value.some(
@@ -1553,6 +1595,8 @@ onMounted(async () => {
     } catch (error) {
       console.warn('[VideoExamination] Prediction model list could not be loaded:', error)
     }
+
+    await loadSegmentAiDatasetOptions()
 
     // Step 2: Load anonymization overview BEFORE videos (needed for filtering)
     await anonymizationStore.fetchOverview()
@@ -2378,7 +2422,7 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
   // Confirm with user before validation
   if (
     !confirm(
-      `Möchten Sie alle ${segmentCount} Segmente von Video ${videoId} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`
+      `Möchten Sie alle ${segmentCount} Segmentannotationen von Video ${videoId} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`
     )
   ) {
     validationRequestVideoId.value = null
@@ -2489,12 +2533,14 @@ const normalizeOutsideBlackeningResponse = (responseData: any): OutsideBlackenin
 }
 
 const handleOutsideBlackeningResponseState = (
-  responseState: OutsideBlackeningResponseState
+  responseState: OutsideBlackeningResponseState,
+  videoId: number
 ): boolean => {
   const { outsideSegmentCount, jobStatus, message } = responseState
 
   if (jobStatus === 'completed') {
     videoRef.value?.load()
+    void videoStore.fetchAllVideos()
     showSuccessMessage(`Außerhalb-Segmente geschwärzt (${outsideSegmentCount} Segmente).`)
     return true
   }
@@ -2503,11 +2549,13 @@ const handleOutsideBlackeningResponseState = (
     showSuccessMessage(
       `Schwärzung der Außerhalb-Segmente gestartet (${outsideSegmentCount} Segmente).`
     )
+    void pollSegmentValidationStatus(videoId)
     return true
   }
 
   if (jobStatus === 'already_queued') {
     showSuccessMessage('Schwärzung der Außerhalb-Segmente läuft bereits.')
+    void pollSegmentValidationStatus(videoId)
     return true
   }
 
@@ -2521,6 +2569,7 @@ const handleOutsideBlackeningResponseState = (
       `Schwärzung der Außerhalb-Segmente fehlgeschlagen${message ? `: ${message}` : '.'}`,
       'danger'
     )
+    void videoStore.fetchAllVideos()
     return true
   }
 
@@ -2563,7 +2612,12 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
         onlyValidated: false
       }
     )
-    if (handleOutsideBlackeningResponseState(normalizeOutsideBlackeningResponse(response.data))) {
+    if (
+      handleOutsideBlackeningResponseState(
+        normalizeOutsideBlackeningResponse(response.data),
+        videoId
+      )
+    ) {
       return
     }
 
@@ -2572,7 +2626,10 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
     const responseData = error?.response?.data
     if (
       responseData &&
-      handleOutsideBlackeningResponseState(normalizeOutsideBlackeningResponse(responseData))
+      handleOutsideBlackeningResponseState(
+        normalizeOutsideBlackeningResponse(responseData),
+        videoId
+      )
     ) {
       return
     }
@@ -2775,7 +2832,6 @@ const getVideoDropdownStatus = (videoId: number): VideoDropdownStatus => {
   // Keep anonymization validation and segment annotation validation separate:
   // filters decide visibility, while this resolver alone decides row color/text.
   if (!canViewProcessedVideo(videoId)) return 'not_usable'
-  if (isAnnotationFinished(videoId)) return 'annotation_validated'
   const segmentStatus = getVideoSegmentAnnotationStatus(videoId)
   if (segmentStatus === 'cleanup_queued' || segmentStatus === 'cleanup_running') {
     return 'annotation_cleanup_pending'
@@ -2783,6 +2839,7 @@ const getVideoDropdownStatus = (videoId: number): VideoDropdownStatus => {
   if (segmentStatus === 'cleanup_failed' || segmentStatus === 'cleanup_required') {
     return 'annotation_cleanup_failed'
   }
+  if (segmentStatus === 'validated') return 'annotation_validated'
   return isVideoValidated(videoId) ? 'ready_for_annotation' : 'pending_anonymization_validation'
 }
 
@@ -2886,6 +2943,7 @@ watch(
 </script>
 
 <style scoped>
+
 .video-container {
   position: relative;
   background: #000;
@@ -2976,7 +3034,6 @@ watch(
   border-bottom: none;
 }
 
-/* ✅ NEW: Status display enhancements */
 .video-status-card {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-left: 4px solid #007bff;

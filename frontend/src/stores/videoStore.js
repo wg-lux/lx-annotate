@@ -154,9 +154,27 @@ export const useVideoStore = defineStore('video', () => {
     const resolvedVideoFps = ref(null);
     const activeSegmentId = ref(null);
     const activeVideoId = ref(null);
+    const segmentAiDatasetId = ref(null);
     const _fetchToken = ref(0);
     const draftSegment = ref(null);
     const hasRawVideoFile = ref(null);
+    function setSegmentAiDatasetId(value) {
+        const normalized = value == null ? '' : String(value).trim();
+        segmentAiDatasetId.value = normalized || null;
+    }
+    function selectedAiDatasetPayload() {
+        const parsed = Number(segmentAiDatasetId.value);
+        return Number.isFinite(parsed) && parsed > 0 ? { aiDatasetId: parsed } : {};
+    }
+    function withSelectedAiDataset(payload) {
+        if ('aiDatasetId' in payload || 'ai_dataset_id' in payload) {
+            return payload;
+        }
+        return {
+            ...payload,
+            ...selectedAiDatasetPayload()
+        };
+    }
     function findSegmentById(segmentId) {
         for (const label in segmentsByLabel) {
             const match = segmentsByLabel[label].find((s) => s.id === segmentId);
@@ -558,7 +576,11 @@ export const useVideoStore = defineStore('video', () => {
                     assignedUser: video.assignedUser || null,
                     anonymized: video.anonymized || false,
                     segmentAnnotationsValidated: video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
-                    segmentAnnotationStatus: video.segmentAnnotationStatus ?? video.segment_annotation_status ?? 'not_started',
+                    segmentAnnotationStatus: video.segmentAnnotationStatus ??
+                        video.segment_annotation_status ??
+                        ((video.segmentAnnotationsValidated ?? video.segment_annotations_validated)
+                            ? 'validated'
+                            : 'not_started'),
                     outsideSegmentsRemoved: video.outsideSegmentsRemoved ?? video.outside_segments_removed ?? false,
                     postValidationRebuild: video.postValidationRebuild ?? video.post_validation_rebuild ?? null,
                     duration: video.duration !== undefined ? Number(video.duration) : undefined,
@@ -844,7 +866,7 @@ export const useVideoStore = defineStore('video', () => {
         }
     }
     async function bulkMutateSegments(videoId, payload) {
-        const response = await axiosInstance.post(r(endpoints.media.videoSegmentsBulkMutation(videoId)), payload);
+        const response = await axiosInstance.post(r(endpoints.media.videoSegmentsBulkMutation(videoId)), withSelectedAiDataset(payload));
         return response.data;
     }
     async function createSegment(videoId, label, startTime, endTime) {
@@ -969,7 +991,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function updateSegmentWithPayload(videoId, segmentId, payload, options = {}) {
         const url = r(endpoints.media.videoSegmentDetail(videoId, segmentId));
-        const response = await axiosInstance.patch(url, payload);
+        const response = await axiosInstance.patch(url, withSelectedAiDataset(payload));
         if (options.updateLocal !== false && currentVideo.value?.id === videoId) {
             const updatedSegment = backendSegmentToSegment(response.data);
             updateSegmentInMemory(segmentId, updatedSegment);
@@ -1417,6 +1439,7 @@ export const useVideoStore = defineStore('video', () => {
         videoStreamUrl,
         timelineSegments,
         hasRawVideoFile: readonly(hasRawVideoFile),
+        segmentAiDatasetId: readonly(segmentAiDatasetId),
         // Actions
         buildVideoStreamUrl,
         setCurrentVideo,
@@ -1448,6 +1471,7 @@ export const useVideoStore = defineStore('video', () => {
         updateVideoStatus,
         assignUserToVideo,
         hasRawVideoFileFn,
+        setSegmentAiDatasetId,
         // Backend calls this on save
         persistDirtySegments,
         updateSegmentInMemory,

@@ -40,6 +40,53 @@ vi.mock('@/stores/auth_kc', () => ({
     })
 }));
 describe('VideoExaminationAnnotation dropdown status display', () => {
+    let mediaVideosFactory;
+    const baseMediaVideos = () => [
+        {
+            id: 6,
+            original_file_name: 'needs-validation.mp4',
+            centerName: 'Center A',
+            segmentAnnotationsValidated: false
+        },
+        {
+            id: 8,
+            original_file_name: 'ready-for-reporting.mp4',
+            centerName: 'Center B',
+            segmentAnnotationsValidated: false
+        },
+        {
+            id: 10,
+            original_file_name: 'already-segment-validated.mp4',
+            centerName: 'Center C',
+            segmentAnnotationsValidated: true,
+            validatedAnnotators: ['oidc:reviewer-previous']
+        },
+        {
+            id: 14,
+            original_file_name: 'cleanup-running.mp4',
+            centerName: 'Center E',
+            segmentAnnotationsValidated: false,
+            segmentAnnotationStatus: 'cleanup_running'
+        },
+        {
+            id: 16,
+            original_file_name: 'cleanup-failed.mp4',
+            centerName: 'Center F',
+            segmentAnnotationsValidated: true,
+            segmentAnnotationStatus: 'cleanup_failed',
+            outsideSegmentsRemoved: true,
+            postValidationRebuild: {
+                status: 'failed',
+                details: 'frame verification failed'
+            }
+        },
+        {
+            id: 12,
+            original_file_name: 'still-processing.mp4',
+            centerName: 'Center D',
+            segmentAnnotationsValidated: false
+        }
+    ];
     const mountComponent = () => mount(VideoExaminationAnnotation, {
         global: {
             stubs: {
@@ -95,6 +142,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         localStorage.clear();
         routerMocks.query = {};
         setActivePinia(createPinia());
+        mediaVideosFactory = baseMediaVideos;
         const anonymizationStore = useAnonymizationStore();
         // Regression guard: anonymization validation and segment annotation
         // validation are distinct gates and must not collapse into one green state.
@@ -177,53 +225,24 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
                     }
                 };
             }
-            if (url === 'media/videos/') {
+            if (url === 'settings/application/dropdowns/ai_datasets/') {
                 return {
                     data: [
                         {
-                            id: 6,
-                            original_file_name: 'needs-validation.mp4',
-                            centerName: 'Center A',
-                            segmentAnnotationsValidated: false
-                        },
-                        {
-                            id: 8,
-                            original_file_name: 'ready-for-reporting.mp4',
-                            centerName: 'Center B',
-                            segmentAnnotationsValidated: false
-                        },
-                        {
-                            id: 10,
-                            original_file_name: 'already-segment-validated.mp4',
-                            centerName: 'Center C',
-                            segmentAnnotationsValidated: true,
-                            validatedAnnotators: ['oidc:reviewer-previous']
-                        },
-                        {
-                            id: 14,
-                            original_file_name: 'cleanup-running.mp4',
-                            centerName: 'Center E',
-                            segmentAnnotationsValidated: false,
-                            segmentAnnotationStatus: 'cleanup_running'
-                        },
-                        {
-                            id: 16,
-                            original_file_name: 'cleanup-failed.mp4',
-                            centerName: 'Center F',
-                            segmentAnnotationsValidated: false,
-                            segmentAnnotationStatus: 'cleanup_failed',
-                            postValidationRebuild: {
-                                status: 'failed',
-                                details: 'frame verification failed'
-                            }
-                        },
-                        {
-                            id: 12,
-                            original_file_name: 'still-processing.mp4',
-                            centerName: 'Center D',
-                            segmentAnnotationsValidated: false
+                            id: 300,
+                            value: 'segment-study',
+                            label: 'segment-study',
+                            datasetType: 'video',
+                            aiModelType: 'video_segment_classification',
+                            isActive: true,
+                            nameCount: 1
                         }
                     ]
+                };
+            }
+            if (url === 'media/videos/') {
+                return {
+                    data: mediaVideosFactory()
                 };
             }
             if (url.includes('/sensitive-metadata/')) {
@@ -373,6 +392,47 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         expect(findButtonByText(wrapper, 'Segmentänderungen speichern')?.attributes('disabled')).toBeDefined();
         expect(findButtonByText(wrapper, 'KI neu berechnen')?.attributes('disabled')).toBeDefined();
         expect(wrapper.find('[data-cy="label-select"]').attributes('disabled')).toBeDefined();
+    });
+    it('polls queued manual outside blackening and surfaces async failure details', async () => {
+        let mediaVideoRequests = 0;
+        mediaVideosFactory = () => {
+            mediaVideoRequests += 1;
+            const videos = baseMediaVideos();
+            if (mediaVideoRequests <= 1)
+                return videos;
+            return videos.map((video) => video.id === 8
+                ? {
+                    ...video,
+                    segmentAnnotationStatus: 'cleanup_failed',
+                    postValidationRebuild: {
+                        status: 'failed',
+                        details: 'async frame failure'
+                    }
+                }
+                : video);
+        };
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        vi.mocked(axiosInstance.post).mockResolvedValueOnce({
+            data: {
+                status: 'queued',
+                outside_segment_count: 1,
+                post_processing_job: {
+                    status: 'queued'
+                }
+            }
+        });
+        const wrapper = mountComponent();
+        await flushPromises();
+        await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4');
+        const button = wrapper.find('[data-test="blacken-outside-segments-button"]');
+        expect(button.attributes('disabled')).toBeUndefined();
+        await button.trigger('click');
+        await flushPromises();
+        await flushPromises();
+        expect(axiosInstance.post).toHaveBeenCalledWith('media/videos/8/segments/blacken-outside/', {
+            onlyValidated: false
+        });
+        expect(wrapper.text()).toContain('Segmentvalidierung fehlgeschlagen: async frame failure');
     });
     it('keeps segment-validated videos read-only until the same-user edit override is active', async () => {
         const readOnlyWrapper = mountComponent();
