@@ -107,56 +107,71 @@
         <div class="col-12">
           <div class="card">
             <div class="card-body">
-              <h6 class="card-title mb-3">
-                <i class="ni ni-single-copy-04 me-2"></i>
-                Gesamtfortschritt
-              </h6>
-              <div class="progress-container">
-                <div class="progress mb-2" style="height: 30px;">
-                  <div 
-                    class="progress-bar bg-success" 
-                    role="progressbar" 
-                    :style="{ width: completionPercentage + '%' }"
-                    :aria-valuenow="completionPercentage"
-                    aria-valuemin="0" 
-                    aria-valuemax="100"
-                  >
-                    <span class="progress-text">
-                      {{ completionPercentage }}% Abgeschlossen
-                    </span>
-                  </div>
-                  <div 
-                    class="progress-bar bg-info" 
-                    role="progressbar" 
-                    :style="{ width: inProgressPercentage + '%', minHeight: '20px' }"
-                    :aria-valuenow="inProgressPercentage"
-                    aria-valuemin="0" 
-                    aria-valuemax="100"
-                  >
-                    <span class="progress-text">
-                      {{ inProgressPercentage }}% In Bearbeitung
-                    </span>
-                  </div>
-                  <div 
-                    class="progress-bar bg-warning" 
-                    role="progressbar" 
-                    :style="{ width: pendingPercentage + '%' }"
-                    :aria-valuenow="pendingPercentage"
-                    aria-valuemin="0" 
-                    aria-valuemax="100"
-                  >
-                    <span class="progress-text">
-                      {{ pendingPercentage }}% Ausstehend
-                    </span>
-                  </div>
+              <div class="overall-progress-header d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="player-kicker">Gesamtstatus</div>
+                  <h6 class="overall-progress-title mb-1">
+                    <i class="ni ni-single-copy-04 me-2"></i>
+                    Alle Annotationstypen
+                  </h6>
+                  <p class="text-muted mb-0">
+                    Video-Segmente, Untersuchungen und Patientendaten
+                  </p>
                 </div>
-                <div class="progress-legend d-flex justify-content-between">
+                <div class="overall-completion text-end">
+                  <div class="overall-completion-value">{{ completionPercentage }}%</div>
+                  <div class="overall-completion-label">abgeschlossen</div>
+                </div>
+              </div>
+
+              <div class="overall-status-strip mt-3">
+                <div
+                  v-for="item in overallStatusItems"
+                  :key="item.key"
+                  class="overall-status-item"
+                  :class="item.key"
+                >
+                  <span class="overall-status-dot" aria-hidden="true"></span>
+                  <span class="overall-status-label">{{ item.label }}</span>
+                  <strong>{{ item.count }}</strong>
+                  <small>{{ item.percentage }}%</small>
+                </div>
+              </div>
+
+              <div class="progress-container mt-3">
+                <div
+                  v-if="totalAnnotations > 0"
+                  class="progress overall-progress-meter mb-2"
+                  aria-label="Gesamtstatus aller Annotationstypen"
+                >
+                  <div
+                    v-for="item in overallStatusItems"
+                    :key="`bar-${item.key}`"
+                    class="progress-bar"
+                    :class="item.barClass"
+                    role="progressbar"
+                    :style="{ width: item.percentage + '%' }"
+                    :aria-valuenow="item.percentage"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    :aria-label="`${item.label}: ${item.count} von ${totalAnnotations}`"
+                  ></div>
+                </div>
+                <div v-else class="overall-empty-progress mb-2">
+                  Noch keine Statistikdaten verfügbar
+                </div>
+
+                <div class="overall-progress-context d-flex flex-wrap justify-content-between gap-2">
                   <small class="text-muted">
-                    Insgesamt: {{ totalAnnotations }} Annotationen
+                    {{ completedOfTotalText }}
                   </small>
                   <small class="text-muted">
                     Letzte Aktualisierung: {{ lastUpdateText }}
                   </small>
+                </div>
+                <div class="overall-progress-note mt-2">
+                  {{ overallStatusDescription }}
+                  <span v-if="topOpenAreaText">Nächster Fokus: {{ topOpenAreaText }}</span>
                 </div>
               </div>
             </div>
@@ -495,6 +510,86 @@ const totalAnnotations = computed(() => {
   return stats.value.totalAnnotations || 0;
 });
 
+const totalInProgress = computed(() => stats.value.totalInProgress || 0)
+
+const totalPending = computed(() => stats.value.totalPending || 0)
+
+const totalCompleted = computed(() => stats.value.totalCompleted || 0)
+
+const openAnnotationCount = computed(() => totalInProgress.value + totalPending.value)
+
+const overallStatusItems = computed(() => [
+  {
+    key: 'completed',
+    label: 'Abgeschlossen',
+    count: totalCompleted.value,
+    percentage: completionPercentage.value,
+    barClass: 'bg-success',
+  },
+  {
+    key: 'in-progress',
+    label: 'In Bearbeitung',
+    count: totalInProgress.value,
+    percentage: inProgressPercentage.value,
+    barClass: 'bg-info',
+  },
+  {
+    key: 'pending',
+    label: 'Ausstehend',
+    count: totalPending.value,
+    percentage: pendingPercentage.value,
+    barClass: 'bg-warning',
+  },
+])
+
+const completedOfTotalText = computed(() => {
+  if (totalAnnotations.value === 0) return 'Keine Annotationen gezählt'
+  return `${totalCompleted.value} von ${totalAnnotations.value} Annotationen abgeschlossen`
+})
+
+const overallStatusDescription = computed(() => {
+  if (totalAnnotations.value === 0) {
+    return 'Wartet auf Statistikdaten für die zusammengefasste Arbeitsliste.'
+  }
+
+  if (openAnnotationCount.value === 0) {
+    return 'Alle gezählten Annotationen sind abgeschlossen.'
+  }
+
+  if (totalInProgress.value > 0 && totalPending.value > 0) {
+    return `${openAnnotationCount.value} Annotationen sind noch offen: ${totalInProgress.value} in Bearbeitung, ${totalPending.value} ausstehend.`
+  }
+
+  if (totalInProgress.value > 0) {
+    return `${totalInProgress.value} Annotationen sind aktuell in Bearbeitung.`
+  }
+
+  return `${totalPending.value} Annotationen warten noch auf Bearbeitung.`
+})
+
+const topOpenAreaText = computed(() => {
+  if (totalAnnotations.value === 0 || openAnnotationCount.value === 0) return ''
+
+  const areas = [
+    {
+      label: 'Video-Segmente',
+      open: segmentStats.value.pending + segmentStats.value.inProgress,
+    },
+    {
+      label: 'Untersuchungen',
+      open: examinationStats.value.pending + examinationStats.value.inProgress,
+    },
+    {
+      label: 'Patientendaten',
+      open: sensitiveMetaStats.value.pending + sensitiveMetaStats.value.inProgress,
+    },
+  ]
+
+  const top = areas.sort((a, b) => b.open - a.open)[0]
+  if (!top || top.open === 0) return ''
+  return `${top.label} (${top.open} offen)`
+})
+
 const points = computed(() => {
   const completed =
     segmentStats.value.completed * 5 +
@@ -529,8 +624,6 @@ const unlockedAchievements = computed(() => {
 })
 
 const unlockedAchievementsCount = computed(() => unlockedAchievements.value.length)
-
-const totalCompleted = computed(() => stats.value.totalCompleted || 0)
 
 const focusMission = computed(() => {
   const candidates = [
@@ -780,9 +873,111 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
   margin-top: 2px;
 }
 
-.progress-text {
-  font-size: 14px;
-  font-weight: 500;
+.overall-progress-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #344767;
+}
+
+.overall-completion-value {
+  color: #1f7a3f;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.overall-completion-label {
+  color: #596780;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.overall-status-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid rgba(45, 48, 71, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.overall-status-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  background: #fff;
+  border-right: 1px solid rgba(45, 48, 71, 0.08);
+}
+
+.overall-status-item:last-child {
+  border-right: 0;
+}
+
+.overall-status-label {
+  min-width: 0;
+  color: #344767;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.overall-status-item strong {
+  color: #2d3047;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.overall-status-item small {
+  grid-column: 2 / 4;
+  color: #667085;
+  font-weight: 600;
+}
+
+.overall-status-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+}
+
+.overall-status-item.completed .overall-status-dot {
+  background: #28a745;
+}
+
+.overall-status-item.in-progress .overall-status-dot {
+  background: #17a2b8;
+}
+
+.overall-status-item.pending .overall-status-dot {
+  background: #ffc107;
+}
+
+.overall-progress-meter {
+  height: 14px;
+  border-radius: 999px;
+  background: #e9eef5;
+}
+
+.overall-empty-progress {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  background: #f4f7fb;
+  color: #667085;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.overall-progress-note {
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #344767;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .quick-action-item {
@@ -860,6 +1055,25 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .overall-status-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .overall-status-item {
+    border-right: 0;
+    border-bottom: 1px solid rgba(45, 48, 71, 0.08);
+  }
+
+  .overall-status-item:last-child {
+    border-bottom: 0;
+  }
+
+  .overall-completion {
+    text-align: left !important;
   }
 }
 </style>
