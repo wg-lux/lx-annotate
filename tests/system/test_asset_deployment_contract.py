@@ -50,7 +50,7 @@ def test_nix_module_exposes_role_and_storage_env_contract():
 
 
 def test_systemd_env_example_has_role_and_protected_path_contract():
-    env_example = _read("deploy/.env.systemd.example")
+    env_example = _read("deployment_example/.env.systemd.example")
 
     assert "ENDOREG_DEPLOYMENT_ROLE=standalone" in env_example
     assert "ENDOREG_HUB_MODE" not in env_example

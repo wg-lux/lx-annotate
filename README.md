@@ -260,12 +260,12 @@ secrets/KMS layer.
 For the architecture and mode selection details, see
 `docs/guides/deployment-strategy.md`.
 
-Deployment assets live in `deploy/`:
+Deployment assets live in `deployment_example/`:
 
-- `deploy/bootstrap-host.sh`
-- `deploy/deploy.sh`
-- `deploy/lx-annotate.service`
-- `deploy/.env.systemd.example`
+- `deployment_example/bootstrap-host.sh`
+- `deployment_example/deploy.sh`
+- `deployment_example/lx-annotate.service`
+- `deployment_example/.env.systemd.example`
 
 See `docs/guides/wheel-deployment.md` for the full host bootstrap and `systemd`
 flow.

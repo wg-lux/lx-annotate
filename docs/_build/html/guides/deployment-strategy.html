@@ -321,7 +321,7 @@ three deployment-related jobs:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">tesseract-ocr</span></code></p></li>
 <li><p>shared libraries required by video/OCR/image dependencies</p></li>
 </ul>
-<p>Those are provisioned on the host by <code class="docutils literal notranslate"><span class="pre">deploy/bootstrap-host.sh</span></code>.</p>
+<p>Those are provisioned on the host by <code class="docutils literal notranslate"><span class="pre">deployment_example/bootstrap-host.sh</span></code>.</p>
 <p>The runtime deployment flow is:</p>
 <ol class="arabic simple">
 <li><p>Provision host packages.</p></li>
@@ -331,7 +331,7 @@ three deployment-related jobs:</p>
 <li><p>Run migrations.</p></li>
 <li><p>Restart the ASGI service.</p></li>
 </ol>
-<p>That flow is implemented by <code class="docutils literal notranslate"><span class="pre">deploy/deploy.sh</span></code>.</p>
+<p>That flow is implemented by <code class="docutils literal notranslate"><span class="pre">deployment_example/deploy.sh</span></code>.</p>
 <p>The runtime split is deliberate:</p>
 <ul class="simple">
 <li><p>code and virtualenv under the service user home</p></li>
@@ -393,9 +393,9 @@ controls are required and throughput is not the primary constraint</p></li>
 <h2>Service Topology<a class="headerlink" href="#service-topology" title="Link to this heading">¶</a></h2>
 <p>The production service split is intentional:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate.service</span></code>
+<li><p><code class="docutils literal notranslate"><span class="pre">deployment_example/lx-annotate.service</span></code>
 runs Daphne</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate-watcher.service</span></code>
+<li><p><code class="docutils literal notranslate"><span class="pre">deployment_example/lx-annotate-watcher.service</span></code>
 runs the file watcher separately</p></li>
 </ul>
 <p>The watcher must remain isolated from the web process so media ingestion
@@ -478,7 +478,7 @@ dynamic traffic to Daphne</p></li>
 <li><p>runtime data root: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/data</span></code></p></li>
 <li><p>staticfiles root: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/staticfiles</span></code></p></li>
 </ul>
-<p>The shipped service units in <code class="docutils literal notranslate"><span class="pre">deploy/</span></code> are wheel-mode units. They assume:</p>
+<p>The shipped service units in <code class="docutils literal notranslate"><span class="pre">deployment_example/</span></code> are wheel-mode units. They assume:</p>
 <ul class="simple">
 <li><p>service user and group: <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code></p></li>
 <li><p>app root: <code class="docutils literal notranslate"><span class="pre">/home/lx-annotate/lx-annotate-wheel</span></code></p></li>
@@ -574,7 +574,7 @@ responsible for:</p>
 <li><p>proxying dynamic requests to Daphne</p></li>
 </ul>
 <p>The reference Nginx config lives in
-<code class="docutils literal notranslate"><span class="pre">deploy/nginx-lx-annotate.conf</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">deployment_example/nginx-lx-annotate.conf</span></code>.</p>
 </section>
 <section id="luxnix-strategy">
 <h2>LuxNix Strategy<a class="headerlink" href="#luxnix-strategy" title="Link to this heading">¶</a></h2>
