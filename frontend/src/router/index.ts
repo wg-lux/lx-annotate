@@ -55,6 +55,11 @@ const router = createRouter({
           component: () => import('@/views/reporting/FrameSelectorPage.vue')
         },
         {
+          path: ':patient_examination_id/report-export',
+          name: 'Reporting Report Export',
+          component: () => import('@/views/reporting/ReportExportPage.vue')
+        },
+        {
           path: ':patient_examination_id/finalized',
           name: 'Reporting Finalisierung und Artefakte',
           component: () => import('@/views/reporting/FinalizedResultPage.vue')

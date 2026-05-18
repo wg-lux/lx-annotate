@@ -24,6 +24,7 @@ function buildReportingRouter(flow: {
           { path: ':patient_examination_id/findings', component: Stub },
           { path: ':patient_examination_id/report-editor', component: Stub },
           { path: ':patient_examination_id/frame-selector', component: Stub },
+          { path: ':patient_examination_id/report-export', component: Stub },
           { path: ':patient_examination_id/finalized', component: Stub }
         ]
       }
@@ -88,11 +89,14 @@ describe('reporting flow smoke routes', () => {
     await router.push('/reporting/case-setup')
   })
 
-  it('navigates case-setup -> report-editor -> finalized', async () => {
+  it('navigates case-setup -> report-editor -> report-export -> finalized', async () => {
     expect(router.currentRoute.value.path).toBe('/reporting/case-setup')
 
     await router.push('/reporting/123/report-editor')
     expect(router.currentRoute.value.path).toBe('/reporting/123/report-editor')
+
+    await router.push('/reporting/123/report-export')
+    expect(router.currentRoute.value.path).toBe('/reporting/123/report-export')
 
     await router.push('/reporting/123/finalized')
     expect(router.currentRoute.value.path).toBe('/reporting/123/finalized')
