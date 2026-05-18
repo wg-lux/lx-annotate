@@ -284,8 +284,7 @@ def test_video_list_surfaces_failed_cleanup_job_for_frontend(api_client, center)
         == VideoProcessingHistory.STATUS_FAILURE
     )
     assert (
-        payload["post_validation_rebuild"]["task_id"]
-        == "failed-cleanup-visible-task"
+        payload["post_validation_rebuild"]["task_id"] == "failed-cleanup-visible-task"
     )
     assert payload["post_validation_rebuild"]["details"] == failure_details
 
