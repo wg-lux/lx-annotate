@@ -18,6 +18,8 @@ const backupError = ref('');
 const aiDatasetExportInProgress = ref(false);
 const aiDatasetExportResult = ref(null);
 const aiDatasetExportError = ref('');
+const aiDatasetExportScope = ref('center');
+const aiDatasetExportCenterKey = ref('');
 const videoDimensionBackfillInProgress = ref(false);
 const videoDimensionBackfillDryRun = ref(true);
 const videoDimensionBackfillLimit = ref('');
@@ -87,6 +89,9 @@ const selectedAiDatasetDuplicateWarning = computed(() => {
         return '';
     return 'Mehrere Datensätze haben diesen Namen. Der Export verwendet deshalb die eindeutige ID.';
 });
+const selectedDefaultCenter = computed(() => {
+    return dropdowns.centers.find((option) => String(option.id) === form.centerId) ?? null;
+});
 const backupReady = computed(() => currentSettings.value?.backupStatus.ready ?? false);
 const backupMissingPaths = computed(() => currentSettings.value?.backupStatus.missingPaths ?? []);
 const backupSourceRoots = computed(() => currentSettings.value?.backupStatus.sourceRoots ?? []);
@@ -141,6 +146,9 @@ const isDirty = computed(() => {
             : String(currentSettings.value.processorId)) !== form.processorId ||
         (currentSettings.value.annotatorName ?? EMPTY_OPTION) !== form.annotatorName ||
         (currentSettings.value.reportTemplateName ?? EMPTY_OPTION) !== form.reportTemplateName ||
+        (currentSettings.value.aiDatasetId === null
+            ? EMPTY_OPTION
+            : String(currentSettings.value.aiDatasetId)) !== form.aiDatasetId ||
         (currentSettings.value.aiDatasetName ?? EMPTY_OPTION) !== form.aiDatasetName ||
         (currentSettings.value.aiDatasetType ?? EMPTY_OPTION) !== form.aiDatasetType);
 });
@@ -150,12 +158,18 @@ function applySettings(settings) {
     form.processorId = settings.processorId === null ? EMPTY_OPTION : String(settings.processorId);
     form.annotatorName = settings.annotatorName ?? EMPTY_OPTION;
     form.reportTemplateName = settings.reportTemplateName ?? EMPTY_OPTION;
-    form.aiDatasetName = settings.aiDatasetName ?? EMPTY_OPTION;
-    form.aiDatasetType = settings.aiDatasetType ?? EMPTY_OPTION;
-    form.aiDatasetId =
-        dropdowns.aiDatasets
-            .find((dataset) => dataset.value === form.aiDatasetName && dataset.datasetType === form.aiDatasetType)
-            ?.id.toString() ?? EMPTY_OPTION;
+    const exactDataset = settings.aiDatasetId === null
+        ? null
+        : (dropdowns.aiDatasets.find((dataset) => dataset.id === settings.aiDatasetId) ?? null);
+    const fallbackDataset = exactDataset ??
+        dropdowns.aiDatasets.find((dataset) => dataset.value === (settings.aiDatasetName ?? EMPTY_OPTION) &&
+            dataset.datasetType === (settings.aiDatasetType ?? EMPTY_OPTION)) ??
+        null;
+    form.aiDatasetId = fallbackDataset ? String(fallbackDataset.id) : EMPTY_OPTION;
+    form.aiDatasetName = fallbackDataset?.value ?? settings.aiDatasetName ?? EMPTY_OPTION;
+    form.aiDatasetType = fallbackDataset?.datasetType ?? settings.aiDatasetType ?? EMPTY_OPTION;
+    aiDatasetExportCenterKey.value =
+        settings.centerKey ?? selectedDefaultCenter.value?.centerKey ?? EMPTY_OPTION;
 }
 function resetForm() {
     if (!currentSettings.value)
@@ -236,6 +250,7 @@ async function saveSettings() {
             processorId: form.processorId ? Number(form.processorId) : null,
             annotatorName: form.annotatorName || null,
             reportTemplateName: form.reportTemplateName || null,
+            aiDatasetId: form.aiDatasetId ? Number(form.aiDatasetId) : null,
             aiDatasetName: form.aiDatasetName || null,
             aiDatasetType: form.aiDatasetType || null
         });
@@ -319,9 +334,16 @@ async function runAiDatasetExport() {
     aiDatasetExportError.value = '';
     aiDatasetExportResult.value = null;
     try {
-        const result = await triggerApplicationAiDatasetExport({
+        const payload = {
             datasetId: selected.id,
-            onlyValidated: true
+            onlyValidated: true,
+            allCenters: aiDatasetExportScope.value === 'all',
+            centerKey: aiDatasetExportScope.value === 'center'
+                ? aiDatasetExportCenterKey.value || currentSettings.value?.centerKey || null
+                : null
+        };
+        const result = await triggerApplicationAiDatasetExport({
+            ...payload
         });
         aiDatasetExportResult.value = result;
         toast.success({ text: 'KI-Datensatz erfolgreich exportiert.' });
@@ -837,6 +859,47 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
 (__VLS_ctx.selectedAiDatasetTypeLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "export-controls" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "settings-field" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.aiDatasetExportScope),
+    ...{ class: "form-select" },
+    'data-test': "ai-dataset-export-scope",
+    disabled: (__VLS_ctx.aiDatasetExportInProgress),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "center",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "all",
+});
+if (__VLS_ctx.aiDatasetExportScope === 'center') {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "settings-field" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        value: (__VLS_ctx.aiDatasetExportCenterKey),
+        ...{ class: "form-select" },
+        'data-test': "ai-dataset-export-center",
+        disabled: (__VLS_ctx.aiDatasetExportInProgress),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "",
+    });
+    for (const [center] of __VLS_getVForSourceType((__VLS_ctx.dropdowns.centers))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (center.id),
+            value: (center.centerKey || ''),
+        });
+        (center.name);
+    }
+}
 if (__VLS_ctx.aiDatasetExportMessage) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "alert alert-info mb-0" },
@@ -1067,6 +1130,11 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['backup-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
@@ -1116,6 +1184,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             backupTargetPath: backupTargetPath,
             aiDatasetExportInProgress: aiDatasetExportInProgress,
             aiDatasetExportResult: aiDatasetExportResult,
+            aiDatasetExportScope: aiDatasetExportScope,
+            aiDatasetExportCenterKey: aiDatasetExportCenterKey,
             videoDimensionBackfillInProgress: videoDimensionBackfillInProgress,
             videoDimensionBackfillDryRun: videoDimensionBackfillDryRun,
             videoDimensionBackfillLimit: videoDimensionBackfillLimit,

@@ -16,6 +16,8 @@ export interface ModelTrainingOption {
   description: string
 }
 
+export type AnnotationSourceScope = 'all' | 'frame_only' | 'segment_only'
+
 export interface PhiRegionDetectorTrainingDefaults {
   baseModel: string
   datasetYaml: string
@@ -55,6 +57,7 @@ export interface ModelTrainingOptionsResponse {
 
 export interface ModelTrainingRunPayload {
   trainingTarget?: 'image_multilabel' | 'phi_region_detector'
+  annotationSourceScope?: AnnotationSourceScope
   datasetId?: number
   datasetYaml?: string
   outputDir?: string
@@ -80,6 +83,7 @@ export interface ModelTrainingRunPayload {
 export interface ModelTrainingRunRecord {
   runId: string
   trainingTarget?: 'image_multilabel' | 'phi_region_detector'
+  annotationSourceScope?: AnnotationSourceScope | null
   status: 'queued' | 'running' | 'completed' | 'failed' | 'lost'
   datasetId: number | null
   datasetName: string | null

@@ -9,6 +9,7 @@ export interface ApplicationSettingsRecord {
   processorName: string | null
   annotatorName: string | null
   reportTemplateName: string | null
+  aiDatasetId: number | null
   aiDatasetName: string | null
   aiDatasetType: string | null
   updatedAt: string | null
@@ -31,6 +32,7 @@ export interface ApplicationSettingsUpdatePayload {
   processorId?: number | null
   annotatorName?: string | null
   reportTemplateName?: string | null
+  aiDatasetId?: number | null
   aiDatasetName?: string | null
   aiDatasetType?: string | null
 }
@@ -109,6 +111,8 @@ export interface ApplicationAiDatasetExportPayload {
   datasetId?: number
   aiDatasetName?: string
   aiDatasetType?: string
+  centerKey?: string | null
+  allCenters?: boolean
   onlyValidated?: boolean
 }
 
@@ -141,7 +145,8 @@ const SETTINGS_REPORT_TEMPLATES_PATH = 'settings/application/dropdowns/report_te
 const SETTINGS_AI_DATASETS_PATH = 'settings/application/dropdowns/ai_datasets/'
 const SETTINGS_AI_DATASET_EXPORT_PATH = 'settings/application/ai_dataset_export/'
 const SETTINGS_BACKUP_PATH = 'settings/application/backup/'
-const SETTINGS_VIDEO_DIMENSION_BACKFILL_RUNS_PATH = 'settings/application/video_dimension_backfill/runs/'
+const SETTINGS_VIDEO_DIMENSION_BACKFILL_RUNS_PATH =
+  'settings/application/video_dimension_backfill/runs/'
 
 export async function fetchApplicationSettings(): Promise<ApplicationSettingsRecord> {
   const { data } = await axiosInstance.get<ApplicationSettingsRecord>(r(SETTINGS_DETAIL_PATH))
@@ -151,7 +156,10 @@ export async function fetchApplicationSettings(): Promise<ApplicationSettingsRec
 export async function updateApplicationSettings(
   payload: ApplicationSettingsUpdatePayload
 ): Promise<ApplicationSettingsRecord> {
-  const { data } = await axiosInstance.patch<ApplicationSettingsRecord>(r(SETTINGS_DETAIL_PATH), payload)
+  const { data } = await axiosInstance.patch<ApplicationSettingsRecord>(
+    r(SETTINGS_DETAIL_PATH),
+    payload
+  )
   return data
 }
 
@@ -192,7 +200,10 @@ export async function fetchApplicationSettingsDropdowns(): Promise<ApplicationSe
 export async function triggerApplicationBackup(
   payload: ApplicationBackupPayload
 ): Promise<ApplicationBackupResult> {
-  const { data } = await axiosInstance.post<ApplicationBackupResult>(r(SETTINGS_BACKUP_PATH), payload)
+  const { data } = await axiosInstance.post<ApplicationBackupResult>(
+    r(SETTINGS_BACKUP_PATH),
+    payload
+  )
   return data
 }
 

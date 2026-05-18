@@ -68,7 +68,7 @@
                 >
                   <option value="">Datensatz auswählen</option>
                   <option
-                    v-for="dataset in datasetOptions"
+                    v-for="dataset in trainingDatasetOptions"
                     :key="dataset.id"
                     :value="String(dataset.id)"
                   >
@@ -76,9 +76,81 @@
                   </option>
                 </select>
                 <small class="text-muted mt-1">
-                  Nur aktive Image-Multilabel-Datensätze werden angeboten.
+                  Training nutzt die Annotationen, die am AI Dataset hängen.
+                  Segment-Labels werden zur Laufzeit in bestehende Frames expandiert
+                  und nicht als Frame-Annotationen gespeichert.
                 </small>
               </label>
+
+              <div class="training-field">
+                <span>Annotation Source</span>
+                <div class="annotation-source-control" role="group" aria-label="Annotation source">
+                  <button
+                    v-for="option in annotationSourceOptions"
+                    :key="option.value"
+                    type="button"
+                    class="annotation-source-button"
+                    :class="{ 'annotation-source-button-active': form.annotationSourceScope === option.value }"
+                    :data-test="`annotation-source-${option.value}`"
+                    :disabled="runPolling"
+                    @click="form.annotationSourceScope = option.value"
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
+              </div>
+
+              <div
+                v-if="form.datasetId"
+                class="dataset-summary-band"
+                data-test="training-dataset-summary"
+              >
+                <div class="dataset-summary-heading">
+                  <span>{{ selectedDataset?.label ?? 'AI Dataset' }}</span>
+                  <span v-if="datasetSummaryLoading">Lade Datensatz...</span>
+                  <span v-else>{{ effectiveTrainingFrameCount }} Trainingsframes</span>
+                </div>
+                <div v-if="datasetSummaryError" class="dataset-summary-error" role="alert">
+                  {{ datasetSummaryError }}
+                </div>
+                <div v-else-if="datasetSummary" class="dataset-summary-grid">
+                  <div>
+                    <span>Frame-Annotationen</span>
+                    <strong>{{ datasetSummary.summary.imageAnnotationCount }}</strong>
+                  </div>
+                  <div>
+                    <span>Segment-Annotationen</span>
+                    <strong>{{ datasetSummary.summary.videoAnnotationCount }}</strong>
+                  </div>
+                  <div>
+                    <span>Frame-Frames</span>
+                    <strong>{{ datasetSummary.summary.annotationFrameCount }}</strong>
+                  </div>
+                  <div>
+                    <span>Segment-Frames</span>
+                    <strong>{{ datasetSummary.summary.segmentFrameCount }}</strong>
+                  </div>
+                  <div>
+                    <span>Zusammengeführt</span>
+                    <strong>{{ datasetSummary.summary.mergedFrameCount }}</strong>
+                  </div>
+                  <div>
+                    <span>Videos</span>
+                    <strong>{{ datasetSummary.summary.videoCount }}</strong>
+                  </div>
+                  <div>
+                    <span>Labels</span>
+                    <strong>{{ datasetSummary.summary.labelCount }}</strong>
+                  </div>
+                </div>
+                <div
+                  v-if="selectedScopeHasNoFrames"
+                  class="dataset-summary-error"
+                  role="alert"
+                >
+                  Der ausgewählte Annotation Source enthält keine trainierbaren Frames.
+                </div>
+              </div>
 
               <label class="training-field">
                 <span>Model Backbone</span>
@@ -431,6 +503,10 @@
               <dt>Dataset</dt>
               <dd>{{ runDatasetLabel(currentRun) }}</dd>
             </div>
+            <div v-if="currentRun.trainingTarget !== 'phi_region_detector'">
+              <dt>Annotation Source</dt>
+              <dd>{{ annotationSourceLabel(currentRun.annotationSourceScope ?? 'all') }}</dd>
+            </div>
             <div>
               <dt>Backbone</dt>
               <dd>{{ currentRun.backboneName }}</dd>
@@ -486,10 +562,15 @@
 
 <script setup lang="ts">
 import {
+  fetchAiDatasetFrameBucketDistribution,
+  type AiDatasetFrameBucketDistribution
+} from '@/api/aiDatasetApi'
+import {
   createModelTrainingRun,
   fetchModelTrainingOptions,
   fetchModelTrainingRun,
   fetchModelTrainingRuns,
+  type AnnotationSourceScope,
   type PhiRegionDetectorTrainingDefaults,
   type ModelTrainingDatasetOption,
   type ModelTrainingOption,
@@ -498,7 +579,7 @@ import {
   type ModelTrainingRunRecord
 } from '@/api/modelTrainingApi'
 import { useToastStore } from '@/stores/toastStore'
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 const toast = useToastStore()
 
@@ -516,11 +597,25 @@ const phiBaseModelOptions = ref<ModelTrainingOption[]>([])
 const imageDefaults = ref<ModelTrainingOptionsResponse['defaults'] | null>(null)
 const phiDefaults = ref<PhiRegionDetectorTrainingDefaults | null>(null)
 const pollTimer = ref<number | null>(null)
+const datasetSummary = ref<AiDatasetFrameBucketDistribution | null>(null)
+const datasetSummaryLoading = ref(false)
+const datasetSummaryError = ref('')
+let datasetSummaryRequestId = 0
 
 type TrainingTarget = 'image_multilabel' | 'phi_region_detector'
 
+const annotationSourceOptions: Array<{
+  value: AnnotationSourceScope
+  label: string
+}> = [
+  { value: 'all', label: 'Alle' },
+  { value: 'frame_only', label: 'Nur Frames' },
+  { value: 'segment_only', label: 'Nur Segmente' }
+]
+
 const form = reactive({
   trainingTarget: 'image_multilabel' as TrainingTarget,
+  annotationSourceScope: 'all' as AnnotationSourceScope,
   datasetId: '',
   datasetYaml: '',
   outputDir: '',
@@ -555,11 +650,50 @@ const selectedPhiBaseModelDescription = computed(() => {
   return phiBaseModelOptions.value.find((option) => option.value === form.baseModel)?.description ?? ''
 })
 
+function isImageMultilabelDataset(dataset: ModelTrainingDatasetOption): boolean {
+  return (
+    dataset.datasetType === 'image' &&
+    dataset.aiModelType === 'image_multilabel_classification'
+  )
+}
+
+const trainingDatasetOptions = computed(() => {
+  return datasetOptions.value.filter(isImageMultilabelDataset)
+})
+
+const selectedDataset = computed(() => {
+  return trainingDatasetOptions.value.find((dataset) => String(dataset.id) === form.datasetId) ?? null
+})
+
+const effectiveTrainingFrameCount = computed(() => {
+  const summary = datasetSummary.value?.summary
+  if (!summary) return 0
+  if (form.annotationSourceScope === 'frame_only') return summary.annotationFrameCount
+  if (form.annotationSourceScope === 'segment_only') return summary.segmentFrameCount
+  return summary.mergedFrameCount
+})
+
+const selectedScopeHasNoFrames = computed(() => {
+  return Boolean(
+    form.datasetId &&
+      datasetSummary.value &&
+      !datasetSummaryLoading.value &&
+      !datasetSummaryError.value &&
+      effectiveTrainingFrameCount.value === 0
+  )
+})
+
 const canStartTraining = computed(() => {
   if (form.trainingTarget === 'phi_region_detector') {
     return Boolean(form.datasetYaml.trim())
   }
-  return Boolean(form.datasetId)
+  return Boolean(
+    form.datasetId &&
+      datasetSummary.value &&
+      !datasetSummaryLoading.value &&
+      !datasetSummaryError.value &&
+      effectiveTrainingFrameCount.value > 0
+  )
 })
 
 const statusChipLabel = computed(() => {
@@ -608,10 +742,30 @@ function trainingTargetLabel(target: ModelTrainingRunRecord['trainingTarget']): 
   return 'Image Multilabel Model'
 }
 
+function annotationSourceLabel(scope: AnnotationSourceScope): string {
+  if (scope === 'frame_only') return 'Nur Frames'
+  if (scope === 'segment_only') return 'Nur Segmente'
+  return 'Alle'
+}
+
 function runDatasetLabel(run: ModelTrainingRunRecord): string {
   if (run.datasetName) return run.datasetName
   if (run.datasetId) return `ID ${run.datasetId}`
   return 'External dataset'
+}
+
+function fieldErrorMessage(error: unknown, fallback: string): string {
+  const responseError = error as {
+    response?: { data?: { errors?: Record<string, unknown> } }
+  }
+  const errors = responseError.response?.data?.errors
+  if (!errors) return fallback
+
+  const messages = Object.values(errors)
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+
+  return messages.length ? messages.join(' ') : fallback
 }
 
 function artifactLabel(key: string): string {
@@ -629,9 +783,41 @@ function stopPolling(): void {
 }
 
 function applyDefaults(): void {
-  const preferredDataset = datasetOptions.value.find((dataset) => dataset.isActive) ?? datasetOptions.value[0]
-  if (!form.datasetId && preferredDataset) {
+  const preferredDataset =
+    trainingDatasetOptions.value.find((dataset) => dataset.isActive) ??
+    trainingDatasetOptions.value[0]
+  const currentDatasetIsTrainable = trainingDatasetOptions.value.some(
+    (dataset) => String(dataset.id) === form.datasetId
+  )
+  if ((!form.datasetId || !currentDatasetIsTrainable) && preferredDataset) {
     form.datasetId = String(preferredDataset.id)
+  }
+}
+
+async function loadDatasetSummary(datasetId: string): Promise<void> {
+  const requestId = ++datasetSummaryRequestId
+  datasetSummary.value = null
+  datasetSummaryError.value = ''
+  if (!datasetId) {
+    datasetSummaryLoading.value = false
+    return
+  }
+
+  datasetSummaryLoading.value = true
+  try {
+    const summary = await fetchAiDatasetFrameBucketDistribution(datasetId)
+    if (requestId === datasetSummaryRequestId) {
+      datasetSummary.value = summary
+    }
+  } catch (error) {
+    console.error('Failed to load AI dataset training summary:', error)
+    if (requestId === datasetSummaryRequestId) {
+      datasetSummaryError.value = 'Die Datensatz-Zusammenfassung konnte nicht geladen werden.'
+    }
+  } finally {
+    if (requestId === datasetSummaryRequestId) {
+      datasetSummaryLoading.value = false
+    }
   }
 }
 
@@ -697,6 +883,9 @@ async function loadPage(): Promise<void> {
     recentRuns.value = runs
     applyImageTrainingDefaults(options.defaults)
     applyDefaults()
+    if (form.trainingTarget === 'image_multilabel') {
+      void loadDatasetSummary(form.datasetId)
+    }
     applyPhiDefaults(options.phiRegionDetector.defaults)
     const activeRun = runs.find(isRunActive) ?? runs[0] ?? null
     currentRun.value = activeRun
@@ -785,6 +974,7 @@ async function startTraining(): Promise<void> {
           }
         : {
             datasetId: Number(form.datasetId),
+            annotationSourceScope: form.annotationSourceScope,
             backboneName: form.backboneName,
             featureMode: form.featureMode,
             epochs: form.epochs,
@@ -802,8 +992,9 @@ async function startTraining(): Promise<void> {
     void refreshRun(run.runId)
   } catch (error) {
     console.error('Failed to start training run:', error)
-    runErrorMessage.value = 'Der Trainingslauf konnte nicht gestartet werden.'
-    toast.error({ text: 'Training konnte nicht gestartet werden.' })
+    const message = fieldErrorMessage(error, 'Der Trainingslauf konnte nicht gestartet werden.')
+    runErrorMessage.value = message
+    toast.error({ text: message })
   }
 }
 
@@ -814,6 +1005,24 @@ function formatTimestamp(value: string | null): string {
     timeStyle: 'short'
   }).format(new Date(value))
 }
+
+watch(
+  () => form.datasetId,
+  (datasetId) => {
+    if (form.trainingTarget === 'image_multilabel') {
+      void loadDatasetSummary(datasetId)
+    }
+  }
+)
+
+watch(
+  () => form.trainingTarget,
+  (trainingTarget) => {
+    if (trainingTarget === 'image_multilabel') {
+      void loadDatasetSummary(form.datasetId)
+    }
+  }
+)
 
 onMounted(() => {
   void loadPage()
@@ -956,6 +1165,73 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+.annotation-source-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid rgba(47, 111, 148, 0.22);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.annotation-source-button {
+  min-height: 2.5rem;
+  border: 0;
+  border-right: 1px solid rgba(47, 111, 148, 0.18);
+  background: #fff;
+  color: #17324d;
+  font-weight: 700;
+}
+
+.annotation-source-button:last-child {
+  border-right: 0;
+}
+
+.annotation-source-button-active {
+  background: #eef7fb;
+  color: #1d587a;
+}
+
+.dataset-summary-band {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 0;
+  border-top: 1px solid rgba(47, 111, 148, 0.16);
+  border-bottom: 1px solid rgba(47, 111, 148, 0.16);
+}
+
+.dataset-summary-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #17324d;
+  font-weight: 700;
+}
+
+.dataset-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.dataset-summary-grid div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dataset-summary-grid span {
+  color: #6c8092;
+  font-size: 0.82rem;
+}
+
+.dataset-summary-grid strong {
+  color: #17324d;
+}
+
+.dataset-summary-error {
+  color: #8f2020;
+  font-weight: 600;
+}
+
 .training-checkbox {
   margin-top: 0.25rem;
 }
@@ -1085,6 +1361,19 @@ onBeforeUnmount(() => {
 
   .recent-run-row {
     grid-template-columns: 1fr;
+  }
+
+  .annotation-source-control {
+    grid-template-columns: 1fr;
+  }
+
+  .annotation-source-button {
+    border-right: 0;
+    border-bottom: 1px solid rgba(47, 111, 148, 0.18);
+  }
+
+  .annotation-source-button:last-child {
+    border-bottom: 0;
   }
 }
 </style>

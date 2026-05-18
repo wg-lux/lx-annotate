@@ -7,6 +7,7 @@ const hoisted = vi.hoisted(() => ({
   fetchAiDatasetOptions: vi.fn(),
   fetchAiDatasetLabelSets: vi.fn(),
   createAiDataset: vi.fn(),
+  attachAiDatasetAnnotations: vi.fn(),
   buildAiDatasetTrainingManifest: vi.fn()
 }))
 
@@ -14,6 +15,7 @@ vi.mock('@/api/aiDatasetApi', () => ({
   fetchAiDatasetOptions: hoisted.fetchAiDatasetOptions,
   fetchAiDatasetLabelSets: hoisted.fetchAiDatasetLabelSets,
   createAiDataset: hoisted.createAiDataset,
+  attachAiDatasetAnnotations: hoisted.attachAiDatasetAnnotations,
   buildAiDatasetTrainingManifest: hoisted.buildAiDatasetTrainingManifest
 }))
 
@@ -52,6 +54,16 @@ describe('AiDatasetSettingsPage', () => {
         ]
       }
     ])
+    hoisted.attachAiDatasetAnnotations.mockResolvedValue({
+      datasetId: 7,
+      videoId: null,
+      frameAnnotationCount: 12,
+      videoAnnotationCount: 3,
+      attachedFrameAnnotationIds: [],
+      attachedSegmentIds: [],
+      attachedFrameAnnotationCount: 12,
+      attachedSegmentCount: 3
+    })
     hoisted.buildAiDatasetTrainingManifest.mockResolvedValue({
       datasetId: 7,
       datasetName: 'Dataset A',
@@ -103,7 +115,9 @@ describe('AiDatasetSettingsPage', () => {
     expect(hoisted.fetchAiDatasetLabelSets).toHaveBeenCalledTimes(1)
 
     await wrapper.get('[data-test="label-set-select"]').setValue('3')
-    await wrapper.get('[data-test="preprocessing-strategy-select"]').setValue('crop_to_endoscope_roi')
+    await wrapper
+      .get('[data-test="preprocessing-strategy-select"]')
+      .setValue('crop_to_endoscope_roi')
     await wrapper.get('[data-test="unknowns-negative-checkbox"]').setValue(true)
     await wrapper.get('[data-test="information-source-input"]').setValue('manual_annotation')
     await wrapper.get('[data-test="build-training-manifest"]').trigger('click')
@@ -161,7 +175,25 @@ describe('AiDatasetSettingsPage', () => {
       aiModelType: 'image_multilabel_classification',
       isActive: true
     })
-    expect((wrapper.get('[data-test="dataset-select"]').element as HTMLSelectElement).value).toBe('9')
+    expect((wrapper.get('[data-test="dataset-select"]').element as HTMLSelectElement).value).toBe(
+      '9'
+    )
     expect(wrapper.text()).toContain('wurde erstellt und ausgewählt')
+  })
+
+  it('attaches existing annotations to the selected dataset', async () => {
+    const wrapper = mount(AiDatasetSettingsPage)
+    await flushPromises()
+
+    await wrapper.get('[data-test="attach-annotations-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(hoisted.attachAiDatasetAnnotations).toHaveBeenCalledWith('7', {
+      includeAllAnnotations: true,
+      includeFrameAnnotations: true,
+      includeVideoAnnotations: true
+    })
+    expect(wrapper.text()).toContain('12 Frame-Annotationen')
+    expect(wrapper.text()).toContain('3 Video-Segmente')
   })
 })

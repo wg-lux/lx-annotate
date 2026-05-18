@@ -1,6 +1,7 @@
+import { fetchAiDatasetFrameBucketDistribution } from '@/api/aiDatasetApi';
 import { createModelTrainingRun, fetchModelTrainingOptions, fetchModelTrainingRun, fetchModelTrainingRuns } from '@/api/modelTrainingApi';
 import { useToastStore } from '@/stores/toastStore';
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 const toast = useToastStore();
 const loading = ref(true);
 const runPolling = ref(false);
@@ -16,8 +17,18 @@ const phiBaseModelOptions = ref([]);
 const imageDefaults = ref(null);
 const phiDefaults = ref(null);
 const pollTimer = ref(null);
+const datasetSummary = ref(null);
+const datasetSummaryLoading = ref(false);
+const datasetSummaryError = ref('');
+let datasetSummaryRequestId = 0;
+const annotationSourceOptions = [
+    { value: 'all', label: 'Alle' },
+    { value: 'frame_only', label: 'Nur Frames' },
+    { value: 'segment_only', label: 'Nur Segmente' }
+];
 const form = reactive({
     trainingTarget: 'image_multilabel',
+    annotationSourceScope: 'all',
     datasetId: '',
     datasetYaml: '',
     outputDir: '',
@@ -48,11 +59,42 @@ const selectedFeatureModeDescription = computed(() => {
 const selectedPhiBaseModelDescription = computed(() => {
     return phiBaseModelOptions.value.find((option) => option.value === form.baseModel)?.description ?? '';
 });
+function isImageMultilabelDataset(dataset) {
+    return (dataset.datasetType === 'image' &&
+        dataset.aiModelType === 'image_multilabel_classification');
+}
+const trainingDatasetOptions = computed(() => {
+    return datasetOptions.value.filter(isImageMultilabelDataset);
+});
+const selectedDataset = computed(() => {
+    return trainingDatasetOptions.value.find((dataset) => String(dataset.id) === form.datasetId) ?? null;
+});
+const effectiveTrainingFrameCount = computed(() => {
+    const summary = datasetSummary.value?.summary;
+    if (!summary)
+        return 0;
+    if (form.annotationSourceScope === 'frame_only')
+        return summary.annotationFrameCount;
+    if (form.annotationSourceScope === 'segment_only')
+        return summary.segmentFrameCount;
+    return summary.mergedFrameCount;
+});
+const selectedScopeHasNoFrames = computed(() => {
+    return Boolean(form.datasetId &&
+        datasetSummary.value &&
+        !datasetSummaryLoading.value &&
+        !datasetSummaryError.value &&
+        effectiveTrainingFrameCount.value === 0);
+});
 const canStartTraining = computed(() => {
     if (form.trainingTarget === 'phi_region_detector') {
         return Boolean(form.datasetYaml.trim());
     }
-    return Boolean(form.datasetId);
+    return Boolean(form.datasetId &&
+        datasetSummary.value &&
+        !datasetSummaryLoading.value &&
+        !datasetSummaryError.value &&
+        effectiveTrainingFrameCount.value > 0);
 });
 const statusChipLabel = computed(() => {
     if (!currentRun.value)
@@ -97,12 +139,29 @@ function trainingTargetLabel(target) {
         return 'PHI Region Detector';
     return 'Image Multilabel Model';
 }
+function annotationSourceLabel(scope) {
+    if (scope === 'frame_only')
+        return 'Nur Frames';
+    if (scope === 'segment_only')
+        return 'Nur Segmente';
+    return 'Alle';
+}
 function runDatasetLabel(run) {
     if (run.datasetName)
         return run.datasetName;
     if (run.datasetId)
         return `ID ${run.datasetId}`;
     return 'External dataset';
+}
+function fieldErrorMessage(error, fallback) {
+    const responseError = error;
+    const errors = responseError.response?.data?.errors;
+    if (!errors)
+        return fallback;
+    const messages = Object.values(errors)
+        .flatMap((value) => (Array.isArray(value) ? value : [value]))
+        .filter((value) => typeof value === 'string' && value.trim().length > 0);
+    return messages.length ? messages.join(' ') : fallback;
 }
 function artifactLabel(key) {
     return key
@@ -117,9 +176,38 @@ function stopPolling() {
     }
 }
 function applyDefaults() {
-    const preferredDataset = datasetOptions.value.find((dataset) => dataset.isActive) ?? datasetOptions.value[0];
-    if (!form.datasetId && preferredDataset) {
+    const preferredDataset = trainingDatasetOptions.value.find((dataset) => dataset.isActive) ??
+        trainingDatasetOptions.value[0];
+    const currentDatasetIsTrainable = trainingDatasetOptions.value.some((dataset) => String(dataset.id) === form.datasetId);
+    if ((!form.datasetId || !currentDatasetIsTrainable) && preferredDataset) {
         form.datasetId = String(preferredDataset.id);
+    }
+}
+async function loadDatasetSummary(datasetId) {
+    const requestId = ++datasetSummaryRequestId;
+    datasetSummary.value = null;
+    datasetSummaryError.value = '';
+    if (!datasetId) {
+        datasetSummaryLoading.value = false;
+        return;
+    }
+    datasetSummaryLoading.value = true;
+    try {
+        const summary = await fetchAiDatasetFrameBucketDistribution(datasetId);
+        if (requestId === datasetSummaryRequestId) {
+            datasetSummary.value = summary;
+        }
+    }
+    catch (error) {
+        console.error('Failed to load AI dataset training summary:', error);
+        if (requestId === datasetSummaryRequestId) {
+            datasetSummaryError.value = 'Die Datensatz-Zusammenfassung konnte nicht geladen werden.';
+        }
+    }
+    finally {
+        if (requestId === datasetSummaryRequestId) {
+            datasetSummaryLoading.value = false;
+        }
     }
 }
 function applyImageTrainingDefaults(defaults) {
@@ -181,6 +269,9 @@ async function loadPage() {
         recentRuns.value = runs;
         applyImageTrainingDefaults(options.defaults);
         applyDefaults();
+        if (form.trainingTarget === 'image_multilabel') {
+            void loadDatasetSummary(form.datasetId);
+        }
         applyPhiDefaults(options.phiRegionDetector.defaults);
         const activeRun = runs.find(isRunActive) ?? runs[0] ?? null;
         currentRun.value = activeRun;
@@ -267,6 +358,7 @@ async function startTraining() {
             }
             : {
                 datasetId: Number(form.datasetId),
+                annotationSourceScope: form.annotationSourceScope,
                 backboneName: form.backboneName,
                 featureMode: form.featureMode,
                 epochs: form.epochs,
@@ -284,8 +376,9 @@ async function startTraining() {
     }
     catch (error) {
         console.error('Failed to start training run:', error);
-        runErrorMessage.value = 'Der Trainingslauf konnte nicht gestartet werden.';
-        toast.error({ text: 'Training konnte nicht gestartet werden.' });
+        const message = fieldErrorMessage(error, 'Der Trainingslauf konnte nicht gestartet werden.');
+        runErrorMessage.value = message;
+        toast.error({ text: message });
     }
 }
 function formatTimestamp(value) {
@@ -296,6 +389,16 @@ function formatTimestamp(value) {
         timeStyle: 'short'
     }).format(new Date(value));
 }
+watch(() => form.datasetId, (datasetId) => {
+    if (form.trainingTarget === 'image_multilabel') {
+        void loadDatasetSummary(datasetId);
+    }
+});
+watch(() => form.trainingTarget, (trainingTarget) => {
+    if (trainingTarget === 'image_multilabel') {
+        void loadDatasetSummary(form.datasetId);
+    }
+});
 onMounted(() => {
     void loadPage();
 });
@@ -311,6 +414,10 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-card-contrast']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-intro']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotation-source-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-summary-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-summary-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-summary-grid']} */ ;
 /** @type {__VLS_StyleScopedClasses['recent-runs-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['recent-runs-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['recent-run-row']} */ ;
@@ -319,6 +426,9 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['training-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-hero']} */ ;
 /** @type {__VLS_StyleScopedClasses['recent-run-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotation-source-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotation-source-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotation-source-button']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -424,7 +534,7 @@ else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             value: "",
         });
-        for (const [dataset] of __VLS_getVForSourceType((__VLS_ctx.datasetOptions))) {
+        for (const [dataset] of __VLS_getVForSourceType((__VLS_ctx.trainingDatasetOptions))) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
                 key: (dataset.id),
                 value: (String(dataset.id)),
@@ -435,6 +545,97 @@ else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted mt-1" },
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "annotation-source-control" },
+            role: "group",
+            'aria-label': "Annotation source",
+        });
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.annotationSourceOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.loading))
+                            return;
+                        if (!(__VLS_ctx.form.trainingTarget === 'image_multilabel'))
+                            return;
+                        __VLS_ctx.form.annotationSourceScope = option.value;
+                    } },
+                key: (option.value),
+                type: "button",
+                ...{ class: "annotation-source-button" },
+                ...{ class: ({ 'annotation-source-button-active': __VLS_ctx.form.annotationSourceScope === option.value }) },
+                'data-test': (`annotation-source-${option.value}`),
+                disabled: (__VLS_ctx.runPolling),
+            });
+            (option.label);
+        }
+        if (__VLS_ctx.form.datasetId) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "dataset-summary-band" },
+                'data-test': "training-dataset-summary",
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "dataset-summary-heading" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (__VLS_ctx.selectedDataset?.label ?? 'AI Dataset');
+            if (__VLS_ctx.datasetSummaryLoading) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            }
+            else {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.effectiveTrainingFrameCount);
+            }
+            if (__VLS_ctx.datasetSummaryError) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "dataset-summary-error" },
+                    role: "alert",
+                });
+                (__VLS_ctx.datasetSummaryError);
+            }
+            else if (__VLS_ctx.datasetSummary) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "dataset-summary-grid" },
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (__VLS_ctx.datasetSummary.summary.imageAnnotationCount);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (__VLS_ctx.datasetSummary.summary.videoAnnotationCount);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (__VLS_ctx.datasetSummary.summary.annotationFrameCount);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (__VLS_ctx.datasetSummary.summary.segmentFrameCount);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (__VLS_ctx.datasetSummary.summary.mergedFrameCount);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (__VLS_ctx.datasetSummary.summary.videoCount);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (__VLS_ctx.datasetSummary.summary.labelCount);
+            }
+            if (__VLS_ctx.selectedScopeHasNoFrames) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "dataset-summary-error" },
+                    role: "alert",
+                });
+            }
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
             ...{ class: "training-field" },
         });
@@ -818,6 +1019,12 @@ if (__VLS_ctx.currentRun) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
     (__VLS_ctx.runDatasetLabel(__VLS_ctx.currentRun));
+    if (__VLS_ctx.currentRun.trainingTarget !== 'phi_region_detector') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
+        (__VLS_ctx.annotationSourceLabel(__VLS_ctx.currentRun.annotationSourceScope ?? 'all'));
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
@@ -926,6 +1133,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotation-source-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotation-source-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotation-source-button-active']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-summary-band']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-summary-heading']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-summary-error']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-summary-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['dataset-summary-error']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
@@ -1019,14 +1235,21 @@ const __VLS_self = (await import('vue')).defineComponent({
             currentRun: currentRun,
             recentRuns: recentRuns,
             trainingTargetOptions: trainingTargetOptions,
-            datasetOptions: datasetOptions,
             backboneOptions: backboneOptions,
             featureModeOptions: featureModeOptions,
             phiBaseModelOptions: phiBaseModelOptions,
+            datasetSummary: datasetSummary,
+            datasetSummaryLoading: datasetSummaryLoading,
+            datasetSummaryError: datasetSummaryError,
+            annotationSourceOptions: annotationSourceOptions,
             form: form,
             selectedBackboneDescription: selectedBackboneDescription,
             selectedFeatureModeDescription: selectedFeatureModeDescription,
             selectedPhiBaseModelDescription: selectedPhiBaseModelDescription,
+            trainingDatasetOptions: trainingDatasetOptions,
+            selectedDataset: selectedDataset,
+            effectiveTrainingFrameCount: effectiveTrainingFrameCount,
+            selectedScopeHasNoFrames: selectedScopeHasNoFrames,
             canStartTraining: canStartTraining,
             statusChipLabel: statusChipLabel,
             statusChipClass: statusChipClass,
@@ -1034,6 +1257,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             runOutputLog: runOutputLog,
             runStatusLabel: runStatusLabel,
             trainingTargetLabel: trainingTargetLabel,
+            annotationSourceLabel: annotationSourceLabel,
             runDatasetLabel: runDatasetLabel,
             artifactLabel: artifactLabel,
             setTrainingTarget: setTrainingTarget,

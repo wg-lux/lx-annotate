@@ -103,11 +103,13 @@ describe('ApplicationSettingsPage', () => {
     hoisted.fetchApplicationSettings.mockResolvedValue({
       id: 1,
       centerId: 1,
+      centerKey: 'center-alpha',
       centerName: 'Center Alpha',
       processorId: 10,
       processorName: 'Processor One',
       annotatorName: null,
       reportTemplateName: 'template_a',
+      aiDatasetId: 100,
       aiDatasetName: 'dataset_alpha',
       aiDatasetType: 'image',
       updatedAt: '2026-03-26T12:30:00Z',
@@ -125,8 +127,8 @@ describe('ApplicationSettingsPage', () => {
 
     hoisted.fetchApplicationSettingsDropdowns.mockResolvedValue({
       centers: [
-        { id: 1, name: 'Center Alpha' },
-        { id: 2, name: 'Center Beta' }
+        { id: 1, name: 'Center Alpha', centerKey: 'center-alpha' },
+        { id: 2, name: 'Center Beta', centerKey: 'center-beta' }
       ],
       processors: [
         { id: 10, name: 'Processor One' },
@@ -165,11 +167,13 @@ describe('ApplicationSettingsPage', () => {
     hoisted.updateApplicationSettings.mockResolvedValue({
       id: 1,
       centerId: 2,
+      centerKey: 'center-beta',
       centerName: 'Center Beta',
       processorId: 11,
       processorName: 'Processor Two',
       annotatorName: 'annotator_b',
       reportTemplateName: 'template_b',
+      aiDatasetId: 101,
       aiDatasetName: 'dataset_beta',
       aiDatasetType: 'video',
       updatedAt: '2026-03-26T13:15:00Z',
@@ -266,6 +270,7 @@ describe('ApplicationSettingsPage', () => {
       processorId: 11,
       annotatorName: 'annotator_b',
       reportTemplateName: 'template_b',
+      aiDatasetId: 101,
       aiDatasetName: 'dataset_beta',
       aiDatasetType: 'video'
     })
@@ -305,6 +310,8 @@ describe('ApplicationSettingsPage', () => {
 
     expect(hoisted.triggerApplicationAiDatasetExport).toHaveBeenCalledWith({
       datasetId: 100,
+      allCenters: false,
+      centerKey: 'center-alpha',
       onlyValidated: true
     })
     expect(wrapper.get('[data-test=\"ai-dataset-export-result\"]').text()).toContain('2.0 KB')
@@ -313,6 +320,22 @@ describe('ApplicationSettingsPage', () => {
     )
     expect(hoisted.toastSuccess).toHaveBeenCalledWith({
       text: 'KI-Datensatz erfolgreich exportiert.'
+    })
+  })
+
+  it('exports the configured ai dataset for all centers when selected', async () => {
+    const wrapper = mount(ApplicationSettingsPage)
+    await flushPromises()
+
+    await wrapper.get('[data-test=\"ai-dataset-export-scope\"]').setValue('all')
+    await wrapper.get('[data-test=\"run-ai-dataset-export\"]').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.triggerApplicationAiDatasetExport).toHaveBeenCalledWith({
+      datasetId: 100,
+      allCenters: true,
+      centerKey: null,
+      onlyValidated: true
     })
   })
 

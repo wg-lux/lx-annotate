@@ -11,7 +11,7 @@
       <button
         type="button"
         class="btn btn-outline-secondary btn-sm"
-        :disabled="loadingOptions || buildingManifest || creatingDataset"
+        :disabled="isBusy"
         data-test="reload-options"
         @click="loadOptions"
       >
@@ -23,18 +23,21 @@
       <section class="settings-panel">
         <div class="panel-heading">
           <h2>Datensatz</h2>
-          <span
-            class="status-chip"
-            :class="{ 'status-chip-busy': loadingOptions || buildingManifest || creatingDataset }"
-          >
+          <span class="status-chip" :class="{ 'status-chip-busy': isBusy }">
             {{ statusLabel }}
           </span>
         </div>
 
-        <form class="create-dataset-panel" data-test="create-dataset-form" @submit.prevent="createDataset">
+        <form
+          class="create-dataset-panel"
+          data-test="create-dataset-form"
+          @submit.prevent="createDataset"
+        >
           <div>
             <h3>Neuen Datensatz erstellen</h3>
-            <p>Erstellt einen leeren Datensatz und wählt ihn direkt für die Manifest-Vorschau aus.</p>
+            <p>
+              Erstellt einen leeren Datensatz und wählt ihn direkt für die Manifest-Vorschau aus.
+            </p>
           </div>
           <div class="create-dataset-grid">
             <label class="field-group">
@@ -43,7 +46,7 @@
                 v-model="createDatasetForm.name"
                 class="form-control"
                 data-test="new-dataset-name-input"
-                :disabled="loadingOptions || buildingManifest || creatingDataset"
+                :disabled="isBusy"
                 placeholder="z. B. Koloskopie Training Mai 2026"
                 maxlength="255"
               />
@@ -55,7 +58,7 @@
                 v-model="createDatasetForm.datasetType"
                 class="form-select"
                 data-test="new-dataset-type-select"
-                :disabled="loadingOptions || buildingManifest || creatingDataset"
+                :disabled="isBusy"
               >
                 <option value="image">Bilddatensatz</option>
                 <option value="video">Video-Segmentdatensatz</option>
@@ -77,6 +80,54 @@
           {{ createdDatasetMessage }}
         </div>
 
+        <form
+          class="attach-annotations-panel"
+          data-test="attach-annotations-form"
+          @submit.prevent="attachExistingAnnotations"
+        >
+          <div>
+            <h3>Bestehende Annotationen hinzufügen</h3>
+          </div>
+          <div class="attach-options-grid">
+            <label class="check-row">
+              <input
+                v-model="attachForm.includeFrameAnnotations"
+                class="form-check-input"
+                type="checkbox"
+                data-test="attach-frame-annotations-checkbox"
+                :disabled="isBusy"
+              />
+              <span>Frame-Annotationen</span>
+            </label>
+            <label class="check-row">
+              <input
+                v-model="attachForm.includeVideoAnnotations"
+                class="form-check-input"
+                type="checkbox"
+                data-test="attach-video-annotations-checkbox"
+                :disabled="isBusy"
+              />
+              <span>Video-Segmente</span>
+            </label>
+            <button
+              type="submit"
+              class="btn btn-outline-primary attach-annotations-button"
+              data-test="attach-existing-annotations"
+              :disabled="!canAttachExistingAnnotations"
+            >
+              {{
+                attachingAnnotations
+                  ? 'Annotationen werden hinzugefügt...'
+                  : 'Annotationen hinzufügen'
+              }}
+            </button>
+          </div>
+        </form>
+
+        <div v-if="attachmentMessage" class="alert alert-success mb-0 mt-3" role="status">
+          {{ attachmentMessage }}
+        </div>
+
         <div class="settings-grid">
           <label class="field-group">
             <span>KI-Datensatz</span>
@@ -84,11 +135,16 @@
               v-model="selectedDatasetId"
               class="form-select"
               data-test="dataset-select"
-              :disabled="loadingOptions || buildingManifest || creatingDataset"
+              :disabled="isBusy"
             >
               <option value="">Datensatz auswählen</option>
-              <option v-for="dataset in datasetOptions" :key="dataset.id" :value="String(dataset.id)">
-                {{ dataset.label }} - {{ datasetTypeLabel(dataset.datasetType) }} - ID {{ dataset.id }}
+              <option
+                v-for="dataset in datasetOptions"
+                :key="dataset.id"
+                :value="String(dataset.id)"
+              >
+                {{ dataset.label }} - {{ datasetTypeLabel(dataset.datasetType) }} - ID
+                {{ dataset.id }}
               </option>
             </select>
           </label>
@@ -99,7 +155,7 @@
               v-model="form.labelSetId"
               class="form-select"
               data-test="label-set-select"
-              :disabled="loadingOptions || buildingManifest || creatingDataset"
+              :disabled="isBusy"
             >
               <option value="">Automatisch erkennen</option>
               <option v-for="group in labelSetOptions" :key="group.id" :value="String(group.id)">
@@ -114,9 +170,11 @@
               v-model="form.preprocessingStrategy"
               class="form-select"
               data-test="preprocessing-strategy-select"
-              :disabled="buildingManifest || creatingDataset"
+              :disabled="isBusy"
             >
-              <option value="preserve_dimensions_black_mask">Dimensionen mit schwarzer Maske beibehalten</option>
+              <option value="preserve_dimensions_black_mask">
+                Dimensionen mit schwarzer Maske beibehalten
+              </option>
               <option value="crop_to_endoscope_roi">Endoskop-ROI zuschneiden</option>
             </select>
           </label>
@@ -127,10 +185,12 @@
               v-model="form.recommendedModelInputStrategy"
               class="form-select"
               data-test="model-input-strategy-select"
-              :disabled="buildingManifest || creatingDataset"
+              :disabled="isBusy"
             >
               <option value="crop_to_endoscope_roi">Endoskop-ROI zuschneiden</option>
-              <option value="preserve_dimensions_black_mask">Dimensionen mit schwarzer Maske beibehalten</option>
+              <option value="preserve_dimensions_black_mask">
+                Dimensionen mit schwarzer Maske beibehalten
+              </option>
             </select>
           </label>
 
@@ -140,7 +200,7 @@
               v-model="informationSourceInput"
               class="form-control"
               data-test="information-source-input"
-              :disabled="buildingManifest || creatingDataset"
+              :disabled="isBusy"
               placeholder="manual_annotation, prediction"
             />
           </label>
@@ -152,7 +212,7 @@
                 class="form-check-input"
                 type="checkbox"
                 data-test="unknowns-negative-checkbox"
-                :disabled="buildingManifest || creatingDataset"
+                :disabled="isBusy"
               />
               <span>Unbekannte als negativ trainieren</span>
             </label>
@@ -162,7 +222,7 @@
                 class="form-check-input"
                 type="checkbox"
                 data-test="check-frame-format-checkbox"
-                :disabled="buildingManifest || creatingDataset"
+                :disabled="isBusy"
               />
               <span>Frame-Format prüfen</span>
             </label>
@@ -172,7 +232,7 @@
                 class="form-check-input"
                 type="checkbox"
                 data-test="include-file-paths-checkbox"
-                :disabled="buildingManifest || creatingDataset"
+                :disabled="isBusy"
               />
               <span>Lokale Dateipfade einschließen</span>
             </label>
@@ -188,7 +248,7 @@
             type="button"
             class="btn btn-primary"
             data-test="build-training-manifest"
-            :disabled="buildingManifest || creatingDataset || !selectedDatasetId"
+            :disabled="isBusy || !selectedDatasetId"
             @click="buildManifest"
           >
             {{ buildingManifest ? 'Manifest wird erstellt...' : 'Manifest-Vorschau erstellen' }}
@@ -196,7 +256,7 @@
           <button
             type="button"
             class="btn btn-outline-secondary"
-            :disabled="buildingManifest || creatingDataset"
+            :disabled="isBusy"
             @click="resetManifest"
           >
             Ergebnis zurücksetzen
@@ -207,7 +267,11 @@
       <section class="settings-panel summary-panel">
         <div class="panel-heading">
           <h2>Manifest-Zusammenfassung</h2>
-          <span v-if="manifestPreview" class="status-chip status-chip-ready" data-test="manifest-ready">
+          <span
+            v-if="manifestPreview"
+            class="status-chip status-chip-ready"
+            data-test="manifest-ready"
+          >
             {{ manifestPreview.summary.sampleCount }} Beispiele
           </span>
         </div>
@@ -243,11 +307,17 @@
             </div>
             <div>
               <dt>Vorverarbeitung</dt>
-              <dd>{{ strategyLabel(manifestPreview.summary.frameFormat.preprocessingStrategy) }}</dd>
+              <dd>
+                {{ strategyLabel(manifestPreview.summary.frameFormat.preprocessingStrategy) }}
+              </dd>
             </div>
             <div>
               <dt>Modelleingabe</dt>
-              <dd>{{ strategyLabel(manifestPreview.summary.frameFormat.recommendedModelInputStrategy) }}</dd>
+              <dd>
+                {{
+                  strategyLabel(manifestPreview.summary.frameFormat.recommendedModelInputStrategy)
+                }}
+              </dd>
             </div>
           </dl>
 
@@ -263,10 +333,12 @@
 
 <script setup lang="ts">
 import {
+  attachAiDatasetAnnotations,
   buildAiDatasetTrainingManifest,
   createAiDataset,
   fetchAiDatasetLabelSets,
   fetchAiDatasetOptions,
+  type AiDatasetAttachmentResult,
   type AiDatasetModelType,
   type AiDatasetType,
   type AiDatasetFrameFormatStrategy,
@@ -283,8 +355,11 @@ const selectedDatasetId = ref('')
 const loadingOptions = ref(true)
 const buildingManifest = ref(false)
 const creatingDataset = ref(false)
+const attachingAnnotations = ref(false)
 const errorMessage = ref('')
 const createdDatasetMessage = ref('')
+const attachmentMessage = ref('')
+const attachmentResult = ref<AiDatasetAttachmentResult | null>(null)
 const manifestPreview = ref<AiDatasetTrainingManifestPreview | null>(null)
 const informationSourceInput = ref('')
 
@@ -294,6 +369,11 @@ const createDatasetForm = reactive<{
 }>({
   name: '',
   datasetType: 'image'
+})
+
+const attachForm = reactive({
+  includeFrameAnnotations: true,
+  includeVideoAnnotations: true
 })
 
 const form = reactive<AiDatasetTrainingManifestConfig>({
@@ -306,18 +386,31 @@ const form = reactive<AiDatasetTrainingManifestConfig>({
   informationSourceNames: null
 })
 
-const canCreateDataset = computed(() => {
+const isBusy = computed(() => {
   return (
-    createDatasetForm.name.trim().length > 0 &&
-    !loadingOptions.value &&
-    !buildingManifest.value &&
-    !creatingDataset.value
+    loadingOptions.value ||
+    buildingManifest.value ||
+    creatingDataset.value ||
+    attachingAnnotations.value
+  )
+})
+
+const canCreateDataset = computed(() => {
+  return createDatasetForm.name.trim().length > 0 && !isBusy.value
+})
+
+const canAttachExistingAnnotations = computed(() => {
+  return (
+    Boolean(selectedDatasetId.value) &&
+    (attachForm.includeFrameAnnotations || attachForm.includeVideoAnnotations) &&
+    !isBusy.value
   )
 })
 
 const statusLabel = computed(() => {
   if (loadingOptions.value) return 'Optionen werden geladen'
   if (creatingDataset.value) return 'Datensatz wird erstellt'
+  if (attachingAnnotations.value) return 'Annotationen werden hinzugefügt'
   if (buildingManifest.value) return 'Vorschau wird erstellt'
   return 'Bereit'
 })
@@ -406,6 +499,7 @@ async function createDataset(): Promise<void> {
   creatingDataset.value = true
   errorMessage.value = ''
   createdDatasetMessage.value = ''
+  attachmentMessage.value = ''
   try {
     const createdDataset = await createAiDataset({
       name: createDatasetForm.name.trim(),
@@ -435,12 +529,47 @@ async function createDataset(): Promise<void> {
   }
 }
 
+async function attachExistingAnnotations(): Promise<void> {
+  if (!canAttachExistingAnnotations.value) return
+
+  attachingAnnotations.value = true
+  errorMessage.value = ''
+  createdDatasetMessage.value = ''
+  attachmentMessage.value = ''
+  attachmentResult.value = null
+  manifestPreview.value = null
+  try {
+    attachmentResult.value = await attachAiDatasetAnnotations(selectedDatasetId.value, {
+      includeAllAnnotations: true,
+      includeFrameAnnotations: attachForm.includeFrameAnnotations,
+      includeVideoAnnotations: attachForm.includeVideoAnnotations
+    })
+    attachmentMessage.value =
+      `Datensatz enthält ${attachmentResult.value.frameAnnotationCount} Frame-Annotationen ` +
+      `und ${attachmentResult.value.videoAnnotationCount} Video-Segmente.`
+  } catch (error: any) {
+    console.error('Failed to attach existing AI dataset annotations:', error)
+    const errors = error?.response?.data?.errors
+    errorMessage.value =
+      errors?.includeAllAnnotations ||
+      errors?.include_all_annotations ||
+      errors?.includeFrameAnnotations ||
+      errors?.include_frame_annotations ||
+      errors?.includeVideoAnnotations ||
+      errors?.include_video_annotations ||
+      'Die Annotationen konnten nicht hinzugefügt werden.'
+  } finally {
+    attachingAnnotations.value = false
+  }
+}
+
 async function buildManifest(): Promise<void> {
   if (!selectedDatasetId.value) return
 
   buildingManifest.value = true
   errorMessage.value = ''
   createdDatasetMessage.value = ''
+  attachmentMessage.value = ''
   manifestPreview.value = null
   try {
     manifestPreview.value = await buildAiDatasetTrainingManifest(selectedDatasetId.value, {
@@ -543,7 +672,21 @@ onMounted(() => {
   background: #f8fbfc;
 }
 
+.attach-annotations-panel {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #d9e2ec;
+}
+
 .create-dataset-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.attach-annotations-panel h3 {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
@@ -562,7 +705,19 @@ onMounted(() => {
   align-items: end;
 }
 
+.attach-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(10rem, auto)) minmax(12rem, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
 .create-dataset-button {
+  min-height: 2.35rem;
+}
+
+.attach-annotations-button {
+  justify-self: start;
   min-height: 2.35rem;
 }
 
@@ -689,6 +844,10 @@ onMounted(() => {
   }
 
   .create-dataset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attach-options-grid {
     grid-template-columns: 1fr;
   }
 }
