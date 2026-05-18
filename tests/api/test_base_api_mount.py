@@ -49,9 +49,9 @@ def test_repo_urls_mount_base_api_live_routes(monkeypatch):
         secure=True,
     )
     assert templates_res.status_code == 200, templates_res.content.decode()
-    assert (
-        canonical_templates_res.status_code == 200
-    ), canonical_templates_res.content.decode()
+    assert canonical_templates_res.status_code == 200, (
+        canonical_templates_res.content.decode()
+    )
     templates_payload = templates_res.json()
     assert templates_payload[0]["name"] == "colonoscopy_training_basic"
 
