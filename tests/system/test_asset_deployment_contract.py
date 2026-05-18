@@ -273,16 +273,19 @@ def test_frontend_defaults_to_same_origin_api_contract():
     assert "baseURL: '/'," in axios_ts
     assert "import { endpoints } from '@/types/api/endpoints'" in video_axios_ts
     assert "endpoints.media.videos" in video_axios_ts
-    assert ": `/api/${endpoints.media.videos}`" in video_axios_ts
+    assert "import { endoregApi } from '@/api/axiosInstance'" in video_axios_ts
+    assert "endoregApi(endpoints.media.videos)" in video_axios_ts
     assert "videoStream: (pk: Id) => `media/videos/${pk}/stream/`" in endpoints_ts
     assert "patientPseudonym: (id: Id) => `patients/${id}/pseudonym/`" in endpoints_ts
     assert "import { endpoints } from '@/types/api/endpoints'" in findings_api_ts
+    assert "import axiosInstance, { dtypesApi, endoregApi }" in findings_api_ts
     assert "ENDOREG_PATHS = {" in findings_api_ts
-    assert "findings: `/api/${endpoints.router.findings}`" in findings_api_ts
+    assert "findings: endoregApi(endpoints.router.findings)" in findings_api_ts
     assert (
-        "patientFindings: `/api/${endpoints.patient.patientFindings}`"
+        "patientFindings: endoregApi(endpoints.patient.patientFindings)"
         in findings_api_ts
     )
+    assert "dtypesApi(`examinations/${examinationId}/findings/`)" in findings_api_ts
     assert "http://localhost:8000" not in correction_vue
     assert "http://localhost:8000" not in error_logger
 
