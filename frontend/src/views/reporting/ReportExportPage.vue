@@ -172,9 +172,10 @@ const reportStatusClass = computed(() => {
   return 'bg-secondary'
 })
 
-const timelineUrl = computed(() => {
+const timelineUrl = computed<string | undefined>(() => {
   const url = persistedArtifacts.value?.patientTimelineUrl
-  if (!url || !patientExaminationId.value || url.includes('patient_examination_id=')) return url
+  if (!url) return undefined
+  if (!patientExaminationId.value || url.includes('patient_examination_id=')) return url
   const separator = url.includes('?') ? '&' : '?'
   return `${url}${separator}patient_examination_id=${patientExaminationId.value}`
 })
