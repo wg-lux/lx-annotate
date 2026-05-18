@@ -154,6 +154,19 @@ They are different workflow gates and must be displayed separately.
 - Hugging Face model selection for video segments should resolve through
   `ModelMeta.setup_default_from_huggingface` and then call `pipe_1` with the
   resolved `model_name` and `model_meta_version`.
+- Operational monitoring for `VideoExaminationAnnotation` buttons must follow
+  Celery queue routing, not the task registry printed by each worker at startup.
+  `KI neu berechnen` calls
+  `/api/media/videos/<id>/segments/rerun-predictions/`, dispatches
+  `endoreg_db.video_temporal_inference`, and should be monitored on
+  `lx-annotate-celery-inference-worker.service` (`inference` queue).
+  `Außerhalb-Segmente schwärzen` calls
+  `/api/media/videos/<id>/segments/blacken-outside/`, dispatches
+  `endoreg_db.video_post_validation_rebuild`, and should be monitored on
+  `lx-annotate-celery-frame-extraction-worker.service` (`frame_extraction`
+  queue). The generic `lx-annotate-celery-worker.service` is for
+  `maintenance,default`; it may list these task names at startup but is not the
+  primary consumer for these UI actions.
 
 ## Lookup Contract Guide For Frontend Agents
 

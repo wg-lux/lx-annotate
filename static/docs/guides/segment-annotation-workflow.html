@@ -314,6 +314,67 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">outside</span></code> handling is included in this finalization step.</p></li>
 </ul>
 </section>
+<section id="operational-monitoring">
+<h2>Operational Monitoring<a class="headerlink" href="#operational-monitoring" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">VideoExaminationAnnotation</span></code> page has two expensive backend actions that
+are watchable at:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">KI</span> <span class="pre">neu</span> <span class="pre">berechnen</span></code> posts to
+<code class="docutils literal notranslate"><span class="pre">/api/media/videos/&lt;video_id&gt;/segments/rerun-predictions/</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Außerhalb-Segmente</span> <span class="pre">schwärzen</span></code> posts to
+<code class="docutils literal notranslate"><span class="pre">/api/media/videos/&lt;video_id&gt;/segments/blacken-outside/</span></code>.</p></li>
+</ul>
+<p>These requests return <code class="docutils literal notranslate"><span class="pre">202</span> <span class="pre">Accepted</span></code> when the backend queued work. The
+follow-up Celery work does not run in the generic maintenance worker even
+though the task names are listed during that worker’s startup.</p>
+<section id="prediction-rerun">
+<h3>Prediction rerun<a class="headerlink" href="#prediction-rerun" title="Link to this heading">¶</a></h3>
+<p>Prediction reruns dispatch <code class="docutils literal notranslate"><span class="pre">endoreg_db.video_temporal_inference</span></code>.</p>
+<ul class="simple">
+<li><p>Celery queue: <code class="docutils literal notranslate"><span class="pre">inference</span></code></p></li>
+<li><p>Systemd service: <code class="docutils literal notranslate"><span class="pre">lx-annotate-celery-inference-worker.service</span></code></p></li>
+<li><p>Typical log terms: <code class="docutils literal notranslate"><span class="pre">video_temporal_inference</span></code>, <code class="docutils literal notranslate"><span class="pre">rerun-predictions</span></code>,
+<code class="docutils literal notranslate"><span class="pre">predicting_segments</span></code>, <code class="docutils literal notranslate"><span class="pre">Task</span> <span class="pre">...</span> <span class="pre">received</span></code>, <code class="docutils literal notranslate"><span class="pre">succeeded</span></code>, <code class="docutils literal notranslate"><span class="pre">failed</span></code></p></li>
+</ul>
+<p>Monitor it with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>journalctl<span class="w"> </span>-u<span class="w"> </span>lx-annotate-celery-inference-worker.service<span class="w"> </span>-f<span class="w"> </span>-o<span class="w"> </span>short-iso
+</pre></div>
+</div>
+</section>
+<section id="segment-censorship-outside-blackening">
+<h3>Segment censorship / outside blackening<a class="headerlink" href="#segment-censorship-outside-blackening" title="Link to this heading">¶</a></h3>
+<p>Outside-segment censorship dispatches <code class="docutils literal notranslate"><span class="pre">endoreg_db.video_post_validation_rebuild</span></code>.
+This is intentionally routed to the frame extraction queue because the rebuild
+can perform staged media/frame regeneration.</p>
+<ul class="simple">
+<li><p>Celery queue: <code class="docutils literal notranslate"><span class="pre">frame_extraction</span></code></p></li>
+<li><p>Systemd service: <code class="docutils literal notranslate"><span class="pre">lx-annotate-celery-frame-extraction-worker.service</span></code></p></li>
+<li><p>Typical log terms: <code class="docutils literal notranslate"><span class="pre">video_post_validation_rebuild</span></code>, <code class="docutils literal notranslate"><span class="pre">blacken-outside</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Starting</span> <span class="pre">staged</span> <span class="pre">frame</span> <span class="pre">extraction</span></code>, <code class="docutils literal notranslate"><span class="pre">Running</span> <span class="pre">FFmpeg</span></code>, <code class="docutils literal notranslate"><span class="pre">cleanup_</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Task</span> <span class="pre">...</span> <span class="pre">received</span></code>, <code class="docutils literal notranslate"><span class="pre">succeeded</span></code>, <code class="docutils literal notranslate"><span class="pre">failed</span></code></p></li>
+</ul>
+<p>Monitor it with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>journalctl<span class="w"> </span>-u<span class="w"> </span>lx-annotate-celery-frame-extraction-worker.service<span class="w"> </span>-f<span class="w"> </span>-o<span class="w"> </span>short-iso
+</pre></div>
+</div>
+</section>
+<section id="combined-operator-view">
+<h3>Combined operator view<a class="headerlink" href="#combined-operator-view" title="Link to this heading">¶</a></h3>
+<p>Use this when testing both buttons from the UI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>journalctl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-u<span class="w"> </span>lx-annotate-boot.service<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-u<span class="w"> </span>lx-annotate-celery-inference-worker.service<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-u<span class="w"> </span>lx-annotate-celery-frame-extraction-worker.service<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-f<span class="w"> </span>-o<span class="w"> </span>short-iso<span class="w"> </span><span class="p">|</span><span class="w"> </span>rg<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;rerun-predictions|blacken-outside|video_temporal_inference|video_post_validation_rebuild|Task .*received|succeeded|failed|Running FFmpeg|Starting staged frame extraction|cleanup_|predicting_segments&#39;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">lx-annotate-celery-worker.service</span></code> is the maintenance/default worker. It may
+print <code class="docutils literal notranslate"><span class="pre">endoreg_db.video_temporal_inference</span></code> and
+<code class="docutils literal notranslate"><span class="pre">endoreg_db.video_post_validation_rebuild</span></code> in its startup task registry, but
+queue routing decides which worker consumes the task. Do not use it as the
+primary journal for these two buttons.</p>
+</section>
+</section>
 <section id="training-notes">
 <h2>Training Notes<a class="headerlink" href="#training-notes" title="Link to this heading">¶</a></h2>
 <ul class="simple">
@@ -418,6 +479,12 @@
 <li><a class="reference internal" href="#preconditions">Preconditions</a></li>
 <li><a class="reference internal" href="#step-by-step-for-medical-users">Step-by-Step for Medical Users</a></li>
 <li><a class="reference internal" href="#what-happens-on-full-validation">What Happens on Full Validation</a></li>
+<li><a class="reference internal" href="#operational-monitoring">Operational Monitoring</a><ul>
+<li><a class="reference internal" href="#prediction-rerun">Prediction rerun</a></li>
+<li><a class="reference internal" href="#segment-censorship-outside-blackening">Segment censorship / outside blackening</a></li>
+<li><a class="reference internal" href="#combined-operator-view">Combined operator view</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#training-notes">Training Notes</a></li>
 <li><a class="reference internal" href="#common-issues">Common Issues</a><ul>
 <li><a class="reference internal" href="#no-video-can-be-selected">No video can be selected</a></li>
@@ -437,7 +504,7 @@
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=2a2fe768"></script>
+</div><script src="../_static/documentation_options.js?v=722679d6"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
