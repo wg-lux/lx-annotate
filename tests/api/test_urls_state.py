@@ -18,6 +18,8 @@ def _fresh_urls_module(monkeypatch=None):
         monkeypatch.setenv("LX_DATA_MODELS_ROOT", LX_DATA_MODELS_ROOT)
 
     sys.modules.pop("lx_annotate.urls", None)
+    sys.modules.pop("lx_annotate.api_urls", None)
+    sys.modules.pop("lx_annotate.base_api_urls", None)
     sys.modules.pop("lx_dtypes.django.api.main", None)
     sys.modules.pop("lx_dtypes.django.api.report_template_builder", None)
     NinjaAPI._registry = []
@@ -40,6 +42,29 @@ def test_root_urlpatterns_state_with_base_api(monkeypatch):
     assert top_level_patterns.index("api/") < top_level_patterns.index(
         "^(?!api/|base_api/|admin/|media/|oidc/).*$"
     )
+
+
+@override_settings(ROOT_URLCONF="lx_annotate.urls")
+def test_spa_resolution_does_not_import_api_url_modules(monkeypatch):
+    lazy_modules = (
+        "lx_annotate.api_urls",
+        "lx_annotate.base_api_urls",
+        "endoreg_db.urls",
+        "endoreg_db.urls.settings",
+        "endoreg_db.views.misc.application_settings",
+        "endoreg_db.utils.ai.model_training.config",
+    )
+    for module_name in lazy_modules:
+        sys.modules.pop(module_name, None)
+
+    _fresh_urls_module(monkeypatch)
+    clear_url_caches()
+    set_urlconf("lx_annotate.urls")
+
+    assert resolve("/anonymisierung/uebersicht").url_name == "vue_spa"
+
+    for module_name in lazy_modules:
+        assert module_name not in sys.modules
 
 
 @override_settings(ROOT_URLCONF="lx_annotate.urls")

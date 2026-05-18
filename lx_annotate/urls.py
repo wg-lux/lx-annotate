@@ -2,26 +2,28 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
+from django.urls.resolvers import RoutePattern, URLResolver
 from django.views.generic import RedirectView, TemplateView
-from lx_dtypes.django.api.main import api as lx_dtypes_api
-from lx_annotate.views.ai_dataset_settings import ai_datasets_dropdown
-from lx_annotate.views.hub_export import (
-    hub_export_mark,
-    hub_export_overview,
-    hub_export_unmark,
-)
+
+
+def lazy_urlconf(
+    route: str,
+    urlconf_module: str,
+    *,
+    app_name: str | None = None,
+    namespace: str | None = None,
+) -> URLResolver:
+    return URLResolver(
+        RoutePattern(route, is_endpoint=False),
+        urlconf_module,
+        app_name=app_name,
+        namespace=namespace,
+    )
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/hub-export/overview/", hub_export_overview, name="hub-export-overview"),
-    path("api/hub-export/mark/", hub_export_mark, name="hub-export-mark"),
-    path("api/hub-export/unmark/", hub_export_unmark, name="hub-export-unmark"),
-    path(
-        "api/settings/application/dropdowns/ai_datasets/",
-        ai_datasets_dropdown,
-        name="ai-datasets-dropdown",
-    ),
-    path("api/", include(("endoreg_db.urls", "endoreg_db"), namespace="api")),
+    lazy_urlconf("api/", "lx_annotate.api_urls"),
     path("oidc/", include("mozilla_django_oidc.urls")),
     path(
         "favicon.ico",
@@ -32,7 +34,14 @@ urlpatterns = [
     ),
 ]
 
-urlpatterns.append(path("base_api/", lx_dtypes_api.urls))
+urlpatterns.append(
+    lazy_urlconf(
+        "base_api/",
+        "lx_annotate.base_api_urls",
+        app_name="ninja",
+        namespace="lx_dtypes_base_api",
+    )
+)
 
 # Catch-all Vue SPA
 urlpatterns.append(
