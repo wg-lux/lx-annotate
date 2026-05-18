@@ -36,7 +36,7 @@
           </div>
           <h5 class="text-muted">Keine Dateien vorhanden</h5>
           <p class="text-muted mb-4">
-            Laden Sie Videos oder PDFs in den data Ordner oder den import ordner, um mit der Anonymisierung zu beginnen.
+            Laden Sie Videos oder PDFs in den <code>data</code>-Ordner oder den <code>import</code>-Ordner, um mit der Anonymisierung zu beginnen.
           </p>
         </div>
 
@@ -47,7 +47,7 @@
               <tr>
                 <th class="sticky-filename-column">Dateiname</th>
                 <th>Typ</th>
-                <th>Upload</th>
+                <th>Import</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
                 <th>Validierung</th>
@@ -264,7 +264,7 @@
                       disabled
                     >
                       <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
-                      Frames extrahieren...
+                      Einzelbilder werden extrahiert...
                     </button>
 
                   </div>
@@ -596,7 +596,7 @@ const documentTypeLabels: Record<string, string> = {
   report_correction: 'Befund-Korrektur',
   histology_draft: 'Histologie-Entwurf',
   histology_final: 'Finale Histologie',
-  referral: 'Ueberweisung',
+  referral: 'Überweisung',
   discharge: 'Entlassbrief'
 };
 
@@ -604,7 +604,7 @@ const getDocumentTypeLabel = (documentType?: string | null) => {
   if (!documentType) return '';
   const normalized = documentType.trim();
   if (!normalized) return '';
-  return documentTypeLabels[normalized] || normalized;
+  return documentTypeLabels[normalized] || `Dokumenttyp: ${normalized}`;
 };
 
 const getPdfPatientLabel = (file: FileItem) => {
@@ -661,13 +661,13 @@ const getStatusText = (status: string) => {
   const texts: { [key: string]: string } = {
     'not_started': 'Nicht gestartet',
     'processing_anonymization': 'Anonymisierung läuft',
-    'extracting_frames': 'Frames extrahieren',
-    'predicting_segments': 'Segmente vorhersagen',
+    'extracting_frames': 'Einzelbilder werden extrahiert',
+    'predicting_segments': 'Segmentvorhersage läuft',
     'done_processing_anonymization': 'Fertig',
     'validated': 'Validiert',
     'failed': 'Fehlgeschlagen'
   };
-  return texts[status] || status;
+  return texts[status] || `Unbekannter Status (${status})`;
 };
 
 const getUploadJobStatusBadgeClass = (status: string) => {
@@ -684,24 +684,24 @@ const getUploadJobStatusBadgeClass = (status: string) => {
 
 const getUploadJobStatusText = (status: string) => {
   const texts: { [key: string]: string } = {
-    pending: 'Upload wartet',
-    processing: 'Upload läuft',
-    anonymized: 'Upload abgeschlossen',
+    pending: 'Import wartet',
+    processing: 'Import läuft',
+    anonymized: 'Import abgeschlossen',
     quarantined: 'In Quarantäne',
-    error: 'Uploadfehler',
-    lost: 'Upload verloren. Bitte löschen und erneut importieren!'
+    error: 'Importfehler',
+    lost: 'Import verloren. Bitte löschen und erneut importieren!'
   };
-  return texts[status] || status;
+  return texts[status] || `Unbekannter Importstatus (${status})`;
 };
 
 const getUploadJobOriginLabel = (uploadJob: UploadJobOverview) => {
   const parts: string[] = [];
   if (uploadJob.ingestMode === 'watcher') {
-    parts.push('Watcher');
+    parts.push('Dateiwächter');
   } else if (uploadJob.ingestMode === 'api') {
     parts.push('API');
   } else if (uploadJob.ingestMode) {
-    parts.push(uploadJob.ingestMode);
+    parts.push(`Importweg: ${uploadJob.ingestMode}`);
   }
 
   if (uploadJob.sourceSystem) {
@@ -722,7 +722,7 @@ const getUploadJobCleanupStatusText = (status: string) => {
     completed: 'Bereinigt',
     skipped: 'Bereinigung übersprungen'
   };
-  return texts[status] || status;
+  return texts[status] || `Unbekannter Bereinigungsstatus (${status})`;
 };
 
 const getUploadJobCleanupLabel = (uploadJob: UploadJobOverview) => {
