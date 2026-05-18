@@ -67,7 +67,7 @@ The wheel is only a Python artifact. It does not bundle host binaries such as:
 - `tesseract-ocr`
 - shared libraries required by video/OCR/image dependencies
 
-Those are provisioned on the host by `deploy/bootstrap-host.sh`.
+Those are provisioned on the host by `deployment_example/bootstrap-host.sh`.
 
 The runtime deployment flow is:
 
@@ -78,7 +78,7 @@ The runtime deployment flow is:
 5. Run migrations.
 6. Restart the ASGI service.
 
-That flow is implemented by `deploy/deploy.sh`.
+That flow is implemented by `deployment_example/deploy.sh`.
 
 The runtime split is deliberate:
 
@@ -146,9 +146,9 @@ Operational guidance:
 
 The production service split is intentional:
 
-- `deploy/lx-annotate.service`
+- `deployment_example/lx-annotate.service`
   runs Daphne
-- `deploy/lx-annotate-watcher.service`
+- `deployment_example/lx-annotate-watcher.service`
   runs the file watcher separately
 
 The watcher must remain isolated from the web process so media ingestion
@@ -231,7 +231,7 @@ components:
 - runtime data root: `/var/lib/lx-annotate/data`
 - staticfiles root: `/var/lib/lx-annotate/staticfiles`
 
-The shipped service units in `deploy/` are wheel-mode units. They assume:
+The shipped service units in `deployment_example/` are wheel-mode units. They assume:
 
 - service user and group: `lx-annotate`
 - app root: `/home/lx-annotate/lx-annotate-wheel`
@@ -329,7 +329,7 @@ responsible for:
 - proxying dynamic requests to Daphne
 
 The reference Nginx config lives in
-`deploy/nginx-lx-annotate.conf`.
+`deployment_example/nginx-lx-annotate.conf`.
 
 ## LuxNix Strategy
 

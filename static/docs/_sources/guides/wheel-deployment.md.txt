@@ -14,7 +14,7 @@ application is built in CI as a Python wheel with frontend staticfiles included.
 For Debian/Ubuntu hosts:
 
 ```bash
-sudo ./deploy/bootstrap-host.sh
+sudo ./deployment_example/bootstrap-host.sh
 ```
 
 That script installs:
@@ -30,12 +30,12 @@ The extra shared libraries match the runtime expectations currently modeled in
 Because these host binaries come from the OS package manager rather than Nix,
 minor package drift is now an operational concern. Treat FFmpeg and Tesseract
 updates as deployment changes: review them, pin or hold them if needed, and
-update `deploy/bootstrap-host.sh` whenever runtime dependencies change.
+update `deployment_example/bootstrap-host.sh` whenever runtime dependencies change.
 
 ## Runtime Contract
 
 Create `/var/lib/lx-annotate/.env.systemd` from
-`deploy/.env.systemd.example` and set real values for:
+`deployment_example/.env.systemd.example` and set real values for:
 
 - `DJANGO_SECRET_KEY`
 - `DJANGO_DB_*`
@@ -209,8 +209,8 @@ This is still Phase 1 of the security roadmap:
 ## Deployment
 
 1. Copy the built wheel from CI to the server.
-2. Copy `deploy/lx-annotate.service` to `/etc/systemd/system/`.
-3. Copy `deploy/lx-annotate-watcher.service` to `/etc/systemd/system/` if the
+2. Copy `deployment_example/lx-annotate.service` to `/etc/systemd/system/`.
+3. Copy `deployment_example/lx-annotate-watcher.service` to `/etc/systemd/system/` if the
    file watcher should run in production.
 4. Create the app user and directories:
 
@@ -223,10 +223,10 @@ sudo chown -R lx-annotate:lx-annotate /var/lib/lx-annotate
 5. Run the deployment script:
 
 ```bash
-./deploy/deploy.sh /tmp/lx_annotate-0.0.1-py3-none-any.whl
+./deployment_example/deploy.sh /tmp/lx_annotate-0.0.1-py3-none-any.whl
 ```
 
-That script now runs `deploy/acceptance-smoke.sh` by default after the service
+That script now runs `deployment_example/acceptance-smoke.sh` by default after the service
 restart. The smoke path verifies:
 
 - Django runtime checks with the production environment
@@ -237,7 +237,7 @@ Set `RUN_POST_DEPLOY_ACCEPTANCE=0` only when you need to separate rollout from
 acceptance debugging.
 
 6. Put a reverse proxy in front of Daphne. An example Nginx server block lives
-   in `deploy/nginx-lx-annotate.conf`.
+   in `deployment_example/nginx-lx-annotate.conf`.
 
 7. Enable the service:
 
@@ -378,7 +378,7 @@ deployments.
 
 Run the file watcher as a separate `systemd` unit. A corrupted media file or
 OOM in the watcher must not take down Daphne. The supplied
-`deploy/lx-annotate-watcher.service` keeps that blast radius separate.
+`deployment_example/lx-annotate-watcher.service` keeps that blast radius separate.
 
 That isolation is operational only. Ingest logic, provenance, and cleanup
 policy still live in the shared core package and should not be reimplemented in

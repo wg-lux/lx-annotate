@@ -267,7 +267,7 @@ application is built in CI as a Python wheel with frontend staticfiles included.
 <section id="host-packages">
 <h2>Host Packages<a class="headerlink" href="#host-packages" title="Link to this heading">¶</a></h2>
 <p>For Debian/Ubuntu hosts:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>./deploy/bootstrap-host.sh
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>./deployment_example/bootstrap-host.sh
 </pre></div>
 </div>
 <p>That script installs:</p>
@@ -282,12 +282,12 @@ application is built in CI as a Python wheel with frontend staticfiles included.
 <p>Because these host binaries come from the OS package manager rather than Nix,
 minor package drift is now an operational concern. Treat FFmpeg and Tesseract
 updates as deployment changes: review them, pin or hold them if needed, and
-update <code class="docutils literal notranslate"><span class="pre">deploy/bootstrap-host.sh</span></code> whenever runtime dependencies change.</p>
+update <code class="docutils literal notranslate"><span class="pre">deployment_example/bootstrap-host.sh</span></code> whenever runtime dependencies change.</p>
 </section>
 <section id="runtime-contract">
 <h2>Runtime Contract<a class="headerlink" href="#runtime-contract" title="Link to this heading">¶</a></h2>
 <p>Create <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code> from
-<code class="docutils literal notranslate"><span class="pre">deploy/.env.systemd.example</span></code> and set real values for:</p>
+<code class="docutils literal notranslate"><span class="pre">deployment_example/.env.systemd.example</span></code> and set real values for:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_DB_*</span></code></p></li>
@@ -455,8 +455,8 @@ and mTLS</p></li>
 <h2>Deployment<a class="headerlink" href="#deployment" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p>Copy the built wheel from CI to the server.</p></li>
-<li><p>Copy <code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate.service</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/systemd/system/</span></code>.</p></li>
-<li><p>Copy <code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate-watcher.service</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/systemd/system/</span></code> if the
+<li><p>Copy <code class="docutils literal notranslate"><span class="pre">deployment_example/lx-annotate.service</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/systemd/system/</span></code>.</p></li>
+<li><p>Copy <code class="docutils literal notranslate"><span class="pre">deployment_example/lx-annotate-watcher.service</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/systemd/system/</span></code> if the
 file watcher should run in production.</p></li>
 <li><p>Create the app user and directories:</p></li>
 </ol>
@@ -468,10 +468,10 @@ sudo<span class="w"> </span>chown<span class="w"> </span>-R<span class="w"> </sp
 <ol class="arabic simple" start="5">
 <li><p>Run the deployment script:</p></li>
 </ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./deploy/deploy.sh<span class="w"> </span>/tmp/lx_annotate-0.0.1-py3-none-any.whl
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./deployment_example/deploy.sh<span class="w"> </span>/tmp/lx_annotate-0.0.1-py3-none-any.whl
 </pre></div>
 </div>
-<p>That script now runs <code class="docutils literal notranslate"><span class="pre">deploy/acceptance-smoke.sh</span></code> by default after the service
+<p>That script now runs <code class="docutils literal notranslate"><span class="pre">deployment_example/acceptance-smoke.sh</span></code> by default after the service
 restart. The smoke path verifies:</p>
 <ul class="simple">
 <li><p>Django runtime checks with the production environment</p></li>
@@ -482,7 +482,7 @@ restart. The smoke path verifies:</p>
 acceptance debugging.</p>
 <ol class="arabic simple" start="6">
 <li><p>Put a reverse proxy in front of Daphne. An example Nginx server block lives
-in <code class="docutils literal notranslate"><span class="pre">deploy/nginx-lx-annotate.conf</span></code>.</p></li>
+in <code class="docutils literal notranslate"><span class="pre">deployment_example/nginx-lx-annotate.conf</span></code>.</p></li>
 <li><p>Enable the service:</p></li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
@@ -619,7 +619,7 @@ deployments.</p>
 <h2>Service Isolation<a class="headerlink" href="#service-isolation" title="Link to this heading">¶</a></h2>
 <p>Run the file watcher as a separate <code class="docutils literal notranslate"><span class="pre">systemd</span></code> unit. A corrupted media file or
 OOM in the watcher must not take down Daphne. The supplied
-<code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate-watcher.service</span></code> keeps that blast radius separate.</p>
+<code class="docutils literal notranslate"><span class="pre">deployment_example/lx-annotate-watcher.service</span></code> keeps that blast radius separate.</p>
 <p>That isolation is operational only. Ingest logic, provenance, and cleanup
 policy still live in the shared core package and should not be reimplemented in
 the watcher unit.</p>
@@ -746,7 +746,7 @@ cache growth on long-lived hosts.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=d65efdcf"></script>
+</div><script src="../_static/documentation_options.js?v=3e445e0d"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
