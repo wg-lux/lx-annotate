@@ -84,7 +84,7 @@ def _read_quarantine_file(
         "quarantined_at": quarantined_at,
         "created_at": quarantined_at,
         "modified_at": _iso_from_timestamp(stat_result.st_mtime),
-        "reason": "File was moved to quarantine before it became an importable media record.",
+        "reason": "Datei ist vermutlich beschädigt. Überprüfen Sie die Datei und importieren Sie erneut!",
     }
 
 
