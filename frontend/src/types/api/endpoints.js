@@ -49,6 +49,7 @@ export const endpoints = {
         patientExaminationReportById: (id) => `patient-examination-reports/${id}/`,
         patientExaminationReportsByPatientExamination: (patientExaminationId) => `patient-examination-reports/?patient_examination_id=${patientExaminationId}`,
         saveReportSubmission: 'patient-examination-reports/save-submission/',
+        makeReport: 'patient-examination-reports/make-report/',
         segmentFrameSelectorBase: 'patient-examination-reports/segment-frame-selector/',
         segmentFrameSelector: (patientExaminationId, reportId) => reportId == null
             ? `patient-examination-reports/segment-frame-selector/?patient_examination_id=${patientExaminationId}`
@@ -78,6 +79,9 @@ export const endpoints = {
         overview: 'hub-export/overview/',
         mark: 'hub-export/mark/',
         unmark: 'hub-export/unmark/'
+    },
+    runtime: {
+        quarantine: 'runtime/quarantine/'
     },
     anonymization: {
         itemsOverview: 'anonymization/items/overview/',

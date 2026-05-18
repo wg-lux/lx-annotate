@@ -57,7 +57,12 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="file in availableFiles" :key="`${file.mediaType}-${file.id}`">                <!-- Filename -->
+              <tr
+                v-for="file in availableFiles"
+                :key="`${file.mediaType}-${file.id}`"
+                :class="{ 'table-warning': file.quarantined }"
+              >
+                <!-- Filename -->
                 <td class="sticky-filename-column">
                   <div class="d-flex align-items-start filename-cell-content">
                     <i 
@@ -65,9 +70,12 @@
                       class="me-2 flex-shrink-0"
                     ></i>
                     <div class="filename-details">
-                      <span class="fw-medium filename-text">{{ file.filename }}</span>
+                      <span class="fw-medium filename-text">{{ getFileDisplayName(file) }}</span>
                       <div class="small text-muted mt-1">
                         {{ getFileIdLabel(file) }}
+                      </div>
+                      <div v-if="file.quarantined" class="small text-warning mt-1 quarantine-file-note">
+                        Import blockiert: Datei liegt in Quarantäne.
                       </div>
                     </div>
                   </div>
@@ -167,7 +175,10 @@
 
                 <!-- Actions -->
                 <td>
-                  <div class="btn-group btn-group-sm" role="group">
+                  <div v-if="file.quarantined" class="small text-warning quarantine-action-note">
+                    Serverseitige Quarantäne
+                  </div>
+                  <div v-else class="btn-group btn-group-sm" role="group">
                     <!-- Re-import for videos with missing/incorrect metadata -->
                     <button
                       v-if="file.mediaType === 'video' && needsReimport(file)"
@@ -516,7 +527,7 @@ const deleteFile = async (fileId: number) => {
   }
 
   // Ask for confirmation
-  const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${file.filename}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
+  const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${getFileDisplayName(file)}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
   if (!confirmed) {
     return;
   }
@@ -578,7 +589,55 @@ const getMediaTypeBadgeClass = (mediaType: string) => {
   return mediaStore.getMediaTypeBadgeClass(mediaType as any);
 };
 
+const documentTypeLabels: Record<string, string> = {
+  report: 'Befund',
+  report_draft: 'Befund-Entwurf',
+  report_final: 'Finaler Befund',
+  report_correction: 'Befund-Korrektur',
+  histology_draft: 'Histologie-Entwurf',
+  histology_final: 'Finale Histologie',
+  referral: 'Ueberweisung',
+  discharge: 'Entlassbrief'
+};
+
+const getDocumentTypeLabel = (documentType?: string | null) => {
+  if (!documentType) return '';
+  const normalized = documentType.trim();
+  if (!normalized) return '';
+  return documentTypeLabels[normalized] || normalized;
+};
+
+const getPdfPatientLabel = (file: FileItem) => {
+  if (typeof file.pseudoPatientId === 'number') {
+    return `Pseudo-Patient ${file.pseudoPatientId}`;
+  }
+  if (file.patientHashDisplay) {
+    return `Patient ${file.patientHashDisplay}`;
+  }
+  return '';
+};
+
+const getFileDisplayName = (file: FileItem) => {
+  if (file.mediaType !== 'pdf' || file.quarantined) {
+    return file.filename;
+  }
+
+  const labelParts = [
+    getPdfPatientLabel(file),
+    getDocumentTypeLabel(file.documentType)
+  ].filter(Boolean);
+
+  if (labelParts.length > 0) {
+    return labelParts.join(' - ');
+  }
+
+  return file.filename || `PDF-ID: ${file.id}`;
+};
+
 const getFileIdLabel = (file: FileItem) => {
+  if (file.quarantined) {
+    return `Quarantäne: ${file.quarantineDirectoryLabel || file.quarantineDirectoryKey || 'lx-annotate'}`;
+  }
   return file.mediaType === 'video'
     ? `Video-ID: ${file.id}`
     : `PDF-ID: ${file.id}`;
@@ -616,6 +675,7 @@ const getUploadJobStatusBadgeClass = (status: string) => {
     pending: 'bg-secondary',
     processing: 'bg-warning',
     anonymized: 'bg-success',
+    quarantined: 'bg-warning text-dark',
     error: 'bg-danger',
     lost: 'bg-danger'
   };
@@ -627,8 +687,9 @@ const getUploadJobStatusText = (status: string) => {
     pending: 'Upload wartet',
     processing: 'Upload läuft',
     anonymized: 'Upload abgeschlossen',
+    quarantined: 'In Quarantäne',
     error: 'Uploadfehler',
-    lost: 'Upload verloren'
+    lost: 'Upload verloren. Bitte löschen und erneut importieren!'
   };
   return texts[status] || status;
 };
@@ -679,9 +740,13 @@ const getUploadJobCleanupLabel = (uploadJob: UploadJobOverview) => {
   return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
 };
 
-type OriginalFileDeletionState = 'deleted' | 'present' | 'unknown';
+type OriginalFileDeletionState = 'deleted' | 'present' | 'quarantined' | 'unknown';
 
 const getOriginalFileDeletionState = (file: FileItem): OriginalFileDeletionState => {
+  if (file.quarantined) {
+    return 'quarantined';
+  }
+
   if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
     return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
   }
@@ -705,6 +770,7 @@ const getOriginalFileDeletionText = (file: FileItem): string => {
   const texts: Record<OriginalFileDeletionState, string> = {
     deleted: 'Ja, gelöscht',
     present: 'Nein, vorhanden',
+    quarantined: 'In Quarantäne',
     unknown: 'Unbekannt'
   };
   return texts[getOriginalFileDeletionState(file)];
@@ -714,6 +780,7 @@ const getOriginalFileDeletionClass = (file: FileItem): string => {
   const classes: Record<OriginalFileDeletionState, string> = {
     deleted: 'text-success',
     present: 'text-warning',
+    quarantined: 'text-warning',
     unknown: 'text-muted'
   };
   return classes[getOriginalFileDeletionState(file)];
@@ -723,12 +790,16 @@ const getOriginalFileDeletionIcon = (file: FileItem): string => {
   const icons: Record<OriginalFileDeletionState, string> = {
     deleted: 'ni ni-check-bold',
     present: 'ni ni-single-copy-04',
+    quarantined: 'ni ni-settings-gear-65',
     unknown: 'ni ni-settings-gear-65'
   };
   return icons[getOriginalFileDeletionState(file)];
 };
 
 const getOriginalFileDeletionHint = (file: FileItem): string => {
+  if (file.quarantined) {
+    return file.errorDetail || 'Import wurde vor der Datenbankanlage gestoppt';
+  }
   if (file.uploadJob?.cleanupStatus) {
     return getUploadJobCleanupStatusText(file.uploadJob.cleanupStatus);
   }

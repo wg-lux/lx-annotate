@@ -162,7 +162,7 @@ const deleteFile = async (fileId) => {
         return;
     }
     // Ask for confirmation
-    const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${file.filename}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
+    const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${getFileDisplayName(file)}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
     if (!confirmed) {
         return;
     }
@@ -217,7 +217,50 @@ const getFileIcon = (mediaType) => {
 const getMediaTypeBadgeClass = (mediaType) => {
     return mediaStore.getMediaTypeBadgeClass(mediaType);
 };
+const documentTypeLabels = {
+    report: 'Befund',
+    report_draft: 'Befund-Entwurf',
+    report_final: 'Finaler Befund',
+    report_correction: 'Befund-Korrektur',
+    histology_draft: 'Histologie-Entwurf',
+    histology_final: 'Finale Histologie',
+    referral: 'Ueberweisung',
+    discharge: 'Entlassbrief'
+};
+const getDocumentTypeLabel = (documentType) => {
+    if (!documentType)
+        return '';
+    const normalized = documentType.trim();
+    if (!normalized)
+        return '';
+    return documentTypeLabels[normalized] || normalized;
+};
+const getPdfPatientLabel = (file) => {
+    if (typeof file.pseudoPatientId === 'number') {
+        return `Pseudo-Patient ${file.pseudoPatientId}`;
+    }
+    if (file.patientHashDisplay) {
+        return `Patient ${file.patientHashDisplay}`;
+    }
+    return '';
+};
+const getFileDisplayName = (file) => {
+    if (file.mediaType !== 'pdf' || file.quarantined) {
+        return file.filename;
+    }
+    const labelParts = [
+        getPdfPatientLabel(file),
+        getDocumentTypeLabel(file.documentType)
+    ].filter(Boolean);
+    if (labelParts.length > 0) {
+        return labelParts.join(' - ');
+    }
+    return file.filename || `PDF-ID: ${file.id}`;
+};
 const getFileIdLabel = (file) => {
+    if (file.quarantined) {
+        return `Quarantäne: ${file.quarantineDirectoryLabel || file.quarantineDirectoryKey || 'lx-annotate'}`;
+    }
     return file.mediaType === 'video'
         ? `Video-ID: ${file.id}`
         : `PDF-ID: ${file.id}`;
@@ -251,6 +294,7 @@ const getUploadJobStatusBadgeClass = (status) => {
         pending: 'bg-secondary',
         processing: 'bg-warning',
         anonymized: 'bg-success',
+        quarantined: 'bg-warning text-dark',
         error: 'bg-danger',
         lost: 'bg-danger'
     };
@@ -261,8 +305,9 @@ const getUploadJobStatusText = (status) => {
         pending: 'Upload wartet',
         processing: 'Upload läuft',
         anonymized: 'Upload abgeschlossen',
+        quarantined: 'In Quarantäne',
         error: 'Uploadfehler',
-        lost: 'Upload verloren'
+        lost: 'Upload verloren. Bitte löschen und erneut importieren!'
     };
     return texts[status] || status;
 };
@@ -306,6 +351,9 @@ const getUploadJobCleanupLabel = (uploadJob) => {
     return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
 };
 const getOriginalFileDeletionState = (file) => {
+    if (file.quarantined) {
+        return 'quarantined';
+    }
     if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
         return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
     }
@@ -325,6 +373,7 @@ const getOriginalFileDeletionText = (file) => {
     const texts = {
         deleted: 'Ja, gelöscht',
         present: 'Nein, vorhanden',
+        quarantined: 'In Quarantäne',
         unknown: 'Unbekannt'
     };
     return texts[getOriginalFileDeletionState(file)];
@@ -333,6 +382,7 @@ const getOriginalFileDeletionClass = (file) => {
     const classes = {
         deleted: 'text-success',
         present: 'text-warning',
+        quarantined: 'text-warning',
         unknown: 'text-muted'
     };
     return classes[getOriginalFileDeletionState(file)];
@@ -341,11 +391,15 @@ const getOriginalFileDeletionIcon = (file) => {
     const icons = {
         deleted: 'ni ni-check-bold',
         present: 'ni ni-single-copy-04',
+        quarantined: 'ni ni-settings-gear-65',
         unknown: 'ni ni-settings-gear-65'
     };
     return icons[getOriginalFileDeletionState(file)];
 };
 const getOriginalFileDeletionHint = (file) => {
+    if (file.quarantined) {
+        return file.errorDetail || 'Import wurde vor der Datenbankanlage gestoppt';
+    }
     if (file.uploadJob?.cleanupStatus) {
         return getUploadJobCleanupStatusText(file.uploadJob.cleanupStatus);
     }
@@ -515,6 +569,7 @@ else {
     for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
             key: (`${file.mediaType}-${file.id}`),
+            ...{ class: ({ 'table-warning': file.quarantined }) },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
             ...{ class: "sticky-filename-column" },
@@ -532,11 +587,16 @@ else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: "fw-medium filename-text" },
         });
-        (file.filename);
+        (__VLS_ctx.getFileDisplayName(file));
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "small text-muted mt-1" },
         });
         (__VLS_ctx.getFileIdLabel(file));
+        if (file.quarantined) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-warning mt-1 quarantine-file-note" },
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: (__VLS_ctx.getMediaTypeBadgeClass(file.mediaType)) },
@@ -647,136 +707,155 @@ else {
         });
         (__VLS_ctx.formatDate(file.createdAt));
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "btn-group btn-group-sm" },
-            role: "group",
-        });
-        if (file.mediaType === 'video' && __VLS_ctx.needsReimport(file)) {
+        if (file.quarantined) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-warning quarantine-action-note" },
+            });
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "btn-group btn-group-sm" },
+                role: "group",
+            });
+            if (file.mediaType === 'video' && __VLS_ctx.needsReimport(file)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.mediaType === 'video' && __VLS_ctx.needsReimport(file)))
+                                return;
+                            __VLS_ctx.reimportVideo(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-info" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                    title: "Video erneut importieren und Metadaten aktualisieren",
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-bold-right" },
+                });
+            }
+            if (file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)))
+                                return;
+                            __VLS_ctx.reimportPdf(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-info" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                    title: "PDF erneut importieren und verarbeiten",
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-bold-right" },
+                });
+            }
+            if (file.anonymizationStatus === 'not_started') {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.anonymizationStatus === 'not_started'))
+                                return;
+                            __VLS_ctx.startAnonymization(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-primary" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-button-play" },
+                });
+            }
+            if (file.anonymizationStatus === 'failed') {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.anonymizationStatus === 'failed'))
+                                return;
+                            __VLS_ctx.startAnonymization(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-warning" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-bold-right" },
+                });
+            }
+            if (file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')))
+                                return;
+                            __VLS_ctx.correctVideo(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-warning" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-single-copy-04" },
+                });
+            }
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
                         if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
                             return;
                         if (!!(!__VLS_ctx.availableFiles.length))
                             return;
-                        if (!(file.mediaType === 'video' && __VLS_ctx.needsReimport(file)))
+                        if (!!(file.quarantined))
                             return;
-                        __VLS_ctx.reimportVideo(file.id);
+                        __VLS_ctx.deleteFile(file.id);
                     } },
-                ...{ class: "btn btn-outline-info" },
+                'data-test': "delete-file-button",
+                ...{ class: "btn btn-outline-danger" },
                 disabled: (__VLS_ctx.isProcessing(file.id)),
-                title: "Video erneut importieren und Metadaten aktualisieren",
+                'aria-label': (`Datei ${file.id} löschen`),
+                title: "Datei permanent löschen",
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-bold-right" },
+                ...{ class: "ni ni-settings-gear-65" },
             });
-        }
-        if (file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)))
-                            return;
-                        __VLS_ctx.reimportPdf(file.id);
-                    } },
-                ...{ class: "btn btn-outline-info" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
-                title: "PDF erneut importieren und verarbeiten",
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-bold-right" },
-            });
-        }
-        if (file.anonymizationStatus === 'not_started') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.anonymizationStatus === 'not_started'))
-                            return;
-                        __VLS_ctx.startAnonymization(file.id);
-                    } },
-                ...{ class: "btn btn-outline-primary" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-button-play" },
-            });
-        }
-        if (file.anonymizationStatus === 'failed') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.anonymizationStatus === 'failed'))
-                            return;
-                        __VLS_ctx.startAnonymization(file.id);
-                    } },
-                ...{ class: "btn btn-outline-warning" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-bold-right" },
-            });
-        }
-        if (file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')))
-                            return;
-                        __VLS_ctx.correctVideo(file.id);
-                    } },
-                ...{ class: "btn btn-outline-warning" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-single-copy-04" },
-            });
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                        return;
-                    if (!!(!__VLS_ctx.availableFiles.length))
-                        return;
-                    __VLS_ctx.deleteFile(file.id);
-                } },
-            'data-test': "delete-file-button",
-            ...{ class: "btn btn-outline-danger" },
-            disabled: (__VLS_ctx.isProcessing(file.id)),
-            'aria-label': (`Datei ${file.id} löschen`),
-            title: "Datei permanent löschen",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "ni ni-settings-gear-65" },
-        });
-        if (file.anonymizationStatus === 'processing_anonymization') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: "btn btn-outline-info" },
-                disabled: true,
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
-            });
-        }
-        if (file.anonymizationStatus === 'extracting_frames') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: "btn btn-outline-info" },
-                disabled: true,
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
-            });
+            if (file.anonymizationStatus === 'processing_anonymization') {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ class: "btn btn-outline-info" },
+                    disabled: true,
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
+                });
+            }
+            if (file.anonymizationStatus === 'extracting_frames') {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ class: "btn btn-outline-info" },
+                    disabled: true,
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
+                });
+            }
         }
     }
 }
@@ -918,6 +997,7 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
@@ -930,6 +1010,10 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['quarantine-file-note']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['upload-job-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
@@ -968,6 +1052,9 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['raw-file-state-hint']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['quarantine-action-note']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -1071,6 +1158,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             needsReimport: needsReimport,
             getFileIcon: getFileIcon,
             getMediaTypeBadgeClass: getMediaTypeBadgeClass,
+            getFileDisplayName: getFileDisplayName,
             getFileIdLabel: getFileIdLabel,
             getStatusBadgeClass: getStatusBadgeClass,
             getStatusText: getStatusText,

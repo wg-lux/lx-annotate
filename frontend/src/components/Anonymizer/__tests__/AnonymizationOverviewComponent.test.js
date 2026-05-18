@@ -58,6 +58,33 @@ function buildPdfFile(overrides = {}) {
         ...overrides
     };
 }
+function buildQuarantinedVideoFile(overrides = {}) {
+    return {
+        id: -42,
+        filename: 'quarantined-video.mov',
+        mediaType: 'video',
+        anonymizationStatus: 'failed',
+        annotationStatus: '',
+        createdAt: '2026-05-15T07:20:22Z',
+        metadataImported: false,
+        fileSize: 65011712,
+        quarantined: true,
+        quarantineId: 'lx_annotate_quarantine:quarantined-video.mov',
+        quarantineDirectoryKey: 'lx_annotate_quarantine',
+        quarantineDirectoryLabel: 'lx-annotate quarantine',
+        errorDetail: 'moov atom not found',
+        uploadJob: {
+            id: 'lx_annotate_quarantine:quarantined-video.mov',
+            status: 'quarantined',
+            ingestMode: 'watcher',
+            sourceSystem: 'lx-annotate quarantine',
+            sourceFilePersisted: true,
+            cleanupStatus: 'skipped',
+            errorDetail: 'moov atom not found'
+        },
+        ...overrides
+    };
+}
 describe('AnonymizationOverviewComponent', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -92,6 +119,20 @@ describe('AnonymizationOverviewComponent', () => {
         await flushPromises();
         expect(wrapper.text()).toContain('study-video.mp4');
         expect(wrapper.text()).toContain('Video-ID: 17');
+    });
+    it('uses safe patient and document type metadata instead of the PDF hash filename', async () => {
+        hoisted.anonymizationStoreRef.current.overview = [
+            buildPdfFile({
+                filename: '8e0f9f8807db084c9e313a1e6f4a1be4.pdf',
+                pseudoPatientId: 4711,
+                documentType: 'report_final'
+            })
+        ];
+        const wrapper = mount(AnonymizationOverviewComponent);
+        await flushPromises();
+        expect(wrapper.text()).toContain('Pseudo-Patient 4711 - Finaler Befund');
+        expect(wrapper.text()).toContain('PDF-ID: 23');
+        expect(wrapper.text()).not.toContain('8e0f9f8807db084c9e313a1e6f4a1be4.pdf');
     });
     it('renders upload job status separately from anonymization state', async () => {
         hoisted.anonymizationStoreRef.current.overview = [
@@ -168,5 +209,18 @@ describe('AnonymizationOverviewComponent', () => {
             'Datei 18 löschen',
             'Datei 23 löschen'
         ]);
+    });
+    it('renders quarantined videos as visible read-only overview rows', async () => {
+        hoisted.anonymizationStoreRef.current.overview = [
+            buildVideoFile({ id: 17 }),
+            buildQuarantinedVideoFile()
+        ];
+        const wrapper = mount(AnonymizationOverviewComponent);
+        await flushPromises();
+        expect(wrapper.text()).toContain('quarantined-video.mov');
+        expect(wrapper.text()).toContain('Quarantäne: lx-annotate quarantine');
+        expect(wrapper.text()).toContain('In Quarantäne');
+        expect(wrapper.text()).toContain('Serverseitige Quarantäne');
+        expect(wrapper.findAll('[data-test="delete-file-button"]')).toHaveLength(1);
     });
 });

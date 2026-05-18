@@ -1,9 +1,57 @@
 /* @stores/anonymizationStore.ts */
 import { defineStore } from 'pinia';
-import axiosInstance, { r } from '@/api/axiosInstance';
+import axiosInstance, { r, silentRequestConfig } from '@/api/axiosInstance';
 import axios from 'axios';
 import { ref, computed } from 'vue';
 import { endpoints } from '@/types/api/endpoints';
+function syntheticQuarantineId(quarantineId, usedIds) {
+    let hash = 0;
+    for (let i = 0; i < quarantineId.length; i += 1) {
+        hash = (hash * 31 + quarantineId.charCodeAt(i)) | 0;
+    }
+    let candidate = -Math.max(1, Math.abs(hash));
+    while (usedIds.has(candidate)) {
+        candidate -= 1;
+    }
+    usedIds.add(candidate);
+    return candidate;
+}
+function buildQuarantineOverviewRows(quarantineFiles, existingIds) {
+    return quarantineFiles.map((file) => {
+        const mediaType = file.mediaType === 'pdf' || file.mediaType === 'video'
+            ? file.mediaType
+            : 'unknown';
+        const quarantineTimestamp = file.quarantinedAt || file.createdAt || file.modifiedAt || '';
+        const reason = file.reason ||
+            'Die Datei wurde vor dem Import in die Quarantäne verschoben.';
+        return {
+            id: syntheticQuarantineId(file.id, existingIds),
+            filename: file.filename,
+            mediaType,
+            anonymizationStatus: 'failed',
+            annotationStatus: '',
+            createdAt: quarantineTimestamp,
+            metadataImported: false,
+            fileSize: file.size,
+            uploadJob: {
+                id: file.id,
+                status: 'quarantined',
+                ingestMode: 'watcher',
+                sourceSystem: file.directoryLabel,
+                sourceFilePersisted: true,
+                cleanupStatus: 'skipped',
+                errorDetail: reason,
+                createdAt: quarantineTimestamp,
+                updatedAt: file.modifiedAt || quarantineTimestamp
+            },
+            quarantined: true,
+            quarantineId: file.id,
+            quarantineDirectoryKey: file.directoryKey,
+            quarantineDirectoryLabel: file.directoryLabel,
+            errorDetail: reason
+        };
+    });
+}
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
@@ -114,20 +162,29 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 console.log('Fetching file overview...');
                 const { data } = await axiosInstance.get(r(endpoints.anonymization.itemsOverview));
                 console.log('Received overview data:', data);
+                let quarantineRows = [];
+                try {
+                    const quarantineResponse = await axiosInstance.get(r(endpoints.runtime.quarantine), silentRequestConfig());
+                    quarantineRows = buildQuarantineOverviewRows(quarantineResponse.data.files || [], new Set(data.map((file) => file.id)));
+                }
+                catch (quarantineError) {
+                    console.warn('Could not load quarantine overview:', quarantineError?.message || quarantineError);
+                }
+                const overviewData = [...data, ...quarantineRows];
                 // Update overview and available files
-                this.overview = data;
+                this.overview = overviewData;
                 // Clear and update availableFiles to prevent duplicates
                 this.availableFiles.length = 0; // Clear the array
-                this.availableFiles.push(...data); // Add all files from the fresh data
-                availableFiles.value = [...data];
-                const needsValidation = data
+                this.availableFiles.push(...overviewData); // Add all files from the fresh data
+                availableFiles.value = [...overviewData];
+                const needsValidation = overviewData
                     .filter((f) => f.anonymizationStatus === 'done_processing_anonymization' && f.annotationStatus !== 'validated')
                     .map((f) => f.id);
                 this.needsValidationIds = needsValidation;
                 // NEW: Polling sofort stoppen für
                 // 1) Dateien, die nicht mehr existieren
                 const currentPollingIds = Object.keys(this.pollingHandles).map((k) => Number(k));
-                const existingIds = new Set(data.map((f) => f.id));
+                const existingIds = new Set(overviewData.map((f) => f.id));
                 for (const pid of currentPollingIds) {
                     if (!existingIds.has(pid)) {
                         this.stopPolling(pid);
@@ -135,13 +192,13 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 }
                 // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
                 const stopStatuses = new Set(['done_processing_anonymization', 'validated', 'failed', 'not_started']);
-                for (const f of data) {
+                for (const f of overviewData) {
                     if (stopStatuses.has(f.anonymizationStatus) && this.pollingHandles[f.id]) {
                         this.stopPolling(f.id);
                     }
                 }
-                this.hasAvailableFiles = data.length > 0;
-                return data;
+                this.hasAvailableFiles = overviewData.length > 0;
+                return overviewData;
             }
             catch (err) {
                 console.error('Error fetching overview:', err);

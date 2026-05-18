@@ -70,7 +70,7 @@ export function a(path: string): string {
   return r(`pdf/${path}`)
 }
 
-export function silentRequestConfig<T extends Record<string, unknown>>(config?: T): T & {
+export function silentRequestConfig<T extends AxiosRequestConfig = AxiosRequestConfig>(config?: T): T & {
   suppressErrorToast: true
 } {
   return {
@@ -79,7 +79,7 @@ export function silentRequestConfig<T extends Record<string, unknown>>(config?: 
   } as T & { suppressErrorToast: true }
 }
 
-import type { InternalAxiosRequestConfig } from 'axios'
+import type { AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
 
 axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const csrftoken = Cookies.get('csrftoken')
