@@ -224,7 +224,7 @@ const documentTypeLabels = {
     report_correction: 'Befund-Korrektur',
     histology_draft: 'Histologie-Entwurf',
     histology_final: 'Finale Histologie',
-    referral: 'Ueberweisung',
+    referral: 'Überweisung',
     discharge: 'Entlassbrief'
 };
 const getDocumentTypeLabel = (documentType) => {
@@ -233,7 +233,7 @@ const getDocumentTypeLabel = (documentType) => {
     const normalized = documentType.trim();
     if (!normalized)
         return '';
-    return documentTypeLabels[normalized] || normalized;
+    return documentTypeLabels[normalized] || `Dokumenttyp: ${normalized}`;
 };
 const getPdfPatientLabel = (file) => {
     if (typeof file.pseudoPatientId === 'number') {
@@ -281,13 +281,13 @@ const getStatusText = (status) => {
     const texts = {
         'not_started': 'Nicht gestartet',
         'processing_anonymization': 'Anonymisierung läuft',
-        'extracting_frames': 'Frames extrahieren',
-        'predicting_segments': 'Segmente vorhersagen',
+        'extracting_frames': 'Einzelbilder werden extrahiert',
+        'predicting_segments': 'Segmentvorhersage läuft',
         'done_processing_anonymization': 'Fertig',
         'validated': 'Validiert',
         'failed': 'Fehlgeschlagen'
     };
-    return texts[status] || status;
+    return texts[status] || `Unbekannter Status (${status})`;
 };
 const getUploadJobStatusBadgeClass = (status) => {
     const classes = {
@@ -302,25 +302,25 @@ const getUploadJobStatusBadgeClass = (status) => {
 };
 const getUploadJobStatusText = (status) => {
     const texts = {
-        pending: 'Upload wartet',
-        processing: 'Upload läuft',
-        anonymized: 'Upload abgeschlossen',
+        pending: 'Import wartet',
+        processing: 'Import läuft',
+        anonymized: 'Import abgeschlossen',
         quarantined: 'In Quarantäne',
-        error: 'Uploadfehler',
-        lost: 'Upload verloren. Bitte löschen und erneut importieren!'
+        error: 'Importfehler',
+        lost: 'Import verloren. Bitte löschen und erneut importieren!'
     };
-    return texts[status] || status;
+    return texts[status] || `Unbekannter Importstatus (${status})`;
 };
 const getUploadJobOriginLabel = (uploadJob) => {
     const parts = [];
     if (uploadJob.ingestMode === 'watcher') {
-        parts.push('Watcher');
+        parts.push('Dateiwächter');
     }
     else if (uploadJob.ingestMode === 'api') {
         parts.push('API');
     }
     else if (uploadJob.ingestMode) {
-        parts.push(uploadJob.ingestMode);
+        parts.push(`Importweg: ${uploadJob.ingestMode}`);
     }
     if (uploadJob.sourceSystem) {
         parts.push(uploadJob.sourceSystem);
@@ -337,7 +337,7 @@ const getUploadJobCleanupStatusText = (status) => {
         completed: 'Bereinigt',
         skipped: 'Bereinigung übersprungen'
     };
-    return texts[status] || status;
+    return texts[status] || `Unbekannter Bereinigungsstatus (${status})`;
 };
 const getUploadJobCleanupLabel = (uploadJob) => {
     const sourceLabel = typeof uploadJob.sourceFilePersisted === 'boolean'
@@ -542,6 +542,8 @@ else if (!__VLS_ctx.availableFiles.length) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "text-muted mb-4" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({

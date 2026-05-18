@@ -151,8 +151,8 @@ describe('AnonymizationOverviewComponent', () => {
         const wrapper = mount(AnonymizationOverviewComponent);
         await flushPromises();
         const uploadSummary = wrapper.find('.upload-job-summary');
-        expect(uploadSummary.text()).toContain('Upload abgeschlossen');
-        expect(uploadSummary.text()).toContain('Watcher / watcher-daemon / test-center');
+        expect(uploadSummary.text()).toContain('Import abgeschlossen');
+        expect(uploadSummary.text()).toContain('Dateiwächter / watcher-daemon / test-center');
         expect(uploadSummary.text()).toContain('Quelle bereinigt - Bereinigt');
         expect(wrapper.find('.upload-job-summary .badge.bg-success').exists()).toBe(true);
         expect(wrapper.text()).toContain('Fertig');

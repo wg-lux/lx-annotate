@@ -57,6 +57,75 @@ const pendingPercentage = computed(() => {
 const totalAnnotations = computed(() => {
     return stats.value.totalAnnotations || 0;
 });
+const totalInProgress = computed(() => stats.value.totalInProgress || 0);
+const totalPending = computed(() => stats.value.totalPending || 0);
+const totalCompleted = computed(() => stats.value.totalCompleted || 0);
+const openAnnotationCount = computed(() => totalInProgress.value + totalPending.value);
+const overallStatusItems = computed(() => [
+    {
+        key: 'completed',
+        label: 'Abgeschlossen',
+        count: totalCompleted.value,
+        percentage: completionPercentage.value,
+        barClass: 'bg-success',
+    },
+    {
+        key: 'in-progress',
+        label: 'In Bearbeitung',
+        count: totalInProgress.value,
+        percentage: inProgressPercentage.value,
+        barClass: 'bg-info',
+    },
+    {
+        key: 'pending',
+        label: 'Ausstehend',
+        count: totalPending.value,
+        percentage: pendingPercentage.value,
+        barClass: 'bg-warning',
+    },
+]);
+const completedOfTotalText = computed(() => {
+    if (totalAnnotations.value === 0)
+        return 'Keine Annotationen gezählt';
+    return `${totalCompleted.value} von ${totalAnnotations.value} Annotationen abgeschlossen`;
+});
+const overallStatusDescription = computed(() => {
+    if (totalAnnotations.value === 0) {
+        return 'Wartet auf Statistikdaten für die zusammengefasste Arbeitsliste.';
+    }
+    if (openAnnotationCount.value === 0) {
+        return 'Alle gezählten Annotationen sind abgeschlossen.';
+    }
+    if (totalInProgress.value > 0 && totalPending.value > 0) {
+        return `${openAnnotationCount.value} Annotationen sind noch offen: ${totalInProgress.value} in Bearbeitung, ${totalPending.value} ausstehend.`;
+    }
+    if (totalInProgress.value > 0) {
+        return `${totalInProgress.value} Annotationen sind aktuell in Bearbeitung.`;
+    }
+    return `${totalPending.value} Annotationen warten noch auf Bearbeitung.`;
+});
+const topOpenAreaText = computed(() => {
+    if (totalAnnotations.value === 0 || openAnnotationCount.value === 0)
+        return '';
+    const areas = [
+        {
+            label: 'Video-Segmente',
+            open: segmentStats.value.pending + segmentStats.value.inProgress,
+        },
+        {
+            label: 'Untersuchungen',
+            open: examinationStats.value.pending + examinationStats.value.inProgress,
+        },
+        {
+            label: 'Patientendaten',
+            open: sensitiveMetaStats.value.pending + sensitiveMetaStats.value.inProgress,
+        },
+    ];
+    const top = areas.sort((a, b) => b.open - a.open)[0];
+    if (!top || top.open === 0)
+        return '';
+    return `${top.label} (${top.open} offen)`;
+});
 const points = computed(() => {
     const completed = segmentStats.value.completed * 5 +
         examinationStats.value.completed * 8 +
@@ -87,7 +156,6 @@ const unlockedAchievements = computed(() => {
     return unlocked;
 });
 const unlockedAchievementsCount = computed(() => unlockedAchievements.value.length);
-const totalCompleted = computed(() => stats.value.totalCompleted || 0);
 const focusMission = computed(() => {
     const candidates = [
         {
@@ -206,10 +274,25 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['completed']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-dot']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['in-progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-dot']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['pending']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-dot']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['skeleton-title']} */ ;
 /** @type {__VLS_StyleScopedClasses['skeleton-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['skeleton-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-strip']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -397,66 +480,100 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "overall-progress-header d-flex flex-wrap justify-content-between align-items-start gap-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "player-kicker" },
+    });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-        ...{ class: "card-title mb-3" },
+        ...{ class: "overall-progress-title mb-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: "ni ni-single-copy-04 me-2" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-container" },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress mb-2" },
-        ...{ style: {} },
+        ...{ class: "overall-completion text-end" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-bar bg-success" },
-        role: "progressbar",
-        ...{ style: ({ width: __VLS_ctx.completionPercentage + '%' }) },
-        'aria-valuenow': (__VLS_ctx.completionPercentage),
-        'aria-valuemin': "0",
-        'aria-valuemax': "100",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "progress-text" },
+        ...{ class: "overall-completion-value" },
     });
     (__VLS_ctx.completionPercentage);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-bar bg-info" },
-        role: "progressbar",
-        ...{ style: ({ width: __VLS_ctx.inProgressPercentage + '%', minHeight: '20px' }) },
-        'aria-valuenow': (__VLS_ctx.inProgressPercentage),
-        'aria-valuemin': "0",
-        'aria-valuemax': "100",
+        ...{ class: "overall-completion-label" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "progress-text" },
-    });
-    (__VLS_ctx.inProgressPercentage);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-bar bg-warning" },
-        role: "progressbar",
-        ...{ style: ({ width: __VLS_ctx.pendingPercentage + '%' }) },
-        'aria-valuenow': (__VLS_ctx.pendingPercentage),
-        'aria-valuemin': "0",
-        'aria-valuemax': "100",
+        ...{ class: "overall-status-strip mt-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "progress-text" },
-    });
-    (__VLS_ctx.pendingPercentage);
+    for (const [item] of __VLS_getVForSourceType((__VLS_ctx.overallStatusItems))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            key: (item.key),
+            ...{ class: "overall-status-item" },
+            ...{ class: (item.key) },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "overall-status-dot" },
+            'aria-hidden': "true",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "overall-status-label" },
+        });
+        (item.label);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (item.count);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        (item.percentage);
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-legend d-flex justify-content-between" },
+        ...{ class: "progress-container mt-3" },
+    });
+    if (__VLS_ctx.totalAnnotations > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "progress overall-progress-meter mb-2" },
+            'aria-label': "Gesamtstatus aller Annotationstypen",
+        });
+        for (const [item] of __VLS_getVForSourceType((__VLS_ctx.overallStatusItems))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (`bar-${item.key}`),
+                ...{ class: "progress-bar" },
+                ...{ class: (item.barClass) },
+                role: "progressbar",
+                ...{ style: ({ width: item.percentage + '%' }) },
+                'aria-valuenow': (item.percentage),
+                'aria-valuemin': "0",
+                'aria-valuemax': "100",
+                'aria-label': (`${item.label}: ${item.count} von ${__VLS_ctx.totalAnnotations}`),
+            });
+        }
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "overall-empty-progress mb-2" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "overall-progress-context d-flex flex-wrap justify-content-between gap-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
-    (__VLS_ctx.totalAnnotations);
+    (__VLS_ctx.completedOfTotalText);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
     (__VLS_ctx.lastUpdateText);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "overall-progress-note mt-2" },
+    });
+    (__VLS_ctx.overallStatusDescription);
+    if (__VLS_ctx.topOpenAreaText) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.topOpenAreaText);
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row mb-4" },
     });
@@ -975,28 +1092,46 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-kicker']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-completion']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-completion-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-completion-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-strip']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-dot']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-meter']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-legend']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-empty-progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-context']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-note']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
@@ -1205,9 +1340,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             examinationStats: examinationStats,
             sensitiveMetaStats: sensitiveMetaStats,
             completionPercentage: completionPercentage,
-            inProgressPercentage: inProgressPercentage,
-            pendingPercentage: pendingPercentage,
             totalAnnotations: totalAnnotations,
+            overallStatusItems: overallStatusItems,
+            completedOfTotalText: completedOfTotalText,
+            overallStatusDescription: overallStatusDescription,
+            topOpenAreaText: topOpenAreaText,
             points: points,
             currentLevel: currentLevel,
             pointsToNextLevel: pointsToNextLevel,

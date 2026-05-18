@@ -30,12 +30,10 @@ axiosInstance.interceptors.response.use((r) => r, (err) => {
     const status = err?.response?.status;
     const url = err?.config?.url || '';
     const suppressErrorToast = err?.config?.suppressErrorToast === true ||
-        url.includes('/lookup/') ||
         url.includes('/dtypes-api/') ||
         url.startsWith('dtypes-api/') ||
         url.includes('/base_api/') ||
-        url.startsWith('base_api/') ||
-        url.includes('/media/patients/');
+        url.startsWith('base_api/');
     // Skip spam for polling/status requests
     const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/');
     // 🔒 If backend says "unauthenticated", send user to Keycloak login

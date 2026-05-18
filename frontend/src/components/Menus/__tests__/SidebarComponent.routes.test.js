@@ -9,6 +9,8 @@ vi.mock('@/api/axiosInstance', () => ({
     default: {
         get: hoisted.get
     },
+    dtypesApi: (path) => `/dtypes-api/${path.replace(/^\/+/, '')}`,
+    endoregApi: (path) => `/endoreg-api/${path.replace(/^\/+/, '')}`,
     r: (path) => path
 }));
 function toPathValue(target) {
