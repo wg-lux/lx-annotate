@@ -2328,12 +2328,13 @@ const normalizeSegmentValidationResponse = (responseData: any): SegmentValidatio
 
 const pollSegmentValidationStatus = (
   videoId: number,
-  options: { showTerminalMessages?: boolean } = {}
+  options: { showTerminalMessages?: boolean; showValidatedMessage?: boolean } = {}
 ): Promise<void> => {
   const existingPromise = segmentValidationPollingPromises.get(videoId)
   if (existingPromise) return existingPromise
 
   const showTerminalMessages = options.showTerminalMessages ?? true
+  const showValidatedMessage = options.showValidatedMessage ?? true
   const maxAttempts = 120
   const intervalMs = 5000
 
@@ -2346,7 +2347,7 @@ const pollSegmentValidationStatus = (
       const status = getVideoSegmentAnnotationStatus(videoId)
       if (status === 'validated') {
         videoRef.value?.load()
-        if (showTerminalMessages) {
+        if (showTerminalMessages && showValidatedMessage) {
           showSuccessMessage('Segmentvalidierung abgeschlossen.')
         }
         return
@@ -2549,13 +2550,13 @@ const handleOutsideBlackeningResponseState = (
     showSuccessMessage(
       `Schwärzung der Außerhalb-Segmente gestartet (${outsideSegmentCount} Segmente).`
     )
-    void pollSegmentValidationStatus(videoId)
+    void pollSegmentValidationStatus(videoId, { showValidatedMessage: false })
     return true
   }
 
   if (jobStatus === 'already_queued') {
     showSuccessMessage('Schwärzung der Außerhalb-Segmente läuft bereits.')
-    void pollSegmentValidationStatus(videoId)
+    void pollSegmentValidationStatus(videoId, { showValidatedMessage: false })
     return true
   }
 

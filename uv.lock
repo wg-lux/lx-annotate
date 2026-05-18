@@ -1708,7 +1708,7 @@ wheels = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.5.6"
+version = "0.5.7"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
