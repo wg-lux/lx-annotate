@@ -14,15 +14,42 @@ export interface UploadJobOverview {
 export interface FileItem {
     id: number;
     filename: string;
-    mediaType: 'pdf' | 'video';
+    mediaType: 'pdf' | 'video' | 'unknown';
     anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
     annotationStatus: 'not_started' | 'validated' | '';
     createdAt: string;
     sensitiveMetaId?: number;
+    documentType?: string | null;
+    patientHashDisplay?: string | null;
+    examinationHashDisplay?: string | null;
+    pseudoPatientId?: number | null;
+    pseudoExaminationId?: number | null;
     metadataImported?: boolean;
     fileSize?: number | undefined;
     rawFile?: string;
     uploadJob?: UploadJobOverview | null;
+    quarantined?: boolean;
+    quarantineId?: string;
+    quarantineDirectoryKey?: string;
+    quarantineDirectoryLabel?: string;
+    errorDetail?: string;
+}
+export interface QuarantineFileItem {
+    id: string;
+    directoryKey: string;
+    directoryLabel: string;
+    filename: string;
+    mediaType: 'pdf' | 'video' | 'unknown';
+    size: number;
+    quarantinedAt?: string | null;
+    createdAt?: string | null;
+    modifiedAt?: string | null;
+    reason?: string;
+}
+export interface QuarantineOverviewResponse {
+    count: number;
+    totalSize: number;
+    files: QuarantineFileItem[];
 }
 export interface AnonymizationState {
     anonymizationStatus: string;
@@ -73,11 +100,16 @@ export interface SensitiveMeta {
 export declare const availableFiles: import("vue").Ref<{
     id: number;
     filename: string;
-    mediaType: 'pdf' | 'video';
+    mediaType: 'pdf' | 'video' | 'unknown';
     anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
     annotationStatus: 'not_started' | 'validated' | '';
     createdAt: string;
     sensitiveMetaId?: number | undefined;
+    documentType?: string | null | undefined;
+    patientHashDisplay?: string | null | undefined;
+    examinationHashDisplay?: string | null | undefined;
+    pseudoPatientId?: number | null | undefined;
+    pseudoExaminationId?: number | null | undefined;
     metadataImported?: boolean | undefined;
     fileSize?: number | undefined;
     rawFile?: string | undefined;
@@ -94,14 +126,24 @@ export declare const availableFiles: import("vue").Ref<{
         createdAt?: string | null | undefined;
         updatedAt?: string | null | undefined;
     } | null | undefined;
+    quarantined?: boolean | undefined;
+    quarantineId?: string | undefined;
+    quarantineDirectoryKey?: string | undefined;
+    quarantineDirectoryLabel?: string | undefined;
+    errorDetail?: string | undefined;
 }[], FileItem[] | {
     id: number;
     filename: string;
-    mediaType: 'pdf' | 'video';
+    mediaType: 'pdf' | 'video' | 'unknown';
     anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
     annotationStatus: 'not_started' | 'validated' | '';
     createdAt: string;
     sensitiveMetaId?: number | undefined;
+    documentType?: string | null | undefined;
+    patientHashDisplay?: string | null | undefined;
+    examinationHashDisplay?: string | null | undefined;
+    pseudoPatientId?: number | null | undefined;
+    pseudoExaminationId?: number | null | undefined;
     metadataImported?: boolean | undefined;
     fileSize?: number | undefined;
     rawFile?: string | undefined;
@@ -118,6 +160,11 @@ export declare const availableFiles: import("vue").Ref<{
         createdAt?: string | null | undefined;
         updatedAt?: string | null | undefined;
     } | null | undefined;
+    quarantined?: boolean | undefined;
+    quarantineId?: string | undefined;
+    quarantineDirectoryKey?: string | undefined;
+    quarantineDirectoryLabel?: string | undefined;
+    errorDetail?: string | undefined;
 }[]>;
 export declare const useAnonymizationStore: import("pinia").StoreDefinition<"anonymization", AnonymizationState, {
     getCurrentItem: (state: {
@@ -161,11 +208,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -182,6 +234,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -189,11 +246,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -210,6 +272,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
@@ -286,11 +353,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -307,6 +379,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -314,11 +391,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -335,6 +417,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => boolean;
@@ -379,11 +466,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -400,6 +492,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -407,11 +504,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -428,16 +530,26 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
         id: number;
         filename: string;
-        mediaType: 'pdf' | 'video';
+        mediaType: 'pdf' | 'video' | 'unknown';
         anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
         annotationStatus: 'not_started' | 'validated' | '';
         createdAt: string;
         sensitiveMetaId?: number | undefined;
+        documentType?: string | null | undefined;
+        patientHashDisplay?: string | null | undefined;
+        examinationHashDisplay?: string | null | undefined;
+        pseudoPatientId?: number | null | undefined;
+        pseudoExaminationId?: number | null | undefined;
         metadataImported?: boolean | undefined;
         fileSize?: number | undefined;
         rawFile?: string | undefined;
@@ -454,6 +566,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             createdAt?: string | null | undefined;
             updatedAt?: string | null | undefined;
         } | null | undefined;
+        quarantined?: boolean | undefined;
+        quarantineId?: string | undefined;
+        quarantineDirectoryKey?: string | undefined;
+        quarantineDirectoryLabel?: string | undefined;
+        errorDetail?: string | undefined;
     }[];
     getState: (state: {
         anonymizationStatus: string;
@@ -496,11 +613,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -517,6 +639,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -524,11 +651,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -545,6 +677,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
@@ -588,11 +725,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -609,6 +751,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -616,11 +763,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: 'pdf' | 'video';
+            mediaType: 'pdf' | 'video' | 'unknown';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
             annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
@@ -637,6 +789,11 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
                 createdAt?: string | null | undefined;
                 updatedAt?: string | null | undefined;
             } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>;

@@ -117,8 +117,28 @@ export interface AiDatasetTrainingManifestPreview {
     manifest: Record<string, unknown>;
     lxAiCoreManifest: Record<string, unknown>;
 }
+export interface AiDatasetAttachmentPayload {
+    videoId?: number | string | null;
+    frameAnnotationIds?: Array<number | string>;
+    segmentIds?: Array<number | string>;
+    includeFrameAnnotations?: boolean;
+    includeVideoAnnotations?: boolean;
+    includeAllAnnotations?: boolean;
+    informationSourceNames?: string[] | null;
+}
+export interface AiDatasetAttachmentResult {
+    datasetId: number;
+    videoId: number | null;
+    frameAnnotationCount: number;
+    videoAnnotationCount: number;
+    attachedFrameAnnotationIds: number[];
+    attachedSegmentIds: number[];
+    attachedFrameAnnotationCount: number;
+    attachedSegmentCount: number;
+}
 export declare function fetchAiDatasetOptions(): Promise<AiDatasetOption[]>;
 export declare function createAiDataset(payload: CreateAiDatasetPayload): Promise<AiDatasetOption>;
 export declare function fetchAiDatasetLabelSets(): Promise<AiDatasetLabelSetOption[]>;
 export declare function fetchAiDatasetFrameBucketDistribution(datasetId: number | string, params?: AiDatasetFrameBucketDistributionParams): Promise<AiDatasetFrameBucketDistribution>;
 export declare function buildAiDatasetTrainingManifest(datasetId: number | string, config: AiDatasetTrainingManifestConfig): Promise<AiDatasetTrainingManifestPreview>;
+export declare function attachAiDatasetAnnotations(datasetId: number | string, payload: AiDatasetAttachmentPayload): Promise<AiDatasetAttachmentResult>;

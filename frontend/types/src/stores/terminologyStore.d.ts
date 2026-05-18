@@ -55,7 +55,7 @@ export declare const useTerminologyStore: import("pinia").StoreDefinition<"termi
     loadBundles: () => Promise<void>;
     selectBundle: (bundle: Pick<TerminologyBundleVersion, 'moduleName' | 'version'>) => Promise<import("@/api/terminologyApi").SelectTerminologyBundleResponse>;
     setMedicalField: (value: MedicalField) => void;
-}, "loading" | "error" | "bundles" | "activeBundle" | "registryPath" | "selecting" | "importing" | "selectedMedicalField" | "lastSelectionCounts" | "medicalFieldOptions">, Pick<{
+}, "error" | "loading" | "bundles" | "activeBundle" | "registryPath" | "selecting" | "importing" | "selectedMedicalField" | "lastSelectionCounts" | "medicalFieldOptions">, Pick<{
     bundles: import("vue").Ref<{
         moduleName: string;
         version: string;

@@ -753,6 +753,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         label_id: number | null;
     }[]>;
     hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
+    segmentAiDatasetId: Readonly<Ref<string | null, string | null>>;
     buildVideoStreamUrl: typeof buildVideoStreamUrl;
     setCurrentVideo: (videoId: number) => VideoAnnotation | null;
     clearVideo: () => void;
@@ -790,6 +791,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     updateVideoStatus: (status: VideoStatus) => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
     hasRawVideoFileFn: () => void;
+    setSegmentAiDatasetId: (value: string | number | null | undefined) => void;
     persistDirtySegments: () => Promise<void>;
     updateSegmentInMemory: (segmentId: number, updates: Partial<Segment>, markDirty?: boolean) => void;
     startDraft: (label: string, startTime: number) => void;
@@ -803,7 +805,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "errorMessage" | "videoUrl" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment" | "predictionModels" | "defaultHuggingfaceModelId" | "defaultPredictionLabelsetName" | "hasRawVideoFile">, Pick<{
+}, "errorMessage" | "videoUrl" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment" | "predictionModels" | "defaultHuggingfaceModelId" | "defaultPredictionLabelsetName" | "hasRawVideoFile" | "segmentAiDatasetId">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: number;
         readonly isAnnotated: boolean;
@@ -1269,6 +1271,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         label_id: number | null;
     }[]>;
     hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
+    segmentAiDatasetId: Readonly<Ref<string | null, string | null>>;
     buildVideoStreamUrl: typeof buildVideoStreamUrl;
     setCurrentVideo: (videoId: number) => VideoAnnotation | null;
     clearVideo: () => void;
@@ -1306,6 +1309,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     updateVideoStatus: (status: VideoStatus) => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
     hasRawVideoFileFn: () => void;
+    setSegmentAiDatasetId: (value: string | number | null | undefined) => void;
     persistDirtySegments: () => Promise<void>;
     updateSegmentInMemory: (segmentId: number, updates: Partial<Segment>, markDirty?: boolean) => void;
     startDraft: (label: string, startTime: number) => void;
@@ -1785,6 +1789,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         label_id: number | null;
     }[]>;
     hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
+    segmentAiDatasetId: Readonly<Ref<string | null, string | null>>;
     buildVideoStreamUrl: typeof buildVideoStreamUrl;
     setCurrentVideo: (videoId: number) => VideoAnnotation | null;
     clearVideo: () => void;
@@ -1822,6 +1827,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     updateVideoStatus: (status: VideoStatus) => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
     hasRawVideoFileFn: () => void;
+    setSegmentAiDatasetId: (value: string | number | null | undefined) => void;
     persistDirtySegments: () => Promise<void>;
     updateSegmentInMemory: (segmentId: number, updates: Partial<Segment>, markDirty?: boolean) => void;
     startDraft: (label: string, startTime: number) => void;
@@ -1835,4 +1841,4 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoFps" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchPredictionModels" | "rerunPredictionSegments" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "setSegmentExportFlag" | "setVideoExportFlag" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoFps" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchPredictionModels" | "rerunPredictionSegments" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "setSegmentExportFlag" | "setVideoExportFlag" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "setSegmentAiDatasetId" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;

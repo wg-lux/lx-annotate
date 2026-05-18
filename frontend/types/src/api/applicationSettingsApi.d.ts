@@ -7,6 +7,7 @@ export interface ApplicationSettingsRecord {
     processorName: string | null;
     annotatorName: string | null;
     reportTemplateName: string | null;
+    aiDatasetId: number | null;
     aiDatasetName: string | null;
     aiDatasetType: string | null;
     updatedAt: string | null;
@@ -28,6 +29,7 @@ export interface ApplicationSettingsUpdatePayload {
     processorId?: number | null;
     annotatorName?: string | null;
     reportTemplateName?: string | null;
+    aiDatasetId?: number | null;
     aiDatasetName?: string | null;
     aiDatasetType?: string | null;
 }
@@ -96,6 +98,8 @@ export interface ApplicationAiDatasetExportPayload {
     datasetId?: number;
     aiDatasetName?: string;
     aiDatasetType?: string;
+    centerKey?: string | null;
+    allCenters?: boolean;
     onlyValidated?: boolean;
 }
 export interface ApplicationAiDatasetExportResult {

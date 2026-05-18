@@ -4,9 +4,16 @@ export interface AnnotationTask {
     id: string;
     data: {
         frameId: number;
+        videoId?: number;
+        frameNumber?: number;
+        relativePath?: string;
         imageUrl: string;
         existingExternalId?: string;
         annotationMode?: string;
+        datasetSelectionLabelId?: number;
+        datasetSelectionLabelName?: string;
+        datasetSelectionSource?: string;
+        datasetBucket?: string;
         labelOptions?: Array<{
             id: number;
             name: string;
@@ -39,6 +46,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     informationSource: import("vue").Ref<string, string>;
     samplingStrategy: import("vue").Ref<AnnotationSamplingStrategy, AnnotationSamplingStrategy>;
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
+    aiDatasetId: import("vue").Ref<string | null, string | null>;
     aiDatasetName: import("vue").Ref<string | null, string | null>;
     aiDatasetType: import("vue").Ref<string | null, string | null>;
     annotatorPrincipal: import("vue").Ref<string | null, string | null>;
@@ -47,9 +55,16 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
         id: string;
         data: {
             frameId: number;
+            videoId?: number | undefined;
+            frameNumber?: number | undefined;
+            relativePath?: string | undefined;
             imageUrl: string;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
+            datasetSelectionLabelId?: number | undefined;
+            datasetSelectionLabelName?: string | undefined;
+            datasetSelectionSource?: string | undefined;
+            datasetBucket?: string | undefined;
             labelOptions?: {
                 id: number;
                 name: string;
@@ -76,9 +91,16 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
         id: string;
         data: {
             frameId: number;
+            videoId?: number | undefined;
+            frameNumber?: number | undefined;
+            relativePath?: string | undefined;
             imageUrl: string;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
+            datasetSelectionLabelId?: number | undefined;
+            datasetSelectionLabelName?: string | undefined;
+            datasetSelectionSource?: string | undefined;
+            datasetBucket?: string | undefined;
             labelOptions?: {
                 id: number;
                 name: string;
@@ -113,7 +135,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setInformationSource: (source: string | null) => void;
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
-    setAiDataset: (datasetName: string | null, datasetType: string | null) => void;
+    setAiDataset: (datasetName: string | null, datasetType: string | null, datasetId?: number | string | null) => void;
     setAnnotatorPrincipal: (principal: string | null) => void;
     hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
@@ -121,7 +143,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "informationSource" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "samplingStrategy" | "predictionSegmentsOnly" | "aiDatasetName" | "aiDatasetType" | "annotatorPrincipal" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
+}, "informationSource" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "samplingStrategy" | "predictionSegmentsOnly" | "aiDatasetId" | "aiDatasetName" | "aiDatasetType" | "annotatorPrincipal" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
     selectedLabelGroupId: import("vue").Ref<string | null, string | null>;
     taskMode: import("vue").Ref<AnnotationTaskMode, AnnotationTaskMode>;
     targetLabelName: import("vue").Ref<string, string>;
@@ -130,6 +152,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     informationSource: import("vue").Ref<string, string>;
     samplingStrategy: import("vue").Ref<AnnotationSamplingStrategy, AnnotationSamplingStrategy>;
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
+    aiDatasetId: import("vue").Ref<string | null, string | null>;
     aiDatasetName: import("vue").Ref<string | null, string | null>;
     aiDatasetType: import("vue").Ref<string | null, string | null>;
     annotatorPrincipal: import("vue").Ref<string | null, string | null>;
@@ -138,9 +161,16 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
         id: string;
         data: {
             frameId: number;
+            videoId?: number | undefined;
+            frameNumber?: number | undefined;
+            relativePath?: string | undefined;
             imageUrl: string;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
+            datasetSelectionLabelId?: number | undefined;
+            datasetSelectionLabelName?: string | undefined;
+            datasetSelectionSource?: string | undefined;
+            datasetBucket?: string | undefined;
             labelOptions?: {
                 id: number;
                 name: string;
@@ -167,9 +197,16 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
         id: string;
         data: {
             frameId: number;
+            videoId?: number | undefined;
+            frameNumber?: number | undefined;
+            relativePath?: string | undefined;
             imageUrl: string;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
+            datasetSelectionLabelId?: number | undefined;
+            datasetSelectionLabelName?: string | undefined;
+            datasetSelectionSource?: string | undefined;
+            datasetBucket?: string | undefined;
             labelOptions?: {
                 id: number;
                 name: string;
@@ -204,7 +241,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setInformationSource: (source: string | null) => void;
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
-    setAiDataset: (datasetName: string | null, datasetType: string | null) => void;
+    setAiDataset: (datasetName: string | null, datasetType: string | null, datasetId?: number | string | null) => void;
     setAnnotatorPrincipal: (principal: string | null) => void;
     hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
@@ -221,6 +258,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     informationSource: import("vue").Ref<string, string>;
     samplingStrategy: import("vue").Ref<AnnotationSamplingStrategy, AnnotationSamplingStrategy>;
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
+    aiDatasetId: import("vue").Ref<string | null, string | null>;
     aiDatasetName: import("vue").Ref<string | null, string | null>;
     aiDatasetType: import("vue").Ref<string | null, string | null>;
     annotatorPrincipal: import("vue").Ref<string | null, string | null>;
@@ -229,9 +267,16 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
         id: string;
         data: {
             frameId: number;
+            videoId?: number | undefined;
+            frameNumber?: number | undefined;
+            relativePath?: string | undefined;
             imageUrl: string;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
+            datasetSelectionLabelId?: number | undefined;
+            datasetSelectionLabelName?: string | undefined;
+            datasetSelectionSource?: string | undefined;
+            datasetBucket?: string | undefined;
             labelOptions?: {
                 id: number;
                 name: string;
@@ -258,9 +303,16 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
         id: string;
         data: {
             frameId: number;
+            videoId?: number | undefined;
+            frameNumber?: number | undefined;
+            relativePath?: string | undefined;
             imageUrl: string;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
+            datasetSelectionLabelId?: number | undefined;
+            datasetSelectionLabelName?: string | undefined;
+            datasetSelectionSource?: string | undefined;
+            datasetBucket?: string | undefined;
             labelOptions?: {
                 id: number;
                 name: string;
@@ -295,7 +347,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setInformationSource: (source: string | null) => void;
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
-    setAiDataset: (datasetName: string | null, datasetType: string | null) => void;
+    setAiDataset: (datasetName: string | null, datasetType: string | null, datasetId?: number | string | null) => void;
     setAnnotatorPrincipal: (principal: string | null) => void;
     hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;

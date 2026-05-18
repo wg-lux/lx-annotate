@@ -51,6 +51,7 @@ export declare const endpoints: {
         readonly patientExaminationReportById: (id: Id) => string;
         readonly patientExaminationReportsByPatientExamination: (patientExaminationId: Id) => string;
         readonly saveReportSubmission: "patient-examination-reports/save-submission/";
+        readonly makeReport: "patient-examination-reports/make-report/";
         readonly segmentFrameSelectorBase: "patient-examination-reports/segment-frame-selector/";
         readonly segmentFrameSelector: (patientExaminationId: Id, reportId?: Id) => string;
         readonly reportHistoryContext: (patientExaminationId: Id, limit?: number) => string;
@@ -76,6 +77,9 @@ export declare const endpoints: {
         readonly overview: "hub-export/overview/";
         readonly mark: "hub-export/mark/";
         readonly unmark: "hub-export/unmark/";
+    };
+    readonly runtime: {
+        readonly quarantine: "runtime/quarantine/";
     };
     readonly anonymization: {
         readonly itemsOverview: "anonymization/items/overview/";
