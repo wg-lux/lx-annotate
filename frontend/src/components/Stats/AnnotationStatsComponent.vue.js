@@ -425,7 +425,7 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "progress-bar bg-info" },
         role: "progressbar",
-        ...{ style: ({ width: __VLS_ctx.inProgressPercentage + '%' }) },
+        ...{ style: ({ width: __VLS_ctx.inProgressPercentage + '%', minHeight: '20px' }) },
         'aria-valuenow': (__VLS_ctx.inProgressPercentage),
         'aria-valuemin': "0",
         'aria-valuemax': "100",

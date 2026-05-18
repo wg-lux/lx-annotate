@@ -128,7 +128,7 @@
                   <div 
                     class="progress-bar bg-info" 
                     role="progressbar" 
-                    :style="{ width: inProgressPercentage + '%' }"
+                    :style="{ width: inProgressPercentage + '%', minHeight: '20px' }"
                     :aria-valuenow="inProgressPercentage"
                     aria-valuemin="0" 
                     aria-valuemax="100"
