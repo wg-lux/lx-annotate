@@ -46,6 +46,13 @@ function buildQueueStore(overrides: Record<string, any> = {}) {
       id: 'task-1',
       data: {
         frameId: 101,
+        videoId: 55,
+        frameNumber: 5000,
+        relativePath: 'frames/frame_005000.jpg',
+        datasetSelectionLabelId: 11,
+        datasetSelectionLabelName: 'Polyp',
+        datasetSelectionSource: 'segments',
+        datasetBucket: 'positive',
         imageUrl: '/media/frame-101.jpg',
         existingExternalId: 'external-101',
         annotationMode: 'multilabel',
@@ -83,6 +90,7 @@ function buildQueueStore(overrides: Record<string, any> = {}) {
     filterLabelName: null,
     allowRandomFallback: true,
     informationSource: 'frame_annotation_frontend',
+    aiDatasetId: null,
     aiDatasetName: null,
     aiDatasetType: null,
     annotatorPrincipal: null,
@@ -120,10 +128,20 @@ function buildQueueStore(overrides: Record<string, any> = {}) {
   store.setInformationSource = vi.fn((source: string | null) => {
     store.informationSource = source?.trim() || 'manual_annotation'
   })
-  store.setAiDataset = vi.fn((datasetName: string | null, datasetType: string | null) => {
-    store.aiDatasetName = datasetName?.trim() || null
-    store.aiDatasetType = datasetType?.trim() || null
-  })
+  store.setAiDataset = vi.fn(
+    (
+      datasetName: string | null,
+      datasetType: string | null,
+      datasetId: number | string | null = null
+    ) => {
+      store.aiDatasetId =
+        datasetId !== null && datasetId !== undefined && String(datasetId).trim()
+          ? String(datasetId).trim()
+          : null
+      store.aiDatasetName = datasetName?.trim() || null
+      store.aiDatasetType = datasetType?.trim() || null
+    }
+  )
   store.setAnnotatorPrincipal = vi.fn((principal: string | null) => {
     store.annotatorPrincipal = principal?.trim() || null
   })
@@ -137,15 +155,16 @@ function mountFrameAnnotation() {
       stubs: {
         RouterLink: {
           props: ['to'],
-          template:
-            '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
+          template: '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
         }
       }
     }
   })
 }
 
-function installGetMock(options: { streamStatus?: number; streamBody?: Blob; streamContentType?: string } = {}) {
+function installGetMock(
+  options: { streamStatus?: number; streamBody?: Blob; streamContentType?: string } = {}
+) {
   const {
     streamStatus = 200,
     streamBody = new Blob(['frame'], { type: options.streamContentType ?? 'image/jpeg' }),
@@ -215,7 +234,10 @@ describe('FrameAnnotation route', () => {
     expect(hoisted.get).toHaveBeenCalledWith('media/videos/label-sets/list/')
     expect(hoisted.fetchAiDatasetOptions).toHaveBeenCalledTimes(1)
     expect(hoisted.queueStore.fetchBatch).toHaveBeenCalledWith(10)
-    expect(wrapper.text()).toContain('Frame #101')
+    expect(wrapper.get('[data-test="frame-number-badge"]').text()).toContain('Frame 5000')
+    expect(wrapper.get('[data-test="frame-id-badge"]').text()).toContain('Frame-ID 101')
+    expect(wrapper.get('[data-test="video-id-badge"]').text()).toContain('Video-ID 55')
+    expect(wrapper.get('[data-test="dataset-selection-badge"]').text()).toContain('Polyp')
     expect(wrapper.text()).toContain('Polyp')
     expect(wrapper.text()).toContain('Bleeding')
     expect(wrapper.text()).toContain('KI 91%')
@@ -223,28 +245,31 @@ describe('FrameAnnotation route', () => {
     await wrapper.get('button.btn-success').trigger('click')
     await flushPromises()
 
-    expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', [
-      {
-        frameId: 101,
-        labelId: 11,
-        value: true,
-        floatValue: null,
-        informationSourceName: 'frame_annotation_frontend',
-        annotator: 'oidc:kc-user-7',
-        externalAnnotationId: 'external-101:11',
-        modelMetaId: null
-      },
-      {
-        frameId: 101,
-        labelId: 12,
-        value: false,
-        floatValue: null,
-        informationSourceName: 'frame_annotation_frontend',
-        annotator: 'oidc:kc-user-7',
-        externalAnnotationId: 'existing-bleeding',
-        modelMetaId: null
-      }
-    ])
+    expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', {
+      videoId: 55,
+      annotations: [
+        {
+          frameId: 101,
+          labelId: 11,
+          value: true,
+          floatValue: null,
+          informationSourceName: 'frame_annotation_frontend',
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'external-101:11',
+          modelMetaId: null
+        },
+        {
+          frameId: 101,
+          labelId: 12,
+          value: false,
+          floatValue: null,
+          informationSourceName: 'frame_annotation_frontend',
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'existing-bleeding',
+          modelMetaId: null
+        }
+      ]
+    })
     expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Keine Annotationsaufgaben verfügbar.')
   })
@@ -260,6 +285,29 @@ describe('FrameAnnotation route', () => {
     expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(1)
   })
 
+  it('includes the selected ai dataset id when saving frame labels', async () => {
+    hoisted.queueStore = buildQueueStore({
+      aiDatasetId: '7',
+      aiDatasetName: 'Dataset A',
+      aiDatasetType: 'image'
+    })
+    hoisted.post.mockResolvedValue({ data: { ok: true } })
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+
+    await wrapper.get('[data-test="positive-example-button"]').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.post).toHaveBeenCalledWith(
+      'media/annotations/frames/bulk-upsert/',
+      expect.objectContaining({
+        videoId: 55,
+        aiDatasetId: 7
+      })
+    )
+  })
+
   it('skips the current task via the frame-annotation route endpoint', async () => {
     hoisted.post.mockResolvedValue({ data: { ok: true } })
 
@@ -271,7 +319,9 @@ describe('FrameAnnotation route', () => {
 
     expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/skip/', {
       frameId: 101,
-      annotator: 'oidc:kc-user-7'
+      videoId: 55,
+      annotator: 'oidc:kc-user-7',
+      informationSourceName: 'frame_annotation_frontend'
     })
   })
 
@@ -304,7 +354,9 @@ describe('FrameAnnotation route', () => {
     await wrapper.get('[data-test="frame-ai-dataset-select"]').setValue('9')
     await flushPromises()
 
-    expect(hoisted.queueStore.setAiDataset).toHaveBeenCalledWith('PHI Dataset', 'image')
+    expect(hoisted.queueStore.setAiDataset).toHaveBeenCalledWith('PHI Dataset', 'image', 9)
+    expect(wrapper.text()).toContain('Aktive KI-Datensatz-Warteschlange: PHI Dataset (image)')
+    expect(wrapper.text()).toContain('ID 9')
     expect(wrapper.text()).toContain(
       'Patienteninformationen-Datensätze verwenden nur Frames aus Videos mit vorhandenem Rohmaterial.'
     )
@@ -327,6 +379,32 @@ describe('FrameAnnotation route', () => {
     )
   })
 
+  it('offers a manual retry when frame loading fails', async () => {
+    installGetMock({
+      streamStatus: 500,
+      streamBody: new Blob(['failed'], { type: 'text/plain' }),
+      streamContentType: 'text/plain'
+    })
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain(
+      'Frame konnte nicht geladen werden'
+    )
+    const streamCallsBeforeRetry = hoisted.get.mock.calls.filter(
+      ([url]) => url === '/media/frame-101.jpg'
+    ).length
+
+    await wrapper.get('[data-test="frame-image-retry-button"]').trigger('click')
+    await flushPromises()
+
+    const streamCallsAfterRetry = hoisted.get.mock.calls.filter(
+      ([url]) => url === '/media/frame-101.jpg'
+    ).length
+    expect(streamCallsAfterRetry).toBe(streamCallsBeforeRetry + 1)
+  })
+
   it('supports negative quick example action for the target label', async () => {
     hoisted.post.mockResolvedValue({ data: { ok: true } })
 
@@ -336,28 +414,31 @@ describe('FrameAnnotation route', () => {
     await wrapper.get('[data-test="negative-example-button"]').trigger('click')
     await flushPromises()
 
-    expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', [
-      {
-        frameId: 101,
-        labelId: 11,
-        value: false,
-        floatValue: null,
-        informationSourceName: 'frame_annotation_frontend',
-        annotator: 'oidc:kc-user-7',
-        externalAnnotationId: 'external-101:11',
-        modelMetaId: null
-      },
-      {
-        frameId: 101,
-        labelId: 12,
-        value: false,
-        floatValue: null,
-        informationSourceName: 'frame_annotation_frontend',
-        annotator: 'oidc:kc-user-7',
-        externalAnnotationId: 'existing-bleeding',
-        modelMetaId: null
-      }
-    ])
+    expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', {
+      videoId: 55,
+      annotations: [
+        {
+          frameId: 101,
+          labelId: 11,
+          value: false,
+          floatValue: null,
+          informationSourceName: 'frame_annotation_frontend',
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'external-101:11',
+          modelMetaId: null
+        },
+        {
+          frameId: 101,
+          labelId: 12,
+          value: false,
+          floatValue: null,
+          informationSourceName: 'frame_annotation_frontend',
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'existing-bleeding',
+          modelMetaId: null
+        }
+      ]
+    })
   })
 
   it('supports positive quick example action for the target label', async () => {
@@ -369,28 +450,31 @@ describe('FrameAnnotation route', () => {
     await wrapper.get('[data-test="positive-example-button"]').trigger('click')
     await flushPromises()
 
-    expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', [
-      {
-        frameId: 101,
-        labelId: 11,
-        value: true,
-        floatValue: null,
-        informationSourceName: 'frame_annotation_frontend',
-        annotator: 'oidc:kc-user-7',
-        externalAnnotationId: 'external-101:11',
-        modelMetaId: null
-      },
-      {
-        frameId: 101,
-        labelId: 12,
-        value: false,
-        floatValue: null,
-        informationSourceName: 'frame_annotation_frontend',
-        annotator: 'oidc:kc-user-7',
-        externalAnnotationId: 'existing-bleeding',
-        modelMetaId: null
-      }
-    ])
+    expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', {
+      videoId: 55,
+      annotations: [
+        {
+          frameId: 101,
+          labelId: 11,
+          value: true,
+          floatValue: null,
+          informationSourceName: 'frame_annotation_frontend',
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'external-101:11',
+          modelMetaId: null
+        },
+        {
+          frameId: 101,
+          labelId: 12,
+          value: false,
+          floatValue: null,
+          informationSourceName: 'frame_annotation_frontend',
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'existing-bleeding',
+          modelMetaId: null
+        }
+      ]
+    })
   })
 
   it('applies the PHI region route preset and saves empty background frames', async () => {
@@ -420,6 +504,7 @@ describe('FrameAnnotation route', () => {
     hoisted.queueStore = buildQueueStore({
       targetLabelName: '',
       informationSource: 'manual_annotation',
+      aiDatasetId: '9',
       aiDatasetName: 'PHI Dataset',
       aiDatasetType: 'image',
       popNextTask: vi.fn(() => nextTasks.shift() ?? null)

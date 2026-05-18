@@ -12,6 +12,7 @@ const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1'
 const INFORMATION_SOURCE_STORAGE_KEY = 'annotationQueue.informationSource.v1'
 const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1'
 const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1'
+const AI_DATASET_ID_STORAGE_KEY = 'annotationQueue.aiDatasetId.v1'
 const AI_DATASET_NAME_STORAGE_KEY = 'annotationQueue.aiDatasetName.v1'
 const AI_DATASET_TYPE_STORAGE_KEY = 'annotationQueue.aiDatasetType.v1'
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task'
@@ -116,9 +117,16 @@ export interface AnnotationTask {
   id: string
   data: {
     frameId: number
+    videoId?: number
+    frameNumber?: number
+    relativePath?: string
     imageUrl: string
     existingExternalId?: string
     annotationMode?: string
+    datasetSelectionLabelId?: number
+    datasetSelectionLabelName?: string
+    datasetSelectionSource?: string
+    datasetBucket?: string
     labelOptions?: Array<{ id: number; name: string }>
     manualAnnotations?: Array<{
       id?: number
@@ -171,12 +179,36 @@ type NormalizedAnnotation = {
   modelMetaId?: number | null
 }
 
+function rawField(raw: RawTask, camelKey: string, snakeKey: string): unknown {
+  const nestedData = raw.data as Record<string, unknown> | undefined
+  return raw[camelKey] ?? raw[snakeKey] ?? nestedData?.[camelKey] ?? nestedData?.[snakeKey]
+}
+
+function optionalFiniteNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function optionalTrimmedString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
 function coerceTask(raw: RawTask): AnnotationTask | null {
-  const frameIdRaw =
-    raw.frameId ??
-    raw.frame_id ??
-    (raw.data as Record<string, unknown> | undefined)?.frameId ??
-    (raw.data as Record<string, unknown> | undefined)?.frame_id
+  const frameIdRaw = rawField(raw, 'frameId', 'frame_id')
+  const videoId = optionalFiniteNumber(rawField(raw, 'videoId', 'video_id'))
+  const frameNumber = optionalFiniteNumber(rawField(raw, 'frameNumber', 'frame_number'))
+  const relativePath = optionalTrimmedString(rawField(raw, 'relativePath', 'relative_path'))
+  const datasetSelectionLabelId = optionalFiniteNumber(
+    rawField(raw, 'datasetSelectionLabelId', 'dataset_selection_label_id')
+  )
+  const datasetSelectionLabelName = optionalTrimmedString(
+    rawField(raw, 'datasetSelectionLabelName', 'dataset_selection_label_name')
+  )
+  const datasetSelectionSource = optionalTrimmedString(
+    rawField(raw, 'datasetSelectionSource', 'dataset_selection_source')
+  )
+  const datasetBucket = optionalTrimmedString(rawField(raw, 'datasetBucket', 'dataset_bucket'))
   const imageUrlRaw =
     raw.imageUrl ??
     raw.image_url ??
@@ -309,9 +341,16 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
         : globalThis.crypto?.randomUUID?.() ?? `frame-task-${frameId}`,
     data: {
       frameId,
+      videoId,
+      frameNumber,
+      relativePath,
       imageUrl,
       existingExternalId,
       annotationMode: typeof annotationModeRaw === 'string' ? annotationModeRaw : undefined,
+      datasetSelectionLabelId,
+      datasetSelectionLabelName,
+      datasetSelectionSource,
+      datasetBucket,
       labelOptions,
       manualAnnotations: normalizeAnnotationList(manualAnnotationsRaw),
       predictionAnnotations: normalizeAnnotationList(predictionAnnotationsRaw),
@@ -359,6 +398,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
   const lastError = ref<string | null>(null)
+  const aiDatasetId = ref<string | null>(loadStoredText(AI_DATASET_ID_STORAGE_KEY))
   const aiDatasetName = ref<string | null>(loadStoredText(AI_DATASET_NAME_STORAGE_KEY))
   const aiDatasetType = ref<string | null>(loadStoredText(AI_DATASET_TYPE_STORAGE_KEY))
   const taskQuerySignature = computed(
@@ -369,7 +409,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         allowRandomFallback.value ? '1' : '0'
       }|${samplingStrategy.value}|${
         predictionSegmentsOnly.value ? '1' : '0'
-      }|${aiDatasetName.value ?? ''}|${
+      }|${aiDatasetId.value ?? ''}|${aiDatasetName.value ?? ''}|${
         aiDatasetType.value ?? ''
       }|${annotatorPrincipal.value ?? ''}`
   )
@@ -397,6 +437,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   })
   watch(predictionSegmentsOnly, (next) => {
     persistBoolean(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY, next)
+  })
+  watch(aiDatasetId, (next) => {
+    persistText(AI_DATASET_ID_STORAGE_KEY, next)
   })
   watch(aiDatasetName, (next) => {
     persistText(AI_DATASET_NAME_STORAGE_KEY, next)
@@ -438,7 +481,15 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     predictionSegmentsOnly.value = !!enabled
   }
 
-  function setAiDataset(datasetName: string | null, datasetType: string | null): void {
+  function setAiDataset(
+    datasetName: string | null,
+    datasetType: string | null,
+    datasetId: number | string | null = null
+  ): void {
+    aiDatasetId.value =
+      datasetId !== null && datasetId !== undefined && String(datasetId).trim()
+        ? String(datasetId).trim()
+        : null
     aiDatasetName.value = datasetName?.trim() || null
     aiDatasetType.value = datasetType?.trim() || null
   }
@@ -448,12 +499,13 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   async function hydrateAiDatasetDefaults(): Promise<void> {
-    if (aiDatasetName.value !== null || aiDatasetType.value !== null) return
+    if (aiDatasetId.value !== null || aiDatasetName.value !== null || aiDatasetType.value !== null) return
     try {
       const settings = await fetchApplicationSettings()
       aiDatasetName.value = settings.aiDatasetName?.trim() || null
       aiDatasetType.value = settings.aiDatasetType?.trim() || null
     } catch {
+      aiDatasetId.value = null
       aiDatasetName.value = null
       aiDatasetType.value = null
     }
@@ -486,6 +538,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
       params.previous_label = filterLabelName.value
     }
 
+    if (aiDatasetId.value) {
+      params.ai_dataset_id = aiDatasetId.value
+    }
     if (aiDatasetName.value) {
       params.ai_dataset_name = aiDatasetName.value
     }
@@ -620,6 +675,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     informationSource,
     samplingStrategy,
     predictionSegmentsOnly,
+    aiDatasetId,
     aiDatasetName,
     aiDatasetType,
     annotatorPrincipal,

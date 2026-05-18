@@ -124,4 +124,64 @@ describe('annotationQueue store', () => {
     expect(store.lastError).toBeNull()
     expect(store.taskQueue).toHaveLength(0)
   })
+
+  it('preserves backend frame and dataset selection metadata on tasks', async () => {
+    hoisted.get.mockResolvedValueOnce({
+      data: {
+        tasks: [
+          {
+            id: 'task-101',
+            frame_id: 101,
+            video_id: 55,
+            frame_number: 5000,
+            relative_path: 'frames/frame_005000.jpg',
+            frame_stream_path: '/api/media/videos/55/frames/5000/stream/',
+            dataset_selection_label_id: 11,
+            dataset_selection_label_name: 'Polyp',
+            dataset_selection_source: 'segments',
+            dataset_bucket: 'positive',
+            label_options: [{ id: 11, name: 'Polyp' }]
+          }
+        ]
+      }
+    })
+
+    const store = useAnnotationQueueStore()
+    store.setSelectedLabelGroupId('3')
+
+    const tasks = await store.fetchBatch(1)
+
+    expect(tasks[0].data).toMatchObject({
+      frameId: 101,
+      videoId: 55,
+      frameNumber: 5000,
+      relativePath: 'frames/frame_005000.jpg',
+      imageUrl: '/api/media/videos/55/frames/5000/stream/',
+      datasetSelectionLabelId: 11,
+      datasetSelectionLabelName: 'Polyp',
+      datasetSelectionSource: 'segments',
+      datasetBucket: 'positive'
+    })
+  })
+
+  it('sends selected AI dataset id when requesting frame tasks', async () => {
+    hoisted.get.mockResolvedValueOnce({ data: { tasks: [buildTask(101)] } })
+
+    const store = useAnnotationQueueStore()
+    store.setSelectedLabelGroupId('3')
+    store.setAiDataset('Dataset A', 'image', 7)
+
+    await store.fetchBatch(1)
+
+    expect(hoisted.get).toHaveBeenCalledWith(
+      'media/annotations/frames/random-task/',
+      expect.objectContaining({
+        params: expect.objectContaining({
+          ai_dataset_id: '7',
+          ai_dataset_name: 'Dataset A',
+          ai_dataset_type: 'image'
+        })
+      })
+    )
+  })
 })

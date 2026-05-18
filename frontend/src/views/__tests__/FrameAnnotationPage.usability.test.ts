@@ -46,6 +46,7 @@ interface BaseStore {
   filterLabelName: string | null;
   allowRandomFallback: boolean;
   informationSource: string;
+  aiDatasetId?: string | null;
   aiDatasetName?: string | null;
   aiDatasetType?: string | null;
   annotatorPrincipal: string | null;
@@ -76,6 +77,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     filterLabelName: null,
     allowRandomFallback: true,
     informationSource: 'frame_annotation_frontend',
+    aiDatasetId: null,
     aiDatasetName: null,
     aiDatasetType: null,
     annotatorPrincipal: null,

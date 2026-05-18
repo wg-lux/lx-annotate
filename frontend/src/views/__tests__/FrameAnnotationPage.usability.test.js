@@ -39,6 +39,7 @@ function buildQueueStore(overrides = {}) {
         filterLabelName: null,
         allowRandomFallback: true,
         informationSource: 'frame_annotation_frontend',
+        aiDatasetId: null,
         aiDatasetName: null,
         aiDatasetType: null,
         annotatorPrincipal: null,

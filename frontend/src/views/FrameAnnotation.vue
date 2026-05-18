@@ -28,7 +28,10 @@
           v-if="queueStore.aiDatasetName && queueStore.aiDatasetType"
           class="text-sm text-primary mb-0"
         >
-          Aktive KI-Datensatz-Warteschlange: {{ queueStore.aiDatasetName }} ({{ queueStore.aiDatasetType }})
+          Aktive KI-Datensatz-Warteschlange: {{ queueStore.aiDatasetName }} ({{
+            queueStore.aiDatasetType
+          }})
+          <template v-if="queueStore.aiDatasetId"> · ID {{ queueStore.aiDatasetId }}</template>
         </p>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
@@ -50,8 +53,9 @@
           </option>
         </select>
         <small v-if="isPatienteninformationenDatasetSelected" class="text-warning d-block mt-1">
-          Patienteninformationen-Datensätze verwenden nur Frames aus Videos mit vorhandenem Rohmaterial. Bereits zugeschnittene
-          oder nur noch anonymisiert vorliegende Videos werden ausgeschlossen.
+          Patienteninformationen-Datensätze verwenden nur Frames aus Videos mit vorhandenem
+          Rohmaterial. Bereits zugeschnittene oder nur noch anonymisiert vorliegende Videos werden
+          ausgeschlossen.
         </small>
         <small v-else class="text-muted d-block mt-1">
           Steuert, aus welchem KI-Datensatz die Frame-Warteschlange gezogen wird.
@@ -69,11 +73,7 @@
           class="form-select"
         >
           <option value="">Label-Gruppe auswählen</option>
-          <option
-            v-for="group in labelGroupOptions"
-            :key="group.id"
-            :value="group.id"
-          >
+          <option v-for="group in labelGroupOptions" :key="group.id" :value="group.id">
             {{ group.displayName }} (ID: {{ group.id }})
           </option>
         </select>
@@ -106,11 +106,7 @@
       </div>
       <div class="col-12 col-md-6 col-lg-4">
         <label for="task-mode" class="form-label">Aufgabenquelle</label>
-        <select
-          id="task-mode"
-          v-model="taskMode"
-          class="form-select"
-        >
+        <select id="task-mode" v-model="taskMode" class="form-select">
           <option value="random">Zufällige Frames</option>
           <option value="filtered">Nach vorherigem Label gefiltert</option>
         </select>
@@ -179,10 +175,7 @@
         </div>
         <small class="text-muted d-block mt-1">Aktiver Annotator: {{ activeAnnotatorLabel }}</small>
       </div>
-      <div
-        v-if="taskMode === 'filtered'"
-        class="col-12 col-md-6 col-lg-4"
-      >
+      <div v-if="taskMode === 'filtered'" class="col-12 col-md-6 col-lg-4">
         <label for="filter-label-name" class="form-label">Nach vorherigem Label filtern</label>
         <input
           id="filter-label-name"
@@ -192,10 +185,7 @@
           placeholder="z. B. Blut"
         />
       </div>
-      <div
-        v-if="taskMode === 'filtered'"
-        class="col-12 col-md-6 col-lg-4 d-flex align-items-end"
-      >
+      <div v-if="taskMode === 'filtered'" class="col-12 col-md-6 col-lg-4 d-flex align-items-end">
         <div class="form-check mb-2">
           <input
             id="random-fallback"
@@ -220,7 +210,36 @@
             </div>
             <template v-else>
               <div class="task-meta mb-2">
-                <span class="badge bg-light text-dark me-2">Frame #{{ currentTask.data.frameId }}</span>
+                <span class="badge bg-light text-dark me-2" data-test="frame-number-badge">
+                  Frame {{ currentTask.data.frameNumber ?? 'n/a' }}
+                </span>
+                <span class="badge bg-light text-dark me-2" data-test="frame-id-badge">
+                  Frame-ID {{ currentTask.data.frameId }}
+                </span>
+                <span
+                  v-if="currentTask.data.videoId"
+                  class="badge bg-light text-dark me-2"
+                  data-test="video-id-badge"
+                >
+                  Video-ID {{ currentTask.data.videoId }}
+                </span>
+                <span
+                  v-if="currentTask.data.datasetSelectionLabelName"
+                  class="badge bg-info-subtle text-info-emphasis me-2"
+                  data-test="dataset-selection-badge"
+                >
+                  {{ currentTask.data.datasetSelectionLabelName }}
+                  <template v-if="currentTask.data.datasetSelectionSource">
+                    · {{ currentTask.data.datasetSelectionSource }}
+                  </template>
+                </span>
+                <span
+                  v-if="currentTask.data.datasetBucket"
+                  class="badge bg-secondary-subtle text-secondary-emphasis me-2"
+                  data-test="dataset-bucket-badge"
+                >
+                  {{ currentTask.data.datasetBucket }}
+                </span>
                 <span class="badge bg-light text-dark">Aufgabe {{ currentTask.id }}</span>
               </div>
               <div
@@ -246,8 +265,18 @@
                   v-if="showFrameImageStatus"
                   class="frame-image-status"
                   data-test="frame-image-status"
+                  @pointerdown.stop
                 >
-                  {{ frameImageStatusMessage }}
+                  <span>{{ frameImageStatusMessage }}</span>
+                  <button
+                    v-if="canManuallyRetryFrameImage"
+                    type="button"
+                    class="btn btn-outline-primary btn-sm mb-0"
+                    data-test="frame-image-retry-button"
+                    @click.stop="retryFrameImage"
+                  >
+                    Erneut versuchen
+                  </button>
                 </div>
                 <div class="box-annotation-layer" aria-hidden="true">
                   <div
@@ -302,7 +331,7 @@
                         v-if="manualAnnotationState[label.id]?.value"
                         class="badge bg-success-subtle text-success-emphasis"
                       >
-                        Manual
+                        Manuell
                       </span>
                       <span
                         v-else-if="manualAnnotationState[label.id]"
@@ -394,7 +423,10 @@
                         {{ label.name }}
                       </option>
                     </select>
-                    <small v-if="isPhiRegionMode && phiRegionBoxLabel" class="text-muted d-block mt-1">
+                    <small
+                      v-if="isPhiRegionMode && phiRegionBoxLabel"
+                      class="text-muted d-block mt-1"
+                    >
                       Boxen werden als {{ phiRegionBoxLabel.name }} gespeichert.
                     </small>
                     <small v-else-if="isPhiRegionBoxLabelMissing" class="text-danger d-block mt-1">
@@ -417,7 +449,9 @@
                     v-for="box in boxAnnotations"
                     :key="`list-${box.clientId}`"
                     class="box-annotation-list-item"
-                    :class="{ 'box-annotation-list-item-active': activeBoxClientId === box.clientId }"
+                    :class="{
+                      'box-annotation-list-item-active': activeBoxClientId === box.clientId
+                    }"
                     @click="activeBoxClientId = box.clientId"
                   >
                     <div>
@@ -434,10 +468,7 @@
                     </button>
                   </div>
                 </div>
-                <small
-                  v-if="boxAnnotationError"
-                  class="text-danger d-block mb-3"
-                >
+                <small v-if="boxAnnotationError" class="text-danger d-block mb-3">
                   {{ boxAnnotationError }}
                 </small>
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
@@ -699,12 +730,7 @@ const ANONYMIZER_FIELD_DEFINITIONS: AnonymizerFieldDefinition[] = [
   {
     key: 'endoscope_sn',
     label: 'Endoskop-Seriennummer',
-    aliases: [
-      'endoscope_sn',
-      'endoscope serial number',
-      'scope serial number',
-      'serial number'
-    ],
+    aliases: ['endoscope_sn', 'endoscope serial number', 'scope serial number', 'serial number'],
     sensitive: false
   }
 ]
@@ -770,6 +796,12 @@ const allowRandomFallback = computed({
 
 const selectedAiDatasetId = computed({
   get: () => {
+    if (queueStore.aiDatasetId) {
+      const selectedById = aiDatasetOptions.value.find(
+        (dataset) => String(dataset.id) === queueStore.aiDatasetId
+      )
+      if (selectedById) return String(selectedById.id)
+    }
     const match = aiDatasetOptions.value.find(
       (dataset) =>
         dataset.label === queueStore.aiDatasetName &&
@@ -779,11 +811,15 @@ const selectedAiDatasetId = computed({
   },
   set: (value: string) => {
     if (value === NO_DATASET_OPTION) {
-      queueStore.setAiDataset(null, null)
+      queueStore.setAiDataset(null, null, null)
       return
     }
     const selected = aiDatasetOptions.value.find((dataset) => String(dataset.id) === value)
-    queueStore.setAiDataset(selected?.label ?? null, selected?.datasetType ?? null)
+    queueStore.setAiDataset(
+      selected?.label ?? null,
+      selected?.datasetType ?? null,
+      selected?.id ?? null
+    )
   }
 })
 
@@ -814,12 +850,15 @@ const isPhiRegionBoxLabelMissing = computed(
     annotationLabelOptions.value.length > 0 &&
     phiRegionBoxLabel.value === null
 )
-const selectedAiDataset = computed(() =>
-  aiDatasetOptions.value.find(
-    (dataset) =>
-      dataset.label === queueStore.aiDatasetName &&
-      dataset.datasetType === queueStore.aiDatasetType
-  ) ?? null
+const selectedAiDataset = computed(
+  () =>
+    aiDatasetOptions.value.find((dataset) => String(dataset.id) === queueStore.aiDatasetId) ??
+    aiDatasetOptions.value.find(
+      (dataset) =>
+        dataset.label === queueStore.aiDatasetName &&
+        dataset.datasetType === queueStore.aiDatasetType
+    ) ??
+    null
 )
 const isPhiDatasetSelected = computed(
   () => selectedAiDataset.value?.aiModelType === PHI_REGION_DATASET_MODEL_TYPE
@@ -828,11 +867,17 @@ const isPatienteninformationenDatasetSelected = computed(() => isPhiDatasetSelec
 const showFrameImageStatus = computed(
   () => !!currentTask.value && frameImageLoadState.value !== 'loaded'
 )
+const canManuallyRetryFrameImage = computed(
+  () => !!currentTask.value && frameImageLoadState.value === 'failed'
+)
 const frameImageStatusMessage = computed(() => {
   if (frameImageLoadState.value === 'pending') {
-    return `Frame wird extrahiert... neuer Versuch ${frameImageRetryCount.value}/${FRAME_IMAGE_RETRY_LIMIT}`
+    return `Frame wird extrahiert... automatischer Versuch ${frameImageRetryCount.value}/${FRAME_IMAGE_RETRY_LIMIT}`
   }
   if (frameImageLoadState.value === 'failed') {
+    if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+      return 'Frame ist noch nicht verfügbar. Automatische Versuche sind beendet.'
+    }
     return 'Frame konnte nicht geladen werden. Bitte Aufgabe neu laden oder spaeter erneut versuchen.'
   }
   return 'Frame wird bereitgestellt...'
@@ -907,9 +952,7 @@ const hasAnonymizerSensitiveLabels = computed(() =>
   anonymizerFieldRows.value.some((field) => field.sensitive && field.labelId !== null)
 )
 const missingAnonymizerFieldLabels = computed(() =>
-  anonymizerFieldRows.value
-    .filter((field) => field.labelId === null)
-    .map((field) => field.key)
+  anonymizerFieldRows.value.filter((field) => field.labelId === null).map((field) => field.key)
 )
 
 function syncSelectedLabelsFromTask(task: typeof currentTask.value): void {
@@ -936,7 +979,10 @@ function applySuggestedLabels(): void {
 }
 
 function normalizeAnonymizerLabelName(value: string): string {
-  return value.trim().toLowerCase().replace(/[\s-]+/g, '_')
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
 }
 
 function findLabelByAliases(aliases: string[]): { id: number; name: string } | null {
@@ -1113,6 +1159,14 @@ function handleFrameImageError(): void {
   frameImageLoadState.value = 'pending'
   frameImageRequestUrl.value = ''
   scheduleFrameImageRetry(currentTask.value)
+}
+
+function retryFrameImage(): void {
+  if (!currentTask.value) return
+  clearFrameImageRetryTimer()
+  frameImageRetryCount.value = 0
+  frameImageRequestUrl.value = ''
+  void probeFrameImage(currentTask.value)
 }
 
 function readBlobText(blob: Blob): Promise<string> {
@@ -1672,28 +1726,40 @@ async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
   errorMessage.value = null
   const selectedSet = new Set(selectedIds)
   try {
-    await axiosInstance.post(
-      r(endpoints.annotation.bulkUpsert),
-      labelOptions.map((label) => {
-        const existingManual = (task.data.manualAnnotations ?? []).find(
-          (annotation) => annotation.labelId === label.id
-        )
-        return {
-          frameId: task.data.frameId,
-          labelId: label.id,
-          value: selectedSet.has(label.id),
-          floatValue: null,
-          informationSourceName: informationSource.value,
-          annotator: activeAnnotatorPrincipal.value,
-          externalAnnotationId:
-            existingManual?.externalAnnotationId ||
-            (task.data.existingExternalId && task.data.existingExternalId.trim()
-              ? `${task.data.existingExternalId}:${label.id}`
-              : uuidv7()),
-          modelMetaId: null
-        }
-      })
-    )
+    const annotations = labelOptions.map((label) => {
+      const existingManual = (task.data.manualAnnotations ?? []).find(
+        (annotation) => annotation.labelId === label.id
+      )
+      return {
+        frameId: task.data.frameId,
+        labelId: label.id,
+        value: selectedSet.has(label.id),
+        floatValue: null,
+        informationSourceName: informationSource.value,
+        annotator: activeAnnotatorPrincipal.value,
+        externalAnnotationId:
+          existingManual?.externalAnnotationId ||
+          (task.data.existingExternalId && task.data.existingExternalId.trim()
+            ? `${task.data.existingExternalId}:${label.id}`
+            : uuidv7()),
+        modelMetaId: null
+      }
+    })
+    const payload: {
+      videoId?: number
+      aiDatasetId?: number
+      annotations: typeof annotations
+    } = {
+      annotations
+    }
+    if (task.data.videoId !== undefined) {
+      payload.videoId = task.data.videoId
+    }
+    const selectedAiDatasetId = Number(queueStore.aiDatasetId)
+    if (Number.isFinite(selectedAiDatasetId) && selectedAiDatasetId > 0) {
+      payload.aiDatasetId = selectedAiDatasetId
+    }
+    await axiosInstance.post(r(endpoints.annotation.bulkUpsert), payload)
     await loadNextTask()
   } catch (error: any) {
     errorMessage.value =
@@ -1740,12 +1806,15 @@ async function submitNegativeExample(): Promise<void> {
 
 async function skipTask(): Promise<void> {
   if (!currentTask.value) return
+  const task = currentTask.value
   isSubmitting.value = true
   errorMessage.value = null
   try {
     await axiosInstance.post(r(endpoints.annotation.skip), {
-      frameId: currentTask.value.data.frameId,
-      annotator: activeAnnotatorPrincipal.value
+      frameId: task.data.frameId,
+      videoId: task.data.videoId,
+      annotator: activeAnnotatorPrincipal.value,
+      informationSourceName: informationSource.value
     })
     await loadNextTask()
   } catch (error: any) {
@@ -1843,8 +1912,10 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.75rem;
   padding: 1rem;
   color: #334155;
   font-size: 0.95rem;
@@ -1853,7 +1924,7 @@ onUnmounted(() => {
   text-align: center;
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(1px);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .box-annotation-layer {

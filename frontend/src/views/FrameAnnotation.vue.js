@@ -75,12 +75,7 @@ const ANONYMIZER_FIELD_DEFINITIONS = [
     {
         key: 'endoscope_sn',
         label: 'Endoskop-Seriennummer',
-        aliases: [
-            'endoscope_sn',
-            'endoscope serial number',
-            'scope serial number',
-            'serial number'
-        ],
+        aliases: ['endoscope_sn', 'endoscope serial number', 'scope serial number', 'serial number'],
         sensitive: false
     }
 ];
@@ -139,17 +134,22 @@ const allowRandomFallback = computed({
 });
 const selectedAiDatasetId = computed({
     get: () => {
+        if (queueStore.aiDatasetId) {
+            const selectedById = aiDatasetOptions.value.find((dataset) => String(dataset.id) === queueStore.aiDatasetId);
+            if (selectedById)
+                return String(selectedById.id);
+        }
         const match = aiDatasetOptions.value.find((dataset) => dataset.label === queueStore.aiDatasetName &&
             dataset.datasetType === queueStore.aiDatasetType);
         return match ? String(match.id) : NO_DATASET_OPTION;
     },
     set: (value) => {
         if (value === NO_DATASET_OPTION) {
-            queueStore.setAiDataset(null, null);
+            queueStore.setAiDataset(null, null, null);
             return;
         }
         const selected = aiDatasetOptions.value.find((dataset) => String(dataset.id) === value);
-        queueStore.setAiDataset(selected?.label ?? null, selected?.datasetType ?? null);
+        queueStore.setAiDataset(selected?.label ?? null, selected?.datasetType ?? null, selected?.id ?? null);
     }
 });
 const informationSource = computed({
@@ -170,16 +170,22 @@ const phiRegionBoxLabel = computed(() => findLabelByAliases(PHI_REGION_LABEL_ALI
 const isPhiRegionBoxLabelMissing = computed(() => isPhiRegionMode.value &&
     annotationLabelOptions.value.length > 0 &&
     phiRegionBoxLabel.value === null);
-const selectedAiDataset = computed(() => aiDatasetOptions.value.find((dataset) => dataset.label === queueStore.aiDatasetName &&
-    dataset.datasetType === queueStore.aiDatasetType) ?? null);
+const selectedAiDataset = computed(() => aiDatasetOptions.value.find((dataset) => String(dataset.id) === queueStore.aiDatasetId) ??
+    aiDatasetOptions.value.find((dataset) => dataset.label === queueStore.aiDatasetName &&
+        dataset.datasetType === queueStore.aiDatasetType) ??
+    null);
 const isPhiDatasetSelected = computed(() => selectedAiDataset.value?.aiModelType === PHI_REGION_DATASET_MODEL_TYPE);
 const isPatienteninformationenDatasetSelected = computed(() => isPhiDatasetSelected.value);
 const showFrameImageStatus = computed(() => !!currentTask.value && frameImageLoadState.value !== 'loaded');
+const canManuallyRetryFrameImage = computed(() => !!currentTask.value && frameImageLoadState.value === 'failed');
 const frameImageStatusMessage = computed(() => {
     if (frameImageLoadState.value === 'pending') {
-        return `Frame wird extrahiert... neuer Versuch ${frameImageRetryCount.value}/${FRAME_IMAGE_RETRY_LIMIT}`;
+        return `Frame wird extrahiert... automatischer Versuch ${frameImageRetryCount.value}/${FRAME_IMAGE_RETRY_LIMIT}`;
     }
     if (frameImageLoadState.value === 'failed') {
+        if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+            return 'Frame ist noch nicht verfügbar. Automatische Versuche sind beendet.';
+        }
         return 'Frame konnte nicht geladen werden. Bitte Aufgabe neu laden oder spaeter erneut versuchen.';
     }
     return 'Frame wird bereitgestellt...';
@@ -224,9 +230,7 @@ const anonymizerFieldRows = computed(() => ANONYMIZER_FIELD_DEFINITIONS.map((def
 }));
 const hasAnyAnonymizerLabels = computed(() => anonymizerFieldRows.value.some((field) => field.labelId !== null));
 const hasAnonymizerSensitiveLabels = computed(() => anonymizerFieldRows.value.some((field) => field.sensitive && field.labelId !== null));
-const missingAnonymizerFieldLabels = computed(() => anonymizerFieldRows.value
-    .filter((field) => field.labelId === null)
-    .map((field) => field.key));
+const missingAnonymizerFieldLabels = computed(() => anonymizerFieldRows.value.filter((field) => field.labelId === null).map((field) => field.key));
 function syncSelectedLabelsFromTask(task) {
     if (!task) {
         selectedLabelIds.value = [];
@@ -248,7 +252,10 @@ function applySuggestedLabels() {
     selectedLabelIds.value = [...new Set(currentTask.value?.data.suggestedLabelIds ?? [])];
 }
 function normalizeAnonymizerLabelName(value) {
-    return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, '_');
 }
 function findLabelByAliases(aliases) {
     for (const alias of aliases) {
@@ -402,6 +409,14 @@ function handleFrameImageError() {
     frameImageLoadState.value = 'pending';
     frameImageRequestUrl.value = '';
     scheduleFrameImageRetry(currentTask.value);
+}
+function retryFrameImage() {
+    if (!currentTask.value)
+        return;
+    clearFrameImageRetryTimer();
+    frameImageRetryCount.value = 0;
+    frameImageRequestUrl.value = '';
+    void probeFrameImage(currentTask.value);
 }
 function readBlobText(blob) {
     if (typeof blob.text === 'function') {
@@ -924,7 +939,7 @@ async function submitLabelsWithSelection(selectedIds) {
     errorMessage.value = null;
     const selectedSet = new Set(selectedIds);
     try {
-        await axiosInstance.post(r(endpoints.annotation.bulkUpsert), labelOptions.map((label) => {
+        const annotations = labelOptions.map((label) => {
             const existingManual = (task.data.manualAnnotations ?? []).find((annotation) => annotation.labelId === label.id);
             return {
                 frameId: task.data.frameId,
@@ -939,7 +954,18 @@ async function submitLabelsWithSelection(selectedIds) {
                         : uuidv7()),
                 modelMetaId: null
             };
-        }));
+        });
+        const payload = {
+            annotations
+        };
+        if (task.data.videoId !== undefined) {
+            payload.videoId = task.data.videoId;
+        }
+        const selectedAiDatasetId = Number(queueStore.aiDatasetId);
+        if (Number.isFinite(selectedAiDatasetId) && selectedAiDatasetId > 0) {
+            payload.aiDatasetId = selectedAiDatasetId;
+        }
+        await axiosInstance.post(r(endpoints.annotation.bulkUpsert), payload);
         await loadNextTask();
     }
     catch (error) {
@@ -985,12 +1011,15 @@ async function submitNegativeExample() {
 async function skipTask() {
     if (!currentTask.value)
         return;
+    const task = currentTask.value;
     isSubmitting.value = true;
     errorMessage.value = null;
     try {
         await axiosInstance.post(r(endpoints.annotation.skip), {
-            frameId: currentTask.value.data.frameId,
-            annotator: activeAnnotatorPrincipal.value
+            frameId: task.data.frameId,
+            videoId: task.data.videoId,
+            annotator: activeAnnotatorPrincipal.value,
+            informationSourceName: informationSource.value
         });
         await loadNextTask();
     }
@@ -1093,6 +1122,9 @@ if (__VLS_ctx.queueStore.aiDatasetName && __VLS_ctx.queueStore.aiDatasetType) {
     });
     (__VLS_ctx.queueStore.aiDatasetName);
     (__VLS_ctx.queueStore.aiDatasetType);
+    if (__VLS_ctx.queueStore.aiDatasetId) {
+        (__VLS_ctx.queueStore.aiDatasetId);
+    }
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "col-12 col-md-6 col-lg-4" },
@@ -1366,8 +1398,38 @@ else {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-light text-dark me-2" },
+        'data-test': "frame-number-badge",
+    });
+    (__VLS_ctx.currentTask.data.frameNumber ?? 'n/a');
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-light text-dark me-2" },
+        'data-test': "frame-id-badge",
     });
     (__VLS_ctx.currentTask.data.frameId);
+    if (__VLS_ctx.currentTask.data.videoId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-light text-dark me-2" },
+            'data-test': "video-id-badge",
+        });
+        (__VLS_ctx.currentTask.data.videoId);
+    }
+    if (__VLS_ctx.currentTask.data.datasetSelectionLabelName) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-info-subtle text-info-emphasis me-2" },
+            'data-test': "dataset-selection-badge",
+        });
+        (__VLS_ctx.currentTask.data.datasetSelectionLabelName);
+        if (__VLS_ctx.currentTask.data.datasetSelectionSource) {
+            (__VLS_ctx.currentTask.data.datasetSelectionSource);
+        }
+    }
+    if (__VLS_ctx.currentTask.data.datasetBucket) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-secondary-subtle text-secondary-emphasis me-2" },
+            'data-test': "dataset-bucket-badge",
+        });
+        (__VLS_ctx.currentTask.data.datasetBucket);
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-light text-dark" },
     });
@@ -1395,10 +1457,20 @@ else {
     /** @type {typeof __VLS_ctx.frameImageElement} */ ;
     if (__VLS_ctx.showFrameImageStatus) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onPointerdown: () => { } },
             ...{ class: "frame-image-status" },
             'data-test': "frame-image-status",
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (__VLS_ctx.frameImageStatusMessage);
+        if (__VLS_ctx.canManuallyRetryFrameImage) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.retryFrameImage) },
+                type: "button",
+                ...{ class: "btn btn-outline-primary btn-sm mb-0" },
+                'data-test': "frame-image-retry-button",
+            });
+        }
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "box-annotation-layer" },
@@ -1612,7 +1684,9 @@ else {
                     } },
                 key: (`list-${box.clientId}`),
                 ...{ class: "box-annotation-list-item" },
-                ...{ class: ({ 'box-annotation-list-item-active': __VLS_ctx.activeBoxClientId === box.clientId }) },
+                ...{ class: ({
+                        'box-annotation-list-item-active': __VLS_ctx.activeBoxClientId === box.clientId
+                    }) },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
             __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
@@ -1912,6 +1986,22 @@ if (__VLS_ctx.visibleErrorMessage) {
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info-subtle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-info-emphasis']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary-subtle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-secondary-emphasis']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
 /** @type {__VLS_StyleScopedClasses['frame-image-stage']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
 /** @type {__VLS_StyleScopedClasses['border']} */ ;
@@ -1919,6 +2009,10 @@ if (__VLS_ctx.visibleErrorMessage) {
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
 /** @type {__VLS_StyleScopedClasses['frame-image']} */ ;
 /** @type {__VLS_StyleScopedClasses['frame-image-status']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['box-annotation-layer']} */ ;
 /** @type {__VLS_StyleScopedClasses['box-annotation-rect']} */ ;
 /** @type {__VLS_StyleScopedClasses['box-annotation-rect-active']} */ ;
@@ -2140,6 +2234,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             isPhiRegionBoxLabelMissing: isPhiRegionBoxLabelMissing,
             isPatienteninformationenDatasetSelected: isPatienteninformationenDatasetSelected,
             showFrameImageStatus: showFrameImageStatus,
+            canManuallyRetryFrameImage: canManuallyRetryFrameImage,
             frameImageStatusMessage: frameImageStatusMessage,
             visibleErrorMessage: visibleErrorMessage,
             baseAnnotatorPrincipal: baseAnnotatorPrincipal,
@@ -2163,6 +2258,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             usePhiRegionAnnotationPreset: usePhiRegionAnnotationPreset,
             handleFrameImageLoad: handleFrameImageLoad,
             handleFrameImageError: handleFrameImageError,
+            retryFrameImage: retryFrameImage,
             startBoxDraft: startBoxDraft,
             updateBoxDraft: updateBoxDraft,
             finishBoxDraft: finishBoxDraft,
