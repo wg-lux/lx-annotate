@@ -371,8 +371,6 @@ const refreshOverview = async () => {
   try {
     await anonymizationStore.fetchOverview();
     mediaStore.seedTypesFromOverview(anonymizationStore.overview);
-
-
   } finally {
     isRefreshing.value = false;
   }
@@ -448,7 +446,6 @@ const validateFile = async (fileId: number, mediaType: string) => {
         console.warn('File not found for validation with given mediaType:', { fileId, mediaType });
         return;
       }
-
       mediaStore.setCurrentItem(file as any);
       const kind = file.mediaType as MediaType;
 
