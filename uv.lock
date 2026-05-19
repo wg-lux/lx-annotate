@@ -986,7 +986,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.9.8"
+version = "0.9.9.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1008,7 +1008,7 @@ dependencies = [
     { name = "kombu" },
     { name = "librosa" },
     { name = "llvmlite" },
-    { name = "lx-anonymizer", extra = ["llm", "ocr"] },
+    { name = "lx-anonymizer", extra = ["gpu", "llm", "ocr"] },
     { name = "lx-dtypes" },
     { name = "moviepy" },
     { name = "mozilla-django-oidc" },
@@ -1049,9 +1049,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/67/79/27fec07d3b9f01006187869643a0225ce123306b8f1629b40089ea2af263/endoreg_db-0.9.9.8.tar.gz", hash = "sha256:7433a06fec4015563f4d1387c145dce008eac2b9819a2932696ca7f93a7d0281", size = 841793, upload-time = "2026-05-19T08:54:56.945Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/07/33e9de96310dce665f5089e773fb159424d65037ddae28ece2eec1606982/endoreg_db-0.9.9.9.tar.gz", hash = "sha256:00892bcdac05eec7bdc945bab0d936caada524dfa10f0ade9a97a9e7bcbc5503", size = 864705, upload-time = "2026-05-19T15:10:43.703Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ad/e8/b718432f6940a8e3a256c04d75502d0aa16f3f890bd270aad21974430b90/endoreg_db-0.9.9.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:98beeaf966648dcd60f1e53c93f3818d20a3de9500bd462e3ed47b4cfd3825e2", size = 1448889, upload-time = "2026-05-19T08:54:54.128Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/74/95873feb2e821e299d86f623686f1d446f75d908d45ea462a36f652865e5/endoreg_db-0.9.9.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:30397f3cfd095259c69ebb57651ea2afeb538379f6d67c2c9ce34c0d458fa695", size = 1475469, upload-time = "2026-05-19T15:10:41.397Z" },
 ]
 
 [[package]]
@@ -1120,6 +1120,14 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9b/af/fbfe3c4b5a657d79e5c47a2827a362f9e1b763336a52f926126aa6dc7123/flake8-7.3.0.tar.gz", hash = "sha256:fe044858146b9fc69b551a4b490d69cf960fcb78ad1edcb84e7fbb1b4a8e3872", size = 48326, upload-time = "2025-06-20T19:31:35.838Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9f/56/13ab06b4f93ca7cac71078fbe37fcea175d3216f31f85c3168a6bbd0bb9a/flake8-7.3.0-py2.py3-none-any.whl", hash = "sha256:b9696257b9ce8beb888cdbe31cf885c90d31928fe202be0889a7cdafad32f01e", size = 57922, upload-time = "2025-06-20T19:31:34.425Z" },
+]
+
+[[package]]
+name = "flatbuffers"
+version = "25.12.19"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl", hash = "sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4", size = 26661, upload-time = "2025-12-19T23:16:13.622Z" },
 ]
 
 [[package]]
@@ -1707,7 +1715,7 @@ wheels = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.5.8"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -1806,7 +1814,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.9.8" },
+    { name = "endoreg-db", specifier = "==0.9.9.9" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -1859,7 +1867,7 @@ provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "lx-anonymizer"
-version = "0.9.1.5"
+version = "0.9.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1867,6 +1875,7 @@ dependencies = [
     { name = "faker" },
     { name = "gender-guesser" },
     { name = "numpy" },
+    { name = "onnxruntime" },
     { name = "opencv-python-headless" },
     { name = "pdfplumber" },
     { name = "pillow" },
@@ -1888,12 +1897,15 @@ dependencies = [
     { name = "ultralytics" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/f2/b3ba76588d89de25c0417af715e1940155e6436a235c5080378efea3bfbb/lx_anonymizer-0.9.1.5.tar.gz", hash = "sha256:1725ed2a50a900784d75d10cf0be7a1900677f920adee9e093581202f4581394", size = 1538935, upload-time = "2026-05-12T09:31:42.359Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/b4/e2f72b8288691cb5e94e86e39b8e7acf45b10c71bdce22cdf387e1d5c0fe/lx_anonymizer-0.9.1.7.tar.gz", hash = "sha256:baa49babd0623524dbf0b094f1287f89c6b4b32207002b4223facbab6f2da4a9", size = 1540658, upload-time = "2026-05-19T13:49:30.802Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/01/78f755f64f243d64a3dea619ed720e48e6d1276e771823fe0b3248b84649/lx_anonymizer-0.9.1.5-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8acb915b5d2d4242e6028b7a0357b4290d92b912d4fc6e8d60cfc4b882b363b4", size = 1409374, upload-time = "2026-05-12T09:31:39.851Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/29/2862f60ff189ad9d259beb7c1142cff3f84b86d39fe4b4bdd37f4bc16de3/lx_anonymizer-0.9.1.7-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:808f66009c9c0102ec9d4f04694f2022f48aa6a53b8422e71f94d181fe732469", size = 1410929, upload-time = "2026-05-19T13:49:28.436Z" },
 ]
 
 [package.optional-dependencies]
+gpu = [
+    { name = "onnxruntime-gpu" },
+]
 llm = [
     { name = "tiktoken" },
 ]
@@ -2393,6 +2405,39 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/09/48/6388f1bb9da707110532cb70ec4d2822858ddfb44f1cdf1233c20a80ea4b/omegaconf-2.3.0.tar.gz", hash = "sha256:d5d4b6d29955cc50ad50c46dc269bcd92c6e00f5f90d23ab5fee7bfca4ba4cc7", size = 3298120, upload-time = "2022-12-08T20:59:22.753Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e3/94/1843518e420fa3ed6919835845df698c7e27e183cb997394e4a670973a65/omegaconf-2.3.0-py3-none-any.whl", hash = "sha256:7b4df175cdb08ba400f45cae3bdcae7ba8365db4d165fc65fd04b050ab63b46b", size = 79500, upload-time = "2022-12-08T20:59:19.686Z" },
+]
+
+[[package]]
+name = "onnxruntime"
+version = "1.26.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flatbuffers" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "protobuf" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/b1/d111b1df656761f980d9e298a60039a9cb66036b1d039e777537743d0ac3/onnxruntime-1.26.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:05b028781b322ad74b57ce5b50aa5280bb1fe96ceec334628ade681e0b24c1ac", size = 18016624, upload-time = "2026-05-12T00:41:01.735Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/a0/3f9d896a0385a36bd04345d6d0b802821a5782adde562e7e135f6bb71c73/onnxruntime-1.26.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:91f2bb870a4b9224eba0a6728c1fa7a9e552b8e59e1083c51fbbc3d013f2b5c0", size = 16052692, upload-time = "2026-05-08T19:07:13.829Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/43/2a4e04f8dbeffad19bbcced4bcd4289bf478921518437404d6b92bdf213b/onnxruntime-1.26.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9b6dd70599005bd1bf29779f04a91978b92b5e719c11a20068a8f8e535f725b6", size = 18185439, upload-time = "2026-05-08T19:07:36.299Z" },
+    { url = "https://files.pythonhosted.org/packages/44/fc/026d0a7162b9c2153dac292baea9e027c42304dc1d9dc6f8ff5b4cfbaedd/onnxruntime-1.26.0-cp312-cp312-win_amd64.whl", hash = "sha256:a26374dc7fbcaae593601086b242120e13f2310558df0991da6dd8b8fac00414", size = 13026427, upload-time = "2026-05-08T19:08:03.503Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/27/1dcf88e45e4c69db5f7b106f2dacc3801ba98994e082ca03e1dfdf7bfe57/onnxruntime-1.26.0-cp312-cp312-win_arm64.whl", hash = "sha256:54a8053410fd31fd66469bd754fcfe8a4df9f7eb44756b4b5479bf50c842d948", size = 12796647, upload-time = "2026-05-08T19:07:52.108Z" },
+]
+
+[[package]]
+name = "onnxruntime-gpu"
+version = "1.26.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flatbuffers" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "protobuf" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/fd/59bee7cffaa435da44fefdeb63e29c61de4dbfa4b279852f59cd02c042ae/onnxruntime_gpu-1.26.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3c01119ed4d9449d60367fa8ccffcd02bd3fe736754284e4b198d131f54edad6", size = 276971796, upload-time = "2026-05-08T19:15:46.192Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/e4/9b378a5466ea0bed65e5beb8e09254973c580a6522810a38afbcc45e5105/onnxruntime_gpu-1.26.0-cp312-cp312-win_amd64.whl", hash = "sha256:5f49c44689894650990e4c8a857d2edafc276fbd79bba57ceb224bd18d25d491", size = 226548963, upload-time = "2026-05-08T19:09:34.925Z" },
 ]
 
 [[package]]
