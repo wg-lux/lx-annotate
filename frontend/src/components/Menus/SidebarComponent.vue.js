@@ -22,6 +22,9 @@ export default (await import('vue')).defineComponent({
         isAnonymizationValidationRoute() {
             return this.$route.path.startsWith('/anonymisierung/validierung');
         },
+        isAnonymizationMetricsRoute() {
+            return this.$route.path.startsWith('/anonymisierung/metriken');
+        },
         isReportingRoute() {
             return this.$route.path.startsWith('/reporting');
         },
@@ -189,26 +192,28 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
     ...{ class: "nav-link-text ms-1" },
 });
 var __VLS_3;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-item" },
+});
 const __VLS_4 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
-    to: "/uebersicht",
+    to: "/einstellungen",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/uebersicht' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/einstellungen' }) },
 }));
 const __VLS_6 = __VLS_5({
-    to: "/uebersicht",
+    to: "/einstellungen",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/uebersicht' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/einstellungen' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_5));
 __VLS_7.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-collection opacity-10" },
+    ...{ class: "ni ni-settings-gear-65 opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
@@ -217,25 +222,26 @@ var __VLS_7;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
     ...{ class: "nav-item" },
 });
+__VLS_asFunctionalDirective(__VLS_directives.vCan)(null, { ...__VLS_directiveBindingRestFields, value: ('page.patients.view:GET') }, null, null);
 const __VLS_8 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_9 = __VLS_asFunctionalComponent(__VLS_8, new __VLS_8({
-    to: "/documentation",
+    to: "/patienten",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/documentation' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/patienten' }) },
 }));
 const __VLS_10 = __VLS_9({
-    to: "/documentation",
+    to: "/patienten",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/documentation' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/patienten' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_9));
 __VLS_11.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-book-bookmark opacity-10" },
+    ...{ class: "ni ni-circle-08 opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
@@ -248,71 +254,16 @@ const __VLS_12 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_13 = __VLS_asFunctionalComponent(__VLS_12, new __VLS_12({
-    to: "/einstellungen",
+    to: "/anonymisierung/uebersicht",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/einstellungen' }) },
+    ...{ class: ({ active: __VLS_ctx.isAnonymizationOverviewRoute }) },
 }));
 const __VLS_14 = __VLS_13({
-    to: "/einstellungen",
+    to: "/anonymisierung/uebersicht",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/einstellungen' }) },
+    ...{ class: ({ active: __VLS_ctx.isAnonymizationOverviewRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_13));
 __VLS_15.slots.default;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-settings-gear-65 opacity-10" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "nav-link-text ms-1" },
-});
-var __VLS_15;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-    ...{ class: "nav-item" },
-});
-__VLS_asFunctionalDirective(__VLS_directives.vCan)(null, { ...__VLS_directiveBindingRestFields, value: ('page.patients.view:GET') }, null, null);
-const __VLS_16 = {}.RouterLink;
-/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
-// @ts-ignore
-const __VLS_17 = __VLS_asFunctionalComponent(__VLS_16, new __VLS_16({
-    to: "/patienten",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/patienten' }) },
-}));
-const __VLS_18 = __VLS_17({
-    to: "/patienten",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/patienten' }) },
-}, ...__VLS_functionalComponentArgsRest(__VLS_17));
-__VLS_19.slots.default;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-circle-08 opacity-10" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "nav-link-text ms-1" },
-});
-var __VLS_19;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-    ...{ class: "nav-item" },
-});
-const __VLS_20 = {}.RouterLink;
-/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
-// @ts-ignore
-const __VLS_21 = __VLS_asFunctionalComponent(__VLS_20, new __VLS_20({
-    to: "/anonymisierung/uebersicht",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isAnonymizationOverviewRoute }) },
-}));
-const __VLS_22 = __VLS_21({
-    to: "/anonymisierung/uebersicht",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isAnonymizationOverviewRoute }) },
-}, ...__VLS_functionalComponentArgsRest(__VLS_21));
-__VLS_23.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
@@ -329,24 +280,24 @@ if (__VLS_ctx.processingCount > 0) {
     });
     (__VLS_ctx.processingCount);
 }
-var __VLS_23;
+var __VLS_15;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
     ...{ class: "nav-item" },
 });
-const __VLS_24 = {}.RouterLink;
+const __VLS_16 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
-const __VLS_25 = __VLS_asFunctionalComponent(__VLS_24, new __VLS_24({
+const __VLS_17 = __VLS_asFunctionalComponent(__VLS_16, new __VLS_16({
     to: (__VLS_ctx.lastValidationTo),
     ...{ class: "nav-link" },
     ...{ class: ({ active: __VLS_ctx.isAnonymizationValidationRoute }) },
 }));
-const __VLS_26 = __VLS_25({
+const __VLS_18 = __VLS_17({
     to: (__VLS_ctx.lastValidationTo),
     ...{ class: "nav-link" },
     ...{ class: ({ active: __VLS_ctx.isAnonymizationValidationRoute }) },
-}, ...__VLS_functionalComponentArgsRest(__VLS_25));
-__VLS_27.slots.default;
+}, ...__VLS_functionalComponentArgsRest(__VLS_17));
+__VLS_19.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
@@ -363,6 +314,60 @@ if (__VLS_ctx.pendingValidationCount > 0) {
     });
     (__VLS_ctx.pendingValidationCount);
 }
+var __VLS_19;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-item" },
+});
+const __VLS_20 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_21 = __VLS_asFunctionalComponent(__VLS_20, new __VLS_20({
+    to: "/video-untersuchung",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/video-untersuchung' }) },
+}));
+const __VLS_22 = __VLS_21({
+    to: "/video-untersuchung",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/video-untersuchung' }) },
+}, ...__VLS_functionalComponentArgsRest(__VLS_21));
+__VLS_23.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "ni ni-button-play opacity-10" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "nav-link-text ms-1" },
+});
+var __VLS_23;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-item" },
+});
+const __VLS_24 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_25 = __VLS_asFunctionalComponent(__VLS_24, new __VLS_24({
+    to: "/reporting/case-setup",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
+}));
+const __VLS_26 = __VLS_25({
+    to: "/reporting/case-setup",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
+}, ...__VLS_functionalComponentArgsRest(__VLS_25));
+__VLS_27.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "ni ni-check-bold opacity-10" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "nav-link-text ms-1" },
+});
 var __VLS_27;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
     ...{ class: "nav-item" },
@@ -371,21 +376,21 @@ const __VLS_28 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_29 = __VLS_asFunctionalComponent(__VLS_28, new __VLS_28({
-    to: "/video-untersuchung",
+    to: "/reporting",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/video-untersuchung' }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
 }));
 const __VLS_30 = __VLS_29({
-    to: "/video-untersuchung",
+    to: "/reporting",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/video-untersuchung' }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_29));
 __VLS_31.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-button-play opacity-10" },
+    ...{ class: "ni ni-single-copy-04 opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
@@ -502,25 +507,26 @@ var __VLS_47;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
     ...{ class: "nav-item" },
 });
+__VLS_asFunctionalDirective(__VLS_directives.vCan)(null, { ...__VLS_directiveBindingRestFields, value: ('page.anonymization.metrics:GET') }, null, null);
 const __VLS_48 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_49 = __VLS_asFunctionalComponent(__VLS_48, new __VLS_48({
-    to: "/reporting/case-setup",
+    to: "/anonymisierung/metriken",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
+    ...{ class: ({ active: __VLS_ctx.isAnonymizationMetricsRoute }) },
 }));
 const __VLS_50 = __VLS_49({
-    to: "/reporting/case-setup",
+    to: "/anonymisierung/metriken",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
+    ...{ class: ({ active: __VLS_ctx.isAnonymizationMetricsRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_49));
 __VLS_51.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-check-bold opacity-10" },
+    ...{ class: "ni ni-chart-bar-32 opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
@@ -533,21 +539,21 @@ const __VLS_52 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_53 = __VLS_asFunctionalComponent(__VLS_52, new __VLS_52({
-    to: "/reporting",
+    to: "/export",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
 }));
 const __VLS_54 = __VLS_53({
-    to: "/reporting",
+    to: "/export",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_53));
 __VLS_55.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-single-copy-04 opacity-10" },
+    ...{ class: "ni ni-bold-right opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
@@ -560,43 +566,16 @@ const __VLS_56 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_57 = __VLS_asFunctionalComponent(__VLS_56, new __VLS_56({
-    to: "/export",
+    to: "/hub-export",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/hub-export' }) },
 }));
 const __VLS_58 = __VLS_57({
-    to: "/export",
+    to: "/hub-export",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/hub-export' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_57));
 __VLS_59.slots.default;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-bold-right opacity-10" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "nav-link-text ms-1" },
-});
-var __VLS_59;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-    ...{ class: "nav-item" },
-});
-const __VLS_60 = {}.RouterLink;
-/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
-// @ts-ignore
-const __VLS_61 = __VLS_asFunctionalComponent(__VLS_60, new __VLS_60({
-    to: "/hub-export",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/hub-export' }) },
-}));
-const __VLS_62 = __VLS_61({
-    to: "/hub-export",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/hub-export' }) },
-}, ...__VLS_functionalComponentArgsRest(__VLS_61));
-__VLS_63.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
@@ -606,7 +585,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)(
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
 });
-var __VLS_63;
+var __VLS_59;
 /** @type {__VLS_StyleScopedClasses['sidebar-backdrop']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
@@ -640,41 +619,6 @@ var __VLS_63;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-tv-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
-/** @type {__VLS_StyleScopedClasses['active']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
-/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
-/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
-/** @type {__VLS_StyleScopedClasses['active']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
-/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-book-bookmark']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
@@ -787,6 +731,42 @@ var __VLS_63;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
+/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
+/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
@@ -859,25 +839,7 @@ var __VLS_63;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
-/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
-/** @type {__VLS_StyleScopedClasses['active']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
-/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-1']} */ ;

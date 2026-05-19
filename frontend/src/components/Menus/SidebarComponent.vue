@@ -22,7 +22,7 @@
               </div>
               <span class="nav-link-text ms-1">Dashboard</span>
             </router-link>
-          </li>
+          </li><!--
           <li>
             <router-link to="/uebersicht" class="nav-link" :class="{ active: $route.path === '/uebersicht' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -38,7 +38,7 @@
               </div>
               <span class="nav-link-text ms-1">Dokumentation</span>
             </router-link>
-          </li>
+          </li>-->
           <li class="nav-item">
             <router-link to="/einstellungen" class="nav-link" :class="{ active: $route.path === '/einstellungen' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -98,6 +98,7 @@
                 </span>
               </router-link>
             </li>
+
             <li class="nav-item">
               <router-link to="/video-untersuchung" class="nav-link" :class="{ active: $route.path === '/video-untersuchung' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -106,40 +107,8 @@
                 <span class="nav-link-text ms-1">2. Videountersuchung bearbeiten</span>
               </router-link>
             </li>
-            <li class="nav-item">
-              <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="ni ni-single-copy-04 opacity-10"></i>
-                </div>
-                <span class="nav-link-text ms-1">2b. Frame-Annotation</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link to="/model-training" class="nav-link" :class="{ active: $route.path === '/model-training' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="ni ni-chart-bar-32 opacity-10"></i>
-                </div>
-                <span class="nav-link-text ms-1">2c. Modelltraining</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link to="/ai-dataset-buckets" class="nav-link" :class="{ active: $route.path === '/ai-dataset-buckets' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="ni ni-chart-pie-35 opacity-10"></i>
-                </div>
-                <span class="nav-link-text ms-1">2d. Datensatz-Buckets</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link to="/ai-dataset-settings" class="nav-link" :class="{ active: $route.path === '/ai-dataset-settings' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="ni ni-settings opacity-10"></i>
-                </div>
-                <span class="nav-link-text ms-1">2e. Datensatz-Einstellungen</span>
-              </router-link>
-            </li>
 
-            <li class="nav-item">
+                        <li class="nav-item">
               <router-link
                 to="/reporting/case-setup"
                 class="nav-link"
@@ -164,6 +133,52 @@
                 <span class="nav-link-text ms-1">Befundung: Übersicht</span>
               </router-link>
             </li>
+            <li class="nav-item">
+              <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-single-copy-04 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">Frame-Annotation</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/model-training" class="nav-link" :class="{ active: $route.path === '/model-training' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-chart-bar-32 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">Modelltraining</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/ai-dataset-buckets" class="nav-link" :class="{ active: $route.path === '/ai-dataset-buckets' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-chart-pie-35 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">Datensatz</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/ai-dataset-settings" class="nav-link" :class="{ active: $route.path === '/ai-dataset-settings' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-settings opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">Datensatz-Einstellungen</span>
+              </router-link>
+            </li>
+                        <li class="nav-item" v-can="'page.anonymization.metrics:GET'">
+              <router-link
+                to="/anonymisierung/metriken"
+                class="nav-link"
+                :class="{ active: isAnonymizationMetricsRoute }"
+              >
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-chart-bar-32 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">Anonymisierungsmetriken</span>
+              </router-link>
+            </li>
+
+
             <!-- 
             #TODO: Add back when ready
             <li class="nav-item">
@@ -204,7 +219,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-cloud-upload-96 opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">Hub-Export</span>
+                <span class="nav-link-text ms-1">Registerexport</span>
               </router-link>
             </li>
             <!-- <li class="nav-item">
@@ -272,6 +287,9 @@ export default {
     },
     isAnonymizationValidationRoute() {
       return this.$route.path.startsWith('/anonymisierung/validierung')
+    },
+    isAnonymizationMetricsRoute() {
+      return this.$route.path.startsWith('/anonymisierung/metriken')
     },
     isReportingRoute() {
       return this.$route.path.startsWith('/reporting')
