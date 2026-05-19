@@ -25,10 +25,17 @@ vi.mock('@/components/Anonymizer/AnonymizationOverviewComponent.vue', () => ({
   }
 }))
 
+vi.mock('@/components/Anonymizer/AnonymizationMetricsComponent.vue', () => ({
+  default: {
+    template: '<div data-test="anonymization-metrics" />'
+  }
+}))
+
 import HubExport from '../HubExport.vue'
 import VideoExamination from '../VideoExamination.vue'
 import PatientOverview from '../PatientOverview.vue'
 import AnonymizationOverview from '../AnonymizationOverview.vue'
+import AnonymizationMetrics from '../AnonymizationMetrics.vue'
 
 describe('route wrapper views', () => {
   it('renders the hub export route shell', () => {
@@ -49,5 +56,10 @@ describe('route wrapper views', () => {
   it('renders the anonymization overview route shell', () => {
     const wrapper = mount(AnonymizationOverview)
     expect(wrapper.find('[data-test="anonymization-overview"]').exists()).toBe(true)
+  })
+
+  it('renders the anonymization metrics route shell', () => {
+    const wrapper = mount(AnonymizationMetrics)
+    expect(wrapper.find('[data-test="anonymization-metrics"]').exists()).toBe(true)
   })
 })

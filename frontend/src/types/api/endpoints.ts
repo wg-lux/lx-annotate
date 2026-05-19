@@ -167,6 +167,7 @@ export const endpoints = {
     pdfCaseResolution: (pk: Id) => `media/pdfs/${pk}/case-resolution/`,
     sensitiveMetadataList: 'media/sensitive-metadata/',
     pdfSensitiveMetadataList: 'media/pdfs/sensitive-metadata/',
+    anonymizationMetrics: 'media/anonymization/metrics/',
 
     pdfs: 'media/pdfs/',
     pdfDetail: (pk: Id) => `media/pdfs/${pk}/`,

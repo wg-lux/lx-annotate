@@ -191,6 +191,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/anonymisierung/metriken',
+      name: 'Anonymisierung Metriken',
+      component: () => import('@/views/AnonymizationMetrics.vue'),
+      meta: {
+        description: 'Aggregierte Workflow- und Qualitätsmetriken der Anonymisierung.',
+        cap: 'page.anonymization.metrics'
+      }
+    },
+    {
       path: '/anonymisierung/validierung',
       name: 'AnonymisierungValidierung',
       component: () => import('@/components/Anonymizer/AnonymizationValidationComponent.vue'),

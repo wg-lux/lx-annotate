@@ -136,6 +136,7 @@ export declare const endpoints: {
         readonly pdfCaseResolution: (pk: Id) => string;
         readonly sensitiveMetadataList: "media/sensitive-metadata/";
         readonly pdfSensitiveMetadataList: "media/pdfs/sensitive-metadata/";
+        readonly anonymizationMetrics: "media/anonymization/metrics/";
         readonly pdfs: "media/pdfs/";
         readonly pdfDetail: (pk: Id) => string;
         readonly pdfStream: (pk: Id) => string;
