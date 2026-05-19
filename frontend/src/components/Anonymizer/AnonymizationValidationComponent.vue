@@ -67,19 +67,22 @@
 
 
           <div class="row mb-4">
-            <!--Checkbox indicating if there are no more names present in the video or pdf-->
             <div class="col-12">
-              <div class="form-check">
-                <input 
-                  type="checkbox" 
-                  class="form-check-input" 
-                  id="noMoreNames" 
-                  v-model="noMoreNames"
-                >
-                <label class="form-check-label" for="noMoreNames">
-                  Keine weiteren Namen im Video oder PDF vorhanden
-                </label>
-              </div>
+              <label class="form-label" for="noMoreNamesConfirmation">
+                Weitere Namen im Video oder PDF
+              </label>
+              <select
+                id="noMoreNamesConfirmation"
+                v-model="noMoreNamesConfirmation"
+                class="form-select"
+              >
+                <option value="unknown">Nicht bewertet</option>
+                <option value="confirmed">Keine weiteren Namen vorhanden</option>
+                <option value="not_confirmed">Weitere Namen nicht ausgeschlossen</option>
+              </select>
+              <small class="form-text text-muted">
+                Diese Angabe ist optional und blockiert die Validierung nicht.
+              </small>
             </div>
           </div>
 
@@ -925,10 +928,32 @@ type CaseResolutionPayload = {
   patientExaminationMatches?: CaseResolutionMatch[];
 };
 
+type NoMoreNamesConfirmation = 'unknown' | 'confirmed' | 'not_confirmed';
+
+interface AnonymizationValidationPayload {
+  patient_first_name?: string | null;
+  patient_last_name?: string | null;
+  patient_gender?: string | null;
+  patient_dob?: string;
+  examination_date?: string;
+  casenumber?: string;
+  anonymized_text?: string;
+  text?: string;
+  is_verified: 'true';
+  file_type: 'pdf' | 'video';
+  center_name?: string;
+  external_id?: string;
+  external_id_origin?: string;
+  tags: string[];
+  validation_comment?: string;
+  document_type?: string;
+  no_more_names_confirmed?: boolean;
+}
+
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
-const noMoreNames = ref(false);
+const noMoreNamesConfirmation = ref<NoMoreNamesConfirmation>('unknown');
 const presetValidationTags = ['Nochmal Überprüfen', 'Ausgeschlossen'];
 const selectedTags = ref<string[]>([]);
 const customTagInput = ref('');
@@ -1814,6 +1839,7 @@ function loadCurrentItemData(item: SensitiveMeta) {
   patientExaminationLoadError.value = '';
   manualPatientExaminationId.value = '';
   customTagInput.value = '';
+  noMoreNamesConfirmation.value = 'unknown';
 
   // dates
   const rawExam = item.examinationDate || '';
@@ -2322,7 +2348,7 @@ const approveItem = async () => {
     return;
   }
 
-  const validationPayload: Record<string, unknown> = {
+  const validationPayload: AnonymizationValidationPayload = {
     patient_first_name: editedPatient.value.patientFirstName,
     patient_last_name:  editedPatient.value.patientLastName,
     patient_gender:     editedPatient.value.patientGenderName,
@@ -2342,6 +2368,10 @@ const approveItem = async () => {
 
   if (isPdf.value) {
     validationPayload.document_type = selectedDocumentType.value;
+  }
+
+  if (noMoreNamesConfirmation.value !== 'unknown') {
+    validationPayload.no_more_names_confirmed = noMoreNamesConfirmation.value === 'confirmed';
   }
 
   const validationFileId = resolveFileIdFromContext();

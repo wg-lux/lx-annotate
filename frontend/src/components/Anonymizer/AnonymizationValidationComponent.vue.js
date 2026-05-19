@@ -77,7 +77,7 @@ watch(mediaInferral, (val) => {
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
-const noMoreNames = ref(false);
+const noMoreNamesConfirmation = ref('unknown');
 const presetValidationTags = ['Nochmal Überprüfen', 'Ausgeschlossen'];
 const selectedTags = ref([]);
 const customTagInput = ref('');
@@ -835,6 +835,7 @@ function loadCurrentItemData(item) {
     patientExaminationLoadError.value = '';
     manualPatientExaminationId.value = '';
     customTagInput.value = '';
+    noMoreNamesConfirmation.value = 'unknown';
     // dates
     const rawExam = item.examinationDate || '';
     const rawDob = item.patientDobDisplay || item.patientDob;
@@ -1255,6 +1256,9 @@ const approveItem = async () => {
     if (isPdf.value) {
         validationPayload.document_type = selectedDocumentType.value;
     }
+    if (noMoreNamesConfirmation.value !== 'unknown') {
+        validationPayload.no_more_names_confirmed = noMoreNamesConfirmation.value === 'confirmed';
+    }
     const validationFileId = resolveFileIdFromContext();
     if (validationFileId === null) {
         toast.error({ text: 'Datei-ID konnte nicht bestimmt werden. Bitte Datei aus der Übersicht erneut öffnen.' });
@@ -1544,18 +1548,26 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-12" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "form-check" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        type: "checkbox",
-        ...{ class: "form-check-input" },
-        id: "noMoreNames",
-    });
-    (__VLS_ctx.noMoreNames);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "form-check-label" },
-        for: "noMoreNames",
+        ...{ class: "form-label" },
+        for: "noMoreNamesConfirmation",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        id: "noMoreNamesConfirmation",
+        value: (__VLS_ctx.noMoreNamesConfirmation),
+        ...{ class: "form-select" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "unknown",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "confirmed",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "not_confirmed",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "form-text text-muted" },
     });
     if (__VLS_ctx.validationErrors.length > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -2599,9 +2611,10 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
@@ -3001,7 +3014,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             mediaUnknown: mediaUnknown,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
-            noMoreNames: noMoreNames,
+            noMoreNamesConfirmation: noMoreNamesConfirmation,
             presetValidationTags: presetValidationTags,
             selectedTags: selectedTags,
             customTagInput: customTagInput,

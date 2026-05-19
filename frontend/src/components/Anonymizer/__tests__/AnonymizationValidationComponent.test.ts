@@ -222,6 +222,9 @@ describe('AnonymizationValidationComponent', () => {
         examination_date: '15.02.2024'
       })
     )
+    expect(vi.mocked(axiosInstance.post).mock.calls[0][1]).not.toHaveProperty(
+      'no_more_names_confirmed'
+    )
     expect(hoisted.toastStoreRef.current.success).toHaveBeenCalledWith({
       text: 'Dokument bestätigt und Anonymisierung validiert'
     })
@@ -229,6 +232,27 @@ describe('AnonymizationValidationComponent', () => {
       text: 'PDF validiert. Patientenfall 42 wurde automatisch zugeordnet und im Berichtseditor geöffnet.'
     })
     expect(hoisted.routerPush).toHaveBeenCalledWith('/reporting/42/report-editor')
+  })
+
+  it('submits no_more_names_confirmed only after an explicit selection', async () => {
+    vi.mocked(axiosInstance.post).mockResolvedValue({
+      data: {
+        report_file: null,
+        case_resolution: {
+          patient_examination_id: 42
+        }
+      }
+    } as any)
+
+    const wrapper = mountComponent()
+    await flushPromises()
+    await wrapper.find('#noMoreNamesConfirmation').setValue('confirmed')
+    await wrapper.find('button.btn.btn-success').trigger('click')
+    await flushPromises()
+
+    expect(vi.mocked(axiosInstance.post).mock.calls[0][1]).toMatchObject({
+      no_more_names_confirmed: true
+    })
   })
 
   it('links unresolved validation into case resolution with a return path to validation', async () => {
