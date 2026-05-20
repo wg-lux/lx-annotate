@@ -25,7 +25,10 @@
       ...
     }:
     let
-      systems = [ "x86_64-linux" "aarch64-linux" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
     in
     {
       nixosModules.default = import ./nix/module.nix;
@@ -56,26 +59,94 @@
               pkgs.lib.composeManyExtensions [
                 pyproject-build-systems.overlays.wheel
                 uvOverlay
+                (
+                  final: prev:
+                  let
+                    setuptoolsBackedPackages = [
+                      "antlr4-python3-runtime"
+                      "bibtexparser"
+                      "django-rest-framework"
+                      "encodec"
+                      "ffprobe"
+                      "googlemaps"
+                      "ordereddict"
+                      "py-ubjson"
+                      "python-environ"
+                      "sops"
+                      "tesseract"
+                    ];
+                    withSetuptools =
+                      pkg:
+                      pkg.overrideAttrs (old: {
+                        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ final.setuptools ];
+                      });
+                    withPyprojectMetadata =
+                      nativePackage: pyprojectPackage: dependencies:
+                      nativePackage.overrideAttrs (old: {
+                        passthru = (old.passthru or { }) // {
+                          inherit dependencies;
+                          optional-dependencies = pyprojectPackage.passthru.optional-dependencies or { };
+                          dependency-groups = pyprojectPackage.passthru.dependency-groups or { };
+                        };
+                      });
+                    cudaWheelDependencyNames = [
+                      "nvidia-cublas-cu12"
+                      "nvidia-cuda-cupti-cu12"
+                      "nvidia-cuda-nvrtc-cu12"
+                      "nvidia-cuda-runtime-cu12"
+                      "nvidia-cudnn-cu12"
+                      "nvidia-cufft-cu12"
+                      "nvidia-curand-cu12"
+                      "nvidia-cusolver-cu12"
+                      "nvidia-cusparse-cu12"
+                      "nvidia-nccl-cu12"
+                      "nvidia-nvjitlink-cu12"
+                      "nvidia-nvtx-cu12"
+                      "triton"
+                    ];
+                    torchDependencies = builtins.removeAttrs prev.torch.passthru.dependencies cudaWheelDependencyNames;
+                  in
+                  pkgs.lib.genAttrs setuptoolsBackedPackages (name: withSetuptools prev.${name})
+                  // {
+                    numba =
+                      withPyprojectMetadata pkgs.python312Packages.numba prev.numba
+                        prev.numba.passthru.dependencies;
+                    onnxruntime-gpu =
+                      withPyprojectMetadata pkgs.python312Packages.onnxruntime prev.onnxruntime-gpu
+                        prev.onnxruntime-gpu.passthru.dependencies;
+                    torch = withPyprojectMetadata pkgs.python312Packages.torch prev.torch torchDependencies;
+                    torchaudio =
+                      withPyprojectMetadata pkgs.python312Packages.torchaudio prev.torchaudio
+                        prev.torchaudio.passthru.dependencies;
+                    torchvision =
+                      withPyprojectMetadata pkgs.python312Packages.torchvision prev.torchvision
+                        prev.torchvision.passthru.dependencies;
+                  }
+                )
               ]
             );
 
         resolvedUvDeps = pythonSet.resolveVirtualEnv workspace.deps.default;
 
-        pythonDeps =
-          builtins.filter
-            (
-              drv:
-              let
-                depName = drv.pname or (pkgs.lib.getName drv);
-              in
-              depName != "lx-annotate" && depName != "lx_annotate"
-            )
-            resolvedUvDeps;
+        pythonDeps = builtins.filter (
+          drv:
+          let
+            depName = drv.pname or (pkgs.lib.getName drv);
+          in
+          depName != "lx-annotate" && depName != "lx_annotate"
+        ) resolvedUvDeps;
 
         frontend = pkgs.callPackage ./frontend/default.nix { };
 
+        runtimeLibs = [
+          pkgs.stdenv.cc.cc.lib  # Provides libstdc++.so.6, libgcc_s.so.1, libgomp.so.1
+          pkgs.tbb               # Provides libtbb.so
+          pkgs.zlib              # Commonly required by data/image processors
+          pkgs.glib              # Required if any underlying tools utilize core utilities
+        ];
+
         lx-annotate = pkgs.callPackage ./package.nix {
-          inherit frontend pythonDeps;
+          inherit runtimeLibs frontend pythonDeps;
         };
 
         nixtestSuite = ntlib.mkNixtest {
@@ -96,7 +167,7 @@
 
         apps.default = {
           type = "app";
-          program = "${lx-annotate}/bin/lx-annotate-server";
+          program = "${lx-annotate}/bin/lx-annotate-web";
         };
 
         checks = {

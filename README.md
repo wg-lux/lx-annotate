@@ -169,17 +169,23 @@ The sender-side workflow contract is documented in
 
 ## Nix Builds
 
-Nix build targets are available, but deployment paths may still need project-specific adjustments.
+The Nix package exposes stable runtime entrypoints that do not clone the repo,
+run `uv sync`, or install Python packages at service start:
 
 ```bash
-nix build .#prod-server
-./result/bin/run-prod-server
+nix build .#lx-annotate
+./result/bin/lx-annotate-web
 ```
 
 ```bash
-nix build .#file-watcher
-./result/bin/run-file-watcher
+./result/bin/lx-annotate-manage check
+./result/bin/lx-annotate-worker --hostname="maintenance@%h" --queues=maintenance,default
+LX_ANNOTATE_FILEWATCHER_ARGS=--process-existing-once ./result/bin/lx-annotate-watch
 ```
+
+The primary entrypoints are `lx-annotate-web`, `lx-annotate-manage`,
+`lx-annotate-worker`, and `lx-annotate-watch`. `lx-annotate-server` remains as
+a compatibility alias for the web command.
 
 The repository flake also exposes the existing `devenv` environment as a Nix
 dev shell:
@@ -225,27 +231,33 @@ This split is required for the next hardening step: encrypting the data path and
 restricting access to the `endoreg-service-user` while keeping application code
 and deployment mechanics separate from protected patient data.
 
-The canonical runtime variable for this boundary is
-`LX_ANNOTATE_ENCRYPTED_DATA_DIR`. The app and current service wrappers still
-export `LX_ANNOTATE_DATA_DIR` as a compatibility alias in some places, so the
-environment is functional but not fully cleaned up yet.
+The canonical host-owned runtime variable for this boundary is
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR`. The app derives compatibility aliases and
+managed storage paths from that root.
 
 Current runtime path roles:
 
 - `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root
-- `LX_ANNOTATE_DATA_DIR`: compatibility alias for the same root
-- `DATA_DIR`: legacy compatibility alias for the same root
+- `LX_ANNOTATE_DATA_DIR`: app-owned compatibility alias for the same root
+- `DATA_DIR`: app-owned legacy compatibility alias for the same root
 - `STORAGE_DIR`: managed storage subtree, usually `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`
+- `PROTECTED_MEDIA_ROOT` and `LX_ANNOTATE_STREAMABLE_VIDEO_*`: app-owned
+  storage paths derived under `STORAGE_DIR`
 
+The same app contract owns `DJANGO_SETTINGS_MODULE`, `DJANGO_ENV`,
+`STATIC_URL`, `MEDIA_URL`, `NGINX_PROTECTED_MEDIA_URL`, and
+`SERVE_WITH_NGINX`. Host environment files should provide only host paths,
+network settings, service endpoints, and secret file references.
 
 New deployment code should anchor path derivation on
-`LX_ANNOTATE_ENCRYPTED_DATA_DIR` and treat the other variables as derived paths
-or compatibility aliases rather than separate roots.
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR` and leave the derived path variables out of
+host-owned environment files.
 
 For application-layer envelope encryption, `lx_annotate` uses
 `lx_annotate.storage.encrypted.EncryptedStorage` as the default Django storage
 backend. Runtime deployments must provide `LX_ANNOTATE_MASTER_KEY` or
-`LX_ANNOTATE_MASTER_KEY_FILE`. The backend generates a per-file DEK, wraps it
+`LX_ANNOTATE_MASTER_KEY_FILE`; production deployments should use the file form
+through the host secret manager. The backend generates a per-file DEK, wraps it
 with the service-level KEK, writes ciphertext only under
 `LX_ANNOTATE_ENCRYPTED_DATA_DIR`, and encrypts/decrypts in chunks so large
 uploads do not have to fit into memory. The KEK is intentionally

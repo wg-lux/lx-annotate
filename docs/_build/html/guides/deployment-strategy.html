@@ -339,24 +339,31 @@ three deployment-related jobs:</p>
 </ul>
 <p>This keeps the patient-data boundary clean for encrypted storage and future
 mount-level access controls.</p>
-<p>The canonical runtime variable for that boundary is
-<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code>. <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_DATA_DIR</span></code> still appears in the
-current code and service wrappers as a compatibility alias for older code
-paths, so this part of the runtime contract remains transitional.</p>
+<p>The canonical host-owned runtime variable for that boundary is
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code>. <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_DATA_DIR</span></code> and <code class="docutils literal notranslate"><span class="pre">DATA_DIR</span></code> are
+app-owned compatibility aliases derived from that root for older code paths.</p>
 <p>The runtime path variables currently mean:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code>: canonical protected runtime root. This is
 the primary path boundary for patient data and service-managed runtime state.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_DATA_DIR</span></code>: compatibility alias for the same protected runtime
-root. Prefer <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> in new code and deployment
-configuration.</p></li>
+root.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">DATA_DIR</span></code>: legacy compatibility alias for the protected runtime root. New
 deployment code should not treat it as a separate concept.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code>: managed storage subtree under the protected runtime root,
 typically <code class="docutils literal notranslate"><span class="pre">${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PROTECTED_MEDIA_ROOT</span></code> and <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_STREAMABLE_VIDEO_*</span></code>: app-owned
+storage paths derived under <code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code>.</p></li>
 </ul>
-<p>When documenting or wiring new deployment code, treat
-<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> as authoritative and derive <code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code> from it instead of inventing independent roots.</p>
+<p>When documenting or wiring new deployment code, write
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> from the host and let lx-annotate derive
+<code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">PROTECTED_MEDIA_ROOT</span></code>, and streamable-video roots instead of
+inventing independent roots.</p>
+<p>The same app-owned runtime contract covers settings and media URL defaults such
+as <code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_ENV</span></code>, <code class="docutils literal notranslate"><span class="pre">STATIC_URL</span></code>, <code class="docutils literal notranslate"><span class="pre">MEDIA_URL</span></code>,
+<code class="docutils literal notranslate"><span class="pre">NGINX_PROTECTED_MEDIA_URL</span></code>, and <code class="docutils literal notranslate"><span class="pre">SERVE_WITH_NGINX</span></code>. Host-owned environment
+files should carry host paths, network settings, service endpoints, and secret
+file references.</p>
 <p>Do not treat app-generated random keys as a valid encryption design. The Django
 app should consume an already-mounted or already-unlocked data path. Encryption
 keys and unlock policy belong in a dedicated LuxNix service or external
@@ -502,10 +509,10 @@ enter the existing preanonymized watcher ingest path.</p>
 <p>The current LuxNix NixOS service is close to the runtime contract enforced by
 the new readiness checks:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">NGINX_PROTECTED_MEDIA_URL</span></code> is set to <code class="docutils literal notranslate"><span class="pre">/protected_media/</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">PROTECTED_MEDIA_ROOT</span></code> is aligned with the managed storage root</p></li>
-<li><p>the service environment exports <code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code>,
-<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code>, and streamable video root variables</p></li>
+<li><p>host-generated <code class="docutils literal notranslate"><span class="pre">.env.systemd</span></code> writes <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> and
+other host values only</p></li>
+<li><p>lx-annotate derives <code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">PROTECTED_MEDIA_ROOT</span></code>, and streamable
+video root variables from the protected runtime root</p></li>
 <li><p>the service user receives writable <code class="docutils literal notranslate"><span class="pre">ReadWritePaths</span></code> for the protected runtime
 tree</p></li>
 <li><p>main runtime roots are created through <code class="docutils literal notranslate"><span class="pre">systemd.tmpfiles</span></code> with restrictive
@@ -597,10 +604,14 @@ live checkout. Use <code class="docutils literal notranslate"><span class="pre">
 <p>In the current LuxNix topology, the watcher and frame-export services are
 conditional in wheel mode. They are only instantiated when explicit wheel-mode
 commands are configured for them.</p>
-<p>The current endoreg-client role now wires those commands by default:</p>
+<p>The packaged runtime exposes stable commands so LuxNix can call application
+entrypoints directly instead of rebuilding Django, Celery, or watcher command
+strings:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">runtime.commands.fileWatcher</span> <span class="pre">=</span> <span class="pre">&quot;python</span> <span class="pre">manage.py</span> <span class="pre">run_filewatcher&quot;</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">runtime.commands.exportFrames</span> <span class="pre">=</span> <span class="pre">&quot;export-frames&quot;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-web</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-manage</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-worker</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-watch</span></code></p></li>
 </ul>
 <p>Without those command values, these wheel-mode artifacts drop out of the
 evaluated system configuration:</p>

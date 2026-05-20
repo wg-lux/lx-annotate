@@ -37,9 +37,9 @@ update `deployment_example/bootstrap-host.sh` whenever runtime dependencies chan
 Create `/var/lib/lx-annotate/.env.systemd` from
 `deployment_example/.env.systemd.example` and set real values for:
 
-- `DJANGO_SECRET_KEY`
+- `DJANGO_SECRET_KEY_FILE`
 - `DJANGO_DB_*`
-- `OIDC_RP_CLIENT_SECRET`
+- `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`
 - host/origin values such as `BASE_URL`, `DJANGO_ALLOWED_HOSTS`,
   `DJANGO_CSRF_TRUSTED_ORIGINS`, and `DJANGO_CORS_ALLOWED_ORIGINS`
 
@@ -58,8 +58,11 @@ Role matrix:
 - `site_node`: networked node behavior without central receiver policy
 - `central_hub`: strict ingest + transfer receiver profile
 
-Keep secret-bearing values in `.env.systemd` only. Do not add shell tracing
-such as `set -x` to deployment scripts or service wrappers, and restrict `journalctl` access to trusted operators on the host.
+Prefer secret file references such as `DJANGO_SECRET_KEY_FILE`,
+`DJANGO_DB_PASSWORD_FILE`, and `LX_ANNOTATE_MASTER_KEY_FILE` over literal
+secret values. Do not add shell tracing such as `set -x` to deployment scripts
+or service wrappers, and restrict `journalctl` access to trusted operators on
+the host.
 
 The runtime layout is intentionally split:
 
@@ -69,22 +72,47 @@ The runtime layout is intentionally split:
 This split is required for encrypted data storage and tighter filesystem access
 control around patient data.
 
-Use `LX_ANNOTATE_ENCRYPTED_DATA_DIR` as the canonical runtime variable for the
-protected data mount. The current code and LuxNix wrappers still export
-`LX_ANNOTATE_DATA_DIR` as a compatibility alias for older code paths, so treat
-the environment as transitional rather than fully cleaned up.
+Use `LX_ANNOTATE_ENCRYPTED_DATA_DIR` as the canonical host-owned runtime
+variable for the protected data mount. The application derives compatibility
+aliases and managed subdirectories from that root.
 
-The path-variable contract is:
+The app-owned variables are the values lx-annotate derives or defaults from the
+application contract:
 
-- `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root.
-- `LX_ANNOTATE_DATA_DIR`: compatibility alias for the same root.
-- `DATA_DIR`: legacy compatibility alias for the same root.
+- `DJANGO_SETTINGS_MODULE`, `DJANGO_SETTINGS_MODULE_PRODUCTION`, and
+  `DJANGO_ENV`: packaged runtime settings defaults.
+- `STATIC_URL`, `MEDIA_URL`, `NGINX_PROTECTED_MEDIA_URL`, and
+  `SERVE_WITH_NGINX`: application URL defaults for static and protected media
+  handoff.
+- `LX_ANNOTATE_DATA_DIR`: compatibility alias for the protected runtime root.
+- `DATA_DIR`: legacy compatibility alias for the protected runtime root.
 - `STORAGE_DIR`: managed storage subtree, normally
   `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`.
+- `PROTECTED_MEDIA_ROOT`: Nginx/Django protected-media handoff root, normally
+  the same managed storage subtree.
+- `LX_ANNOTATE_STREAMABLE_VIDEO_ROOT`,
+  `LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT`, and
+  `LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT`: streamable video subtrees under
+  `${STORAGE_DIR}/streamable_videos`.
 
+The host-owned variables are the values a deployment must supply or source from
+its secret manager:
+
+- root and service paths: `LX_ANNOTATE_ENCRYPTED_DATA_DIR`, `XDG_DATA_HOME`,
+  `DJANGO_STATIC_ROOT`, `HOME_DIR`, `WORKING_DIR`, and optional watcher paths
+  such as `WATCHER_VIDEO_DIR`.
+- network and role values: `DJANGO_HOST`, `DJANGO_PORT`, `BASE_URL`,
+  `DJANGO_ALLOWED_HOSTS`, `ALLOWED_HOSTS`, `DJANGO_CORS_ALLOWED_ORIGINS`,
+  `DJANGO_CSRF_TRUSTED_ORIGINS`, `ENDOREG_DEPLOYMENT_ROLE`, and hub transfer
+  flags.
+- secret handles and service endpoints: `DJANGO_SECRET_KEY_FILE`,
+  `DJANGO_DB_PASSWORD_FILE`, `LX_ANNOTATE_MASTER_KEY_FILE`, `DJANGO_DB_*`,
+  `OIDC_RP_CLIENT_ID`, `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`, and
+  `CELERY_BROKER_URL`.
 
 For new deployment code and operator docs, prefer
-`LX_ANNOTATE_ENCRYPTED_DATA_DIR` and describe the others relative to it.
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR` and let the app derive the compatibility
+aliases and storage subdirectories.
 
 The application should not generate or manage encryption keys itself. A
 dedicated LuxNix service or external KMS/secrets system should own key

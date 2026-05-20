@@ -289,9 +289,9 @@ update <code class="docutils literal notranslate"><span class="pre">deployment_e
 <p>Create <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code> from
 <code class="docutils literal notranslate"><span class="pre">deployment_example/.env.systemd.example</span></code> and set real values for:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY_FILE</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_DB_*</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code></p></li>
 <li><p>host/origin values such as <code class="docutils literal notranslate"><span class="pre">BASE_URL</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code>,
 <code class="docutils literal notranslate"><span class="pre">DJANGO_CSRF_TRUSTED_ORIGINS</span></code>, and <code class="docutils literal notranslate"><span class="pre">DJANGO_CORS_ALLOWED_ORIGINS</span></code></p></li>
 </ul>
@@ -310,8 +310,11 @@ update <code class="docutils literal notranslate"><span class="pre">deployment_e
 <li><p><code class="docutils literal notranslate"><span class="pre">site_node</span></code>: networked node behavior without central receiver policy</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">central_hub</span></code>: strict ingest + transfer receiver profile</p></li>
 </ul>
-<p>Keep secret-bearing values in <code class="docutils literal notranslate"><span class="pre">.env.systemd</span></code> only. Do not add shell tracing
-such as <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">-x</span></code> to deployment scripts or service wrappers, and restrict <code class="docutils literal notranslate"><span class="pre">journalctl</span></code> access to trusted operators on the host.</p>
+<p>Prefer secret file references such as <code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY_FILE</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD_FILE</span></code>, and <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_MASTER_KEY_FILE</span></code> over literal
+secret values. Do not add shell tracing such as <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">-x</span></code> to deployment scripts
+or service wrappers, and restrict <code class="docutils literal notranslate"><span class="pre">journalctl</span></code> access to trusted operators on
+the host.</p>
 <p>The runtime layout is intentionally split:</p>
 <ul class="simple">
 <li><p>code and virtualenv under the service user home</p></li>
@@ -319,20 +322,46 @@ such as <code class="docutils literal notranslate"><span class="pre">set</span> 
 </ul>
 <p>This split is required for encrypted data storage and tighter filesystem access
 control around patient data.</p>
-<p>Use <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> as the canonical runtime variable for the
-protected data mount. The current code and LuxNix wrappers still export
-<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_DATA_DIR</span></code> as a compatibility alias for older code paths, so treat
-the environment as transitional rather than fully cleaned up.</p>
-<p>The path-variable contract is:</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> as the canonical host-owned runtime
+variable for the protected data mount. The application derives compatibility
+aliases and managed subdirectories from that root.</p>
+<p>The app-owned variables are the values lx-annotate derives or defaults from the
+application contract:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code>: canonical protected runtime root.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_DATA_DIR</span></code>: compatibility alias for the same root.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">DATA_DIR</span></code>: legacy compatibility alias for the same root.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE_PRODUCTION</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">DJANGO_ENV</span></code>: packaged runtime settings defaults.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">STATIC_URL</span></code>, <code class="docutils literal notranslate"><span class="pre">MEDIA_URL</span></code>, <code class="docutils literal notranslate"><span class="pre">NGINX_PROTECTED_MEDIA_URL</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">SERVE_WITH_NGINX</span></code>: application URL defaults for static and protected media
+handoff.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_DATA_DIR</span></code>: compatibility alias for the protected runtime root.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DATA_DIR</span></code>: legacy compatibility alias for the protected runtime root.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code>: managed storage subtree, normally
 <code class="docutils literal notranslate"><span class="pre">${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PROTECTED_MEDIA_ROOT</span></code>: Nginx/Django protected-media handoff root, normally
+the same managed storage subtree.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_STREAMABLE_VIDEO_ROOT</span></code>,
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT</span></code>: streamable video subtrees under
+<code class="docutils literal notranslate"><span class="pre">${STORAGE_DIR}/streamable_videos</span></code>.</p></li>
+</ul>
+<p>The host-owned variables are the values a deployment must supply or source from
+its secret manager:</p>
+<ul class="simple">
+<li><p>root and service paths: <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">XDG_DATA_HOME</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_STATIC_ROOT</span></code>, <code class="docutils literal notranslate"><span class="pre">HOME_DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">WORKING_DIR</span></code>, and optional watcher paths
+such as <code class="docutils literal notranslate"><span class="pre">WATCHER_VIDEO_DIR</span></code>.</p></li>
+<li><p>network and role values: <code class="docutils literal notranslate"><span class="pre">DJANGO_HOST</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_PORT</span></code>, <code class="docutils literal notranslate"><span class="pre">BASE_URL</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLOWED_HOSTS</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_CORS_ALLOWED_ORIGINS</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_CSRF_TRUSTED_ORIGINS</span></code>, <code class="docutils literal notranslate"><span class="pre">ENDOREG_DEPLOYMENT_ROLE</span></code>, and hub transfer
+flags.</p></li>
+<li><p>secret handles and service endpoints: <code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY_FILE</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD_FILE</span></code>, <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_MASTER_KEY_FILE</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_*</span></code>,
+<code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_ID</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">CELERY_BROKER_URL</span></code>.</p></li>
 </ul>
 <p>For new deployment code and operator docs, prefer
-<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> and describe the others relative to it.</p>
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> and let the app derive the compatibility
+aliases and storage subdirectories.</p>
 <p>The application should not generate or manage encryption keys itself. A
 dedicated LuxNix service or external KMS/secrets system should own key
 management and unlock policy.</p>

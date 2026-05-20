@@ -88,26 +88,34 @@ The runtime split is deliberate:
 This keeps the patient-data boundary clean for encrypted storage and future
 mount-level access controls.
 
-The canonical runtime variable for that boundary is
-`LX_ANNOTATE_ENCRYPTED_DATA_DIR`. `LX_ANNOTATE_DATA_DIR` still appears in the
-current code and service wrappers as a compatibility alias for older code
-paths, so this part of the runtime contract remains transitional.
+The canonical host-owned runtime variable for that boundary is
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR`. `LX_ANNOTATE_DATA_DIR` and `DATA_DIR` are
+app-owned compatibility aliases derived from that root for older code paths.
 
 The runtime path variables currently mean:
 
 - `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root. This is
   the primary path boundary for patient data and service-managed runtime state.
 - `LX_ANNOTATE_DATA_DIR`: compatibility alias for the same protected runtime
-  root. Prefer `LX_ANNOTATE_ENCRYPTED_DATA_DIR` in new code and deployment
-  configuration.
+  root.
 - `DATA_DIR`: legacy compatibility alias for the protected runtime root. New
   deployment code should not treat it as a separate concept.
 - `STORAGE_DIR`: managed storage subtree under the protected runtime root,
   typically `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`.
+- `PROTECTED_MEDIA_ROOT` and `LX_ANNOTATE_STREAMABLE_VIDEO_*`: app-owned
+  storage paths derived under `STORAGE_DIR`.
 
 
-When documenting or wiring new deployment code, treat
-`LX_ANNOTATE_ENCRYPTED_DATA_DIR` as authoritative and derive `STORAGE_DIR` from it instead of inventing independent roots.
+When documenting or wiring new deployment code, write
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR` from the host and let lx-annotate derive
+`STORAGE_DIR`, `PROTECTED_MEDIA_ROOT`, and streamable-video roots instead of
+inventing independent roots.
+
+The same app-owned runtime contract covers settings and media URL defaults such
+as `DJANGO_SETTINGS_MODULE`, `DJANGO_ENV`, `STATIC_URL`, `MEDIA_URL`,
+`NGINX_PROTECTED_MEDIA_URL`, and `SERVE_WITH_NGINX`. Host-owned environment
+files should carry host paths, network settings, service endpoints, and secret
+file references.
 
 Do not treat app-generated random keys as a valid encryption design. The Django
 app should consume an already-mounted or already-unlocked data path. Encryption
@@ -255,10 +263,10 @@ enter the existing preanonymized watcher ingest path.
 The current LuxNix NixOS service is close to the runtime contract enforced by
 the new readiness checks:
 
-- `NGINX_PROTECTED_MEDIA_URL` is set to `/protected_media/`
-- `PROTECTED_MEDIA_ROOT` is aligned with the managed storage root
-- the service environment exports `STORAGE_DIR`,
-  `LX_ANNOTATE_ENCRYPTED_DATA_DIR`, and streamable video root variables
+- host-generated `.env.systemd` writes `LX_ANNOTATE_ENCRYPTED_DATA_DIR` and
+  other host values only
+- lx-annotate derives `STORAGE_DIR`, `PROTECTED_MEDIA_ROOT`, and streamable
+  video root variables from the protected runtime root
 - the service user receives writable `ReadWritePaths` for the protected runtime
   tree
 - main runtime roots are created through `systemd.tmpfiles` with restrictive
@@ -355,10 +363,14 @@ In the current LuxNix topology, the watcher and frame-export services are
 conditional in wheel mode. They are only instantiated when explicit wheel-mode
 commands are configured for them.
 
-The current endoreg-client role now wires those commands by default:
+The packaged runtime exposes stable commands so LuxNix can call application
+entrypoints directly instead of rebuilding Django, Celery, or watcher command
+strings:
 
-- `runtime.commands.fileWatcher = "python manage.py run_filewatcher"`
-- `runtime.commands.exportFrames = "export-frames"`
+- `lx-annotate-web`
+- `lx-annotate-manage`
+- `lx-annotate-worker`
+- `lx-annotate-watch`
 
 Without those command values, these wheel-mode artifacts drop out of the
 evaluated system configuration:

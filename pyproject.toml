@@ -74,6 +74,18 @@ dependencies = [
     "lx-dtypes==0.1.6",
 ]
 
+[project.scripts]
+lx-annotate-web = "lx_annotate.cli:web"
+lx-annotate-server = "lx_annotate.cli:web"
+lx-annotate-manage = "lx_annotate.cli:manage"
+lx-annotate-migrate = "lx_annotate.cli:migrate"
+lx-annotate-load-base-data = "lx_annotate.cli:load_base_data"
+lx-annotate-worker = "lx_annotate.cli:worker"
+lx-annotate-celery = "lx_annotate.cli:celery"
+lx-annotate-watch = "lx_annotate.cli:watch"
+lx-annotate-export-frames = "lx_annotate.cli:export_frames"
+lx-annotate-import-sap = "lx_annotate.cli:import_sap"
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "lx_annotate.settings"
 python_files = ["test_*.py", "*_test.py", "tests/python/*.py"]

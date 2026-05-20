@@ -20,11 +20,7 @@ repos:
         entry: devenv shell -- pytest
         language: system
         pass_filenames: false
-      - id: deployment-contracts
-        name: deployment contract tests
-        entry: devenv shell -- pytest tests/system/test_asset_deployment_contract.py tests/system/test_focused_coverage.py -q
-        language: system
-        pass_filenames: false
+
 
       - id: frontend-vitest
         name: frontend vitest

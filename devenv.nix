@@ -9,6 +9,10 @@
 let
   appName = "lx_annotate";
   secret = name: default: config.secretspec.secrets.${name} or default;
+  runtimeEnvironment = import ./nix/runtime-environment.nix { inherit lib; };
+  secretspecEncryptedDataDir = secret "LX_ANNOTATE_ENCRYPTED_DATA_DIR" "";
+  runtimeDataDir =
+    if secretspecEncryptedDataDir == "" then secret "DATA_DIR" "data" else secretspecEncryptedDataDir;
 
   DEPLOYMENT_MODE = "prod";
 
@@ -28,12 +32,20 @@ let
   isDev = if config.secretspec.secrets.DJANGO_ENV == "development" then true else false;
 
   # 1. DEFINE STATIC ENV VARS HERE
-  baseEnv = {
+  baseEnv = runtimeEnvironment.mkAppOwnedEnvironment {
+    dataDir = runtimeDataDir;
+    settingsModule = config.secretspec.secrets.DJANGO_SETTINGS_MODULE;
+    djangoEnv = config.secretspec.secrets.DJANGO_ENV;
+    staticUrl = config.secretspec.secrets.STATIC_URL;
+    protectedMediaUrl = config.secretspec.secrets.NGINX_PROTECTED_MEDIA_URL;
+    mediaUrl = config.secretspec.secrets.MEDIA_URL;
+    serveWithNginx = config.secretspec.secrets.SERVE_WITH_NGINX;
+  } // {
 
     # --- Directories & Paths ---
     containerHost = "None";
     containerMode = false;
-    STORAGE_DIR = config.secretspec.secrets.STORAGE_DIR;
+    LX_ANNOTATE_ENCRYPTED_DATA_DIR = runtimeDataDir;
     EXPORT_OUTPUT_DIR = config.secretspec.secrets.EXPORT_OUTPUT_DIR;
     ASSET_DIR = config.secretspec.secrets.ASSET_DIR;
     HOME_DIR = config.secretspec.secrets.HOME_DIR;
@@ -48,12 +60,6 @@ let
     ALLOWED_HOSTS = config.secretspec.secrets.ALLOWED_HOSTS;
     DJANGO_ALLOWED_HOSTS = config.secretspec.secrets.ALLOWED_HOSTS;
     DJANGO_CSRF_TRUSTED_ORIGINS = config.secretspec.secrets.DJANGO_CSRF_TRUSTED_ORIGINS;
-    STATIC_URL = config.secretspec.secrets.STATIC_URL;
-    MEDIA_URL = config.secretspec.secrets.MEDIA_URL;
-    PROTECTED_MEDIA_ROOT = config.secretspec.secrets.PROTECTED_MEDIA_ROOT;
-    LX_ANNOTATE_STREAMABLE_VIDEO_ROOT = config.secretspec.secrets.LX_ANNOTATE_STREAMABLE_VIDEO_ROOT;
-    LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT = config.secretspec.secrets.LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT;
-    LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT = config.secretspec.secrets.LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT;
     EXEMPT_URLS = config.secretspec.secrets.EXEMPT_URLS;
     LOGIN_URL = config.secretspec.secrets.LOGIN_URL;
 
@@ -66,10 +72,7 @@ let
     DJANGO_DB_PORT = config.secretspec.secrets.DJANGO_DB_PORT;
 
     # --- Django Core ---
-    DJANGO_SETTINGS_MODULE = config.secretspec.secrets.DJANGO_SETTINGS_MODULE;
-    DJANGO_SETTINGS_MODULE_PRODUCTION = config.secretspec.secrets.DJANGO_SETTINGS_MODULE_PRODUCTION;
     DJANGO_SETTINGS_MODULE_DEVELOPMENT = config.secretspec.secrets.DJANGO_SETTINGS_MODULE_DEVELOPMENT;
-    DJANGO_ENV = config.secretspec.secrets.DJANGO_ENV;
     DJANGO_DEBUG = config.secretspec.secrets.DJANGO_DEBUG;
     VITE_ENABLE_DEBUG = secret "VITE_ENABLE_DEBUG" "false";
     TIME_ZONE = config.secretspec.secrets.TIME_ZONE;
@@ -104,9 +107,6 @@ let
     DRF_THROTTLE_USER = config.secretspec.secrets.DRF_THROTTLE_USER;
     TEST_RUN_FRAME_NUMBER = config.secretspec.secrets.TEST_RUN_FRAME_NUMBER;
     DJANGO_CORS_ALLOWED_ORIGINS = config.secretspec.secrets.DJANGO_CORS_ALLOWED_ORIGINS;
-    SERVE_WITH_NGINX = config.secretspec.secrets.SERVE_WITH_NGINX;
-    NGINX_PROTECTED_MEDIA_URL = config.secretspec.secrets.NGINX_PROTECTED_MEDIA_URL;
-
     # --- Watcher Dirs ---
     WATCHER_VIDEO_DIR = config.secretspec.secrets.WATCHER_VIDEO_DIR;
     WATCHER_REPORT_DIR = config.secretspec.secrets.WATCHER_REPORT_DIR;
@@ -252,7 +252,7 @@ in
       echo "Python venv is missing or incomplete. Run: ${SYNC_CMD}"
     fi
 
-    mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
+    mkdir -p "${baseEnv.STORAGE_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
     mkdir -p "${config.secretspec.secrets.HOME_DIR}"
     mkdir -p "${config.secretspec.secrets.WORKING_DIR}"

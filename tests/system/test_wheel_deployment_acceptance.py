@@ -24,9 +24,10 @@ def test_wheel_runtime_splits_code_and_data_roots():
         'LX_ANNOTATE_ENCRYPTED_DATA_DIR="${LX_ANNOTATE_ENCRYPTED_DATA_DIR:-$DATA_DIR}"'
         in deploy_sh
     )
+    assert "LX_ANNOTATE_DATA_DIR=" not in deploy_sh
     assert (
-        'LX_ANNOTATE_DATA_DIR="${LX_ANNOTATE_DATA_DIR:-$LX_ANNOTATE_ENCRYPTED_DATA_DIR}"'
-        in deploy_sh
+        "Environment=DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_prod"
+        in service_unit
     )
     assert "EnvironmentFile=/var/lib/lx-annotate/.env.systemd" in service_unit
     assert "WorkingDirectory=/home/lx-annotate/lx-annotate-wheel" in service_unit
@@ -67,16 +68,10 @@ def test_post_deploy_acceptance_smoke_is_wired():
     assert '"$SCRIPT_DIR/acceptance-smoke.sh"' in deploy_sh
     assert "verify_encrypted_storage" in smoke_sh
     assert "check --settings" in smoke_sh
-    assert (
-        'NGINX_PROTECTED_MEDIA_URL="${NGINX_PROTECTED_MEDIA_URL:-/protected_media/}"'
-        in smoke_sh
-    )
-    assert 'MEDIA_URL="${MEDIA_URL:-$NGINX_PROTECTED_MEDIA_URL}"' in smoke_sh
-    assert 'PROTECTED_MEDIA_ROOT="${PROTECTED_MEDIA_ROOT:-$STORAGE_DIR}"' in smoke_sh
-    assert (
-        'LX_ANNOTATE_STREAMABLE_VIDEO_ROOT="${LX_ANNOTATE_STREAMABLE_VIDEO_ROOT:-$STORAGE_DIR/streamable_videos}"'
-        in smoke_sh
-    )
+    assert 'storage_dir="$LX_ANNOTATE_ENCRYPTED_DATA_DIR/storage"' in smoke_sh
+    assert 'streamable_video_root="$storage_dir/streamable_videos"' in smoke_sh
+    assert "PROTECTED_MEDIA_ROOT=" not in smoke_sh
+    assert "LX_ANNOTATE_STREAMABLE_VIDEO_ROOT=" not in smoke_sh
     assert "/static/.vite/manifest.json" in smoke_sh
     assert "acceptance-smoke.sh" in guide
 
