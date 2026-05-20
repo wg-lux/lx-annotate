@@ -29,6 +29,7 @@ _ENDOREG_DB_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
 
 _ENDOREG_DB_REQUIRED_TABLES: tuple[str, ...] = (
     "endoreg_db_videofile",
+    "endoreg_db_rawpdf",
     "endoreg_db_sensitivemeta",
     "endoreg_db_sensitivemeta_tags",
     "endoreg_db_auditledger",
