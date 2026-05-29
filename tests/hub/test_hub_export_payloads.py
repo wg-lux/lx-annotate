@@ -5,6 +5,7 @@ import os
 
 from django.core.files.base import ContentFile
 from django.test import TestCase
+from django.utils import timezone
 
 from endoreg_db.models import (
     Center,
@@ -14,6 +15,7 @@ from endoreg_db.models import (
     VideoFile,
     VideoState,
 )
+from endoreg_db.services.hub.transfers import create_or_reuse_transfer_job
 from lx_annotate.hub.hub_export_payloads import (
     build_transfer_payload,
     validate_transfer_payload,
@@ -43,6 +45,28 @@ class HubExportPayloadTests(TestCase):
             owning_center=self.center,
         )
 
+    def _assert_transfer_payload_persists(self, payload):
+        validated = validate_transfer_payload(payload)
+        transfer_job, created = create_or_reuse_transfer_job(
+            transfer_key=validated["transfer_key"],
+            source_node=validated["source_node"],
+            target_node=validated["target_node"],
+            source_center=validated["source_center"],
+            resource_kind=validated["resource_kind"],
+            resource_hash=validated["resource_hash"],
+            transfer_mode=validated["transfer_mode"],
+            processing_policy=validated["processing_policy"],
+            processing_intent=validated["processing_intent"],
+            cleanup_policy=validated["cleanup_policy"],
+            payload_schema_version=validated["payload_schema_version"],
+            resource_rows=validated["resource_rows"],
+            processing_snapshot=validated["processing_snapshot"],
+            provenance=validated["provenance"],
+        )
+        self.assertTrue(created)
+        self.assertEqual(transfer_job.transfer_key, validated["transfer_key"])
+        return validated
+
     def test_builds_and_validates_video_transfer_payload(self):
         state = VideoState.objects.create(
             anonymized=True,
@@ -54,6 +78,8 @@ class HubExportPayloadTests(TestCase):
             segment_annotations_created=True,
             segment_annotations_validated=True,
             ready_for_export=True,
+            ready_for_export_at=timezone.now(),
+            ready_for_export_by="test-suite",
             processed_file_sha256="a" * 64,
         )
         video = VideoFile.objects.create(
@@ -83,7 +109,7 @@ class HubExportPayloadTests(TestCase):
             OutboundHubTransferJob.TransferMode.METADATA_AND_PROCESSED_MEDIA,
         )
 
-        validated = validate_transfer_payload(payload)
+        validated = self._assert_transfer_payload_persists(payload)
         self.assertEqual(validated["source_node"].node_key, "site-node")
         self.assertEqual(validated["target_node"].node_key, "hub-node")
 
@@ -116,7 +142,7 @@ class HubExportPayloadTests(TestCase):
         self.assertEqual(payload["resource_kind"], "report")
         self.assertEqual(payload["resource_hash"], "report-hash-1")
 
-        validated = validate_transfer_payload(payload)
+        validated = self._assert_transfer_payload_persists(payload)
         self.assertEqual(validated["source_node"].node_key, "site-node")
         self.assertEqual(validated["target_node"].node_key, "hub-node")
 

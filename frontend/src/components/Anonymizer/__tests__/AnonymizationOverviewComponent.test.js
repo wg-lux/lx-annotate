@@ -94,6 +94,7 @@ describe('AnonymizationOverviewComponent', () => {
             overview: [buildVideoFile()],
             fetchOverview: vi.fn().mockResolvedValue(undefined),
             setCurrentForValidation: vi.fn().mockResolvedValue(true),
+            isVideoReimportQueued: vi.fn().mockReturnValue(false),
             startPolling: vi.fn(),
             stopAllPolling: vi.fn()
         });
@@ -152,10 +153,30 @@ describe('AnonymizationOverviewComponent', () => {
         await flushPromises();
         const uploadSummary = wrapper.find('.upload-job-summary');
         expect(uploadSummary.text()).toContain('Import abgeschlossen');
-        expect(uploadSummary.text()).toContain('Dateiwächter / watcher-daemon / test-center');
+        expect(uploadSummary.text()).toContain('Ordnerimport / watcher-daemon / test-center');
         expect(uploadSummary.text()).toContain('Quelle bereinigt - Bereinigt');
         expect(wrapper.find('.upload-job-summary .badge.bg-success').exists()).toBe(true);
         expect(wrapper.text()).toContain('Fertig');
+    });
+    it('does not render raw duplicate import errors', async () => {
+        hoisted.anonymizationStoreRef.current.overview = [
+            buildVideoFile({
+                anonymizationStatus: 'validated',
+                annotationStatus: 'validated',
+                uploadJob: {
+                    id: 'duplicate-import',
+                    status: 'error',
+                    ingestMode: 'watcher',
+                    errorDetail: 'duplicate key value violates unique constraint "endoreg_db_videofile_video_hash_key"'
+                }
+            })
+        ];
+        const wrapper = mount(AnonymizationOverviewComponent);
+        await flushPromises();
+        expect(wrapper.text()).toContain('Duplikat erkannt');
+        expect(wrapper.text()).not.toContain('duplicate key');
+        expect(wrapper.text()).not.toContain('unique constraint');
+        expect(wrapper.text()).not.toContain('endoreg_db_videofile_video_hash_key');
     });
     it('reports whether the original source file has already been deleted', async () => {
         hoisted.anonymizationStoreRef.current.overview = [
@@ -221,6 +242,7 @@ describe('AnonymizationOverviewComponent', () => {
         expect(wrapper.text()).toContain('Quarantäne: lx-annotate quarantine');
         expect(wrapper.text()).toContain('In Quarantäne');
         expect(wrapper.text()).toContain('Serverseitige Quarantäne');
+        expect(wrapper.text()).not.toContain('moov atom not found');
         expect(wrapper.findAll('[data-test="delete-file-button"]')).toHaveLength(1);
     });
 });

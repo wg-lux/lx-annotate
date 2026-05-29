@@ -88,6 +88,8 @@ class HubExportHookTests(TestCase):
             segment_annotations_created=True,
             segment_annotations_validated=True,
             ready_for_export=True,
+            ready_for_export_at=timezone.now(),
+            ready_for_export_by="test-suite",
             processed_file_sha256="a" * 64,
         )
         video = VideoFile.objects.create(

@@ -381,7 +381,7 @@ let
         "--max-tasks-per-child=${toString workerCfg.maxTasksPerChild}"
       ];
       workerArgs = [
-        "--hostname=${workerCfg.hostname}@%h"
+        "--hostname=${workerCfg.hostname}@%%h"
         "--queues=${queueArg}"
         "--concurrency=${toString workerCfg.concurrency}"
         "--prefetch-multiplier=${toString workerCfg.prefetchMultiplier}"
@@ -427,7 +427,27 @@ let
       })
     );
 
-  workerServices = lib.listToAttrs (lib.mapAttrsToList mkWorkerService cfg.workers);
+  defaultFfmpegMediaWorkers = lib.optionalAttrs (cfg.workers != { }) {
+    ffmpeg_media = {
+      queues = [ "ffmpeg_media" ];
+      hostname = "ffmpeg-media";
+      concurrency = 1;
+      prefetchMultiplier = 1;
+      maxTasksPerChild = 1;
+      timeoutStopSec = "2h";
+      serviceConfig = {
+        MemoryHigh = "8G";
+        MemoryMax = "12G";
+        CPUQuota = "200%";
+        Nice = 15;
+        IOSchedulingClass = "best-effort";
+        IOSchedulingPriority = 7;
+        OOMScoreAdjust = 750;
+      };
+    };
+  };
+  effectiveWorkers = defaultFfmpegMediaWorkers // cfg.workers;
+  workerServices = lib.listToAttrs (lib.mapAttrsToList mkWorkerService effectiveWorkers);
   workerTimers = lib.listToAttrs (
     lib.mapAttrsToList (
       name: workerCfg:
@@ -440,7 +460,7 @@ let
           }
         )
       )
-    ) cfg.workers
+    ) effectiveWorkers
   );
 in
 {
@@ -588,7 +608,12 @@ in
     workers = lib.mkOption {
       type = lib.types.attrsOf workerType;
       default = { };
-      description = "Celery workers generated from declarative workload data.";
+      description = ''
+        Celery workers generated from declarative workload data.
+        If any workers are configured, a bounded ffmpeg_media worker is added
+        by default for asynchronous video re-import work unless overridden with
+        workers.ffmpeg_media.
+      '';
     };
 
     fileWatcher = {

@@ -52,6 +52,93 @@ function buildQuarantineOverviewRows(quarantineFiles, existingIds) {
         };
     });
 }
+const DUPLICATE_KEY_ERROR_PATTERN = /\bduplicate key\b|\bunique constraint\b/i;
+function hasDuplicateKeyUploadError(file) {
+    const status = String(file.uploadJob?.status || '').toLowerCase();
+    if (status !== 'error' && status !== 'lost') {
+        return false;
+    }
+    const errorDetail = file.uploadJob?.errorDetail || file.errorDetail || '';
+    return DUPLICATE_KEY_ERROR_PATTERN.test(errorDetail);
+}
+function preserveValidatedDuplicateVideoRows(files) {
+    return files.map((file) => {
+        if (file.mediaType !== 'video' || !hasDuplicateKeyUploadError(file)) {
+            return file;
+        }
+        return {
+            ...file,
+            anonymizationStatus: 'validated',
+            annotationStatus: 'validated'
+        };
+    });
+}
+const STATUS_POLL_INTERVAL_MS = 15000;
+const STATUS_POLL_BACKOFF_MS = 30000;
+const STATUS_POLL_JITTER_MS = 5000;
+const STATUS_POLL_STORAGE_PREFIX = 'lx-annotate:anonymization-status:next-check';
+const FINAL_ANONYMIZATION_STATUSES = new Set([
+    'done_processing_anonymization',
+    'validated',
+    'failed'
+]);
+const ACTIVE_UPLOAD_JOB_STATUSES = new Set(['pending', 'processing']);
+const ACTIVE_ANONYMIZATION_STATUSES = new Set([
+    'processing_anonymization',
+    'extracting_frames',
+    'predicting_segments'
+]);
+function isUploadJobActive(file) {
+    return ACTIVE_UPLOAD_JOB_STATUSES.has(String(file.uploadJob?.status || '').toLowerCase());
+}
+function hasMissingVideoMetadata(file) {
+    return file.mediaType === 'video' && (file.sensitiveMetaId == null || file.metadataImported === false);
+}
+function statusPollIntervalMs(fileId) {
+    return STATUS_POLL_INTERVAL_MS + (Math.abs(fileId) % 5) * 500;
+}
+function statusPollStorageKey(fileId, kind) {
+    return `${STATUS_POLL_STORAGE_PREFIX}:${kind}:${fileId}`;
+}
+function getStatusPollStorage() {
+    if (typeof window === 'undefined')
+        return null;
+    try {
+        return window.localStorage;
+    }
+    catch {
+        return null;
+    }
+}
+function claimStatusPollSlot(fileId, kind, delayMs) {
+    const storage = getStatusPollStorage();
+    if (!storage)
+        return true;
+    try {
+        const key = statusPollStorageKey(fileId, kind);
+        const now = Date.now();
+        const nextCheckAt = Number(storage.getItem(key) || '0');
+        if (Number.isFinite(nextCheckAt) && nextCheckAt > now) {
+            return false;
+        }
+        storage.setItem(key, String(now + delayMs));
+        return true;
+    }
+    catch {
+        return true;
+    }
+}
+function deferStatusPollSlot(fileId, kind, delayMs) {
+    const storage = getStatusPollStorage();
+    if (!storage)
+        return;
+    try {
+        storage.setItem(statusPollStorageKey(fileId, kind), String(Date.now() + delayMs));
+    }
+    catch {
+        // Ignore storage failures; polling still has the per-tab interval guard.
+    }
+}
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
@@ -68,6 +155,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         hasAvailableFiles: false,
         availableFiles: availableFiles.value,
         needsValidationIds: [],
+        reimportQueuedIds: [],
         pending: [false] // TODO: Implement reactive getter here
     }),
     getters: {
@@ -78,6 +166,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         processingFiles: (state) => state.overview.filter((f) => f.anonymizationStatus === 'processing_anonymization' ||
             f.anonymizationStatus === 'extracting_frames' ||
             f.anonymizationStatus === 'predicting_segments'),
+        isVideoReimportQueued: (state) => (fileId) => state.reimportQueuedIds.includes(fileId),
         getState: (state) => state
     },
     actions: {
@@ -170,7 +259,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 catch (quarantineError) {
                     console.warn('Could not load quarantine overview:', quarantineError?.message || quarantineError);
                 }
-                const overviewData = [...data, ...quarantineRows];
+                const overviewData = preserveValidatedDuplicateVideoRows([...data, ...quarantineRows]);
                 // Update overview and available files
                 this.overview = overviewData;
                 // Clear and update availableFiles to prevent duplicates
@@ -181,6 +270,11 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     .filter((f) => f.anonymizationStatus === 'done_processing_anonymization' && f.annotationStatus !== 'validated')
                     .map((f) => f.id);
                 this.needsValidationIds = needsValidation;
+                const stopStatuses = new Set(['done_processing_anonymization', 'validated', 'failed', 'not_started']);
+                this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => {
+                    const queuedFile = overviewData.find((f) => f.id === id);
+                    return !!queuedFile && !stopStatuses.has(queuedFile.anonymizationStatus);
+                });
                 // NEW: Polling sofort stoppen für
                 // 1) Dateien, die nicht mehr existieren
                 const currentPollingIds = Object.keys(this.pollingHandles).map((k) => Number(k));
@@ -191,7 +285,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     }
                 }
                 // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
-                const stopStatuses = new Set(['done_processing_anonymization', 'validated', 'failed', 'not_started']);
                 for (const f of overviewData) {
                     if (stopStatuses.has(f.anonymizationStatus) && this.pollingHandles[f.id]) {
                         this.stopPolling(f.id);
@@ -263,12 +356,17 @@ export const useAnonymizationStore = defineStore('anonymization', {
             }
             console.log(`Starting status polling for file ${id} (${file.mediaType})`);
             this.isPolling = true;
-            const timer = setInterval(async () => {
+            const kindParam = file.mediaType === 'pdf' ? 'report' : 'video';
+            let nextDelayMs = statusPollIntervalMs(id);
+            const jitter = () => Math.floor(Math.random() * STATUS_POLL_JITTER_MS);
+            const poll = async () => {
+                if (!this.pollingHandles[id])
+                    return;
+                if (!claimStatusPollSlot(id, kindParam, nextDelayMs)) {
+                    this.pollingHandles[id] = setTimeout(poll, nextDelayMs + jitter());
+                    return;
+                }
                 try {
-                    // 2. Map frontend 'pdf' to backend 'report' if necessary, or pass as is
-                    // usually backend expects 'report', but let's handle normalization in backend to be safe.
-                    // We pass it as a query parameter.
-                    const kindParam = file.mediaType === 'pdf' ? 'report' : 'video';
                     const { data } = await axiosInstance.get(r(endpoints.anonymization.status(id)), { params: { kind: kindParam } });
                     // Refresh file reference in case overview changed
                     const currentFile = this.overview.find((f) => f.id === id);
@@ -276,17 +374,30 @@ export const useAnonymizationStore = defineStore('anonymization', {
                         const statusFromBackend = data.anonymizationStatus;
                         console.log(`Status update for file ${id}: ${statusFromBackend}`);
                         currentFile.anonymizationStatus = statusFromBackend;
-                        if (['done_processing_anonymization', 'validated', 'failed'].includes(statusFromBackend)) {
+                        if (FINAL_ANONYMIZATION_STATUSES.has(statusFromBackend)) {
                             console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`);
                             this.stopPolling(id);
+                            return;
                         }
                     }
+                    nextDelayMs = statusPollIntervalMs(id);
                 }
                 catch (err) {
-                    console.error(`Error polling status for file ${id}:`, err);
+                    if (axios.isAxiosError(err) && err.response?.status === 429) {
+                        nextDelayMs = STATUS_POLL_BACKOFF_MS;
+                        console.debug(`Status polling rate limited for file ${id}; backing off`);
+                    }
+                    else {
+                        nextDelayMs = statusPollIntervalMs(id);
+                        console.error(`Error polling status for file ${id}:`, err);
+                    }
                 }
-            }, 10000);
-            this.pollingHandles[id] = timer;
+                if (!this.pollingHandles[id])
+                    return;
+                deferStatusPollSlot(id, kindParam, nextDelayMs);
+                this.pollingHandles[id] = setTimeout(poll, nextDelayMs + jitter());
+            };
+            this.pollingHandles[id] = setTimeout(poll, nextDelayMs + jitter());
         },
         /**
          * Stop polling for a specific file
@@ -294,7 +405,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         stopPolling(id) {
             const timer = this.pollingHandles[id];
             if (timer) {
-                clearInterval(timer);
+                clearTimeout(timer);
                 delete this.pollingHandles[id];
                 console.log(`Stopped polling for file ${id}`);
             }
@@ -374,22 +485,33 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 this.error = `Datei mit ID ${fileId} ist kein Video.`;
                 return false;
             }
+            if (this.reimportQueuedIds.includes(fileId) || isUploadJobActive(file)) {
+                this.startPolling(fileId);
+                return true;
+            }
+            if (ACTIVE_ANONYMIZATION_STATUSES.has(file.anonymizationStatus) && !hasMissingVideoMetadata(file)) {
+                this.startPolling(fileId);
+                return true;
+            }
             try {
                 console.log(`Re-importing video ${fileId}...`);
                 // Optimistic UI update - set to processing to show user feedback
                 file.anonymizationStatus = 'processing_anonymization';
                 file.metadataImported = false;
+                if (!this.reimportQueuedIds.includes(fileId)) {
+                    this.reimportQueuedIds.push(fileId);
+                }
                 // Trigger re-import via backend
                 const response = await axiosInstance.post(r(endpoints.media.videoReimport(fileId)));
                 console.log(`Video re-import response:`, response.data);
                 console.log(`Starting polling for re-imported video ${fileId}`);
                 this.startPolling(fileId);
-                // Check if re-import was successful
-                if (response.data?.sensitiveMetaCreated ?? response.data?.sensitive_meta_created) {
-                    console.log(`Video ${fileId} re-imported successfully with metadata`);
+                const jobStatus = response.data?.status;
+                if (jobStatus === 'completed') {
+                    this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => id !== fileId);
                 }
-                else {
-                    console.log(`Video ${fileId} re-imported but metadata may be incomplete`);
+                else if (jobStatus === 'queued' || jobStatus === 'already_queued') {
+                    console.log(`Video ${fileId} re-import job status: ${jobStatus}`);
                 }
                 return true;
             }
@@ -398,6 +520,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 // Revert optimistic update
                 file.anonymizationStatus = 'failed';
                 file.metadataImported = false;
+                this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => id !== fileId);
                 if (axios.isAxiosError(err)) {
                     const errorMessage = err.response?.data?.error || err.message;
                     this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${errorMessage}`;

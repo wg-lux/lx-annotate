@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Iterator, Set
 
 import requests
+from django.core.exceptions import ObjectDoesNotExist
 from watchdog.events import (
     DirCreatedEvent,
     FileCreatedEvent,
@@ -33,7 +34,7 @@ from endoreg_db.services.hub.ingest import (
     process_watcher_file,
     UploadProvenance,
 )
-import endoreg_db.utils.paths as path_utils
+import endoreg_db.utils.filesystem.paths as path_utils
 from endoreg_db.utils.storage import ensure_local_file
 from endoreg_db.exceptions import InsufficientStorageError
 from endoreg_db.models.media.video.create_from_file import (
@@ -292,6 +293,15 @@ def _normalize_center_reference(center_reference: str) -> str:
     if not normalized_reference:
         raise ValueError("Watcher default center reference must not be empty")
     return normalized_reference
+
+
+def _video_has_sensitive_meta(video_file: VideoFile) -> bool:
+    if getattr(video_file, "sensitive_meta_id", None) is not None:
+        return True
+    try:
+        return getattr(video_file, "sensitive_meta", None) is not None
+    except ObjectDoesNotExist:
+        return False
 
 
 class IntakeVideoImportService:
@@ -606,8 +616,36 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     file_type="video",
                     center=source_center,
                     processor_name=self.default_processor,
+                    prediction_model_name=self.default_model,
                     source_system="watcher",
                 )
+                upload_job.refresh_from_db(
+                    fields=[
+                        "status",
+                        "sensitive_meta",
+                        "content_hash",
+                        "processing_provenance",
+                        "error_detail",
+                    ]
+                )
+                if not upload_job.is_complete:
+                    logger.info(
+                        "Watcher upload job handed off for async ingest: %s status=%s",
+                        upload_job.id,
+                        upload_job.status,
+                    )
+                    return
+                if not upload_job.is_successful:
+                    logger.warning(
+                        "Watcher upload job did not complete successfully for %s: "
+                        "job=%s status=%s error=%s",
+                        video_path,
+                        upload_job.id,
+                        upload_job.status,
+                        upload_job.error_detail,
+                    )
+                    return
+
                 video_hash = str(getattr(upload_job, "content_hash", "") or "").strip()
                 if not video_hash:
                     provenance: UploadProvenance = (
@@ -625,11 +663,19 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         video_path,
                     )
                     return
-                if not video_file.sensitive_meta:
-                    logger.warning(
-                        "Video imported but no SensitiveMeta created: %s",
-                        video_file.video_hash,
-                    )
+                if not _video_has_sensitive_meta(video_file):
+                    if getattr(upload_job, "sensitive_meta_id", None) is not None:
+                        logger.warning(
+                            "SensitiveMeta was created for upload job %s but is not "
+                            "linked to VideoFile %s",
+                            upload_job.id,
+                            video_file.video_hash,
+                        )
+                    else:
+                        logger.warning(
+                            "Video imported but no SensitiveMeta created: %s",
+                            video_file.video_hash,
+                        )
                 logger.info(
                     "Video imported through shared hub ingest: %s",
                     video_file.video_hash,
@@ -654,54 +700,42 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 if not video_path.exists():
                     if _prediction_pipeline_complete(video_file):
                         logger.info(
-                            "Video %s already has completed prediction segments. Bypassing AI pipeline.",
+                            "Video %s already has completed prediction segments. "
+                            "Bypassing AI pipeline.",
                             video_hash,
                         )
                         return
                     logger.info(
-                        "Watcher source for video %s was cleaned up after ingest; continuing AI pipeline from managed media.",
+                        "Watcher source for video %s was cleaned up after ingest; "
+                        "queuing AI pipeline.",
                         video_hash,
                     )
                 try:
-                    unload_ollama_model(model_name=self.default_model)
-                    active_file = getattr(video_file, "active_raw_file", None)
-                    if active_file is not None:
-                        with managed_media_temp_path(active_file) as _local_media_path:
-                            logger.debug(
-                                "Managed video staged to local temp path for legacy path-based tooling: %s",
-                                _local_media_path,
-                            )
-                            success = video_file.pipe_1(
-                                model_name=self.default_model,
-                                delete_frames_after=True,
-                            )
-                    else:
-                        success = video_file.pipe_1(
-                            model_name=self.default_model, delete_frames_after=True
-                        )
-                    if success:
-                        if _has_prediction_segments(video_file):
-                            logger.info(
-                                "Video segmentation completed: %s",
-                                video_file.video_hash,
-                            )
-                        elif _prediction_sequences_have_ranges(video_file) is False:
-                            logger.warning(
-                                "Video segmentation completed without KI segments for %s because prediction returned no segment ranges.",
-                                video_file.video_hash,
-                            )
-                        else:
-                            logger.error(
-                                "Video segmentation reported success for %s but no prediction LabelVideoSegment rows exist for the KI segment view.",
-                                video_file.video_hash,
-                            )
-                    else:
-                        logger.error(
-                            "Video segmentation failed: %s", video_file.video_hash
-                        )
+                    from endoreg_db.models import AiModel
+                    from endoreg_db.services.video_temporal_inference import (
+                        dispatch_video_temporal_inference,
+                    )
+
+                    ai_model = AiModel.objects.get(name=self.default_model)
+                    model_meta = ai_model.get_latest_version()
+                    dispatch_result = dispatch_video_temporal_inference(
+                        video_id=video_file.pk,
+                        model_meta_id=model_meta.pk,
+                        replace_prediction_segments=True,
+                        delete_frames_after=True,
+                    )
+                    logger.info(
+                        "Video segmentation queued for %s on %s queue: "
+                        "task=%s history=%s status=%s",
+                        video_file.video_hash,
+                        dispatch_result.queue,
+                        dispatch_result.task_id,
+                        dispatch_result.history_id,
+                        dispatch_result.status,
+                    )
                 except Exception as exc:
                     logger.error(
-                        "Error during video segmentation: %s", exc, exc_info=True
+                        "Error queuing video segmentation: %s", exc, exc_info=True
                     )
 
             logger.info("Video processing completed: %s", video_path)

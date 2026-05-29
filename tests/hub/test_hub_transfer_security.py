@@ -50,17 +50,13 @@ class HubTransferSecurityTests(TestCase):
             "resource_rows": {
                 "raw_pdf_file": {
                     "pdf_hash": "hash-1",
-                    "original_file_name": "report.pdf",
                 },
                 "raw_pdf_state": {
                     "anonymized": True,
                 },
             },
             "processing_snapshot": {
-                "sender_processing_state": "anonymized",
                 "sender_processing_success": True,
-                "raw_file_present": False,
-                "processed_file_present": False,
             },
         }
 

@@ -47,13 +47,13 @@
               <tr>
                 <th class="sticky-filename-column">Dateiname</th>
                 <th>Typ</th>
+                <th>Aktionen</th>
                 <th>Import</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
                 <th>Validierung</th>
                 <th>Originaldatei gelöscht?</th>
                 <th>Erstellt</th>
-                <th>Aktionen</th>
               </tr>
             </thead>
             <tbody>
@@ -90,89 +90,6 @@
                     {{ file.mediaType.toUpperCase() }}
                   </span>
                 </td>
-
-                <!-- Upload Job Status -->
-                <td>
-                  <div v-if="file.uploadJob" class="upload-job-summary">
-                    <span
-                      class="badge"
-                      :class="getUploadJobStatusBadgeClass(file.uploadJob.status)"
-                    >
-                      {{ getUploadJobStatusText(file.uploadJob.status) }}
-                    </span>
-                    <div v-if="getUploadJobOriginLabel(file.uploadJob)" class="small text-muted mt-1 upload-job-text">
-                      {{ getUploadJobOriginLabel(file.uploadJob) }}
-                    </div>
-                    <div v-if="getUploadJobCleanupLabel(file.uploadJob)" class="small text-muted upload-job-text">
-                      {{ getUploadJobCleanupLabel(file.uploadJob) }}
-                    </div>
-                    <div v-if="file.uploadJob.errorDetail" class="small text-danger mt-1 upload-job-text">
-                      {{ file.uploadJob.errorDetail }}
-                    </div>
-                  </div>
-                  <span v-else class="text-muted">-</span>
-                </td>
-
-                <!-- Anonymization Status -->
-                <td>
-                  <span 
-                    :class="getStatusBadgeClass(file.anonymizationStatus)"
-                    class="badge"
-                  >
-                    <i 
-                      v-if="file.anonymizationStatus === 'processing_anonymization'"
-                      class="ni ni-settings-gear-65 ni-spin me-1"
-                    ></i>
-                    {{ getStatusText(file.anonymizationStatus) }}
-                  </span>
-                </td>
-
-                <!-- Annotation Status -->
-                <td>
-                  <span 
-                    :class="getStatusBadgeClass(file.annotationStatus)"
-                    class="badge"
-                  >
-                    {{ getStatusText(file.annotationStatus) }}
-                  </span>
-                </td>
-
-                <!-- Validation Action -->
-                <td>
-                  <button
-                    v-if="file.anonymizationStatus === 'done_processing_anonymization'"
-                    @click="validateFile(file.id, file.mediaType)"
-                    class="btn btn-success btn-sm"
-                    :disabled="!isReadyForValidation(file.id)"
-                  >
-                    <i class="ni ni-user-run me-1"></i>
-                    Validieren
-                  </button>
-                  <span v-else-if="file.anonymizationStatus === 'validated'" class="badge bg-success">
-                    <i class="ni ni-check-bold me-1"></i>
-                    Validiert
-                  </span>
-                  <span v-else class="text-muted">-</span>
-                </td>
-
-                <!-- Original File Cleanup -->
-                <td>
-                  <span :class="getOriginalFileDeletionClass(file)">
-                    <i :class="getOriginalFileDeletionIcon(file)" class="me-1"></i>
-                    {{ getOriginalFileDeletionText(file) }}
-                  </span>
-                  <div v-if="getOriginalFileDeletionHint(file)" class="small text-muted raw-file-state-hint">
-                    {{ getOriginalFileDeletionHint(file) }}
-                  </div>
-                </td>
-
-                <!-- Created Date -->
-                <td>
-                  <small class="text-muted">
-                    {{ formatDate(file.createdAt) }}
-                  </small>
-                </td>
-
                 <!-- Actions -->
                 <td>
                   <div v-if="file.quarantined" class="small text-warning quarantine-action-note">
@@ -268,6 +185,92 @@
                     </button>
 
                   </div>
+                </td>
+
+                <!-- Upload Job Status -->
+                <td>
+                  <div v-if="file.uploadJob" class="upload-job-summary">
+                    <span
+                      class="badge"
+                      :class="getUploadJobStatusBadgeClass(file.uploadJob.status)"
+                    >
+                      {{ getUploadJobStatusText(file.uploadJob.status) }}
+                    </span>
+                    <div v-if="getUploadJobOriginLabel(file.uploadJob)" class="small text-muted mt-1 upload-job-text">
+                      {{ getUploadJobOriginLabel(file.uploadJob) }}
+                    </div>
+                    <div v-if="getUploadJobCleanupLabel(file.uploadJob)" class="small text-muted upload-job-text">
+                      {{ getUploadJobCleanupLabel(file.uploadJob) }}
+                    </div>
+                    <div
+                      v-if="getUploadJobNotice(file)"
+                      class="small mt-1 upload-job-text"
+                      :class="getUploadJobNoticeClass(file)"
+                    >
+                      {{ getUploadJobNotice(file) }}
+                    </div>
+                  </div>
+                  <span v-else class="text-muted">-</span>
+                </td>
+
+                <!-- Anonymization Status -->
+                <td>
+                  <span 
+                    :class="getStatusBadgeClass(file.anonymizationStatus)"
+                    class="badge"
+                  >
+                    <i 
+                      v-if="file.anonymizationStatus === 'processing_anonymization'"
+                      class="ni ni-settings-gear-65 ni-spin me-1"
+                    ></i>
+                    {{ getStatusText(file.anonymizationStatus) }}
+                  </span>
+                </td>
+
+                <!-- Annotation Status -->
+                <td>
+                  <span 
+                    :class="getStatusBadgeClass(file.annotationStatus)"
+                    class="badge"
+                  >
+                    {{ getStatusText(file.annotationStatus) }}
+                  </span>
+                </td>
+
+                <!-- Validation Action -->
+                <td>
+                  <button
+                    v-if="file.anonymizationStatus === 'done_processing_anonymization'"
+                    @click="validateFile(file.id, file.mediaType)"
+                    class="btn btn-success btn-sm"
+                    :disabled="!isReadyForValidation(file.id)"
+                  >
+                    <i class="ni ni-user-run me-1"></i>
+                    Validieren
+                  </button>
+                  <span v-else-if="file.anonymizationStatus === 'validated'" class="badge bg-success">
+                    <i class="ni ni-check-bold me-1"></i>
+                    Validiert
+                  </span>
+                  <span v-else class="text-muted">-</span>
+                </td>
+
+                <!-- Original File Cleanup -->
+                <td>
+                  <span :class="getOriginalFileDeletionClass(file)">
+                    <i :class="getOriginalFileDeletionIcon(file)" class="me-1"></i>
+                    {{ getOriginalFileDeletionText(file) }}
+                  </span>
+                  <div v-if="getOriginalFileDeletionHint(file)" class="small text-muted raw-file-state-hint">
+                    {{ getOriginalFileDeletionHint(file) }}
+                  </div>
+                </td>
+
+                <!-- Created Date -->
+                <td>
+                  <small class="text-muted">
+                    {{ formatDate(file.createdAt) }}
+                  </small>
                 </td>
               </tr>
             </tbody>
@@ -560,22 +563,31 @@ const isProcessing = (fileId: number) => {
     return processingFiles.value.has(fileId);
   }
   
-  return processingFiles.value.has(fileId) || 
+  return processingFiles.value.has(fileId) ||
+         isUploadJobActive(file) ||
+         anonymizationStore.isVideoReimportQueued(fileId) ||
          !pollingProtection.canProcessMedia.value(fileId, mediaType as 'video' | 'pdf');
 };
 
 const needsReimport = (file: FileItem) => {
+  const metadataMissing = file.sensitiveMetaId == null || file.metadataImported === false;
+
   // Video files need re-import if metadata is missing
   if (file.mediaType === 'video') {
-    return !file.metadataImported;
+    return metadataMissing;
   }
   
   // PDF files might need re-import if anonymization failed or no text extracted
   if (file.mediaType === 'pdf') {
-    return !file.metadataImported || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
+    return metadataMissing || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
   }
   
   return false;
+};
+
+const isUploadJobActive = (file: FileItem) => {
+  const status = String(file.uploadJob?.status || '').toLowerCase();
+  return status === 'pending' || status === 'processing';
 };
 
 const getFileIcon = (mediaType: string) => {
@@ -686,15 +698,56 @@ const getUploadJobStatusText = (status: string) => {
     anonymized: 'Import abgeschlossen',
     quarantined: 'In Quarantäne',
     error: 'Importfehler',
-    lost: 'Import verloren. Bitte löschen und erneut importieren!'
+    lost: 'Import nicht möglich. Bitte Eintrag löschen und erneut importieren!'
   };
   return texts[status] || `Unbekannter Importstatus (${status})`;
+};
+
+const DUPLICATE_KEY_IMPORT_ERROR_PATTERN = /\bduplicate key\b|\bunique constraint\b/i;
+const DUPLICATE_IMPORT_NOTICE = 'Duplikat erkannt. Die vorhandene validierte Annotation bleibt erhalten.';
+const IMPORT_ERROR_NOTICE = 'Importfehler. Details sind im Server-Log verfügbar.';
+
+const isUploadJobError = (uploadJob: UploadJobOverview) => {
+  const status = String(uploadJob.status || '').toLowerCase();
+  return status === 'error' || status === 'lost';
+};
+
+const isDuplicateKeyImportError = (file: FileItem) => {
+  if (!file.uploadJob || !isUploadJobError(file.uploadJob)) {
+    return false;
+  }
+
+  const errorDetail = file.uploadJob.errorDetail || file.errorDetail || '';
+  return DUPLICATE_KEY_IMPORT_ERROR_PATTERN.test(errorDetail);
+};
+
+const getUploadJobNotice = (file: FileItem) => {
+  if (!file.uploadJob?.errorDetail) {
+    return '';
+  }
+
+  if (isDuplicateKeyImportError(file)) {
+    return DUPLICATE_IMPORT_NOTICE;
+  }
+
+  if (isUploadJobError(file.uploadJob)) {
+    return IMPORT_ERROR_NOTICE;
+  }
+
+  return '';
+};
+
+const getUploadJobNoticeClass = (file: FileItem) => {
+  if (isDuplicateKeyImportError(file)) {
+    return 'text-muted';
+  }
+  return 'text-danger';
 };
 
 const getUploadJobOriginLabel = (uploadJob: UploadJobOverview) => {
   const parts: string[] = [];
   if (uploadJob.ingestMode === 'watcher') {
-    parts.push('Dateiwächter');
+    parts.push('Ordnerimport');
   } else if (uploadJob.ingestMode === 'api') {
     parts.push('API');
   } else if (uploadJob.ingestMode) {
@@ -795,7 +848,7 @@ const getOriginalFileDeletionIcon = (file: FileItem): string => {
 
 const getOriginalFileDeletionHint = (file: FileItem): string => {
   if (file.quarantined) {
-    return file.errorDetail || 'Import wurde vor der Datenbankanlage gestoppt';
+    return 'Import wurde vor der Datenbankanlage gestoppt';
   }
   if (file.uploadJob?.cleanupStatus) {
     return getUploadJobCleanupStatusText(file.uploadJob.cleanupStatus);

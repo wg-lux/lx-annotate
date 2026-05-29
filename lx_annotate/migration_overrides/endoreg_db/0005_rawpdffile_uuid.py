@@ -23,7 +23,9 @@ class AddFieldIfMissing(migrations.AddField):
 def populate_rawpdffile_uuid(apps, schema_editor):
     raw_pdf_model = apps.get_model("endoreg_db", "RawPdfFile")
 
-    for raw_pdf in raw_pdf_model.objects.filter(uuid__isnull=True).iterator():
+    for raw_pdf in (
+        raw_pdf_model.objects.filter(uuid__isnull=True).only("id", "uuid").iterator()
+    ):
         raw_pdf.uuid = uuid.uuid4()
         raw_pdf.save(update_fields=["uuid"])
 

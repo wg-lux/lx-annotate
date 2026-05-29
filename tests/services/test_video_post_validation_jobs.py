@@ -68,7 +68,9 @@ def test_rebuild_success_marks_final_only_after_verification(center):
 
     with (
         patch.object(
-            VideoFile, "create_video_without_outside_frames", return_value=True
+            video_post_validation_jobs,
+            "rebuild_processed_video_without_outside_frames",
+            return_value=True,
         ),
         patch.object(
             video_post_validation_jobs,
@@ -96,7 +98,9 @@ def test_rebuild_failure_keeps_final_flags_false(center):
 
     with (
         patch.object(
-            VideoFile, "create_video_without_outside_frames", return_value=True
+            video_post_validation_jobs,
+            "rebuild_processed_video_without_outside_frames",
+            return_value=True,
         ),
         patch.object(
             video_post_validation_jobs,
@@ -128,7 +132,9 @@ def test_rebuild_failure_from_non_black_outside_frames_stays_visible(center):
 
     with (
         patch.object(
-            VideoFile, "create_video_without_outside_frames", return_value=True
+            video_post_validation_jobs,
+            "rebuild_processed_video_without_outside_frames",
+            return_value=True,
         ),
         patch.object(
             video_post_validation_jobs,

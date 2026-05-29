@@ -29,12 +29,20 @@ LUXNIX_WORKER_BASED_CELERY_PROFILES = (
         "queues": ("frame_extraction",),
     },
     {
+        "unit": "lx-annotate-celery-ffmpeg-worker",
+        "queues": ("ffmpeg_media",),
+    },
+    {
         "unit": "lx-annotate-celery-inference-worker",
         "queues": ("inference",),
     },
     {
         "unit": "lx-annotate-celery-training-worker",
         "queues": ("model_training",),
+    },
+    {
+        "unit": "lx-annotate-celery-llm-inference-worker",
+        "queues": ("llm_inference",),
     },
 )
 
@@ -182,6 +190,7 @@ def _build_worker_import_env(tmp_path: Path) -> dict[str, str]:
     env.update(
         {
             "DATA_DIR": str(data_root),
+            "CELERY_LLM_INFERENCE_QUEUE": "llm_inference",
             "DJANGO_CORS_ALLOWED_ORIGINS": "https://lx-annotate.local",
             "DJANGO_CSRF_TRUSTED_ORIGINS": "https://lx-annotate.local",
             "DJANGO_DB_PASSWORD": "worker-import-test-db-password",
@@ -191,6 +200,10 @@ def _build_worker_import_env(tmp_path: Path) -> dict[str, str]:
             "DJANGO_STATIC_ROOT": str(runtime_root / "staticfiles"),
             "HF_HUB_OFFLINE": "1",
             "HOME_DIR": str(runtime_root / "home"),
+            "LLM_BASE_URL": "http://127.0.0.1:11434",
+            "LLM_ENABLED": "true",
+            "LLM_MODEL": "lx-gemma4-e2b-json",
+            "LLM_PROVIDER": "ollama",
             "LX_ANNOTATE_DATA_DIR": str(data_root),
             "LX_ANNOTATE_ENCRYPTED_DATA_DIR": str(data_root),
             "LX_ANNOTATE_IMPORT_SWEEP_RESULT_PREFIX": RESULT_PREFIX,

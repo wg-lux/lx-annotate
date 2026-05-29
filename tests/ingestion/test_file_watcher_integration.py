@@ -16,8 +16,7 @@ from endoreg_db.models import (
     VideoFile,
 )
 from endoreg_db.services.hub.ingest import process_watcher_file
-from endoreg_db.utils.file_operations import atomic_write_file, sha256_file
-from endoreg_db.utils.storage import save_local_file
+from endoreg_db.utils.filesystem.file_operations import atomic_write_file
 
 
 class RecordingExecutor:
@@ -245,53 +244,6 @@ def test_handler_process_video_delegates_to_shared_hub_ingest(monkeypatch, tmp_p
         video_path.unlink(missing_ok=True)
 
 
-def test_handler_runs_pipe_1_after_successful_ingest_cleanup(monkeypatch):
-    handler = file_watcher.AutoProcessingHandler()
-    video_path = file_watcher.INTAKE_VIDEO_DIR / "cleaned-before-pipe.mp4"
-    video_path.write_bytes(b"video-bytes")
-    pipe_calls: list[dict[str, object]] = []
-
-    center = SimpleNamespace(center_key=handler.default_center_key)
-    upload_job = SimpleNamespace(
-        content_hash="video-hash",
-        processing_provenance={"content_hash": "video-hash"},
-    )
-    video_file = SimpleNamespace(
-        pk=7,
-        video_hash="video-hash",
-        sensitive_meta=None,
-        active_raw_file=None,
-        pipe_1=lambda **kwargs: pipe_calls.append(kwargs) or True,
-    )
-
-    def fake_process_watcher_file(**kwargs):
-        assert kwargs["file_path"] == video_path
-        video_path.unlink()
-        return upload_job
-
-    monkeypatch.setattr(file_watcher, "_resolve_center_by_key", lambda key: center)
-    monkeypatch.setattr(file_watcher, "process_watcher_file", fake_process_watcher_file)
-    monkeypatch.setattr(
-        file_watcher.VideoFile.objects,
-        "filter",
-        lambda **kwargs: SimpleNamespace(first=lambda: video_file),
-    )
-    monkeypatch.setattr(file_watcher, "unload_ollama_model", lambda model_name: None)
-    monkeypatch.setattr(
-        file_watcher, "_prediction_pipeline_complete", lambda video: False
-    )
-
-    try:
-        handler._process_video(video_path)
-    finally:
-        video_path.unlink(missing_ok=True)
-
-    assert pipe_calls == [
-        {"model_name": handler.default_model, "delete_frames_after": True}
-    ]
-    assert not video_path.exists()
-
-
 @pytest.mark.django_db
 def test_prediction_pipeline_complete_requires_materialized_prediction_segments():
     center = Center.objects.create(name="Watcher Prediction Center")
@@ -339,24 +291,9 @@ def test_process_watcher_file_creates_upload_job_for_report(monkeypatch, tmp_pat
     report_path = tmp_path / "watcher-report.pdf"
     report_path.write_bytes(b"%PDF-1.4 watcher report")
 
-    created_report = SimpleNamespace(sensitive_meta=None)
-
-    class _StubReportImportService:
-        def import_and_anonymize(
-            self,
-            *,
-            file_path,
-            center_name,
-            retry,
-        ):
-            assert Path(file_path) == report_path
-            assert center_name == center.name
-            assert retry is False
-            return created_report
-
     monkeypatch.setattr(
-        "endoreg_db.services.hub.ingest.ReportImportService",
-        _StubReportImportService,
+        "endoreg_db.tasks.process_upload_job.apply_async",
+        lambda *args, **kwargs: SimpleNamespace(id="watcher-report-task"),
     )
 
     upload_job = process_watcher_file(
@@ -370,10 +307,12 @@ def test_process_watcher_file_creates_upload_job_for_report(monkeypatch, tmp_pat
     assert db_job.ingest_mode == UploadJob.IngestMode.WATCHER
     assert db_job.source_system == "watcher"
     assert db_job.storage_tier == UploadJob.StorageTier.UPLOAD_WATCHER
-    assert db_job.status == UploadJob.Status.ANONYMIZED
+    assert db_job.status == UploadJob.Status.PROCESSING
     assert db_job.processing_provenance["entrypoint"] == "watcher"
     assert db_job.processing_provenance["file_type"] == "report"
     assert db_job.processing_provenance["watcher_processing_path"] == str(report_path)
+    assert db_job.processing_provenance["processing_handoff"] == "celery"
+    assert report_path.exists() is False
 
 
 @pytest.mark.django_db
@@ -384,19 +323,9 @@ def test_watcher_and_api_upload_jobs_share_core_ingest_expectations(
     report_path = tmp_path / "shared-report.pdf"
     report_path.write_bytes(b"%PDF-1.4 watcher shared report")
 
-    class _StubReportImportService:
-        def import_and_anonymize(
-            self,
-            *,
-            file_path,
-            center_name,
-            retry,
-        ):
-            return SimpleNamespace(sensitive_meta=None)
-
     monkeypatch.setattr(
-        "endoreg_db.services.hub.ingest.ReportImportService",
-        _StubReportImportService,
+        "endoreg_db.tasks.process_upload_job.apply_async",
+        lambda *args, **kwargs: SimpleNamespace(id="watcher-shared-task"),
     )
 
     watcher_job = process_watcher_file(
@@ -446,54 +375,9 @@ def test_process_watcher_file_reuses_completed_job_for_same_video_content(
         content=(payload,),
         required_bytes=len(payload),
     )
-    video_hash = sha256_file(first_path)
-
-    class _StubVideoImportService:
-        def import_and_anonymize(
-            self,
-            *,
-            file_path,
-            center_name,
-            processor_name,
-            retry,
-        ):
-            assert Path(file_path) == first_path
-            assert center_name == center.name
-            assert retry is False
-            processed_path = tmp_path / "processed.mp4"
-            processed_payload = b"processed-" + payload
-            atomic_write_file(
-                destination=processed_path,
-                content=(processed_payload,),
-                required_bytes=len(processed_payload),
-            )
-            processed_hash = sha256_file(processed_path)
-            video = VideoFile.objects.create(
-                center=center,
-                original_file_name=Path(file_path).name,
-                video_hash=video_hash,
-                processed_video_hash=processed_hash,
-                suffix=".mp4",
-            )
-            save_local_file(
-                video.raw_file,
-                Path(file_path),
-                name=f"{video_hash}.mp4",
-                save=False,
-            )
-            save_local_file(
-                video.processed_file,
-                processed_path,
-                name=f"{processed_hash}.mp4",
-                save=False,
-            )
-            video.save(update_fields=["raw_file", "processed_file"])
-            video.get_or_create_state().mark_anonymization_validated()
-            return video
-
     monkeypatch.setattr(
-        "endoreg_db.services.hub.ingest.VideoImportService",
-        _StubVideoImportService,
+        "endoreg_db.tasks.process_upload_job.apply_async",
+        lambda *args, **kwargs: SimpleNamespace(id="watcher-video-task"),
     )
 
     first_job = process_watcher_file(

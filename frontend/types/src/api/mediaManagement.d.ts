@@ -61,10 +61,16 @@ export interface AnonymizationStatusResponse {
     cooldown_active?: boolean;
 }
 export interface ProcessingResponse {
-    detail: string;
-    file_id: number;
-    file_type: string;
+    detail?: string;
+    message?: string;
+    file_id?: number;
+    file_type?: string;
     processing_locked?: boolean;
+    status?: 'queued' | 'already_queued' | 'completed' | 'failed' | 'busy' | string;
+    task_id?: string;
+    history_id?: number | null;
+    video_id?: number;
+    uuid?: string;
 }
 /**
  * Media Management API Service

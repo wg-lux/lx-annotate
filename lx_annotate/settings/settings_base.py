@@ -8,6 +8,7 @@ from importlib.util import find_spec
 from pathlib import Path
 
 from django.db import models
+from kombu import Exchange, Queue
 
 from lx_annotate.settings.config import load_config
 from logging import getLogger
@@ -242,6 +243,105 @@ LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY = str(
 CELERY_BROKER_URL = str(os.getenv("CELERY_BROKER_URL", "") or "").strip()
 CELERY_RESULT_BACKEND = None
 CELERY_TASK_IGNORE_RESULT = True
+_celery_default_queue = os.getenv(
+    "CELERY_TASK_DEFAULT_QUEUE",
+    os.getenv("CELERY_DEFAULT_QUEUE", "default"),
+)
+CELERY_TASK_DEFAULT_QUEUE = str(_celery_default_queue or "").strip() or "default"
+CELERY_PIPELINE_QUEUE = (
+    str(os.getenv("CELERY_PIPELINE_QUEUE", "pipeline") or "").strip() or "pipeline"
+)
+CELERY_FRAME_EXTRACTION_QUEUE = (
+    str(os.getenv("CELERY_FRAME_EXTRACTION_QUEUE", "frame_extraction") or "").strip()
+    or "frame_extraction"
+)
+CELERY_FFMPEG_MEDIA_QUEUE = (
+    str(os.getenv("CELERY_FFMPEG_MEDIA_QUEUE", "ffmpeg_media") or "").strip()
+    or "ffmpeg_media"
+)
+CELERY_INFERENCE_QUEUE = (
+    str(os.getenv("CELERY_INFERENCE_QUEUE", "inference") or "").strip() or "inference"
+)
+CELERY_TRAINING_QUEUE = (
+    str(os.getenv("CELERY_TRAINING_QUEUE", "model_training") or "").strip()
+    or "model_training"
+)
+CELERY_LLM_INFERENCE_QUEUE = (
+    str(os.getenv("CELERY_LLM_INFERENCE_QUEUE", "llm_inference") or "").strip()
+    or "llm_inference"
+)
+CELERY_MAINTENANCE_QUEUE = (
+    str(os.getenv("CELERY_MAINTENANCE_QUEUE", "maintenance") or "").strip()
+    or "maintenance"
+)
+CELERY_TASK_CREATE_MISSING_QUEUES = False
+CELERY_TASK_QUEUES = tuple(
+    Queue(queue_name, Exchange(queue_name), routing_key=queue_name)
+    for queue_name in (
+        CELERY_TASK_DEFAULT_QUEUE,
+        CELERY_PIPELINE_QUEUE,
+        CELERY_FRAME_EXTRACTION_QUEUE,
+        CELERY_FFMPEG_MEDIA_QUEUE,
+        CELERY_INFERENCE_QUEUE,
+        CELERY_TRAINING_QUEUE,
+        CELERY_LLM_INFERENCE_QUEUE,
+        CELERY_MAINTENANCE_QUEUE,
+    )
+)
+CELERY_TASK_ROUTES = {
+    "endoreg_db.video_upload_import": {
+        "queue": CELERY_FFMPEG_MEDIA_QUEUE,
+        "routing_key": CELERY_FFMPEG_MEDIA_QUEUE,
+    },
+    "endoreg_db.video_reimport": {
+        "queue": CELERY_FFMPEG_MEDIA_QUEUE,
+        "routing_key": CELERY_FFMPEG_MEDIA_QUEUE,
+    },
+    "endoreg_db.video_post_validation_rebuild": {
+        "queue": CELERY_FFMPEG_MEDIA_QUEUE,
+        "routing_key": CELERY_FFMPEG_MEDIA_QUEUE,
+    },
+    "endoreg_db.frame_extraction_request": {
+        "queue": CELERY_FRAME_EXTRACTION_QUEUE,
+        "routing_key": CELERY_FRAME_EXTRACTION_QUEUE,
+    },
+    "endoreg_db.video_temporal_inference": {
+        "queue": CELERY_INFERENCE_QUEUE,
+        "routing_key": CELERY_INFERENCE_QUEUE,
+    },
+    "endoreg_db.model_training": {
+        "queue": CELERY_TRAINING_QUEUE,
+        "routing_key": CELERY_TRAINING_QUEUE,
+    },
+    "endoreg_db.report_llm_reimport": {
+        "queue": CELERY_LLM_INFERENCE_QUEUE,
+        "routing_key": CELERY_LLM_INFERENCE_QUEUE,
+    },
+    "endoreg_db.report_llm_import": {
+        "queue": CELERY_LLM_INFERENCE_QUEUE,
+        "routing_key": CELERY_LLM_INFERENCE_QUEUE,
+    },
+    "endoreg_db.process_upload_job": {
+        "queue": CELERY_PIPELINE_QUEUE,
+        "routing_key": CELERY_PIPELINE_QUEUE,
+    },
+    "endoreg_db.refresh_audit_ledger_integrity_status": {
+        "queue": CELERY_MAINTENANCE_QUEUE,
+        "routing_key": CELERY_MAINTENANCE_QUEUE,
+    },
+    "lx_annotate.run_outbound_hub_transfer_job": {
+        "queue": CELERY_MAINTENANCE_QUEUE,
+        "routing_key": CELERY_MAINTENANCE_QUEUE,
+    },
+    "lx_annotate.reconcile_outbound_hub_transfer_job": {
+        "queue": CELERY_MAINTENANCE_QUEUE,
+        "routing_key": CELERY_MAINTENANCE_QUEUE,
+    },
+    "lx_annotate.recover_stale_outbound_hub_transfer_jobs": {
+        "queue": CELERY_MAINTENANCE_QUEUE,
+        "routing_key": CELERY_MAINTENANCE_QUEUE,
+    },
+}
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 60 * 60 * 6

@@ -188,6 +188,35 @@ def test_uuid_population_helpers_assign_missing_values(monkeypatch):
     assert raw_pdf.saved_update_fields == ["uuid"]
 
 
+def test_center_key_population_handles_legacy_center_without_display_name():
+    module = importlib.import_module(
+        "lx_annotate.migration_overrides.endoreg_db.0010_remove_requirementset_reqset_exam_links_and_more"
+    )
+
+    existing = _FakeCenterRecord(name="Test Center", center_key="test-center")
+    missing = _FakeCenterRecord(name="Test Center")
+    center_model = _FakeMigrationModel([existing, missing])
+    center_model._meta = SimpleNamespace(db_table="center_table")
+    apps = SimpleNamespace(get_model=lambda *args: center_model)
+    schema_editor = SimpleNamespace(
+        connection=SimpleNamespace(
+            cursor=lambda: _null_context(),
+            introspection=SimpleNamespace(
+                get_table_description=lambda cursor, table_name: [
+                    SimpleNamespace(name="id"),
+                    SimpleNamespace(name="name"),
+                    SimpleNamespace(name="center_key"),
+                ]
+            ),
+        )
+    )
+
+    module.populate_missing_center_keys(apps, schema_editor)
+
+    assert missing.center_key == "test-center-2"
+    assert missing.saved_update_fields == ["center_key"]
+
+
 class _null_context:
     def __enter__(self):
         return self
@@ -208,9 +237,17 @@ class _FakeMigrationRecord:
 class _FakeMigrationQuerySet:
     def __init__(self, rows):
         self.rows = rows
+        self.only_fields = None
 
     def iterator(self):
         return iter(self.rows)
+
+    def only(self, *fields):
+        self.only_fields = fields
+        return self
+
+    def order_by(self, *fields):  # noqa: ARG002
+        return self
 
 
 class _FakeMigrationManager:
@@ -220,7 +257,20 @@ class _FakeMigrationManager:
     def filter(self, **kwargs):  # noqa: ARG002
         return _FakeMigrationQuerySet(self.rows)
 
+    def all(self):
+        return _FakeMigrationQuerySet(self.rows)
+
 
 class _FakeMigrationModel:
     def __init__(self, rows):
         self.objects = _FakeMigrationManager(rows)
+
+
+class _FakeCenterRecord:
+    def __init__(self, name, center_key=""):
+        self.name = name
+        self.center_key = center_key
+        self.saved_update_fields = None
+
+    def save(self, update_fields):
+        self.saved_update_fields = update_fields

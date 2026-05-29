@@ -198,18 +198,25 @@ const isProcessing = (fileId) => {
         return processingFiles.value.has(fileId);
     }
     return processingFiles.value.has(fileId) ||
+        isUploadJobActive(file) ||
+        anonymizationStore.isVideoReimportQueued(fileId) ||
         !pollingProtection.canProcessMedia.value(fileId, mediaType);
 };
 const needsReimport = (file) => {
+    const metadataMissing = file.sensitiveMetaId == null || file.metadataImported === false;
     // Video files need re-import if metadata is missing
     if (file.mediaType === 'video') {
-        return !file.metadataImported;
+        return metadataMissing;
     }
     // PDF files might need re-import if anonymization failed or no text extracted
     if (file.mediaType === 'pdf') {
-        return !file.metadataImported || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
+        return metadataMissing || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
     }
     return false;
+};
+const isUploadJobActive = (file) => {
+    const status = String(file.uploadJob?.status || '').toLowerCase();
+    return status === 'pending' || status === 'processing';
 };
 const getFileIcon = (mediaType) => {
     return mediaStore.getMediaTypeIcon(mediaType);
@@ -307,14 +314,46 @@ const getUploadJobStatusText = (status) => {
         anonymized: 'Import abgeschlossen',
         quarantined: 'In Quarantäne',
         error: 'Importfehler',
-        lost: 'Import verloren. Bitte löschen und erneut importieren!'
+        lost: 'Import nicht möglich. Bitte Eintrag löschen und erneut importieren!'
     };
     return texts[status] || `Unbekannter Importstatus (${status})`;
+};
+const DUPLICATE_KEY_IMPORT_ERROR_PATTERN = /\bduplicate key\b|\bunique constraint\b/i;
+const DUPLICATE_IMPORT_NOTICE = 'Duplikat erkannt. Die vorhandene validierte Annotation bleibt erhalten.';
+const IMPORT_ERROR_NOTICE = 'Importfehler. Details sind im Server-Log verfügbar.';
+const isUploadJobError = (uploadJob) => {
+    const status = String(uploadJob.status || '').toLowerCase();
+    return status === 'error' || status === 'lost';
+};
+const isDuplicateKeyImportError = (file) => {
+    if (!file.uploadJob || !isUploadJobError(file.uploadJob)) {
+        return false;
+    }
+    const errorDetail = file.uploadJob.errorDetail || file.errorDetail || '';
+    return DUPLICATE_KEY_IMPORT_ERROR_PATTERN.test(errorDetail);
+};
+const getUploadJobNotice = (file) => {
+    if (!file.uploadJob?.errorDetail) {
+        return '';
+    }
+    if (isDuplicateKeyImportError(file)) {
+        return DUPLICATE_IMPORT_NOTICE;
+    }
+    if (isUploadJobError(file.uploadJob)) {
+        return IMPORT_ERROR_NOTICE;
+    }
+    return '';
+};
+const getUploadJobNoticeClass = (file) => {
+    if (isDuplicateKeyImportError(file)) {
+        return 'text-muted';
+    }
+    return 'text-danger';
 };
 const getUploadJobOriginLabel = (uploadJob) => {
     const parts = [];
     if (uploadJob.ingestMode === 'watcher') {
-        parts.push('Dateiwächter');
+        parts.push('Ordnerimport');
     }
     else if (uploadJob.ingestMode === 'api') {
         parts.push('API');
@@ -398,7 +437,7 @@ const getOriginalFileDeletionIcon = (file) => {
 };
 const getOriginalFileDeletionHint = (file) => {
     if (file.quarantined) {
-        return file.errorDetail || 'Import wurde vor der Datenbankanlage gestoppt';
+        return 'Import wurde vor der Datenbankanlage gestoppt';
     }
     if (file.uploadJob?.cleanupStatus) {
         return getUploadJobCleanupStatusText(file.uploadJob.cleanupStatus);
@@ -606,109 +645,6 @@ else {
         });
         (file.mediaType.toUpperCase());
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        if (file.uploadJob) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "upload-job-summary" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "badge" },
-                ...{ class: (__VLS_ctx.getUploadJobStatusBadgeClass(file.uploadJob.status)) },
-            });
-            (__VLS_ctx.getUploadJobStatusText(file.uploadJob.status));
-            if (__VLS_ctx.getUploadJobOriginLabel(file.uploadJob)) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "small text-muted mt-1 upload-job-text" },
-                });
-                (__VLS_ctx.getUploadJobOriginLabel(file.uploadJob));
-            }
-            if (__VLS_ctx.getUploadJobCleanupLabel(file.uploadJob)) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "small text-muted upload-job-text" },
-                });
-                (__VLS_ctx.getUploadJobCleanupLabel(file.uploadJob));
-            }
-            if (file.uploadJob.errorDetail) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "small text-danger mt-1 upload-job-text" },
-                });
-                (file.uploadJob.errorDetail);
-            }
-        }
-        else {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "text-muted" },
-            });
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: (__VLS_ctx.getStatusBadgeClass(file.anonymizationStatus)) },
-            ...{ class: "badge" },
-        });
-        if (file.anonymizationStatus === 'processing_anonymization') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
-            });
-        }
-        (__VLS_ctx.getStatusText(file.anonymizationStatus));
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: (__VLS_ctx.getStatusBadgeClass(file.annotationStatus)) },
-            ...{ class: "badge" },
-        });
-        (__VLS_ctx.getStatusText(file.annotationStatus));
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        if (file.anonymizationStatus === 'done_processing_anonymization') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.anonymizationStatus === 'done_processing_anonymization'))
-                            return;
-                        __VLS_ctx.validateFile(file.id, file.mediaType);
-                    } },
-                ...{ class: "btn btn-success btn-sm" },
-                disabled: (!__VLS_ctx.isReadyForValidation(file.id)),
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-user-run me-1" },
-            });
-        }
-        else if (file.anonymizationStatus === 'validated') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "badge bg-success" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-check-bold me-1" },
-            });
-        }
-        else {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "text-muted" },
-            });
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: (__VLS_ctx.getOriginalFileDeletionClass(file)) },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: (__VLS_ctx.getOriginalFileDeletionIcon(file)) },
-            ...{ class: "me-1" },
-        });
-        (__VLS_ctx.getOriginalFileDeletionText(file));
-        if (__VLS_ctx.getOriginalFileDeletionHint(file)) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "small text-muted raw-file-state-hint" },
-            });
-            (__VLS_ctx.getOriginalFileDeletionHint(file));
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: "text-muted" },
-        });
-        (__VLS_ctx.formatDate(file.createdAt));
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         if (file.quarantined) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "small text-warning quarantine-action-note" },
@@ -859,6 +795,110 @@ else {
                 });
             }
         }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        if (file.uploadJob) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "upload-job-summary" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge" },
+                ...{ class: (__VLS_ctx.getUploadJobStatusBadgeClass(file.uploadJob.status)) },
+            });
+            (__VLS_ctx.getUploadJobStatusText(file.uploadJob.status));
+            if (__VLS_ctx.getUploadJobOriginLabel(file.uploadJob)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small text-muted mt-1 upload-job-text" },
+                });
+                (__VLS_ctx.getUploadJobOriginLabel(file.uploadJob));
+            }
+            if (__VLS_ctx.getUploadJobCleanupLabel(file.uploadJob)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small text-muted upload-job-text" },
+                });
+                (__VLS_ctx.getUploadJobCleanupLabel(file.uploadJob));
+            }
+            if (__VLS_ctx.getUploadJobNotice(file)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small mt-1 upload-job-text" },
+                    ...{ class: (__VLS_ctx.getUploadJobNoticeClass(file)) },
+                });
+                (__VLS_ctx.getUploadJobNotice(file));
+            }
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-muted" },
+            });
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getStatusBadgeClass(file.anonymizationStatus)) },
+            ...{ class: "badge" },
+        });
+        if (file.anonymizationStatus === 'processing_anonymization') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
+            });
+        }
+        (__VLS_ctx.getStatusText(file.anonymizationStatus));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getStatusBadgeClass(file.annotationStatus)) },
+            ...{ class: "badge" },
+        });
+        (__VLS_ctx.getStatusText(file.annotationStatus));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        if (file.anonymizationStatus === 'done_processing_anonymization') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!!(!__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!(file.anonymizationStatus === 'done_processing_anonymization'))
+                            return;
+                        __VLS_ctx.validateFile(file.id, file.mediaType);
+                    } },
+                ...{ class: "btn btn-success btn-sm" },
+                disabled: (!__VLS_ctx.isReadyForValidation(file.id)),
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "ni ni-user-run me-1" },
+            });
+        }
+        else if (file.anonymizationStatus === 'validated') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-success" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "ni ni-check-bold me-1" },
+            });
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-muted" },
+            });
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getOriginalFileDeletionClass(file)) },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: (__VLS_ctx.getOriginalFileDeletionIcon(file)) },
+            ...{ class: "me-1" },
+        });
+        (__VLS_ctx.getOriginalFileDeletionText(file));
+        if (__VLS_ctx.getOriginalFileDeletionHint(file)) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-muted raw-file-state-hint" },
+            });
+            (__VLS_ctx.getOriginalFileDeletionHint(file));
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.formatDate(file.createdAt));
     }
 }
 if (__VLS_ctx.availableFiles.length) {
@@ -1017,43 +1057,6 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['quarantine-file-note']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['upload-job-summary']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['raw-file-state-hint']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['quarantine-action-note']} */ ;
@@ -1095,6 +1098,42 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['raw-file-state-hint']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-12']} */ ;
@@ -1166,6 +1205,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             getStatusText: getStatusText,
             getUploadJobStatusBadgeClass: getUploadJobStatusBadgeClass,
             getUploadJobStatusText: getUploadJobStatusText,
+            getUploadJobNotice: getUploadJobNotice,
+            getUploadJobNoticeClass: getUploadJobNoticeClass,
             getUploadJobOriginLabel: getUploadJobOriginLabel,
             getUploadJobCleanupLabel: getUploadJobCleanupLabel,
             getOriginalFileDeletionText: getOriginalFileDeletionText,

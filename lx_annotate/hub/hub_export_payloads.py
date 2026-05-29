@@ -40,7 +40,6 @@ class VideoStatePayload(TypedDict, total=False):
 
 class RawPdfFilePayload(TypedDict, total=False):
     pdf_hash: str
-    original_file_name: str | None
 
 
 class RawPdfStatePayload(TypedDict, total=False):
@@ -176,12 +175,7 @@ def _build_report_rows(report: RawPdfFile) -> dict[str, Any]:
         )
     _require_eligible_anonymization_status(state.anonymization_status, kind="report")
 
-    report_file_payload: RawPdfFilePayload = {
-        "pdf_hash": report.pdf_hash,
-        "original_file_name": report.file.name.rsplit("/", 1)[-1]
-        if report.file
-        else None,
-    }
+    report_file_payload: RawPdfFilePayload = {"pdf_hash": report.pdf_hash}
     report_state_payload: RawPdfStatePayload = {
         "anonymization_validated": bool(state.anonymization_validated),
         "sensitive_meta_processed": bool(state.sensitive_meta_processed),
@@ -196,19 +190,8 @@ def _build_report_rows(report: RawPdfFile) -> dict[str, Any]:
     }
 
 
-def _build_processing_snapshot(
-    *,
-    anonymization_status: AnonymizationState,
-    processed_file_present: bool,
-    raw_file_present: bool,
-) -> dict[str, Any]:
-    return {
-        "sender_processing_state": anonymization_status.value,
-        "sender_processing_success": True,
-        "raw_file_present": raw_file_present,
-        "processed_file_present": processed_file_present,
-        "replay_hint": "preserve_processed_state_if_receiver_accepts",
-    }
+def _build_processing_snapshot() -> dict[str, Any]:
+    return {"sender_processing_success": True}
 
 
 def build_transfer_payload(
@@ -229,22 +212,12 @@ def build_transfer_payload(
             raise ValueError("OutboundHubTransferJob.video_file must be set.")
         resource_rows = _build_video_rows(video)
         resource_hash = video.video_hash
-        anonymization_status = video.state.anonymization_status
-        raw_file_present = bool(video.raw_file and video.raw_file.name)
-        processed_file_present = bool(
-            video.processed_file and video.processed_file.name
-        )
     else:
         report = outbound_job.raw_pdf_file
         if report is None:
             raise ValueError("OutboundHubTransferJob.raw_pdf_file must be set.")
         resource_rows = _build_report_rows(report)
         resource_hash = report.pdf_hash
-        anonymization_status = report.state.anonymization_status
-        raw_file_present = bool(report.file and report.file.name)
-        processed_file_present = bool(
-            report.processed_file and report.processed_file.name
-        )
 
     source_center = outbound_job.source_center or source_node.owning_center
     if source_center is None:
@@ -263,16 +236,15 @@ def build_transfer_payload(
         "cleanup_policy": "retain_all",
         "payload_schema_version": "1.0",
         "resource_rows": resource_rows,
-        "processing_snapshot": _build_processing_snapshot(
-            anonymization_status=anonymization_status,
-            processed_file_present=processed_file_present,
-            raw_file_present=raw_file_present,
-        ),
+        "processing_snapshot": _build_processing_snapshot(),
         "provenance": {
             "entrypoint": "lx_annotate_sender",
+            "source_node_key": source_node.node_key,
             "source_center_key": source_center.center_key,
             "target_node_key": outbound_job.target_node.node_key,
-            "local_status": outbound_job.local_status,
+            "transfer_mode": outbound_job.transfer_mode,
+            "processing_policy": "preserve_processing_state",
+            "cleanup_policy": "retain_all",
         },
     }
     return payload

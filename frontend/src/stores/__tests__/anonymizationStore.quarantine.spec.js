@@ -70,4 +70,50 @@ describe('anonymizationStore quarantine overview', () => {
         expect(quarantined?.id).toBeLessThan(0);
         expect(quarantined?.uploadJob?.status).toBe('quarantined');
     });
+    it('preserves validated status for existing videos when a later duplicate import fails', async () => {
+        hoisted.get.mockImplementation(async (url) => {
+            if (url === 'api/anonymization/items/overview/') {
+                return {
+                    data: [
+                        {
+                            id: 17,
+                            filename: 'previously-annotated.mp4',
+                            mediaType: 'video',
+                            anonymizationStatus: 'failed',
+                            annotationStatus: 'not_started',
+                            createdAt: '2026-05-15T07:00:00Z',
+                            metadataImported: true,
+                            uploadJob: {
+                                id: 'duplicate-import',
+                                status: 'error',
+                                ingestMode: 'watcher',
+                                errorDetail: 'duplicate key value violates unique constraint "endoreg_db_videofile_video_hash_key"'
+                            }
+                        }
+                    ]
+                };
+            }
+            if (url.includes('runtime/quarantine/')) {
+                return {
+                    data: {
+                        count: 0,
+                        totalSize: 0,
+                        files: []
+                    }
+                };
+            }
+            throw new Error(`Unexpected URL: ${url}`);
+        });
+        const store = useAnonymizationStore();
+        const overview = await store.fetchOverview();
+        expect(overview).toHaveLength(1);
+        expect(store.overview[0]).toMatchObject({
+            filename: 'previously-annotated.mp4',
+            anonymizationStatus: 'validated',
+            annotationStatus: 'validated',
+            uploadJob: {
+                status: 'error'
+            }
+        });
+    });
 });

@@ -58,11 +58,12 @@ export interface AnonymizationState {
     pending: [boolean];
     current: SensitiveMeta | null;
     overview: FileItem[];
-    pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+    pollingHandles: Record<number, ReturnType<typeof setTimeout>>;
     isPolling: boolean;
     hasAvailableFiles: boolean;
     availableFiles: FileItem[];
     needsValidationIds: number[];
+    reimportQueuedIds: number[];
 }
 export interface SensitiveMeta {
     id: number;
@@ -240,7 +241,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             quarantineDirectoryLabel?: string | undefined;
             errorDetail?: string | undefined;
         }[];
-        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        pollingHandles: Record<number, ReturnType<typeof setTimeout>>;
         isPolling: boolean;
         hasAvailableFiles: boolean;
         availableFiles: {
@@ -279,6 +280,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
+        reimportQueuedIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
         id: number;
         casenumber?: string | null | undefined;
@@ -385,7 +387,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             quarantineDirectoryLabel?: string | undefined;
             errorDetail?: string | undefined;
         }[];
-        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        pollingHandles: Record<number, ReturnType<typeof setTimeout>>;
         isPolling: boolean;
         hasAvailableFiles: boolean;
         availableFiles: {
@@ -424,6 +426,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
+        reimportQueuedIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => boolean;
     processingFiles: (state: {
         anonymizationStatus: string;
@@ -498,7 +501,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             quarantineDirectoryLabel?: string | undefined;
             errorDetail?: string | undefined;
         }[];
-        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        pollingHandles: Record<number, ReturnType<typeof setTimeout>>;
         isPolling: boolean;
         hasAvailableFiles: boolean;
         availableFiles: {
@@ -537,6 +540,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
+        reimportQueuedIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
         id: number;
         filename: string;
@@ -572,6 +576,120 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         quarantineDirectoryLabel?: string | undefined;
         errorDetail?: string | undefined;
     }[];
+    isVideoReimportQueued: (state: {
+        anonymizationStatus: string;
+        loading: boolean;
+        error: string | null;
+        pending: [boolean];
+        current: {
+            id: number;
+            casenumber?: string | null | undefined;
+            patientFirstName?: string | null | undefined;
+            patientLastName?: string | null | undefined;
+            patientDob?: string | null | undefined;
+            patientDobDisplay?: string | null | undefined;
+            patientGender: string;
+            examinationDate: string | null;
+            centerName?: string | undefined;
+            patientGenderName?: string | undefined;
+            examinersDisplay: string | null;
+            endoscopeType?: string | undefined;
+            endoscopeSn?: string | undefined;
+            isVerified?: boolean | undefined;
+            dobVerified?: boolean | undefined;
+            namesVerified?: boolean | undefined;
+            anonymizedText?: string | undefined;
+            text?: string | undefined;
+            documentType?: string | null | undefined;
+            document_type?: string | null | undefined;
+            externalId?: string | undefined;
+            externalIdOrigin?: string | undefined;
+            tags?: string[] | undefined;
+            validationComment?: string | null | undefined;
+            validation_comment?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
+            patientExaminationId?: number | null | undefined;
+            patientId?: number | null | undefined;
+        } | null;
+        overview: {
+            id: number;
+            filename: string;
+            mediaType: 'pdf' | 'video' | 'unknown';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'validated' | '';
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
+            metadataImported?: boolean | undefined;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
+        }[];
+        pollingHandles: Record<number, ReturnType<typeof setTimeout>>;
+        isPolling: boolean;
+        hasAvailableFiles: boolean;
+        availableFiles: {
+            id: number;
+            filename: string;
+            mediaType: 'pdf' | 'video' | 'unknown';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'validated' | '';
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            documentType?: string | null | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
+            metadataImported?: boolean | undefined;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
+            quarantined?: boolean | undefined;
+            quarantineId?: string | undefined;
+            quarantineDirectoryKey?: string | undefined;
+            quarantineDirectoryLabel?: string | undefined;
+            errorDetail?: string | undefined;
+        }[];
+        needsValidationIds: number[];
+        reimportQueuedIds: number[];
+    } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => (fileId: number) => boolean;
     getState: (state: {
         anonymizationStatus: string;
         loading: boolean;
@@ -645,7 +763,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             quarantineDirectoryLabel?: string | undefined;
             errorDetail?: string | undefined;
         }[];
-        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        pollingHandles: Record<number, ReturnType<typeof setTimeout>>;
         isPolling: boolean;
         hasAvailableFiles: boolean;
         availableFiles: {
@@ -684,6 +802,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
+        reimportQueuedIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
         anonymizationStatus: string;
         loading: boolean;
@@ -757,7 +876,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             quarantineDirectoryLabel?: string | undefined;
             errorDetail?: string | undefined;
         }[];
-        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        pollingHandles: Record<number, ReturnType<typeof setTimeout>>;
         isPolling: boolean;
         hasAvailableFiles: boolean;
         availableFiles: {
@@ -796,6 +915,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             errorDetail?: string | undefined;
         }[];
         needsValidationIds: number[];
+        reimportQueuedIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>;
 }, {
     /** Gets the next anonymization file + its metadata */

@@ -6,17 +6,20 @@ from django.db import migrations, models
 from django.utils.text import slugify
 
 
-def _add_center_key_if_missing(apps, schema_editor) -> None:
-    Center = apps.get_model("endoreg_db", "Center")
-    table_name = Center._meta.db_table
-
+def _get_table_columns(schema_editor, table_name: str) -> set[str]:
     with schema_editor.connection.cursor() as cursor:
-        columns = {
+        return {
             column.name
             for column in schema_editor.connection.introspection.get_table_description(
                 cursor, table_name
             )
         }
+
+
+def _add_center_key_if_missing(apps, schema_editor) -> None:
+    Center = apps.get_model("endoreg_db", "Center")
+    table_name = Center._meta.db_table
+    columns = _get_table_columns(schema_editor, table_name)
 
     if "center_key" in columns:
         return
@@ -29,19 +32,28 @@ def _add_center_key_if_missing(apps, schema_editor) -> None:
 
 def populate_missing_center_keys(apps, schema_editor) -> None:
     Center = apps.get_model("endoreg_db", "Center")
+    table_name = Center._meta.db_table
+    columns = _get_table_columns(schema_editor, table_name)
+    has_display_name = "display_name" in columns
+    load_fields = ["id", "name", "center_key"]
+    if has_display_name:
+        load_fields.append("display_name")
     used_keys: set[str] = set()
 
-    for center in Center.objects.all().order_by("pk"):
+    centers = Center.objects.all().only(*load_fields).order_by("pk")
+    for center in centers.iterator():
         existing_key = (getattr(center, "center_key", "") or "").strip()
         if existing_key:
             used_keys.add(existing_key)
 
-    for center in Center.objects.all().order_by("pk"):
+    centers = Center.objects.all().only(*load_fields).order_by("pk")
+    for center in centers.iterator():
         existing_key = (getattr(center, "center_key", "") or "").strip()
         if existing_key:
             continue
 
-        base = slugify(center.display_name or center.name or "") or "center"
+        display_name = getattr(center, "display_name", "") if has_display_name else ""
+        base = slugify(display_name or center.name or "") or "center"
         candidate = base
         suffix = 2
         while candidate in used_keys:
