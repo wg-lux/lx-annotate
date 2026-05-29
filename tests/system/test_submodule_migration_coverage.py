@@ -36,10 +36,6 @@ def _fresh_import(module_name: str):
             "0012_networknode_transferjob.py",
             "endoreg_db.migrations.0012_networknode_transferjob",
         ),
-        (
-            "0013_remove_legacy_requirement_models.py",
-            "endoreg_db.migrations.0013_remove_legacy_requirement_models",
-        ),
     ],
 )
 def test_proxy_migration_modules_delegate_to_upstream(monkeypatch, filename, target):
@@ -215,6 +211,42 @@ def test_center_key_population_handles_legacy_center_without_display_name():
 
     assert missing.center_key == "test-center-2"
     assert missing.saved_update_fields == ["center_key"]
+
+
+def test_legacy_requirement_delete_model_uses_if_exists_sql():
+    module = importlib.import_module(
+        "lx_annotate.migration_overrides.endoreg_db.0013_remove_legacy_requirement_models"
+    )
+    executed_sql = []
+    through_model = SimpleNamespace(
+        _meta=SimpleNamespace(
+            auto_created=True,
+            db_table="endoreg_db_requirement_finding_classifications",
+        )
+    )
+    model = SimpleNamespace(
+        _meta=SimpleNamespace(
+            db_table="endoreg_db_requirement",
+            local_many_to_many=[
+                SimpleNamespace(remote_field=SimpleNamespace(through=through_model))
+            ],
+        )
+    )
+    from_state = SimpleNamespace(
+        apps=SimpleNamespace(get_model=lambda app_label, model_name: model)
+    )
+    schema_editor = SimpleNamespace(
+        execute=executed_sql.append,
+        quote_name=lambda table_name: f'"{table_name}"',
+    )
+    operation = module.DeleteModelIfExists(name="Requirement")
+
+    operation.database_forwards("endoreg_db", schema_editor, from_state, None)
+
+    assert executed_sql == [
+        'DROP TABLE IF EXISTS "endoreg_db_requirement_finding_classifications" CASCADE',
+        'DROP TABLE IF EXISTS "endoreg_db_requirement" CASCADE',
+    ]
 
 
 class _null_context:
