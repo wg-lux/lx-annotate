@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 
 import lx_annotate.file_watcher as fw
-from lx_annotate.file_watcher import *  # noqa: F401,F403
+from lx_annotate.file_watcher import *  # type: ignore[assignment] # noqa: F401,F403
 from lx_annotate.file_watcher import run_file_watcher
 
 # Re-export the localizer explicitly so tests can monkeypatch the compatibility

@@ -268,19 +268,20 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
         "sensitive_meta__pseudo_patient__gender",
     ).order_by("-date_created")
     for video in videos:
+        video_id = int(video.pk)
         state = video.state
         anonymization_status = (
             state.anonymization_status.value if state is not None else "not_started"
         )
         eligible = is_video_hub_export_eligible(video)
         blocked_reason = "" if eligible else video_hub_export_blocked_reason(video)
-        video_job = jobs_by_key.get(("video", int(video.id)))
+        video_job = jobs_by_key.get(("video", video_id))
         marked_for_upload = video_job is not None
         source_center_key = video.center.center_key if video.center else None
         privacy_records.append(
             {
                 "resource_kind": "video",
-                "resource_id": int(video.id),
+                "resource_id": video_id,
                 "source_center_key": source_center_key,
                 "eligible": eligible,
                 "marked_for_upload": marked_for_upload,
@@ -289,7 +290,7 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
         )
         items.append(
             {
-                "id": video.id,
+                "id": video_id,
                 "resource_kind": "video",
                 "filename": video.original_file_name or video.video_hash,
                 "anonymization_status": anonymization_status,
@@ -333,18 +334,19 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
         "sensitive_meta__pseudo_patient__gender",
     ).order_by("-date_created")
     for report in reports:
+        report_id = int(report.pk)
         state = report.state
         anonymization_status = (
             state.anonymization_status.value if state is not None else "not_started"
         )
-        report_job = jobs_by_key.get(("report", int(report.id)))
+        report_job = jobs_by_key.get(("report", report_id))
         eligible = is_report_hub_export_eligible(report)
         marked_for_upload = report_job is not None
         source_center_key = report.center.center_key if report.center else None
         privacy_records.append(
             {
                 "resource_kind": "report",
-                "resource_id": int(report.id),
+                "resource_id": report_id,
                 "source_center_key": source_center_key,
                 "eligible": eligible,
                 "marked_for_upload": marked_for_upload,
@@ -353,10 +355,10 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
         )
         items.append(
             {
-                "id": report.id,
+                "id": report_id,
                 "resource_kind": "report",
-                "filename": report.file.name.rsplit("/", 1)[-1]
-                if report.file
+                "filename": (report.file.name or "").rsplit("/", 1)[-1]
+                if report.file and report.file.name
                 else report.pdf_hash,
                 "anonymization_status": anonymization_status,
                 "processed_media_present": bool(

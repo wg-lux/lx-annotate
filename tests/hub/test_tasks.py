@@ -57,7 +57,7 @@ def test_run_outbound_hub_transfer_task_delegates_and_returns_small_result() -> 
     with patch(
         "lx_annotate.hub.hub_export_worker.run_outbound_transfer_job",
     ) as runner:
-        result = tasks.run_outbound_hub_transfer_job_task.run(123, 456)
+        result = tasks.run_outbound_hub_transfer_job_task.run("123", "456")
 
     assert result is True
     runner.assert_called_once_with(
@@ -70,7 +70,7 @@ def test_reconcile_outbound_hub_transfer_task_delegates() -> None:
     with patch(
         "lx_annotate.hub.hub_export_reconciliation.reconcile_outbound_transfer_job",
     ) as reconciler:
-        result = tasks.reconcile_outbound_hub_transfer_job_task.run(123, 456)
+        result = tasks.reconcile_outbound_hub_transfer_job_task.run("123", "456")
 
     assert result is True
     reconciler.assert_called_once_with(
@@ -87,7 +87,7 @@ def test_recover_stale_outbound_hub_transfer_jobs_task_returns_summary() -> None
         "recover_stale_outbound_transfer_jobs",
         return_value=summary,
     ) as recover:
-        result = tasks.recover_stale_outbound_hub_transfer_jobs_task.run(456)
+        result = tasks.recover_stale_outbound_hub_transfer_jobs_task.run("456")
 
     assert result == summary
     recover.assert_called_once_with(source_node_key="456")

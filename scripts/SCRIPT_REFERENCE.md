@@ -39,6 +39,9 @@ python scripts/assert_dirs.py
 Purpose:
 
 - Watch media import directories and trigger processing through Django services.
+- Skip in-progress handoff names such as `.part`, `.tmp`, `.partial`,
+  `.crdownload`, and `.download` until they are atomically renamed to final
+  watched media names.
 
 Usage:
 

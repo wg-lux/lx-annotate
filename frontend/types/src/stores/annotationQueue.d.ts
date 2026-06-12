@@ -1,5 +1,6 @@
 export type AnnotationTaskMode = 'random' | 'filtered';
 export type AnnotationSamplingStrategy = 'balanced' | 'segments' | 'annotations' | 'none';
+export type FrameFileType = 'auto' | 'raw' | 'processed';
 export interface AnnotationTask {
     id: string;
     data: {
@@ -8,6 +9,7 @@ export interface AnnotationTask {
         frameNumber?: number;
         relativePath?: string;
         imageUrl: string;
+        frameFileType?: FrameFileType;
         existingExternalId?: string;
         annotationMode?: string;
         datasetSelectionLabelId?: number;
@@ -44,6 +46,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
     informationSource: import("vue").Ref<string, string>;
+    frameFileType: import("vue").Ref<FrameFileType, FrameFileType>;
     samplingStrategy: import("vue").Ref<AnnotationSamplingStrategy, AnnotationSamplingStrategy>;
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
     aiDatasetId: import("vue").Ref<string | null, string | null>;
@@ -59,6 +62,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameNumber?: number | undefined;
             relativePath?: string | undefined;
             imageUrl: string;
+            frameFileType?: FrameFileType | undefined;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
             datasetSelectionLabelId?: number | undefined;
@@ -95,6 +99,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameNumber?: number | undefined;
             relativePath?: string | undefined;
             imageUrl: string;
+            frameFileType?: FrameFileType | undefined;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
             datasetSelectionLabelId?: number | undefined;
@@ -133,6 +138,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
     setInformationSource: (source: string | null) => void;
+    setFrameFileType: (fileType: string | null) => void;
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
     setAiDataset: (datasetName: string | null, datasetType: string | null, datasetId?: number | string | null) => void;
@@ -143,13 +149,14 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "informationSource" | "aiDatasetId" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "samplingStrategy" | "predictionSegmentsOnly" | "aiDatasetName" | "aiDatasetType" | "annotatorPrincipal" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
+}, "informationSource" | "aiDatasetId" | "frameFileType" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "samplingStrategy" | "predictionSegmentsOnly" | "aiDatasetName" | "aiDatasetType" | "annotatorPrincipal" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
     selectedLabelGroupId: import("vue").Ref<string | null, string | null>;
     taskMode: import("vue").Ref<AnnotationTaskMode, AnnotationTaskMode>;
     targetLabelName: import("vue").Ref<string, string>;
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
     informationSource: import("vue").Ref<string, string>;
+    frameFileType: import("vue").Ref<FrameFileType, FrameFileType>;
     samplingStrategy: import("vue").Ref<AnnotationSamplingStrategy, AnnotationSamplingStrategy>;
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
     aiDatasetId: import("vue").Ref<string | null, string | null>;
@@ -165,6 +172,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameNumber?: number | undefined;
             relativePath?: string | undefined;
             imageUrl: string;
+            frameFileType?: FrameFileType | undefined;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
             datasetSelectionLabelId?: number | undefined;
@@ -201,6 +209,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameNumber?: number | undefined;
             relativePath?: string | undefined;
             imageUrl: string;
+            frameFileType?: FrameFileType | undefined;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
             datasetSelectionLabelId?: number | undefined;
@@ -239,6 +248,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
     setInformationSource: (source: string | null) => void;
+    setFrameFileType: (fileType: string | null) => void;
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
     setAiDataset: (datasetName: string | null, datasetType: string | null, datasetId?: number | string | null) => void;
@@ -256,6 +266,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
     informationSource: import("vue").Ref<string, string>;
+    frameFileType: import("vue").Ref<FrameFileType, FrameFileType>;
     samplingStrategy: import("vue").Ref<AnnotationSamplingStrategy, AnnotationSamplingStrategy>;
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
     aiDatasetId: import("vue").Ref<string | null, string | null>;
@@ -271,6 +282,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameNumber?: number | undefined;
             relativePath?: string | undefined;
             imageUrl: string;
+            frameFileType?: FrameFileType | undefined;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
             datasetSelectionLabelId?: number | undefined;
@@ -307,6 +319,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameNumber?: number | undefined;
             relativePath?: string | undefined;
             imageUrl: string;
+            frameFileType?: FrameFileType | undefined;
             existingExternalId?: string | undefined;
             annotationMode?: string | undefined;
             datasetSelectionLabelId?: number | undefined;
@@ -345,6 +358,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
     setInformationSource: (source: string | null) => void;
+    setFrameFileType: (fileType: string | null) => void;
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
     setAiDataset: (datasetName: string | null, datasetType: string | null, datasetId?: number | string | null) => void;
@@ -355,4 +369,4 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "setSelectedLabelGroupId" | "setTaskMode" | "setTargetLabelName" | "setFilterLabelName" | "setAllowRandomFallback" | "setInformationSource" | "setSamplingStrategy" | "setPredictionSegmentsOnly" | "setAiDataset" | "setAnnotatorPrincipal" | "hydrateAiDatasetDefaults" | "fetchBatch" | "prefetchIfNeeded" | "popNextTask" | "clearQueue" | "primeQueue">>;
+}, "setSelectedLabelGroupId" | "setTaskMode" | "setTargetLabelName" | "setFilterLabelName" | "setAllowRandomFallback" | "setInformationSource" | "setFrameFileType" | "setSamplingStrategy" | "setPredictionSegmentsOnly" | "setAiDataset" | "setAnnotatorPrincipal" | "hydrateAiDatasetDefaults" | "fetchBatch" | "prefetchIfNeeded" | "popNextTask" | "clearQueue" | "primeQueue">>;

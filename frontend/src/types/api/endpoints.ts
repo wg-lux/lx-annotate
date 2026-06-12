@@ -42,6 +42,7 @@ export const endpoints = {
   },
 
   examination: {
+    examinationsDropdown: 'patient-examinations/examinations_dropdown/',
     examinationFindings: (examinationId: Id) => `examinations/${examinationId}/findings/`,
     findingClassifications: (findingId: Id) => `findings/${findingId}/classifications/`,
     classificationChoices: (classificationId: Id) => `classifications/${classificationId}/choices/`,

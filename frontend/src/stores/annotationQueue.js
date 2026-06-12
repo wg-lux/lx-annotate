@@ -9,6 +9,7 @@ const TARGET_LABEL_STORAGE_KEY = 'annotationQueue.targetLabelName.v1';
 const FILTER_LABEL_STORAGE_KEY = 'annotationQueue.filterLabelName.v1';
 const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1';
 const INFORMATION_SOURCE_STORAGE_KEY = 'annotationQueue.informationSource.v1';
+const FRAME_FILE_TYPE_STORAGE_KEY = 'annotationQueue.frameFileType.v1';
 const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1';
 const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1';
 const AI_DATASET_ID_STORAGE_KEY = 'annotationQueue.aiDatasetId.v1';
@@ -18,6 +19,7 @@ const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task';
 const DEBUG_DUMMY_TASK_GROUP_ID = '1';
 const DEFAULT_TARGET_LABEL_NAME = '';
 const DEFAULT_INFORMATION_SOURCE = 'manual_annotation';
+const DEFAULT_FRAME_FILE_TYPE = 'auto';
 const DEFAULT_SAMPLING_STRATEGY = 'balanced';
 function loadStoredGroupId() {
     try {
@@ -71,6 +73,11 @@ function normalizeSamplingStrategy(value) {
     if (value === 'segments' || value === 'annotations' || value === 'none')
         return value;
     return DEFAULT_SAMPLING_STRATEGY;
+}
+function normalizeFrameFileType(value) {
+    if (value === 'raw' || value === 'processed')
+        return value;
+    return DEFAULT_FRAME_FILE_TYPE;
 }
 function loadStoredSamplingStrategy() {
     return normalizeSamplingStrategy(loadStoredText(SAMPLING_STRATEGY_STORAGE_KEY));
@@ -151,7 +158,11 @@ function coerceTask(raw) {
     const datasetSelectionLabelName = optionalTrimmedString(rawField(raw, 'datasetSelectionLabelName', 'dataset_selection_label_name'));
     const datasetSelectionSource = optionalTrimmedString(rawField(raw, 'datasetSelectionSource', 'dataset_selection_source'));
     const datasetBucket = optionalTrimmedString(rawField(raw, 'datasetBucket', 'dataset_bucket'));
-    const imageUrlRaw = raw.imageUrl ??
+    const imageUrlRaw = raw.decodedFrameStreamPath ??
+        raw.decoded_frame_stream_path ??
+        raw.data?.decodedFrameStreamPath ??
+        raw.data?.decoded_frame_stream_path ??
+        raw.imageUrl ??
         raw.image_url ??
         raw.frameStreamPath ??
         raw.frame_stream_path ??
@@ -159,6 +170,10 @@ function coerceTask(raw) {
         raw.data?.image_url ??
         raw.data?.frameStreamPath ??
         raw.data?.frame_stream_path;
+    const frameFileTypeRaw = raw.frameFileType ??
+        raw.frame_file_type ??
+        raw.data?.frameFileType ??
+        raw.data?.frame_file_type;
     const existingExternalIdRaw = raw.existingExternalId ??
         raw.existing_external_id ??
         raw.data?.existingExternalId ??
@@ -188,6 +203,7 @@ function coerceTask(raw) {
     const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw : null;
     if (!Number.isFinite(frameId) || !imageUrl)
         return null;
+    const frameFileType = typeof frameFileTypeRaw === 'string' ? normalizeFrameFileType(frameFileTypeRaw) : undefined;
     const existingExternalId = typeof existingExternalIdRaw === 'string' && existingExternalIdRaw.trim()
         ? existingExternalIdRaw
         : undefined;
@@ -280,6 +296,7 @@ function coerceTask(raw) {
             frameNumber,
             relativePath,
             imageUrl,
+            frameFileType,
             existingExternalId,
             annotationMode: typeof annotationModeRaw === 'string' ? annotationModeRaw : undefined,
             datasetSelectionLabelId,
@@ -319,6 +336,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     const filterLabelName = ref(loadStoredText(FILTER_LABEL_STORAGE_KEY));
     const allowRandomFallback = ref(loadStoredRandomFallback());
     const informationSource = ref(loadStoredText(INFORMATION_SOURCE_STORAGE_KEY) ?? DEFAULT_INFORMATION_SOURCE);
+    const frameFileType = ref(normalizeFrameFileType(loadStoredText(FRAME_FILE_TYPE_STORAGE_KEY)));
     const samplingStrategy = ref(loadStoredSamplingStrategy());
     const predictionSegmentsOnly = ref(loadStoredPredictionSegmentsOnly());
     const annotatorPrincipal = ref(null);
@@ -330,7 +348,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     const aiDatasetId = ref(loadStoredText(AI_DATASET_ID_STORAGE_KEY));
     const aiDatasetName = ref(loadStoredText(AI_DATASET_NAME_STORAGE_KEY));
     const aiDatasetType = ref(loadStoredText(AI_DATASET_TYPE_STORAGE_KEY));
-    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${allowRandomFallback.value ? '1' : '0'}|${samplingStrategy.value}|${predictionSegmentsOnly.value ? '1' : '0'}|${aiDatasetId.value ?? ''}|${aiDatasetName.value ?? ''}|${aiDatasetType.value ?? ''}|${annotatorPrincipal.value ?? ''}`);
+    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${frameFileType.value}|${allowRandomFallback.value ? '1' : '0'}|${samplingStrategy.value}|${predictionSegmentsOnly.value ? '1' : '0'}|${aiDatasetId.value ?? ''}|${aiDatasetName.value ?? ''}|${aiDatasetType.value ?? ''}|${annotatorPrincipal.value ?? ''}`);
     watch(selectedLabelGroupId, (next) => {
         persistGroupId(next);
     });
@@ -348,6 +366,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     });
     watch(informationSource, (next) => {
         persistText(INFORMATION_SOURCE_STORAGE_KEY, next);
+    });
+    watch(frameFileType, (next) => {
+        persistText(FRAME_FILE_TYPE_STORAGE_KEY, next);
     });
     watch(samplingStrategy, (next) => {
         persistText(SAMPLING_STRATEGY_STORAGE_KEY, next);
@@ -382,6 +403,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     function setInformationSource(source) {
         const normalized = source?.trim() ?? '';
         informationSource.value = normalized || DEFAULT_INFORMATION_SOURCE;
+    }
+    function setFrameFileType(fileType) {
+        frameFileType.value = normalizeFrameFileType(fileType);
     }
     function setSamplingStrategy(strategy) {
         samplingStrategy.value = normalizeSamplingStrategy(strategy);
@@ -428,6 +452,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         }
         params.information_source = informationSource.value;
         params.information_source_name = informationSource.value;
+        params.frame_file_type = frameFileType.value;
         if (annotatorPrincipal.value) {
             params.annotator = annotatorPrincipal.value;
         }
@@ -562,6 +587,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         filterLabelName,
         allowRandomFallback,
         informationSource,
+        frameFileType,
         samplingStrategy,
         predictionSegmentsOnly,
         aiDatasetId,
@@ -579,6 +605,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         setFilterLabelName,
         setAllowRandomFallback,
         setInformationSource,
+        setFrameFileType,
         setSamplingStrategy,
         setPredictionSegmentsOnly,
         setAiDataset,

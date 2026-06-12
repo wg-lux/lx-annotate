@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: reportAttributeAccessIssue=false
 """
 Test the HTTP API endpoint for patient pseudonym generation.
 """

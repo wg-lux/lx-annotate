@@ -10,6 +10,7 @@ const TARGET_LABEL_STORAGE_KEY = 'annotationQueue.targetLabelName.v1'
 const FILTER_LABEL_STORAGE_KEY = 'annotationQueue.filterLabelName.v1'
 const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1'
 const INFORMATION_SOURCE_STORAGE_KEY = 'annotationQueue.informationSource.v1'
+const FRAME_FILE_TYPE_STORAGE_KEY = 'annotationQueue.frameFileType.v1'
 const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1'
 const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1'
 const AI_DATASET_ID_STORAGE_KEY = 'annotationQueue.aiDatasetId.v1'
@@ -19,10 +20,12 @@ const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task'
 const DEBUG_DUMMY_TASK_GROUP_ID = '1'
 const DEFAULT_TARGET_LABEL_NAME = ''
 const DEFAULT_INFORMATION_SOURCE = 'manual_annotation'
+const DEFAULT_FRAME_FILE_TYPE = 'auto'
 const DEFAULT_SAMPLING_STRATEGY = 'balanced'
 
 export type AnnotationTaskMode = 'random' | 'filtered'
 export type AnnotationSamplingStrategy = 'balanced' | 'segments' | 'annotations' | 'none'
+export type FrameFileType = 'auto' | 'raw' | 'processed'
 
 function loadStoredGroupId(): string | null {
   try {
@@ -76,6 +79,11 @@ function normalizeSamplingStrategy(value: string | null): AnnotationSamplingStra
   return DEFAULT_SAMPLING_STRATEGY
 }
 
+function normalizeFrameFileType(value: string | null): FrameFileType {
+  if (value === 'raw' || value === 'processed') return value
+  return DEFAULT_FRAME_FILE_TYPE
+}
+
 function loadStoredSamplingStrategy(): AnnotationSamplingStrategy {
   return normalizeSamplingStrategy(loadStoredText(SAMPLING_STRATEGY_STORAGE_KEY))
 }
@@ -121,6 +129,7 @@ export interface AnnotationTask {
     frameNumber?: number
     relativePath?: string
     imageUrl: string
+    frameFileType?: FrameFileType
     existingExternalId?: string
     annotationMode?: string
     datasetSelectionLabelId?: number
@@ -210,6 +219,10 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
   )
   const datasetBucket = optionalTrimmedString(rawField(raw, 'datasetBucket', 'dataset_bucket'))
   const imageUrlRaw =
+    raw.decodedFrameStreamPath ??
+    raw.decoded_frame_stream_path ??
+    (raw.data as Record<string, unknown> | undefined)?.decodedFrameStreamPath ??
+    (raw.data as Record<string, unknown> | undefined)?.decoded_frame_stream_path ??
     raw.imageUrl ??
     raw.image_url ??
     raw.frameStreamPath ??
@@ -218,6 +231,11 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
     (raw.data as Record<string, unknown> | undefined)?.image_url ??
     (raw.data as Record<string, unknown> | undefined)?.frameStreamPath ??
     (raw.data as Record<string, unknown> | undefined)?.frame_stream_path
+  const frameFileTypeRaw =
+    raw.frameFileType ??
+    raw.frame_file_type ??
+    (raw.data as Record<string, unknown> | undefined)?.frameFileType ??
+    (raw.data as Record<string, unknown> | undefined)?.frame_file_type
   const existingExternalIdRaw =
     raw.existingExternalId ??
     raw.existing_external_id ??
@@ -253,6 +271,8 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
   const frameId = Number(frameIdRaw)
   const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw : null
   if (!Number.isFinite(frameId) || !imageUrl) return null
+  const frameFileType =
+    typeof frameFileTypeRaw === 'string' ? normalizeFrameFileType(frameFileTypeRaw) : undefined
 
   const existingExternalId =
     typeof existingExternalIdRaw === 'string' && existingExternalIdRaw.trim()
@@ -345,6 +365,7 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
       frameNumber,
       relativePath,
       imageUrl,
+      frameFileType,
       existingExternalId,
       annotationMode: typeof annotationModeRaw === 'string' ? annotationModeRaw : undefined,
       datasetSelectionLabelId,
@@ -390,6 +411,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const informationSource = ref<string>(
     loadStoredText(INFORMATION_SOURCE_STORAGE_KEY) ?? DEFAULT_INFORMATION_SOURCE
   )
+  const frameFileType = ref<FrameFileType>(
+    normalizeFrameFileType(loadStoredText(FRAME_FILE_TYPE_STORAGE_KEY))
+  )
   const samplingStrategy = ref<AnnotationSamplingStrategy>(loadStoredSamplingStrategy())
   const predictionSegmentsOnly = ref<boolean>(loadStoredPredictionSegmentsOnly())
   const annotatorPrincipal = ref<string | null>(null)
@@ -405,7 +429,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     () =>
       `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${
         informationSource.value
-      }|${
+      }|${frameFileType.value}|${
         allowRandomFallback.value ? '1' : '0'
       }|${samplingStrategy.value}|${
         predictionSegmentsOnly.value ? '1' : '0'
@@ -431,6 +455,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   })
   watch(informationSource, (next) => {
     persistText(INFORMATION_SOURCE_STORAGE_KEY, next)
+  })
+  watch(frameFileType, (next) => {
+    persistText(FRAME_FILE_TYPE_STORAGE_KEY, next)
   })
   watch(samplingStrategy, (next) => {
     persistText(SAMPLING_STRATEGY_STORAGE_KEY, next)
@@ -471,6 +498,10 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   function setInformationSource(source: string | null): void {
     const normalized = source?.trim() ?? ''
     informationSource.value = normalized || DEFAULT_INFORMATION_SOURCE
+  }
+
+  function setFrameFileType(fileType: string | null): void {
+    frameFileType.value = normalizeFrameFileType(fileType)
   }
 
   function setSamplingStrategy(strategy: string | null): void {
@@ -529,6 +560,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     }
     params.information_source = informationSource.value
     params.information_source_name = informationSource.value
+    params.frame_file_type = frameFileType.value
     if (annotatorPrincipal.value) {
       params.annotator = annotatorPrincipal.value
     }
@@ -673,6 +705,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     filterLabelName,
     allowRandomFallback,
     informationSource,
+    frameFileType,
     samplingStrategy,
     predictionSegmentsOnly,
     aiDatasetId,
@@ -690,6 +723,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     setFilterLabelName,
     setAllowRandomFallback,
     setInformationSource,
+    setFrameFileType,
     setSamplingStrategy,
     setPredictionSegmentsOnly,
     setAiDataset,

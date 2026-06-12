@@ -3,6 +3,12 @@
 import endoreg_db.models.hub.upload_job
 from django.db import migrations, models
 
+from ._compat import create_model_if_table_missing
+
+
+def create_tag_table_if_missing(apps, schema_editor) -> None:
+    create_model_if_table_missing(apps, schema_editor, model_name="Tag")
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -10,6 +16,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(
+            create_tag_table_if_missing,
+            reverse_code=migrations.RunPython.noop,
+        ),
         migrations.AddField(
             model_name="sensitivemeta",
             name="tags",

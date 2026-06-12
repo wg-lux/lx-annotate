@@ -77,8 +77,24 @@
           <strong>{{ currentStepLabel }}</strong>
         </div>
         <div class="context-summary-item">
-          <span class="context-summary-label">Fall</span>
-          <strong>{{ selectedPatientExaminationLabel }}</strong>
+          <span class="context-summary-label">Patient</span>
+          <strong>{{ patientHeaderLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Geburtsdatum</span>
+          <strong>{{ patientBirthDateLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Fall-ID</span>
+          <strong>{{ caseIdLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Status</span>
+          <strong>{{ caseStatusLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Untersuchungstyp</span>
+          <strong>{{ examinationTypeLabel }}</strong>
         </div>
         <div class="context-summary-item">
           <span class="context-summary-label">Vorlage</span>
@@ -102,8 +118,54 @@
       </div>
     </section>
 
-    <div class="row g-3">
-      <div class="col-lg-3">
+    <div class="reporting-workspace-grid">
+      <aside class="reporting-left-rail">
+        <div class="card shadow-sm finding-status-panel">
+          <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <div>
+              <h6 class="mb-0">Befundstatus</h6>
+              <small class="text-muted">{{ findingProgressSummary }}</small>
+            </div>
+            <span class="context-status-pill" :class="validationStatusPillClass">
+              {{ validationStatusLabel }}
+            </span>
+          </div>
+          <div class="card-body p-0">
+            <div v-if="findingStatusSections.length" class="finding-status-list">
+              <section
+                v-for="section in findingStatusSections"
+                :key="section.key"
+                class="finding-status-section"
+              >
+                <div class="finding-status-section-title">{{ section.title }}</div>
+                <RouterLink
+                  v-for="row in section.rows"
+                  :key="row.key"
+                  :to="findingStatusTarget(row)"
+                  class="finding-status-row"
+                  :class="[
+                    `is-${row.status}`,
+                    { 'is-selected': row.normalizedKey === activeReferenceFindingKey }
+                  ]"
+                  @click="selectedReferenceFindingKey = row.normalizedKey"
+                >
+                  <span class="finding-status-icon" aria-hidden="true">
+                    <i :class="row.iconClass"></i>
+                  </span>
+                  <span class="finding-status-copy">
+                    <span class="finding-status-label">{{ row.label }}</span>
+                    <span class="finding-status-meta">{{ row.statusLabel }}</span>
+                  </span>
+                  <span class="finding-status-count">{{ row.instanceCount }}</span>
+                </RouterLink>
+              </section>
+            </div>
+            <div v-else class="p-3 small text-muted">
+              Noch kein Template oder lokaler Befundentwurf für die Statusliste geladen.
+            </div>
+          </div>
+        </div>
+
         <div class="card shadow-sm workflow-panel">
           <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <h6 class="mb-0">Ablauf</h6>
@@ -141,9 +203,9 @@
             </nav>
           </div>
         </div>
-      </div>
+      </aside>
 
-      <div class="col-lg-9">
+      <main class="reporting-main-region">
         <div v-if="isContextPanelOpen" class="card shadow-sm mb-3 context-panel">
           <div class="card-header d-flex justify-content-between align-items-center gap-3">
             <div>
@@ -280,7 +342,126 @@
           </div>
         </div>
         <RouterView />
-      </div>
+      </main>
+
+      <aside class="reporting-right-rail">
+        <div class="card shadow-sm kb-reference-panel">
+          <div class="card-header">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <h6 class="mb-0">KB-Referenz</h6>
+                <small class="text-muted">{{ kbReferenceSubtitle }}</small>
+              </div>
+              <span
+                v-if="templateReferenceLoading || findingCatalogLoading"
+                class="context-status-pill is-loading"
+              >
+                lädt
+              </span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div v-if="templateReferenceError" class="alert alert-warning py-2 small">
+              {{ templateReferenceError }}
+            </div>
+
+            <template v-if="activeReferenceFinding">
+              <div class="kb-focus-block mb-3">
+                <span>Aktiver Befund</span>
+                <strong>{{ activeReferenceFinding.label }}</strong>
+                <small>{{ activeFindingDescription }}</small>
+              </div>
+
+              <div class="kb-reference-group">
+                <h6>Klassifikationen</h6>
+                <div v-if="activeReferenceClassifications.length" class="kb-classification-list">
+                  <div
+                    v-for="classification in activeReferenceClassifications"
+                    :key="classification.key"
+                    class="kb-classification-row"
+                  >
+                    <div class="d-flex justify-content-between gap-2">
+                      <strong>{{ classification.label }}</strong>
+                      <span
+                        class="kb-classification-precedence"
+                        :class="{ 'is-required': classification.required }"
+                      >
+                        {{ classification.required ? 'erforderlich' : 'optional' }}
+                      </span>
+                    </div>
+                    <small v-if="classification.choicesLabel">
+                      {{ classification.choicesLabel }}
+                    </small>
+                    <small v-if="classification.description">
+                      {{ classification.description }}
+                    </small>
+                  </div>
+                </div>
+                <div v-else class="small text-muted">
+                  Keine Klassifikationen im aktuellen Template hinterlegt.
+                </div>
+              </div>
+
+              <div class="kb-reference-group">
+                <h6>PatientLedger</h6>
+                <div v-if="activeFindingInstances.length" class="runtime-instance-list">
+                  <div
+                    v-for="instance in activeFindingInstances"
+                    :key="instance.localId || instance.finding"
+                    class="runtime-instance-row"
+                  >
+                    {{ formatRuntimeFindingInstance(instance) }}
+                  </div>
+                </div>
+                <div v-else class="small text-muted">
+                  Keine lokale Instanz dieses Befunds im Entwurf.
+                </div>
+              </div>
+
+              <div class="kb-reference-group">
+                <h6>Regelhinweise</h6>
+                <div v-if="activeAdviceRows.length" class="kb-advice-list">
+                  <div
+                    v-for="row in activeAdviceRows"
+                    :key="row.key"
+                    class="kb-advice-row"
+                    :class="{ 'is-ok': row.ok, 'is-warning': !row.ok }"
+                  >
+                    <div class="d-flex justify-content-between gap-2">
+                      <strong>{{ row.title }}</strong>
+                      <span>{{ row.kind }}</span>
+                    </div>
+                    <small>{{ row.detail }}</small>
+                    <small v-for="message in row.messages" :key="message">
+                      {{ message }}
+                    </small>
+                  </div>
+                </div>
+                <div v-else class="small text-muted">
+                  Keine kontextbezogenen Laufzeitregeln für diesen Befund.
+                </div>
+              </div>
+
+              <div v-if="activeSuggestedActions.length" class="kb-reference-group">
+                <h6>Vorschläge</h6>
+                <div class="kb-suggestion-list">
+                  <div
+                    v-for="suggestion in activeSuggestedActions"
+                    :key="suggestion"
+                    class="kb-suggestion-row"
+                  >
+                    {{ suggestion }}
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <div v-else class="small text-muted">
+              Wählen Sie einen Fall mit Template, um die KB-Referenz zu sehen.
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
   </div>
 </template>
@@ -293,14 +474,32 @@ import { findingsApi } from '@/api/findingsApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
 import {
   buildReportTemplateRuntimePayload,
+  fetchReportTemplateByName,
   fetchReportTemplatesByExamination
 } from '@/api/reportTemplatesApi'
-import type { Finding } from '@/api/findings.contract'
-import type { ReportTemplateRuntimePayload } from '@/types/reportTemplate'
+import {
+  getFindingDisplayName,
+  mergeFindingClassifications,
+  type Finding,
+  type FindingClassification
+} from '@/api/findings.contract'
+import type {
+  InterventionValidatorExecution,
+  ReportTemplateFinding,
+  ReportTemplatePayload,
+  ReportTemplateRuntimePatientFindingInput,
+  ReportTemplateRuntimePayload,
+  RuntimeValidationIssue,
+  UnitValidatorExecution
+} from '@/types/reportTemplate'
 import { endpoints } from '@/types/api/endpoints'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useTerminologyStore } from '@/stores/terminologyStore'
-import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi'
+import {
+  fetchPatientTimelineLatest,
+  pickPreferredReportStream,
+  pickPreferredStream
+} from '@/api/reportingTimelineApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -320,11 +519,61 @@ type PatientExaminationOption = {
   examinationId: number | null
 }
 
+type FindingStatus = 'complete' | 'warning' | 'missing' | 'empty'
+
+type FindingStatusRow = {
+  key: string
+  normalizedKey: string
+  findingName: string
+  label: string
+  sectionKey: string
+  sectionTitle: string
+  anchorId: string
+  required: boolean
+  instanceCount: number
+  status: FindingStatus
+  statusLabel: string
+  iconClass: string
+  messages: string[]
+  templateFinding: ReportTemplateFinding | null
+}
+
+type FindingStatusSection = {
+  key: string
+  title: string
+  rows: FindingStatusRow[]
+}
+
+type KbClassificationReference = {
+  key: string
+  label: string
+  required: boolean
+  choicesLabel: string
+  description: string
+}
+
+type KbAdviceRow = {
+  key: string
+  kind: string
+  title: string
+  detail: string
+  ok: boolean
+  messages: string[]
+}
+
 const patientExaminationOptions = ref<PatientExaminationOption[]>([])
 const patientExaminationOptionsLoading = ref(false)
 const patientExaminationOptionsError = ref<string | null>(null)
 const draftBootstrapInFlight = ref<Promise<void> | null>(null)
 const draftBootstrapError = ref<string | null>(null)
+const patientExaminationDetail = ref<Record<string, any> | null>(null)
+const templateReference = ref<ReportTemplatePayload | null>(null)
+const templateReferenceLoading = ref(false)
+const templateReferenceError = ref<string | null>(null)
+const templateReferenceKey = ref<string | null>(null)
+const selectedReferenceFindingKey = ref<string | null>(null)
+const findingCatalog = ref<Finding[]>([])
+const findingCatalogLoading = ref(false)
 const routePatientExaminationId = computed<number | null>(() => {
   const parsed = Number(route.params.patient_examination_id)
   if (!Number.isFinite(parsed)) return null
@@ -364,7 +613,7 @@ const navItems = computed(() => [
 ])
 
 const preferredReportStream = computed(() =>
-  pickPreferredStream(flow.mediaPreload?.latestReport?.streamOptions || [])
+  pickPreferredReportStream(flow.mediaPreload?.latestReport?.streamOptions || [])
 )
 
 const preferredReportDownload = computed(() =>
@@ -422,6 +671,332 @@ const mediaPreloadLabel = computed(() => {
   return 'bereit'
 })
 
+const selectedPatientExaminationOption = computed(() => {
+  return (
+    patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
+    patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
+    null
+  )
+})
+
+const currentPayload = computed(() => flow.currentRuntimeDraft?.payload || null)
+
+const caseIdLabel = computed(() =>
+  flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt'
+)
+
+const patientHeaderLabel = computed(() => {
+  const timelinePatient = flow.mediaPreload?.patient || null
+  const timelineName = [timelinePatient?.firstName, timelinePatient?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+  if (timelineName) return timelineName
+  if (timelinePatient?.patientHash) return timelinePatient.patientHash
+
+  const detailPatient = readRecord(patientExaminationDetail.value?.patient)
+  const detailName = [
+    readString(detailPatient, 'firstName', 'first_name', 'givenName', 'given_name'),
+    readString(detailPatient, 'lastName', 'last_name', 'familyName', 'family_name')
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+  if (detailName) return detailName
+
+  const detailHash = readString(
+    detailPatient,
+    'patientHash',
+    'patient_hash',
+    'hash',
+    'pseudonym'
+  )
+  if (detailHash) return detailHash
+  if (currentPayload.value?.patient) return currentPayload.value.patient
+  return flow.selectedPatientId ? `Patient #${flow.selectedPatientId}` : 'Nicht gewählt'
+})
+
+const patientBirthDateLabel = computed(() => {
+  const detailPatient = readRecord(patientExaminationDetail.value?.patient)
+  const value =
+    flow.mediaPreload?.patient?.dob ||
+    readString(
+      detailPatient,
+      'dob',
+      'dateOfBirth',
+      'date_of_birth',
+      'birthDate',
+      'birth_date',
+      'patientDob',
+      'patient_dob'
+    ) ||
+    readString(
+      patientExaminationDetail.value,
+      'patientBirthDate',
+      'patient_birth_date',
+      'patientDob',
+      'patient_dob'
+    )
+  return formatDateLabel(value) || 'Nicht verfügbar'
+})
+
+const examinationTypeLabel = computed(() => {
+  return (
+    selectedPatientExaminationOption.value?.examinationName ||
+    readString(
+      readRecord(patientExaminationDetail.value?.examination),
+      'displayName',
+      'display_name',
+      'name'
+    ) ||
+    readString(patientExaminationDetail.value, 'examinationName', 'examination_name') ||
+    currentPayload.value?.examination ||
+    'Nicht gewählt'
+  )
+})
+
+const caseStatusLabel = computed(() => {
+  return (
+    readString(
+      patientExaminationDetail.value,
+      'status',
+      'workflowStatus',
+      'workflow_status',
+      'state'
+    ) ||
+    (flow.lastTemplateValidation
+      ? flow.lastTemplateValidation.ok
+        ? 'Befund valide'
+        : 'Befund offen'
+      : flow.currentRuntimeDraft
+        ? 'Entwurf'
+        : 'Nicht vorbereitet')
+  )
+})
+
+const validationStatusLabel = computed(() => {
+  if (!flow.lastTemplateValidation) return 'ungeprüft'
+  return flow.lastTemplateValidation.ok ? 'valide' : 'offen'
+})
+
+const validationStatusPillClass = computed(() => {
+  if (!flow.lastTemplateValidation) return 'is-idle'
+  return flow.lastTemplateValidation.ok ? 'is-ready' : 'is-error'
+})
+
+const templateSectionsForReference = computed(() =>
+  (templateReference.value?.reportSections || [])
+    .slice()
+    .sort((left, right) => (left.position || 0) - (right.position || 0))
+)
+
+const catalogFindingsByName = computed(() => {
+  const entries = findingCatalog.value.map((finding) => [normalizeKey(finding.name), finding] as const)
+  return new Map<string, Finding>(entries)
+})
+
+const validationIssueMessagesByFinding = computed(() => {
+  const grouped = new Map<string, string[]>()
+  const addMessages = (findingName: string, messages: string[]) => {
+    const key = normalizeKey(findingName)
+    const current = grouped.get(key) || []
+    grouped.set(key, Array.from(new Set([...current, ...messages.filter(Boolean)])))
+  }
+
+  for (const validator of flow.lastTemplateValidation?.findingsValidators || []) {
+    const messages = validator.issues.map((issue) => issue.message)
+    if (!validator.ok && !messages.length) messages.push(`Regel "${validator.name}" ist offen.`)
+    addMessages(validator.finding, messages)
+  }
+  for (const validator of flow.lastTemplateValidation?.classificationValidators || []) {
+    const messages = validator.issues.map((issue) => issue.message)
+    if (!validator.ok && !messages.length) messages.push(`Klassifikation "${validator.classification}" prüfen.`)
+    addMessages(validator.finding, messages)
+  }
+  for (const validator of flow.lastTemplateValidation?.interventionValidators || []) {
+    const messages = validator.issues.map((issue) => issue.message)
+    if (!validator.ok && !messages.length) messages.push(`Intervention "${validator.intervention}" prüfen.`)
+    addMessages(validator.finding, messages)
+  }
+  for (const validator of flow.lastTemplateValidation?.unitValidators || []) {
+    const messages = validator.issues.map((issue) => issue.message)
+    if (!validator.ok && !messages.length) messages.push(`Einheit "${validator.unit}" prüfen.`)
+    addMessages(validator.finding, messages)
+  }
+
+  return grouped
+})
+
+const findingStatusRows = computed<FindingStatusRow[]>(() => {
+  const rows: FindingStatusRow[] = []
+
+  for (const section of templateSectionsForReference.value) {
+    const sectionKey = normalizeKey(section.name)
+    const sectionTitle = formatKnowledgeName(section.name)
+    for (const templateFinding of section.findings || []) {
+      rows.push(
+        buildFindingStatusRow({
+          findingName: templateFinding.finding,
+          sectionKey,
+          sectionTitle,
+          required: !!templateFinding.required,
+          templateFinding
+        })
+      )
+    }
+  }
+
+  if (rows.length) return rows
+
+  return (currentPayload.value?.patientFindings || []).map((finding) =>
+    buildFindingStatusRow({
+      findingName: finding.finding,
+      sectionKey: 'runtime_draft',
+      sectionTitle: 'Lokaler Entwurf',
+      required: false,
+      templateFinding: null
+    })
+  )
+})
+
+const findingStatusSections = computed<FindingStatusSection[]>(() => {
+  const sections = new Map<string, FindingStatusSection>()
+  for (const row of findingStatusRows.value) {
+    if (!sections.has(row.sectionKey)) {
+      sections.set(row.sectionKey, {
+        key: row.sectionKey,
+        title: row.sectionTitle,
+        rows: []
+      })
+    }
+    sections.get(row.sectionKey)?.rows.push(row)
+  }
+  return Array.from(sections.values())
+})
+
+const findingProgressSummary = computed(() => {
+  const rows = findingStatusRows.value
+  if (!rows.length) return 'Keine Befunde'
+  const complete = rows.filter((row) => row.status === 'complete').length
+  const open = rows.filter((row) => row.status === 'warning' || row.status === 'missing').length
+  return open ? `${complete}/${rows.length} vollständig · ${open} offen` : `${complete}/${rows.length} vollständig`
+})
+
+const routeReferenceFindingKey = computed(() => {
+  const hash = typeof route.hash === 'string' ? route.hash : ''
+  const match = hash.match(/^#finding-(.+)$/)
+  return match ? normalizeKey(match[1]) : null
+})
+
+const activeReferenceFindingKey = computed(() => {
+  const availableKeys = new Set(findingStatusRows.value.map((row) => row.normalizedKey))
+  if (selectedReferenceFindingKey.value && availableKeys.has(selectedReferenceFindingKey.value)) {
+    return selectedReferenceFindingKey.value
+  }
+  if (routeReferenceFindingKey.value && availableKeys.has(routeReferenceFindingKey.value)) {
+    return routeReferenceFindingKey.value
+  }
+  return (
+    findingStatusRows.value.find((row) => row.status === 'warning' || row.status === 'missing')
+      ?.normalizedKey ||
+    findingStatusRows.value[0]?.normalizedKey ||
+    null
+  )
+})
+
+const activeReferenceFinding = computed(
+  () => findingStatusRows.value.find((row) => row.normalizedKey === activeReferenceFindingKey.value) || null
+)
+
+const activeFindingInstances = computed(() => {
+  const active = activeReferenceFinding.value
+  if (!active) return []
+  return instancesForFinding(active.findingName)
+})
+
+const activeFindingCatalogDefinition = computed(() => {
+  const active = activeReferenceFinding.value
+  if (!active) return null
+  return catalogFindingsByName.value.get(normalizeKey(active.findingName)) || null
+})
+
+const activeFindingDescription = computed(() => {
+  const description = activeFindingCatalogDefinition.value?.description?.trim()
+  return description || 'Keine Beschreibung in der geladenen KB-Definition.'
+})
+
+const activeReferenceClassifications = computed<KbClassificationReference[]>(() => {
+  const active = activeReferenceFinding.value
+  if (!active) return []
+
+  const templateClassifications = active.templateFinding?.classifications || []
+  const catalogClassifications = mergeFindingClassifications(activeFindingCatalogDefinition.value)
+  const catalogByName = new Map<string, FindingClassification>(
+    catalogClassifications.map((classification) => [normalizeKey(classification.name), classification])
+  )
+  const templateKeys = templateClassifications.map((classification) =>
+    normalizeKey(classification.classification)
+  )
+  const source =
+    templateClassifications.length > 0
+      ? templateClassifications.map((classification) => ({
+          key: normalizeKey(classification.classification),
+          name: classification.classification,
+          required: !!classification.required
+        }))
+      : catalogClassifications.map((classification) => ({
+          key: normalizeKey(classification.name),
+          name: classification.name,
+          required: !!classification.required
+        }))
+
+  return source
+    .filter((classification, index, all) => {
+      if (templateKeys.length && !templateKeys.includes(classification.key)) return false
+      return all.findIndex((entry) => entry.key === classification.key) === index
+    })
+    .map((classification) => {
+      const catalog = catalogByName.get(classification.key)
+      const choices = (catalog?.choices || [])
+        .map((choice) => choice.displayName || choice.name)
+        .filter(Boolean)
+      return {
+        key: classification.key,
+        label: catalog?.displayName || formatKnowledgeName(classification.name),
+        required: classification.required,
+        choicesLabel: choices.length ? `Werte: ${choices.join(', ')}` : '',
+        description: catalog?.description || ''
+      }
+    })
+})
+
+const activeAdviceRows = computed<KbAdviceRow[]>(() => {
+  const active = activeReferenceFinding.value
+  if (!active) return []
+  return [
+    ...interventionAdviceRows(active.findingName),
+    ...unitAdviceRows(active.findingName)
+  ]
+})
+
+const activeSuggestedActions = computed(() => {
+  const active = activeReferenceFinding.value
+  if (!active) return []
+  const suggestions = [
+    ...collectValidatorSuggestions(interventionValidatorsForFinding(active.findingName)),
+    ...collectValidatorSuggestions(unitValidatorsForFinding(active.findingName)),
+    ...collectIssueSuggestions(flow.lastTemplateValidation?.issues || [])
+  ]
+  return Array.from(new Set(suggestions))
+})
+
+const kbReferenceSubtitle = computed(() => {
+  const moduleName = flow.selectedKbModule || activeKbModule.value
+  const templateName = templateReference.value?.name || flow.selectedTemplateName
+  if (!templateName) return `${moduleName} · kein Template`
+  return `${moduleName} · ${templateName}`
+})
+
 const nextStepHint = computed(() => {
   if (!flow.patientExaminationId) {
     return 'Wählen Sie zuerst eine Patientenuntersuchung, um Befunde und Bericht zu bearbeiten.'
@@ -476,6 +1051,238 @@ async function importTerminologyZip(event: Event) {
   }
 }
 
+function readRecord(value: unknown): Record<string, any> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, any>)
+    : {}
+}
+
+function readString(
+  record: Record<string, any> | null | undefined,
+  ...keys: string[]
+): string | null {
+  if (!record) return null
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  }
+  return null
+}
+
+function normalizeKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
+}
+
+function formatKnowledgeName(value: string): string {
+  const normalized = value.replace(/[_-]/g, ' ').trim()
+  if (!normalized) return 'Unbenannt'
+  return normalized.replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function formatDateLabel(value: string | null | undefined): string | null {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleDateString('de-DE')
+}
+
+function findingAnchorId(findingName: string): string {
+  return `finding-${normalizeKey(findingName)}`
+}
+
+function getFindingLabel(findingName: string): string {
+  const finding = catalogFindingsByName.value.get(normalizeKey(findingName))
+  return finding ? getFindingDisplayName(finding) : formatKnowledgeName(findingName)
+}
+
+function instancesForFinding(findingName: string): ReportTemplateRuntimePatientFindingInput[] {
+  const key = normalizeKey(findingName)
+  return (currentPayload.value?.patientFindings || []).filter(
+    (finding) => normalizeKey(finding.finding) === key
+  )
+}
+
+function requiredClassificationsMissing(
+  templateFinding: ReportTemplateFinding | null,
+  instances: ReportTemplateRuntimePatientFindingInput[]
+): string[] {
+  const required = (templateFinding?.classifications || []).filter(
+    (classification) => classification.required
+  )
+  return required
+    .filter((classification) => {
+      const key = normalizeKey(classification.classification)
+      return !instances.some((instance) =>
+        instance.classificationChoices.some(
+          (choice) =>
+            normalizeKey(choice.classification) === key &&
+            typeof choice.classificationChoice === 'string' &&
+            choice.classificationChoice.trim()
+        )
+      )
+    })
+    .map((classification) => formatKnowledgeName(classification.classification))
+}
+
+function buildFindingStatusRow(params: {
+  findingName: string
+  sectionKey: string
+  sectionTitle: string
+  required: boolean
+  templateFinding: ReportTemplateFinding | null
+}): FindingStatusRow {
+  const normalizedKey = normalizeKey(params.findingName)
+  const instances = instancesForFinding(params.findingName)
+  const validationMessages = validationIssueMessagesByFinding.value.get(normalizedKey) || []
+  const missingClassifications = requiredClassificationsMissing(params.templateFinding, instances)
+  const messages = Array.from(
+    new Set([
+      ...validationMessages,
+      ...(params.required && !instances.length ? ['Dieser Befund ist im Template erforderlich.'] : []),
+      ...(missingClassifications.length
+        ? [`Erforderliche Klassifikationen fehlen: ${missingClassifications.join(', ')}.`]
+        : [])
+    ])
+  )
+
+  let status: FindingStatus = 'empty'
+  if (params.required && !instances.length) status = 'missing'
+  else if (validationMessages.length || missingClassifications.length) status = 'warning'
+  else if (instances.length) status = 'complete'
+
+  return {
+    key: `${params.sectionKey}:${normalizedKey}`,
+    normalizedKey,
+    findingName: params.findingName,
+    label: getFindingLabel(params.findingName),
+    sectionKey: params.sectionKey,
+    sectionTitle: params.sectionTitle,
+    anchorId: findingAnchorId(params.findingName),
+    required: params.required,
+    instanceCount: instances.length,
+    status,
+    statusLabel: findingStatusLabel(status, params.required),
+    iconClass: findingStatusIconClass(status),
+    messages,
+    templateFinding: params.templateFinding
+  }
+}
+
+function findingStatusLabel(status: FindingStatus, required: boolean): string {
+  if (status === 'complete') return 'vollständig'
+  if (status === 'warning') return 'prüfen'
+  if (status === 'missing') return 'fehlt'
+  return required ? 'offen' : 'optional'
+}
+
+function findingStatusIconClass(status: FindingStatus): string {
+  if (status === 'complete') return 'ni ni-check-bold'
+  if (status === 'warning') return 'ni ni-alert-circle-exc'
+  if (status === 'missing') return 'ni ni-fat-remove'
+  return 'ni ni-fat-add'
+}
+
+function findingStatusTarget(row: FindingStatusRow) {
+  const patientExaminationId = flow.patientExaminationId || routePatientExaminationId.value
+  if (!patientExaminationId) return { path: route.path, hash: `#${row.anchorId}` }
+  return {
+    path: `/reporting/${patientExaminationId}/findings`,
+    hash: `#${row.anchorId}`
+  }
+}
+
+function validatorsForFinding<T extends { finding: string }>(
+  validators: T[] | undefined,
+  findingName: string
+): T[] {
+  const key = normalizeKey(findingName)
+  return (validators || []).filter((validator) => normalizeKey(validator.finding) === key)
+}
+
+function interventionValidatorsForFinding(findingName: string): InterventionValidatorExecution[] {
+  return validatorsForFinding(flow.lastTemplateValidation?.interventionValidators, findingName)
+}
+
+function unitValidatorsForFinding(findingName: string): UnitValidatorExecution[] {
+  return validatorsForFinding(flow.lastTemplateValidation?.unitValidators, findingName)
+}
+
+function interventionAdviceRows(findingName: string): KbAdviceRow[] {
+  return interventionValidatorsForFinding(findingName).map((validator) => ({
+    key: `intervention:${validator.name}`,
+    kind: 'Intervention',
+    title: formatKnowledgeName(validator.intervention),
+    detail: validator.ok ? 'Regel erfüllt' : `Erforderlich nach Regel "${validator.name}"`,
+    ok: validator.ok,
+    messages: validator.issues.map((issue) => issue.message)
+  }))
+}
+
+function unitAdviceRows(findingName: string): KbAdviceRow[] {
+  return unitValidatorsForFinding(findingName).map((validator) => ({
+    key: `unit:${validator.name}`,
+    kind: 'Einheit',
+    title: validator.unit,
+    detail: validator.ok
+      ? `${formatKnowledgeName(validator.classification)} verwendet die erwartete Einheit.`
+      : `${formatKnowledgeName(validator.classification)} erwartet "${validator.unit}".`,
+    ok: validator.ok,
+    messages: validator.issues.map((issue) => issue.message)
+  }))
+}
+
+function collectIssueSuggestions(issues: RuntimeValidationIssue[]): string[] {
+  return issues.flatMap((issue) => [
+    ...extractStringList(issue.details?.suggestedActions),
+    ...extractStringList(issue.details?.suggested_actions),
+    ...extractStringList(issue.details?.recommendations)
+  ])
+}
+
+function collectValidatorSuggestions(
+  validators: Array<{ hint: Record<string, unknown>; issues: RuntimeValidationIssue[] }>
+): string[] {
+  return validators.flatMap((validator) => [
+    ...extractStringList(validator.hint?.suggestedActions),
+    ...extractStringList(validator.hint?.suggested_actions),
+    ...extractStringList(validator.hint?.suggestions),
+    ...extractStringList(validator.hint?.recommendations),
+    ...collectIssueSuggestions(validator.issues)
+  ])
+}
+
+function extractStringList(value: unknown): string[] {
+  if (typeof value === 'string' && value.trim()) return [value.trim()]
+  if (!Array.isArray(value)) return []
+  return value
+    .map((entry) => {
+      if (typeof entry === 'string') return entry.trim()
+      if (!entry || typeof entry !== 'object') return ''
+      const record = entry as Record<string, unknown>
+      return (
+        (typeof record.label === 'string' && record.label.trim()) ||
+        (typeof record.message === 'string' && record.message.trim()) ||
+        (typeof record.action === 'string' && record.action.trim()) ||
+        ''
+      )
+    })
+    .filter((entry): entry is string => Boolean(entry))
+}
+
+function formatRuntimeFindingInstance(instance: ReportTemplateRuntimePatientFindingInput): string {
+  if (!instance.classificationChoices.length) return 'Keine Klassifikation gesetzt'
+  return instance.classificationChoices
+    .map((choice) => {
+      const descriptors = choice.descriptors
+        .map((descriptor) => `${formatKnowledgeName(descriptor.classificationChoiceDescriptor)}: ${descriptor.descriptorValue}`)
+        .join(', ')
+      const base = `${formatKnowledgeName(choice.classification)} = ${formatKnowledgeName(choice.classificationChoice)}`
+      return descriptors ? `${base} (${descriptors})` : base
+    })
+    .join(' · ')
+}
+
 function ensureTerminologyBundlesLoaded(): Promise<void> {
   if (terminology.activeBundle || terminology.bundles.length || terminology.error) {
     return Promise.resolve()
@@ -492,6 +1299,56 @@ function ensureTerminologyBundlesLoaded(): Promise<void> {
     })
   terminologyLoadPromise.value = task
   return task
+}
+
+async function loadTemplateReferenceForSelection() {
+  const moduleName = flow.selectedKbModule || activeKbModule.value
+  const templateName = flow.selectedTemplateName
+  if (!moduleName || !templateName) {
+    templateReference.value = null
+    templateReferenceKey.value = null
+    templateReferenceError.value = null
+    return
+  }
+
+  const nextKey = `${moduleName}:${templateName}`
+  if (templateReferenceKey.value === nextKey && templateReference.value) return
+
+  templateReferenceLoading.value = true
+  templateReferenceError.value = null
+  templateReferenceKey.value = nextKey
+  try {
+    const payload = await fetchReportTemplateByName(moduleName, templateName)
+    if (templateReferenceKey.value !== nextKey) return
+    templateReference.value = payload
+  } catch (error: any) {
+    if (templateReferenceKey.value !== nextKey) return
+    templateReference.value = null
+    templateReferenceError.value =
+      error?.response?.data?.detail ||
+      error?.message ||
+      'KB-Referenz konnte nicht geladen werden.'
+  } finally {
+    if (templateReferenceKey.value === nextKey) {
+      templateReferenceLoading.value = false
+    }
+  }
+}
+
+async function loadFindingCatalogForExamination(examinationId: number | null | undefined) {
+  if (!examinationId) {
+    findingCatalog.value = []
+    return
+  }
+  findingCatalogLoading.value = true
+  try {
+    const rows = await findingsApi.getExaminationFindings(examinationId)
+    findingCatalog.value = Array.isArray(rows) ? rows : []
+  } catch {
+    findingCatalog.value = []
+  } finally {
+    findingCatalogLoading.value = false
+  }
 }
 
 function toPositiveInteger(value: unknown): number | null {
@@ -791,6 +1648,9 @@ async function ensureCurrentPatientExaminationOption(patientExaminationId: numbe
     const response = await axiosInstance.get(
       r(endpoints.examination.patientExaminationDetail(patientExaminationId))
     )
+    if (response.data && typeof response.data === 'object') {
+      patientExaminationDetail.value = response.data as Record<string, any>
+    }
     const option = normalizePatientExaminationOption(response.data)
     if (option) upsertPatientExaminationOption(option)
   } catch {
@@ -816,6 +1676,8 @@ async function onPatientExaminationSelect(rawValue: string) {
     selectedPatientId: selectedOption?.patientId ?? flow.selectedPatientId,
     selectedExaminationId: selectedOption?.examinationId ?? flow.selectedExaminationId
   })
+  patientExaminationDetail.value = null
+  selectedReferenceFindingKey.value = null
 
   await router.push(getNavigationTargetForPatientExamination(patientExaminationId))
 }
@@ -831,6 +1693,7 @@ async function bootstrapRuntimeDraft(
     detailResponse.data && typeof detailResponse.data === 'object'
       ? (detailResponse.data as Record<string, any>)
       : {}
+  patientExaminationDetail.value = detail
 
   const detailPatientId = extractPatientId(detail)
   const detailExaminationId = extractExaminationId(detail)
@@ -851,11 +1714,12 @@ async function bootstrapRuntimeDraft(
     null
 
   const selectedExaminationId = option?.examinationId ?? detailExaminationId
-  const findingCatalog = selectedExaminationId
+  const catalogRows = selectedExaminationId
     ? await findingsApi.getExaminationFindings(selectedExaminationId)
     : []
+  findingCatalog.value = Array.isArray(catalogRows) ? catalogRows : []
   const findingsById = new Map<number, Finding>(
-    (Array.isArray(findingCatalog) ? findingCatalog : []).map((finding) => [finding.id, finding])
+    findingCatalog.value.map((finding) => [finding.id, finding])
   )
 
   const payload = await buildReportTemplateRuntimePayload({
@@ -926,11 +1790,13 @@ async function ensureRuntimeDraft(patientExaminationId: number) {
         detailResponse.data && typeof detailResponse.data === 'object'
           ? (detailResponse.data as Record<string, any>)
           : {}
+      patientExaminationDetail.value = detail
       flow.setCaseSelection({
         selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
         selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
       })
       flow.setIndications(extractIndicationRows(detail))
+      await loadFindingCatalogForExamination(extractExaminationId(detail) ?? flow.selectedExaminationId)
     } catch {
       // Keep the local draft usable even if detail hydration fails.
     }
@@ -951,11 +1817,13 @@ async function ensureRuntimeDraft(patientExaminationId: number) {
         detailResponse.data && typeof detailResponse.data === 'object'
           ? (detailResponse.data as Record<string, any>)
           : {}
+      patientExaminationDetail.value = detail
       flow.setCaseSelection({
         selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
         selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
       })
       flow.setIndications(extractIndicationRows(detail))
+      await loadFindingCatalogForExamination(extractExaminationId(detail) ?? flow.selectedExaminationId)
     } catch {
       // Keep persisted draft usable even if detail hydration fails.
     }
@@ -1061,6 +1929,8 @@ watch(
     } else {
       patientExaminationOptions.value = []
       patientExaminationOptionsError.value = null
+      patientExaminationDetail.value = null
+      findingCatalog.value = []
     }
 
     if (patientExaminationId) {
@@ -1078,6 +1948,23 @@ watch(
       await fetchPatientExaminationOptions(flow.selectedPatientId)
     }
   }
+)
+
+watch(
+  [() => flow.selectedKbModule, () => flow.selectedTemplateName, activeKbModule],
+  async () => {
+    selectedReferenceFindingKey.value = null
+    await loadTemplateReferenceForSelection()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => flow.selectedExaminationId,
+  async (examinationId) => {
+    await loadFindingCatalogForExamination(examinationId)
+  },
+  { immediate: true }
 )
 
 watch(
@@ -1105,6 +1992,31 @@ onMounted(() => {
 
 .reporting-shell .row > [class*='col-'] {
   min-width: 0;
+}
+
+.reporting-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr) minmax(17rem, 22rem);
+  gap: 1rem;
+  align-items: start;
+}
+
+.reporting-left-rail,
+.reporting-right-rail,
+.reporting-main-region {
+  min-width: 0;
+}
+
+.reporting-left-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.reporting-right-rail,
+.workflow-panel {
+  position: sticky;
+  top: 1rem;
 }
 
 .reporting-shell .card,
@@ -1241,6 +2153,12 @@ onMounted(() => {
   border-color: #f5c2c7;
 }
 
+.context-status-pill.is-idle {
+  color: #334155;
+  background: #eef2f7;
+  border-color: #d7dee8;
+}
+
 .reporting-shell .card-header {
   background: #fff;
   color: #172234;
@@ -1254,11 +2172,6 @@ onMounted(() => {
 
 .reporting-shell .text-muted {
   color: #4b5565 !important;
-}
-
-.workflow-panel {
-  position: sticky;
-  top: 1rem;
 }
 
 .reporting-shell .workflow-step-btn {
@@ -1344,9 +2257,223 @@ onMounted(() => {
   background: #fff;
 }
 
+.finding-status-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.finding-status-section {
+  border-bottom: 1px solid #e5ebf2;
+}
+
+.finding-status-section:last-child {
+  border-bottom: 0;
+}
+
+.finding-status-section-title {
+  padding: 0.65rem 0.85rem 0.35rem;
+  color: #66768c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.finding-status-row {
+  display: grid;
+  grid-template-columns: 1.65rem minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.55rem 0.85rem;
+  color: #1f2a37;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.finding-status-row:hover,
+.finding-status-row:focus-visible,
+.finding-status-row.is-selected {
+  background: #f3f7fb;
+  color: #111827;
+}
+
+.finding-status-row.is-complete {
+  border-left-color: #198754;
+}
+
+.finding-status-row.is-warning,
+.finding-status-row.is-missing {
+  border-left-color: #f0ad4e;
+}
+
+.finding-status-icon {
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #4b5565;
+  background: #eef2f7;
+  font-size: 0.75rem;
+}
+
+.finding-status-row.is-complete .finding-status-icon {
+  color: #0f5132;
+  background: #d1e7dd;
+}
+
+.finding-status-row.is-warning .finding-status-icon,
+.finding-status-row.is-missing .finding-status-icon {
+  color: #7a4d00;
+  background: #fff3cd;
+}
+
+.finding-status-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.finding-status-label {
+  overflow: hidden;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finding-status-meta,
+.finding-status-count {
+  color: #66768c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.finding-status-count {
+  min-width: 1.25rem;
+  text-align: right;
+}
+
+.kb-reference-panel {
+  max-height: calc(100vh - 2rem);
+}
+
+.kb-reference-panel .card-body {
+  overflow: auto;
+  max-height: calc(100vh - 6rem);
+}
+
+.kb-focus-block,
+.kb-classification-row,
+.runtime-instance-row,
+.kb-advice-row,
+.kb-suggestion-row {
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.kb-focus-block span {
+  display: block;
+  color: #66768c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kb-focus-block strong,
+.kb-focus-block small,
+.kb-classification-row small,
+.kb-advice-row small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.kb-reference-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.kb-reference-group h6 {
+  margin: 0;
+  color: #172234;
+  font-size: 0.82rem;
+}
+
+.kb-classification-list,
+.runtime-instance-list,
+.kb-advice-list,
+.kb-suggestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.kb-classification-precedence {
+  flex: 0 0 auto;
+  color: #475569;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kb-classification-precedence.is-required {
+  color: #842029;
+}
+
+.runtime-instance-row,
+.kb-suggestion-row {
+  color: #334155;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.kb-advice-row {
+  border-left: 3px solid #f0ad4e;
+}
+
+.kb-advice-row.is-ok {
+  border-left-color: #198754;
+}
+
+.kb-advice-row > div span {
+  color: #66768c;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 @media (max-width: 1199.98px) {
   .reporting-command-bar {
     grid-template-columns: 1fr;
+  }
+
+  .reporting-workspace-grid {
+    grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
+  }
+
+  .reporting-right-rail {
+    grid-column: 1 / -1;
+    position: static;
+  }
+
+  .kb-reference-panel {
+    max-height: none;
+  }
+
+  .kb-reference-panel .card-body {
+    max-height: none;
   }
 }
 
@@ -1355,6 +2482,11 @@ onMounted(() => {
     padding-inline: 0.5rem;
   }
 
+  .reporting-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reporting-right-rail,
   .workflow-panel {
     position: static;
   }

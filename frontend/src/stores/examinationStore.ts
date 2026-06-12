@@ -90,25 +90,78 @@ export const useExaminationStore = defineStore('examination', {
       this.loading = true
       this.error = null
       try {
-        const res = await axiosInstance.get(`/api/${endpoints.router.examinations}`)
-        // Normalize to Examination[]
-        this.exams = (res.data as any[]).map((e) => ({
-          id: e.id,
-          name: e.name,
-          nameDe: e.nameDe ?? e.name_de,
-          nameEn: e.nameEn ?? e.name_en,
-          name_de: e.name_de ?? e.nameDe,
-          name_en: e.name_en ?? e.nameEn,
-          displayName: getCoreConceptDisplayName(
-            {
-              name: e.name,
-              nameDe: e.nameDe ?? e.name_de,
-              nameEn: e.nameEn ?? e.name_en,
-              displayName: e.displayName
-            },
-            e.name
-          )
-        }))
+        const normalizeRows = (rows: unknown[]): void => {
+          this.exams = rows
+            .map((entry) => {
+              if (!entry || typeof entry !== 'object') return null
+              const row = entry as Record<string, unknown>
+              const fallbackName = typeof row.name === 'string' ? row.name : typeof row.name_de === 'string' ? row.name_de : ''
+              const name =
+                typeof row.name === 'string'
+                  ? row.name
+                  : typeof row.nameDe === 'string'
+                    ? String(row.nameDe)
+                    : fallbackName
+              const nameDe =
+                typeof row.nameDe === 'string'
+                  ? row.nameDe
+                  : typeof row.name_de === 'string'
+                    ? row.name_de
+                    : undefined
+              const nameEn =
+                typeof row.nameEn === 'string'
+                  ? row.nameEn
+                  : typeof row.name_en === 'string'
+                    ? row.name_en
+                    : undefined
+              const displayNameSource =
+                typeof row.displayName === 'string'
+                  ? String(row.displayName)
+                  : typeof row.display_name === 'string'
+                    ? String(row.display_name)
+                    : undefined
+
+              return {
+                id: Number(row.id),
+                name,
+                nameDe,
+                nameEn,
+                name_de: nameDe,
+                name_en: nameEn,
+                displayName: getCoreConceptDisplayName(
+                  {
+                    name,
+                    nameDe,
+                    nameEn,
+                    displayName: displayNameSource
+                  },
+                  name
+                )
+              }
+            })
+            .filter((entry) => entry && Number.isFinite(entry.id)) as Examination[]
+        }
+
+        const dropdownPayload = await axiosInstance.get(`/api/${endpoints.examination.examinationsDropdown}`)
+        const dropdownRows =
+          Array.isArray(dropdownPayload.data) ? dropdownPayload.data :
+            Array.isArray(dropdownPayload.data?.results)
+              ? dropdownPayload.data.results
+              : []
+
+        if (Array.isArray(dropdownRows) && dropdownRows.length > 0) {
+          normalizeRows(dropdownRows)
+          return
+        }
+
+        const fallbackPayload = await axiosInstance.get(`/api/${endpoints.router.examinations}`)
+        const fallbackRows =
+          Array.isArray(fallbackPayload.data)
+            ? fallbackPayload.data
+            : Array.isArray(fallbackPayload.data?.results)
+              ? fallbackPayload.data.results
+              : []
+        normalizeRows(fallbackRows)
       } catch (e: any) {
         this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
       } finally {

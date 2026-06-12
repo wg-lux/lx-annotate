@@ -99,3 +99,4 @@ def test_pdf_reimport():
 if __name__ == "__main__":
     success = test_pdf_reimport()
     sys.exit(0 if success else 1)
+# pyright: reportCallIssue=false

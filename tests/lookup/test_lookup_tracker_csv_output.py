@@ -84,3 +84,6 @@ def test_lookup_tracker_middleware_tracks_request(tmp_path, monkeypatch):
     csv_path = tmp_path / "study_data" / "knowledge_base_lookup_tracker.csv"
     assert csv_path.exists()
     assert dummy_kb.reset_called
+
+
+# pyright: reportArgumentType=false

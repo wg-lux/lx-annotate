@@ -5,6 +5,8 @@ Detailed CUDA diagnostics script
 import os
 import sys
 import subprocess
+from importlib.metadata import distributions
+from typing import Any, cast
 
 print("=== CUDA Diagnostic Script ===\n")
 
@@ -31,17 +33,21 @@ except Exception as e:
 
 # 3. Python CUDA packages
 print("\n3. Python CUDA Packages:")
-import pkg_resources
-nvidia_packages = [pkg for pkg in pkg_resources.working_set if 'nvidia' in pkg.project_name.lower()]
-for pkg in sorted(nvidia_packages, key=lambda x: x.project_name):
-    print(f"   {pkg.project_name}: {pkg.version}")
+nvidia_packages = [
+    distribution
+    for distribution in distributions()
+    if "nvidia" in distribution.metadata["Name"].lower()
+]
+for package in sorted(nvidia_packages, key=lambda item: item.metadata["Name"]):
+    print(f"   {package.metadata['Name']}: {package.version}")
 
 # 4. PyTorch CUDA info
 print("\n4. PyTorch CUDA Information:")
 try:
     import torch
     print(f"   PyTorch version: {torch.__version__}")
-    print(f"   CUDA compiled version: {torch.version.cuda}")
+    torch_version = cast(Any, getattr(torch, "version"))
+    print(f"   CUDA compiled version: {torch_version.cuda}")
     print(f"   CUDA available: {torch.cuda.is_available()}")
     print(f"   Device count: {torch.cuda.device_count()}")
     

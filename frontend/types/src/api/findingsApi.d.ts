@@ -1,5 +1,6 @@
 import { type ClassificationSelection, type Finding, type FindingChoice, type FindingClassification, type PatientFindingRow } from '@/api/findings.contract';
 export type FindingsBackendMode = 'endoreg' | 'dtypes_read' | 'dtypes';
+export declare const DEFAULT_FINDINGS_BACKEND_MODE: FindingsBackendMode;
 export type FindingsApiErrorCode = 'required-finding' | 'duplicate-finding' | 'invalid-choice' | 'invalid-finding' | 'bad-request' | 'not-found' | 'unknown';
 export interface FindingsApiError {
     code: FindingsApiErrorCode;

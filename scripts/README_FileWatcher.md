@@ -13,11 +13,28 @@ Supported monitored inputs (via project data paths):
 
 - Videos
 - PDF reports
+- Preanonymized video or report drops with sidecar metadata
 
 In most local setups these map to:
 
 - `data/import/video_import/`
 - `data/import/report_import/`
+- `data/import/preanonymized_import/`
+
+## Atomic Handoff Contract
+
+Writers must not stream bytes directly into final watched names such as
+`exam.mp4`. Write a temporary handoff file first, flush and fsync it, close it,
+then atomically rename it to the final watched name.
+
+The watcher skips in-progress names ending in `.tmp`, `.part`, `.partial`,
+`.crdownload`, or `.download`, and marker names containing `.tmp.` or `.part.`.
+When the temp file is renamed to a final media name, the move event is processed.
+
+Python producers should use
+`endoreg_db.utils.filesystem.file_operations.atomic_handoff_file(...)` so the
+temporary file, file fsync, directory fsync, and atomic rename behavior stay
+consistent with endoreg-db ingest.
 
 ## Quick Start
 

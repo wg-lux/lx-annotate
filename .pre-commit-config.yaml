@@ -10,9 +10,9 @@ repos:
         pass_filenames: false
   - repo: local
     hooks:
-      - id: mypy
-        name: mypy type check
-        entry: devenv shell -- mypy lx_annotate
+      - id: pyright
+        name: pyright type check
+        entry: devenv shell -- pyright lx_annotate
         language: system
         pass_filenames: false
       - id: pytest
@@ -20,7 +20,6 @@ repos:
         entry: devenv shell -- pytest
         language: system
         pass_filenames: false
-
 
       - id: frontend-vitest
         name: frontend vitest

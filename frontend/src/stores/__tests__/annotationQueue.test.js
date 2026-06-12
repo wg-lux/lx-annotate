@@ -109,6 +109,8 @@ describe('annotationQueue store', () => {
                         frame_number: 5000,
                         relative_path: 'frames/frame_005000.jpg',
                         frame_stream_path: '/api/media/videos/55/frames/5000/stream/',
+                        decoded_frame_stream_path: '/api/media/videos/55/frames/5000/decoded-stream/?file_type=processed',
+                        frame_file_type: 'processed',
                         dataset_selection_label_id: 11,
                         dataset_selection_label_name: 'Polyp',
                         dataset_selection_source: 'segments',
@@ -126,7 +128,8 @@ describe('annotationQueue store', () => {
             videoId: 55,
             frameNumber: 5000,
             relativePath: 'frames/frame_005000.jpg',
-            imageUrl: '/api/media/videos/55/frames/5000/stream/',
+            imageUrl: '/api/media/videos/55/frames/5000/decoded-stream/?file_type=processed',
+            frameFileType: 'processed',
             datasetSelectionLabelId: 11,
             datasetSelectionLabelName: 'Polyp',
             datasetSelectionSource: 'segments',
@@ -143,7 +146,20 @@ describe('annotationQueue store', () => {
             params: expect.objectContaining({
                 ai_dataset_id: '7',
                 ai_dataset_name: 'Dataset A',
-                ai_dataset_type: 'image'
+                ai_dataset_type: 'image',
+                frame_file_type: 'auto'
+            })
+        }));
+    });
+    it('sends selected frame file type when requesting frame tasks', async () => {
+        hoisted.get.mockResolvedValueOnce({ data: { tasks: [buildTask(101)] } });
+        const store = useAnnotationQueueStore();
+        store.setSelectedLabelGroupId('3');
+        store.setFrameFileType('processed');
+        await store.fetchBatch(1);
+        expect(hoisted.get).toHaveBeenCalledWith('media/annotations/frames/random-task/', expect.objectContaining({
+            params: expect.objectContaining({
+                frame_file_type: 'processed'
             })
         }));
     });

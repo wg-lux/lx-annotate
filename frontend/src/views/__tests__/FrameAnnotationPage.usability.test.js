@@ -39,12 +39,13 @@ function buildQueueStore(overrides = {}) {
         filterLabelName: null,
         allowRandomFallback: true,
         informationSource: 'frame_annotation_frontend',
+        frameFileType: 'auto',
         aiDatasetId: null,
         aiDatasetName: null,
         aiDatasetType: null,
         annotatorPrincipal: null,
         taskQueue: [],
-        taskQuerySignature: 'random|Polyp||frame_annotation_frontend|1',
+        taskQuerySignature: 'random|Polyp||frame_annotation_frontend|auto|1',
         lastError: null,
         setSelectedLabelGroupId: vi.fn(),
         setTaskMode: vi.fn(),
@@ -52,6 +53,7 @@ function buildQueueStore(overrides = {}) {
         setFilterLabelName: vi.fn(),
         setAllowRandomFallback: vi.fn(),
         setInformationSource: vi.fn(),
+        setFrameFileType: vi.fn(),
         setAiDataset: vi.fn(),
         setAnnotatorPrincipal: vi.fn(),
         clearQueue: vi.fn(),
@@ -90,7 +92,7 @@ function installGetMock(options = {}) {
         if (url === 'media/annotations/frames/boxes/') {
             return Promise.resolve({ data: { results: [] } });
         }
-        if (url.startsWith('/media/frame-')) {
+        if (url.startsWith('/media/frame-') || url.includes('/decoded-stream/')) {
             return Promise.resolve({
                 status: streamStatus,
                 data: streamBody,

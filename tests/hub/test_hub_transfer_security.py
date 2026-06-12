@@ -6,6 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
 from endoreg_db.models import Center, NetworkNode, TransferJob
+from tests.hub_payload_helpers import valid_report_resource_rows
 
 
 @override_settings(ENDOREG_ENABLE_HUB_TRANSFERS=True)
@@ -47,14 +48,7 @@ class HubTransferSecurityTests(TestCase):
             "processing_intent": TransferJob.ProcessingIntent.STATE_PRESERVATION,
             "cleanup_policy": TransferJob.CleanupPolicy.RETAIN_ALL,
             "payload_schema_version": "1.0",
-            "resource_rows": {
-                "raw_pdf_file": {
-                    "pdf_hash": "hash-1",
-                },
-                "raw_pdf_state": {
-                    "anonymized": True,
-                },
-            },
+            "resource_rows": valid_report_resource_rows(pdf_hash="hash-1"),
             "processing_snapshot": {
                 "sender_processing_success": True,
             },

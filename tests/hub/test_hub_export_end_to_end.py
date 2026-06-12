@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -16,6 +17,7 @@ from endoreg_db.models import (
 )
 from lx_annotate.hub.hub_export_worker import run_outbound_transfer_job
 from lx_annotate.models import OutboundHubTransferJob
+from tests.hub_payload_helpers import create_hub_sensitive_meta
 
 
 class HubExportEndToEndTests(TestCase):
@@ -47,6 +49,7 @@ class HubExportEndToEndTests(TestCase):
         report = RawPdfFile.objects.create(
             center=self.center,
             state=report_state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-1",
             file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
             processed_file=ContentFile(
@@ -113,8 +116,15 @@ class HubExportEndToEndTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             video_hash="video-hash-1",
             original_file_name="video-1.mp4",
+            suffix=".mp4",
+            fps=25.0,
+            duration=1.0,
+            frame_count=25,
+            width=320,
+            height=240,
             processed_file=ContentFile(
                 b"processed-video", name="video-1-processed.mp4"
             ),

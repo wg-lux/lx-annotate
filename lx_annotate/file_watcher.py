@@ -17,14 +17,14 @@ from typing import Iterator, Set
 
 import requests
 from django.core.exceptions import ObjectDoesNotExist
-from watchdog.events import (
+from watchdog.events import (  # type: ignore[import-not-found]
     DirCreatedEvent,
     FileCreatedEvent,
     FileMovedEvent,
     FileSystemEventHandler,
     DirMovedEvent,
 )
-from watchdog.observers import Observer
+from watchdog.observers import Observer  # type: ignore[import-not-found]
 from django.db.models import Q
 from django.db.models.fields.files import FieldFile
 from endoreg_db.models import Center, EndoscopyProcessor, LabelVideoSegment, VideoFile
@@ -34,10 +34,14 @@ from endoreg_db.services.hub.ingest import (
     process_watcher_file,
     UploadProvenance,
 )
-import endoreg_db.utils.filesystem.paths as path_utils
+from endoreg_db.services.hub.watcher_handoff import (
+    WatcherFileNotReadyError,
+    is_in_progress_handoff_path,
+)
+import endoreg_db.utils.paths as path_utils
 from endoreg_db.utils.storage import ensure_local_file
 from endoreg_db.exceptions import InsufficientStorageError
-from endoreg_db.models.media.video.create_from_file import (
+from endoreg_db.services.video_files._imports import (
     check_storage_capacity,
 )
 
@@ -384,6 +388,8 @@ def unload_ollama_model(model_name: str = "llama3.2:1b") -> None:
 def should_ignore_file(file_path: str | Path) -> bool:
     """Skip internal/temporary files and quarantine paths."""
     p = Path(file_path)
+    if is_in_progress_handoff_path(p):
+        return True
     if p.suffix == ".lock":
         return True
     if any(part == "_processing" for part in p.parts):
@@ -448,18 +454,14 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
         src_path = str(event.src_path)
         dest_path = getattr(event, "dest_path", None)
-        if should_ignore_file(src_path):
-            return
-        if dest_path and should_ignore_file(dest_path):
+        event_path = str(dest_path or src_path)
+        if should_ignore_file(event_path):
             return
 
-        path = Path(src_path)
-        if (
-            path.name.startswith(".")
-            or path.name.startswith("~")
-            or "tmp" in str(path)
-            or "transcoding" in str(path)
-        ):
+        path = Path(event_path)
+        if path.name.startswith(".") or path.name.startswith("~"):
+            return
+        if is_in_progress_handoff_path(path) or "transcoding" in str(path):
             return
 
         super().dispatch(event)
@@ -680,6 +682,14 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     "Video imported through shared hub ingest: %s",
                     video_file.video_hash,
                 )
+            except WatcherFileNotReadyError as not_ready_error:
+                logger.info(
+                    "Video watcher source is not ready yet, deferring: %s (%s)",
+                    video_path,
+                    not_ready_error,
+                )
+                self._unmark_processed(str(video_path))
+                return
             except Exception as import_error:
                 error_msg = str(import_error)
                 if (
@@ -802,6 +812,13 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         report_path,
                     )
                     self._unmark_processed(str(report_path))
+            except WatcherFileNotReadyError as not_ready_error:
+                logger.info(
+                    "Report watcher source is not ready yet, deferring: %s (%s)",
+                    report_path,
+                    not_ready_error,
+                )
+                self._unmark_processed(str(report_path))
             except InsufficientStorageError as storage_error:
                 logger.error(
                     "Insufficient storage space for %s: %s", report_path, storage_error
@@ -828,6 +845,13 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 )
             process_preanonymized_watcher_file(file_path=file_path)
             logger.info("Pseudonymized processing completed: %s", file_path)
+        except WatcherFileNotReadyError as not_ready_error:
+            logger.info(
+                "Pseudonymized watcher source is not ready yet, deferring: %s (%s)",
+                file_path,
+                not_ready_error,
+            )
+            self._unmark_processed(str(file_path))
         except Exception as exc:
             logger.error(
                 "Error processing pseudonymized file %s: %s",
@@ -934,6 +958,7 @@ class FileWatcherService:
             if (
                 video_file.is_file()
                 and video_file.suffix.lower() in self.handler.video_extensions
+                and not should_ignore_file(video_file)
             ):
                 path_str = str(video_file)
                 if (
@@ -954,6 +979,7 @@ class FileWatcherService:
             if (
                 report_file.is_file()
                 and report_file.suffix.lower() in self.handler.report_extensions
+                and not should_ignore_file(report_file)
             ):
                 path_str = str(report_file)
                 if (
@@ -975,6 +1001,7 @@ class FileWatcherService:
                 pseudonymized_file.is_file()
                 and pseudonymized_file.suffix.lower()
                 in self.handler.pseudonymized_extensions
+                and not should_ignore_file(pseudonymized_file)
             ):
                 path_str = str(pseudonymized_file)
                 if (

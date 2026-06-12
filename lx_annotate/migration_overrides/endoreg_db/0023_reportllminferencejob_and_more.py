@@ -4,6 +4,229 @@ import django.db.models.deletion
 import uuid
 from django.db import migrations, models
 
+from ._compat import (
+    add_field_if_missing,
+    column_exists,
+    create_many_to_many_table_if_missing,
+    table_exists,
+)
+
+
+def ensure_videostate_constraint_columns(apps, schema_editor) -> None:
+    fields: list[tuple[str, models.Field]] = [
+        (
+            "processing_error",
+            models.BooleanField(
+                default=False,
+                help_text="True if an error occurred during processing.",
+            ),
+        ),
+        (
+            "processing_started",
+            models.BooleanField(
+                default=False,
+                help_text="True if the processing has started, but not yet completed.",
+            ),
+        ),
+        (
+            "anonymization_validated",
+            models.BooleanField(
+                default=False,
+                help_text="True if the anonymization process has been validated and confirmed.",
+            ),
+        ),
+        (
+            "segment_annotations_validated",
+            models.BooleanField(
+                default=False,
+                help_text="True if segment annotations have been validated.",
+            ),
+        ),
+        (
+            "outside_segments_removed",
+            models.BooleanField(
+                default=False,
+                help_text="True if outside-labelled segments have been removed or blackened in the managed processed artifact.",
+            ),
+        ),
+        (
+            "processed_file_sha256",
+            models.CharField(
+                blank=True,
+                default="",
+                help_text="SHA-256 digest of the processed artifact at promotion time.",
+                max_length=64,
+            ),
+        ),
+        (
+            "ready_for_export",
+            models.BooleanField(
+                default=False,
+                help_text="True if the managed processed artifact passed explicit clinical ready-for-export validation.",
+            ),
+        ),
+        (
+            "ready_for_export_at",
+            models.DateTimeField(
+                blank=True,
+                help_text="Server-side timestamp for the ready-for-export promotion.",
+                null=True,
+            ),
+        ),
+        (
+            "ready_for_export_by",
+            models.CharField(
+                blank=True,
+                default="",
+                help_text="Authenticated user or service that promoted this video.",
+                max_length=255,
+            ),
+        ),
+    ]
+
+    for field_name, field in fields:
+        add_field_if_missing(
+            apps,
+            schema_editor,
+            model_name="VideoState",
+            field_name=field_name,
+            field=field,
+        )
+
+
+def ensure_numeric_value_distribution_columns(apps, schema_editor) -> None:
+    fields: list[tuple[str, models.Field]] = [
+        (
+            "min_value",
+            models.FloatField(
+                blank=True,
+                help_text="Lower hard limit for generated values",
+                null=True,
+            ),
+        ),
+        (
+            "max_value",
+            models.FloatField(
+                blank=True,
+                help_text="Upper hard limit for generated values",
+                null=True,
+            ),
+        ),
+        (
+            "mean",
+            models.FloatField(
+                blank=True,
+                help_text="Mean used for normal or skewed normal distributions",
+                null=True,
+            ),
+        ),
+        (
+            "std_dev",
+            models.FloatField(
+                blank=True,
+                help_text="Standard deviation for bell-shaped distributions",
+                null=True,
+            ),
+        ),
+        (
+            "skewness",
+            models.FloatField(
+                blank=True,
+                help_text="Shape parameter for skewed normal distributions",
+                null=True,
+            ),
+        ),
+    ]
+
+    for field_name, field in fields:
+        add_field_if_missing(
+            apps,
+            schema_editor,
+            model_name="NumericValueDistribution",
+            field_name=field_name,
+            field=field,
+        )
+
+
+def ensure_auto_many_to_many_tables(apps, schema_editor) -> None:
+    for model in apps.get_models():
+        for field in model._meta.local_many_to_many:
+            if not field.remote_field.through._meta.auto_created:
+                continue
+
+            create_many_to_many_table_if_missing(
+                apps,
+                schema_editor,
+                app_label=model._meta.app_label,
+                model_name=model._meta.object_name,
+                field_name=field.name,
+            )
+
+
+def copy_legacy_many_to_many_links(apps, schema_editor) -> None:
+    table_copies = [
+        (
+            "endoreg_db_findingclassification_findings",
+            "endoreg_db_finding_finding_classifications",
+            ("finding_id", "findingclassification_id"),
+        ),
+        (
+            "endoreg_db_finding_examinations",
+            "endoreg_db_examination_findings",
+            ("examination_id", "finding_id"),
+        ),
+    ]
+
+    with schema_editor.connection.cursor() as cursor:
+        for source_table, target_table, columns in table_copies:
+            if not table_exists(schema_editor, source_table) or not table_exists(
+                schema_editor, target_table
+            ):
+                continue
+
+            quoted_source = schema_editor.quote_name(source_table)
+            quoted_target = schema_editor.quote_name(target_table)
+            quoted_columns = ", ".join(schema_editor.quote_name(c) for c in columns)
+            cursor.execute(f"""
+                INSERT INTO {quoted_target} ({quoted_columns})
+                SELECT {quoted_columns}
+                FROM {quoted_source}
+                ON CONFLICT DO NOTHING
+                """)
+
+
+def repair_legacy_examination_indication_fk(apps, schema_editor) -> None:
+    source_table = "endoreg_db_examinationindication"
+    target_table = "endoreg_db_examination_indications"
+    legacy_column = "examination_id"
+
+    if not table_exists(schema_editor, source_table) or not table_exists(
+        schema_editor, target_table
+    ):
+        return
+    if not column_exists(schema_editor, source_table, legacy_column):
+        return
+
+    quoted_source = schema_editor.quote_name(source_table)
+    quoted_target = schema_editor.quote_name(target_table)
+    quoted_legacy_column = schema_editor.quote_name(legacy_column)
+    quoted_indication_column = schema_editor.quote_name("examinationindication_id")
+    quoted_id_column = schema_editor.quote_name("id")
+
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(f"""
+            INSERT INTO {quoted_target}
+              ({quoted_legacy_column}, {quoted_indication_column})
+            SELECT {quoted_legacy_column}, {quoted_id_column}
+            FROM {quoted_source}
+            WHERE {quoted_legacy_column} IS NOT NULL
+            ON CONFLICT DO NOTHING
+            """)
+
+    schema_editor.execute(
+        f"ALTER TABLE {quoted_source} DROP COLUMN {quoted_legacy_column} CASCADE"
+    )
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -73,6 +296,26 @@ class Migration(migrations.Migration):
                 "db_table": "report_llm_inference_job",
                 "ordering": ["-created_at", "-id"],
             },
+        ),
+        migrations.RunPython(
+            ensure_videostate_constraint_columns,
+            reverse_code=migrations.RunPython.noop,
+        ),
+        migrations.RunPython(
+            ensure_numeric_value_distribution_columns,
+            reverse_code=migrations.RunPython.noop,
+        ),
+        migrations.RunPython(
+            ensure_auto_many_to_many_tables,
+            reverse_code=migrations.RunPython.noop,
+        ),
+        migrations.RunPython(
+            copy_legacy_many_to_many_links,
+            reverse_code=migrations.RunPython.noop,
+        ),
+        migrations.RunPython(
+            repair_legacy_examination_indication_fk,
+            reverse_code=migrations.RunPython.noop,
         ),
         migrations.AddConstraint(
             model_name="videostate",

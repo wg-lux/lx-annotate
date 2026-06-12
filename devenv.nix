@@ -233,24 +233,8 @@ in
   } // devenv_utils.scripts;
 
   enterShell = lib.mkAfter ''
-    VENV_PATH=".devenv/state/venv"
-    if [ -d "$VENV_PATH" ]; then
-      if ! "$VENV_PATH/bin/python" --version >/dev/null 2>&1; then
-        echo "⚠️ Virtual env interpreter is broken. Removing..."
-        rm -rf "$VENV_PATH"
-      fi
-    fi
 
-    source .devenv/state/venv/bin/activate 2>/dev/null || true
 
-    validate_python_env() {
-      [ -x "$VENV_PATH/bin/python" ] || return 1
-      "$VENV_PATH/bin/python" -c 'import pydantic, pydantic_settings' >/dev/null 2>&1
-    }
-
-    if [ ! -d "$VENV_PATH" ] || ! validate_python_env; then
-      echo "Python venv is missing or incomplete. Run: ${SYNC_CMD}"
-    fi
 
     mkdir -p "${baseEnv.STORAGE_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"

@@ -435,6 +435,14 @@ centre-to-server submission</p></li>
 <li><p>downstream processing, upload-job tracking, and managed storage should be
 reasoned about as shared components rather than watcher-only or API-only logic</p></li>
 </ul>
+<p>Watcher producers must use an atomic handoff contract. A producer that writes
+directly into a watcher import directory must write to a name outside the
+watched final pattern, for example <code class="docutils literal notranslate"><span class="pre">*.part</span></code> or <code class="docutils literal notranslate"><span class="pre">*.tmp</span></code>, then <code class="docutils literal notranslate"><span class="pre">close()</span></code> and
+<code class="docutils literal notranslate"><span class="pre">fsync()</span></code> the file and atomically rename it to the final <code class="docutils literal notranslate"><span class="pre">.mp4</span></code> or <code class="docutils literal notranslate"><span class="pre">.pdf</span></code> name.
+External uploaders that bypass <code class="docutils literal notranslate"><span class="pre">lx_annotate.file_watcher</span></code> and call the
+<code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> hub ingest service directly must follow the same rule. The ingest
+service treats <code class="docutils literal notranslate"><span class="pre">*.part</span></code> and <code class="docutils literal notranslate"><span class="pre">*.tmp</span></code> names as in-progress files and only hashes
+or persists post-rename final media paths after a defensive stability check.</p>
 <p>Role-driven API policy should be set explicitly with:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_DEPLOYMENT_ROLE=central_hub|site_node|standalone</span></code></p></li>
@@ -761,7 +769,7 @@ automated rollback path.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=020ce317"></script>
+</div><script src="../_static/documentation_options.js?v=b41f4c93"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

@@ -115,6 +115,17 @@
         </small>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
+        <label for="frame-file-type" class="form-label">Frame-Quelle</label>
+        <select id="frame-file-type" v-model="frameFileType" class="form-select">
+          <option value="auto">Automatisch</option>
+          <option value="processed">Verarbeitet</option>
+          <option value="raw">Rohmaterial</option>
+        </select>
+        <small v-if="isPhiRegionMode || isPhiDatasetSelected" class="text-warning d-block mt-1">
+          Patienteninformationen-Regionen verwenden Rohmaterial.
+        </small>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4">
         <label for="target-label-name" class="form-label">Zu annotierendes Label</label>
         <input
           id="target-label-name"
@@ -828,6 +839,11 @@ const informationSource = computed({
   set: (value: string) => queueStore.setInformationSource(value)
 })
 
+const frameFileType = computed({
+  get: () => queueStore.frameFileType ?? 'auto',
+  set: (value: string) => queueStore.setFrameFileType?.(value)
+})
+
 const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? [])
 const selectedBoxLabel = computed(
   () => annotationLabelOptions.value.find((label) => label.id === selectedBoxLabelId.value) ?? null
@@ -875,6 +891,8 @@ const frameImageStatusMessage = computed(() => {
     return `Frame wird extrahiert... automatischer Versuch ${frameImageRetryCount.value}/${FRAME_IMAGE_RETRY_LIMIT}`
   }
   if (frameImageLoadState.value === 'failed') {
+    const detailMessage = errorMessage.value?.trim()
+    if (detailMessage) return detailMessage
     if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
       return 'Frame ist noch nicht verfügbar. Automatische Versuche sind beendet.'
     }
@@ -1173,6 +1191,23 @@ function readBlobText(blob: Blob): Promise<string> {
   if (typeof blob.text === 'function') {
     return blob.text()
   }
+  if (typeof FileReader !== 'undefined') {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+      reader.onerror = () => resolve('')
+      reader.readAsText(blob)
+    })
+  }
+  if (typeof blob.arrayBuffer === 'function' && typeof TextDecoder !== 'undefined') {
+    return blob
+      .arrayBuffer()
+      .then((buffer) => new TextDecoder().decode(buffer))
+      .catch(() => '')
+  }
+  if (typeof Response !== 'undefined') {
+    return new Response(blob).text().catch(() => '')
+  }
   return Promise.resolve('')
 }
 
@@ -1184,6 +1219,12 @@ async function extractPendingMessage(blob: Blob): Promise<string | null> {
     const status = typeof payload.status === 'string' ? payload.status : null
     if (status === 'frame_extraction_failed') {
       return 'Frame konnte nicht extrahiert werden. Bitte spaeter erneut versuchen.'
+    }
+    if (status === 'frame_decode_failed') {
+      const detail = typeof payload.error === 'string' && payload.error.trim() ? payload.error : null
+      return detail
+        ? `Frame konnte nicht dekodiert werden: ${detail}`
+        : 'Frame konnte nicht dekodiert werden. Bitte spaeter erneut versuchen.'
     }
     return null
   } catch {

@@ -37,6 +37,7 @@ export declare const endpoints: {
         readonly checkPatientExaminationExists: (id: Id) => string;
     };
     readonly examination: {
+        readonly examinationsDropdown: "patient-examinations/examinations_dropdown/";
         readonly examinationFindings: (examinationId: Id) => string;
         readonly findingClassifications: (findingId: Id) => string;
         readonly classificationChoices: (classificationId: Id) => string;

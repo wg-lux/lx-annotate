@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false, reportIndexIssue=false
 from __future__ import annotations
 
 from django.core.files.base import ContentFile

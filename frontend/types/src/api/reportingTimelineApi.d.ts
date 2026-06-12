@@ -41,6 +41,7 @@ export type TimelineLatestPayload = {
     latestFrames: TimelineLatestFrame[];
 };
 export declare function pickPreferredStream(options?: TimelineStreamOption[]): string | null;
+export declare function pickPreferredReportStream(options?: TimelineStreamOption[]): string | null;
 export declare function fetchPatientTimelineLatest(params: {
     patientId: number;
     patientExaminationId?: number | null;

@@ -120,11 +120,11 @@ class Command(BaseCommand):
 
             os.environ["WATCHER_LOG_LEVEL"] = str(log_level)
 
+        from lx_annotate.file_watcher import run_file_watcher
+
         if options.get("dry_run"):
             self.stdout.write(self.style.SUCCESS("File watcher dry-run completed"))
             return
-
-        from lx_annotate.file_watcher import run_file_watcher
 
         process_existing_once = bool(options.get("process_existing_once"))
         if process_existing_once:

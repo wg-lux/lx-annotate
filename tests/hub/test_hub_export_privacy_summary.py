@@ -4,7 +4,10 @@ from datetime import date
 from types import SimpleNamespace
 from typing import Any
 
-from lx_annotate.hub.hub_export_jobs import build_hub_export_privacy_summary
+from lx_annotate.hub.hub_export_jobs import (
+    HubExportPrivacyRecord,
+    build_hub_export_privacy_summary,
+)
 
 
 def _sensitive_meta(
@@ -35,7 +38,7 @@ def _record(
     source_center_key: str | None = "center-a",
     eligible: bool = True,
     marked_for_upload: bool = False,
-) -> dict[str, Any]:
+) -> HubExportPrivacyRecord:
     return {
         "resource_kind": resource_kind,
         "resource_id": resource_id,

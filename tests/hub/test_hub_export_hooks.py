@@ -157,7 +157,7 @@ class HubExportHookTests(TestCase):
             operation=VideoProcessingHistory.OPERATION_REPROCESSING,
             status=VideoProcessingHistory.STATUS_PENDING,
             task_id="cleanup-pending",
-            config=segment_state._blackening_history_config(only_validated=False),
+            config=segment_state.blackening_history_config(only_validated=False),
         )
 
         overview = build_hub_export_overview(target_node=self.hub_node)

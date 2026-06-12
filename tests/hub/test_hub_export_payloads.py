@@ -1,3 +1,4 @@
+# pyright: reportTypedDictNotRequiredAccess=false
 from __future__ import annotations
 
 import base64
@@ -21,6 +22,7 @@ from lx_annotate.hub.hub_export_payloads import (
     validate_transfer_payload,
 )
 from lx_annotate.models import OutboundHubTransferJob
+from tests.hub_payload_helpers import create_hub_sensitive_meta
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 
@@ -85,9 +87,16 @@ class HubExportPayloadTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             video_hash="video-hash-1",
             processed_video_hash="processed-video-hash-1",
             original_file_name="video-1.mp4",
+            suffix=".mp4",
+            fps=25.0,
+            duration=1.0,
+            frame_count=25,
+            width=320,
+            height=240,
             processed_file=ContentFile(
                 b"processed-video", name="video-1-processed.mp4"
             ),
@@ -122,6 +131,7 @@ class HubExportPayloadTests(TestCase):
         report = RawPdfFile.objects.create(
             center=self.center,
             state=state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-1",
             file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
             processed_file=ContentFile(

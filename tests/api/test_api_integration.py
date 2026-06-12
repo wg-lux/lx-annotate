@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false, reportIndexIssue=false, reportArgumentType=false, reportOptionalSubscript=false, reportOptionalMemberAccess=false, reportGeneralTypeIssues=false
 """
 Test-Modul für die wichtigsten API-Funktionalitäten der lx-annotate Anwendung.
 

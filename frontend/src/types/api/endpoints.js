@@ -35,6 +35,7 @@ export const endpoints = {
         checkPatientExaminationExists: (id) => `check_pe_exist/${id}/`
     },
     examination: {
+        examinationsDropdown: 'patient-examinations/examinations_dropdown/',
         examinationFindings: (examinationId) => `examinations/${examinationId}/findings/`,
         findingClassifications: (findingId) => `findings/${findingId}/classifications/`,
         classificationChoices: (classificationId) => `classifications/${classificationId}/choices/`,

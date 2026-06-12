@@ -3,11 +3,12 @@ import { useRoute, useRouter } from 'vue-router';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { findingsApi } from '@/api/findingsApi';
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi';
-import { buildReportTemplateRuntimePayload, fetchReportTemplatesByExamination } from '@/api/reportTemplatesApi';
+import { buildReportTemplateRuntimePayload, fetchReportTemplateByName, fetchReportTemplatesByExamination } from '@/api/reportTemplatesApi';
+import { getFindingDisplayName, mergeFindingClassifications } from '@/api/findings.contract';
 import { endpoints } from '@/types/api/endpoints';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { useTerminologyStore } from '@/stores/terminologyStore';
-import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi';
+import { fetchPatientTimelineLatest, pickPreferredReportStream, pickPreferredStream } from '@/api/reportingTimelineApi';
 const route = useRoute();
 const router = useRouter();
 const flow = useReportingFlowStore();
@@ -23,6 +24,14 @@ const patientExaminationOptionsLoading = ref(false);
 const patientExaminationOptionsError = ref(null);
 const draftBootstrapInFlight = ref(null);
 const draftBootstrapError = ref(null);
+const patientExaminationDetail = ref(null);
+const templateReference = ref(null);
+const templateReferenceLoading = ref(false);
+const templateReferenceError = ref(null);
+const templateReferenceKey = ref(null);
+const selectedReferenceFindingKey = ref(null);
+const findingCatalog = ref([]);
+const findingCatalogLoading = ref(false);
 const routePatientExaminationId = computed(() => {
     const parsed = Number(route.params.patient_examination_id);
     if (!Number.isFinite(parsed))
@@ -57,7 +66,7 @@ const navItems = computed(() => [
     },
     { label: 'Abschluss', to: `/reporting/${pe.value}/finalized`, requiresPatientExamination: true }
 ]);
-const preferredReportStream = computed(() => pickPreferredStream(flow.mediaPreload?.latestReport?.streamOptions || []));
+const preferredReportStream = computed(() => pickPreferredReportStream(flow.mediaPreload?.latestReport?.streamOptions || []));
 const preferredReportDownload = computed(() => preferredReportStream.value
     ? `${preferredReportStream.value}${preferredReportStream.value.includes('?') ? '&' : '?'}download=1`
     : null);
@@ -99,6 +108,262 @@ const mediaPreloadLabel = computed(() => {
     if (flow.mediaPreloadStatus === 'error')
         return 'Fehler';
     return 'bereit';
+});
+const selectedPatientExaminationOption = computed(() => {
+    return (patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
+        patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
+        null);
+});
+const currentPayload = computed(() => flow.currentRuntimeDraft?.payload || null);
+const caseIdLabel = computed(() => flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt');
+const patientHeaderLabel = computed(() => {
+    const timelinePatient = flow.mediaPreload?.patient || null;
+    const timelineName = [timelinePatient?.firstName, timelinePatient?.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+    if (timelineName)
+        return timelineName;
+    if (timelinePatient?.patientHash)
+        return timelinePatient.patientHash;
+    const detailPatient = readRecord(patientExaminationDetail.value?.patient);
+    const detailName = [
+        readString(detailPatient, 'firstName', 'first_name', 'givenName', 'given_name'),
+        readString(detailPatient, 'lastName', 'last_name', 'familyName', 'family_name')
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+    if (detailName)
+        return detailName;
+    const detailHash = readString(detailPatient, 'patientHash', 'patient_hash', 'hash', 'pseudonym');
+    if (detailHash)
+        return detailHash;
+    if (currentPayload.value?.patient)
+        return currentPayload.value.patient;
+    return flow.selectedPatientId ? `Patient #${flow.selectedPatientId}` : 'Nicht gewählt';
+});
+const patientBirthDateLabel = computed(() => {
+    const detailPatient = readRecord(patientExaminationDetail.value?.patient);
+    const value = flow.mediaPreload?.patient?.dob ||
+        readString(detailPatient, 'dob', 'dateOfBirth', 'date_of_birth', 'birthDate', 'birth_date', 'patientDob', 'patient_dob') ||
+        readString(patientExaminationDetail.value, 'patientBirthDate', 'patient_birth_date', 'patientDob', 'patient_dob');
+    return formatDateLabel(value) || 'Nicht verfügbar';
+});
+const examinationTypeLabel = computed(() => {
+    return (selectedPatientExaminationOption.value?.examinationName ||
+        readString(readRecord(patientExaminationDetail.value?.examination), 'displayName', 'display_name', 'name') ||
+        readString(patientExaminationDetail.value, 'examinationName', 'examination_name') ||
+        currentPayload.value?.examination ||
+        'Nicht gewählt');
+});
+const caseStatusLabel = computed(() => {
+    return (readString(patientExaminationDetail.value, 'status', 'workflowStatus', 'workflow_status', 'state') ||
+        (flow.lastTemplateValidation
+            ? flow.lastTemplateValidation.ok
+                ? 'Befund valide'
+                : 'Befund offen'
+            : flow.currentRuntimeDraft
+                ? 'Entwurf'
+                : 'Nicht vorbereitet'));
+});
+const validationStatusLabel = computed(() => {
+    if (!flow.lastTemplateValidation)
+        return 'ungeprüft';
+    return flow.lastTemplateValidation.ok ? 'valide' : 'offen';
+});
+const validationStatusPillClass = computed(() => {
+    if (!flow.lastTemplateValidation)
+        return 'is-idle';
+    return flow.lastTemplateValidation.ok ? 'is-ready' : 'is-error';
+});
+const templateSectionsForReference = computed(() => (templateReference.value?.reportSections || [])
+    .slice()
+    .sort((left, right) => (left.position || 0) - (right.position || 0)));
+const catalogFindingsByName = computed(() => {
+    const entries = findingCatalog.value.map((finding) => [normalizeKey(finding.name), finding]);
+    return new Map(entries);
+});
+const validationIssueMessagesByFinding = computed(() => {
+    const grouped = new Map();
+    const addMessages = (findingName, messages) => {
+        const key = normalizeKey(findingName);
+        const current = grouped.get(key) || [];
+        grouped.set(key, Array.from(new Set([...current, ...messages.filter(Boolean)])));
+    };
+    for (const validator of flow.lastTemplateValidation?.findingsValidators || []) {
+        const messages = validator.issues.map((issue) => issue.message);
+        if (!validator.ok && !messages.length)
+            messages.push(`Regel "${validator.name}" ist offen.`);
+        addMessages(validator.finding, messages);
+    }
+    for (const validator of flow.lastTemplateValidation?.classificationValidators || []) {
+        const messages = validator.issues.map((issue) => issue.message);
+        if (!validator.ok && !messages.length)
+            messages.push(`Klassifikation "${validator.classification}" prüfen.`);
+        addMessages(validator.finding, messages);
+    }
+    for (const validator of flow.lastTemplateValidation?.interventionValidators || []) {
+        const messages = validator.issues.map((issue) => issue.message);
+        if (!validator.ok && !messages.length)
+            messages.push(`Intervention "${validator.intervention}" prüfen.`);
+        addMessages(validator.finding, messages);
+    }
+    for (const validator of flow.lastTemplateValidation?.unitValidators || []) {
+        const messages = validator.issues.map((issue) => issue.message);
+        if (!validator.ok && !messages.length)
+            messages.push(`Einheit "${validator.unit}" prüfen.`);
+        addMessages(validator.finding, messages);
+    }
+    return grouped;
+});
+const findingStatusRows = computed(() => {
+    const rows = [];
+    for (const section of templateSectionsForReference.value) {
+        const sectionKey = normalizeKey(section.name);
+        const sectionTitle = formatKnowledgeName(section.name);
+        for (const templateFinding of section.findings || []) {
+            rows.push(buildFindingStatusRow({
+                findingName: templateFinding.finding,
+                sectionKey,
+                sectionTitle,
+                required: !!templateFinding.required,
+                templateFinding
+            }));
+        }
+    }
+    if (rows.length)
+        return rows;
+    return (currentPayload.value?.patientFindings || []).map((finding) => buildFindingStatusRow({
+        findingName: finding.finding,
+        sectionKey: 'runtime_draft',
+        sectionTitle: 'Lokaler Entwurf',
+        required: false,
+        templateFinding: null
+    }));
+});
+const findingStatusSections = computed(() => {
+    const sections = new Map();
+    for (const row of findingStatusRows.value) {
+        if (!sections.has(row.sectionKey)) {
+            sections.set(row.sectionKey, {
+                key: row.sectionKey,
+                title: row.sectionTitle,
+                rows: []
+            });
+        }
+        sections.get(row.sectionKey)?.rows.push(row);
+    }
+    return Array.from(sections.values());
+});
+const findingProgressSummary = computed(() => {
+    const rows = findingStatusRows.value;
+    if (!rows.length)
+        return 'Keine Befunde';
+    const complete = rows.filter((row) => row.status === 'complete').length;
+    const open = rows.filter((row) => row.status === 'warning' || row.status === 'missing').length;
+    return open ? `${complete}/${rows.length} vollständig · ${open} offen` : `${complete}/${rows.length} vollständig`;
+});
+const routeReferenceFindingKey = computed(() => {
+    const hash = typeof route.hash === 'string' ? route.hash : '';
+    const match = hash.match(/^#finding-(.+)$/);
+    return match ? normalizeKey(match[1]) : null;
+});
+const activeReferenceFindingKey = computed(() => {
+    const availableKeys = new Set(findingStatusRows.value.map((row) => row.normalizedKey));
+    if (selectedReferenceFindingKey.value && availableKeys.has(selectedReferenceFindingKey.value)) {
+        return selectedReferenceFindingKey.value;
+    }
+    if (routeReferenceFindingKey.value && availableKeys.has(routeReferenceFindingKey.value)) {
+        return routeReferenceFindingKey.value;
+    }
+    return (findingStatusRows.value.find((row) => row.status === 'warning' || row.status === 'missing')
+        ?.normalizedKey ||
+        findingStatusRows.value[0]?.normalizedKey ||
+        null);
+});
+const activeReferenceFinding = computed(() => findingStatusRows.value.find((row) => row.normalizedKey === activeReferenceFindingKey.value) || null);
+const activeFindingInstances = computed(() => {
+    const active = activeReferenceFinding.value;
+    if (!active)
+        return [];
+    return instancesForFinding(active.findingName);
+});
+const activeFindingCatalogDefinition = computed(() => {
+    const active = activeReferenceFinding.value;
+    if (!active)
+        return null;
+    return catalogFindingsByName.value.get(normalizeKey(active.findingName)) || null;
+});
+const activeFindingDescription = computed(() => {
+    const description = activeFindingCatalogDefinition.value?.description?.trim();
+    return description || 'Keine Beschreibung in der geladenen KB-Definition.';
+});
+const activeReferenceClassifications = computed(() => {
+    const active = activeReferenceFinding.value;
+    if (!active)
+        return [];
+    const templateClassifications = active.templateFinding?.classifications || [];
+    const catalogClassifications = mergeFindingClassifications(activeFindingCatalogDefinition.value);
+    const catalogByName = new Map(catalogClassifications.map((classification) => [normalizeKey(classification.name), classification]));
+    const templateKeys = templateClassifications.map((classification) => normalizeKey(classification.classification));
+    const source = templateClassifications.length > 0
+        ? templateClassifications.map((classification) => ({
+            key: normalizeKey(classification.classification),
+            name: classification.classification,
+            required: !!classification.required
+        }))
+        : catalogClassifications.map((classification) => ({
+            key: normalizeKey(classification.name),
+            name: classification.name,
+            required: !!classification.required
+        }));
+    return source
+        .filter((classification, index, all) => {
+        if (templateKeys.length && !templateKeys.includes(classification.key))
+            return false;
+        return all.findIndex((entry) => entry.key === classification.key) === index;
+    })
+        .map((classification) => {
+        const catalog = catalogByName.get(classification.key);
+        const choices = (catalog?.choices || [])
+            .map((choice) => choice.displayName || choice.name)
+            .filter(Boolean);
+        return {
+            key: classification.key,
+            label: catalog?.displayName || formatKnowledgeName(classification.name),
+            required: classification.required,
+            choicesLabel: choices.length ? `Werte: ${choices.join(', ')}` : '',
+            description: catalog?.description || ''
+        };
+    });
+});
+const activeAdviceRows = computed(() => {
+    const active = activeReferenceFinding.value;
+    if (!active)
+        return [];
+    return [
+        ...interventionAdviceRows(active.findingName),
+        ...unitAdviceRows(active.findingName)
+    ];
+});
+const activeSuggestedActions = computed(() => {
+    const active = activeReferenceFinding.value;
+    if (!active)
+        return [];
+    const suggestions = [
+        ...collectValidatorSuggestions(interventionValidatorsForFinding(active.findingName)),
+        ...collectValidatorSuggestions(unitValidatorsForFinding(active.findingName)),
+        ...collectIssueSuggestions(flow.lastTemplateValidation?.issues || [])
+    ];
+    return Array.from(new Set(suggestions));
+});
+const kbReferenceSubtitle = computed(() => {
+    const moduleName = flow.selectedKbModule || activeKbModule.value;
+    const templateName = templateReference.value?.name || flow.selectedTemplateName;
+    if (!templateName)
+        return `${moduleName} · kein Template`;
+    return `${moduleName} · ${templateName}`;
 });
 const nextStepHint = computed(() => {
     if (!flow.patientExaminationId) {
@@ -151,6 +416,205 @@ async function importTerminologyZip(event) {
         input.value = '';
     }
 }
+function readRecord(value) {
+    return value && typeof value === 'object' && !Array.isArray(value)
+        ? value
+        : {};
+}
+function readString(record, ...keys) {
+    if (!record)
+        return null;
+    for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'string' && value.trim())
+            return value.trim();
+        if (typeof value === 'number' && Number.isFinite(value))
+            return String(value);
+    }
+    return null;
+}
+function normalizeKey(value) {
+    return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+}
+function formatKnowledgeName(value) {
+    const normalized = value.replace(/[_-]/g, ' ').trim();
+    if (!normalized)
+        return 'Unbenannt';
+    return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+function formatDateLabel(value) {
+    if (!value)
+        return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime()))
+        return value;
+    return parsed.toLocaleDateString('de-DE');
+}
+function findingAnchorId(findingName) {
+    return `finding-${normalizeKey(findingName)}`;
+}
+function getFindingLabel(findingName) {
+    const finding = catalogFindingsByName.value.get(normalizeKey(findingName));
+    return finding ? getFindingDisplayName(finding) : formatKnowledgeName(findingName);
+}
+function instancesForFinding(findingName) {
+    const key = normalizeKey(findingName);
+    return (currentPayload.value?.patientFindings || []).filter((finding) => normalizeKey(finding.finding) === key);
+}
+function requiredClassificationsMissing(templateFinding, instances) {
+    const required = (templateFinding?.classifications || []).filter((classification) => classification.required);
+    return required
+        .filter((classification) => {
+        const key = normalizeKey(classification.classification);
+        return !instances.some((instance) => instance.classificationChoices.some((choice) => normalizeKey(choice.classification) === key &&
+            typeof choice.classificationChoice === 'string' &&
+            choice.classificationChoice.trim()));
+    })
+        .map((classification) => formatKnowledgeName(classification.classification));
+}
+function buildFindingStatusRow(params) {
+    const normalizedKey = normalizeKey(params.findingName);
+    const instances = instancesForFinding(params.findingName);
+    const validationMessages = validationIssueMessagesByFinding.value.get(normalizedKey) || [];
+    const missingClassifications = requiredClassificationsMissing(params.templateFinding, instances);
+    const messages = Array.from(new Set([
+        ...validationMessages,
+        ...(params.required && !instances.length ? ['Dieser Befund ist im Template erforderlich.'] : []),
+        ...(missingClassifications.length
+            ? [`Erforderliche Klassifikationen fehlen: ${missingClassifications.join(', ')}.`]
+            : [])
+    ]));
+    let status = 'empty';
+    if (params.required && !instances.length)
+        status = 'missing';
+    else if (validationMessages.length || missingClassifications.length)
+        status = 'warning';
+    else if (instances.length)
+        status = 'complete';
+    return {
+        key: `${params.sectionKey}:${normalizedKey}`,
+        normalizedKey,
+        findingName: params.findingName,
+        label: getFindingLabel(params.findingName),
+        sectionKey: params.sectionKey,
+        sectionTitle: params.sectionTitle,
+        anchorId: findingAnchorId(params.findingName),
+        required: params.required,
+        instanceCount: instances.length,
+        status,
+        statusLabel: findingStatusLabel(status, params.required),
+        iconClass: findingStatusIconClass(status),
+        messages,
+        templateFinding: params.templateFinding
+    };
+}
+function findingStatusLabel(status, required) {
+    if (status === 'complete')
+        return 'vollständig';
+    if (status === 'warning')
+        return 'prüfen';
+    if (status === 'missing')
+        return 'fehlt';
+    return required ? 'offen' : 'optional';
+}
+function findingStatusIconClass(status) {
+    if (status === 'complete')
+        return 'ni ni-check-bold';
+    if (status === 'warning')
+        return 'ni ni-alert-circle-exc';
+    if (status === 'missing')
+        return 'ni ni-fat-remove';
+    return 'ni ni-fat-add';
+}
+function findingStatusTarget(row) {
+    const patientExaminationId = flow.patientExaminationId || routePatientExaminationId.value;
+    if (!patientExaminationId)
+        return { path: route.path, hash: `#${row.anchorId}` };
+    return {
+        path: `/reporting/${patientExaminationId}/findings`,
+        hash: `#${row.anchorId}`
+    };
+}
+function validatorsForFinding(validators, findingName) {
+    const key = normalizeKey(findingName);
+    return (validators || []).filter((validator) => normalizeKey(validator.finding) === key);
+}
+function interventionValidatorsForFinding(findingName) {
+    return validatorsForFinding(flow.lastTemplateValidation?.interventionValidators, findingName);
+}
+function unitValidatorsForFinding(findingName) {
+    return validatorsForFinding(flow.lastTemplateValidation?.unitValidators, findingName);
+}
+function interventionAdviceRows(findingName) {
+    return interventionValidatorsForFinding(findingName).map((validator) => ({
+        key: `intervention:${validator.name}`,
+        kind: 'Intervention',
+        title: formatKnowledgeName(validator.intervention),
+        detail: validator.ok ? 'Regel erfüllt' : `Erforderlich nach Regel "${validator.name}"`,
+        ok: validator.ok,
+        messages: validator.issues.map((issue) => issue.message)
+    }));
+}
+function unitAdviceRows(findingName) {
+    return unitValidatorsForFinding(findingName).map((validator) => ({
+        key: `unit:${validator.name}`,
+        kind: 'Einheit',
+        title: validator.unit,
+        detail: validator.ok
+            ? `${formatKnowledgeName(validator.classification)} verwendet die erwartete Einheit.`
+            : `${formatKnowledgeName(validator.classification)} erwartet "${validator.unit}".`,
+        ok: validator.ok,
+        messages: validator.issues.map((issue) => issue.message)
+    }));
+}
+function collectIssueSuggestions(issues) {
+    return issues.flatMap((issue) => [
+        ...extractStringList(issue.details?.suggestedActions),
+        ...extractStringList(issue.details?.suggested_actions),
+        ...extractStringList(issue.details?.recommendations)
+    ]);
+}
+function collectValidatorSuggestions(validators) {
+    return validators.flatMap((validator) => [
+        ...extractStringList(validator.hint?.suggestedActions),
+        ...extractStringList(validator.hint?.suggested_actions),
+        ...extractStringList(validator.hint?.suggestions),
+        ...extractStringList(validator.hint?.recommendations),
+        ...collectIssueSuggestions(validator.issues)
+    ]);
+}
+function extractStringList(value) {
+    if (typeof value === 'string' && value.trim())
+        return [value.trim()];
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .map((entry) => {
+        if (typeof entry === 'string')
+            return entry.trim();
+        if (!entry || typeof entry !== 'object')
+            return '';
+        const record = entry;
+        return ((typeof record.label === 'string' && record.label.trim()) ||
+            (typeof record.message === 'string' && record.message.trim()) ||
+            (typeof record.action === 'string' && record.action.trim()) ||
+            '');
+    })
+        .filter((entry) => Boolean(entry));
+}
+function formatRuntimeFindingInstance(instance) {
+    if (!instance.classificationChoices.length)
+        return 'Keine Klassifikation gesetzt';
+    return instance.classificationChoices
+        .map((choice) => {
+        const descriptors = choice.descriptors
+            .map((descriptor) => `${formatKnowledgeName(descriptor.classificationChoiceDescriptor)}: ${descriptor.descriptorValue}`)
+            .join(', ');
+        const base = `${formatKnowledgeName(choice.classification)} = ${formatKnowledgeName(choice.classificationChoice)}`;
+        return descriptors ? `${base} (${descriptors})` : base;
+    })
+        .join(' · ');
+}
 function ensureTerminologyBundlesLoaded() {
     if (terminology.activeBundle || terminology.bundles.length || terminology.error) {
         return Promise.resolve();
@@ -167,6 +631,59 @@ function ensureTerminologyBundlesLoaded() {
     });
     terminologyLoadPromise.value = task;
     return task;
+}
+async function loadTemplateReferenceForSelection() {
+    const moduleName = flow.selectedKbModule || activeKbModule.value;
+    const templateName = flow.selectedTemplateName;
+    if (!moduleName || !templateName) {
+        templateReference.value = null;
+        templateReferenceKey.value = null;
+        templateReferenceError.value = null;
+        return;
+    }
+    const nextKey = `${moduleName}:${templateName}`;
+    if (templateReferenceKey.value === nextKey && templateReference.value)
+        return;
+    templateReferenceLoading.value = true;
+    templateReferenceError.value = null;
+    templateReferenceKey.value = nextKey;
+    try {
+        const payload = await fetchReportTemplateByName(moduleName, templateName);
+        if (templateReferenceKey.value !== nextKey)
+            return;
+        templateReference.value = payload;
+    }
+    catch (error) {
+        if (templateReferenceKey.value !== nextKey)
+            return;
+        templateReference.value = null;
+        templateReferenceError.value =
+            error?.response?.data?.detail ||
+                error?.message ||
+                'KB-Referenz konnte nicht geladen werden.';
+    }
+    finally {
+        if (templateReferenceKey.value === nextKey) {
+            templateReferenceLoading.value = false;
+        }
+    }
+}
+async function loadFindingCatalogForExamination(examinationId) {
+    if (!examinationId) {
+        findingCatalog.value = [];
+        return;
+    }
+    findingCatalogLoading.value = true;
+    try {
+        const rows = await findingsApi.getExaminationFindings(examinationId);
+        findingCatalog.value = Array.isArray(rows) ? rows : [];
+    }
+    catch {
+        findingCatalog.value = [];
+    }
+    finally {
+        findingCatalogLoading.value = false;
+    }
 }
 function toPositiveInteger(value) {
     const parsed = Number(value);
@@ -430,6 +947,9 @@ async function ensureCurrentPatientExaminationOption(patientExaminationId) {
         return;
     try {
         const response = await axiosInstance.get(r(endpoints.examination.patientExaminationDetail(patientExaminationId)));
+        if (response.data && typeof response.data === 'object') {
+            patientExaminationDetail.value = response.data;
+        }
         const option = normalizePatientExaminationOption(response.data);
         if (option)
             upsertPatientExaminationOption(option);
@@ -454,6 +974,8 @@ async function onPatientExaminationSelect(rawValue) {
         selectedPatientId: selectedOption?.patientId ?? flow.selectedPatientId,
         selectedExaminationId: selectedOption?.examinationId ?? flow.selectedExaminationId
     });
+    patientExaminationDetail.value = null;
+    selectedReferenceFindingKey.value = null;
     await router.push(getNavigationTargetForPatientExamination(patientExaminationId));
 }
 async function bootstrapRuntimeDraft(patientExaminationId, option) {
@@ -461,6 +983,7 @@ async function bootstrapRuntimeDraft(patientExaminationId, option) {
     const detail = detailResponse.data && typeof detailResponse.data === 'object'
         ? detailResponse.data
         : {};
+    patientExaminationDetail.value = detail;
     const detailPatientId = extractPatientId(detail);
     const detailExaminationId = extractExaminationId(detail);
     flow.setCaseSelection({
@@ -476,10 +999,11 @@ async function bootstrapRuntimeDraft(patientExaminationId, option) {
         templates[0] ||
         null;
     const selectedExaminationId = option?.examinationId ?? detailExaminationId;
-    const findingCatalog = selectedExaminationId
+    const catalogRows = selectedExaminationId
         ? await findingsApi.getExaminationFindings(selectedExaminationId)
         : [];
-    const findingsById = new Map((Array.isArray(findingCatalog) ? findingCatalog : []).map((finding) => [finding.id, finding]));
+    findingCatalog.value = Array.isArray(catalogRows) ? catalogRows : [];
+    const findingsById = new Map(findingCatalog.value.map((finding) => [finding.id, finding]));
     const payload = await buildReportTemplateRuntimePayload({
         moduleName: activeKbModule.value,
         patientExaminationId,
@@ -540,11 +1064,13 @@ async function ensureRuntimeDraft(patientExaminationId) {
             const detail = detailResponse.data && typeof detailResponse.data === 'object'
                 ? detailResponse.data
                 : {};
+            patientExaminationDetail.value = detail;
             flow.setCaseSelection({
                 selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
                 selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
             });
             flow.setIndications(extractIndicationRows(detail));
+            await loadFindingCatalogForExamination(extractExaminationId(detail) ?? flow.selectedExaminationId);
         }
         catch {
             // Keep the local draft usable even if detail hydration fails.
@@ -562,11 +1088,13 @@ async function ensureRuntimeDraft(patientExaminationId) {
             const detail = detailResponse.data && typeof detailResponse.data === 'object'
                 ? detailResponse.data
                 : {};
+            patientExaminationDetail.value = detail;
             flow.setCaseSelection({
                 selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
                 selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
             });
             flow.setIndications(extractIndicationRows(detail));
+            await loadFindingCatalogForExamination(extractExaminationId(detail) ?? flow.selectedExaminationId);
         }
         catch {
             // Keep persisted draft usable even if detail hydration fails.
@@ -663,6 +1191,8 @@ watch([() => flow.selectedPatientId, routePatientExaminationId], async ([patient
     else {
         patientExaminationOptions.value = [];
         patientExaminationOptionsError.value = null;
+        patientExaminationDetail.value = null;
+        findingCatalog.value = [];
     }
     if (patientExaminationId) {
         await ensureCurrentPatientExaminationOption(patientExaminationId);
@@ -674,6 +1204,13 @@ watch(() => terminology.selectedMedicalField, async () => {
         await fetchPatientExaminationOptions(flow.selectedPatientId);
     }
 });
+watch([() => flow.selectedKbModule, () => flow.selectedTemplateName, activeKbModule], async () => {
+    selectedReferenceFindingKey.value = null;
+    await loadTemplateReferenceForSelection();
+}, { immediate: true });
+watch(() => flow.selectedExaminationId, async (examinationId) => {
+    await loadFindingCatalogForExamination(examinationId);
+}, { immediate: true });
 watch([() => flow.selectedPatientId, () => flow.patientExaminationId, routePatientExaminationId], async ([patientId]) => {
     if (!patientId) {
         flow.clearMediaPreload();
@@ -689,6 +1226,8 @@ const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-left-rail']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-right-rail']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-command-bar']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-case-select']} */ ;
@@ -702,6 +1241,7 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
@@ -728,8 +1268,46 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['media-context-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-complete']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-missing']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-count']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-focus-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-focus-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-focus-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-classification-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-advice-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-classification-precedence']} */ ;
+/** @type {__VLS_StyleScopedClasses['runtime-instance-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-suggestion-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-advice-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-advice-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-advice-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-command-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-workspace-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-right-rail']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-workspace-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-right-rail']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-panel']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-quick-grid']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-case-select']} */ ;
@@ -849,7 +1427,39 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
     ...{ class: "context-summary-label" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-(__VLS_ctx.selectedPatientExaminationLabel);
+(__VLS_ctx.patientHeaderLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.patientBirthDateLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.caseIdLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.caseStatusLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.examinationTypeLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "context-summary-item" },
 });
@@ -889,11 +1499,112 @@ if (__VLS_ctx.terminologyImportMessage) {
     (__VLS_ctx.terminologyImportMessage);
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "row g-3" },
+    ...{ class: "reporting-workspace-grid" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
+    ...{ class: "reporting-left-rail" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-lg-3" },
+    ...{ class: "card shadow-sm finding-status-panel" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header d-flex align-items-center justify-content-between gap-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+    ...{ class: "text-muted" },
+});
+(__VLS_ctx.findingProgressSummary);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-status-pill" },
+    ...{ class: (__VLS_ctx.validationStatusPillClass) },
+});
+(__VLS_ctx.validationStatusLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body p-0" },
+});
+if (__VLS_ctx.findingStatusSections.length) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "finding-status-list" },
+    });
+    for (const [section] of __VLS_getVForSourceType((__VLS_ctx.findingStatusSections))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
+            key: (section.key),
+            ...{ class: "finding-status-section" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "finding-status-section-title" },
+        });
+        (section.title);
+        for (const [row] of __VLS_getVForSourceType((section.rows))) {
+            const __VLS_0 = {}.RouterLink;
+            /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+            // @ts-ignore
+            const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+                ...{ 'onClick': {} },
+                key: (row.key),
+                to: (__VLS_ctx.findingStatusTarget(row)),
+                ...{ class: "finding-status-row" },
+                ...{ class: ([
+                        `is-${row.status}`,
+                        { 'is-selected': row.normalizedKey === __VLS_ctx.activeReferenceFindingKey }
+                    ]) },
+            }));
+            const __VLS_2 = __VLS_1({
+                ...{ 'onClick': {} },
+                key: (row.key),
+                to: (__VLS_ctx.findingStatusTarget(row)),
+                ...{ class: "finding-status-row" },
+                ...{ class: ([
+                        `is-${row.status}`,
+                        { 'is-selected': row.normalizedKey === __VLS_ctx.activeReferenceFindingKey }
+                    ]) },
+            }, ...__VLS_functionalComponentArgsRest(__VLS_1));
+            let __VLS_4;
+            let __VLS_5;
+            let __VLS_6;
+            const __VLS_7 = {
+                onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.findingStatusSections.length))
+                        return;
+                    __VLS_ctx.selectedReferenceFindingKey = row.normalizedKey;
+                }
+            };
+            __VLS_3.slots.default;
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "finding-status-icon" },
+                'aria-hidden': "true",
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: (row.iconClass) },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "finding-status-copy" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "finding-status-label" },
+            });
+            (row.label);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "finding-status-meta" },
+            });
+            (row.statusLabel);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "finding-status-count" },
+            });
+            (row.instanceCount);
+            var __VLS_3;
+        }
+    }
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "p-3 small text-muted" },
+    });
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card shadow-sm workflow-panel" },
 });
@@ -922,22 +1633,22 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.nav, __VLS_intrinsicElements.n
 for (const [item, index] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
     (item.to);
     if (!__VLS_ctx.isStepDisabled(item)) {
-        const __VLS_0 = {}.RouterLink;
+        const __VLS_8 = {}.RouterLink;
         /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
         // @ts-ignore
-        const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+        const __VLS_9 = __VLS_asFunctionalComponent(__VLS_8, new __VLS_8({
             to: (item.to),
             ...{ class: "workflow-step-btn btn btn-sm text-start" },
             'aria-current': (__VLS_ctx.isActive(item.to) ? 'page' : undefined),
             ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
         }));
-        const __VLS_2 = __VLS_1({
+        const __VLS_10 = __VLS_9({
             to: (item.to),
             ...{ class: "workflow-step-btn btn btn-sm text-start" },
             'aria-current': (__VLS_ctx.isActive(item.to) ? 'page' : undefined),
             ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
-        }, ...__VLS_functionalComponentArgsRest(__VLS_1));
-        __VLS_3.slots.default;
+        }, ...__VLS_functionalComponentArgsRest(__VLS_9));
+        __VLS_11.slots.default;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: "workflow-step-index" },
         });
@@ -951,7 +1662,7 @@ for (const [item, index] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
             ...{ class: "workflow-step-meta" },
         });
         (__VLS_ctx.stepStatusLabel(item));
-        var __VLS_3;
+        var __VLS_11;
     }
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -972,8 +1683,8 @@ for (const [item, index] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
         (__VLS_ctx.stepStatusLabel(item));
     }
 }
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-lg-9" },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.main, __VLS_intrinsicElements.main)({
+    ...{ class: "reporting-main-region" },
 });
 if (__VLS_ctx.isContextPanelOpen) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1226,11 +1937,171 @@ if (__VLS_ctx.isContextPanelOpen) {
         });
     }
 }
-const __VLS_4 = {}.RouterView;
+const __VLS_12 = {}.RouterView;
 /** @type {[typeof __VLS_components.RouterView, ]} */ ;
 // @ts-ignore
-const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({}));
-const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
+const __VLS_13 = __VLS_asFunctionalComponent(__VLS_12, new __VLS_12({}));
+const __VLS_14 = __VLS_13({}, ...__VLS_functionalComponentArgsRest(__VLS_13));
+__VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
+    ...{ class: "reporting-right-rail" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card shadow-sm kb-reference-panel" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex justify-content-between align-items-start gap-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+    ...{ class: "text-muted" },
+});
+(__VLS_ctx.kbReferenceSubtitle);
+if (__VLS_ctx.templateReferenceLoading || __VLS_ctx.findingCatalogLoading) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "context-status-pill is-loading" },
+    });
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+if (__VLS_ctx.templateReferenceError) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-warning py-2 small" },
+    });
+    (__VLS_ctx.templateReferenceError);
+}
+if (__VLS_ctx.activeReferenceFinding) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "kb-focus-block mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.activeReferenceFinding.label);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+    (__VLS_ctx.activeFindingDescription);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "kb-reference-group" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+    if (__VLS_ctx.activeReferenceClassifications.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "kb-classification-list" },
+        });
+        for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.activeReferenceClassifications))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (classification.key),
+                ...{ class: "kb-classification-row" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex justify-content-between gap-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (classification.label);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "kb-classification-precedence" },
+                ...{ class: ({ 'is-required': classification.required }) },
+            });
+            (classification.required ? 'erforderlich' : 'optional');
+            if (classification.choicesLabel) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+                (classification.choicesLabel);
+            }
+            if (classification.description) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+                (classification.description);
+            }
+        }
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "small text-muted" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "kb-reference-group" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+    if (__VLS_ctx.activeFindingInstances.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "runtime-instance-list" },
+        });
+        for (const [instance] of __VLS_getVForSourceType((__VLS_ctx.activeFindingInstances))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (instance.localId || instance.finding),
+                ...{ class: "runtime-instance-row" },
+            });
+            (__VLS_ctx.formatRuntimeFindingInstance(instance));
+        }
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "small text-muted" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "kb-reference-group" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+    if (__VLS_ctx.activeAdviceRows.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "kb-advice-list" },
+        });
+        for (const [row] of __VLS_getVForSourceType((__VLS_ctx.activeAdviceRows))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (row.key),
+                ...{ class: "kb-advice-row" },
+                ...{ class: ({ 'is-ok': row.ok, 'is-warning': !row.ok }) },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex justify-content-between gap-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (row.title);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (row.kind);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+            (row.detail);
+            for (const [message] of __VLS_getVForSourceType((row.messages))) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    key: (message),
+                });
+                (message);
+            }
+        }
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "small text-muted" },
+        });
+    }
+    if (__VLS_ctx.activeSuggestedActions.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "kb-reference-group" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "kb-suggestion-list" },
+        });
+        for (const [suggestion] of __VLS_getVForSourceType((__VLS_ctx.activeSuggestedActions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (suggestion),
+                ...{ class: "kb-suggestion-row" },
+            });
+            (suggestion);
+        }
+    }
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted" },
+    });
+}
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
@@ -1285,12 +2156,45 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-lg-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-workspace-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-left-rail']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-section-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-selected']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-copy']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-meta']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-status-count']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-panel']} */ ;
@@ -1326,7 +2230,7 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['workflow-step-index']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-copy']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-meta']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-lg-9']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-main-region']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -1423,6 +2327,56 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-right-rail']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-loading']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-focus-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-classification-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-classification-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-classification-precedence']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-required']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['runtime-instance-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['runtime-instance-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-advice-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-advice-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-ok']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-reference-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-suggestion-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['kb-suggestion-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -1438,6 +2392,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             patientExaminationOptionsLoading: patientExaminationOptionsLoading,
             patientExaminationOptionsError: patientExaminationOptionsError,
             draftBootstrapError: draftBootstrapError,
+            templateReferenceLoading: templateReferenceLoading,
+            templateReferenceError: templateReferenceError,
+            selectedReferenceFindingKey: selectedReferenceFindingKey,
+            findingCatalogLoading: findingCatalogLoading,
             selectedPatientExaminationId: selectedPatientExaminationId,
             navItems: navItems,
             preferredReportStream: preferredReportStream,
@@ -1449,12 +2407,31 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedTerminologyLabel: selectedTerminologyLabel,
             currentStepLabel: currentStepLabel,
             mediaPreloadLabel: mediaPreloadLabel,
+            caseIdLabel: caseIdLabel,
+            patientHeaderLabel: patientHeaderLabel,
+            patientBirthDateLabel: patientBirthDateLabel,
+            examinationTypeLabel: examinationTypeLabel,
+            caseStatusLabel: caseStatusLabel,
+            validationStatusLabel: validationStatusLabel,
+            validationStatusPillClass: validationStatusPillClass,
+            findingStatusSections: findingStatusSections,
+            findingProgressSummary: findingProgressSummary,
+            activeReferenceFindingKey: activeReferenceFindingKey,
+            activeReferenceFinding: activeReferenceFinding,
+            activeFindingInstances: activeFindingInstances,
+            activeFindingDescription: activeFindingDescription,
+            activeReferenceClassifications: activeReferenceClassifications,
+            activeAdviceRows: activeAdviceRows,
+            activeSuggestedActions: activeSuggestedActions,
+            kbReferenceSubtitle: kbReferenceSubtitle,
             nextStepHint: nextStepHint,
             openUrl: openUrl,
             selectVideoStream: selectVideoStream,
             selectFrameStream: selectFrameStream,
             openTerminologyZipPicker: openTerminologyZipPicker,
             importTerminologyZip: importTerminologyZip,
+            findingStatusTarget: findingStatusTarget,
+            formatRuntimeFindingInstance: formatRuntimeFindingInstance,
             onPatientExaminationSelect: onPatientExaminationSelect,
             refreshMediaPreload: refreshMediaPreload,
             isActive: isActive,

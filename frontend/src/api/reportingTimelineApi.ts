@@ -57,6 +57,14 @@ export function pickPreferredStream(options: TimelineStreamOption[] = []): strin
   )
 }
 
+export function pickPreferredReportStream(options: TimelineStreamOption[] = []): string | null {
+  return (
+    options.find((option) => option.type === 'raw')?.url ??
+    options.find((option) => option.type === 'processed')?.url ??
+    null
+  )
+}
+
 export async function fetchPatientTimelineLatest(params: {
   patientId: number
   patientExaminationId?: number | null

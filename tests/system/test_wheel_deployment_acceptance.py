@@ -68,6 +68,8 @@ def test_post_deploy_acceptance_smoke_is_wired():
     assert '"$SCRIPT_DIR/acceptance-smoke.sh"' in deploy_sh
     assert "verify_encrypted_storage" in smoke_sh
     assert "check --settings" in smoke_sh
+    assert "run_filewatcher --settings" in smoke_sh
+    assert "--dry-run" in smoke_sh
     assert 'storage_dir="$LX_ANNOTATE_ENCRYPTED_DATA_DIR/storage"' in smoke_sh
     assert 'streamable_video_root="$storage_dir/streamable_videos"' in smoke_sh
     assert "PROTECTED_MEDIA_ROOT=" not in smoke_sh

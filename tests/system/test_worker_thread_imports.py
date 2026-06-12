@@ -271,3 +271,6 @@ def test_lx_annotate_modules_import_inside_luxnix_worker_threads(
 
     failure_report = _format_import_failures(payload)
     assert not failure_report, failure_report
+
+
+# pyright: reportGeneralTypeIssues=false

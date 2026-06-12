@@ -4,11 +4,11 @@ import pytest
 
 from endoreg_db.models import Center, VideoFile, VideoProcessingHistory, VideoState
 from endoreg_db.models.state.video_segment_validation import (
-    OUTSIDE_FRAME_BLACKENING_KIND,
+    blackening_history_config,
     resolve_segment_annotation_status,
 )
-from endoreg_db.services import video_post_validation_jobs
-from endoreg_db.services.video_post_validation_jobs import (
+from endoreg_db.services.jobs import video_post_validation_jobs
+from endoreg_db.services.jobs.video_post_validation_jobs import (
     dispatch_video_post_validation_rebuild,
 )
 
@@ -40,7 +40,7 @@ def _make_history(video: VideoFile) -> VideoProcessingHistory:
         operation=VideoProcessingHistory.OPERATION_REPROCESSING,
         status=VideoProcessingHistory.STATUS_PENDING,
         task_id="post-validation-task",
-        config={"kind": OUTSIDE_FRAME_BLACKENING_KIND, "only_validated": False},
+        config=blackening_history_config(only_validated=False),
     )
 
 

@@ -124,6 +124,23 @@ def test_acceptance_watcher_runs_without_http_context():
         pytest.fail(f"File watcher failed to run in headless systemd mode: {exc}")
 
 
+def test_acceptance_watcher_dry_run_imports_runtime_module(monkeypatch):
+    """
+    Dry-run must exercise the production watcher import path.
+    """
+    original_import = builtins.__import__
+
+    def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "lx_annotate.file_watcher":
+            raise ModuleNotFoundError("sentinel watcher import failure")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+
+    with pytest.raises(ModuleNotFoundError, match="sentinel watcher import failure"):
+        call_command("run_filewatcher", "--dry-run")
+
+
 def test_acceptance_watcher_can_process_existing_files_once(monkeypatch):
     """
     Timer/maintenance mode should drain existing intake files without starting

@@ -190,6 +190,15 @@ Operationally, that split implies:
 - downstream processing, upload-job tracking, and managed storage should be
   reasoned about as shared components rather than watcher-only or API-only logic
 
+Watcher producers must use an atomic handoff contract. A producer that writes
+directly into a watcher import directory must write to a name outside the
+watched final pattern, for example `*.part` or `*.tmp`, then `close()` and
+`fsync()` the file and atomically rename it to the final `.mp4` or `.pdf` name.
+External uploaders that bypass `lx_annotate.file_watcher` and call the
+`endoreg_db` hub ingest service directly must follow the same rule. The ingest
+service treats `*.part` and `*.tmp` names as in-progress files and only hashes
+or persists post-rename final media paths after a defensive stability check.
+
 Role-driven API policy should be set explicitly with:
 
 - `ENDOREG_DEPLOYMENT_ROLE=central_hub|site_node|standalone`

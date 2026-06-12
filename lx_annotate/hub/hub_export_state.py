@@ -113,7 +113,9 @@ def _sync_outbound_jobs(
 def sync_outbound_jobs_for_video(video: VideoFile) -> int:
     blocked_reason = video_hub_export_blocked_reason(video)
     return _sync_outbound_jobs(
-        queryset=video.outbound_hub_transfer_jobs.select_related("target_node"),
+        queryset=OutboundHubTransferJob.objects.filter(video_file=video).select_related(
+            "target_node"
+        ),
         eligible=blocked_reason == "",
         ineligible_message=blocked_reason or _INELIGIBLE_MESSAGE,
     )
@@ -121,6 +123,8 @@ def sync_outbound_jobs_for_video(video: VideoFile) -> int:
 
 def sync_outbound_jobs_for_report(report: RawPdfFile) -> int:
     return _sync_outbound_jobs(
-        queryset=report.outbound_hub_transfer_jobs.select_related("target_node"),
+        queryset=OutboundHubTransferJob.objects.filter(
+            raw_pdf_file=report
+        ).select_related("target_node"),
         eligible=is_report_hub_export_eligible(report),
     )

@@ -81,18 +81,20 @@ function buildQueueStore(overrides = {}) {
         filterLabelName: null,
         allowRandomFallback: true,
         informationSource: 'frame_annotation_frontend',
+        frameFileType: 'auto',
         aiDatasetId: null,
         aiDatasetName: null,
         aiDatasetType: null,
         annotatorPrincipal: null,
         taskQueue: [],
-        taskQuerySignature: 'random|Polyp||frame_annotation_frontend|1',
+        taskQuerySignature: 'random|Polyp||frame_annotation_frontend|auto|1',
         setSelectedLabelGroupId: vi.fn(),
         setTaskMode: vi.fn(),
         setTargetLabelName: vi.fn(),
         setFilterLabelName: vi.fn(),
         setAllowRandomFallback: vi.fn(),
         setInformationSource: vi.fn(),
+        setFrameFileType: vi.fn(),
         setAiDataset: vi.fn(),
         setAnnotatorPrincipal: vi.fn(),
         clearQueue: vi.fn(),
@@ -117,6 +119,11 @@ function buildQueueStore(overrides = {}) {
     });
     store.setInformationSource = vi.fn((source) => {
         store.informationSource = source?.trim() || 'manual_annotation';
+    });
+    store.setFrameFileType = vi.fn((fileType) => {
+        store.frameFileType =
+            fileType === 'raw' || fileType === 'processed' ? fileType : 'auto';
+        store.taskQuerySignature = `random|Polyp||${store.informationSource}|${store.frameFileType}|1`;
     });
     store.setAiDataset = vi.fn((datasetName, datasetType, datasetId = null) => {
         store.aiDatasetId =
@@ -143,6 +150,14 @@ function mountFrameAnnotation() {
         }
     });
 }
+async function expectTextEventually(wrapper, text) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+        await flushPromises();
+        if (wrapper.text().includes(text))
+            return;
+    }
+    expect(wrapper.text()).toContain(text);
+}
 function installGetMock(options = {}) {
     const { streamStatus = 200, streamBody = new Blob(['frame'], { type: options.streamContentType ?? 'image/jpeg' }), streamContentType = 'image/jpeg' } = options;
     hoisted.get.mockImplementation((url) => {
@@ -159,7 +174,7 @@ function installGetMock(options = {}) {
         if (url === 'media/annotations/frames/boxes/') {
             return Promise.resolve({ data: { results: [] } });
         }
-        if (url.startsWith('/media/frame-')) {
+        if (url.startsWith('/media/frame-') || url.includes('/decoded-stream/')) {
             return Promise.resolve({
                 status: streamStatus,
                 data: streamBody,
@@ -304,6 +319,14 @@ describe('FrameAnnotation route', () => {
         expect(wrapper.text()).toContain('ID 9');
         expect(wrapper.text()).toContain('Patienteninformationen-Datensätze verwenden nur Frames aus Videos mit vorhandenem Rohmaterial.');
     });
+    it('lets the user switch the decoded frame source', async () => {
+        const wrapper = mountFrameAnnotation();
+        await flushPromises();
+        await wrapper.get('#frame-file-type').setValue('processed');
+        await flushPromises();
+        expect(hoisted.queueStore.setFrameFileType).toHaveBeenCalledWith('processed');
+        expect(hoisted.queueStore.clearQueue).toHaveBeenCalled();
+    });
     it('shows a visible extraction status while the backend reports pending frame extraction', async () => {
         installGetMock({
             streamStatus: 202,
@@ -315,6 +338,17 @@ describe('FrameAnnotation route', () => {
         const wrapper = mountFrameAnnotation();
         await flushPromises();
         expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain('Frame wird extrahiert');
+    });
+    it('shows decoded frame stream failures from the backend payload', async () => {
+        installGetMock({
+            streamStatus: 409,
+            streamBody: new Blob([JSON.stringify({ status: 'frame_decode_failed', error: 'decode failed' })], {
+                type: 'application/json'
+            }),
+            streamContentType: 'application/json'
+        });
+        const wrapper = mountFrameAnnotation();
+        await expectTextEventually(wrapper, 'Frame konnte nicht dekodiert werden: decode failed');
     });
     it('offers a manual retry when frame loading fails', async () => {
         installGetMock({

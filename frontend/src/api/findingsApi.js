@@ -1,6 +1,7 @@
 import axiosInstance, { dtypesApi, endoregApi } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 import { normalizeFindingChoice, normalizeFindings, normalizeFindingClassification, normalizePatientFindingRow, normalizePatientFindingRows } from '@/api/findings.contract';
+export const DEFAULT_FINDINGS_BACKEND_MODE = 'dtypes';
 const ENDOREG_PATHS = {
     findings: endoregApi(endpoints.router.findings),
     examinationFindings: (examinationId) => endoregApi(endpoints.examination.examinationFindings(examinationId)),
@@ -21,7 +22,7 @@ function normalizeMode(value) {
     if (value === 'dtypes' || value === 'dtypes_read' || value === 'endoreg') {
         return value;
     }
-    return 'endoreg';
+    return DEFAULT_FINDINGS_BACKEND_MODE;
 }
 export function getFindingsBackendMode() {
     return normalizeMode(import.meta.env.VITE_FINDINGS_BACKEND);

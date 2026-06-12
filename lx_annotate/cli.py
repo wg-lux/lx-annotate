@@ -50,7 +50,7 @@ def _normalise_watch_args(args: Sequence[str]) -> list[str]:
 def web(argv: Sequence[str] | None = None) -> int:
     _set_default_django_settings()
 
-    from daphne.cli import CommandLineInterface
+    from daphne.cli import CommandLineInterface  # type: ignore[import-not-found]
 
     args = _command_args(argv)
     daphne_args = [

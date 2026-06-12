@@ -46,6 +46,7 @@ interface BaseStore {
   filterLabelName: string | null;
   allowRandomFallback: boolean;
   informationSource: string;
+  frameFileType: string;
   aiDatasetId?: string | null;
   aiDatasetName?: string | null;
   aiDatasetType?: string | null;
@@ -59,6 +60,7 @@ interface BaseStore {
   setFilterLabelName: any;
   setAllowRandomFallback: any;
   setInformationSource: any;
+  setFrameFileType: any;
   setAiDataset?: any;
   setAnnotatorPrincipal: any;
   clearQueue: any;
@@ -77,12 +79,13 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     filterLabelName: null,
     allowRandomFallback: true,
     informationSource: 'frame_annotation_frontend',
+    frameFileType: 'auto',
     aiDatasetId: null,
     aiDatasetName: null,
     aiDatasetType: null,
     annotatorPrincipal: null,
     taskQueue: [] as any[],
-    taskQuerySignature: 'random|Polyp||frame_annotation_frontend|1',
+    taskQuerySignature: 'random|Polyp||frame_annotation_frontend|auto|1',
     lastError: null as string | null,
     setSelectedLabelGroupId: vi.fn(),
     setTaskMode: vi.fn(),
@@ -90,6 +93,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     setFilterLabelName: vi.fn(),
     setAllowRandomFallback: vi.fn(),
     setInformationSource: vi.fn(),
+    setFrameFileType: vi.fn(),
     setAiDataset: vi.fn(),
     setAnnotatorPrincipal: vi.fn(),
     clearQueue: vi.fn(),
@@ -135,7 +139,7 @@ function installGetMock(options: { streamStatus?: number; streamBody?: Blob; str
     if (url === 'media/annotations/frames/boxes/') {
       return Promise.resolve({ data: { results: [] } })
     }
-    if (url.startsWith('/media/frame-')) {
+    if (url.startsWith('/media/frame-') || url.includes('/decoded-stream/')) {
       return Promise.resolve({
         status: streamStatus,
         data: streamBody,

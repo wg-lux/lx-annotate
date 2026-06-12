@@ -128,3 +128,4 @@ def test_pdf_reimport():
 
 if __name__ == "__main__":
     test_pdf_reimport()
+# pyright: reportCallIssue=false, reportAttributeAccessIssue=false, reportPossiblyUnboundVariable=false

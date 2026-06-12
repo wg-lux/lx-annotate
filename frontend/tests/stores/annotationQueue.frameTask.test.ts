@@ -42,6 +42,9 @@ describe('annotationQueue frame task normalization', () => {
             frame_id: 101,
             frame_number: 88,
             frame_stream_path: '/api/media/videos/7/frames/88/stream/',
+            decoded_frame_stream_path:
+              '/api/media/videos/7/frames/88/decoded-stream/?file_type=processed',
+            frame_file_type: 'processed',
             label_options: [{ id: 11, name: 'Polyp' }],
             suggested_label_ids: [11]
           }
@@ -56,17 +59,21 @@ describe('annotationQueue frame task normalization', () => {
         label_group_id: '3',
         limit: 10,
         task_mode: 'random',
-        target_label: 'Polyp'
+        target_label: 'Polyp',
+        frame_file_type: 'auto'
       })
     })
     expect(tasks).toHaveLength(1)
     expect(tasks[0].data).toMatchObject({
       frameId: 101,
-      imageUrl: '/api/media/videos/7/frames/88/stream/',
+      imageUrl: '/api/media/videos/7/frames/88/decoded-stream/?file_type=processed',
+      frameFileType: 'processed',
       labelOptions: [{ id: 11, name: 'Polyp' }],
       suggestedLabelIds: [11]
     })
-    expect(store.popNextTask()?.data.imageUrl).toBe('/api/media/videos/7/frames/88/stream/')
+    expect(store.popNextTask()?.data.imageUrl).toBe(
+      '/api/media/videos/7/frames/88/decoded-stream/?file_type=processed'
+    )
   })
 
   it('passes dataset sampling criteria to the frame task endpoint', async () => {
@@ -103,7 +110,8 @@ describe('annotationQueue frame task normalization', () => {
         ai_dataset_name: 'Dataset B',
         ai_dataset_type: 'video',
         dataset_frame_filter: 'segments',
-        prediction_segments_only: 'false'
+        prediction_segments_only: 'false',
+        frame_file_type: 'auto'
       })
     })
   })
@@ -133,7 +141,8 @@ describe('annotationQueue frame task normalization', () => {
       params: expect.objectContaining({
         label_group_id: '3',
         limit: 1,
-        annotator: 'reviewer-two'
+        annotator: 'reviewer-two',
+        frame_file_type: 'auto'
       })
     })
   })
@@ -157,7 +166,33 @@ describe('annotationQueue frame task normalization', () => {
     expect(mocks.axiosGet).toHaveBeenCalledWith('/api/media/annotations/frames/random-task/', {
       params: expect.objectContaining({
         dataset_frame_filter: 'balanced',
-        prediction_segments_only: 'true'
+        prediction_segments_only: 'true',
+        frame_file_type: 'auto'
+      })
+    })
+  })
+
+  it('passes the selected frame file type to the frame task endpoint', async () => {
+    const store = useAnnotationQueueStore()
+    store.setSelectedLabelGroupId('3')
+    store.setFrameFileType('processed')
+
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: {
+        task: {
+          frame_id: 104,
+          decoded_frame_stream_path:
+            '/api/media/videos/7/frames/91/decoded-stream/?file_type=processed',
+          frame_file_type: 'processed'
+        }
+      }
+    })
+
+    await store.fetchBatch(1)
+
+    expect(mocks.axiosGet).toHaveBeenCalledWith('/api/media/annotations/frames/random-task/', {
+      params: expect.objectContaining({
+        frame_file_type: 'processed'
       })
     })
   })

@@ -24,6 +24,7 @@ const hoisted = vi.hoisted(() => ({
   },
   reportTemplatesApi: {
     fetchReportTemplatesByExamination: vi.fn(),
+    fetchReportTemplateByName: vi.fn(),
     buildReportTemplateRuntimePayload: vi.fn()
   },
   reportDraftApi: {
@@ -90,6 +91,7 @@ vi.mock('@/api/findingsApi', () => ({
 
 vi.mock('@/api/reportTemplatesApi', () => ({
   fetchReportTemplatesByExamination: hoisted.reportTemplatesApi.fetchReportTemplatesByExamination,
+  fetchReportTemplateByName: hoisted.reportTemplatesApi.fetchReportTemplateByName,
   buildReportTemplateRuntimePayload: hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload
 }))
 
@@ -185,6 +187,15 @@ describe('ReportingShell media preload', () => {
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
       { name: 'default_template', examination: 'colonoscopy' }
     ])
+    hoisted.reportTemplatesApi.fetchReportTemplateByName.mockResolvedValue({
+      name: 'default_template',
+      examination: 'colonoscopy',
+      reportSections: [],
+      validators: {
+        findingsValidators: [],
+        examinationValidators: []
+      }
+    })
     hoisted.reportDraftApi.fetchPatientExaminationDraft.mockResolvedValue({
       patient_examination_id: 314,
       draft: {},

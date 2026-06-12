@@ -14,6 +14,7 @@ import {
 } from '@/api/findings.contract'
 
 export type FindingsBackendMode = 'endoreg' | 'dtypes_read' | 'dtypes'
+export const DEFAULT_FINDINGS_BACKEND_MODE: FindingsBackendMode = 'dtypes'
 
 export type FindingsApiErrorCode =
   | 'required-finding'
@@ -74,7 +75,7 @@ function normalizeMode(value: unknown): FindingsBackendMode {
   if (value === 'dtypes' || value === 'dtypes_read' || value === 'endoreg') {
     return value
   }
-  return 'endoreg'
+  return DEFAULT_FINDINGS_BACKEND_MODE
 }
 
 export function getFindingsBackendMode(): FindingsBackendMode {

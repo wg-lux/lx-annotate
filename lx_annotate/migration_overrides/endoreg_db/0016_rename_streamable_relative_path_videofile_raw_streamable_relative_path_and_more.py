@@ -3,6 +3,12 @@
 from django.conf import settings
 from django.db import migrations, models
 
+from ._compat import create_model_if_table_missing
+
+
+def create_ai_dataset_table_if_missing(apps, schema_editor) -> None:
+    create_model_if_table_missing(apps, schema_editor, model_name="AIDataSet")
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -15,6 +21,10 @@ class Migration(migrations.Migration):
             model_name="videofile",
             old_name="streamable_relative_path",
             new_name="raw_streamable_relative_path",
+        ),
+        migrations.RunPython(
+            create_ai_dataset_table_if_missing,
+            reverse_code=migrations.RunPython.noop,
         ),
         migrations.AddField(
             model_name="aidataset",

@@ -6,14 +6,39 @@ import uuid
 from django.conf import settings
 from django.db import migrations, models
 
+from ._compat import get_table_columns
+
 
 def backfill_ai_dataset(apps, schema_editor):
     application_settings_model = apps.get_model("endoreg_db", "ApplicationSettings")
     ai_dataset_model = apps.get_model("endoreg_db", "AIDataSet")
+    settings_table = application_settings_model._meta.db_table
+    dataset_table = ai_dataset_model._meta.db_table
+    settings_columns = get_table_columns(schema_editor, settings_table)
+    dataset_columns = get_table_columns(schema_editor, dataset_table)
+    settings_pk_name = application_settings_model._meta.pk.attname
+    dataset_pk_name = ai_dataset_model._meta.pk.attname
 
-    for settings_obj in application_settings_model.objects.all():
-        dataset_name = (settings_obj.ai_dataset_name or "").strip()
-        dataset_type = (settings_obj.ai_dataset_type or "").strip()
+    if not {
+        settings_pk_name,
+        "ai_dataset_id",
+        "ai_dataset_name",
+        "ai_dataset_type",
+    }.issubset(settings_columns):
+        return
+
+    if not {dataset_pk_name, "name", "dataset_type"}.issubset(dataset_columns):
+        return
+
+    settings_rows = application_settings_model.objects.values_list(
+        settings_pk_name,
+        "ai_dataset_name",
+        "ai_dataset_type",
+    ).iterator()
+
+    for settings_pk, dataset_name_value, dataset_type_value in settings_rows:
+        dataset_name = (dataset_name_value or "").strip()
+        dataset_type = (dataset_type_value or "").strip()
         if not dataset_name or not dataset_type:
             continue
 
@@ -21,13 +46,16 @@ def backfill_ai_dataset(apps, schema_editor):
             ai_dataset_model.objects.filter(
                 name=dataset_name,
                 dataset_type=dataset_type,
-            ).order_by("pk")[:2]
+            )
+            .order_by("pk")
+            .values_list(dataset_pk_name, flat=True)[:2]
         )
         if len(matches) != 1:
             continue
 
-        settings_obj.ai_dataset_id = matches[0].pk
-        settings_obj.save(update_fields=["ai_dataset"])
+        application_settings_model.objects.filter(pk=settings_pk).update(
+            ai_dataset_id=matches[0]
+        )
 
 
 class Migration(migrations.Migration):

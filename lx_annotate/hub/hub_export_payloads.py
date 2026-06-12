@@ -29,34 +29,33 @@ class VideoFilePayload(TypedDict, total=False):
 
 
 class VideoStatePayload(TypedDict, total=False):
-    anonymization_validated: bool
     sensitive_meta_processed: bool
     frames_extracted: bool
-    anonymized: bool
     processing_started: bool
-    was_created: bool
-    processing_error: bool
+    frame_annotations_generated: bool
 
 
 class RawPdfFilePayload(TypedDict, total=False):
     pdf_hash: str
+    text: str
 
 
 class RawPdfStatePayload(TypedDict, total=False):
-    anonymization_validated: bool
     sensitive_meta_processed: bool
-    anonymized: bool
     processing_started: bool
-    processing_error: bool
+    text_meta_extracted: bool
 
 
 class SensitiveMetaPayload(TypedDict, total=False):
-    patient_hash: str
-    examination_hash: str
-    patient_first_name: str | None
-    patient_last_name: str | None
-    patient_dob: str | None
-    examination_date: str | None
+    patient_first_name: str
+    patient_last_name: str
+    patient_dob: str
+    examination_date: str
+
+
+class ProcessingHistoryPayload(TypedDict):
+    file_hash: str
+    success: bool
 
 
 class TransferPayload(TypedDict, total=False):
@@ -102,22 +101,36 @@ def _build_sensitive_meta_payload(
     sensitive_meta: SensitiveMeta | None,
 ) -> SensitiveMetaPayload:
     if sensitive_meta is None:
-        return {}
+        raise ValueError(
+            "SensitiveMeta with patient_first_name, patient_last_name, "
+            "patient_dob, and examination_date is required for hub transfer."
+        )
 
-    payload: SensitiveMetaPayload = {}
-    if sensitive_meta.patient_hash:
-        payload["patient_hash"] = sensitive_meta.patient_hash
-    if sensitive_meta.examination_hash:
-        payload["examination_hash"] = sensitive_meta.examination_hash
-    if sensitive_meta.patient_first_name:
-        payload["patient_first_name"] = sensitive_meta.patient_first_name
-    if sensitive_meta.patient_last_name:
-        payload["patient_last_name"] = sensitive_meta.patient_last_name
-    if sensitive_meta.patient_dob is not None:
-        payload["patient_dob"] = sensitive_meta.patient_dob.isoformat()
-    if sensitive_meta.examination_date is not None:
-        payload["examination_date"] = sensitive_meta.examination_date.isoformat()
-    return payload
+    if (
+        not sensitive_meta.patient_first_name
+        or not sensitive_meta.patient_last_name
+        or sensitive_meta.patient_dob is None
+        or sensitive_meta.examination_date is None
+    ):
+        raise ValueError(
+            "SensitiveMeta must include patient_first_name, patient_last_name, "
+            "patient_dob, and examination_date for hub transfer."
+        )
+
+    return {
+        "patient_first_name": sensitive_meta.patient_first_name,
+        "patient_last_name": sensitive_meta.patient_last_name,
+        "patient_dob": sensitive_meta.patient_dob.date().isoformat()
+        if hasattr(sensitive_meta.patient_dob, "date")
+        else sensitive_meta.patient_dob.isoformat(),
+        "examination_date": sensitive_meta.examination_date.isoformat(),
+    }
+
+
+def _require_value(value: Any, *, field_name: str) -> Any:
+    if value is None or value == "":
+        raise ValueError(f"{field_name} must exist for outbound hub transfer.")
+    return value
 
 
 def _build_video_rows(video: VideoFile) -> dict[str, Any]:
@@ -139,28 +152,35 @@ def _build_video_rows(video: VideoFile) -> dict[str, Any]:
     video_file_payload: VideoFilePayload = {
         "video_hash": video.video_hash,
         "processed_video_hash": processed_video_hash,
-        "original_file_name": video.original_file_name,
-        "suffix": video.suffix,
-        "fps": video.fps,
-        "duration": video.duration,
-        "frame_count": video.frame_count,
-        "width": video.width,
-        "height": video.height,
+        "original_file_name": _require_value(
+            video.original_file_name, field_name="VideoFile.original_file_name"
+        ),
+        "suffix": _require_value(video.suffix, field_name="VideoFile.suffix"),
+        "fps": _require_value(video.fps, field_name="VideoFile.fps"),
+        "duration": _require_value(video.duration, field_name="VideoFile.duration"),
+        "frame_count": _require_value(
+            video.frame_count, field_name="VideoFile.frame_count"
+        ),
+        "width": _require_value(video.width, field_name="VideoFile.width"),
+        "height": _require_value(video.height, field_name="VideoFile.height"),
         "meta": cast(dict[str, Any], video.meta or {}),
     }
     video_state_payload: VideoStatePayload = {
-        "anonymization_validated": bool(state.anonymization_validated),
         "sensitive_meta_processed": bool(state.sensitive_meta_processed),
         "frames_extracted": bool(state.frames_extracted),
-        "anonymized": bool(state.anonymized),
         "processing_started": bool(state.processing_started),
-        "was_created": bool(state.was_created),
-        "processing_error": bool(getattr(state, "processing_error", False)),
+        "frame_annotations_generated": bool(
+            getattr(state, "segment_annotations_created", False)
+        ),
     }
     return {
         "video_file": video_file_payload,
         "video_state": video_state_payload,
         "sensitive_meta": _build_sensitive_meta_payload(video.sensitive_meta),
+        "processing_history": {
+            "file_hash": processed_video_hash,
+            "success": not bool(getattr(state, "processing_error", False)),
+        },
     }
 
 
@@ -175,18 +195,23 @@ def _build_report_rows(report: RawPdfFile) -> dict[str, Any]:
         )
     _require_eligible_anonymization_status(state.anonymization_status, kind="report")
 
-    report_file_payload: RawPdfFilePayload = {"pdf_hash": report.pdf_hash}
+    report_file_payload: RawPdfFilePayload = {
+        "pdf_hash": report.pdf_hash,
+        "text": cast(str, getattr(report, "text", "") or ""),
+    }
     report_state_payload: RawPdfStatePayload = {
-        "anonymization_validated": bool(state.anonymization_validated),
         "sensitive_meta_processed": bool(state.sensitive_meta_processed),
-        "anonymized": bool(state.anonymized),
         "processing_started": bool(state.processing_started),
-        "processing_error": bool(state.processing_error),
+        "text_meta_extracted": bool(getattr(state, "text_meta_extracted", False)),
     }
     return {
         "raw_pdf_file": report_file_payload,
         "raw_pdf_state": report_state_payload,
         "sensitive_meta": _build_sensitive_meta_payload(report.sensitive_meta),
+        "processing_history": {
+            "file_hash": report.pdf_hash,
+            "success": not bool(getattr(state, "processing_error", False)),
+        },
     }
 
 

@@ -192,9 +192,12 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
 
     it('should translate labels efficiently', () => {
       const labels = Array.from(
-        { length: 1000 },
+        { length: 10000 },
         (_, i) => ['outside', 'polyp', 'blood', 'diverticule', 'appendix'][i % 5]
       )
+
+      // Warm up the lookup so this remains a regression guard, not a JIT startup test.
+      labels.slice(0, 1000).forEach((label) => getTranslationForLabel(label))
 
       const startTime = performance.now()
 
@@ -203,9 +206,11 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
       const endTime = performance.now()
       const executionTime = endTime - startTime
 
-      // Should translate 1k labels in less than 10ms
-      expect(executionTime).toBeLessThan(10)
-      expect(translatedLabels).toHaveLength(1000)
+      // Keep this coarse; microbenchmark timing varies across CI workers.
+      expect(executionTime).toBeLessThan(50)
+      expect(translatedLabels).toHaveLength(10000)
+      expect(translatedLabels[0]).toBe('Außerhalb')
+      expect(translatedLabels[1]).toBe('Polyp')
     })
   })
 

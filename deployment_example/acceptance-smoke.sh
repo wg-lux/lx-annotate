@@ -44,6 +44,7 @@ fi
 
 "$VENV_DIR/bin/python" -m django check --settings="$DJANGO_SETTINGS_MODULE" --fail-level CRITICAL
 "$VENV_DIR/bin/python" -m django verify_encrypted_storage --settings="$DJANGO_SETTINGS_MODULE"
+"$VENV_DIR/bin/python" -m django run_filewatcher --settings="$DJANGO_SETTINGS_MODULE" --dry-run
 curl --fail --silent --show-error --insecure \
   --resolve "${SMOKE_HOST}:443:127.0.0.1" \
   "https://${SMOKE_HOST}/static/.vite/manifest.json" >/dev/null

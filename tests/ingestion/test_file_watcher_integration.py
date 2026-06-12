@@ -1,4 +1,5 @@
-from watchdog.events import FileCreatedEvent, FileMovedEvent
+# pyright: reportAttributeAccessIssue=false, reportArgumentType=false, reportOptionalMemberAccess=false
+from watchdog.events import FileCreatedEvent, FileMovedEvent  # type: ignore[import-not-found]
 
 import scripts.file_watcher as file_watcher
 import tempfile
@@ -16,7 +17,7 @@ from endoreg_db.models import (
     VideoFile,
 )
 from endoreg_db.services.hub.ingest import process_watcher_file
-from endoreg_db.utils.filesystem.file_operations import atomic_write_file
+from endoreg_db.utils.file_operations import atomic_write_file
 
 
 class RecordingExecutor:
@@ -44,6 +45,28 @@ def test_duplicate_create_and_move_events_submit_only_once(monkeypatch, tmp_path
 
     assert len(executor.submissions) == 1
     assert handler.in_flight_files == {str(video_path)}
+
+
+def test_temp_handoff_create_event_is_not_submitted(monkeypatch, tmp_path):
+    handler, executor = make_handler(monkeypatch)
+    temp_path = tmp_path / "video.mp4.part.123"
+
+    handler.dispatch(FileCreatedEvent(str(temp_path)))
+
+    assert executor.submissions == []
+    assert handler.in_flight_files == set()
+
+
+def test_temp_to_final_move_event_submits_final_path(monkeypatch, tmp_path):
+    handler, executor = make_handler(monkeypatch)
+    temp_path = tmp_path / "video.mp4.part.123"
+    final_path = tmp_path / "video.mp4"
+
+    handler.dispatch(FileMovedEvent(str(temp_path), str(final_path)))
+
+    assert len(executor.submissions) == 1
+    assert executor.submissions[0][1] == (str(final_path),)
+    assert handler.in_flight_files == {str(final_path)}
 
 
 def test_inflight_slot_is_released_after_processing_finishes(monkeypatch, tmp_path):
@@ -77,6 +100,33 @@ def test_processed_file_is_not_submitted_again(monkeypatch, tmp_path):
 
     assert executor.submissions == []
     assert str(video_path) not in handler.in_flight_files
+
+
+def test_process_existing_files_skips_temp_handoff_files(monkeypatch, tmp_path):
+    service = file_watcher.FileWatcherService()
+    service.handler.shutdown()
+    handler, executor = make_handler(monkeypatch)
+    service.handler = handler
+    service.video_dir = tmp_path / "video_import"
+    service.report_dir = tmp_path / "report_import"
+    service.pseudonymized_dir = tmp_path / "preanonymized_import"
+    service.video_dir.mkdir()
+    service.report_dir.mkdir()
+    service.pseudonymized_dir.mkdir()
+    final_video = service.video_dir / "ready.mp4"
+    temp_video = service.video_dir / "ignore.tmp.mp4"
+    final_report = service.report_dir / "ready.pdf"
+    temp_report = service.report_dir / "ignore.part.pdf"
+    final_video.write_bytes(b"video")
+    temp_video.write_bytes(b"partial-video")
+    final_report.write_bytes(b"%PDF")
+    temp_report.write_bytes(b"partial-report")
+
+    submitted_count = service._process_existing_files()
+
+    assert submitted_count == 2
+    submitted_paths = {args[0] for _fn, args, _kwargs in executor.submissions}
+    assert submitted_paths == {str(final_video), str(final_report)}
 
 
 def test_intake_zone_helpers_classify_paths():
@@ -201,6 +251,30 @@ def test_handler_process_report_delegates_to_shared_hub_ingest(monkeypatch, tmp_
         report_path.unlink(missing_ok=True)
 
 
+def test_handler_process_report_defers_not_ready_source(monkeypatch):
+    handler = file_watcher.AutoProcessingHandler()
+    report_path = file_watcher.INTAKE_REPORT_DIR / "not-ready-report.pdf"
+    report_path.write_bytes(b"%PDF-1.4 partial report")
+    center = SimpleNamespace(center_key=handler.default_center_key)
+
+    monkeypatch.setattr(file_watcher, "_resolve_center_by_key", lambda key: center)
+    monkeypatch.setattr(
+        file_watcher,
+        "process_watcher_file",
+        lambda **kwargs: (_ for _ in ()).throw(
+            file_watcher.WatcherFileNotReadyError("not stable")
+        ),
+    )
+
+    try:
+        handler._process_report(report_path)
+        assert report_path.exists()
+        assert str(report_path) not in handler.processed_files
+        assert str(report_path) not in handler.in_flight_files
+    finally:
+        report_path.unlink(missing_ok=True)
+
+
 def test_handler_process_video_delegates_to_shared_hub_ingest(monkeypatch, tmp_path):
     handler = file_watcher.AutoProcessingHandler()
     video_path = file_watcher.INTAKE_VIDEO_DIR / "delegated-video.mp4"
@@ -242,6 +316,11 @@ def test_handler_process_video_delegates_to_shared_hub_ingest(monkeypatch, tmp_p
         handler._process_video(video_path)
     finally:
         video_path.unlink(missing_ok=True)
+
+
+def test_scripts_file_watcher_compatibility_exports_handoff_helpers():
+    assert file_watcher.is_in_progress_handoff_path("video.mp4.part.123")
+    assert file_watcher.WatcherFileNotReadyError is not None
 
 
 @pytest.mark.django_db
@@ -302,8 +381,8 @@ def test_process_watcher_file_creates_upload_job_for_report(monkeypatch, tmp_pat
         center=center,
     )
 
-    db_job = UploadJob.objects.get(id=upload_job.id)
-    assert db_job.source_center_id == center.id
+    db_job = UploadJob.objects.get(id=upload_job.pk)
+    assert db_job.source_center_id == center.pk
     assert db_job.ingest_mode == UploadJob.IngestMode.WATCHER
     assert db_job.source_system == "watcher"
     assert db_job.storage_tier == UploadJob.StorageTier.UPLOAD_WATCHER
@@ -393,6 +472,6 @@ def test_process_watcher_file_reuses_completed_job_for_same_video_content(
         processor_name="processor",
     )
 
-    assert first_job.id == second_job.id
+    assert first_job.pk == second_job.pk
     assert UploadJob.objects.count() == 1
     assert second_path.exists() is False

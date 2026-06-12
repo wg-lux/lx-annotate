@@ -5,35 +5,30 @@ from django.conf import settings
 from django.db import migrations, models
 from django.utils.text import slugify
 
-
-def _get_table_columns(schema_editor, table_name: str) -> set[str]:
-    with schema_editor.connection.cursor() as cursor:
-        return {
-            column.name
-            for column in schema_editor.connection.introspection.get_table_description(
-                cursor, table_name
-            )
-        }
+from ._compat import add_field_if_missing, get_table_columns
 
 
-def _add_center_key_if_missing(apps, schema_editor) -> None:
-    Center = apps.get_model("endoreg_db", "Center")
-    table_name = Center._meta.db_table
-    columns = _get_table_columns(schema_editor, table_name)
-
-    if "center_key" in columns:
-        return
-
-    field = models.CharField(blank=True, default="", max_length=255)  # type: ignore
-    field.set_attributes_from_name("center_key")
-    field.model = Center
-    schema_editor.add_field(Center, field)
+def _repair_center_identity_columns(apps, schema_editor) -> None:
+    add_field_if_missing(
+        apps,
+        schema_editor,
+        model_name="Center",
+        field_name="display_name",
+        field=models.CharField(blank=True, default="", max_length=255),
+    )
+    add_field_if_missing(
+        apps,
+        schema_editor,
+        model_name="Center",
+        field_name="center_key",
+        field=models.CharField(blank=True, default="", max_length=255),
+    )
 
 
 def populate_missing_center_keys(apps, schema_editor) -> None:
     Center = apps.get_model("endoreg_db", "Center")
     table_name = Center._meta.db_table
-    columns = _get_table_columns(schema_editor, table_name)
+    columns = get_table_columns(schema_editor, table_name)
     has_display_name = "display_name" in columns
     load_fields = ["id", "name", "center_key"]
     if has_display_name:
@@ -74,7 +69,7 @@ class Migration(migrations.Migration):
         migrations.SeparateDatabaseAndState(
             database_operations=[
                 migrations.RunPython(
-                    _add_center_key_if_missing,
+                    _repair_center_identity_columns,
                     reverse_code=migrations.RunPython.noop,
                 ),
             ],

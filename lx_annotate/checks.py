@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Protocol, cast
 
 from django.conf import settings
 from django.core.checks import CRITICAL, CheckMessage, Critical, Warning
@@ -10,6 +11,12 @@ from django.db import DEFAULT_DB_ALIAS, connections
 from django.db.utils import OperationalError, ProgrammingError
 
 from endoreg_db.services.environment_readiness import check_environment_readiness
+
+
+class DatabaseIntrospectionWithDescriptions(Protocol):
+    def table_names(self) -> list[str]: ...
+
+    def get_table_description(self, cursor, table_name: str): ...
 
 
 # These checks are intentionally not registered with Django's system check
@@ -40,10 +47,13 @@ def _table_columns(
     table_name: str, *, using: str = DEFAULT_DB_ALIAS
 ) -> set[str] | None:
     connection = connections[using]
-    introspection = connection.introspection
+    introspection = cast(
+        DatabaseIntrospectionWithDescriptions,
+        connection.introspection,
+    )
 
     try:
-        table_names = set(introspection.table_names())
+        table_names = set(introspection.table_names() or [])
     except (OperationalError, ProgrammingError):
         return None
 
@@ -52,7 +62,7 @@ def _table_columns(
 
     with connection.cursor() as cursor:
         description = introspection.get_table_description(cursor, table_name)
-    return {column.name for column in description}
+    return {column.name for column in (description or [])}
 
 
 def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore[unused-argument]

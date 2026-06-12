@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false, reportGeneralTypeIssues=false, reportAttributeAccessIssue=false
 from __future__ import annotations
 
 import io

@@ -18,8 +18,9 @@ from endoreg_db.models import (
 )
 from endoreg_db.models.state.video_segment_validation import (
     OUTSIDE_FRAME_BLACKENING_KIND,
+    blackening_history_config,
 )
-from endoreg_db.services.video_post_validation_jobs import (
+from endoreg_db.services.jobs.video_post_validation_jobs import (
     JobDispatchResult,
 )
 
@@ -91,10 +92,7 @@ def test_bulk_validation_with_queued_cleanup_stays_non_final(api_client, center)
             operation=VideoProcessingHistory.OPERATION_REPROCESSING,
             status=VideoProcessingHistory.STATUS_PENDING,
             task_id="task-cleanup-queued",
-            config={
-                "kind": OUTSIDE_FRAME_BLACKENING_KIND,
-                "only_validated": only_validated,
-            },
+            config=blackening_history_config(only_validated=only_validated),
         )
         return JobDispatchResult(
             task_id="task-cleanup-queued",
@@ -204,10 +202,7 @@ def test_bulk_validation_dispatch_failure_returns_503(api_client, center):
             status=VideoProcessingHistory.STATUS_FAILURE,
             task_id="task-dispatch-failed",
             details="broker unavailable",
-            config={
-                "kind": OUTSIDE_FRAME_BLACKENING_KIND,
-                "only_validated": only_validated,
-            },
+            config=blackening_history_config(only_validated=only_validated),
         )
         return JobDispatchResult(
             task_id="task-dispatch-failed",
@@ -266,10 +261,7 @@ def test_video_list_surfaces_failed_cleanup_job_for_frontend(api_client, center)
         status=VideoProcessingHistory.STATUS_FAILURE,
         task_id="failed-cleanup-visible-task",
         details=failure_details,
-        config={
-            "kind": OUTSIDE_FRAME_BLACKENING_KIND,
-            "only_validated": False,
-        },
+        config=blackening_history_config(only_validated=False),
     )
 
     response = api_client.get("/api/media/videos/")
@@ -300,10 +292,7 @@ def test_blacken_outside_allows_rerun_after_failed_cleanup(
         status=VideoProcessingHistory.STATUS_FAILURE,
         task_id="old-failed-cleanup-task",
         details="outside-frame verification failed",
-        config={
-            "kind": OUTSIDE_FRAME_BLACKENING_KIND,
-            "only_validated": False,
-        },
+        config=blackening_history_config(only_validated=False),
     )
 
     class FakeTask:

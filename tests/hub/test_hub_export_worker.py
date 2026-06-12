@@ -1,3 +1,4 @@
+# pyright: reportIndexIssue=false, reportArgumentType=false
 from __future__ import annotations
 
 import tempfile
@@ -9,6 +10,7 @@ from django.core.files.base import ContentFile
 from django.test import TestCase
 
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
+from tests.hub_payload_helpers import create_hub_sensitive_meta
 from lx_annotate.hub.hub_export_worker import (
     resolve_outbound_node_secret,
     run_outbound_transfer_job,
@@ -49,6 +51,7 @@ class HubExportWorkerTests(TestCase):
         self.report = RawPdfFile.objects.create(
             center=self.center,
             state=self.report_state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-1",
             file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
             processed_file=ContentFile(
