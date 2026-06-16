@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "lx-annotate"
 
-version = "0.8.12"
+version = "0.8.13"
 description = "This webapp provides a frontend interface for pseudonymizing and annotating data and applying AI predictions."
 authors = [
     { name = "Max Hild", email = "maxhild10@gmail.com"},
@@ -71,7 +71,7 @@ dependencies = [
     "redis>=7.4.0",
     "lx-dtypes==0.2.0",
     "de-core-news-sm",
-    "endoreg-db==1.0.3.8",
+    "endoreg-db==1.0.3.9",
 ]
 
 [project.scripts]
