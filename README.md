@@ -55,19 +55,43 @@ make test-real
 
 ## Environment Variables and Secrets
 
-Production secrets are typically injected by the host system.
-For local development, use either `secretspec.toml` defaults or a local `.env` file.
+Production secrets are injected by the host system, LuxNix, or another secret
+manager. For local development, use either `secretspec.toml` defaults or a
+local `.env` file.
 
-Do not commit secrets. `secretspec.toml` is tracked in git.
+`secretspec.toml` is the tracked environment contract. It defines profile
+defaults and variable names, but it must not contain real production secrets.
+The Django settings flow is:
 
-Example:
+- `secretspec.toml`: declares environment variables and profile defaults.
+- `lx_annotate/settings/config.py`: parses environment values into typed app
+  config.
+- `lx_annotate/settings/settings_prod.py`: applies production security policy
+  and fails startup when required settings are missing.
+
+Production should prefer secret-file variables such as
+`DJANGO_SECRET_KEY_FILE`, `DJANGO_DB_PASSWORD_FILE`,
+`DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`, and `LX_ANNOTATE_MASTER_KEY_FILE`.
+Compatibility aliases from the current secretspec contract are also accepted,
+including `ALLOWED_HOSTS`, `OIDC_RP_CLIENT_ID`, `OIDC_RP_CLIENT_SECRET`, and
+`TIME_ZONE`.
+
+Development example:
 
 ```bash
 direnv allow
 secretspec --provider dotenv --profile development python manage.py runserver
 ```
 
-See <https://secretspec.dev/> for details.
+Production check example:
+
+```bash
+secretspec --provider dotenv --profile production \
+  python -m django check --settings=lx_annotate.settings.settings_prod
+```
+
+See `docs/guides/wheel-deployment.md` for the full runtime contract and
+<https://secretspec.dev/> for secretspec usage.
 
 ## Frontend
 
