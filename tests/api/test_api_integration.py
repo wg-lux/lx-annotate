@@ -279,7 +279,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
             content_type="application/pdf",
         )
 
-    @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
+    @patch("endoreg_db.views.misc.upload_views.ingest.start_upload_job_processing")
     def test_upload_accepts_valid_center_key(self, mock_start_processing):
         url = "/api/upload/"
         response = self.client.post(
@@ -320,7 +320,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         self.assertIn("error", response.data)
         self.assertIn("Unknown center_key", response.data["error"])
 
-    @patch("endoreg_db.views.misc.upload_views.resolve_api_upload_context")
+    @patch("endoreg_db.views.misc.upload_views.ingest.resolve_api_upload_context")
     def test_upload_rejects_center_outside_authenticated_scope(
         self, mock_allowed_center
     ):
@@ -345,7 +345,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         self.assertIn("error", response.data)
         self.assertIn("outside the authenticated scope", response.data["error"])
 
-    @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
+    @patch("endoreg_db.views.misc.upload_views.ingest.start_upload_job_processing")
     def test_upload_reuses_job_for_same_idempotency_key(self, mock_start_processing):
         url = "/api/upload/"
         headers = {"HTTP_IDEMPOTENCY_KEY": "same-logical-upload"}
@@ -381,7 +381,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         )
         mock_start_processing.assert_called_once()
 
-    @patch("endoreg_db.views.misc.upload_views.resolve_allowed_center_id")
+    @patch("endoreg_db.views.misc.upload_views.ingest.resolve_allowed_center_id")
     def test_upload_status_enforces_center_scope(self, mock_allowed_center):
         mock_allowed_center.return_value = self.center.id
         upload_job = UploadJob.objects.create(

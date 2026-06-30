@@ -162,13 +162,14 @@ def test_manual_segments_without_model_meta_create_frame_annotations(
     assert annotations.count() == 2
 
 
-def test_bulk_validation_conflict_does_not_go_green(api_client, center):
-    video = _make_video(center, video_hash="annotation-conflict")
+def test_bulk_validation_annotation_expansion_failure_does_not_go_green(
+    api_client, center
+):
+    video = _make_video(center, video_hash="annotation-expansion-failure")
     segment = _make_segment(video, label_name="outside")
 
-    with patch.object(
-        LabelVideoSegment,
-        "generate_annotations",
+    with patch(
+        "endoreg_db.views.video.segments_crud._dispatch_segment_annotation_expansion",
         side_effect=RuntimeError("frame annotation failure"),
     ):
         response = api_client.post(
@@ -181,12 +182,14 @@ def test_bulk_validation_conflict_does_not_go_green(api_client, center):
             format="json",
         )
 
-    assert response.status_code == 409
-    assert response.data["segment_annotation_status"] == "not_started"
+    assert response.status_code == 503
+    assert response.data["segment_annotation_status"] == "cleanup_required"
     assert response.data["segment_annotations_validated"] is False
+    assert response.data["outside_segments_removed"] is False
 
     video.refresh_from_db()
     state = video.get_or_create_state()
+    assert state.segment_annotations_created is True
     assert state.segment_annotations_validated is False
     assert state.outside_segments_removed is False
 

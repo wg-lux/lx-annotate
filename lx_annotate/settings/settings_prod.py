@@ -2,7 +2,8 @@
 Production settings.
 """
 
-from lx_annotate.settings.config import load_config, AppConfig
+from lx_annotate.settings import config as config_module
+from lx_annotate.settings.config import AppConfig
 from .settings_base import (
     APP_DATA_DIR,
     SECRET_KEY,
@@ -40,7 +41,7 @@ config = cast(AppConfig, config)
 
 # -----------------------------------------------------------------------------
 
-config = load_config()
+config = cast(AppConfig, config_module.load_config())
 
 STATIC_ROOT = config.static_root
 static_root_path = Path(STATIC_ROOT).resolve(strict=False)

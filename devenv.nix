@@ -255,6 +255,7 @@ in
     fi
     # Activate Python virtual environment managed by uv inside of devenv
     echo "Virtual environment activated."
+    source .devenv/state/venv/bin/activate
 
   '';
 }
