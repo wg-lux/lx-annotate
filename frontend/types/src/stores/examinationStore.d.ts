@@ -611,8 +611,8 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     /**
      * Load examinations list.
      * We have 2 viable endpoints in your project:
-     *  - /api/examinations/  (generic list)
-     *  - /api/patient-examinations/examinations_dropdown/ (already tailored for dropdown)
+     *  - examinations/  (generic list)
+     *  - patient-examinations/examinations_dropdown/ (already tailored for dropdown)
      *
      * While patient Examinations will filter the examinations available for the patient, examinations query will return all available examinations.
      */

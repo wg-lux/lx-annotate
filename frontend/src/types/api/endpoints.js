@@ -43,6 +43,7 @@ export const endpoints = {
         patientExaminationDetail: (id) => `patient-examinations/${id}/`,
         patientExaminationDraft: (id) => `patient-examinations/${id}/draft/`,
         patientExaminationList: 'patient-examinations/list/',
+        patientExaminationLegacyDetail: (id) => `get_patient_examination/${id}/`,
         patientExaminationClassifications: (examId) => `patient-examinations/${examId}/classifications/`,
         patientExaminationFindings: (examinationId) => `patient-examinations/${examinationId}/findings/`
     },
@@ -84,6 +85,9 @@ export const endpoints = {
     },
     runtime: {
         quarantine: 'runtime/quarantine/'
+    },
+    workflow: {
+        saveWorkflowData: 'save-workflow-data/'
     },
     anonymization: {
         itemsOverview: 'anonymization/items/overview/',
@@ -143,6 +147,7 @@ export const endpoints = {
         pdfs: 'media/pdfs/',
         pdfDetail: (pk) => `media/pdfs/${pk}/`,
         pdfStream: (pk) => `media/pdfs/${pk}/stream/`,
-        pdfReimport: (pk) => `media/pdfs/${pk}/reimport/`
+        pdfReimport: (pk) => `media/pdfs/${pk}/reimport/`,
+        processedVideoDownload: (videoId, historyId) => `media/processed-videos/${videoId}/${historyId}/`
     }
 };

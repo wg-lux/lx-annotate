@@ -1,6 +1,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService } from '@/api/patientService';
+import { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 const emit = defineEmits();
 // Composables
@@ -91,7 +92,7 @@ const handleSubmit = async () => {
         formattedData = patientStore.formatPatientForSubmission(form.value);
         console.log('📋 Formatierte Daten für API:', formattedData);
         // Log the exact URL that will be called
-        const patientCreatePath = `/api/${endpoints.patient.patients}`;
+        const patientCreatePath = r(endpoints.patient.patients);
         console.log('🌐 API-Aufruf wird gestartet...');
         console.log('URL:', patientCreatePath);
         console.log('Full URL wird zu:', `${window.location.origin}${patientCreatePath}`);

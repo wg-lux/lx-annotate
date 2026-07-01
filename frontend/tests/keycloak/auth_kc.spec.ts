@@ -17,6 +17,10 @@ import { useAuthKcStore } from '@/stores/auth_kc'
 // Mock axios globally for this test file
 vi.mock('axios')
 
+vi.mock('@/api/axiosInstance', () => ({
+  r: (path: string) => `/api/${path}`
+}))
+
 describe('auth_kc store', () => {
   beforeEach(() => {
     // Fresh Pinia instance per test

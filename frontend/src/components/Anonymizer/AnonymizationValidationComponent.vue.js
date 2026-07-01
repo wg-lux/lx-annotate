@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
@@ -584,6 +584,28 @@ const pauseAllVideos = () => {
         anonymizedVideoElement.value.pause();
     console.log('All videos paused');
 };
+function releaseVideoElement(element) {
+    if (!element)
+        return;
+    try {
+        element.pause();
+    }
+    catch (error) {
+        console.warn('Failed to pause validation video during cleanup:', error);
+    }
+    element.removeAttribute('src');
+    element.src = '';
+    try {
+        element.load();
+    }
+    catch (error) {
+        console.warn('Failed to release validation video source during cleanup:', error);
+    }
+}
+function releaseVideoElements() {
+    releaseVideoElement(rawVideoElement.value);
+    releaseVideoElement(anonymizedVideoElement.value);
+}
 const downloadRawPdf = () => {
     if (!rawPdfDownloadSrc.value) {
         toast.warning({ text: 'Original-PDF nicht verfügbar.' });
@@ -1387,8 +1409,8 @@ onMounted(async () => {
         await fetchCaseResolution();
     }
 });
-onUnmounted(() => {
-    fetchNextItem();
+onBeforeUnmount(() => {
+    releaseVideoElements();
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
@@ -2155,7 +2177,7 @@ if (__VLS_ctx.currentItem) {
             src: (__VLS_ctx.rawVideoSrc),
             controls: true,
             ...{ style: {} },
-            preload: "metadata",
+            preload: "none",
         });
         /** @type {typeof __VLS_ctx.rawVideoElement} */ ;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -2186,7 +2208,7 @@ if (__VLS_ctx.currentItem) {
             src: (__VLS_ctx.anonymizedVideoSrc),
             controls: true,
             ...{ style: {} },
-            preload: "metadata",
+            preload: "none",
         });
         /** @type {typeof __VLS_ctx.anonymizedVideoElement} */ ;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({

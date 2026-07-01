@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 import type { Finding, FindingClassification } from '@/api/findings.contract'
 import { endpoints } from '@/types/api/endpoints'
@@ -81,8 +81,8 @@ export const useExaminationStore = defineStore('examination', {
     /**
      * Load examinations list.
      * We have 2 viable endpoints in your project:
-     *  - /api/examinations/  (generic list)
-     *  - /api/patient-examinations/examinations_dropdown/ (already tailored for dropdown)
+     *  - examinations/  (generic list)
+     *  - patient-examinations/examinations_dropdown/ (already tailored for dropdown)
      *
      * While patient Examinations will filter the examinations available for the patient, examinations query will return all available examinations.
      */
@@ -142,7 +142,7 @@ export const useExaminationStore = defineStore('examination', {
             .filter((entry) => entry && Number.isFinite(entry.id)) as Examination[]
         }
 
-        const dropdownPayload = await axiosInstance.get(`/api/${endpoints.examination.examinationsDropdown}`)
+        const dropdownPayload = await axiosInstance.get(r(endpoints.examination.examinationsDropdown))
         const dropdownRows =
           Array.isArray(dropdownPayload.data) ? dropdownPayload.data :
             Array.isArray(dropdownPayload.data?.results)
@@ -154,7 +154,7 @@ export const useExaminationStore = defineStore('examination', {
           return
         }
 
-        const fallbackPayload = await axiosInstance.get(`/api/${endpoints.router.examinations}`)
+          const fallbackPayload = await axiosInstance.get(r(endpoints.router.examinations))
         const fallbackRows =
           Array.isArray(fallbackPayload.data)
             ? fallbackPayload.data

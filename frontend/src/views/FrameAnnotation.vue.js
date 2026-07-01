@@ -110,6 +110,7 @@ const initialRouteQuery = new URLSearchParams(window.location.search);
 let boxDraftStart = null;
 let frameImageRetryTimer = null;
 let frameImageProbeGeneration = 0;
+let frameImageObjectUrl = null;
 let isReloadingAnnotationQueue = false;
 let isBootstrappingAnnotationQueue = true;
 const selectedLabelGroupId = computed({
@@ -368,22 +369,36 @@ function clearFrameImageRetryTimer() {
         frameImageRetryTimer = null;
     }
 }
-function withCacheBuster(url) {
-    if (!url)
-        return '';
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}cb=${Date.now()}`;
+function revokeFrameImageObjectUrl() {
+    if (frameImageObjectUrl === null)
+        return;
+    if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(frameImageObjectUrl);
+    }
+    frameImageObjectUrl = null;
+}
+function clearFrameImageRequestUrl() {
+    revokeFrameImageObjectUrl();
+    frameImageRequestUrl.value = '';
+}
+function setFrameImageBlobUrl(blob, fallbackUrl) {
+    revokeFrameImageObjectUrl();
+    if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        frameImageObjectUrl = URL.createObjectURL(blob);
+        frameImageRequestUrl.value = frameImageObjectUrl;
+        return;
+    }
+    frameImageRequestUrl.value = fallbackUrl;
 }
 function resetFrameImageState(task) {
     clearFrameImageRetryTimer();
     frameImageProbeGeneration += 1;
     frameImageRetryCount.value = 0;
+    clearFrameImageRequestUrl();
     if (!task) {
-        frameImageRequestUrl.value = '';
         frameImageLoadState.value = 'idle';
         return;
     }
-    frameImageRequestUrl.value = '';
     frameImageLoadState.value = 'probing';
 }
 function syncFrameImageMetrics() {
@@ -414,7 +429,7 @@ function handleFrameImageError() {
     }
     frameImageRetryCount.value += 1;
     frameImageLoadState.value = 'pending';
-    frameImageRequestUrl.value = '';
+    clearFrameImageRequestUrl();
     scheduleFrameImageRetry(currentTask.value);
 }
 function retryFrameImage() {
@@ -422,7 +437,7 @@ function retryFrameImage() {
         return;
     clearFrameImageRetryTimer();
     frameImageRetryCount.value = 0;
-    frameImageRequestUrl.value = '';
+    clearFrameImageRequestUrl();
     void probeFrameImage(currentTask.value);
 }
 function readBlobText(blob) {
@@ -482,7 +497,7 @@ async function probeFrameImage(task) {
             return;
         const contentType = String(response.headers?.['content-type'] ?? '').toLowerCase();
         if (response.status === 200 && contentType.startsWith('image/')) {
-            frameImageRequestUrl.value = withCacheBuster(task.data.imageUrl);
+            setFrameImageBlobUrl(response.data, task.data.imageUrl);
             frameImageLoadState.value = 'loading';
             return;
         }
@@ -1095,6 +1110,7 @@ onMounted(async () => {
 });
 onUnmounted(() => {
     clearFrameImageRetryTimer();
+    revokeFrameImageObjectUrl();
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};

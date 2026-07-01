@@ -45,6 +45,7 @@ export declare const endpoints: {
         readonly patientExaminationDetail: (id: Id) => string;
         readonly patientExaminationDraft: (id: Id) => string;
         readonly patientExaminationList: "patient-examinations/list/";
+        readonly patientExaminationLegacyDetail: (id: Id) => string;
         readonly patientExaminationClassifications: (examId: Id) => string;
         readonly patientExaminationFindings: (examinationId: Id) => string;
     };
@@ -82,6 +83,9 @@ export declare const endpoints: {
     };
     readonly runtime: {
         readonly quarantine: "runtime/quarantine/";
+    };
+    readonly workflow: {
+        readonly saveWorkflowData: "save-workflow-data/";
     };
     readonly anonymization: {
         readonly itemsOverview: "anonymization/items/overview/";
@@ -142,6 +146,7 @@ export declare const endpoints: {
         readonly pdfDetail: (pk: Id) => string;
         readonly pdfStream: (pk: Id) => string;
         readonly pdfReimport: (pk: Id) => string;
+        readonly processedVideoDownload: (videoId: Id, historyId: Id) => string;
     };
 };
 export type ApiEndpoints = typeof endpoints;

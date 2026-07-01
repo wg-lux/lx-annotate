@@ -2,7 +2,7 @@ import { ref, computed } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService, generatePatientPseudonym } from '@/api/patientService';
 import PatientEditForm from './PatientEditForm.vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 const props = defineProps();
 const emit = defineEmits();
@@ -31,7 +31,7 @@ const checkDeletionSafety = async () => {
         }
         const patientId = patientStore.resolveCurrentPatientId(currentPatient.id, true);
         // Use axiosInstance instead of fetch
-        const response = await axiosInstance.get(`/api/${endpoints.patient.patientDeletionSafety(patientId)}`);
+        const response = await axiosInstance.get(r(endpoints.patient.patientDeletionSafety(patientId)));
         deletionCheck.value = response.data;
         showDeletionModal.value = true;
     }

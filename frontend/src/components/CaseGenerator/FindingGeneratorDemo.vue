@@ -255,8 +255,10 @@
 
 <script>
 import axios from 'axios';
+import { r } from '@/api/axiosInstance';
 import {reportService} from '@/api/reportService.js';
 import {patientService} from '@/api/patientService.js';
+import { endpoints } from '@/types/api/endpoints';
 
 export default {
   data() {
@@ -466,7 +468,7 @@ export default {
   
       try {
         const response = await axios.post(
-          'api/save-workflow-data/',
+          r(endpoints.workflow.saveWorkflowData),
           payload,
           {
             headers: {

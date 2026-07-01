@@ -1,6 +1,7 @@
 import { ref, computed, reactive, onMounted } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService } from '@/api/patientService';
+import { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 const props = defineProps();
 const emit = defineEmits();
@@ -134,7 +135,7 @@ const confirmDelete = async () => {
 const loadDeletionInfo = async () => {
     try {
         // This would call the safety check endpoint to get deletion impact
-        const response = await fetch(`/api/${endpoints.patient.patientDeletionSafety(props.patient.id)}`);
+        const response = await fetch(r(endpoints.patient.patientDeletionSafety(props.patient.id)));
         if (response.ok) {
             const data = await response.json();
             deletionInfo.value = data.related_objects;

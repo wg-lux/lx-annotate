@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { endpoints } from '@/types/api/endpoints';
+import { r } from '@/api/axiosInstance';
 import { buildPdfStreamUrl } from '@/utils/mediaUrls';
 export const usePdfStore = defineStore('pdf', () => {
     // State
@@ -24,7 +25,7 @@ export const usePdfStore = defineStore('pdf', () => {
      * Fetch the next PDF for annotation from the queue
      * @param lastId - Optional last processed PDF ID to continue from
      *
-     * MIGRATED: Now uses /api/anonymization/items/overview/ endpoint
+     * MIGRATED: Now uses anonymization/items/overview/ endpoint
      * instead of deprecated /api/pdf/next/
      */
     async function fetchNextPdf(lastId) {
@@ -32,7 +33,7 @@ export const usePdfStore = defineStore('pdf', () => {
         error.value = null;
         try {
             // Use Modern Framework anonymization overview endpoint
-            const response = await fetch(`/api/${endpoints.anonymization.itemsOverview}`);
+            const response = await fetch(r(endpoints.anonymization.itemsOverview));
             if (!response.ok) {
                 throw new Error(`Failed to fetch overview: ${response.status}`);
             }
@@ -73,7 +74,7 @@ export const usePdfStore = defineStore('pdf', () => {
     /**
      * Update sensitive metadata using pdf_id (RawPdfFile.id)
      *
-     * MIGRATED: Now uses /api/media/pdfs/<pk>/sensitive-metadata/ endpoint
+     * MIGRATED: Now uses media/pdfs/<pk>/sensitive-metadata/ endpoint
      * instead of deprecated /api/pdf/sensitivemeta/<id>/
      *
      * @param pdfId - PDF ID (RawPdfFile.id), not sensitiveMetaId
@@ -86,7 +87,7 @@ export const usePdfStore = defineStore('pdf', () => {
         error.value = null;
         try {
             // Use Modern Framework sensitive metadata endpoint
-            const response = await fetch(`/api/${endpoints.media.pdfSensitiveMetadata(pdfId)}`, {
+            const response = await fetch(r(endpoints.media.pdfSensitiveMetadata(pdfId)), {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -115,7 +116,7 @@ export const usePdfStore = defineStore('pdf', () => {
     /**
      * Update anonymized text using pdf_id (RawPdfFile.id)
      *
-     * MIGRATED: Now uses /api/media/pdfs/<pk>/sensitive-metadata/ endpoint
+     * MIGRATED: Now uses media/pdfs/<pk>/sensitive-metadata/ endpoint
      * instead of deprecated /api/pdf/<id>/anonymize/
      */
     async function updateAnonymizedText(pdfId, anonymizedText) {
@@ -126,7 +127,7 @@ export const usePdfStore = defineStore('pdf', () => {
         error.value = null;
         try {
             // Use Modern Framework sensitive metadata endpoint for anonymized text
-            const response = await fetch(`/api/${endpoints.media.pdfSensitiveMetadata(pdfId)}`, {
+            const response = await fetch(r(endpoints.media.pdfSensitiveMetadata(pdfId)), {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -153,7 +154,7 @@ export const usePdfStore = defineStore('pdf', () => {
     /**
      * Approve the current PDF and move to next
      *
-     * MIGRATED: Now uses /api/anonymization/<file_id>/validate/ endpoint
+     * MIGRATED: Now uses anonymization/<file_id>/validate/ endpoint
      * instead of deprecated /api/pdf/<id>/approve/
      */
     async function approvePdf() {
@@ -165,7 +166,7 @@ export const usePdfStore = defineStore('pdf', () => {
         error.value = null;
         try {
             // Use Modern Framework anonymization validate endpoint
-            const response = await fetch(`/api/${endpoints.anonymization.validate(pdfId)}`, {
+            const response = await fetch(r(endpoints.anonymization.validate(pdfId)), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -205,13 +206,13 @@ export const usePdfStore = defineStore('pdf', () => {
     /**
      * Check anonymization status
      *
-     * MIGRATED: Now uses /api/anonymization/<file_id>/status/ endpoint
+     * MIGRATED: Now uses anonymization/<file_id>/status/ endpoint
      * instead of deprecated /api/pdf/<id>/status/
      */
     async function checkAnonymizationStatus(pdfId) {
         try {
             // Use Modern Framework anonymization status endpoint
-            const response = await fetch(`/api/${endpoints.anonymization.status(pdfId)}`);
+            const response = await fetch(r(endpoints.anonymization.status(pdfId)));
             if (!response.ok) {
                 throw new Error(`Failed to check status: ${response.status}`);
             }

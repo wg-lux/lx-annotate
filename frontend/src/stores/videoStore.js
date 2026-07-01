@@ -300,7 +300,7 @@ export const useVideoStore = defineStore('video', () => {
             return false;
         }
         try {
-            await axiosInstance.delete(`/api/${endpoints.mediaManagement.forceRemove(videoId)}`);
+            await axiosInstance.delete(r(endpoints.mediaManagement.forceRemove(videoId)));
             return true;
         }
         catch (error) {

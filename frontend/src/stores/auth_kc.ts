@@ -1,6 +1,7 @@
 // frontend/src/stores/auth_kc.ts
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 
 const REPORTING_STORAGE_KEYS = [
@@ -91,19 +92,19 @@ export const useAuthKcStore = defineStore('auth_kc', {
   actions: {
     /**
      * Load the backend-provided auth/bootstrap context exactly once.
-     * Primary endpoint:    GET /api/auth/bootstrap
-     * Back-compat fallback: GET /api/auth/context
+     * Primary endpoint:    GET auth/bootstrap
+     * Back-compat fallback: GET auth/context
      */
     async loadBootstrap() {
       if (this.loaded) return
       try {
         let data: Bootstrap | any
         try {
-          const res = await axios.get<Bootstrap>(`/api/${endpoints.auth.bootstrap}`, { withCredentials: true })
+          const res = await axios.get<Bootstrap>(r(endpoints.auth.bootstrap), { withCredentials: true })
           data = res.data
         } catch (e) {
           // Fallback for older backend
-          const res = await axios.get<any>(`/api/${endpoints.auth.context}`, { withCredentials: true })
+          const res = await axios.get<any>(r(endpoints.auth.context), { withCredentials: true })
           data = res.data
         }
 

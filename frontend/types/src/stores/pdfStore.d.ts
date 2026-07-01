@@ -90,7 +90,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
     }>;
     stopStreaming: () => void;
     clearState: () => void;
-}, "loading" | "error" | "currentPdf" | "streamingActive" | "lastProcessedId">, Pick<{
+}, "error" | "loading" | "currentPdf" | "streamingActive" | "lastProcessedId">, Pick<{
     currentPdf: import("vue").Ref<{
         id: number;
         sensitiveMetaId: number | null;

@@ -34,8 +34,8 @@ export declare const useAuthKcStore: import("pinia").StoreDefinition<"auth_kc", 
 }, {
     /**
      * Load the backend-provided auth/bootstrap context exactly once.
-     * Primary endpoint:    GET /api/auth/bootstrap
-     * Back-compat fallback: GET /api/auth/context
+     * Primary endpoint:    GET auth/bootstrap
+     * Back-compat fallback: GET auth/context
      */
     loadBootstrap(): Promise<void>;
     /**

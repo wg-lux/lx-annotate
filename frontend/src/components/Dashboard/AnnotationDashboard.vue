@@ -405,7 +405,7 @@ const refreshSegments = async () => {
 const refreshExaminations = async () => {
   loadingExaminations.value = true;
   try {
-    const response = await axiosInstance.get(`/api/${endpoints.router.examinations}`);
+    const response = await axiosInstance.get(r(endpoints.router.examinations));
     examinations.value = response.data.results || response.data || [];
   } catch (error) {
     console.error('Fehler beim Laden der Untersuchungen:', error);
@@ -529,7 +529,7 @@ const markSegmentComplete = async (segment) => {
       return;
     }
     await axiosInstance.patch(
-      `/api/${endpoints.media.videoSegmentDetail(videoId, segment.id)}`,
+      r(endpoints.media.videoSegmentDetail(videoId, segment.id)),
       { status: 'completed' }
     );
     annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
@@ -548,7 +548,7 @@ const editExamination = (examination) => {
 
 const markExaminationComplete = async (examination) => {
   try {
-    await axiosInstance.patch(`/api/${endpoints.router.examinationById(examination.id)}`, { status: 'completed' });
+    await axiosInstance.patch(r(endpoints.router.examinationById(examination.id)), { status: 'completed' });
     annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
     await refreshExaminations();
   } catch (error) {
@@ -567,8 +567,8 @@ const validateSensitiveMeta = (meta) => {
 const markSensitiveMetaComplete = async (meta) => {
   try {
     const endpoint = meta.content_type === 'video' 
-      ? `/api/${endpoints.media.videos}`
-      : `/api/${endpoints.media.pdfs}`;
+      ? r(endpoints.media.videos)
+      : r(endpoints.media.pdfs);
     
     await axiosInstance.patch(endpoint, { 
       sensitive_meta_id: meta.id,

@@ -6,7 +6,9 @@ const hoisted = vi.hoisted(() => ({
     get: vi.fn(),
     post: vi.fn(),
     queueStore: null,
-    fetchAiDatasetOptions: vi.fn()
+    fetchAiDatasetOptions: vi.fn(),
+    createObjectURL: vi.fn(),
+    revokeObjectURL: vi.fn()
 }));
 vi.mock('uuid', () => ({
     v7: () => 'uuid-annotation-1'
@@ -121,8 +123,7 @@ function buildQueueStore(overrides = {}) {
         store.informationSource = source?.trim() || 'manual_annotation';
     });
     store.setFrameFileType = vi.fn((fileType) => {
-        store.frameFileType =
-            fileType === 'raw' || fileType === 'processed' ? fileType : 'auto';
+        store.frameFileType = fileType === 'raw' || fileType === 'processed' ? fileType : 'auto';
         store.taskQuerySignature = `random|Polyp||${store.informationSource}|${store.frameFileType}|1`;
     });
     store.setAiDataset = vi.fn((datasetName, datasetType, datasetId = null) => {
@@ -187,6 +188,19 @@ function installGetMock(options = {}) {
 describe('FrameAnnotation route', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        let objectUrlCounter = 0;
+        hoisted.createObjectURL.mockImplementation(() => {
+            objectUrlCounter += 1;
+            return `blob:frame-${objectUrlCounter}`;
+        });
+        Object.defineProperty(URL, 'createObjectURL', {
+            configurable: true,
+            value: hoisted.createObjectURL
+        });
+        Object.defineProperty(URL, 'revokeObjectURL', {
+            configurable: true,
+            value: hoisted.revokeObjectURL
+        });
         localStorage.clear();
         window.history.pushState({}, '', '/frame-annotation');
         hoisted.fetchAiDatasetOptions.mockResolvedValue([
@@ -255,6 +269,16 @@ describe('FrameAnnotation route', () => {
         });
         expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2);
         expect(wrapper.text()).toContain('Keine Annotationsaufgaben verfügbar.');
+    });
+    it('uses the probed frame blob directly as the image source', async () => {
+        const frameBlob = new Blob(['frame'], { type: 'image/jpeg' });
+        installGetMock({ streamBody: frameBlob });
+        const wrapper = mountFrameAnnotation();
+        await flushPromises();
+        expect(hoisted.createObjectURL).toHaveBeenCalledWith(frameBlob);
+        expect(wrapper.get('[data-test="frame-box-stage"] img').attributes('src')).toBe('blob:frame-1');
+        wrapper.unmount();
+        expect(hoisted.revokeObjectURL).toHaveBeenCalledWith('blob:frame-1');
     });
     it('loads one initial task when the first label group is auto-selected', async () => {
         hoisted.queueStore = buildQueueStore({ selectedLabelGroupId: null });

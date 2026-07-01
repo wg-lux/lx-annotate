@@ -496,7 +496,7 @@
                             :src="rawVideoSrc"
                             controls
                             style="width: 100%; max-height: 350px;"
-                            preload="metadata"
+                            preload="none"
                             @error="onRawVideoError"
                             @loadstart="onRawVideoLoadStart"
                             @canplay="onRawVideoCanPlay"
@@ -524,7 +524,7 @@
                             :src="anonymizedVideoSrc"
                             controls
                             style="width: 100%; max-height: 350px;"
-                            preload="metadata"
+                            preload="none"
                             @error="onAnonymizedVideoError"
                             @loadstart="onAnonymizedVideoLoadStart"
                             @canplay="onAnonymizedVideoCanPlay"
@@ -790,7 +790,7 @@
 
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizationStore';
 import {useVideoStore} from '@/stores/videoStore';
@@ -1558,6 +1558,30 @@ const pauseAllVideos = () => {
   if (anonymizedVideoElement.value) anonymizedVideoElement.value.pause();
   console.log('All videos paused');
 };
+
+function releaseVideoElement(element: HTMLVideoElement | null): void {
+  if (!element) return;
+
+  try {
+    element.pause();
+  } catch (error) {
+    console.warn('Failed to pause validation video during cleanup:', error);
+  }
+
+  element.removeAttribute('src');
+  element.src = '';
+
+  try {
+    element.load();
+  } catch (error) {
+    console.warn('Failed to release validation video source during cleanup:', error);
+  }
+}
+
+function releaseVideoElements(): void {
+  releaseVideoElement(rawVideoElement.value);
+  releaseVideoElement(anonymizedVideoElement.value);
+}
 
 const downloadRawPdf = () => {
   if (!rawPdfDownloadSrc.value) {
@@ -2517,8 +2541,8 @@ onMounted(async () => {
 });
 
 
-onUnmounted(() => {
-  fetchNextItem();
+onBeforeUnmount(() => {
+  releaseVideoElements();
 });
 </script>
 

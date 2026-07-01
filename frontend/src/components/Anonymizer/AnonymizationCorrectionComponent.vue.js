@@ -747,7 +747,7 @@ const downloadResult = async (historyId) => {
     if (!currentVideo.value)
         return;
     try {
-        const response = await axiosInstance.get(`/api/media/processed-videos/${currentVideo.value.id}/${historyId}/`, {
+        const response = await axiosInstance.get(r(endpoints.media.processedVideoDownload(currentVideo.value.id, historyId)), {
             responseType: 'blob'
         });
         // Create download link

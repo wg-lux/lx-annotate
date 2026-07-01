@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 export const useHubExportStore = defineStore('hubExport', {
     state: () => ({
@@ -23,7 +23,7 @@ export const useHubExportStore = defineStore('hubExport', {
             this.error = null;
             try {
                 const params = targetNodeKey ? { target_node_key: targetNodeKey } : undefined;
-                const { data } = await axiosInstance.get(`/api/${endpoints.hubExport.overview}`, { params });
+                const { data } = await axiosInstance.get(r(endpoints.hubExport.overview), { params });
                 this.selectedTargetNodeKey = data.selectedTargetNodeKey;
                 this.sourceNodeKey = data.sourceNodeKey;
                 this.hubNodes = data.hubNodes;
@@ -45,7 +45,7 @@ export const useHubExportStore = defineStore('hubExport', {
             if (!this.selectedTargetNodeKey) {
                 throw new Error('Kein Hub-Ziel ausgewählt.');
             }
-            await axiosInstance.post(`/api/${endpoints.hubExport.mark}`, {
+            await axiosInstance.post(r(endpoints.hubExport.mark), {
                 targetNodeKey: this.selectedTargetNodeKey,
                 resources
             });
@@ -55,7 +55,7 @@ export const useHubExportStore = defineStore('hubExport', {
             if (!this.selectedTargetNodeKey) {
                 throw new Error('Kein Hub-Ziel ausgewählt.');
             }
-            await axiosInstance.post(`/api/${endpoints.hubExport.unmark}`, {
+            await axiosInstance.post(r(endpoints.hubExport.unmark), {
                 targetNodeKey: this.selectedTargetNodeKey,
                 resources
             });

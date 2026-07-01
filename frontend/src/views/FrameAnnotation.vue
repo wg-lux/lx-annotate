@@ -777,6 +777,7 @@ const initialRouteQuery = new URLSearchParams(window.location.search)
 let boxDraftStart: ImagePoint | null = null
 let frameImageRetryTimer: ReturnType<typeof setTimeout> | null = null
 let frameImageProbeGeneration = 0
+let frameImageObjectUrl: string | null = null
 let isReloadingAnnotationQueue = false
 let isBootstrappingAnnotationQueue = true
 
@@ -1126,22 +1127,38 @@ function clearFrameImageRetryTimer(): void {
   }
 }
 
-function withCacheBuster(url: string): string {
-  if (!url) return ''
-  const separator = url.includes('?') ? '&' : '?'
-  return `${url}${separator}cb=${Date.now()}`
+function revokeFrameImageObjectUrl(): void {
+  if (frameImageObjectUrl === null) return
+  if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+    URL.revokeObjectURL(frameImageObjectUrl)
+  }
+  frameImageObjectUrl = null
+}
+
+function clearFrameImageRequestUrl(): void {
+  revokeFrameImageObjectUrl()
+  frameImageRequestUrl.value = ''
+}
+
+function setFrameImageBlobUrl(blob: Blob, fallbackUrl: string): void {
+  revokeFrameImageObjectUrl()
+  if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+    frameImageObjectUrl = URL.createObjectURL(blob)
+    frameImageRequestUrl.value = frameImageObjectUrl
+    return
+  }
+  frameImageRequestUrl.value = fallbackUrl
 }
 
 function resetFrameImageState(task: typeof currentTask.value): void {
   clearFrameImageRetryTimer()
   frameImageProbeGeneration += 1
   frameImageRetryCount.value = 0
+  clearFrameImageRequestUrl()
   if (!task) {
-    frameImageRequestUrl.value = ''
     frameImageLoadState.value = 'idle'
     return
   }
-  frameImageRequestUrl.value = ''
   frameImageLoadState.value = 'probing'
 }
 
@@ -1175,7 +1192,7 @@ function handleFrameImageError(): void {
   }
   frameImageRetryCount.value += 1
   frameImageLoadState.value = 'pending'
-  frameImageRequestUrl.value = ''
+  clearFrameImageRequestUrl()
   scheduleFrameImageRetry(currentTask.value)
 }
 
@@ -1183,7 +1200,7 @@ function retryFrameImage(): void {
   if (!currentTask.value) return
   clearFrameImageRetryTimer()
   frameImageRetryCount.value = 0
-  frameImageRequestUrl.value = ''
+  clearFrameImageRequestUrl()
   void probeFrameImage(currentTask.value)
 }
 
@@ -1221,7 +1238,8 @@ async function extractPendingMessage(blob: Blob): Promise<string | null> {
       return 'Frame konnte nicht extrahiert werden. Bitte spaeter erneut versuchen.'
     }
     if (status === 'frame_decode_failed') {
-      const detail = typeof payload.error === 'string' && payload.error.trim() ? payload.error : null
+      const detail =
+        typeof payload.error === 'string' && payload.error.trim() ? payload.error : null
       return detail
         ? `Frame konnte nicht dekodiert werden: ${detail}`
         : 'Frame konnte nicht dekodiert werden. Bitte spaeter erneut versuchen.'
@@ -1244,7 +1262,7 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
 
     const contentType = String(response.headers?.['content-type'] ?? '').toLowerCase()
     if (response.status === 200 && contentType.startsWith('image/')) {
-      frameImageRequestUrl.value = withCacheBuster(task.data.imageUrl)
+      setFrameImageBlobUrl(response.data, task.data.imageUrl)
       frameImageLoadState.value = 'loading'
       return
     }
@@ -1912,6 +1930,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearFrameImageRetryTimer()
+  revokeFrameImageObjectUrl()
 })
 </script>
 

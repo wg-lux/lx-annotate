@@ -588,6 +588,7 @@ class VideoStreamingFixedTests(APIIntegrationTestCase):
                 response.status_code,
                 [
                     status.HTTP_200_OK,
+                    status.HTTP_409_CONFLICT,
                     status.HTTP_404_NOT_FOUND,
                     status.HTTP_500_INTERNAL_SERVER_ERROR,
                 ],
@@ -630,7 +631,7 @@ class VideoFileFixedTests(APIIntegrationTestCase):
 
     def test_video_metadata_endpoint_with_error_handling(self):
         """Test: Video-Metadaten Endpunkt mit Fehlerbehandlung"""
-        url = f"/api/media/videos/{self.video.pk}/"
+        url = f"/endoreg-api/media/videos/{self.video.pk}/details/"
 
         try:
             response = self.client.get(url)
@@ -640,6 +641,8 @@ class VideoFileFixedTests(APIIntegrationTestCase):
                 response.status_code,
                 [
                     status.HTTP_200_OK,
+                    status.HTTP_403_FORBIDDEN,
+                    status.HTTP_409_CONFLICT,
                     status.HTTP_404_NOT_FOUND,
                     status.HTTP_500_INTERNAL_SERVER_ERROR,
                 ],
@@ -654,7 +657,7 @@ class VideoFileFixedTests(APIIntegrationTestCase):
 
     def test_video_streaming_endpoint_with_renderer_fix(self):
         """Test: Video-Streaming Endpunkt mit Renderer-Problem-Fix"""
-        url = f"/api/media/videos/{self.video.pk}/stream/"
+        url = f"/endoreg-api/media/videos/{self.video.pk}/stream/"
 
         try:
             response = self.client.get(url)
@@ -664,10 +667,23 @@ class VideoFileFixedTests(APIIntegrationTestCase):
                 response.status_code,
                 [
                     status.HTTP_200_OK,
+                    status.HTTP_409_CONFLICT,
                     status.HTTP_404_NOT_FOUND,
                     status.HTTP_500_INTERNAL_SERVER_ERROR,
                 ],
             )
+            if response.status_code == status.HTTP_409_CONFLICT:
+                self.assertIn(
+                    response.headers.get("X-Stream-State"),
+                    {
+                        "encrypted_streamable_artifact",
+                        "invalid_streamable_artifact",
+                        "missing_streamable_artifact",
+                        "nginx_offload_required",
+                        "raw_django_streaming_disabled",
+                        "unreadable_streamable_artifact",
+                    },
+                )
 
         except IndexError as e:
             if "list index out of range" in str(e):

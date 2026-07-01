@@ -1522,7 +1522,7 @@ const downloadResult = async (historyId: number) => {
   
   try {
     const response = await axiosInstance.get(
-      `/api/media/processed-videos/${currentVideo.value.id}/${historyId}/`,
+      r(endpoints.media.processedVideoDownload(currentVideo.value.id, historyId)),
       {
         responseType: 'blob'
       }
