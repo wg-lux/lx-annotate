@@ -1,7 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils';
+import { reactive } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CaseSetupPage from '../CaseSetupPage.vue';
 const hoisted = vi.hoisted(() => ({
+    routeRef: {
+        current: {
+            query: {}
+        }
+    },
     flowRef: { current: null },
     patientStoreRef: { current: null },
     examinationStoreRef: { current: null },
@@ -12,11 +18,10 @@ const hoisted = vi.hoisted(() => ({
 }));
 vi.mock('vue-router', () => ({
     RouterLink: {
-        template: '<a><slot /></a>'
+        props: ['to'],
+        template: '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
     },
-    useRoute: () => ({
-        query: {}
-    })
+    useRoute: () => hoisted.routeRef.current
 }));
 vi.mock('@/api/axiosInstance', () => ({
     default: hoisted.axiosApi,
@@ -34,15 +39,20 @@ vi.mock('@/stores/examinationStore', () => ({
 vi.mock('@/stores/patientExaminationStore', () => ({
     usePatientExaminationStore: () => hoisted.patientExaminationStoreRef.current
 }));
-function buildFlowStore() {
-    return {
+function buildFlowStore(overrides = {}) {
+    const flow = reactive({
         selectedPatientId: 7,
         selectedExaminationId: 9,
         patientExaminationId: null,
         lookupToken: null,
         currentRuntimeDraft: null,
         sessionStatus: 'idle',
-        setCaseSelection: vi.fn(),
+        setCaseSelection: vi.fn((payload) => {
+            if (payload.selectedPatientId !== undefined)
+                flow.selectedPatientId = payload.selectedPatientId;
+            if (payload.selectedExaminationId !== undefined)
+                flow.selectedExaminationId = payload.selectedExaminationId;
+        }),
         setPatientExaminationContext: vi.fn(function (payload) {
             this.patientExaminationId = payload.patientExaminationId;
             this.selectedPatientId = payload.selectedPatientId;
@@ -50,11 +60,16 @@ function buildFlowStore() {
         }),
         resetForPatientSwitch: vi.fn(),
         clearAll: vi.fn()
-    };
+    });
+    Object.assign(flow, overrides);
+    return flow;
 }
 describe('CaseSetupPage draft-first setup', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        hoisted.routeRef.current = {
+            query: {}
+        };
         hoisted.flowRef.current = buildFlowStore();
         hoisted.patientStoreRef.current = {
             loading: false,
@@ -71,7 +86,10 @@ describe('CaseSetupPage draft-first setup', () => {
         };
         hoisted.examinationStoreRef.current = {
             loading: false,
-            examinationsDropdown: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
+            examinationsDropdown: [
+                { id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' },
+                { id: 13, name: 'colonoscopy', displayName: 'Koloskopie' }
+            ],
             fetchExaminations: vi.fn().mockResolvedValue(undefined)
         };
         hoisted.patientExaminationStoreRef.current = {
@@ -102,5 +120,31 @@ describe('CaseSetupPage draft-first setup', () => {
             selectedExaminationId: 9,
             preserveTemplateSelection: true
         });
+    });
+    it('preserves validation return links and preselects the requested examination', async () => {
+        hoisted.routeRef.current = {
+            query: {
+                returnTo: '/anonymisierung/validierung?fileId=5&mediaType=pdf',
+                preferredExamination: 'colonoscopy'
+            }
+        };
+        hoisted.flowRef.current = buildFlowStore({
+            selectedExaminationId: null
+        });
+        const wrapper = mount(CaseSetupPage);
+        await flushPromises();
+        expect(hoisted.flowRef.current.setCaseSelection).toHaveBeenCalledWith({
+            selectedExaminationId: 13
+        });
+        const backLink = wrapper
+            .findAll('a')
+            .find((link) => link.text().includes('Zurück zur Validierung'));
+        expect(backLink).toBeTruthy();
+        expect(backLink.attributes('data-to')).toBe('/anonymisierung/validierung?fileId=5&mediaType=pdf');
+        const nextLink = wrapper
+            .findAll('a')
+            .find((link) => link.text().includes('Zur klinischen Dokumentation'));
+        expect(nextLink).toBeTruthy();
+        expect(nextLink.attributes('data-to')).toBe('/reporting/case-setup');
     });
 });

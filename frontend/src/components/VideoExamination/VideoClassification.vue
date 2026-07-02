@@ -45,7 +45,7 @@
           <div class="card-header pb-0 d-flex justify-content-between align-items-center">
             <h5 class="mb-0">NICE Klassifikation</h5>
             <button @click="loadNiceData" class="btn btn-sm btn-outline-primary" :disabled="loadingNice">
-              <i class="material-icons">refresh</i>
+              <i class="ni ni-bold-right"></i>
               {{ loadingNice ? 'Laden...' : 'Aktualisieren' }}
             </button>
           </div>
@@ -63,7 +63,7 @@
             </div>
 
             <div v-else-if="niceData.length === 0" class="text-center py-5 text-muted">
-              <i class="material-icons" style="font-size: 48px;">video_library</i>
+              <i class="ni ni-collection ni-3x"></i>
               <p class="mt-2">Keine NICE Klassifikationsdaten verfügbar</p>
             </div>
 
@@ -92,14 +92,14 @@
                           @click="showNiceDetails(video)" 
                           class="btn btn-sm btn-primary me-2"
                         >
-                          <i class="material-icons">visibility</i>
+                          <i class="ni ni-user-run"></i>
                           Details
                         </button>
                         <button 
                           @click="classifyNice(video)" 
                           class="btn btn-sm btn-success"
                         >
-                          <i class="material-icons">check_circle</i>
+                          <i class="ni ni-check-bold"></i>
                           Klassifizieren
                         </button>
                       </td>
@@ -120,7 +120,7 @@
           <div class="card-header pb-0 d-flex justify-content-between align-items-center">
             <h5 class="mb-0">PARIS Klassifikation</h5>
             <button @click="loadParisData" class="btn btn-sm btn-outline-primary" :disabled="loadingParis">
-              <i class="material-icons">refresh</i>
+              <i class="ni ni-bold-right"></i>
               {{ loadingParis ? 'Laden...' : 'Aktualisieren' }}
             </button>
           </div>
@@ -138,7 +138,7 @@
             </div>
 
             <div v-else-if="parisData.length === 0" class="text-center py-5 text-muted">
-              <i class="material-icons" style="font-size: 48px;">video_library</i>
+              <i class="ni ni-collection ni-3x"></i>
               <p class="mt-2">Keine PARIS Klassifikationsdaten verfügbar</p>
             </div>
 
@@ -167,14 +167,14 @@
                           @click="showParisDetails(video)" 
                           class="btn btn-sm btn-primary me-2"
                         >
-                          <i class="material-icons">visibility</i>
+                          <i class="ni ni-user-run"></i>
                           Details
                         </button>
                         <button 
                           @click="classifyParis(video)" 
                           class="btn btn-sm btn-success"
                         >
-                          <i class="material-icons">check_circle</i>
+                          <i class="ni ni-check-bold"></i>
                           Klassifizieren
                         </button>
                       </td>
@@ -257,7 +257,7 @@
                               @click="viewSegmentInPlayer(segment)" 
                               class="btn btn-sm btn-outline-primary"
                             >
-                              <i class="material-icons">play_arrow</i>
+                              <i class="ni ni-button-play"></i>
                               Ansehen
                             </button>
                           </td>
@@ -429,7 +429,7 @@
               @click="saveClassification"
               :disabled="!isClassificationValid"
             >
-              <i class="material-icons">save</i>
+              <i class="ni ni-collection"></i>
               Klassifikation speichern
             </button>
           </div>

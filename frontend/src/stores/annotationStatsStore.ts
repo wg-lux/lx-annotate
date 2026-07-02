@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import { endpoints } from '@/types/api/endpoints'
+import { r } from '@/api/axiosInstance'
 
 // Interfaces für verschiedene Statistik-Typen
 export interface OverviewStats {
@@ -122,7 +124,7 @@ export interface StatsFilters {
   user_id?: number
 }
 
-export const useAnnotationStatsStore = defineStore('annotationStats', {
+export const useAnnotationStatsStore = defineStore('annotationStatsDashboard', {
   state: () => ({
     // Main statistics data
     stats: null as AnnotationStatsData | null,
@@ -291,10 +293,10 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         // Verschiedene Statistiken von verschiedenen Endpunkten laden
         const [generalResponse, examinationResponse, videoSegmentResponse, sensitiveMetaResponse] =
           await Promise.all([
-            axios.get('/api/stats/'),
-            axios.get('/api/examinations/stats/'),
-            axios.get('/api/media/videos/segments/stats/'), // ✅ Modern media framework endpoint
-            axios.get('/api/media/sensitive-metadata/') // ✅ Modern media framework endpoint (list, no stats endpoint)
+            axios.get(r(endpoints.stats.general)),
+            axios.get(r(endpoints.stats.examinations)),
+            axios.get(r(endpoints.media.segmentsStats)),
+            axios.get(r(endpoints.media.sensitiveMetadataList))
           ])
 
         // ✅ Calculate sensitive metadata stats from list response

@@ -17,6 +17,7 @@ export interface Gender {
 }
 export interface Center {
     id: number;
+    centerKey?: string;
     name: string;
     nameDe?: string;
     nameEn?: string;
@@ -29,6 +30,7 @@ export interface Patient {
     dob?: string | null;
     gender?: string | null;
     center?: string | null;
+    centerKey?: string | null;
     email?: string;
     phone?: string;
     patientHash?: string | null;
@@ -47,7 +49,8 @@ export interface PatientFormData {
     lastName: string;
     dob: string | null | undefined;
     gender: string | null;
-    center: string | null;
+    center?: string | null;
+    centerKey?: string | null;
     email: string;
     phone: string;
     patientHash: string;
@@ -60,6 +63,7 @@ export interface PatientCreateData {
     dob?: string | null;
     gender?: string | null;
     center?: string | null;
+    centerKey?: string | null;
     email?: string;
     phone?: string;
     patientHash?: string | null;

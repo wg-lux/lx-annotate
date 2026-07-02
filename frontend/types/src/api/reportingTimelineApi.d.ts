@@ -13,6 +13,7 @@ export type TimelinePatient = {
 export type TimelineLatestReport = {
     mediaType: 'pdf' | 'full_report' | string;
     id: number;
+    rawPdfId?: number | null;
     patientExaminationId: number | null;
     anonymizedText: string | null;
     documentType: string | null;
@@ -40,6 +41,7 @@ export type TimelineLatestPayload = {
     latestFrames: TimelineLatestFrame[];
 };
 export declare function pickPreferredStream(options?: TimelineStreamOption[]): string | null;
+export declare function pickPreferredReportStream(options?: TimelineStreamOption[]): string | null;
 export declare function fetchPatientTimelineLatest(params: {
     patientId: number;
     patientExaminationId?: number | null;

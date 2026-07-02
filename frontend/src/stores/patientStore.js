@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 export const usePatientStore = defineStore('patient', () => {
     // State
     const patients = ref([]);
@@ -29,7 +30,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true;
             error.value = null;
-            const response = await axiosInstance.get('/api/patients/');
+            const response = await axiosInstance.get(r(endpoints.patient.patients));
             patients.value = response.data.results || response.data;
         }
         catch (err) {
@@ -42,7 +43,7 @@ export const usePatientStore = defineStore('patient', () => {
     };
     const fetchGenders = async () => {
         try {
-            const response = await axiosInstance.get('/api/genders/');
+            const response = await axiosInstance.get(r(endpoints.patient.genders));
             genders.value = response.data.results || response.data;
         }
         catch (err) {
@@ -52,7 +53,7 @@ export const usePatientStore = defineStore('patient', () => {
     };
     const fetchCenters = async () => {
         try {
-            const response = await axiosInstance.get('/api/centers/');
+            const response = await axiosInstance.get(r(endpoints.patient.centers));
             centers.value = response.data.results || response.data;
         }
         catch (err) {
@@ -70,7 +71,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true;
             error.value = null;
-            const response = await axiosInstance.post('/api/patients/', patientData);
+            const response = await axiosInstance.post(r(endpoints.patient.patients), patientData);
             const newPatient = response.data;
             patients.value.push(newPatient);
             return newPatient;
@@ -87,7 +88,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true;
             error.value = null;
-            const response = await axiosInstance.put(`/api/patients/${id}/`, patientData);
+            const response = await axiosInstance.put(r(endpoints.patient.patientById(id)), patientData);
             const updatedPatient = response.data;
             const index = patients.value.findIndex(p => p.id === id);
             if (index !== -1) {
@@ -107,7 +108,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true;
             error.value = null;
-            await axiosInstance.delete(`/api/patients/${id}/`);
+            await axiosInstance.delete(r(endpoints.patient.patientById(id)));
             patients.value = patients.value.filter(p => p.id !== id);
         }
         catch (err) {
@@ -148,11 +149,11 @@ export const usePatientStore = defineStore('patient', () => {
         const gender = genders.value.find(g => g.name === genderName);
         return gender?.nameDe || gender?.name || genderName;
     };
-    const getCenterDisplayName = (centerName) => {
-        if (!centerName)
+    const getCenterDisplayName = (centerIdentifier) => {
+        if (!centerIdentifier)
             return 'Kein Zentrum';
-        const center = centers.value.find(c => c.name === centerName);
-        return center?.nameDe || center?.name || centerName;
+        const center = centers.value.find(c => c.name === centerIdentifier || c.centerKey === centerIdentifier);
+        return center?.nameDe || center?.name || centerIdentifier;
     };
     const validatePatientForm = (formData) => {
         const errors = [];
@@ -180,7 +181,8 @@ export const usePatientStore = defineStore('patient', () => {
             lastName: formData.lastName?.trim(),
             dob: formData.dob || null,
             gender: formData.gender || null,
-            center: formData.center || null,
+            center: formData.centerKey ? null : (formData.center || null),
+            centerKey: formData.centerKey || null,
             email: formData.email?.trim() || '',
             phone: formData.phone?.trim() || '',
             patientHash: formData.patientHash?.trim() || '',

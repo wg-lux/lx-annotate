@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useVideoStore } from '@/stores/videoStore';
 import axiosInstance from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 // ✅ FIX: Proper mock setup with explicit types
 vi.mock('@/api/axiosInstance', () => ({
     default: {
@@ -134,7 +135,7 @@ describe('VideoStore', () => {
             // Act
             const result = await store.commitDraft();
             // Assert
-            expect(vi.mocked(axiosInstance.post)).toHaveBeenCalledWith('/api/media/videos/123/segments/', {
+            expect(vi.mocked(axiosInstance.post)).toHaveBeenCalledWith(`/api/${endpoints.media.videoSegments(123)}`, {
                 video_id: 123,
                 start_time: 10.5,
                 end_time: 15.0,

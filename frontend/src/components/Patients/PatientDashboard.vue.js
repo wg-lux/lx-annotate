@@ -165,7 +165,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1
     ...{ class: "dashboard-title" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-users" },
+    ...{ class: "ni ni-circle-08" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "header-actions" },
@@ -178,7 +178,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loading),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-plus" },
+    ...{ class: "ni ni-fat-add" },
 });
 if (__VLS_ctx.error) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -236,7 +236,7 @@ if (__VLS_ctx.showCreateForm && !__VLS_ctx.loading) {
         ...{ class: "card-title" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-user-plus" },
+        ...{ class: "ni ni-fat-add" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
@@ -280,7 +280,7 @@ if (!__VLS_ctx.loading && !__VLS_ctx.showCreateForm) {
         ...{ class: "card-title mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-list" },
+        ...{ class: "ni ni-single-copy-04" },
     });
     (__VLS_ctx.patients.length);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -334,7 +334,7 @@ if (!__VLS_ctx.loading && !__VLS_ctx.showCreateForm) {
                 ...{ class: "info-item" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-birthday-cake" },
+                ...{ class: "ni ni-book-bookmark" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
             (__VLS_ctx.formatDate(patient.dob));
@@ -347,7 +347,7 @@ if (!__VLS_ctx.loading && !__VLS_ctx.showCreateForm) {
                     ...{ class: "info-item" },
                 });
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-venus-mars" },
+                    ...{ class: "ni ni-circle-08" },
                 });
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
                 (__VLS_ctx.getGenderName(patient.gender));
@@ -357,7 +357,7 @@ if (!__VLS_ctx.loading && !__VLS_ctx.showCreateForm) {
                     ...{ class: "info-item" },
                 });
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-hospital" },
+                    ...{ class: "ni ni-collection" },
                 });
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
                 (__VLS_ctx.getCenterName(patient.center));
@@ -367,7 +367,7 @@ if (!__VLS_ctx.loading && !__VLS_ctx.showCreateForm) {
                     ...{ class: "info-item" },
                 });
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-envelope" },
+                    ...{ class: "ni ni-single-copy-04" },
                 });
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
                 (patient.email);
@@ -385,7 +385,7 @@ if (!__VLS_ctx.loading && !__VLS_ctx.showCreateForm) {
             ...{ class: "empty-state" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-users fa-3x text-muted" },
+            ...{ class: "ni ni-circle-08 ni-3x text-muted" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
@@ -408,7 +408,7 @@ if (!__VLS_ctx.loading && !__VLS_ctx.showCreateForm) {
                 ...{ class: "btn btn-primary" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-plus" },
+                ...{ class: "ni ni-fat-add" },
             });
         }
     }
@@ -452,13 +452,13 @@ if (__VLS_ctx.selectedPatient && !__VLS_ctx.showCreateForm && !__VLS_ctx.loading
 /** @type {__VLS_StyleScopedClasses['patient-dashboard']} */ ;
 /** @type {__VLS_StyleScopedClasses['dashboard-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['dashboard-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-users']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-circle-08']} */ ;
 /** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
@@ -475,8 +475,8 @@ if (__VLS_ctx.selectedPatient && !__VLS_ctx.showCreateForm && !__VLS_ctx.loading
 /** @type {__VLS_StyleScopedClasses['form-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['patients-card']} */ ;
@@ -486,8 +486,8 @@ if (__VLS_ctx.selectedPatient && !__VLS_ctx.showCreateForm && !__VLS_ctx.loading
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['search-box']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
@@ -500,29 +500,29 @@ if (__VLS_ctx.selectedPatient && !__VLS_ctx.showCreateForm && !__VLS_ctx.loading
 /** @type {__VLS_StyleScopedClasses['patient-card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['patient-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-birthday-cake']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-book-bookmark']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-venus-mars']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-circle-08']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-hospital']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-envelope']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['patient-card-footer']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['empty-state']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-users']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-circle-08']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['patient-detail-section']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({

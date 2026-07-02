@@ -1,5 +1,5 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
-    staticUrl: string;
+    coloRegLogo: string;
     isSidebarOpen: boolean;
     pendingValidationCount: number;
     processingCount: number;
@@ -8,6 +8,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     logoSrc(): string;
     isAnonymizationOverviewRoute(): boolean;
     isAnonymizationValidationRoute(): boolean;
+    isAnonymizationMetricsRoute(): boolean;
     isReportingRoute(): boolean;
     isReportingCaseSetupRoute(): boolean;
     lastValidationTo(): "/anonymisierung/validierung" | {

@@ -24,6 +24,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -48,6 +49,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
@@ -72,6 +74,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             dob?: string | null | undefined;
             gender?: string | null | undefined;
             center?: string | null | undefined;
+            centerKey?: string | null | undefined;
             email?: string | undefined;
             phone?: string | undefined;
             patientHash?: string | null | undefined;
@@ -96,6 +99,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
         video: {
             [x: string]: any;
             id: number;
+            center_key?: string | undefined;
             center_name?: string | undefined;
             processor_name?: string | undefined;
             original_file_name?: string | undefined;
@@ -117,6 +121,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -141,6 +146,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
@@ -169,6 +175,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -193,6 +200,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
@@ -221,6 +229,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -245,6 +254,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
@@ -269,6 +279,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             dob?: string | null | undefined;
             gender?: string | null | undefined;
             center?: string | null | undefined;
+            centerKey?: string | null | undefined;
             email?: string | undefined;
             phone?: string | undefined;
             patientHash?: string | null | undefined;
@@ -293,6 +304,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
         video: {
             [x: string]: any;
             id: number;
+            center_key?: string | undefined;
             center_name?: string | undefined;
             processor_name?: string | undefined;
             original_file_name?: string | undefined;
@@ -314,6 +326,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -338,6 +351,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;

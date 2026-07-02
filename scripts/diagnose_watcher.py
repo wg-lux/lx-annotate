@@ -14,7 +14,7 @@ import sys
 import subprocess
 import logging
 from pathlib import Path
-from watchdog.observers import Observer
+from watchdog.observers import Observer  # type: ignore[import-not-found]
 
 def check_observer_type():
     """Check if we're using InotifyObserver or PollingObserver."""

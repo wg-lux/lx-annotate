@@ -3,30 +3,46 @@ import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
 const router = useRouter();
 const annotationStatsStore = useAnnotationStatsStore();
+const emptyStats = {
+    segmentPending: 0,
+    segmentInProgress: 0,
+    segmentCompleted: 0,
+    examinationPending: 0,
+    examinationInProgress: 0,
+    examinationCompleted: 0,
+    sensitiveMetaPending: 0,
+    sensitiveMetaInProgress: 0,
+    sensitiveMetaCompleted: 0,
+    totalPending: 0,
+    totalInProgress: 0,
+    totalCompleted: 0,
+    totalAnnotations: 0
+};
+const stats = computed(() => annotationStatsStore.stats || emptyStats);
 // Enhanced computed properties with fallback values
 const segmentStats = computed(() => ({
-    pending: annotationStatsStore.stats.segmentPending || 0,
-    inProgress: annotationStatsStore.stats.segmentInProgress || 0,
-    completed: annotationStatsStore.stats.segmentCompleted || 0,
-    total: (annotationStatsStore.stats.segmentPending || 0) +
-        (annotationStatsStore.stats.segmentInProgress || 0) +
-        (annotationStatsStore.stats.segmentCompleted || 0)
+    pending: stats.value.segmentPending || 0,
+    inProgress: stats.value.segmentInProgress || 0,
+    completed: stats.value.segmentCompleted || 0,
+    total: (stats.value.segmentPending || 0) +
+        (stats.value.segmentInProgress || 0) +
+        (stats.value.segmentCompleted || 0)
 }));
 const examinationStats = computed(() => ({
-    pending: annotationStatsStore.stats.examinationPending || 0,
-    inProgress: annotationStatsStore.stats.examinationInProgress || 0,
-    completed: annotationStatsStore.stats.examinationCompleted || 0,
-    total: (annotationStatsStore.stats.examinationPending || 0) +
-        (annotationStatsStore.stats.examinationInProgress || 0) +
-        (annotationStatsStore.stats.examinationCompleted || 0)
+    pending: stats.value.examinationPending || 0,
+    inProgress: stats.value.examinationInProgress || 0,
+    completed: stats.value.examinationCompleted || 0,
+    total: (stats.value.examinationPending || 0) +
+        (stats.value.examinationInProgress || 0) +
+        (stats.value.examinationCompleted || 0)
 }));
 const sensitiveMetaStats = computed(() => ({
-    pending: annotationStatsStore.stats.sensitiveMetaPending || 0,
-    inProgress: annotationStatsStore.stats.sensitiveMetaInProgress || 0,
-    completed: annotationStatsStore.stats.sensitiveMetaCompleted || 0,
-    total: (annotationStatsStore.stats.sensitiveMetaPending || 0) +
-        (annotationStatsStore.stats.sensitiveMetaInProgress || 0) +
-        (annotationStatsStore.stats.sensitiveMetaCompleted || 0)
+    pending: stats.value.sensitiveMetaPending || 0,
+    inProgress: stats.value.sensitiveMetaInProgress || 0,
+    completed: stats.value.sensitiveMetaCompleted || 0,
+    total: (stats.value.sensitiveMetaPending || 0) +
+        (stats.value.sensitiveMetaInProgress || 0) +
+        (stats.value.sensitiveMetaCompleted || 0)
 }));
 // Global computed properties for the main progress bar
 const completionPercentage = computed(() => {
@@ -39,11 +55,144 @@ const pendingPercentage = computed(() => {
     return annotationStatsStore.pendingPercentage || 0;
 });
 const totalAnnotations = computed(() => {
-    return annotationStatsStore.stats.totalAnnotations || 0;
+    return stats.value.totalAnnotations || 0;
+});
+const totalInProgress = computed(() => stats.value.totalInProgress || 0);
+const totalPending = computed(() => stats.value.totalPending || 0);
+const totalCompleted = computed(() => stats.value.totalCompleted || 0);
+const openAnnotationCount = computed(() => totalInProgress.value + totalPending.value);
+const overallStatusItems = computed(() => [
+    {
+        key: 'completed',
+        label: 'Abgeschlossen',
+        count: totalCompleted.value,
+        percentage: completionPercentage.value,
+        barClass: 'bg-success',
+    },
+    {
+        key: 'in-progress',
+        label: 'In Bearbeitung',
+        count: totalInProgress.value,
+        percentage: inProgressPercentage.value,
+        barClass: 'bg-info',
+    },
+    {
+        key: 'pending',
+        label: 'Ausstehend',
+        count: totalPending.value,
+        percentage: pendingPercentage.value,
+        barClass: 'bg-warning',
+    },
+]);
+const completedOfTotalText = computed(() => {
+    if (totalAnnotations.value === 0)
+        return 'Keine Annotationen gezählt';
+    return `${totalCompleted.value} von ${totalAnnotations.value} Annotationen abgeschlossen`;
+});
+const overallStatusDescription = computed(() => {
+    if (totalAnnotations.value === 0) {
+        return 'Wartet auf Statistikdaten für die zusammengefasste Arbeitsliste.';
+    }
+    if (openAnnotationCount.value === 0) {
+        return 'Alle gezählten Annotationen sind abgeschlossen.';
+    }
+    if (totalInProgress.value > 0 && totalPending.value > 0) {
+        return `${openAnnotationCount.value} Annotationen sind noch offen: ${totalInProgress.value} in Bearbeitung, ${totalPending.value} ausstehend.`;
+    }
+    if (totalInProgress.value > 0) {
+        return `${totalInProgress.value} Annotationen sind aktuell in Bearbeitung.`;
+    }
+    return `${totalPending.value} Annotationen warten noch auf Bearbeitung.`;
+});
+const topOpenAreaText = computed(() => {
+    if (totalAnnotations.value === 0 || openAnnotationCount.value === 0)
+        return '';
+    const areas = [
+        {
+            label: 'Video-Segmente',
+            open: segmentStats.value.pending + segmentStats.value.inProgress,
+        },
+        {
+            label: 'Untersuchungen',
+            open: examinationStats.value.pending + examinationStats.value.inProgress,
+        },
+        {
+            label: 'Patientendaten',
+            open: sensitiveMetaStats.value.pending + sensitiveMetaStats.value.inProgress,
+        },
+    ];
+    const top = areas.sort((a, b) => b.open - a.open)[0];
+    if (!top || top.open === 0)
+        return '';
+    return `${top.label} (${top.open} offen)`;
+});
+const points = computed(() => {
+    const completed = segmentStats.value.completed * 5 +
+        examinationStats.value.completed * 8 +
+        sensitiveMetaStats.value.completed * 6;
+    const inProgress = segmentStats.value.inProgress * 2 +
+        examinationStats.value.inProgress * 3 +
+        sensitiveMetaStats.value.inProgress * 2;
+    return completed + inProgress;
+});
+const POINTS_PER_LEVEL = 120;
+const currentLevel = computed(() => Math.max(1, Math.floor(points.value / POINTS_PER_LEVEL) + 1));
+const pointsToNextLevel = computed(() => POINTS_PER_LEVEL - (points.value % POINTS_PER_LEVEL || 0));
+const levelProgress = computed(() => Math.min(100, Math.round(((points.value % POINTS_PER_LEVEL) / POINTS_PER_LEVEL) * 100)));
+const unlockedAchievements = computed(() => {
+    const unlocked = [];
+    if (totalCompleted.value >= 1)
+        unlocked.push('Erster Abschluss');
+    if (totalCompleted.value >= 10)
+        unlocked.push('Konstant geliefert');
+    if (completionPercentage.value >= 50)
+        unlocked.push('Halbzeit-Champion');
+    if (segmentStats.value.completed >= 20)
+        unlocked.push('Segment-Profi');
+    if (examinationStats.value.completed >= 10)
+        unlocked.push('Befundungs-Profi');
+    if (sensitiveMetaStats.value.completed >= 10)
+        unlocked.push('Datenschutz-Held');
+    return unlocked;
+});
+const unlockedAchievementsCount = computed(() => unlockedAchievements.value.length);
+const focusMission = computed(() => {
+    const candidates = [
+        {
+            key: 'segments',
+            pending: segmentStats.value.pending,
+            title: 'Video-Segmente klären',
+            description: 'Reduziere offene Segmente, um die Pipeline zu entlasten.',
+            progress: getCompletionPercentage(segmentStats.value),
+        },
+        {
+            key: 'examinations',
+            pending: examinationStats.value.pending,
+            title: 'Befundungen abschließen',
+            description: 'Führe offene Untersuchungen zu einem dokumentierten Abschluss.',
+            progress: getCompletionPercentage(examinationStats.value),
+        },
+        {
+            key: 'sensitive',
+            pending: sensitiveMetaStats.value.pending,
+            title: 'Patientendaten validieren',
+            description: 'Verringere offene Validierungen für einen sicheren Datenfluss.',
+            progress: getCompletionPercentage(sensitiveMetaStats.value),
+        },
+    ];
+    const top = candidates.sort((a, b) => b.pending - a.pending)[0];
+    if (!top || top.pending <= 0) {
+        return {
+            title: 'Stabil halten',
+            description: 'Alles sieht gut aus. Heute Fokus auf Qualitätskontrolle und Feinschliff.',
+            progress: 100,
+        };
+    }
+    return top;
 });
 // Check if we have any data to show
 const hasAnyData = computed(() => {
-    return annotationStatsStore.stats.totalAnnotations > 0 ||
+    return stats.value.totalAnnotations > 0 ||
         annotationStatsStore.lastUpdated !== null;
 });
 const lastUpdateText = computed(() => {
@@ -68,7 +217,9 @@ const getCompletionPercentage = (stats) => {
 };
 const refreshStats = async () => {
     try {
-        await annotationStatsStore.forceRefresh();
+        if (typeof annotationStatsStore.forceRefresh === 'function') {
+            await annotationStatsStore.forceRefresh();
+        }
     }
     catch (error) {
         console.error('Failed to refresh stats:', error);
@@ -76,36 +227,32 @@ const refreshStats = async () => {
 };
 // Navigation methods
 const navigateToSegments = () => {
-    const segmentSection = document.querySelector('[data-section="segments"]');
-    if (segmentSection) {
-        segmentSection.scrollIntoView({ behavior: 'smooth' });
-    }
-    else {
-        router.push('/segments');
-    }
+    router.push('/video-untersuchung');
 };
 const navigateToExaminations = () => {
-    router.push('/examinations');
+    router.push('/reporting/case-setup');
 };
 const navigateToSensitiveMeta = () => {
-    router.push('/sensitive-meta');
+    router.push('/anonymisierung/validierung');
 };
 const navigateToFrameAnnotation = () => {
     router.push('/frame-annotation');
 };
 const navigateToExamination = () => {
-    router.push('/examination');
+    router.push('/reporting/case-setup');
 };
 const navigateToValidation = () => {
-    router.push('/validation');
+    router.push('/anonymisierung/validierung');
 };
 // Load stats on component mount and watch for changes
 onMounted(async () => {
-    await annotationStatsStore.fetchAnnotationStats();
+    if (typeof annotationStatsStore.fetchAnnotationStats === 'function') {
+        await annotationStatsStore.fetchAnnotationStats();
+    }
 });
 // Auto-refresh when needed
 watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
-    if (needsRefresh) {
+    if (needsRefresh && typeof annotationStatsStore.refreshIfNeeded === 'function') {
         await annotationStatsStore.refreshIfNeeded();
     }
 });
@@ -113,6 +260,7 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['mission-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['annotation-type-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
@@ -126,7 +274,25 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['completed']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-dot']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['in-progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-dot']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['pending']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-dot']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-strip']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -134,14 +300,25 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 if (__VLS_ctx.annotationStatsStore.isLoading && !__VLS_ctx.hasAnyData) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "text-center py-5" },
+        ...{ class: "dashboard-loading-state py-4" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "spinner-border text-primary" },
-        role: "status",
+        ...{ class: "skeleton-title mb-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "visually-hidden" },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row g-3 mb-3" },
+    });
+    for (const [n] of __VLS_getVForSourceType((3))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4" },
+            key: (`overview-skeleton-${n}`),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "skeleton-card" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "skeleton-row" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "mt-3 text-muted" },
@@ -171,7 +348,7 @@ else {
         ...{ class: "text-white mb-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-chart-pie me-2" },
+        ...{ class: "ni ni-chart-bar-32 me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "text-white opacity-8 mb-0" },
@@ -185,9 +362,112 @@ else {
         disabled: (__VLS_ctx.annotationStatsStore.isLoading),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-sync-alt" },
-        ...{ class: ({ 'fa-spin': __VLS_ctx.annotationStatsStore.isLoading }) },
+        ...{ class: "ni ni-bold-right" },
+        ...{ class: ({ 'ni-spin': __VLS_ctx.annotationStatsStore.isLoading }) },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row mb-4 g-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-lg-8" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card player-card h-100" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap justify-content-between align-items-start gap-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "player-kicker" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+        ...{ class: "player-title mb-1" },
+    });
+    (__VLS_ctx.currentLevel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted mb-2" },
+    });
+    (__VLS_ctx.points);
+    (__VLS_ctx.pointsToNextLevel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "achievement-pill" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "ni ni-chart-bar-32 me-2" },
+    });
+    (__VLS_ctx.unlockedAchievementsCount);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "level-progress mt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between small text-muted mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (__VLS_ctx.levelProgress);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress-bar bg-success" },
+        ...{ style: ({ width: __VLS_ctx.levelProgress + '%' }) },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3 d-flex flex-wrap gap-2" },
+    });
+    for (const [badge] of __VLS_getVForSourceType((__VLS_ctx.unlockedAchievements))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            key: (badge),
+            ...{ class: "badge text-bg-light achievement-badge" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "ni ni-chart-bar-32 me-1" },
+        });
+        (badge);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-lg-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card mission-card h-100" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "player-kicker" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mission-title mt-1 mb-2" },
+    });
+    (__VLS_ctx.focusMission.title);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted small mb-3" },
+    });
+    (__VLS_ctx.focusMission.description);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress mb-2" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress-bar bg-info" },
+        ...{ style: ({ width: __VLS_ctx.focusMission.progress + '%' }) },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between align-items-center small" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "fw-semibold" },
+    });
+    (__VLS_ctx.focusMission.progress);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row mb-4" },
     });
@@ -200,66 +480,100 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "overall-progress-header d-flex flex-wrap justify-content-between align-items-start gap-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "player-kicker" },
+    });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-        ...{ class: "card-title mb-3" },
+        ...{ class: "overall-progress-title mb-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-tasks me-2" },
+        ...{ class: "ni ni-single-copy-04 me-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-container" },
+        ...{ class: "overall-completion text-end" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress mb-2" },
-        ...{ style: {} },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-bar bg-success" },
-        role: "progressbar",
-        ...{ style: ({ width: __VLS_ctx.completionPercentage + '%' }) },
-        'aria-valuenow': (__VLS_ctx.completionPercentage),
-        'aria-valuemin': "0",
-        'aria-valuemax': "100",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "progress-text" },
+        ...{ class: "overall-completion-value" },
     });
     (__VLS_ctx.completionPercentage);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-bar bg-info" },
-        role: "progressbar",
-        ...{ style: ({ width: __VLS_ctx.inProgressPercentage + '%' }) },
-        'aria-valuenow': (__VLS_ctx.inProgressPercentage),
-        'aria-valuemin': "0",
-        'aria-valuemax': "100",
+        ...{ class: "overall-completion-label" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "progress-text" },
-    });
-    (__VLS_ctx.inProgressPercentage);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-bar bg-warning" },
-        role: "progressbar",
-        ...{ style: ({ width: __VLS_ctx.pendingPercentage + '%' }) },
-        'aria-valuenow': (__VLS_ctx.pendingPercentage),
-        'aria-valuemin': "0",
-        'aria-valuemax': "100",
+        ...{ class: "overall-status-strip mt-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "progress-text" },
-    });
-    (__VLS_ctx.pendingPercentage);
+    for (const [item] of __VLS_getVForSourceType((__VLS_ctx.overallStatusItems))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            key: (item.key),
+            ...{ class: "overall-status-item" },
+            ...{ class: (item.key) },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "overall-status-dot" },
+            'aria-hidden': "true",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "overall-status-label" },
+        });
+        (item.label);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (item.count);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        (item.percentage);
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-legend d-flex justify-content-between" },
+        ...{ class: "progress-container mt-3" },
+    });
+    if (__VLS_ctx.totalAnnotations > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "progress overall-progress-meter mb-2" },
+            'aria-label': "Gesamtstatus aller Annotationstypen",
+        });
+        for (const [item] of __VLS_getVForSourceType((__VLS_ctx.overallStatusItems))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (`bar-${item.key}`),
+                ...{ class: "progress-bar" },
+                ...{ class: (item.barClass) },
+                role: "progressbar",
+                ...{ style: ({ width: item.percentage + '%' }) },
+                'aria-valuenow': (item.percentage),
+                'aria-valuemin': "0",
+                'aria-valuemax': "100",
+                'aria-label': (`${item.label}: ${item.count} von ${__VLS_ctx.totalAnnotations}`),
+            });
+        }
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "overall-empty-progress mb-2" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "overall-progress-context d-flex flex-wrap justify-content-between gap-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
-    (__VLS_ctx.totalAnnotations);
+    (__VLS_ctx.completedOfTotalText);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
     (__VLS_ctx.lastUpdateText);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "overall-progress-note mt-2" },
+    });
+    (__VLS_ctx.overallStatusDescription);
+    if (__VLS_ctx.topOpenAreaText) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.topOpenAreaText);
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row mb-4" },
     });
@@ -280,7 +594,7 @@ else {
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-video me-2" },
+        ...{ class: "ni ni-button-play me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-light text-primary" },
@@ -299,7 +613,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-clock" },
+        ...{ class: "ni ni-user-run" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -318,7 +632,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-cogs" },
+        ...{ class: "ni ni-settings-gear-65" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -337,7 +651,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check-circle" },
+        ...{ class: "ni ni-check-bold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -381,7 +695,7 @@ else {
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-stethoscope me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-light text-success" },
@@ -400,7 +714,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-clock" },
+        ...{ class: "ni ni-user-run" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -419,7 +733,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-cogs" },
+        ...{ class: "ni ni-settings-gear-65" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -438,7 +752,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check-circle" },
+        ...{ class: "ni ni-check-bold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -482,7 +796,7 @@ else {
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-user-shield me-2" },
+        ...{ class: "ni ni-check-bold me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-dark text-warning" },
@@ -501,7 +815,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-clock" },
+        ...{ class: "ni ni-user-run" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -520,7 +834,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-cogs" },
+        ...{ class: "ni ni-settings-gear-65" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -539,7 +853,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check-circle" },
+        ...{ class: "ni ni-check-bold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -582,7 +896,7 @@ else {
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-bolt me-2" },
+        ...{ class: "ni ni-chart-bar-32 me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
@@ -601,7 +915,7 @@ else {
         ...{ class: "action-icon bg-primary" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-plus" },
+        ...{ class: "ni ni-fat-add" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "action-content" },
@@ -621,7 +935,7 @@ else {
         ...{ class: "action-icon bg-success" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-plus" },
+        ...{ class: "ni ni-fat-add" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "action-content" },
@@ -641,7 +955,7 @@ else {
         ...{ class: "action-icon bg-warning" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-play" },
+        ...{ class: "ni ni-button-play" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "action-content" },
@@ -656,7 +970,7 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
         ...{ class: "alert alert-danger mt-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-exclamation-triangle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.annotationStatsStore.error);
@@ -671,11 +985,16 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
     });
 }
 /** @type {__VLS_StyleScopedClasses['annotation-stats-overview']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-loading-state']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -690,8 +1009,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['col-8']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-white']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-chart-pie']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-white']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-8']} */ ;
@@ -701,36 +1020,118 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-kicker']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['achievement-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['level-progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['achievement-badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mission-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-kicker']} */ ;
+/** @type {__VLS_StyleScopedClasses['mission-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-tasks']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-kicker']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-completion']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-completion-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-completion-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-strip']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-dot']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-status-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-meter']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-legend']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-empty-progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-context']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['overall-progress-note']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
@@ -745,8 +1146,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
@@ -756,24 +1157,24 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['pending']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['in-progress']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cogs']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
@@ -797,8 +1198,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
@@ -808,24 +1209,24 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['pending']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['in-progress']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cogs']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
@@ -849,8 +1250,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-shield']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-dark']} */ ;
@@ -860,24 +1261,24 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['pending']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['in-progress']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cogs']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
@@ -894,8 +1295,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-bolt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -903,31 +1304,31 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
 var __VLS_dollars;
@@ -939,9 +1340,18 @@ const __VLS_self = (await import('vue')).defineComponent({
             examinationStats: examinationStats,
             sensitiveMetaStats: sensitiveMetaStats,
             completionPercentage: completionPercentage,
-            inProgressPercentage: inProgressPercentage,
-            pendingPercentage: pendingPercentage,
             totalAnnotations: totalAnnotations,
+            overallStatusItems: overallStatusItems,
+            completedOfTotalText: completedOfTotalText,
+            overallStatusDescription: overallStatusDescription,
+            topOpenAreaText: topOpenAreaText,
+            points: points,
+            currentLevel: currentLevel,
+            pointsToNextLevel: pointsToNextLevel,
+            levelProgress: levelProgress,
+            unlockedAchievements: unlockedAchievements,
+            unlockedAchievementsCount: unlockedAchievementsCount,
+            focusMission: focusMission,
             hasAnyData: hasAnyData,
             lastUpdateText: lastUpdateText,
             getCompletionPercentage: getCompletionPercentage,

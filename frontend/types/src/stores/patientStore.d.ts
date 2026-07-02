@@ -8,6 +8,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -26,6 +27,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -45,6 +47,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -63,6 +66,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -93,12 +97,14 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     }[]>;
     centers: import("vue").Ref<{
         id: number;
+        centerKey?: string | undefined;
         name: string;
         nameDe?: string | undefined;
         nameEn?: string | undefined;
         description?: string | undefined;
     }[], Center[] | {
         id: number;
+        centerKey?: string | undefined;
         name: string;
         nameDe?: string | undefined;
         nameEn?: string | undefined;
@@ -115,6 +121,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -134,6 +141,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -159,7 +167,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     getPatientById: (id: number) => Patient | undefined;
     calculatePatientAge: (dobString: string) => number | null;
     getGenderDisplayName: (genderName: string | null | undefined) => string;
-    getCenterDisplayName: (centerName: string | null | undefined) => string;
+    getCenterDisplayName: (centerIdentifier: string | null | undefined) => string;
     validatePatientForm: (formData: PatientFormData) => {
         isValid: boolean;
         errors: string[];
@@ -172,7 +180,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     clearSelectedPatientId: () => void;
     setCurrentPatient: (p: Patient | null) => void;
     resolveCurrentPatientId: (propId?: number, strict?: boolean) => number | null;
-}, "loading" | "error" | "selectedPatientId" | "patients" | "currentPatient" | "genders" | "centers">, Pick<{
+}, "error" | "loading" | "selectedPatientId" | "patients" | "currentPatient" | "genders" | "centers">, Pick<{
     patients: import("vue").Ref<{
         id?: number | undefined;
         firstName: string;
@@ -180,6 +188,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -198,6 +207,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -217,6 +227,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -235,6 +246,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -265,12 +277,14 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     }[]>;
     centers: import("vue").Ref<{
         id: number;
+        centerKey?: string | undefined;
         name: string;
         nameDe?: string | undefined;
         nameEn?: string | undefined;
         description?: string | undefined;
     }[], Center[] | {
         id: number;
+        centerKey?: string | undefined;
         name: string;
         nameDe?: string | undefined;
         nameEn?: string | undefined;
@@ -287,6 +301,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -306,6 +321,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -331,7 +347,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     getPatientById: (id: number) => Patient | undefined;
     calculatePatientAge: (dobString: string) => number | null;
     getGenderDisplayName: (genderName: string | null | undefined) => string;
-    getCenterDisplayName: (centerName: string | null | undefined) => string;
+    getCenterDisplayName: (centerIdentifier: string | null | undefined) => string;
     validatePatientForm: (formData: PatientFormData) => {
         isValid: boolean;
         errors: string[];
@@ -352,6 +368,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -370,6 +387,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -389,6 +407,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -407,6 +426,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -437,12 +457,14 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     }[]>;
     centers: import("vue").Ref<{
         id: number;
+        centerKey?: string | undefined;
         name: string;
         nameDe?: string | undefined;
         nameEn?: string | undefined;
         description?: string | undefined;
     }[], Center[] | {
         id: number;
+        centerKey?: string | undefined;
         name: string;
         nameDe?: string | undefined;
         nameEn?: string | undefined;
@@ -459,6 +481,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -478,6 +501,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         dob?: string | null | undefined;
         gender?: string | null | undefined;
         center?: string | null | undefined;
+        centerKey?: string | null | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         patientHash?: string | null | undefined;
@@ -503,7 +527,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     getPatientById: (id: number) => Patient | undefined;
     calculatePatientAge: (dobString: string) => number | null;
     getGenderDisplayName: (genderName: string | null | undefined) => string;
-    getCenterDisplayName: (centerName: string | null | undefined) => string;
+    getCenterDisplayName: (centerIdentifier: string | null | undefined) => string;
     validatePatientForm: (formData: PatientFormData) => {
         isValid: boolean;
         errors: string[];

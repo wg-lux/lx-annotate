@@ -1,4 +1,4 @@
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import { extractFindingId, type Finding, type FindingClassification, type JsonMap } from '@/api/findings.contract'
 import { findingsApi } from '@/api/findingsApi'
 import type {
@@ -21,6 +21,7 @@ import type {
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateRuntimeValidationFindingInput,
   ReportTemplateRuntimeValidationResult,
+  ClassificationValidatorExecution,
   ReportTemplateGraphEdge,
   ReportTemplateGraphNode,
   ReportTemplateStructureGraph,
@@ -28,10 +29,12 @@ import type {
   ReportTemplateSection,
   ReportTemplateValidators,
   RuntimeValidationIssue,
-  RuntimeValidatorDependencyStatus
+  RuntimeValidatorDependencyStatus,
+  InterventionValidatorExecution,
+  UnitValidatorExecution
 } from '@/types/reportTemplate'
 
-const REPORT_TEMPLATE_BASE = '/base_api/report-templates'
+const REPORT_TEMPLATE_BASE = dtypesApi('report-templates')
 
 function isRecordLike(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -581,6 +584,91 @@ function normalizeExaminationValidatorExecutions(value: unknown): ExaminationVal
     .filter((entry) => !!entry.name)
 }
 
+function normalizeValidatorHint(value: unknown): Record<string, unknown> {
+  return isRecordLike(value) ? value : {}
+}
+
+function normalizePrecedence(value: unknown): 'required' | 'optional' {
+  return asString(value) === 'optional' ? 'optional' : 'required'
+}
+
+function normalizeClassificationValidatorExecutions(
+  value: unknown
+): ClassificationValidatorExecution[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
+    .map((entry) => ({
+      name: asString(entry.name) || '',
+      ok: asBoolean(entry.ok),
+      operator: asString(entry.operator) || '',
+      finding: asString(entry.finding) || '',
+      classification: asString(entry.classification) || '',
+      precedence: normalizePrecedence(entry.precedence),
+      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      triggeredOccurrences:
+        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+      hint: normalizeValidatorHint(entry.hint),
+      issues: Array.isArray(entry.issues)
+        ? entry.issues
+            .map((issue) => normalizeRuntimeIssue(issue))
+            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
+        : []
+    }))
+    .filter((entry) => !!entry.name)
+}
+
+function normalizeInterventionValidatorExecutions(
+  value: unknown
+): InterventionValidatorExecution[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
+    .map((entry) => ({
+      name: asString(entry.name) || '',
+      ok: asBoolean(entry.ok),
+      operator: asString(entry.operator) || '',
+      finding: asString(entry.finding) || '',
+      intervention: asString(entry.intervention) || '',
+      precedence: normalizePrecedence(entry.precedence),
+      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      triggeredOccurrences:
+        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+      hint: normalizeValidatorHint(entry.hint),
+      issues: Array.isArray(entry.issues)
+        ? entry.issues
+            .map((issue) => normalizeRuntimeIssue(issue))
+            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
+        : []
+    }))
+    .filter((entry) => !!entry.name)
+}
+
+function normalizeUnitValidatorExecutions(value: unknown): UnitValidatorExecution[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
+    .map((entry) => ({
+      name: asString(entry.name) || '',
+      ok: asBoolean(entry.ok),
+      operator: asString(entry.operator) || '',
+      finding: asString(entry.finding) || '',
+      classification: asString(entry.classification) || '',
+      unit: asString(entry.unit) || '',
+      precedence: normalizePrecedence(entry.precedence),
+      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      triggeredOccurrences:
+        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+      hint: normalizeValidatorHint(entry.hint),
+      issues: Array.isArray(entry.issues)
+        ? entry.issues
+            .map((issue) => normalizeRuntimeIssue(issue))
+            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
+        : []
+    }))
+    .filter((entry) => !!entry.name)
+}
+
 export function normalizeRuntimeValidationResult(
   payload: unknown
 ): ReportTemplateRuntimeValidationResult | null {
@@ -592,11 +680,20 @@ export function normalizeRuntimeValidationResult(
     ok: asBoolean(payload.ok),
     evaluatedFindingsCount:
       asNumber(payload.evaluatedFindingsCount ?? payload.evaluated_findings_count) ?? 0,
+    classificationValidators: normalizeClassificationValidatorExecutions(
+      payload.classificationValidators ?? payload.classification_validators
+    ),
+    interventionValidators: normalizeInterventionValidatorExecutions(
+      payload.interventionValidators ?? payload.intervention_validators
+    ),
     findingsValidators: normalizeFindingsValidatorExecutions(
       payload.findingsValidators ?? payload.findings_validators
     ),
     examinationValidators: normalizeExaminationValidatorExecutions(
       payload.examinationValidators ?? payload.examination_validators
+    ),
+    unitValidators: normalizeUnitValidatorExecutions(
+      payload.unitValidators ?? payload.unit_validators
     ),
     issues: Array.isArray(payload.issues)
       ? payload.issues
@@ -614,6 +711,21 @@ export async function validateReportTemplateRuntime(
   const response = await axiosInstance.post(
     `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate`,
     serializeRuntimePayload(payload)
+  )
+  const normalized = normalizeRuntimeValidationResult(response.data)
+  if (!normalized) {
+    throw new Error('Ungültiges Runtime-Validierungsergebnis.')
+  }
+  return normalized
+}
+
+export async function validateReportTemplateRuntimeFromLedger(
+  moduleName: string,
+  templateName: string,
+  patientExaminationId: number
+): Promise<ReportTemplateRuntimeValidationResult> {
+  const response = await axiosInstance.post(
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-from-ledger/${encodeURIComponent(String(patientExaminationId))}`
   )
   const normalized = normalizeRuntimeValidationResult(response.data)
   if (!normalized) {
@@ -834,6 +946,24 @@ export async function validatePatientFindingsAgainstTemplate(params: {
   patientExaminationId: number
   getFindingById?: (findingId: number) => Finding | undefined
 }): Promise<ReportTemplateRuntimeValidationResult> {
+  try {
+    return await validateReportTemplateRuntimeFromLedger(
+      params.moduleName,
+      params.templateName,
+      params.patientExaminationId
+    )
+  } catch (error: any) {
+    const status = Number(error?.response?.status || 0)
+    const detail = String(error?.response?.data?.detail || '')
+      .trim()
+      .toLowerCase()
+    const isGenericNotFound = status === 404 && (!detail || detail === 'not found' || detail === 'not found.')
+    const fallbackAllowed = isGenericNotFound || status === 405 || status === 501 || status >= 500
+    if (!fallbackAllowed) {
+      throw error
+    }
+  }
+
   const template = await fetchReportTemplateByName(params.moduleName, params.templateName)
   const patientFindings = await buildRuntimeValidationFindings(
     params.patientExaminationId,

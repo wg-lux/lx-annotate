@@ -3,8 +3,15 @@ import Cookies from 'js-cookie';
 import camelcaseKeys from 'camelcase-keys';
 import { useToastStore } from '@/stores/toastStore';
 import { useAuthKcStore } from '@/stores/auth_kc';
-// This handles requests to the local Django API
-const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'api/';
+// This handles requests to the local Django APIs.
+const LEGACY_API_PREFIX = import.meta.env.VITE_API_PREFIX;
+const ENDOREG_API_PREFIX = import.meta.env.VITE_ENDOREG_API_PREFIX ?? LEGACY_API_PREFIX ?? 'endoreg-api/';
+const DTYPES_API_PREFIX = import.meta.env.VITE_DTYPES_API_PREFIX ?? 'dtypes-api/';
+function joinApiPath(prefix, path) {
+    const normalizedPrefix = prefix.trim().replace(/^\/+|\/+$/g, '');
+    const normalizedPath = path.replace(/^\/+/, '');
+    return normalizedPrefix ? `/${normalizedPrefix}/${normalizedPath}` : `/${normalizedPath}`;
+}
 const axiosInstance = axios.create({
     // Da die Vue-App als statische Dateien über Django serviert wird,
     // verwenden wir relative URLs (kein baseURL nötig)
@@ -23,10 +30,10 @@ axiosInstance.interceptors.response.use((r) => r, (err) => {
     const status = err?.response?.status;
     const url = err?.config?.url || '';
     const suppressErrorToast = err?.config?.suppressErrorToast === true ||
-        url.includes('/lookup/') ||
+        url.includes('/dtypes-api/') ||
+        url.startsWith('dtypes-api/') ||
         url.includes('/base_api/') ||
-        url.includes('/media/patients/') ||
-        url.includes('/evaluate-requirements/');
+        url.startsWith('base_api/');
     // Skip spam for polling/status requests
     const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/');
     // 🔒 If backend says "unauthenticated", send user to Keycloak login
@@ -45,9 +52,17 @@ axiosInstance.interceptors.response.use((r) => r, (err) => {
     }
     return Promise.reject(err); // keep the rejection chain intact
 });
-// Helper zur Erzeugung des vollständigen API-Pfads
+// Helper for endoreg_db plus lx-annotate local API routes.
+export function endoregApi(path) {
+    return joinApiPath(ENDOREG_API_PREFIX, path);
+}
+// Helper for lx_dtypes API routes.
+export function dtypesApi(path) {
+    return joinApiPath(DTYPES_API_PREFIX, path);
+}
+// Compatibility helper for existing callers. Prefer endoregApi() in new code.
 export function r(path) {
-    return `${API_PREFIX}${path}`;
+    return endoregApi(path);
 }
 // Helper zur Erzeugung des API-Pfads für PDF-Endpunkte
 export function a(path) {

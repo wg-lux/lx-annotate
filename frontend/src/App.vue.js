@@ -1,8 +1,6 @@
 import NavbarComponent from './components/Menus/NavbarComponent.vue';
 import SidebarComponent from './components/Menus/SidebarComponent.vue';
-import DashboardComponent from './components/Dashboard/DashboardComponent.vue';
 import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
-import AuthCheck from '@/components/Authentification/AuthCheck.vue';
 import axios from 'axios';
 // Move this to your http_kc.ts or main.ts if possible, but it works here too
 axios.defaults.baseURL = '/';
@@ -11,14 +9,10 @@ export default (await import('vue')).defineComponent({
     components: {
         NavbarComponent,
         SidebarComponent,
-        DashboardComponent,
-        ToastMessageContainer,
-        AuthCheck
+        ToastMessageContainer
     },
     data() {
         return {
-            // Use window.STATIC_URL injected from base.html
-            staticUrl: window.STATIC_URL,
             isMenuOpen: false,
         };
     },
@@ -32,50 +26,18 @@ const __VLS_ctx = {};
 const __VLS_componentsOption = {
     NavbarComponent,
     SidebarComponent,
-    DashboardComponent,
-    ToastMessageContainer,
-    AuthCheck
+    ToastMessageContainer
 };
 let __VLS_components;
 let __VLS_directives;
 // CSS variable injection 
 // CSS variable injection end 
-__VLS_asFunctionalElement(__VLS_intrinsicElements.header, __VLS_intrinsicElements.header)({});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "preconnect",
-    href: "https://fonts.googleapis.com",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossorigin: true,
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    href: "https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap",
-    rel: "stylesheet",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    href: "https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    type: "text/css",
-    href: "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    href: "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
-    integrity: "sha512-xh6IYswF2Yt+0e1yz3F6j2CvkJyDk6cfogmfVZBt3WgBp1x5Yp1p9ggbo2mcqzg4bV7+ydRZo7ljZHFQUNq9PQ==",
-    crossorigin: "anonymous",
-    referrerpolicy: "no-referrer",
-});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "g-sidenav-show" },
 });
 if (!__VLS_ctx.isMenuOpen) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
-        ...{ class: "sidenav navbar navbar-vertical navbar-expand-xs ms-3" },
+        ...{ class: "sidenav navbar navbar-vertical navbar-expand-xs ms-3 sidebar-shell sidebar-shell--collapsed" },
         id: "sidenav-main",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -86,17 +48,36 @@ if (!__VLS_ctx.isMenuOpen) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.toggleMenu) },
-        ...{ class: "material-icons btn btn-outline-primary border-0 my-3 btn-sm mb-0 me-3" },
+        type: "button",
+        ...{ class: "btn btn-outline-primary border-0 my-3 mb-0 me-3 sidebar-toggle-button sidebar-toggle-button--closed" },
+        'aria-label': "Sidebar öffnen",
+        'aria-expanded': (String(__VLS_ctx.isMenuOpen)),
+        title: "Sidebar öffnen",
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "sidebar-toggle-icon sidebar-toggle-icon--menu" },
+        'aria-hidden': "true",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
 }
 if (__VLS_ctx.isMenuOpen) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
-        ...{ class: "sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark" },
+        ...{ class: "sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark sidebar-shell sidebar-shell--open" },
         id: "sidenav-main",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.toggleMenu) },
-        ...{ class: "material-icons btn btn-outline-info btn-sm mb-0 me-3 bg-gradient-dark" },
+        type: "button",
+        ...{ class: "btn btn-outline-info mb-0 me-3 bg-gradient-dark sidebar-toggle-button sidebar-toggle-button--open" },
+        'aria-label': "Sidebar schließen",
+        'aria-expanded': (String(__VLS_ctx.isMenuOpen)),
+        title: "Sidebar schließen",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "ni ni-fat-remove" },
+        'aria-hidden': "true",
     });
     const __VLS_0 = {}.SidebarComponent;
     /** @type {[typeof __VLS_components.SidebarComponent, ]} */ ;
@@ -137,17 +118,21 @@ const __VLS_14 = __VLS_13({}, ...__VLS_functionalComponentArgsRest(__VLS_13));
 /** @type {__VLS_StyleScopedClasses['navbar-vertical']} */ ;
 /** @type {__VLS_StyleScopedClasses['navbar-expand-xs']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-shell--collapsed']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-sidenav-hidden']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['m-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['border-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['my-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-toggle-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-toggle-button--closed']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-toggle-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-toggle-icon--menu']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['navbar']} */ ;
 /** @type {__VLS_StyleScopedClasses['navbar-vertical']} */ ;
@@ -158,13 +143,17 @@ const __VLS_14 = __VLS_13({}, ...__VLS_functionalComponentArgsRest(__VLS_13));
 /** @type {__VLS_StyleScopedClasses['fixed-start']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-gradient-dark']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-shell--open']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-gradient-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-toggle-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-toggle-button--open']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-remove']} */ ;
 /** @type {__VLS_StyleScopedClasses['main-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['position-relative']} */ ;
 /** @type {__VLS_StyleScopedClasses['max-height-vh-95']} */ ;

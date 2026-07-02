@@ -7,6 +7,7 @@ export declare function normalizeDefinitionValidationResult(payload: unknown): R
 export declare function validateReportTemplateDefinition(moduleName: string, templateName: string): Promise<ReportTemplateDefinitionValidationResult>;
 export declare function normalizeRuntimeValidationResult(payload: unknown): ReportTemplateRuntimeValidationResult | null;
 export declare function validateReportTemplateRuntime(moduleName: string, templateName: string, payload: ReportTemplateRuntimePayload): Promise<ReportTemplateRuntimeValidationResult>;
+export declare function validateReportTemplateRuntimeFromLedger(moduleName: string, templateName: string, patientExaminationId: number): Promise<ReportTemplateRuntimeValidationResult>;
 export declare function validatePatientFindingsAgainstTemplate(params: {
     moduleName: string;
     templateName: string;

@@ -22,10 +22,32 @@ const hoisted = vi.hoisted(() => ({
     },
     reportTemplatesApi: {
         fetchReportTemplatesByExamination: vi.fn(),
+        fetchReportTemplateByName: vi.fn(),
         buildReportTemplateRuntimePayload: vi.fn()
     },
     reportDraftApi: {
         fetchPatientExaminationDraft: vi.fn()
+    },
+    terminologyStore: {
+        bundles: [],
+        activeBundle: null,
+        registryPath: '',
+        loading: false,
+        selecting: false,
+        error: null,
+        selectedMedicalField: 'gastroenterology',
+        lastSelectionCounts: null,
+        activeModuleName: 'report_template_examples',
+        activeBundleKey: '',
+        activeBundleLabel: 'Standard-Terminologie',
+        filteredBundles: [],
+        medicalFieldLabel: 'Gastroenterologie',
+        medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
+        bundleKey: vi.fn((bundle) => `${bundle.moduleName}@@${bundle.version}`),
+        findBundleByKey: vi.fn(),
+        loadBundles: vi.fn(),
+        selectBundle: vi.fn(),
+        setMedicalField: vi.fn()
     },
     timelineApi: {
         fetchPatientTimelineLatest: vi.fn(),
@@ -36,6 +58,9 @@ const hoisted = vi.hoisted(() => ({
 }));
 vi.mock('@/stores/reportingFlowStore', () => ({
     useReportingFlowStore: () => hoisted.flowRef.current
+}));
+vi.mock('@/stores/terminologyStore', () => ({
+    useTerminologyStore: () => hoisted.terminologyStore
 }));
 vi.mock('vue-router', async () => {
     const actual = await vi.importActual('vue-router');
@@ -58,6 +83,7 @@ vi.mock('@/api/findingsApi', () => ({
 }));
 vi.mock('@/api/reportTemplatesApi', () => ({
     fetchReportTemplatesByExamination: hoisted.reportTemplatesApi.fetchReportTemplatesByExamination,
+    fetchReportTemplateByName: hoisted.reportTemplatesApi.fetchReportTemplateByName,
     buildReportTemplateRuntimePayload: hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload
 }));
 vi.mock('@/api/reportDraftApi', () => ({
@@ -141,11 +167,24 @@ function mountShell() {
 describe('ReportingShell media preload', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        hoisted.terminologyStore.activeBundle = null;
+        hoisted.terminologyStore.activeModuleName = 'report_template_examples';
+        hoisted.terminologyStore.selectedMedicalField = 'gastroenterology';
+        hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined);
         hoisted.flowRef.current = buildFlowStore();
         hoisted.findingsApi.getExaminationFindings.mockResolvedValue([]);
         hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
             { name: 'default_template', examination: 'colonoscopy' }
         ]);
+        hoisted.reportTemplatesApi.fetchReportTemplateByName.mockResolvedValue({
+            name: 'default_template',
+            examination: 'colonoscopy',
+            reportSections: [],
+            validators: {
+                findingsValidators: [],
+                examinationValidators: []
+            }
+        });
         hoisted.reportDraftApi.fetchPatientExaminationDraft.mockResolvedValue({
             patient_examination_id: 314,
             draft: {},
@@ -230,7 +269,7 @@ describe('ReportingShell media preload', () => {
         });
         const wrapper = mountShell();
         await flushPromises();
-        const select = wrapper.find('select.form-select.form-select-sm');
+        const select = wrapper.get('[data-testid="patient-examination-select"]');
         const optionTexts = select.findAll('option').map((option) => option.text());
         expect(optionTexts).toContain('#314 · colonoscopy · 10.3.2026');
         expect(optionTexts).toContain('#315 · gastroscopy · 11.3.2026');
@@ -345,5 +384,88 @@ describe('ReportingShell media preload', () => {
             })
         }));
         expect(hoisted.flowRef.current.markDraftPersistenceHydrated).toHaveBeenCalledWith('2026-03-19T13:00:00.000Z');
+    });
+    it('preselects preferred video stream and allows manual stream switching', async () => {
+        hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+            patient: { id: 42 },
+            latestReport: null,
+            latestVideo: {
+                id: 999,
+                streamOptions: [
+                    { type: 'raw', url: '/timeline/video/raw' },
+                    { type: 'processed', url: '/timeline/video/processed' }
+                ]
+            },
+            latestFrames: []
+        });
+        const wrapper = mountShell();
+        await flushPromises();
+        const video = wrapper.find('video');
+        expect(video.exists()).toBe(true);
+        expect(video.attributes('src')).toBe('/timeline/video/processed');
+        const rawButton = wrapper.findAll('button').find((button) => button.text().trim() === 'raw');
+        expect(rawButton).toBeTruthy();
+        await rawButton.trigger('click');
+        await flushPromises();
+        expect(wrapper.find('video').attributes('src')).toBe('/timeline/video/raw');
+    });
+    it('updates video and frame preview URLs after media refresh', async () => {
+        hoisted.timelineApi.fetchPatientTimelineLatest
+            .mockResolvedValueOnce({
+            patient: { id: 42 },
+            latestReport: null,
+            latestVideo: {
+                id: 100,
+                streamOptions: [
+                    { type: 'raw', url: '/timeline/video/v1-raw' },
+                    { type: 'processed', url: '/timeline/video/v1-processed' }
+                ]
+            },
+            latestFrames: [
+                {
+                    videoId: 100,
+                    frameNumber: 1,
+                    category: 'fallback',
+                    streamUrl: '/timeline/frame/v1'
+                }
+            ]
+        })
+            .mockResolvedValueOnce({
+            patient: { id: 42 },
+            latestReport: null,
+            latestVideo: {
+                id: 101,
+                streamOptions: [
+                    { type: 'raw', url: '/timeline/video/v2-raw' },
+                    { type: 'processed', url: '/timeline/video/v2-processed' }
+                ]
+            },
+            latestFrames: [
+                {
+                    videoId: 101,
+                    frameNumber: 2,
+                    category: 'fallback',
+                    streamUrl: '/timeline/frame/v2'
+                }
+            ]
+        });
+        const wrapper = mountShell();
+        await flushPromises();
+        expect(wrapper.find('video').attributes('src')).toBe('/timeline/video/v1-processed');
+        const initialFramePreview = wrapper.find('img[alt="Selected frame stream preview"]');
+        expect(initialFramePreview.exists()).toBe(true);
+        expect(initialFramePreview.attributes('src')).toBe('/timeline/frame/v1');
+        const refreshButton = wrapper
+            .findAll('button')
+            .find((button) => button.text().includes('Medien aktualisieren'));
+        expect(refreshButton).toBeTruthy();
+        await refreshButton.trigger('click');
+        await flushPromises();
+        expect(hoisted.timelineApi.fetchPatientTimelineLatest).toHaveBeenLastCalledWith({
+            patientId: 42,
+            patientExaminationId: 314
+        });
+        expect(wrapper.find('video').attributes('src')).toBe('/timeline/video/v2-processed');
+        expect(wrapper.find('img[alt="Selected frame stream preview"]').attributes('src')).toBe('/timeline/frame/v2');
     });
 });

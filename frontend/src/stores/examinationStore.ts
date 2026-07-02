@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 import type { Finding, FindingClassification } from '@/api/findings.contract'
+import { endpoints } from '@/types/api/endpoints'
 import {
   getCoreConceptDisplayName,
   type ClassificationChoiceCore,
@@ -80,8 +81,8 @@ export const useExaminationStore = defineStore('examination', {
     /**
      * Load examinations list.
      * We have 2 viable endpoints in your project:
-     *  - /api/examinations/  (generic list)
-     *  - /api/patient-examinations/examinations_dropdown/ (already tailored for dropdown)
+     *  - examinations/  (generic list)
+     *  - patient-examinations/examinations_dropdown/ (already tailored for dropdown)
      *
      * While patient Examinations will filter the examinations available for the patient, examinations query will return all available examinations.
      */
@@ -89,25 +90,78 @@ export const useExaminationStore = defineStore('examination', {
       this.loading = true
       this.error = null
       try {
-        const res = await axiosInstance.get('/api/examinations/')
-        // Normalize to Examination[]
-        this.exams = (res.data as any[]).map((e) => ({
-          id: e.id,
-          name: e.name,
-          nameDe: e.nameDe ?? e.name_de,
-          nameEn: e.nameEn ?? e.name_en,
-          name_de: e.name_de ?? e.nameDe,
-          name_en: e.name_en ?? e.nameEn,
-          displayName: getCoreConceptDisplayName(
-            {
-              name: e.name,
-              nameDe: e.nameDe ?? e.name_de,
-              nameEn: e.nameEn ?? e.name_en,
-              displayName: e.displayName
-            },
-            e.name
-          )
-        }))
+        const normalizeRows = (rows: unknown[]): void => {
+          this.exams = rows
+            .map((entry) => {
+              if (!entry || typeof entry !== 'object') return null
+              const row = entry as Record<string, unknown>
+              const fallbackName = typeof row.name === 'string' ? row.name : typeof row.name_de === 'string' ? row.name_de : ''
+              const name =
+                typeof row.name === 'string'
+                  ? row.name
+                  : typeof row.nameDe === 'string'
+                    ? String(row.nameDe)
+                    : fallbackName
+              const nameDe =
+                typeof row.nameDe === 'string'
+                  ? row.nameDe
+                  : typeof row.name_de === 'string'
+                    ? row.name_de
+                    : undefined
+              const nameEn =
+                typeof row.nameEn === 'string'
+                  ? row.nameEn
+                  : typeof row.name_en === 'string'
+                    ? row.name_en
+                    : undefined
+              const displayNameSource =
+                typeof row.displayName === 'string'
+                  ? String(row.displayName)
+                  : typeof row.display_name === 'string'
+                    ? String(row.display_name)
+                    : undefined
+
+              return {
+                id: Number(row.id),
+                name,
+                nameDe,
+                nameEn,
+                name_de: nameDe,
+                name_en: nameEn,
+                displayName: getCoreConceptDisplayName(
+                  {
+                    name,
+                    nameDe,
+                    nameEn,
+                    displayName: displayNameSource
+                  },
+                  name
+                )
+              }
+            })
+            .filter((entry) => entry && Number.isFinite(entry.id)) as Examination[]
+        }
+
+        const dropdownPayload = await axiosInstance.get(r(endpoints.examination.examinationsDropdown))
+        const dropdownRows =
+          Array.isArray(dropdownPayload.data) ? dropdownPayload.data :
+            Array.isArray(dropdownPayload.data?.results)
+              ? dropdownPayload.data.results
+              : []
+
+        if (Array.isArray(dropdownRows) && dropdownRows.length > 0) {
+          normalizeRows(dropdownRows)
+          return
+        }
+
+          const fallbackPayload = await axiosInstance.get(r(endpoints.router.examinations))
+        const fallbackRows =
+          Array.isArray(fallbackPayload.data)
+            ? fallbackPayload.data
+            : Array.isArray(fallbackPayload.data?.results)
+              ? fallbackPayload.data.results
+              : []
+        normalizeRows(fallbackRows)
       } catch (e: any) {
         this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
       } finally {

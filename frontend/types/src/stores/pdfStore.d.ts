@@ -1,3 +1,4 @@
+import { buildPdfStreamUrl } from '@/utils/mediaUrls';
 export interface PdfMetadata {
     id: number;
     sensitiveMetaId: number | null;
@@ -77,7 +78,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
     isDone: import("vue").ComputedRef<boolean>;
     hasError: import("vue").ComputedRef<boolean>;
     pdfStreamUrl: import("vue").ComputedRef<string | null>;
-    buildPdfStreamUrl: (pdfId: number) => string;
+    buildPdfStreamUrl: typeof buildPdfStreamUrl;
     fetchNextPdf: (lastId?: number) => Promise<void>;
     updateSensitiveMeta: (pdfId: number, data: Partial<PdfMetadata['reportMeta']>) => Promise<void>;
     updateAnonymizedText: (pdfId: number, anonymizedText: string) => Promise<void>;
@@ -89,7 +90,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
     }>;
     stopStreaming: () => void;
     clearState: () => void;
-}, "loading" | "error" | "currentPdf" | "streamingActive" | "lastProcessedId">, Pick<{
+}, "error" | "loading" | "currentPdf" | "streamingActive" | "lastProcessedId">, Pick<{
     currentPdf: import("vue").Ref<{
         id: number;
         sensitiveMetaId: number | null;
@@ -140,7 +141,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
     isDone: import("vue").ComputedRef<boolean>;
     hasError: import("vue").ComputedRef<boolean>;
     pdfStreamUrl: import("vue").ComputedRef<string | null>;
-    buildPdfStreamUrl: (pdfId: number) => string;
+    buildPdfStreamUrl: typeof buildPdfStreamUrl;
     fetchNextPdf: (lastId?: number) => Promise<void>;
     updateSensitiveMeta: (pdfId: number, data: Partial<PdfMetadata['reportMeta']>) => Promise<void>;
     updateAnonymizedText: (pdfId: number, anonymizedText: string) => Promise<void>;
@@ -203,7 +204,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
     isDone: import("vue").ComputedRef<boolean>;
     hasError: import("vue").ComputedRef<boolean>;
     pdfStreamUrl: import("vue").ComputedRef<string | null>;
-    buildPdfStreamUrl: (pdfId: number) => string;
+    buildPdfStreamUrl: typeof buildPdfStreamUrl;
     fetchNextPdf: (lastId?: number) => Promise<void>;
     updateSensitiveMeta: (pdfId: number, data: Partial<PdfMetadata['reportMeta']>) => Promise<void>;
     updateAnonymizedText: (pdfId: number, anonymizedText: string) => Promise<void>;

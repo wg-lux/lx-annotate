@@ -8,7 +8,7 @@
             class="btn btn-outline-secondary btn-sm"
             @click="goBack"
           >
-            <i class="fas fa-arrow-left me-1"></i>
+            <i class="ni ni-bold-right me-1 icon-reverse"></i>
             Zurück zur Übersicht
           </button>
           <button 
@@ -16,7 +16,7 @@
             @click="refreshCurrentVideo"
             :disabled="isRefreshing"
           >
-            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
+            <i class="ni ni-bold-right" :class="{ 'ni-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
         </div>
@@ -38,7 +38,7 @@
 
         <!-- No File Selected -->
         <div v-else-if="!currentVideo" class="alert alert-info" role="alert">
-          <i class="fas fa-info-circle me-2"></i>
+          <i class="ni ni-user-run me-2"></i>
           Keine Datei ausgewählt. Bitte wählen Sie eine Datei aus der Übersicht aus.
         </div>
 
@@ -68,7 +68,7 @@
                             @click="reloadPdfDocument"
                             :disabled="isRenderingPdf"
                           >
-                            <i class="fas fa-file-pdf me-1"></i>
+                            <i class="ni ni-single-copy-04 me-1"></i>
                             PDF neu laden
                           </button>
                           <button
@@ -76,7 +76,7 @@
                             @click="generateRedactedPdf"
                             :disabled="isRenderingPdf || totalPdfBoxCount === 0"
                           >
-                            <i class="fas fa-shield-alt me-1"></i>
+                            <i class="ni ni-check-bold me-1"></i>
                             Anonymisierte PDF erzeugen
                           </button>
                           <button
@@ -84,7 +84,7 @@
                             @click="downloadRedactedPdf"
                             :disabled="!redactedPdfUrl"
                           >
-                            <i class="fas fa-download me-1"></i>
+                            <i class="ni ni-cloud-upload-96 me-1"></i>
                             PDF herunterladen
                           </button>
                           <button
@@ -92,7 +92,7 @@
                             @click="uploadRedactedPdf"
                             :disabled="!redactedPdfBytes || isProcessing"
                           >
-                            <i class="fas fa-upload me-1"></i>
+                            <i class="ni ni-cloud-upload-96 me-1"></i>
                             Als neue Datei hochladen
                           </button>
                         </div>
@@ -115,7 +115,7 @@
                         @click="previousPdfPage"
                         :disabled="activePdfPage <= 1 || isRenderingPdf"
                       >
-                        <i class="fas fa-chevron-left"></i>
+                        <i class="ni ni-bold-right icon-reverse"></i>
                       </button>
                       <span class="small text-muted">Seite {{ activePdfPage }} / {{ pdfPageCount || 1 }}</span>
                       <button
@@ -123,7 +123,7 @@
                         @click="nextPdfPage"
                         :disabled="activePdfPage >= pdfPageCount || isRenderingPdf"
                       >
-                        <i class="fas fa-chevron-right"></i>
+                        <i class="ni ni-bold-right"></i>
                       </button>
                     </div>
                   </div>
@@ -182,7 +182,7 @@
                       @click="undoLastPdfBox"
                       :disabled="getCurrentPageBoxCount() === 0"
                     >
-                      <i class="fas fa-undo me-1"></i>
+                      <i class="ni ni-bold-right me-1"></i>
                       Letzte Box entfernen
                     </button>
                     <button
@@ -190,7 +190,7 @@
                       @click="clearCurrentPdfPageBoxes"
                       :disabled="getCurrentPageBoxCount() === 0"
                     >
-                      <i class="fas fa-eraser me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Seite leeren
                     </button>
                     <button
@@ -198,7 +198,7 @@
                       @click="clearAllPdfBoxes"
                       :disabled="totalPdfBoxCount === 0"
                     >
-                      <i class="fas fa-trash me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Alle Boxen löschen
                     </button>
                     <hr class="my-2">
@@ -265,7 +265,7 @@
                           @click="analyzeVideo"
                           :disabled="isProcessing"
                         >
-                          <i class="fas fa-search me-1"></i>
+                          <i class="ni ni-tv-2 me-1"></i>
                           Video analysieren
                         </button>
                         <button 
@@ -273,7 +273,7 @@
                           @click="reprocessVideo"
                           :disabled="isProcessing"
                         >
-                          <i class="fas fa-redo me-1"></i>
+                          <i class="ni ni-bold-right me-1"></i>
                           Erneut verarbeiten
                         </button>
                       </div>
@@ -291,7 +291,7 @@
               <div class="card h-100">
                 <div class="card-header">
                   <h5 class="mb-0">
-                    <i class="fas fa-mask me-2"></i>
+                    <i class="ni ni-check-bold me-2"></i>
                     Video Maskierung
                   </h5>
                 </div>
@@ -377,9 +377,9 @@
                     @click="applyMasking"
                     :disabled="isProcessing || !canApplyMask"
                   >
-                    <i class="fas fa-mask me-2"></i>
+                    <i class="ni ni-check-bold me-2"></i>
                     <span v-if="isProcessing && currentOperation === 'masking'">
-                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
                       Maskierung wird angewendet...
                     </span>
                     <span v-else>
@@ -395,7 +395,7 @@
               <div class="card h-100">
                 <div class="card-header">
                   <h5 class="mb-0">
-                    <i class="fas fa-cut me-2"></i>
+                    <i class="ni ni-single-copy-04 me-2"></i>
                     Frame-Entfernung
                   </h5>
                 </div>
@@ -490,9 +490,9 @@
                     @click="removeFrames"
                     :disabled="isProcessing || !canRemoveFrames"
                   >
-                    <i class="fas fa-cut me-2"></i>
+                    <i class="ni ni-single-copy-04 me-2"></i>
                     <span v-if="isProcessing && currentOperation === 'frame_removal'">
-                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
                       Frames werden entfernt...
                     </span>
                     <span v-else>
@@ -527,7 +527,7 @@
                       class="btn btn-outline-danger btn-sm"
                       @click="cancelProcessing"
                     >
-                      <i class="fas fa-times me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Abbrechen
                     </button>
                   </div>
@@ -580,11 +580,11 @@
                   <div class="mt-3 d-flex justify-content-between align-items-center">
                     <div class="d-flex gap-2">
                       <button class="btn btn-outline-secondary btn-sm" @click="seekVideo(-10)">
-                        <i class="fas fa-backward me-1"></i>
+                        <i class="ni ni-bold-right me-1 icon-reverse"></i>
                         -10s
                       </button>
                       <button class="btn btn-outline-secondary btn-sm" @click="seekVideo(10)">
-                        <i class="fas fa-forward me-1"></i>
+                        <i class="ni ni-bold-right me-1"></i>
                         +10s
                       </button>
                     </div>
@@ -636,9 +636,9 @@
                             <button 
                               v-if="entry.status === 'success' && entry.outputPath"
                               class="btn btn-outline-primary btn-sm"
-                              @click="downloadResult(entry.outputPath)"
+                              @click="downloadResult(entry.id)"
                             >
-                              <i class="fas fa-download"></i>
+                              <i class="ni ni-cloud-upload-96"></i>
                             </button>
                           </td>
                         </tr>
@@ -662,6 +662,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
+import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls';
 
 // Composables
 const router = useRouter();
@@ -928,8 +930,7 @@ const loadPdfDocument = async (pdfId: number) => {
   pdfRenderError.value = '';
   try {
     await ensurePdfJs();
-    const response = await axiosInstance.get(r(`media/pdfs/${pdfId}/stream/`), {
-      params: { type: 'raw' },
+    const response = await axiosInstance.get(buildPdfStreamUrl(pdfId, 'raw'), {
       responseType: 'arraybuffer',
     });
 
@@ -1241,7 +1242,7 @@ const uploadRedactedPdf = async () => {
       timestamp: new Date().toISOString(),
       operation: 'pdf_upload',
       status: 'success',
-      details: `Upload-ID: ${response.data.upload_id || 'n/a'}`,
+      details: `Upload-ID: ${response.data.uploadId ?? response.data.upload_id ?? 'n/a'}`,
     });
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Fehler beim Upload der anonymisierten PDF';
@@ -1316,9 +1317,15 @@ const applyMasking = async () => {
       payload
     );
     
-    // Start polling for progress
-    const taskId = response.data.task_id;
-    await pollTaskProgress(taskId, 'masking');
+    const taskId = response.data.taskId ?? response.data.task_id;
+    if (taskId) {
+      await pollTaskProgress(taskId, 'masking');
+    } else {
+      await finalizeCorrectionProcessing('masking', {
+        output_path: response.data.outputFile ?? response.data.output_file,
+        summary: response.data.message || 'Maskierung erfolgreich abgeschlossen'
+      });
+    }
     
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Fehler bei der Maskierung';
@@ -1352,9 +1359,15 @@ const removeFrames = async () => {
       payload
     );
     
-    // Start polling for progress
-    const taskId = response.data.task_id;
-    await pollTaskProgress(taskId, 'frame_removal');
+    const taskId = response.data.taskId ?? response.data.task_id;
+    if (taskId) {
+      await pollTaskProgress(taskId, 'frame_removal');
+    } else {
+      await finalizeCorrectionProcessing('frame_removal', {
+        output_path: response.data.outputFile ?? response.data.output_file,
+        summary: response.data.message || 'Frame-Entfernung erfolgreich abgeschlossen'
+      });
+    }
     
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Fehler bei der Frame-Entfernung';
@@ -1362,6 +1375,17 @@ const removeFrames = async () => {
     isProcessing.value = false;
     currentOperation.value = '';
   }
+};
+
+const markValidationFinishedRemoveOutside = async (videoId: number): Promise<void> => {
+  await axiosInstance.post(
+    r(`media/videos/${videoId}/segments/validation-status/`),
+    {
+      isValidated: true,
+      notes: `Korrektur abgeschlossen am ${new Date().toLocaleString('de-DE')}`,
+      informationSourceName: 'manual_correction',
+    }
+  );
 };
 
 const parseManualFrames = (frameString: string): number[] => {
@@ -1390,7 +1414,10 @@ const parseManualFrames = (frameString: string): number[] => {
   return [...new Set(frames)].sort((a, b) => a - b);
 };
 
-const pollTaskProgress = async (taskId: string, operation: string) => {
+const pollTaskProgress = async (
+  taskId: string,
+  operation: 'masking' | 'frame_removal'
+) => {
   const pollInterval = 5000; // Increased from 2000ms to 5000ms (5 seconds)
   const maxPolls = 300; // 10 minutes max
   let polls = 0;
@@ -1408,24 +1435,7 @@ const pollTaskProgress = async (taskId: string, operation: string) => {
       processingStatus.value = message || 'Verarbeitung läuft...';
       
       if (status === 'SUCCESS') {
-        processingProgress.value = 100;
-        processingStatus.value = 'Verarbeitung abgeschlossen';
-        
-        // Add to history
-        processingHistory.value.unshift({
-          id: Date.now(),
-          timestamp: new Date().toISOString(),
-          operation,
-          status: 'success',
-          details: result?.summary || 'Verarbeitung erfolgreich',
-          outputPath: result?.output_path
-        });
-        
-        // Refresh video details
-        await refreshCurrentVideo();
-        
-        isProcessing.value = false;
-        currentOperation.value = '';
+        await finalizeCorrectionProcessing(operation, result);
         return;
       }
       
@@ -1444,6 +1454,31 @@ const pollTaskProgress = async (taskId: string, operation: string) => {
   };
   
   await poll();
+};
+
+const finalizeCorrectionProcessing = async (
+  operation: 'masking' | 'frame_removal',
+  result?: { output_path?: string; summary?: string } | null
+) => {
+  if (!currentVideo.value) return;
+
+  processingProgress.value = 100;
+  processingStatus.value = 'Verarbeitung abgeschlossen';
+
+  processingHistory.value.unshift({
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    operation,
+    status: 'success',
+    details: result?.summary || 'Verarbeitung erfolgreich',
+    outputPath: result?.output_path
+  });
+
+  await markValidationFinishedRemoveOutside(currentVideo.value.id);
+  await refreshCurrentVideo();
+
+  isProcessing.value = false;
+  currentOperation.value = '';
 };
 
 const cancelProcessing = async () => {
@@ -1468,22 +1503,12 @@ const reprocessVideo = async () => {
 
 const getVideoUrl = () => {
   if (!currentVideo.value) return '';
-  
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  
-  if (previewMode.value === 'processed' && hasProcessedVersion.value) {
-    // Get the latest processed version
-    const latestProcessed = processingHistory.value
-      .filter(entry => entry.status === 'success' && entry.outputPath)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-    
-    if (latestProcessed) {
-      return `${base}/api/media/videos/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
-    }
-  }
-  
-  // Default to original
-  return `${base}/api/media/videos/${currentVideo.value.id}/`;
+
+  const fileType = previewMode.value === 'processed' && hasProcessedVersion.value
+    ? 'processed'
+    : 'raw';
+
+  return buildVideoStreamUrl(currentVideo.value.id, fileType);
 };
 
 const seekVideo = (seconds: number) => {
@@ -1492,14 +1517,13 @@ const seekVideo = (seconds: number) => {
   }
 };
 
-const downloadResult = async (outputPath: string) => {
+const downloadResult = async (historyId: number) => {
   if (!currentVideo.value) return;
   
   try {
     const response = await axiosInstance.get(
-      r(`video-download-processed/${currentVideo.value.id}/`),
-      { 
-        params: { path: outputPath },
+      r(endpoints.media.processedVideoDownload(currentVideo.value.id, historyId)),
+      {
         responseType: 'blob'
       }
     );

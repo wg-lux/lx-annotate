@@ -67,9 +67,6 @@ function normalizePersistedState(parsed) {
         patientExaminationId: typeof parsed.patientExaminationId === 'number' ? parsed.patientExaminationId : null,
         selectedPatientId: typeof parsed.selectedPatientId === 'number' ? parsed.selectedPatientId : null,
         selectedExaminationId: typeof parsed.selectedExaminationId === 'number' ? parsed.selectedExaminationId : null,
-        selectedRequirementSetIds: Array.isArray(parsed.selectedRequirementSetIds)
-            ? parsed.selectedRequirementSetIds.filter((v) => typeof v === 'number')
-            : [],
         activeReportId: typeof parsed.activeReportId === 'number' ? parsed.activeReportId : null,
         indications: Array.isArray(parsed.indications)
             ? parsed.indications.map((row) => ({
@@ -131,14 +128,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     const patientExaminationId = ref(null);
     const selectedPatientId = ref(null);
     const selectedExaminationId = ref(null);
-    const selectedRequirementSetIds = ref([]);
     const activeReportId = ref(null);
     const selectedKbModule = ref('report_template_examples');
     const selectedTemplateName = ref(null);
     const templateSectionDrafts = ref({});
     const indications = ref([{ examinationIndicationId: null, indicationChoiceId: null }]);
     const lookupSnapshot = ref(null);
-    const lastRequirementGuidance = ref(null);
     const lastTemplateValidation = ref(null);
     const findingsRevision = ref(0);
     const lastFindingsEvent = ref(null);
@@ -166,7 +161,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
             (activeReportId.value ||
                 currentRuntimeDraft.value ||
                 selectedTemplateName.value ||
-                selectedRequirementSetIds.value.length ||
                 Object.keys(templateSectionDrafts.value).length ||
                 hasNonDefaultIndications ||
                 findingsRevision.value > 0));
@@ -187,11 +181,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         }
         lookupToken.value = null;
         sessionStatus.value = 'idle';
-        selectedRequirementSetIds.value = [];
         activeReportId.value = null;
         indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }];
         lookupSnapshot.value = null;
-        lastRequirementGuidance.value = null;
         lastTemplateValidation.value = null;
         findingsRevision.value = 0;
         lastFindingsEvent.value = null;
@@ -349,7 +341,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
                     payload: draft.payload
                 });
                 draftPersistenceStatus.value = 'saved';
-                lastPersistedDraftAt.value = response.updated_at;
+                lastPersistedDraftAt.value = response.updatedAt ?? response.updated_at ?? null;
                 draftAutosaveSignature.value = signatureToPersist;
             }
             catch (error) {
@@ -396,9 +388,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         if (params.selectedExaminationId !== undefined)
             selectedExaminationId.value = params.selectedExaminationId;
     }
-    function setSelectedRequirementSetIds(ids) {
-        selectedRequirementSetIds.value = Array.from(new Set(ids.filter((v) => Number.isFinite(v))));
-    }
     function setActiveReportId(id) {
         activeReportId.value = id;
     }
@@ -438,7 +427,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         patientExaminationId.value = persisted?.patientExaminationId ?? null;
         selectedPatientId.value = persisted?.selectedPatientId ?? null;
         selectedExaminationId.value = persisted?.selectedExaminationId ?? null;
-        selectedRequirementSetIds.value = persisted?.selectedRequirementSetIds ?? [];
         activeReportId.value = persisted?.activeReportId ?? null;
         indications.value =
             persisted?.indications?.length
@@ -470,12 +458,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         lookupToken.value = null;
         patientExaminationId.value = null;
         selectedExaminationId.value = null;
-        selectedRequirementSetIds.value = [];
         activeReportId.value = null;
         sessionStatus.value = 'idle';
         indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }];
         lookupSnapshot.value = null;
-        lastRequirementGuidance.value = null;
         lastTemplateValidation.value = null;
         findingsRevision.value = 0;
         lastFindingsEvent.value = null;
@@ -501,12 +487,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         patientExaminationId.value = null;
         selectedPatientId.value = null;
         selectedExaminationId.value = null;
-        selectedRequirementSetIds.value = [];
         activeReportId.value = null;
         sessionStatus.value = 'idle';
         indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }];
         lookupSnapshot.value = null;
-        lastRequirementGuidance.value = null;
         lastTemplateValidation.value = null;
         findingsRevision.value = 0;
         lastFindingsEvent.value = null;
@@ -553,9 +537,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
             ...(lookupSnapshot.value || {}),
             ...partial
         };
-    }
-    function setLastRequirementGuidance(guidance) {
-        lastRequirementGuidance.value = guidance;
     }
     function setLastTemplateValidation(validation) {
         lastTemplateValidation.value = validation;
@@ -606,7 +587,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         patientExaminationId: patientExaminationId.value,
         selectedPatientId: selectedPatientId.value,
         selectedExaminationId: selectedExaminationId.value,
-        selectedRequirementSetIds: selectedRequirementSetIds.value,
         activeReportId: activeReportId.value,
         indications: indications.value,
         selectedKbModule: selectedKbModule.value,
@@ -641,7 +621,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         patientExaminationId,
         selectedPatientId,
         selectedExaminationId,
-        selectedRequirementSetIds,
         activeReportId,
         selectedKbModule,
         selectedTemplateName,
@@ -650,7 +629,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         currentRuntimeDraft,
         indications,
         lookupSnapshot,
-        lastRequirementGuidance,
         lastTemplateValidation,
         findingsRevision,
         lastFindingsEvent,
@@ -677,7 +655,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         removeFinding,
         updateClassificationValue,
         setCaseSelection,
-        setSelectedRequirementSetIds,
         setActiveReportId,
         setSessionStatus,
         setTemplateSelection,
@@ -687,7 +664,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         setIndications,
         setLookupSnapshot,
         patchLookupSnapshot,
-        setLastRequirementGuidance,
         setLastTemplateValidation,
         noteFindingAdded,
         noteClassificationUpdated,

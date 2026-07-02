@@ -1,13 +1,13 @@
 import { ref } from 'vue';
 const props = withDefaults(defineProps(), {
-    title: 'Technische Diagnostik',
+    title: 'Status',
     collapsible: true,
     initiallyCollapsed: true
 });
 const collapsed = ref(props.collapsible ? props.initiallyCollapsed : false);
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_withDefaultsArg = (function (t) { return t; })({
-    title: 'Technische Diagnostik',
+    title: 'Status',
     collapsible: true,
     initiallyCollapsed: true
 });
@@ -31,8 +31,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "small text-muted" },
 });
-(__VLS_ctx.patientExaminationId ?? 'n/a');
-(__VLS_ctx.lookupToken ? 'aktiv' : 'kein Token');
+(__VLS_ctx.patientExaminationId ?? 'k. A.');
+(__VLS_ctx.lookupToken ? 'aktiv' : 'nicht verbunden');
 if (__VLS_ctx.sessionStatus) {
     (__VLS_ctx.sessionStatus);
 }

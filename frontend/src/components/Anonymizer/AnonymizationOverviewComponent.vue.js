@@ -1,7 +1,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
-import { useVideoStore } from '@/stores/videoStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 import { useMediaManagement } from '@/api/mediaManagement';
@@ -9,7 +8,6 @@ import {} from '../../stores/mediaTypeStore';
 // Composables
 const router = useRouter();
 const anonymizationStore = useAnonymizationStore();
-const videoStore = useVideoStore();
 const mediaStore = useMediaTypeStore();
 const pollingProtection = usePollingProtection();
 const mediaManagement = useMediaManagement();
@@ -164,7 +162,7 @@ const deleteFile = async (fileId) => {
         return;
     }
     // Ask for confirmation
-    const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${file.filename}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
+    const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${getFileDisplayName(file)}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
     if (!confirmed) {
         return;
     }
@@ -200,24 +198,79 @@ const isProcessing = (fileId) => {
         return processingFiles.value.has(fileId);
     }
     return processingFiles.value.has(fileId) ||
+        isUploadJobActive(file) ||
+        anonymizationStore.isVideoReimportQueued(fileId) ||
         !pollingProtection.canProcessMedia.value(fileId, mediaType);
 };
 const needsReimport = (file) => {
+    const metadataMissing = file.sensitiveMetaId == null || file.metadataImported === false;
     // Video files need re-import if metadata is missing
     if (file.mediaType === 'video') {
-        return !file.metadataImported;
+        return metadataMissing;
     }
     // PDF files might need re-import if anonymization failed or no text extracted
     if (file.mediaType === 'pdf') {
-        return !file.metadataImported || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
+        return metadataMissing || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
     }
     return false;
+};
+const isUploadJobActive = (file) => {
+    const status = String(file.uploadJob?.status || '').toLowerCase();
+    return status === 'pending' || status === 'processing';
 };
 const getFileIcon = (mediaType) => {
     return mediaStore.getMediaTypeIcon(mediaType);
 };
 const getMediaTypeBadgeClass = (mediaType) => {
     return mediaStore.getMediaTypeBadgeClass(mediaType);
+};
+const documentTypeLabels = {
+    report: 'Befund',
+    report_draft: 'Befund-Entwurf',
+    report_final: 'Finaler Befund',
+    report_correction: 'Befund-Korrektur',
+    histology_draft: 'Histologie-Entwurf',
+    histology_final: 'Finale Histologie',
+    referral: 'Überweisung',
+    discharge: 'Entlassbrief'
+};
+const getDocumentTypeLabel = (documentType) => {
+    if (!documentType)
+        return '';
+    const normalized = documentType.trim();
+    if (!normalized)
+        return '';
+    return documentTypeLabels[normalized] || `Dokumenttyp: ${normalized}`;
+};
+const getPdfPatientLabel = (file) => {
+    if (typeof file.pseudoPatientId === 'number') {
+        return `Pseudo-Patient ${file.pseudoPatientId}`;
+    }
+    if (file.patientHashDisplay) {
+        return `Patient ${file.patientHashDisplay}`;
+    }
+    return '';
+};
+const getFileDisplayName = (file) => {
+    if (file.mediaType !== 'pdf' || file.quarantined) {
+        return file.filename;
+    }
+    const labelParts = [
+        getPdfPatientLabel(file),
+        getDocumentTypeLabel(file.documentType)
+    ].filter(Boolean);
+    if (labelParts.length > 0) {
+        return labelParts.join(' - ');
+    }
+    return file.filename || `PDF-ID: ${file.id}`;
+};
+const getFileIdLabel = (file) => {
+    if (file.quarantined) {
+        return `Quarantäne: ${file.quarantineDirectoryLabel || file.quarantineDirectoryKey || 'lx-annotate'}`;
+    }
+    return file.mediaType === 'video'
+        ? `Video-ID: ${file.id}`
+        : `PDF-ID: ${file.id}`;
 };
 const getStatusBadgeClass = (status) => {
     const classes = {
@@ -235,13 +288,164 @@ const getStatusText = (status) => {
     const texts = {
         'not_started': 'Nicht gestartet',
         'processing_anonymization': 'Anonymisierung läuft',
-        'extracting_frames': 'Frames extrahieren',
-        'predicting_segments': 'Segmente vorhersagen',
+        'extracting_frames': 'Einzelbilder werden extrahiert',
+        'predicting_segments': 'Segmentvorhersage läuft',
         'done_processing_anonymization': 'Fertig',
         'validated': 'Validiert',
         'failed': 'Fehlgeschlagen'
     };
-    return texts[status] || status;
+    return texts[status] || `Unbekannter Status (${status})`;
+};
+const getUploadJobStatusBadgeClass = (status) => {
+    const classes = {
+        pending: 'bg-secondary',
+        processing: 'bg-warning',
+        anonymized: 'bg-success',
+        quarantined: 'bg-warning text-dark',
+        error: 'bg-danger',
+        lost: 'bg-danger'
+    };
+    return classes[status] || 'bg-secondary';
+};
+const getUploadJobStatusText = (status) => {
+    const texts = {
+        pending: 'Import wartet',
+        processing: 'Import läuft',
+        anonymized: 'Import abgeschlossen',
+        quarantined: 'In Quarantäne',
+        error: 'Importfehler',
+        lost: 'Import nicht möglich. Bitte Eintrag löschen und erneut importieren!'
+    };
+    return texts[status] || `Unbekannter Importstatus (${status})`;
+};
+const DUPLICATE_KEY_IMPORT_ERROR_PATTERN = /\bduplicate key\b|\bunique constraint\b/i;
+const DUPLICATE_IMPORT_NOTICE = 'Duplikat erkannt. Die vorhandene validierte Annotation bleibt erhalten.';
+const IMPORT_ERROR_NOTICE = 'Importfehler. Details sind im Server-Log verfügbar.';
+const isUploadJobError = (uploadJob) => {
+    const status = String(uploadJob.status || '').toLowerCase();
+    return status === 'error' || status === 'lost';
+};
+const isDuplicateKeyImportError = (file) => {
+    if (!file.uploadJob || !isUploadJobError(file.uploadJob)) {
+        return false;
+    }
+    const errorDetail = file.uploadJob.errorDetail || file.errorDetail || '';
+    return DUPLICATE_KEY_IMPORT_ERROR_PATTERN.test(errorDetail);
+};
+const getUploadJobNotice = (file) => {
+    if (!file.uploadJob?.errorDetail) {
+        return '';
+    }
+    if (isDuplicateKeyImportError(file)) {
+        return DUPLICATE_IMPORT_NOTICE;
+    }
+    if (isUploadJobError(file.uploadJob)) {
+        return IMPORT_ERROR_NOTICE;
+    }
+    return '';
+};
+const getUploadJobNoticeClass = (file) => {
+    if (isDuplicateKeyImportError(file)) {
+        return 'text-muted';
+    }
+    return 'text-danger';
+};
+const getUploadJobOriginLabel = (uploadJob) => {
+    const parts = [];
+    if (uploadJob.ingestMode === 'watcher') {
+        parts.push('Ordnerimport');
+    }
+    else if (uploadJob.ingestMode === 'api') {
+        parts.push('API');
+    }
+    else if (uploadJob.ingestMode) {
+        parts.push(`Importweg: ${uploadJob.ingestMode}`);
+    }
+    if (uploadJob.sourceSystem) {
+        parts.push(uploadJob.sourceSystem);
+    }
+    if (uploadJob.sourceCenterKey) {
+        parts.push(uploadJob.sourceCenterKey);
+    }
+    return parts.join(' / ');
+};
+const getUploadJobCleanupStatusText = (status) => {
+    const texts = {
+        pending: 'Bereinigung offen',
+        eligible: 'Bereinigung bereit',
+        completed: 'Bereinigt',
+        skipped: 'Bereinigung übersprungen'
+    };
+    return texts[status] || `Unbekannter Bereinigungsstatus (${status})`;
+};
+const getUploadJobCleanupLabel = (uploadJob) => {
+    const sourceLabel = typeof uploadJob.sourceFilePersisted === 'boolean'
+        ? uploadJob.sourceFilePersisted
+            ? 'Quelle vorhanden'
+            : 'Quelle bereinigt'
+        : '';
+    const cleanupLabel = uploadJob.cleanupStatus
+        ? getUploadJobCleanupStatusText(uploadJob.cleanupStatus)
+        : '';
+    return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
+};
+const getOriginalFileDeletionState = (file) => {
+    if (file.quarantined) {
+        return 'quarantined';
+    }
+    if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
+        return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
+    }
+    const cleanupStatus = file.uploadJob?.cleanupStatus?.toLowerCase();
+    if (cleanupStatus === 'completed') {
+        return 'deleted';
+    }
+    if (cleanupStatus === 'pending' || cleanupStatus === 'eligible') {
+        return 'present';
+    }
+    if (file.rawFile && file.rawFile.trim() !== '') {
+        return 'present';
+    }
+    return 'unknown';
+};
+const getOriginalFileDeletionText = (file) => {
+    const texts = {
+        deleted: 'Ja, gelöscht',
+        present: 'Nein, vorhanden',
+        quarantined: 'In Quarantäne',
+        unknown: 'Unbekannt'
+    };
+    return texts[getOriginalFileDeletionState(file)];
+};
+const getOriginalFileDeletionClass = (file) => {
+    const classes = {
+        deleted: 'text-success',
+        present: 'text-warning',
+        quarantined: 'text-warning',
+        unknown: 'text-muted'
+    };
+    return classes[getOriginalFileDeletionState(file)];
+};
+const getOriginalFileDeletionIcon = (file) => {
+    const icons = {
+        deleted: 'ni ni-check-bold',
+        present: 'ni ni-single-copy-04',
+        quarantined: 'ni ni-settings-gear-65',
+        unknown: 'ni ni-settings-gear-65'
+    };
+    return icons[getOriginalFileDeletionState(file)];
+};
+const getOriginalFileDeletionHint = (file) => {
+    if (file.quarantined) {
+        return 'Import wurde vor der Datenbankanlage gestoppt';
+    }
+    if (file.uploadJob?.cleanupStatus) {
+        return getUploadJobCleanupStatusText(file.uploadJob.cleanupStatus);
+    }
+    if (file.rawFile && file.rawFile.trim() !== '') {
+        return 'Rohdatei ist noch referenziert';
+    }
+    return '';
 };
 const formatDate = (dateString) => {
     if (!dateString)
@@ -264,19 +468,6 @@ const getTotalByStatus = (status) => {
     };
     const relevantStatuses = statusMap[status] || [status];
     return availableFiles.value.filter(file => relevantStatuses.includes(file.anonymizationStatus)).length;
-};
-const hasOriginalFile = (file) => {
-    // Check if the file has the necessary properties to indicate original file exists
-    if (file.mediaType === 'video') {
-        // For videos, check if rawFile exists and has a valid path
-        return videoStore.hasRawVideoFile?.valueOf() ?? false;
-    }
-    else if (file.mediaType === 'pdf') {
-        // For PDFs, check if original_file exists and has a valid path
-        return !!(file.rawFile && file.rawFile.trim() !== '');
-    }
-    // If we can't determine the media type, assume it's available
-    return true;
 };
 // Lifecycle
 onMounted(async () => {
@@ -311,8 +502,17 @@ const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-summary']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -336,8 +536,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.isRefreshing),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-sync-alt" },
-    ...{ class: ({ 'fa-spin': __VLS_ctx.isRefreshing }) },
+    ...{ class: "ni ni-bold-right" },
+    ...{ class: ({ 'ni-spin': __VLS_ctx.isRefreshing }) },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body" },
@@ -373,7 +573,7 @@ else if (!__VLS_ctx.availableFiles.length) {
         ...{ class: "mb-4" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-folder-open fa-3x text-muted" },
+        ...{ class: "ni ni-collection ni-3x text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
         ...{ class: "text-muted" },
@@ -381,18 +581,24 @@ else if (!__VLS_ctx.availableFiles.length) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "text-muted mb-4" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "table-responsive" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-        ...{ class: "table table-hover" },
+        ...{ class: "table table-hover overview-files-table" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
         ...{ class: "table-light" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({
+        ...{ class: "sticky-filename-column" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
@@ -404,19 +610,34 @@ else {
     for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
             key: (`${file.mediaType}-${file.id}`),
+            ...{ class: ({ 'table-warning': file.quarantined }) },
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+            ...{ class: "sticky-filename-column" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex align-items-center" },
+            ...{ class: "d-flex align-items-start filename-cell-content" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: (__VLS_ctx.getFileIcon(file.mediaType)) },
-            ...{ class: "me-2" },
+            ...{ class: "me-2 flex-shrink-0" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "filename-details" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "fw-medium" },
+            ...{ class: "fw-medium filename-text" },
         });
-        (file.filename);
+        (__VLS_ctx.getFileDisplayName(file));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "small text-muted mt-1" },
+        });
+        (__VLS_ctx.getFileIdLabel(file));
+        if (file.quarantined) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-warning mt-1 quarantine-file-note" },
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: (__VLS_ctx.getMediaTypeBadgeClass(file.mediaType)) },
@@ -424,13 +645,199 @@ else {
         });
         (file.mediaType.toUpperCase());
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        if (file.quarantined) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-warning quarantine-action-note" },
+            });
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "btn-group btn-group-sm" },
+                role: "group",
+            });
+            if (file.mediaType === 'video' && __VLS_ctx.needsReimport(file)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.mediaType === 'video' && __VLS_ctx.needsReimport(file)))
+                                return;
+                            __VLS_ctx.reimportVideo(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-info" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                    title: "Video erneut importieren und Metadaten aktualisieren",
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-bold-right" },
+                });
+            }
+            if (file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)))
+                                return;
+                            __VLS_ctx.reimportPdf(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-info" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                    title: "PDF erneut importieren und verarbeiten",
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-bold-right" },
+                });
+            }
+            if (file.anonymizationStatus === 'not_started') {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.anonymizationStatus === 'not_started'))
+                                return;
+                            __VLS_ctx.startAnonymization(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-primary" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-button-play" },
+                });
+            }
+            if (file.anonymizationStatus === 'failed') {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.anonymizationStatus === 'failed'))
+                                return;
+                            __VLS_ctx.startAnonymization(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-warning" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-bold-right" },
+                });
+            }
+            if (file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(!__VLS_ctx.availableFiles.length))
+                                return;
+                            if (!!(file.quarantined))
+                                return;
+                            if (!(file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')))
+                                return;
+                            __VLS_ctx.correctVideo(file.id);
+                        } },
+                    ...{ class: "btn btn-outline-warning" },
+                    disabled: (__VLS_ctx.isProcessing(file.id)),
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-single-copy-04" },
+                });
+            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!!(!__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!!(file.quarantined))
+                            return;
+                        __VLS_ctx.deleteFile(file.id);
+                    } },
+                'data-test': "delete-file-button",
+                ...{ class: "btn btn-outline-danger" },
+                disabled: (__VLS_ctx.isProcessing(file.id)),
+                'aria-label': (`Datei ${file.id} löschen`),
+                title: "Datei permanent löschen",
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "ni ni-settings-gear-65" },
+            });
+            if (file.anonymizationStatus === 'processing_anonymization') {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ class: "btn btn-outline-info" },
+                    disabled: true,
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
+                });
+            }
+            if (file.anonymizationStatus === 'extracting_frames') {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ class: "btn btn-outline-info" },
+                    disabled: true,
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
+                });
+            }
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        if (file.uploadJob) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "upload-job-summary" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge" },
+                ...{ class: (__VLS_ctx.getUploadJobStatusBadgeClass(file.uploadJob.status)) },
+            });
+            (__VLS_ctx.getUploadJobStatusText(file.uploadJob.status));
+            if (__VLS_ctx.getUploadJobOriginLabel(file.uploadJob)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small text-muted mt-1 upload-job-text" },
+                });
+                (__VLS_ctx.getUploadJobOriginLabel(file.uploadJob));
+            }
+            if (__VLS_ctx.getUploadJobCleanupLabel(file.uploadJob)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small text-muted upload-job-text" },
+                });
+                (__VLS_ctx.getUploadJobCleanupLabel(file.uploadJob));
+            }
+            if (__VLS_ctx.getUploadJobNotice(file)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small mt-1 upload-job-text" },
+                    ...{ class: (__VLS_ctx.getUploadJobNoticeClass(file)) },
+                });
+                (__VLS_ctx.getUploadJobNotice(file));
+            }
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-muted" },
+            });
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: (__VLS_ctx.getStatusBadgeClass(file.anonymizationStatus)) },
             ...{ class: "badge" },
         });
         if (file.anonymizationStatus === 'processing_anonymization') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-spinner fa-spin me-1" },
+                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
             });
         }
         (__VLS_ctx.getStatusText(file.anonymizationStatus));
@@ -441,106 +848,6 @@ else {
         });
         (__VLS_ctx.getStatusText(file.annotationStatus));
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        if (__VLS_ctx.hasOriginalFile(file)) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "text-success" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-check-circle me-1" },
-            });
-        }
-        else {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "text-danger" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-times-circle me-1" },
-            });
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: "text-muted" },
-        });
-        (__VLS_ctx.formatDate(file.createdAt));
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "btn-group btn-group-sm" },
-            role: "group",
-        });
-        if (file.mediaType === 'video' && __VLS_ctx.needsReimport(file)) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.mediaType === 'video' && __VLS_ctx.needsReimport(file)))
-                            return;
-                        __VLS_ctx.reimportVideo(file.id);
-                    } },
-                ...{ class: "btn btn-outline-info" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
-                title: "Video erneut importieren und Metadaten aktualisieren",
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-redo-alt" },
-            });
-        }
-        if (file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)))
-                            return;
-                        __VLS_ctx.reimportPdf(file.id);
-                    } },
-                ...{ class: "btn btn-outline-info" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
-                title: "PDF erneut importieren und verarbeiten",
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-redo-alt" },
-            });
-        }
-        if (file.anonymizationStatus === 'not_started') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.anonymizationStatus === 'not_started'))
-                            return;
-                        __VLS_ctx.startAnonymization(file.id);
-                    } },
-                ...{ class: "btn btn-outline-primary" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-play" },
-            });
-        }
-        if (file.anonymizationStatus === 'failed') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.anonymizationStatus === 'failed'))
-                            return;
-                        __VLS_ctx.startAnonymization(file.id);
-                    } },
-                ...{ class: "btn btn-outline-warning" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-redo" },
-            });
-        }
         if (file.anonymizationStatus === 'done_processing_anonymization') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
@@ -552,64 +859,46 @@ else {
                             return;
                         __VLS_ctx.validateFile(file.id, file.mediaType);
                     } },
-                ...{ class: "btn btn-outline-success bg-success" },
+                ...{ class: "btn btn-success btn-sm" },
                 disabled: (!__VLS_ctx.isReadyForValidation(file.id)),
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-eye" },
+                ...{ class: "ni ni-user-run me-1" },
             });
         }
-        if (file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!!(!__VLS_ctx.availableFiles.length))
-                            return;
-                        if (!(file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')))
-                            return;
-                        __VLS_ctx.correctVideo(file.id);
-                    } },
-                ...{ class: "btn btn-outline-warning" },
-                disabled: (__VLS_ctx.isProcessing(file.id)),
+        else if (file.anonymizationStatus === 'validated') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-success" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-edit" },
+                ...{ class: "ni ni-check-bold me-1" },
             });
         }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
-                        return;
-                    if (!!(!__VLS_ctx.availableFiles.length))
-                        return;
-                    __VLS_ctx.deleteFile(file.id);
-                } },
-            ...{ class: "btn btn-outline-danger" },
-            disabled: (__VLS_ctx.isProcessing(file.id)),
-            title: "Datei permanent löschen",
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-muted" },
+            });
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getOriginalFileDeletionClass(file)) },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-trash" },
+            ...{ class: (__VLS_ctx.getOriginalFileDeletionIcon(file)) },
+            ...{ class: "me-1" },
         });
-        if (file.anonymizationStatus === 'processing_anonymization') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: "btn btn-outline-info" },
-                disabled: true,
+        (__VLS_ctx.getOriginalFileDeletionText(file));
+        if (__VLS_ctx.getOriginalFileDeletionHint(file)) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-muted raw-file-state-hint" },
             });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-spinner fa-spin me-1" },
-            });
+            (__VLS_ctx.getOriginalFileDeletionHint(file));
         }
-        if (file.anonymizationStatus === 'extracting_frames') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: "btn btn-outline-info" },
-                disabled: true,
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-spinner fa-spin me-1" },
-            });
-        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.formatDate(file.createdAt));
     }
 }
 if (__VLS_ctx.availableFiles.length) {
@@ -703,7 +992,7 @@ if (__VLS_ctx.filteredOutCount > 0) {
         role: "alert",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-exclamation-triangle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.filteredOutCount);
@@ -722,9 +1011,9 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
@@ -737,9 +1026,9 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-folder-open']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -747,70 +1036,104 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['filename-cell-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-shrink-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['filename-details']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-medium']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-times-circle']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['filename-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['quarantine-file-note']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['quarantine-action-note']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-redo-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-redo-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-redo']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['raw-file-state-hint']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-12']} */ ;
@@ -853,8 +1176,8 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
@@ -876,11 +1199,22 @@ const __VLS_self = (await import('vue')).defineComponent({
             needsReimport: needsReimport,
             getFileIcon: getFileIcon,
             getMediaTypeBadgeClass: getMediaTypeBadgeClass,
+            getFileDisplayName: getFileDisplayName,
+            getFileIdLabel: getFileIdLabel,
             getStatusBadgeClass: getStatusBadgeClass,
             getStatusText: getStatusText,
+            getUploadJobStatusBadgeClass: getUploadJobStatusBadgeClass,
+            getUploadJobStatusText: getUploadJobStatusText,
+            getUploadJobNotice: getUploadJobNotice,
+            getUploadJobNoticeClass: getUploadJobNoticeClass,
+            getUploadJobOriginLabel: getUploadJobOriginLabel,
+            getUploadJobCleanupLabel: getUploadJobCleanupLabel,
+            getOriginalFileDeletionText: getOriginalFileDeletionText,
+            getOriginalFileDeletionClass: getOriginalFileDeletionClass,
+            getOriginalFileDeletionIcon: getOriginalFileDeletionIcon,
+            getOriginalFileDeletionHint: getOriginalFileDeletionHint,
             formatDate: formatDate,
             getTotalByStatus: getTotalByStatus,
-            hasOriginalFile: hasOriginalFile,
         };
     },
 });

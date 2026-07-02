@@ -37,6 +37,7 @@ const isCaseDataLoading = computed(() => patientStore.loading || examinationStor
 const currentItem = computed(() => anonymizationStore.current);
 const availablePatientOptions = computed(() => patientStore.patientsWithDisplayName);
 const availableExaminationOptions = computed(() => examinationStore.examinationsDropdown);
+const availableCenterOptions = computed(() => patientStore.centers ?? []);
 const selectedCasePatientIdNumber = computed(() => toPositiveInteger(selectedCasePatientId.value));
 const caseResolutionSuggestedPatientExaminationOptions = computed(() => {
     const matches = caseResolution.value?.patientExaminationMatches ?? [];
@@ -330,6 +331,25 @@ function normalizeGenderForPatientCreate(value) {
         return 'unknown';
     return normalized || null;
 }
+function resolveCenterKeyFromMetadataCenterName(centerName) {
+    const normalizedCenterName = centerName?.trim();
+    if (!normalizedCenterName)
+        return null;
+    const match = availableCenterOptions.value.find((center) => {
+        const name = typeof center?.name === 'string' ? center.name.trim() : '';
+        const displayName = typeof center?.nameDe === 'string'
+            ? center.nameDe.trim()
+            : typeof center?.displayName === 'string'
+                ? center.displayName.trim()
+                : '';
+        return (name.localeCompare(normalizedCenterName, undefined, { sensitivity: 'accent' }) === 0 ||
+            (displayName &&
+                displayName.localeCompare(normalizedCenterName, undefined, { sensitivity: 'accent' }) === 0));
+    });
+    return typeof match?.centerKey === 'string' && match.centerKey.trim()
+        ? match.centerKey.trim()
+        : null;
+}
 async function createPatientFromMetadata() {
     clearMessages();
     const item = currentItem.value;
@@ -339,6 +359,12 @@ async function createPatientFromMetadata() {
             'Für einen neuen Patienten werden mindestens Vorname, Nachname und ein gültiges Geburtsdatum benötigt.';
         return;
     }
+    const resolvedCenterKey = resolveCenterKeyFromMetadataCenterName(item.centerName);
+    if (item.centerName?.trim() && !resolvedCenterKey) {
+        errorMessage.value =
+            `Das Zentrum "${item.centerName.trim()}" konnte nicht auf einen center_key abgebildet werden.`;
+        return;
+    }
     isCreatingPatientFromMetadata.value = true;
     try {
         const createdPatient = await patientStore.createPatient({
@@ -346,7 +372,7 @@ async function createPatientFromMetadata() {
             lastName: item.patientLastName.trim(),
             dob: patientDob,
             gender: normalizeGenderForPatientCreate(item.patientGenderName),
-            center: item.centerName?.trim() || null,
+            centerKey: resolvedCenterKey,
             email: '',
             phone: '',
             patientHash: '',
@@ -454,7 +480,11 @@ watch(selectedCasePatientId, async (nextPatientId) => {
     await fetchCasePatientExaminations(patientId);
 });
 onMounted(async () => {
-    await Promise.all([patientStore.fetchPatients(), examinationStore.fetchExaminations()]);
+    await Promise.all([
+        patientStore.fetchPatients(),
+        patientStore.fetchCenters(),
+        examinationStore.fetchExaminations()
+    ]);
     applyPreferredExaminationSelection();
     await initializeCurrentItemFromRouteContext();
     await fetchCaseResolution();

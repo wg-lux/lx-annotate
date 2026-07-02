@@ -17,6 +17,7 @@
   env = {
     LX_ENABLE_BASE_API = "1";
     LX_DATA_MODELS_ROOT = "${inputs.lx-data-models}";
+    LX_DTYPES_HOST_MODELS_MODULE = "endoreg_db.integrations.lx_dtypes_host_models";
     LOOKUP_DTYPES_DATA_ROOT = "${inputs.lx-data-models}/lx_dtypes/data";
   };
 

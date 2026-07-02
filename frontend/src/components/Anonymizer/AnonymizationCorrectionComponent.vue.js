@@ -3,6 +3,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
+import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls';
 // Composables
 const router = useRouter();
 const route = useRoute();
@@ -223,8 +225,7 @@ const loadPdfDocument = async (pdfId) => {
     pdfRenderError.value = '';
     try {
         await ensurePdfJs();
-        const response = await axiosInstance.get(r(`media/pdfs/${pdfId}/stream/`), {
-            params: { type: 'raw' },
+        const response = await axiosInstance.get(buildPdfStreamUrl(pdfId, 'raw'), {
             responseType: 'arraybuffer',
         });
         const source = new Uint8Array(response.data);
@@ -509,7 +510,7 @@ const uploadRedactedPdf = async () => {
             timestamp: new Date().toISOString(),
             operation: 'pdf_upload',
             status: 'success',
-            details: `Upload-ID: ${response.data.upload_id || 'n/a'}`,
+            details: `Upload-ID: ${response.data.uploadId ?? response.data.upload_id ?? 'n/a'}`,
         });
     }
     catch (err) {
@@ -576,9 +577,16 @@ const applyMasking = async () => {
         };
         // Start masking operation
         const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/apply-mask/`), payload);
-        // Start polling for progress
-        const taskId = response.data.task_id;
-        await pollTaskProgress(taskId, 'masking');
+        const taskId = response.data.taskId ?? response.data.task_id;
+        if (taskId) {
+            await pollTaskProgress(taskId, 'masking');
+        }
+        else {
+            await finalizeCorrectionProcessing('masking', {
+                output_path: response.data.outputFile ?? response.data.output_file,
+                summary: response.data.message || 'Maskierung erfolgreich abgeschlossen'
+            });
+        }
     }
     catch (err) {
         error.value = err.response?.data?.error || 'Fehler bei der Maskierung';
@@ -605,9 +613,16 @@ const removeFrames = async () => {
         };
         // Start frame removal operation
         const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/remove-frames/`), payload);
-        // Start polling for progress
-        const taskId = response.data.task_id;
-        await pollTaskProgress(taskId, 'frame_removal');
+        const taskId = response.data.taskId ?? response.data.task_id;
+        if (taskId) {
+            await pollTaskProgress(taskId, 'frame_removal');
+        }
+        else {
+            await finalizeCorrectionProcessing('frame_removal', {
+                output_path: response.data.outputFile ?? response.data.output_file,
+                summary: response.data.message || 'Frame-Entfernung erfolgreich abgeschlossen'
+            });
+        }
     }
     catch (err) {
         error.value = err.response?.data?.error || 'Fehler bei der Frame-Entfernung';
@@ -615,6 +630,13 @@ const removeFrames = async () => {
         isProcessing.value = false;
         currentOperation.value = '';
     }
+};
+const markValidationFinishedRemoveOutside = async (videoId) => {
+    await axiosInstance.post(r(`media/videos/${videoId}/segments/validation-status/`), {
+        isValidated: true,
+        notes: `Korrektur abgeschlossen am ${new Date().toLocaleString('de-DE')}`,
+        informationSourceName: 'manual_correction',
+    });
 };
 const parseManualFrames = (frameString) => {
     const frames = [];
@@ -654,21 +676,7 @@ const pollTaskProgress = async (taskId, operation) => {
             processingProgress.value = progress || 0;
             processingStatus.value = message || 'Verarbeitung läuft...';
             if (status === 'SUCCESS') {
-                processingProgress.value = 100;
-                processingStatus.value = 'Verarbeitung abgeschlossen';
-                // Add to history
-                processingHistory.value.unshift({
-                    id: Date.now(),
-                    timestamp: new Date().toISOString(),
-                    operation,
-                    status: 'success',
-                    details: result?.summary || 'Verarbeitung erfolgreich',
-                    outputPath: result?.output_path
-                });
-                // Refresh video details
-                await refreshCurrentVideo();
-                isProcessing.value = false;
-                currentOperation.value = '';
+                await finalizeCorrectionProcessing(operation, result);
                 return;
             }
             if (status === 'FAILURE') {
@@ -684,6 +692,24 @@ const pollTaskProgress = async (taskId, operation) => {
         }
     };
     await poll();
+};
+const finalizeCorrectionProcessing = async (operation, result) => {
+    if (!currentVideo.value)
+        return;
+    processingProgress.value = 100;
+    processingStatus.value = 'Verarbeitung abgeschlossen';
+    processingHistory.value.unshift({
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        operation,
+        status: 'success',
+        details: result?.summary || 'Verarbeitung erfolgreich',
+        outputPath: result?.output_path
+    });
+    await markValidationFinishedRemoveOutside(currentVideo.value.id);
+    await refreshCurrentVideo();
+    isProcessing.value = false;
+    currentOperation.value = '';
 };
 const cancelProcessing = async () => {
     // Implementation depends on backend support for task cancellation
@@ -707,30 +733,21 @@ const reprocessVideo = async () => {
 const getVideoUrl = () => {
     if (!currentVideo.value)
         return '';
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    if (previewMode.value === 'processed' && hasProcessedVersion.value) {
-        // Get the latest processed version
-        const latestProcessed = processingHistory.value
-            .filter(entry => entry.status === 'success' && entry.outputPath)
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-        if (latestProcessed) {
-            return `${base}/api/media/videos/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
-        }
-    }
-    // Default to original
-    return `${base}/api/media/videos/${currentVideo.value.id}/`;
+    const fileType = previewMode.value === 'processed' && hasProcessedVersion.value
+        ? 'processed'
+        : 'raw';
+    return buildVideoStreamUrl(currentVideo.value.id, fileType);
 };
 const seekVideo = (seconds) => {
     if (videoElement.value) {
         videoElement.value.currentTime += seconds;
     }
 };
-const downloadResult = async (outputPath) => {
+const downloadResult = async (historyId) => {
     if (!currentVideo.value)
         return;
     try {
-        const response = await axiosInstance.get(r(`video-download-processed/${currentVideo.value.id}/`), {
-            params: { path: outputPath },
+        const response = await axiosInstance.get(r(endpoints.media.processedVideoDownload(currentVideo.value.id, historyId)), {
             responseType: 'blob'
         });
         // Create download link
@@ -907,7 +924,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     ...{ class: "btn btn-outline-secondary btn-sm" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-arrow-left me-1" },
+    ...{ class: "ni ni-bold-right me-1 icon-reverse" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.refreshCurrentVideo) },
@@ -915,8 +932,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.isRefreshing),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-sync-alt" },
-    ...{ class: ({ 'fa-spin': __VLS_ctx.isRefreshing }) },
+    ...{ class: "ni ni-bold-right" },
+    ...{ class: ({ 'ni-spin': __VLS_ctx.isRefreshing }) },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body" },
@@ -950,7 +967,7 @@ else if (!__VLS_ctx.currentVideo) {
         role: "alert",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
 }
 else {
@@ -1008,7 +1025,7 @@ else {
             disabled: (__VLS_ctx.isRenderingPdf),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-file-pdf me-1" },
+            ...{ class: "ni ni-single-copy-04 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.generateRedactedPdf) },
@@ -1016,7 +1033,7 @@ else {
             disabled: (__VLS_ctx.isRenderingPdf || __VLS_ctx.totalPdfBoxCount === 0),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-shield-alt me-1" },
+            ...{ class: "ni ni-check-bold me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.downloadRedactedPdf) },
@@ -1024,7 +1041,7 @@ else {
             disabled: (!__VLS_ctx.redactedPdfUrl),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-download me-1" },
+            ...{ class: "ni ni-cloud-upload-96 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.uploadRedactedPdf) },
@@ -1032,7 +1049,7 @@ else {
             disabled: (!__VLS_ctx.redactedPdfBytes || __VLS_ctx.isProcessing),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-upload me-1" },
+            ...{ class: "ni ni-cloud-upload-96 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "row g-3" },
@@ -1058,7 +1075,7 @@ else {
             disabled: (__VLS_ctx.activePdfPage <= 1 || __VLS_ctx.isRenderingPdf),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-chevron-left" },
+            ...{ class: "ni ni-bold-right icon-reverse" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: "small text-muted" },
@@ -1071,7 +1088,7 @@ else {
             disabled: (__VLS_ctx.activePdfPage >= __VLS_ctx.pdfPageCount || __VLS_ctx.isRenderingPdf),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-chevron-right" },
+            ...{ class: "ni ni-bold-right" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "card-body" },
@@ -1167,7 +1184,7 @@ else {
             disabled: (__VLS_ctx.getCurrentPageBoxCount() === 0),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-undo me-1" },
+            ...{ class: "ni ni-bold-right me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.clearCurrentPdfPageBoxes) },
@@ -1175,7 +1192,7 @@ else {
             disabled: (__VLS_ctx.getCurrentPageBoxCount() === 0),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-eraser me-1" },
+            ...{ class: "ni ni-settings-gear-65 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.clearAllPdfBoxes) },
@@ -1183,7 +1200,7 @@ else {
             disabled: (__VLS_ctx.totalPdfBoxCount === 0),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-trash me-1" },
+            ...{ class: "ni ni-settings-gear-65 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.hr, __VLS_intrinsicElements.hr)({
             ...{ class: "my-2" },
@@ -1298,7 +1315,7 @@ else {
             disabled: (__VLS_ctx.isProcessing),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-search me-1" },
+            ...{ class: "ni ni-tv-2 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.reprocessVideo) },
@@ -1306,7 +1323,7 @@ else {
             disabled: (__VLS_ctx.isProcessing),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-redo me-1" },
+            ...{ class: "ni ni-bold-right me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "row mb-4" },
@@ -1324,7 +1341,7 @@ else {
             ...{ class: "mb-0" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-mask me-2" },
+            ...{ class: "ni ni-check-bold me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "card-body" },
@@ -1475,12 +1492,12 @@ else {
             disabled: (__VLS_ctx.isProcessing || !__VLS_ctx.canApplyMask),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-mask me-2" },
+            ...{ class: "ni ni-check-bold me-2" },
         });
         if (__VLS_ctx.isProcessing && __VLS_ctx.currentOperation === 'masking') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-spinner fa-spin me-1" },
+                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
             });
         }
         else {
@@ -1499,7 +1516,7 @@ else {
             ...{ class: "mb-0" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-cut me-2" },
+            ...{ class: "ni ni-single-copy-04 me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "card-body" },
@@ -1621,12 +1638,12 @@ else {
             disabled: (__VLS_ctx.isProcessing || !__VLS_ctx.canRemoveFrames),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-cut me-2" },
+            ...{ class: "ni ni-single-copy-04 me-2" },
         });
         if (__VLS_ctx.isProcessing && __VLS_ctx.currentOperation === 'frame_removal') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-spinner fa-spin me-1" },
+                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
             });
         }
         else {
@@ -1679,7 +1696,7 @@ else {
                 ...{ class: "btn btn-outline-danger btn-sm" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-times me-1" },
+                ...{ class: "ni ni-settings-gear-65 me-1" },
             });
         }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1769,7 +1786,7 @@ else {
             ...{ class: "btn btn-outline-secondary btn-sm" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-backward me-1" },
+            ...{ class: "ni ni-bold-right me-1 icon-reverse" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
@@ -1786,7 +1803,7 @@ else {
             ...{ class: "btn btn-outline-secondary btn-sm" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-forward me-1" },
+            ...{ class: "ni ni-bold-right me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-muted" },
@@ -1865,12 +1882,12 @@ else {
                                     return;
                                 if (!(entry.status === 'success' && entry.outputPath))
                                     return;
-                                __VLS_ctx.downloadResult(entry.outputPath);
+                                __VLS_ctx.downloadResult(entry.id);
                             } },
                         ...{ class: "btn btn-outline-primary btn-sm" },
                     });
                     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                        ...{ class: "fas fa-download" },
+                        ...{ class: "ni ni-cloud-upload-96" },
                     });
                 }
             }
@@ -1891,15 +1908,16 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-arrow-left']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-reverse']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
@@ -1911,8 +1929,8 @@ else {
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
@@ -1936,26 +1954,26 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-file-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-cloud-upload-96']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-upload']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-cloud-upload-96']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
@@ -1975,15 +1993,16 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-chevron-left']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-reverse']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-chevron-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -2023,20 +2042,20 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-undo']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-eraser']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['my-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
@@ -2078,14 +2097,14 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-search']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-tv-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-redo']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
@@ -2094,8 +2113,8 @@ else {
 /** @type {__VLS_StyleScopedClasses['h-100']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-mask']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -2133,20 +2152,20 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-mask']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['h-100']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cut']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -2178,12 +2197,12 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cut']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
@@ -2209,8 +2228,8 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
@@ -2235,14 +2254,15 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-backward']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-reverse']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-forward']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -2261,8 +2281,8 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-cloud-upload-96']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {

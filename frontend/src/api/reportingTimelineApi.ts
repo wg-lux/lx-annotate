@@ -18,6 +18,7 @@ export type TimelinePatient = {
 export type TimelineLatestReport = {
   mediaType: 'pdf' | 'full_report' | string
   id: number
+  rawPdfId?: number | null
   patientExaminationId: number | null
   anonymizedText: string | null
   documentType: string | null
@@ -52,6 +53,14 @@ export function pickPreferredStream(options: TimelineStreamOption[] = []): strin
   return (
     options.find((option) => option.type === 'processed')?.url ??
     options.find((option) => option.type === 'raw')?.url ??
+    null
+  )
+}
+
+export function pickPreferredReportStream(options: TimelineStreamOption[] = []): string | null {
+  return (
+    options.find((option) => option.type === 'raw')?.url ??
+    options.find((option) => option.type === 'processed')?.url ??
     null
   )
 }

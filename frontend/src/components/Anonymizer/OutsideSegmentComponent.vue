@@ -5,6 +5,7 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
+import { buildVideoStreamUrl } from '@/utils/mediaUrls'
 
 /**
  * Props: which video to display
@@ -25,7 +26,7 @@ const emit = defineEmits<{
  * Local state for the player + meta
  */
 const videoEl = ref<HTMLVideoElement | null>(null)
-const videoUrl = ref<string>('')                  // backend-provided stream URL
+const videoUrl = ref<string>('')                  // centralized stream URL
 const duration = ref<number>(0)                   // seconds
 const currentTime = ref<number>(0)
 const isPlaying = ref<boolean>(false)
@@ -43,11 +44,11 @@ const isValidating = ref<boolean>(false)
 const validationError = ref<string>('')
 
 /**
- * Fetch backend detail to get canonical video_url + duration (don't reconstruct in client)
+ * Fetch backend detail for metadata, but keep stream URLs centralized in mediaUrls.ts.
  */
 async function loadVideoDetail(videoId: number) {
-  const { data } = await axiosInstance.get(`/api/media/videos/${videoId}/`)
-  videoUrl.value = data.video_url
+  const { data } = await axiosInstance.get(`/${r(endpoints.media.videoDetail(videoId))}`)
+  videoUrl.value = buildVideoStreamUrl(videoId, 'processed')
   duration.value = Number(data.duration ?? 0)
 }
 
@@ -197,7 +198,7 @@ function onSegmentDelete() {}
     <!-- Validation Status -->
     <div v-if="outsideSegments.length > 0" class="validation-status mb-3">
       <div v-if="validationError" class="alert alert-danger mb-3">
-        <i class="fas fa-exclamation-triangle me-2"></i>
+        <i class="ni ni-user-run me-2"></i>
         {{ validationError }}
       </div>
       <div class="row align-items-center">
@@ -219,7 +220,7 @@ function onSegmentDelete() {}
             :disabled="isValidating || allSegmentsValidated"
           >
             <span v-if="isValidating" class="spinner-border spinner-border-sm me-1"></span>
-            <i v-else class="fas fa-check-double me-1"></i>
+            <i v-else class="ni ni-check-bold me-1"></i>
             Alle validieren
           </button>
           <button 
@@ -227,7 +228,7 @@ function onSegmentDelete() {}
             @click="resetValidation"
             :disabled="isValidating || validatedSegments.size === 0"
           >
-            <i class="fas fa-redo me-1"></i>
+            <i class="ni ni-bold-right me-1"></i>
             Zurücksetzen
           </button>
         </div>
@@ -269,11 +270,11 @@ function onSegmentDelete() {}
               @click="validateSegment(segment)"
               :disabled="isValidating"
             >
-              <i class="fas fa-check me-1"></i>
+              <i class="ni ni-check-bold me-1"></i>
               Validieren
             </button>
             <span v-else class="text-success">
-              <i class="fas fa-check-circle me-1"></i>
+              <i class="ni ni-check-bold me-1"></i>
               Validiert
             </span>
           </div>
@@ -283,7 +284,7 @@ function onSegmentDelete() {}
 
     <!-- No segments message -->
     <div v-else class="alert alert-info">
-      <i class="fas fa-info-circle me-2"></i>
+      <i class="ni ni-user-run me-2"></i>
       Keine "Outside"-Segmente für Video {{ props.videoId }} gefunden.
     </div>
 

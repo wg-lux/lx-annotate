@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import axiosInstance from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 import FinalizedResultPage from '../FinalizedResultPage.vue'
 
 const setActiveReportId = vi.fn()
@@ -30,6 +31,10 @@ vi.mock('@/stores/reportingFlowStore', () => ({
 }))
 
 describe('FinalizedResultPage', () => {
+  const pdfViewUrl = `/api/${endpoints.media.pdfStream(12)}?type=raw`
+  const pdfDownloadUrl = `/api/${endpoints.media.pdfStream(12)}?type=raw&download=1`
+  const patientTimelineUrl = `/api/${endpoints.media.patientTimeline(9)}`
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -43,9 +48,9 @@ describe('FinalizedResultPage', () => {
         data: {
           id: 88,
           persistedArtifacts: {
-            pdfViewUrl: '/api/media/pdfs/12/stream/?type=raw',
-            pdfDownloadUrl: '/api/media/pdfs/12/stream/?type=raw&download=1',
-            patientTimelineUrl: '/api/media/patients/9/timeline/'
+            pdfViewUrl,
+            pdfDownloadUrl,
+            patientTimelineUrl
           }
         }
       } as any)
@@ -57,9 +62,9 @@ describe('FinalizedResultPage', () => {
     expect(wrapper.text()).toContain('Bericht #88 geladen.')
 
     const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/api/media/pdfs/12/stream/?type=raw')
-    expect(hrefs).toContain('/api/media/pdfs/12/stream/?type=raw&download=1')
-    expect(hrefs).toContain('/api/media/patients/9/timeline/?patient_examination_id=17')
+    expect(hrefs).toContain(pdfViewUrl)
+    expect(hrefs).toContain(pdfDownloadUrl)
+    expect(hrefs).toContain(`${patientTimelineUrl}?patient_examination_id=17`)
   })
 
   it('builds fallback timeline link with patient_examination_id filter', async () => {
@@ -71,8 +76,8 @@ describe('FinalizedResultPage', () => {
         data: {
           id: 88,
           persistedArtifacts: {
-            pdfViewUrl: '/api/media/pdfs/12/stream/?type=raw',
-            pdfDownloadUrl: '/api/media/pdfs/12/stream/?type=raw&download=1'
+            pdfViewUrl,
+            pdfDownloadUrl
           }
         }
       } as any)
@@ -81,6 +86,6 @@ describe('FinalizedResultPage', () => {
     await flushPromises()
 
     const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/api/media/patients/9/timeline/?patient_examination_id=17')
+    expect(hrefs).toContain(`${patientTimelineUrl}?patient_examination_id=17`)
   })
 })

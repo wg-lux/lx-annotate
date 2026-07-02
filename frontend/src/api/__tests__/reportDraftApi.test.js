@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { endpoints } from '@/types/api/endpoints';
 const hoisted = vi.hoisted(() => ({
     axios: {
         get: vi.fn(),
@@ -27,8 +28,8 @@ describe('reportDraftApi', () => {
             }
         });
         const result = await fetchPatientExaminationDraft(314);
-        expect(hoisted.axios.get).toHaveBeenCalledWith('/api/patient-examinations/314/draft/');
-        expect(result.draft.template_name).toBe('star_upper_gi_main');
+        expect(hoisted.axios.get).toHaveBeenCalledWith(`/api/${endpoints.examination.patientExaminationDraft(314)}`);
+        expect(result.draft.template_name ?? result.draft.templateName).toBe('star_upper_gi_main');
     });
     it('persists unvalidated runtime draft state without reshaping the payload', async () => {
         hoisted.axios.put.mockResolvedValue({
@@ -58,9 +59,9 @@ describe('reportDraftApi', () => {
                 patientFindings: []
             }
         });
-        expect(hoisted.axios.put).toHaveBeenCalledWith('/api/patient-examinations/314/draft/', {
-            module_name: 'report_template_examples',
-            template_name: 'star_upper_gi_main',
+        expect(hoisted.axios.put).toHaveBeenCalledWith(`/api/${endpoints.examination.patientExaminationDraft(314)}`, {
+            moduleName: 'report_template_examples',
+            templateName: 'star_upper_gi_main',
             payload: {
                 patient: 'patient_42',
                 examiners: ['dr_house'],

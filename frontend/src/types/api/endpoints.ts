@@ -1,8 +1,9 @@
 /**
- * Typed API endpoint contract for endoreg_db routes.
+ * Typed API endpoint contract for endoreg_db and lx-annotate local routes.
  *
  * Important:
- * - Paths are relative to axios `r()` helper (which prefixes `api/`).
+ * - Paths are relative to axios `endoregApi()` or legacy `r()` helper.
+ * - lx_dtypes routes use the separate `dtypesApi()` helper.
  * - Keep trailing slashes exactly as defined in Django urls.
  */
 
@@ -12,6 +13,7 @@ export type UUID = string
 export const endpoints = {
   auth: {
     bootstrap: 'auth/bootstrap',
+    context: 'auth/context',
     publicHome: 'endoreg_db/',
     login: 'login/',
     loginCallback: 'login/callback/',
@@ -20,12 +22,10 @@ export const endpoints = {
 
   router: {
     examinations: 'examinations/',
+    examinationById: (id: Id) => `examinations/${id}/`,
     findings: 'findings/',
     classifications: 'classifications/',
     patientFindings: 'patient-findings/',
-    // Legacy placeholder kept for existing callers. Current endoreg_db exposes
-    // create/list/detail under `examination.patientExamination*`.
-    patientExaminations: 'patient-examinations/',
     patientExaminationReports: 'patient-examination-reports/'
   },
 
@@ -33,22 +33,25 @@ export const endpoints = {
     patients: 'patients/',
     patientById: (id: Id) => `patients/${id}/`,
     patientPseudonym: (id: Id) => `patients/${id}/pseudonym/`,
+    patientDeletionSafety: (id: Id) => `patients/${id}/check_deletion_safety/`,
     centers: 'centers/',
     genders: 'genders/',
     patientFindings: 'patient-findings/',
+    patientFindingById: (id: Id) => `patient-findings/${id}/`,
     checkPatientExaminationExists: (id: Id) => `check_pe_exist/${id}/`
   },
 
   examination: {
+    examinationsDropdown: 'patient-examinations/examinations_dropdown/',
     examinationFindings: (examinationId: Id) => `examinations/${examinationId}/findings/`,
     findingClassifications: (findingId: Id) => `findings/${findingId}/classifications/`,
-    classificationChoices: (classificationId: Id) =>
-      `classifications/${classificationId}/choices/`,
+    classificationChoices: (classificationId: Id) => `classifications/${classificationId}/choices/`,
 
     patientExaminationCreate: 'patient-examinations/create/',
     patientExaminationDetail: (id: Id) => `patient-examinations/${id}/`,
     patientExaminationDraft: (id: Id) => `patient-examinations/${id}/draft/`,
     patientExaminationList: 'patient-examinations/list/',
+    patientExaminationLegacyDetail: (id: Id) => `get_patient_examination/${id}/`,
     patientExaminationClassifications: (examId: Id) =>
       `patient-examinations/${examId}/classifications/`,
     patientExaminationFindings: (examinationId: Id) =>
@@ -61,6 +64,7 @@ export const endpoints = {
     patientExaminationReportsByPatientExamination: (patientExaminationId: Id) =>
       `patient-examination-reports/?patient_examination_id=${patientExaminationId}`,
     saveReportSubmission: 'patient-examination-reports/save-submission/',
+    makeReport: 'patient-examination-reports/make-report/',
     segmentFrameSelectorBase: 'patient-examination-reports/segment-frame-selector/',
     segmentFrameSelector: (patientExaminationId: Id, reportId?: Id) =>
       reportId == null
@@ -75,6 +79,7 @@ export const endpoints = {
   annotation: {
     randomTask: 'media/annotations/frames/random-task/',
     bulkUpsert: 'media/annotations/frames/bulk-upsert/',
+    frameBoxes: 'media/annotations/frames/boxes/',
     skip: 'media/annotations/frames/skip/'
   },
 
@@ -83,23 +88,26 @@ export const endpoints = {
     uploadStatus: (id: UUID) => `upload/${id}/status/`
   },
 
-  requirements: {
-    lookupInit: 'lookup/init/',
-    lookupAll: (token: Id) => `lookup/${token}/all/`,
-    lookupParts: (token: Id, keys?: string[]) => {
-      if (!keys?.length) return `lookup/${token}/parts/`
-      return `lookup/${token}/parts/?keys=${encodeURIComponent(keys.join(','))}`
-    },
-    lookupRecompute: (token: Id) => `lookup/${token}/recompute/`,
-    evaluateRequirements: 'evaluate-requirements/'
-  },
-
   stats: {
     examinations: 'examinations/stats/',
-    videoSegment: 'video-segment/stats/',
-    videoSegments: 'video-segments/stats/',
-    sensitiveMeta: 'video/sensitivemeta/stats/',
+    videoSegment: 'media/videos/segments/stats/',
+    videoSegments: 'media/videos/segments/stats/',
+    sensitiveMeta: 'media/sensitive-metadata/',
     general: 'stats/'
+  },
+
+  hubExport: {
+    overview: 'hub-export/overview/',
+    mark: 'hub-export/mark/',
+    unmark: 'hub-export/unmark/'
+  },
+
+  runtime: {
+    quarantine: 'runtime/quarantine/'
+  },
+
+  workflow: {
+    saveWorkflowData: 'save-workflow-data/'
   },
 
   anonymization: {
@@ -126,7 +134,6 @@ export const endpoints = {
     sensitiveMediaId: (pk: Id, mediaType: string) => `media/sensitive-media-id/${pk}/${mediaType}/`,
 
     videos: 'media/videos/',
-    videoDetailStream: (pk: Id) => `media/videos/${pk}/`,
     videoDetail: (pk: Id) => `media/videos/${pk}/details/`,
     videoStream: (pk: Id) => `media/videos/${pk}/stream/`,
     videoReimport: (pk: Id) => `media/videos/${pk}/reimport/`,
@@ -138,19 +145,23 @@ export const endpoints = {
     videoApplyMask: (pk: Id) => `media/videos/${pk}/apply-mask/`,
     videoRemoveFrames: (pk: Id) => `media/videos/${pk}/remove-frames/`,
     videoLabelsList: 'media/videos/labels/list/',
+    videoLabelSetsList: 'media/videos/label-sets/list/',
+    videoPredictionModelsList: 'media/videos/prediction-models/list/',
 
     segmentsCollection: 'media/videos/segments/',
     segmentsStats: 'media/videos/segments/stats/',
     videoSegments: (pk: Id) => `media/videos/${pk}/segments/`,
+    videoSegmentsBulkMutation: (pk: Id) => `media/videos/${pk}/segments/bulk/`,
     videoSegmentDetail: (pk: Id, segmentId: Id) => `media/videos/${pk}/segments/${segmentId}/`,
+    videoSegmentsImportPredictions: (pk: Id) => `media/videos/${pk}/segments/import-predictions/`,
+    videoSegmentsRerunPredictions: (pk: Id) => `media/videos/${pk}/segments/rerun-predictions/`,
     videoSegmentValidate: (pk: Id, segmentId: Id) =>
       `media/videos/${pk}/segments/${segmentId}/validate/`,
     videoSegmentsValidateBulk: (pk: Id) => `media/videos/${pk}/segments/validate-bulk/`,
-    videoSegmentsValidationStatus: (pk: Id) =>
-      `media/videos/${pk}/segments/validation-status/`,
+    videoSegmentsValidationStatus: (pk: Id) => `media/videos/${pk}/segments/validation-status/`,
+    videoSegmentsBlackenOutside: (pk: Id) => `media/videos/${pk}/segments/blacken-outside/`,
 
-    ensureSegmentAnnotationsForVideo: (pk: Id) =>
-      `media/videos/${pk}/ensure-segment-annotations/`,
+    ensureSegmentAnnotationsForVideo: (pk: Id) => `media/videos/${pk}/ensure-segment-annotations/`,
     ensureSegmentAnnotationsBulk: 'media/videos/ensure-segment-annotations/',
 
     videoSensitiveMetadata: (pk: Id) => `media/videos/${pk}/sensitive-metadata/`,
@@ -162,11 +173,14 @@ export const endpoints = {
     pdfCaseResolution: (pk: Id) => `media/pdfs/${pk}/case-resolution/`,
     sensitiveMetadataList: 'media/sensitive-metadata/',
     pdfSensitiveMetadataList: 'media/pdfs/sensitive-metadata/',
+    anonymizationMetrics: 'media/anonymization/metrics/',
 
     pdfs: 'media/pdfs/',
     pdfDetail: (pk: Id) => `media/pdfs/${pk}/`,
     pdfStream: (pk: Id) => `media/pdfs/${pk}/stream/`,
-    pdfReimport: (pk: Id) => `media/pdfs/${pk}/reimport/`
+    pdfReimport: (pk: Id) => `media/pdfs/${pk}/reimport/`,
+    processedVideoDownload: (videoId: Id, historyId: Id) =>
+      `media/processed-videos/${videoId}/${historyId}/`
   }
 } as const
 

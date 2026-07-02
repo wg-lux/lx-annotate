@@ -1,4 +1,5 @@
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi, endoregApi } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 import {
   normalizeFindingChoice,
   normalizeFindings,
@@ -13,6 +14,7 @@ import {
 } from '@/api/findings.contract'
 
 export type FindingsBackendMode = 'endoreg' | 'dtypes_read' | 'dtypes'
+export const DEFAULT_FINDINGS_BACKEND_MODE: FindingsBackendMode = 'dtypes'
 
 export type FindingsApiErrorCode =
   | 'required-finding'
@@ -43,34 +45,37 @@ export interface UpdatePatientFindingPayload {
 }
 
 const ENDOREG_PATHS = {
-  findings: '/api/findings/',
-  examinationFindings: (examinationId: number) => `/api/examinations/${examinationId}/findings/`,
-  findingClassifications: (findingId: number) => `/api/findings/${findingId}/classifications/`,
+  findings: endoregApi(endpoints.router.findings),
+  examinationFindings: (examinationId: number) =>
+    endoregApi(endpoints.examination.examinationFindings(examinationId)),
+  findingClassifications: (findingId: number) =>
+    endoregApi(endpoints.examination.findingClassifications(findingId)),
   classificationChoices: (classificationId: number) =>
-    `/api/classifications/${classificationId}/choices/`,
-  patientFindings: '/api/patient-findings/',
-  patientFindingById: (patientFindingId: number) => `/api/patient-findings/${patientFindingId}/`
+    endoregApi(endpoints.examination.classificationChoices(classificationId)),
+  patientFindings: endoregApi(endpoints.patient.patientFindings),
+  patientFindingById: (patientFindingId: number) =>
+    endoregApi(endpoints.patient.patientFindingById(patientFindingId))
 }
 
 const DTYPES_PATHS = {
   examinationFindings: (examinationId: number) =>
-    `/base_api/examinations/${examinationId}/findings/`,
+    dtypesApi(`examinations/${examinationId}/findings/`),
   findingClassifications: (findingId: number) =>
-    `/base_api/findings/${findingId}/classifications/`,
+    dtypesApi(`findings/${findingId}/classifications/`),
   classificationChoices: (classificationId: number) =>
-    `/base_api/classifications/${classificationId}/choices/`,
-  patientFindings: '/base_api/patient-findings/',
+    dtypesApi(`classifications/${classificationId}/choices/`),
+  patientFindings: dtypesApi('patient-findings/'),
   patientFindingById: (patientFindingId: number) =>
-    `/base_api/patient-findings/${patientFindingId}/`,
+    dtypesApi(`patient-findings/${patientFindingId}/`),
   patientFindingClassifications: (patientFindingId: number) =>
-    `/base_api/patient-findings/${patientFindingId}/classifications/`
+    dtypesApi(`patient-findings/${patientFindingId}/classifications/`)
 }
 
 function normalizeMode(value: unknown): FindingsBackendMode {
   if (value === 'dtypes' || value === 'dtypes_read' || value === 'endoreg') {
     return value
   }
-  return 'endoreg'
+  return DEFAULT_FINDINGS_BACKEND_MODE
 }
 
 export function getFindingsBackendMode(): FindingsBackendMode {
@@ -266,8 +271,8 @@ export const findingsApi = {
     }
 
     // Endoreg-safe path:
-    // 1) create finding on /api
-    // 2) write classifications via dedicated /base_api route
+    // 1) create finding on the endoreg API
+    // 2) write classifications via dedicated dtypes API route
     const createRes = await axiosInstance.post(ENDOREG_PATHS.patientFindings, {
       patientExamination: payload.patientExamination,
       finding: payload.finding

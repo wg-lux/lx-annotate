@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { endpoints } from '@/types/api/endpoints';
+import { buildPdfStreamUrl } from '@/utils/mediaUrls';
 const flow = useReportingFlowStore();
 const route = useRoute();
 const loading = ref(false);
@@ -49,14 +50,14 @@ const pdfViewUrl = computed(() => {
     if (persistedArtifacts.value?.pdfViewUrl)
         return persistedArtifacts.value.pdfViewUrl;
     if (fallbackPdfId.value)
-        return `/${r(endpoints.media.pdfStream(fallbackPdfId.value))}?type=raw`;
+        return buildPdfStreamUrl(fallbackPdfId.value, 'raw');
     return null;
 });
 const pdfDownloadUrl = computed(() => {
     if (persistedArtifacts.value?.pdfDownloadUrl)
         return persistedArtifacts.value.pdfDownloadUrl;
     if (fallbackPdfId.value)
-        return `/${r(endpoints.media.pdfStream(fallbackPdfId.value))}?type=raw&download=1`;
+        return buildPdfStreamUrl(fallbackPdfId.value, 'raw', { download: 1 });
     return null;
 });
 function withPatientExaminationFilter(url) {

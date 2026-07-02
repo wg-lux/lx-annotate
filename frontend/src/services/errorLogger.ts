@@ -1,4 +1,6 @@
-// ✅ TypeScript Error Logger Service
+import { dtypesApi } from '@/api/axiosInstance'
+
+// TypeScript Error Logger Service
 interface ErrorContext {
   [key: string]: any
   viewport?: string
@@ -17,13 +19,8 @@ interface ErrorData {
 }
 
 class ErrorLogger {
-  private baseUrl: string
   private maxRetries = 3
   private retryDelay = 1000
-
-  constructor() {
-    this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-  }
 
   /**
    * Logs error to Django backend with retry mechanism
@@ -90,7 +87,7 @@ class ErrorLogger {
   private async sendErrorToBackend(errorData: ErrorData): Promise<void> {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const response = await fetch('/base_api/log-frontend-error', {
+        const response = await fetch(dtypesApi('log-frontend-error'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

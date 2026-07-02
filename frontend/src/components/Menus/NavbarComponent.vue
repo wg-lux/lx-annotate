@@ -37,7 +37,7 @@
               class="btn btn-outline-primary btn-sm mb-0 me-3"
               :class="{ 'btn-warning': totalPendingAnnotations > 0 }"
             >
-              <i class="fas fa-tasks me-1"></i>
+              <i class="ni ni-single-copy-04 me-1"></i>
               Annotationen
               <span 
                 v-if="totalPendingAnnotations > 0" 
@@ -57,19 +57,19 @@
           </li>
           <li class="nav-item d-flex align-items-center" v-if="isAuthenticated">
             <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogout">
-              <i class="fa fa-user me-sm-1"></i>
+              <i class="ni ni-circle-08 me-sm-1"></i>
               <span class="d-sm-inline d-none">Logout</span>
             </a>
           </li>
           <li class="nav-item d-flex align-items-center" v-else>
             <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogin">
-              <i class="fa fa-user me-sm-1"></i>
+              <i class="ni ni-circle-08 me-sm-1"></i>
               <span class="d-sm-inline d-none">Login</span>
             </a>
           </li>
           <li class="nav-item d-flex align-items-center ms-3" v-if="isAuthenticated">
             <span class="nav-link text-body font-weight-bold px-0">
-              <i class="fa fa-circle text-success me-sm-1"></i>
+              <i class="ni ni-check-bold text-success me-sm-1"></i>
               <span class="d-sm-inline d-none">{{ username }}</span>
             </span>
           </li>

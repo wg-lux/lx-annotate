@@ -1,6 +1,6 @@
 import { setActivePinia, createPinia } from 'pinia';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useVideoStore } from '@/stores/videoStore';
+import { backendSegmentToSegment, useVideoStore } from '@/stores/videoStore';
 import axiosInstance from '@/api/axiosInstance';
 vi.mock('@/api/axiosInstance', () => ({
     default: {
@@ -29,6 +29,7 @@ describe('VideoStore Performance Optimization', () => {
                     id: 101,
                     original_file_name: 'Video A',
                     status: 'available',
+                    validated_annotators: ['reviewer-one'],
                     segments: [
                         {
                             id: 500,
@@ -56,6 +57,7 @@ describe('VideoStore Performance Optimization', () => {
         expect(store.videoList.videos.length).toBe(2);
         const videoA = store.videoList.videos.find((video) => video.id === 101);
         expect(videoA).toBeDefined();
+        expect(videoA?.validatedAnnotators).toEqual(['reviewer-one']);
         expect(videoA?.segments?.length).toBe(1);
         expect(videoA?.segments?.[0].label).toBe('polyp');
         expect(videoA?.segments?.[0].startTime).toBe(10.5);
@@ -67,5 +69,160 @@ describe('VideoStore Performance Optimization', () => {
         const calls = axiosGet.mock.calls.map((call) => call[0]);
         const segmentCalls = calls.filter((url) => url.includes('/segments/'));
         expect(segmentCalls.length).toBe(0);
+    });
+    it('normalizes prediction segment origin metadata from the backend', () => {
+        const segment = backendSegmentToSegment({
+            id: 700,
+            labelName: 'outside',
+            startTime: 12,
+            endTime: 18,
+            startFrameNumber: 300,
+            endFrameNumber: 450,
+            source_name: 'prediction',
+            segment_origin: 'prediction',
+            prediction_meta_id: 44
+        });
+        expect(segment.segmentOrigin).toBe('prediction');
+        expect(segment.sourceName).toBe('prediction');
+        expect(segment.predictionMetaId).toBe(44);
+    });
+    it('normalizes raw snake_case video segment payloads', () => {
+        const segment = backendSegmentToSegment({
+            id: 701,
+            video_id: 101,
+            label_id: 2,
+            label_name: 'blood',
+            start_time: 1.5,
+            end_time: 3,
+            start_frame_number: 75,
+            end_frame_number: 150,
+            export_segment: true,
+            source_name: 'prediction',
+            prediction_meta_id: 8
+        });
+        expect(segment).toMatchObject({
+            id: 701,
+            videoID: 101,
+            labelID: 2,
+            label: 'blood',
+            startTime: 1.5,
+            endTime: 3,
+            startFrameNumber: 75,
+            endFrameNumber: 150,
+            exportSegment: true,
+            sourceName: 'prediction',
+            segmentOrigin: 'prediction',
+            predictionMetaId: 8
+        });
+    });
+    it('passes source_kind when loading a non-default segment source', async () => {
+        const store = useVideoStore();
+        const axiosGet = axiosInstance.get;
+        axiosGet.mockResolvedValueOnce({
+            data: [
+                {
+                    id: 1,
+                    labelName: 'outside',
+                    startTime: 1,
+                    endTime: 2,
+                    startFrameNumber: 25,
+                    endFrameNumber: 50,
+                    source_name: 'prediction',
+                    segment_origin: 'prediction'
+                }
+            ]
+        });
+        store.setCurrentVideo(101);
+        await store.fetchAllSegments(101, true, { sourceKind: 'prediction' });
+        expect(axiosGet).toHaveBeenCalledWith('media/videos/101/segments/', expect.objectContaining({
+            params: { source_kind: 'prediction' }
+        }));
+        expect(store.currentVideo?.segments?.[0]?.segmentOrigin).toBe('prediction');
+    });
+    it('loads prediction model options for KI reruns', async () => {
+        const store = useVideoStore();
+        const axiosGet = axiosInstance.get;
+        axiosGet.mockResolvedValueOnce({
+            data: {
+                models: [
+                    {
+                        id: 7,
+                        name: 'segmentation-meta',
+                        version: '3',
+                        modelName: 'segmentation-model',
+                        aiModelId: 5,
+                        labelsetName: 'colon-labels',
+                        labelsetVersion: 1,
+                        labelsetId: 9,
+                        weightsAvailable: true,
+                        isActive: true
+                    }
+                ],
+                defaultHuggingfaceModelId: 'wg-lux/custom-segmentation',
+                defaultModelName: 'segmentation-model',
+                defaultLabelsetName: 'colon-labels',
+                huggingfaceModels: []
+            }
+        });
+        const models = await store.fetchPredictionModels();
+        expect(axiosGet).toHaveBeenCalledWith('media/videos/prediction-models/list/');
+        expect(models).toHaveLength(1);
+        expect(store.predictionModels[0]?.id).toBe(7);
+        expect(store.defaultHuggingfaceModelId).toBe('wg-lux/custom-segmentation');
+        expect(store.defaultPredictionLabelsetName).toBe('colon-labels');
+    });
+    it('reruns prediction segments and reloads prediction source rows', async () => {
+        const store = useVideoStore();
+        const axiosGet = axiosInstance.get;
+        const axiosPost = axiosInstance.post;
+        const payload = {
+            hfModelId: 'wg-lux/custom-segmentation',
+            labelsetName: 'colon-labels',
+            replacePredictionSegments: true
+        };
+        axiosPost.mockResolvedValueOnce({
+            data: {
+                success: true,
+                videoId: 101,
+                modelMeta: {
+                    id: 7,
+                    name: 'segmentation-meta',
+                    version: '3',
+                    modelName: 'segmentation-model',
+                    aiModelId: 5,
+                    labelsetName: 'colon-labels',
+                    labelsetVersion: 1,
+                    labelsetId: 9,
+                    weightsAvailable: true,
+                    isActive: true
+                },
+                deletedPredictionSegments: 2,
+                predictionSegmentsCount: 1
+            }
+        });
+        axiosGet.mockResolvedValueOnce({
+            data: [
+                {
+                    id: 501,
+                    labelName: 'outside',
+                    startTime: 3,
+                    endTime: 8,
+                    startFrameNumber: 75,
+                    endFrameNumber: 200,
+                    source_name: 'prediction',
+                    segment_origin: 'prediction',
+                    prediction_meta_id: 7
+                }
+            ]
+        });
+        store.setCurrentVideo(101);
+        const response = await store.rerunPredictionSegments(101, payload);
+        expect(axiosPost).toHaveBeenCalledWith('media/videos/101/segments/rerun-predictions/', payload);
+        expect(axiosGet).toHaveBeenCalledWith('media/videos/101/segments/', expect.objectContaining({
+            params: { source_kind: 'prediction' }
+        }));
+        expect(response.predictionSegmentsCount).toBe(1);
+        expect(store.currentVideo?.segments?.[0]?.predictionMetaId).toBe(7);
+        expect(store.currentVideo?.segments?.[0]?.segmentOrigin).toBe('prediction');
     });
 });

@@ -4,30 +4,85 @@ let
       set -euo pipefail
       REPO_ROOT="''${WORKING_DIR:-$(pwd)}"
       cd "$REPO_ROOT"
+      static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/staticfiles}"
+      if [ "''${static_root%/}" = "$REPO_ROOT/static" ]; then
+        echo "Misconfigured DJANGO_STATIC_ROOT: $static_root" >&2
+        echo "DJANGO_STATIC_ROOT must not point to $REPO_ROOT/static (Vite source assets)." >&2
+        exit 1
+      fi
+      if [ -L "$static_root" ]; then
+        static_root="$(readlink -f "$static_root")"
+      fi
+      static_root_parent="$(dirname "$static_root")"
+      mkdir -p "$static_root_parent"
 
       BUILD_PATH="$(${pkgs.nix}/bin/nix build ./frontend#frontend --no-link --print-out-paths)"
+      staged_static_root="$(mktemp -d "$static_root_parent/.lx-annotate-static.XXXXXX")"
+      trap 'rm -rf "$staged_static_root"' EXIT
+      cp -r "$BUILD_PATH/dist/." "$staged_static_root/"
+      chmod -R u+w "$staged_static_root"
 
-      mkdir -p staticfiles
-      cp -r "$BUILD_PATH/dist/." staticfiles/
+      mkdir -p "$static_root"
+      chmod -R u+w "$static_root" 2>/dev/null || true
+      find "$static_root" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+      cp -r "$staged_static_root/." "$static_root/"
+      chmod -R u+w "$static_root" 2>/dev/null || true
+
+      trap - EXIT
+      '';
+  frontendHashScript = ''
+      set -euo pipefail
+      REPO_ROOT="''${WORKING_DIR:-$(pwd)}"
+      cd "$REPO_ROOT"
+
+      (
+        if [ -d "frontend/src" ]; then
+          find frontend/src -type f -print0
+        fi
+        if [ -d "frontend/public" ]; then
+          find frontend/public -type f -print0
+        fi
+        for f in \
+          frontend/package.json \
+          frontend/package-lock.json \
+          frontend/vite.config.ts \
+          frontend/vite.config.js \
+          frontend/vitest.config.ts \
+          frontend/tsconfig.app.json \
+          frontend/default.nix \
+          frontend/flake.nix \
+          frontend/devenv.nix \
+          frontend/devenv.yaml
+        do
+          if [ -f "$f" ]; then
+            printf '%s\0' "$f"
+          fi
+        done
+      ) | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
       '';
   customTasks = {
-    "vue:build".after = 
-      ["uv:sync"];
-    
-    "vue:build".exec = 
+    "vue:build".after =
+      [ "uv:sync" ];
+
+    "vue:build".exec =
       vueBuildExec;
-      
-    "vue:build".before = 
-      ["devenv:enterShell"];
+
     "vue:build".execIfModified = [
-      "frontend"
+      "frontend/src"
+      "frontend/public"
       "frontend/package.json"
       "frontend/package-lock.json"
+      "frontend/vite.config.ts"
+      "frontend/vite.config.js"
+      "frontend/vitest.config.ts"
+      "frontend/tsconfig.app.json"
       "frontend/default.nix"
       "frontend/flake.nix"
       "frontend/devenv.nix"
       "frontend/devenv.yaml"
     ];
+
+
   };
 
 in customTasks

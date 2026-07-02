@@ -60,8 +60,20 @@ const backendMessagesByFinding = computed(() => {
     ]);
     return Object.fromEntries(entries);
 });
+const findingAnchors = computed(() => {
+    const entries = sectionBlocks.value
+        .flatMap((section) => section.findings)
+        .map((finding) => [
+        normalizeKey(finding.finding),
+        findingAnchorId(finding.finding)
+    ]);
+    return Object.fromEntries(entries);
+});
 function normalizeKey(value) {
     return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+}
+function findingAnchorId(findingName) {
+    return `finding-${normalizeKey(findingName)}`;
 }
 function clearMessages() {
     errorMessage.value = null;
@@ -315,7 +327,8 @@ function onDescriptorInput(findingLocalId, classificationName, descriptorKey, ne
 async function runRuntimeValidation(forceFeedback = false) {
     const draft = currentRuntimeDraft.value;
     const templateName = selectedTemplateName.value;
-    if (!draft || !templateName) {
+    const patientExaminationId = flow.patientExaminationId;
+    if (!draft || !templateName || !patientExaminationId) {
         templateValidationError.value = null;
         flow.setLastTemplateValidation(null);
         return;
@@ -325,15 +338,25 @@ async function runRuntimeValidation(forceFeedback = false) {
     }
     templateValidationLoading.value = true;
     templateValidationError.value = null;
+    let validationFailed = false;
     try {
         const result = await validateReportTemplateRuntime(flow.selectedKbModule, templateName, draft.payload);
         flow.setLastTemplateValidation(result);
     }
     catch (e) {
+        validationFailed = true;
         flow.setLastTemplateValidation(null);
         templateValidationError.value = formatApiError(e, 'Template-Validierung konnte nicht ausgefuehrt werden.');
     }
     finally {
+        try {
+            await flow.persistCurrentRuntimeDraft();
+        }
+        catch (e) {
+            if (!validationFailed) {
+                templateValidationError.value = formatApiError(e, 'Der Reporting-Entwurf konnte nach der Validierung nicht gespeichert werden.');
+            }
+        }
         templateValidationLoading.value = false;
     }
 }
@@ -406,7 +429,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 const __VLS_0 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
     title: "Template & Dokumentationsregeln",
     subtitle: "Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren",
-    icon: "description",
+    icon: "ni ni-single-copy-04",
     iconBgClass: "bg-gradient-primary",
     isComplete: (!!__VLS_ctx.selectedTemplateName && !!__VLS_ctx.currentRuntimeDraft),
     isActive: (true),
@@ -416,7 +439,7 @@ const __VLS_0 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
 const __VLS_1 = __VLS_0({
     title: "Template & Dokumentationsregeln",
     subtitle: "Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren",
-    icon: "description",
+    icon: "ni ni-single-copy-04",
     iconBgClass: "bg-gradient-primary",
     isComplete: (!!__VLS_ctx.selectedTemplateName && !!__VLS_ctx.currentRuntimeDraft),
     isActive: (true),
@@ -611,6 +634,7 @@ else {
         for (const [templateFinding] of __VLS_getVForSourceType((section.findings))) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 key: (`${section.name}:${templateFinding.finding}`),
+                id: (__VLS_ctx.findingAnchorId(templateFinding.finding)),
                 ...{ class: "border rounded p-3" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -786,11 +810,13 @@ else {
         loading: (__VLS_ctx.templateValidationLoading),
         errorMessage: (__VLS_ctx.templateValidationError),
         result: (__VLS_ctx.flow.lastTemplateValidation),
+        findingAnchors: (__VLS_ctx.findingAnchors),
     }));
     const __VLS_7 = __VLS_6({
         loading: (__VLS_ctx.templateValidationLoading),
         errorMessage: (__VLS_ctx.templateValidationError),
         result: (__VLS_ctx.flow.lastTemplateValidation),
+        findingAnchors: (__VLS_ctx.findingAnchors),
     }, ...__VLS_functionalComponentArgsRest(__VLS_6));
 }
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -954,6 +980,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedExaminationName: selectedExaminationName,
             selectedExaminationDisplayName: selectedExaminationDisplayName,
             selectedTemplateValidatorCounts: selectedTemplateValidatorCounts,
+            findingAnchors: findingAnchors,
+            findingAnchorId: findingAnchorId,
             formatFindingsEvent: formatFindingsEvent,
             getFindingLabel: getFindingLabel,
             visibleClassificationsForFinding: visibleClassificationsForFinding,

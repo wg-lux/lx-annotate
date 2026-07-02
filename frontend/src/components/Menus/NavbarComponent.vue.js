@@ -137,7 +137,7 @@ const __VLS_2 = __VLS_1({
 }, ...__VLS_functionalComponentArgsRest(__VLS_1));
 __VLS_3.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-tasks me-1" },
+    ...{ class: "ni ni-single-copy-04 me-1" },
 });
 if (__VLS_ctx.totalPendingAnnotations > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -166,7 +166,7 @@ if (__VLS_ctx.isAuthenticated) {
         href: "javascript:;",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fa fa-user me-sm-1" },
+        ...{ class: "ni ni-circle-08 me-sm-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "d-sm-inline d-none" },
@@ -182,7 +182,7 @@ else {
         href: "javascript:;",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fa fa-user me-sm-1" },
+        ...{ class: "ni ni-circle-08 me-sm-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "d-sm-inline d-none" },
@@ -196,7 +196,7 @@ if (__VLS_ctx.isAuthenticated) {
         ...{ class: "nav-link text-body font-weight-bold px-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fa fa-circle text-success me-sm-1" },
+        ...{ class: "ni ni-check-bold text-success me-sm-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "d-sm-inline d-none" },
@@ -258,8 +258,8 @@ if (__VLS_ctx.isAuthenticated) {
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-tasks']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-danger']} */ ;
@@ -275,8 +275,8 @@ if (__VLS_ctx.isAuthenticated) {
 /** @type {__VLS_StyleScopedClasses['text-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['font-weight-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-circle-08']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-sm-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-sm-inline']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-none']} */ ;
@@ -287,8 +287,8 @@ if (__VLS_ctx.isAuthenticated) {
 /** @type {__VLS_StyleScopedClasses['text-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['font-weight-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-circle-08']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-sm-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-sm-inline']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-none']} */ ;
@@ -300,8 +300,8 @@ if (__VLS_ctx.isAuthenticated) {
 /** @type {__VLS_StyleScopedClasses['text-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['font-weight-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-sm-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-sm-inline']} */ ;

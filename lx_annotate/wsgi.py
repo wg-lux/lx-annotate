@@ -7,12 +7,9 @@ For more information on this file, see
 https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
 """
 
-import os
-
 from django.core.wsgi import get_wsgi_application
 
 print("WSGI config started")
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_dev")
 
 application = get_wsgi_application()

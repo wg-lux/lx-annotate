@@ -110,7 +110,7 @@ export interface StatsFilters {
     end_date?: string;
     user_id?: number;
 }
-export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"annotationStats", {
+export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"annotationStatsDashboard", {
     stats: AnnotationStatsData | null;
     userStats: UserStats[];
     realtimeStats: RealtimeStats | null;

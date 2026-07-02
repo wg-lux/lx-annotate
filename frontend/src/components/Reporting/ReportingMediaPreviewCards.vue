@@ -24,9 +24,13 @@
             <div v-if="flow.mediaPreload.latestReport" class="small">
               <div>ID: {{ flow.mediaPreload.latestReport.id }}</div>
               <div>document_type: {{ flow.mediaPreload.latestReport.documentType || 'n/a' }}</div>
+              <div v-if="reportTextPreview" class="mt-3">
+                <div class="text-muted fw-semibold mb-1">Text extraction</div>
+                <pre class="report-text-preview mb-0">{{ reportTextPreview }}</pre>
+              </div>
               <div class="d-flex flex-wrap gap-2 mt-2">
                 <button
-                  v-for="option in flow.mediaPreload.latestReport.streamOptions"
+                  v-for="option in latestReportStreamOptions"
                   :key="`report-${option.type}`"
                   class="btn btn-outline-secondary btn-sm"
                   @click="open_url(option.url)"
@@ -45,7 +49,7 @@
               <div>ID: {{ flow.mediaPreload.latestVideo.id }}</div>
               <div class="d-flex flex-wrap gap-2 mt-2">
                 <button
-                  v-for="option in flow.mediaPreload.latestVideo.streamOptions"
+                  v-for="option in latestVideoStreamOptions"
                   :key="`video-${option.type}`"
                   class="btn btn-outline-secondary btn-sm"
                   @click="open_url(option.url)"
@@ -63,11 +67,76 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { TimelineStreamOption } from '@/api/reportingTimelineApi'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls'
 
 const flow = useReportingFlowStore()
+
+function buildCentralizedStreamOptions(
+  options: TimelineStreamOption[] | undefined,
+  mediaType: 'pdf' | 'video',
+  mediaId: number | null | undefined
+): TimelineStreamOption[] {
+  if (!mediaId) {
+    return options ?? []
+  }
+
+  return (options ?? []).map((option) => {
+    if (option.type !== 'raw' && option.type !== 'processed') {
+      return option
+    }
+
+    return {
+      ...option,
+      url:
+        mediaType === 'pdf'
+          ? buildPdfStreamUrl(mediaId, option.type)
+          : buildVideoStreamUrl(mediaId, option.type),
+    }
+  })
+}
+
+const latestReportStreamOptions = computed(() =>
+  buildCentralizedStreamOptions(
+    flow.mediaPreload?.latestReport?.streamOptions,
+    'pdf',
+    flow.mediaPreload?.latestReport?.rawPdfId ?? flow.mediaPreload?.latestReport?.id
+  )
+)
+
+const latestVideoStreamOptions = computed(() =>
+  buildCentralizedStreamOptions(
+    flow.mediaPreload?.latestVideo?.streamOptions,
+    'video',
+    flow.mediaPreload?.latestVideo?.id
+  )
+)
+
+const reportTextPreview = computed(() => {
+  const text = flow.mediaPreload?.latestReport?.anonymizedText?.trim()
+  if (!text) {
+    return ''
+  }
+  return text.length > 1200 ? `${text.slice(0, 1200)}...` : text
+})
 
 function open_url(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 </script>
+
+<style scoped>
+.report-text-preview {
+  max-height: 14rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f7f5ef;
+  border: 1px solid #ded7c7;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  color: #2f2a22;
+}
+</style>

@@ -13,23 +13,33 @@ const timeline = ref(null);
 const waveformCanvas = ref(null);
 const timeEditorStartInput = ref(null);
 const cleanupFunctions = ref([]);
+const timelineWidth = ref(0);
 const zoomLevel = ref(1);
 const isSelecting = ref(false);
+const isScrubbing = ref(false);
 const selectionStart = ref(0);
 const selectionEnd = ref(0);
 const markerAreaHeight = 36;
 const rowHeight = 56;
 const rowContentHeight = 48;
 const timelinePadding = 12;
-const visibleRowCount = 1;
+const visibleRowCount = 3;
+const minTimeMarkerGapPx = 88;
 const clipboardSegment = ref(null);
 const deletedSegments = ref([]);
+const suppressNextSegmentClick = ref(false);
+let timelineResizeObserver = null;
+let scrollSnapTimer = null;
 // Context menu
 const contextMenu = ref({
     visible: false,
     x: 0,
     y: 0,
-    segment: null
+    segment: null,
+    labelName: '',
+    startInput: '',
+    endInput: '',
+    error: ''
 });
 // Tooltip
 const tooltip = ref({
@@ -62,13 +72,37 @@ const playheadPosition = computed(() => {
         return 0;
     return Math.max(0, Math.min(100, percentage));
 });
+const niceMarkerIntervals = [
+    0.5,
+    1,
+    2,
+    5,
+    10,
+    15,
+    30,
+    60,
+    120,
+    300,
+    600,
+    900,
+    1200,
+    1800,
+    3600,
+    7200,
+    14400
+];
+const getNiceMarkerInterval = (minimumInterval) => {
+    return niceMarkerIntervals.find(interval => interval >= minimumInterval) ?? niceMarkerIntervals[niceMarkerIntervals.length - 1];
+};
 const timeMarkers = computed(() => {
     const markers = [];
     const totalTime = duration.value;
     if (!totalTime)
         return markers;
-    const baseInterval = 10;
-    const interval = baseInterval / zoomLevel.value;
+    const availableWidth = Math.max(timelineWidth.value || 0, 320);
+    const maxMarkerCount = Math.max(2, Math.floor(availableWidth / minTimeMarkerGapPx) + 1);
+    const minimumInterval = totalTime / Math.max(1, maxMarkerCount - 1);
+    const interval = getNiceMarkerInterval(minimumInterval);
     const markerCount = Math.floor(totalTime / interval);
     for (let i = 0; i <= markerCount; i++) {
         const time = i * interval;
@@ -78,6 +112,16 @@ const timeMarkers = computed(() => {
                 position: (time / totalTime) * 100
             });
         }
+    }
+    const lastMarker = markers[markers.length - 1];
+    const lastMarkerGapPx = lastMarker
+        ? ((totalTime - lastMarker.time) / totalTime) * availableWidth
+        : availableWidth;
+    if (!lastMarker || (totalTime > lastMarker.time && lastMarkerGapPx >= minTimeMarkerGapPx * 0.75)) {
+        markers.push({
+            time: totalTime,
+            position: 100
+        });
     }
     return markers;
 });
@@ -114,12 +158,90 @@ const labelOrder = computed(() => {
     displayedSegments.value.forEach(s => labels.add(s.label));
     return Array.from(labels).sort(); // Sorts A-Z. Remove .sort() if you want random order.
 });
+const labelsForEditor = computed(() => {
+    if (props.labels?.length)
+        return props.labels;
+    return labelOrder.value.map((name) => ({
+        id: 0,
+        name
+    }));
+});
 // 3. Define selectedLabel (State)
 const selectedLabel = ref(null);
 // 4. Define selectSegment (Action)
 const selectSegment = (segment) => {
     selectedLabel.value = segment.label;
     emit('segment-select', Number(segment.id));
+    snapSegmentRowToTop(Number(segment.id));
+};
+const handleSegmentClick = (segment, event) => {
+    const target = event.target;
+    if (suppressNextSegmentClick.value) {
+        suppressNextSegmentClick.value = false;
+        return;
+    }
+    if (target?.closest('.resize-handle, .segment-delete-btn, .segment-status-indicator')) {
+        selectSegment(segment);
+        return;
+    }
+    showSegmentMenu(segment, event);
+};
+const getSegmentStatusText = (segment) => {
+    if (segment.lastSyncError)
+        return `Fehler: ${segment.lastSyncError}`;
+    if (segment.syncState === 'error')
+        return 'Fehler beim Speichern';
+    if (segment.syncState === 'pending_create')
+        return 'Wird erstellt';
+    if (segment.syncState === 'pending_update')
+        return 'Wird gespeichert';
+    if (segment.syncState === 'pending_delete')
+        return 'Wird gelöscht';
+    if (segment.isDirty || segment.syncState === 'dirty')
+        return 'Ungespeicherte Änderung';
+    return null;
+};
+const getSegmentTooltipText = (segment) => {
+    const status = getSegmentStatusText(segment);
+    const isTiny = getSegmentWidth(segment.start, segment.end) < 5;
+    const lines = [
+        getTranslationForLabel(segment.label),
+        `${formatTime(segment.startTime)} - ${formatTime(segment.endTime)} (${formatDuration(segment.startTime, segment.endTime)})`
+    ];
+    if (status)
+        lines.push(status);
+    if (isTiny)
+        lines.push('Kurzes Segment: zum präzisen Bearbeiten heranzoomen.');
+    lines.push('Klicken zum Bearbeiten');
+    return lines.join('\n');
+};
+const getTooltipPosition = (event) => {
+    const panelWidth = 280;
+    const panelHeight = 120;
+    const viewportPadding = 12;
+    return {
+        x: Math.max(viewportPadding, Math.min(event.clientX + 12, window.innerWidth - panelWidth - viewportPadding)),
+        y: Math.max(viewportPadding, Math.min(event.clientY + 12, window.innerHeight - panelHeight - viewportPadding))
+    };
+};
+const showSegmentTooltip = (segment, event) => {
+    const position = getTooltipPosition(event);
+    tooltip.value = {
+        visible: true,
+        x: position.x,
+        y: position.y,
+        text: getSegmentTooltipText(segment)
+    };
+};
+const moveSegmentTooltip = (event) => {
+    if (!tooltip.value.visible)
+        return;
+    const position = getTooltipPosition(event);
+    tooltip.value.x = position.x;
+    tooltip.value.y = position.y;
+};
+const hideSegmentTooltip = () => {
+    tooltip.value.visible = false;
 };
 // 5. Define segmentRows THIRD (Computed)
 // This depends on the two computed properties above.
@@ -168,11 +290,63 @@ const segmentRows = computed(() => {
     });
     return rows;
 });
+const getSegmentRowNumber = (segmentId) => {
+    const row = segmentRows.value.find(item => item.segments.some(segment => Number(segment.id) === Number(segmentId)));
+    return row?.rowNumber ?? null;
+};
+const getTimelineMaxScrollTop = () => {
+    return Math.max(0, timelineContentHeight.value - timelineHeight.value);
+};
+const scrollTimelineTo = (top, behavior = 'smooth') => {
+    const element = timeline.value;
+    if (!element)
+        return;
+    if (typeof element.scrollTo === 'function') {
+        element.scrollTo({ top, behavior });
+        return;
+    }
+    element.scrollTop = top;
+};
+const scrollRowToTop = (rowNumber, behavior = 'smooth') => {
+    const targetTop = Math.max(0, Math.min(rowNumber * rowHeight, getTimelineMaxScrollTop()));
+    scrollTimelineTo(targetTop, behavior);
+};
+const snapSegmentRowToTop = (segmentId) => {
+    nextTick(() => {
+        const rowNumber = getSegmentRowNumber(segmentId);
+        if (rowNumber === null)
+            return;
+        scrollRowToTop(rowNumber);
+    });
+};
+const snapTimelineToNearestRow = () => {
+    if (!timeline.value)
+        return;
+    const targetTop = Math.max(0, Math.min(Math.round(timeline.value.scrollTop / rowHeight) * rowHeight, getTimelineMaxScrollTop()));
+    if (Math.abs(timeline.value.scrollTop - targetTop) < 2)
+        return;
+    scrollTimelineTo(targetTop);
+};
+const handleTimelineScroll = () => {
+    if (scrollSnapTimer !== null) {
+        window.clearTimeout(scrollSnapTimer);
+    }
+    scrollSnapTimer = window.setTimeout(() => {
+        scrollSnapTimer = null;
+        snapTimelineToNearestRow();
+    }, 120);
+};
 // Timeline height
 const totalRowsHeight = computed(() => segmentRows.value.length * rowHeight);
 const visibleRows = computed(() => Math.max(1, Math.min(segmentRows.value.length, visibleRowCount)));
 const timelineHeight = computed(() => {
     return markerAreaHeight + (visibleRows.value * rowHeight) + timelinePadding;
+});
+const timelineContentHeight = computed(() => {
+    return Math.max(timelineHeight.value, markerAreaHeight + totalRowsHeight.value + timelinePadding);
+});
+const markerLineHeight = computed(() => {
+    return Math.max(0, timelineContentHeight.value - markerAreaHeight);
 });
 // Helpers
 const formatTime = (seconds) => {
@@ -240,6 +414,9 @@ function useDragResize(el, opt) {
         if (!mode)
             return;
         const dx = ev.clientX - pxStart;
+        if (Math.abs(dx) > 3) {
+            suppressNextSegmentClick.value = true;
+        }
         if (mode === 'drag') {
             let left = Math.min(Math.max(0, startLeft + dx), opt.trackPx() - startWidth);
             el.style.left = left + 'px';
@@ -277,6 +454,9 @@ function useDragResize(el, opt) {
         mode = null;
         el.releasePointerCapture(ev.pointerId);
         opt.onDone();
+        window.setTimeout(() => {
+            suppressNextSegmentClick.value = false;
+        }, 0);
     }
     el.addEventListener('pointerdown', down);
     el.addEventListener('pointermove', move);
@@ -538,18 +718,37 @@ const playSegment = (segment) => {
     emit('seek', segment.startTime || 0);
     emit('play-pause');
 };
+const getFloatingPanelPosition = (event, panelWidth = 280, panelHeight = 340) => {
+    const viewportPadding = 12;
+    const maxX = Math.max(viewportPadding, window.innerWidth - panelWidth - viewportPadding);
+    const maxY = Math.max(viewportPadding, window.innerHeight - panelHeight - viewportPadding);
+    return {
+        x: Math.max(viewportPadding, Math.min(event.clientX, maxX)),
+        y: Math.max(viewportPadding, Math.min(event.clientY, maxY))
+    };
+};
 // Context menu
 const showSegmentMenu = (segment, event) => {
     hideTimeEditor();
+    hideSegmentTooltip();
+    const range = getSegmentRange(segment);
+    const position = getFloatingPanelPosition(event);
+    selectSegment(segment);
     contextMenu.value = {
         visible: true,
-        x: event.clientX,
-        y: event.clientY,
-        segment
+        x: position.x,
+        y: position.y,
+        segment,
+        labelName: segment.label,
+        startInput: formatEditorTime(range.start),
+        endInput: formatEditorTime(range.end),
+        error: ''
     };
 };
 const hideContextMenu = () => {
     contextMenu.value.visible = false;
+    contextMenu.value.segment = null;
+    contextMenu.value.error = '';
 };
 const formatEditorTime = (timeInSeconds) => {
     if (!Number.isFinite(timeInSeconds) || timeInSeconds < 0)
@@ -586,6 +785,66 @@ const parseEditorTime = (value) => {
     }
     return numericParts[0] * 3600 + numericParts[1] * 60 + numericParts[2];
 };
+const validateEditorRange = (startInput, endInput) => {
+    const parsedStart = parseEditorTime(startInput);
+    const parsedEnd = parseEditorTime(endInput);
+    if (parsedStart === null || parsedEnd === null) {
+        return { start: 0, end: 0, error: 'Ungültiges Zeitformat.' };
+    }
+    if (parsedStart < 0 || parsedEnd < 0) {
+        return { start: parsedStart, end: parsedEnd, error: 'Zeiten dürfen nicht negativ sein.' };
+    }
+    if (parsedEnd <= parsedStart) {
+        return { start: parsedStart, end: parsedEnd, error: 'Die Endzeit muss nach der Startzeit liegen.' };
+    }
+    if (duration.value > 0 && parsedEnd > duration.value) {
+        return {
+            start: parsedStart,
+            end: parsedEnd,
+            error: `Die Endzeit darf maximal ${formatTime(duration.value)} sein.`
+        };
+    }
+    return { start: parsedStart, end: parsedEnd, error: null };
+};
+const applyContextMenuChanges = () => {
+    const menuState = contextMenu.value;
+    if (!menuState.visible || !menuState.segment)
+        return;
+    const labelName = menuState.labelName.trim();
+    if (!labelName) {
+        contextMenu.value.error = 'Bitte ein Label auswählen.';
+        return;
+    }
+    const validated = validateEditorRange(menuState.startInput, menuState.endInput);
+    if (validated.error) {
+        contextMenu.value.error = validated.error;
+        return;
+    }
+    const numericId = getNumericSegmentId(menuState.segment.id);
+    if (numericId === null)
+        return;
+    const selectedLabel = labelsForEditor.value.find(label => label.name === labelName);
+    const labelId = selectedLabel && selectedLabel.id > 0 ? selectedLabel.id : null;
+    const originalLabel = menuState.segment.label;
+    const originalRange = getSegmentRange(menuState.segment);
+    const localSegment = displayedSegments.value.find(s => s.id === menuState.segment?.id);
+    if (localSegment) {
+        localSegment.label = labelName;
+        localSegment.color = getColorForLabel(labelName);
+        localSegment.start = validated.start;
+        localSegment.end = validated.end;
+        localSegment.startTime = validated.start;
+        localSegment.endTime = validated.end;
+    }
+    if (originalLabel !== labelName) {
+        emit('segment-label-change', numericId, labelName, labelId);
+    }
+    if (Math.abs(originalRange.start - validated.start) > 0.0005 ||
+        Math.abs(originalRange.end - validated.end) > 0.0005) {
+        emit('segment-resize', numericId, validated.start, validated.end, 'manual', true);
+    }
+    hideContextMenu();
+};
 const hideTimeEditor = () => {
     timeEditor.value.visible = false;
     timeEditor.value.segment = null;
@@ -617,45 +876,44 @@ const applyTimeEditorChanges = () => {
     const editingState = timeEditor.value;
     if (!editingState.visible || !editingState.segment)
         return;
-    const parsedStart = parseEditorTime(editingState.startInput);
-    const parsedEnd = parseEditorTime(editingState.endInput);
-    if (parsedStart === null || parsedEnd === null) {
-        timeEditor.value.error = 'Ungültiges Zeitformat.';
-        return;
-    }
-    if (parsedStart < 0 || parsedEnd < 0) {
-        timeEditor.value.error = 'Zeiten dürfen nicht negativ sein.';
-        return;
-    }
-    if (parsedEnd <= parsedStart) {
-        timeEditor.value.error = 'Die Endzeit muss nach der Startzeit liegen.';
-        return;
-    }
-    if (duration.value > 0 && parsedEnd > duration.value) {
-        timeEditor.value.error = `Die Endzeit darf maximal ${formatTime(duration.value)} sein.`;
+    const validated = validateEditorRange(editingState.startInput, editingState.endInput);
+    if (validated.error) {
+        timeEditor.value.error = validated.error;
         return;
     }
     const localSegment = displayedSegments.value.find(s => s.id === editingState.segment?.id);
     if (localSegment) {
-        localSegment.start = parsedStart;
-        localSegment.end = parsedEnd;
-        localSegment.startTime = parsedStart;
-        localSegment.endTime = parsedEnd;
+        localSegment.start = validated.start;
+        localSegment.end = validated.end;
+        localSegment.startTime = validated.start;
+        localSegment.endTime = validated.end;
     }
     const numericId = getNumericSegmentId(editingState.segment.id);
     if (numericId !== null) {
-        emit('segment-resize', numericId, parsedStart, parsedEnd, 'manual', true);
+        emit('segment-resize', numericId, validated.start, validated.end, 'manual', true);
     }
     hideTimeEditor();
 };
 // Timeline interaction
+const getTimelineTimeFromEvent = (event) => {
+    if (!timeline.value || duration.value === 0)
+        return null;
+    const rect = timeline.value.getBoundingClientRect();
+    const clickX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+    return (clickX / rect.width) * duration.value;
+};
 const onTimelineMouseDown = (event) => {
     if (!timeline.value)
         return;
-    const rect = timeline.value.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickTime = (clickX / rect.width) * duration.value;
+    const target = event.target;
+    if (target?.closest('.segment, .context-menu, .time-editor'))
+        return;
+    const clickTime = getTimelineTimeFromEvent(event);
+    if (clickTime === null)
+        return;
     if (props.selectionMode) {
+        const rect = timeline.value.getBoundingClientRect();
+        const clickX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
         isSelecting.value = true;
         selectionStart.value = (clickX / rect.width) * 100;
         selectionEnd.value = selectionStart.value;
@@ -664,7 +922,29 @@ const onTimelineMouseDown = (event) => {
     }
     else {
         emit('seek', clickTime);
+        isScrubbing.value = true;
+        document.addEventListener('mousemove', onTimelineScrubMove);
+        document.addEventListener('mouseup', onTimelineScrubEnd);
     }
+};
+const onTimelineScrubMove = (event) => {
+    if (!isScrubbing.value)
+        return;
+    const scrubTime = getTimelineTimeFromEvent(event);
+    if (scrubTime === null)
+        return;
+    emit('seek', scrubTime);
+};
+const onTimelineScrubEnd = (event) => {
+    if (isScrubbing.value) {
+        const scrubTime = getTimelineTimeFromEvent(event);
+        if (scrubTime !== null) {
+            emit('seek', scrubTime);
+        }
+    }
+    isScrubbing.value = false;
+    document.removeEventListener('mousemove', onTimelineScrubMove);
+    document.removeEventListener('mouseup', onTimelineScrubEnd);
 };
 const onSelectionMouseMove = (event) => {
     if (!isSelecting.value || !timeline.value)
@@ -715,6 +995,19 @@ const initializeWaveform = () => {
     }
     ctx.stroke();
 };
+const updateTimelineWidth = () => {
+    timelineWidth.value = timeline.value?.clientWidth ?? 0;
+};
+const initializeTimelineMetrics = () => {
+    updateTimelineWidth();
+    if (!timeline.value)
+        return;
+    timelineResizeObserver?.disconnect();
+    timelineResizeObserver = new ResizeObserver(() => {
+        updateTimelineWidth();
+    });
+    timelineResizeObserver.observe(timeline.value);
+};
 // Click outside
 const handleClickOutside = (event) => {
     if (contextMenu.value.visible && !event.target?.closest('.context-menu')) {
@@ -733,6 +1026,16 @@ watch(() => props.video, () => {
     }
 });
 watch(segmentRows, () => nextTick(initializeDragResize), { immediate: true });
+watch(() => props.activeSegmentId, (segmentId) => {
+    if (segmentId == null)
+        return;
+    snapSegmentRowToTop(Number(segmentId));
+});
+watch(segmentRows, () => {
+    if (props.activeSegmentId == null)
+        return;
+    snapSegmentRowToTop(Number(props.activeSegmentId));
+});
 watch(segmentRows, (rows) => {
     rows.forEach(row => {
         row.segments.forEach(s => {
@@ -746,6 +1049,7 @@ onMounted(() => {
     document.addEventListener('click', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
     nextTick(() => {
+        initializeTimelineMetrics();
         initializeDragResize();
     });
     if (props.showWaveform) {
@@ -753,11 +1057,18 @@ onMounted(() => {
             initializeWaveform();
         });
     }
-    toast.success({ text: '[Timeline] Component mounted and ready' });
 });
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
     document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('mousemove', onTimelineScrubMove);
+    document.removeEventListener('mouseup', onTimelineScrubEnd);
+    timelineResizeObserver?.disconnect();
+    timelineResizeObserver = null;
+    if (scrollSnapTimer !== null) {
+        window.clearTimeout(scrollSnapTimer);
+        scrollSnapTimer = null;
+    }
     cleanupFunctions.value.forEach(cleanup => cleanup());
     cleanupFunctions.value = [];
     document.removeEventListener('mousemove', onSelectionMouseMove);
@@ -782,14 +1093,28 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline']} */ ;
+/** @type {__VLS_StyleScopedClasses['marker-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['marker-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-content']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-status-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-status-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-editor-input']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-editor-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['danger']} */ ;
@@ -819,7 +1144,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (!__VLS_ctx.video),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: (__VLS_ctx.isPlaying ? 'fas fa-pause' : 'fas fa-play') },
+    ...{ class: (__VLS_ctx.isPlaying ? 'ni ni-button-play' : 'ni ni-button-play') },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (...[$event]) => {
@@ -830,7 +1155,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     title: "Ein Frame zurück",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-step-backward" },
+    ...{ class: "ni ni-bold-right icon-reverse" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (...[$event]) => {
@@ -841,7 +1166,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     title: "Ein Frame vor",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-step-forward" },
+    ...{ class: "ni ni-bold-right" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.deleteSelectedSegment) },
@@ -850,7 +1175,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     title: "Ausgewähltes Segment löschen (Entf)",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-trash" },
+    ...{ class: "ni ni-basket" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "time-display" },
@@ -865,7 +1190,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.zoomLevel <= 1),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-search-minus" },
+    ...{ class: "ni ni-tv-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "zoom-level" },
@@ -876,7 +1201,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.zoomLevel >= 5),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-search-plus" },
+    ...{ class: "ni ni-tv-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "timeline-wrapper" },
@@ -884,6 +1209,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ onMousedown: (__VLS_ctx.onTimelineMouseDown) },
+    ...{ onScroll: (__VLS_ctx.handleTimelineScroll) },
     ...{ class: "timeline" },
     ref: "timeline",
     ...{ style: ({ height: __VLS_ctx.timelineHeight + 'px' }) },
@@ -891,21 +1217,29 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 /** @type {typeof __VLS_ctx.timeline} */ ;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "time-markers" },
+    ...{ style: ({ height: __VLS_ctx.timelineContentHeight + 'px' }) },
 });
 for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.timeMarkers))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         key: (marker.time),
         ...{ class: "time-marker" },
+        ...{ class: ({
+                'time-marker-start': marker.position <= 0,
+                'time-marker-end': marker.position >= 100
+            }) },
         ...{ style: ({ left: marker.position + '%' }) },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "marker-line" },
-        ...{ style: ({ height: __VLS_ctx.timelineHeight + 'px' }) },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "marker-text" },
     });
     (__VLS_ctx.formatTime(marker.time));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "marker-line" },
+        ...{ style: ({
+                top: __VLS_ctx.markerAreaHeight + 'px',
+                height: __VLS_ctx.markerLineHeight + 'px'
+            }) },
+    });
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "segments-container" },
@@ -927,16 +1261,24 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
     for (const [segment] of __VLS_getVForSourceType((row.segments))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ onClick: (...[$event]) => {
-                    __VLS_ctx.selectSegment(segment);
+                    __VLS_ctx.handleSegmentClick(segment, $event);
                 } },
             ...{ onContextmenu: (...[$event]) => {
                     __VLS_ctx.openSegmentTimeEditor(segment, $event);
                 } },
+            ...{ onMouseenter: (...[$event]) => {
+                    __VLS_ctx.showSegmentTooltip(segment, $event);
+                } },
+            ...{ onMousemove: (...[$event]) => {
+                    __VLS_ctx.moveSegmentTooltip($event);
+                } },
+            ...{ onMouseleave: (__VLS_ctx.hideSegmentTooltip) },
             key: (segment.id),
             ...{ class: "segment" },
             ...{ class: ({
                     'active': segment.id === __VLS_ctx.activeSegmentId,
                     'draft': segment.isDraft,
+                    'sync-error': segment.syncState === 'error',
                     'too-small': __VLS_ctx.getSegmentWidth(segment.start, segment.end) < 5
                 }) },
             ...{ style: ({
@@ -952,7 +1294,7 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
             title: ('Segment-Start ändern'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-grip-lines-vertical" },
+            ...{ class: "ni ni-collection" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "segment-content" },
@@ -983,25 +1325,37 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
             title: ('Segment-Ende ändern'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-grip-lines-vertical" },
+            ...{ class: "ni ni-collection" },
         });
         if (segment.isDraft) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "draft-indicator" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-edit" },
+                ...{ class: "ni ni-single-copy-04" },
+            });
+        }
+        else if (segment.syncState === 'error') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "segment-status-indicator error" },
+                title: (segment.lastSyncError || 'Segment konnte nicht gespeichert werden'),
+            });
+        }
+        else if (segment.isDirty || segment.syncState === 'dirty') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "segment-status-indicator dirty" },
+                title: "Ungespeicherte Änderung",
             });
         }
     }
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "playhead" },
-    ...{ style: ({ left: __VLS_ctx.playheadPosition + '%', height: __VLS_ctx.timelineHeight + 'px' }) },
+    ...{ style: ({ left: __VLS_ctx.playheadPosition + '%', height: __VLS_ctx.timelineContentHeight + 'px' }) },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "playhead-line" },
-    ...{ style: ({ height: __VLS_ctx.timelineHeight + 'px' }) },
+    ...{ style: ({ height: __VLS_ctx.timelineContentHeight + 'px' }) },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "playhead-handle" },
@@ -1012,7 +1366,7 @@ if (__VLS_ctx.isSelecting) {
         ...{ style: ({
                 left: Math.min(__VLS_ctx.selectionStart, __VLS_ctx.selectionEnd) + '%',
                 width: Math.abs(__VLS_ctx.selectionEnd - __VLS_ctx.selectionStart) + '%',
-                height: __VLS_ctx.timelineHeight + 'px'
+                height: __VLS_ctx.timelineContentHeight + 'px'
             }) },
     });
 }
@@ -1029,30 +1383,96 @@ if (__VLS_ctx.showWaveform) {
 if (__VLS_ctx.contextMenu.visible) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ onClick: () => { } },
+        ...{ onMousedown: () => { } },
         ...{ class: "context-menu" },
         ...{ style: ({ left: __VLS_ctx.contextMenu.x + 'px', top: __VLS_ctx.contextMenu.y + 'px' }) },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onClick: (...[$event]) => {
-                if (!(__VLS_ctx.contextMenu.visible))
-                    return;
-                __VLS_ctx.editSegment(__VLS_ctx.contextMenu.segment);
-            } },
-        ...{ class: "context-menu-item" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-edit" },
+        ...{ class: "context-menu-header" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onClick: (...[$event]) => {
-                if (!(__VLS_ctx.contextMenu.visible))
-                    return;
-                __VLS_ctx.deleteSegment(__VLS_ctx.contextMenu.segment);
-            } },
-        ...{ class: "context-menu-item danger" },
+        ...{ class: "context-menu-title" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-trash" },
+    (__VLS_ctx.contextMenu.segment ? __VLS_ctx.getTranslationForLabel(__VLS_ctx.contextMenu.segment.label) : 'Segment');
+    if (__VLS_ctx.contextMenu.segment) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "context-menu-meta" },
+        });
+        (__VLS_ctx.formatTime(__VLS_ctx.contextMenu.segment.startTime));
+        (__VLS_ctx.formatTime(__VLS_ctx.contextMenu.segment.endTime));
+    }
+    if (__VLS_ctx.contextMenu.segment?.lastSyncError) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "context-menu-error" },
+        });
+        (__VLS_ctx.contextMenu.segment.lastSyncError);
+    }
+    if (__VLS_ctx.contextMenu.segment && __VLS_ctx.getSegmentWidth(__VLS_ctx.contextMenu.segment.start, __VLS_ctx.contextMenu.segment.end) < 5) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "context-menu-hint" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "context-menu-label" },
+        for: "segment-label-select",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        id: "segment-label-select",
+        value: (__VLS_ctx.contextMenu.labelName),
+        ...{ class: "context-menu-select" },
+    });
+    for (const [label] of __VLS_getVForSourceType((__VLS_ctx.labelsForEditor))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (label.name),
+            value: (label.name),
+        });
+        (__VLS_ctx.getTranslationForLabel(label.name));
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "context-menu-time-grid" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "context-menu-label" },
+        for: "segment-menu-start-input",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "context-menu-label" },
+        for: "segment-menu-end-input",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        ...{ onKeydown: (__VLS_ctx.applyContextMenuChanges) },
+        ...{ onKeydown: (__VLS_ctx.hideContextMenu) },
+        id: "segment-menu-start-input",
+        ...{ class: "context-menu-input" },
+        placeholder: "mm:ss",
+    });
+    (__VLS_ctx.contextMenu.startInput);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        ...{ onKeydown: (__VLS_ctx.applyContextMenuChanges) },
+        ...{ onKeydown: (__VLS_ctx.hideContextMenu) },
+        id: "segment-menu-end-input",
+        ...{ class: "context-menu-input" },
+        placeholder: "mm:ss",
+    });
+    (__VLS_ctx.contextMenu.endInput);
+    if (__VLS_ctx.contextMenu.error) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "context-menu-error" },
+        });
+        (__VLS_ctx.contextMenu.error);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "context-menu-actions" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.hideContextMenu) },
+        type: "button",
+        ...{ class: "context-menu-btn" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.applyContextMenuChanges) },
+        type: "button",
+        ...{ class: "context-menu-btn primary" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "context-menu-separator" },
@@ -1066,7 +1486,18 @@ if (__VLS_ctx.contextMenu.visible) {
         ...{ class: "context-menu-item" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-play" },
+        ...{ class: "ni ni-button-play" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.contextMenu.visible))
+                    return;
+                __VLS_ctx.deleteSegment(__VLS_ctx.contextMenu.segment);
+            } },
+        ...{ class: "context-menu-item danger" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "ni ni-basket" },
     });
 }
 if (__VLS_ctx.timeEditor.visible) {
@@ -1137,50 +1568,58 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['timeline-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-step-backward']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-reverse']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-step-forward']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-basket']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-display']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-search-minus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-tv-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-level']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-search-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-tv-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-markers']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-marker']} */ ;
-/** @type {__VLS_StyleScopedClasses['marker-line']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-marker-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-marker-end']} */ ;
 /** @type {__VLS_StyleScopedClasses['marker-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['marker-line']} */ ;
 /** @type {__VLS_StyleScopedClasses['segments-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['draft']} */ ;
+/** @type {__VLS_StyleScopedClasses['sync-error']} */ ;
 /** @type {__VLS_StyleScopedClasses['too-small']} */ ;
 /** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
 /** @type {__VLS_StyleScopedClasses['start-handle']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-grip-lines-vertical']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-duration']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-delete-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
 /** @type {__VLS_StyleScopedClasses['end-handle']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-grip-lines-vertical']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 /** @type {__VLS_StyleScopedClasses['draft-indicator']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-status-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['error']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-status-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['dirty']} */ ;
 /** @type {__VLS_StyleScopedClasses['playhead']} */ ;
 /** @type {__VLS_StyleScopedClasses['playhead-line']} */ ;
 /** @type {__VLS_StyleScopedClasses['playhead-handle']} */ ;
@@ -1188,17 +1627,31 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['waveform-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['waveform-canvas']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-meta']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-error']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-hint']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-time-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-error']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-separator']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-basket']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-editor']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-editor-title']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-editor-label']} */ ;
@@ -1233,11 +1686,18 @@ const __VLS_self = (await import('vue')).defineComponent({
             timeMarkers: timeMarkers,
             getColorForLabel: getColorForLabel,
             getTranslationForLabel: getTranslationForLabel,
+            labelsForEditor: labelsForEditor,
             selectedLabel: selectedLabel,
-            selectSegment: selectSegment,
+            handleSegmentClick: handleSegmentClick,
+            showSegmentTooltip: showSegmentTooltip,
+            moveSegmentTooltip: moveSegmentTooltip,
+            hideSegmentTooltip: hideSegmentTooltip,
             segmentRows: segmentRows,
+            handleTimelineScroll: handleTimelineScroll,
             totalRowsHeight: totalRowsHeight,
             timelineHeight: timelineHeight,
+            timelineContentHeight: timelineContentHeight,
+            markerLineHeight: markerLineHeight,
             formatTime: formatTime,
             formatDuration: formatDuration,
             getSegmentPosition: getSegmentPosition,
@@ -1247,9 +1707,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             playPause: playPause,
             deleteSelectedSegment: deleteSelectedSegment,
             stepFrame: stepFrame,
-            editSegment: editSegment,
             deleteSegment: deleteSegment,
             playSegment: playSegment,
+            hideContextMenu: hideContextMenu,
+            applyContextMenuChanges: applyContextMenuChanges,
             hideTimeEditor: hideTimeEditor,
             openSegmentTimeEditor: openSegmentTimeEditor,
             applyTimeEditorChanges: applyTimeEditorChanges,

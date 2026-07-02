@@ -30,7 +30,7 @@ frontend/
 
 Optional for auth-related flows:
 
-- `libs/endoreg-db` available in the backend environment
+- `endoreg_db` installed in the backend environment
 
 ## Installation
 

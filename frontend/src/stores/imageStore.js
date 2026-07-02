@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
+import { dtypesApi } from '@/api/axiosInstance';
 export const useImageStore = defineStore('image', {
     state: () => ({
         imageStatus: 'idle',
@@ -12,7 +13,7 @@ export const useImageStore = defineStore('image', {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.get('/base_api/images');
+                const response = await axios.get(dtypesApi('images'));
                 this.data = response.data.map((image) => ({
                     id: image.id,
                     imageUrl: image.image_url,

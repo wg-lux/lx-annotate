@@ -61,6 +61,9 @@ async function generatePseudonym(patientId: number) {
 
 // Example 4: Robust URL construction patterns
 /*
+import { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
+
 // ❌ WRONG - Causes 404 errors:
 const badUrl = `/api/patients/${props.patient.id}/pseudonym//`
 const literalUrl = '/api/patients/${props.patient.id}/pseudonym//'
@@ -68,7 +71,7 @@ const literalUrl = '/api/patients/${props.patient.id}/pseudonym//'
 // ✅ CORRECT - Using the composable:
 const { getCurrentPatientId } = useCurrentPatientId(props.patient?.id)
 const patientId = getCurrentPatientId(true)
-const goodUrl = `/api/patients/${patientId}/pseudonym/`
+const goodUrl = `/${r(endpoints.patient.patientPseudonym(patientId))}`
 
 // ✅ CORRECT - Using axiosInstance with service layer:
 await patientService.generatePatientPseudonym(patientId)

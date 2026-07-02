@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
+import { endpoints } from '@/types/api/endpoints';
+import { r } from '@/api/axiosInstance';
 export const useAnnotationStatsStore = defineStore('annotationStats', {
     state: () => ({
         stats: {
@@ -132,7 +134,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         async fetchVideoSegmentStats() {
             try {
                 // ✅ Modern media framework endpoint
-                const response = await axios.get('/api/media/videos/segments/stats/');
+                const response = await axios.get(r(endpoints.media.segmentsStats));
                 const data = response.data;
                 this.stats.segmentPending = data.total_segments;
                 this.stats.segmentInProgress = 0;
@@ -148,7 +150,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         },
         async fetchExaminationStats() {
             try {
-                const response = await axios.get('/api/examinations/');
+                const response = await axios.get(r(endpoints.router.examinations));
                 const data = response.data;
                 const items = Array.isArray(data?.results)
                     ? data.results
@@ -185,7 +187,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         async fetchSensitiveMetaStats() {
             try {
                 // ✅ Modern media framework endpoint - list all sensitive metadata
-                const response = await axios.get('/api/media/sensitive-metadata/');
+                const response = await axios.get(r(endpoints.media.sensitiveMetadataList));
                 const data = response.data;
                 // Calculate stats from metadata list (no dedicated stats endpoint exists yet)
                 const total = data.results?.length || data.length || 0;

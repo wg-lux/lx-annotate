@@ -36,7 +36,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
       try {
         this.loading = true
         this.error = null
-        const response = await axiosInstance.get(`/api/check_pe_exist/${id}/`)
+        const response = await axiosInstance.get(r(endpoints.patient.checkPatientExaminationExists(id)))
         if (response.status === 200 && typeof response.data.exists === 'boolean') {
           return response.data.exists
         }
@@ -79,7 +79,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
       try {
         this.loading = true
         this.error = null
-        const response = await axiosInstance.get(`/api/get_patient_examination/${id}/`)
+        const response = await axiosInstance.get(r(endpoints.examination.patientExaminationLegacyDetail(id)))
         const pe = response.data
         if (pe) {
           const index = this.patientExaminations.findIndex((existingPe) => existingPe.id === pe.id)

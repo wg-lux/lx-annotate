@@ -16,6 +16,8 @@ vi.mock('@/api/axiosInstance', () => ({
 vi.mock('@/types/api/endpoints', () => ({
     endpoints: {
         media: {
+            videoDetail: (videoId) => `media/videos/${videoId}/details/`,
+            videoStream: (videoId) => `media/videos/${videoId}/stream/`,
             videoSegmentValidate: (videoId, segmentId) => `media/videos/${videoId}/segments/${segmentId}/validate/`
         }
     }

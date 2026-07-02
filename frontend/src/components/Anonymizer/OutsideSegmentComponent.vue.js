@@ -3,13 +3,14 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 import { useVideoStore } from '@/stores/videoStore';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
+import { buildVideoStreamUrl } from '@/utils/mediaUrls';
 const props = defineProps();
 const emit = defineEmits();
 /**
  * Local state for the player + meta
  */
 const videoEl = ref(null);
-const videoUrl = ref(''); // backend-provided stream URL
+const videoUrl = ref(''); // centralized stream URL
 const duration = ref(0); // seconds
 const currentTime = ref(0);
 const isPlaying = ref(false);
@@ -24,11 +25,11 @@ const validatedSegments = ref(new Set());
 const isValidating = ref(false);
 const validationError = ref('');
 /**
- * Fetch backend detail to get canonical video_url + duration (don't reconstruct in client)
+ * Fetch backend detail for metadata, but keep stream URLs centralized in mediaUrls.ts.
  */
 async function loadVideoDetail(videoId) {
-    const { data } = await axiosInstance.get(`/api/media/videos/${videoId}/`);
-    videoUrl.value = data.video_url;
+    const { data } = await axiosInstance.get(`/${r(endpoints.media.videoDetail(videoId))}`);
+    videoUrl.value = buildVideoStreamUrl(videoId, 'processed');
     duration.value = Number(data.duration ?? 0);
 }
 /**
@@ -179,7 +180,7 @@ if (__VLS_ctx.outsideSegments.length > 0) {
             ...{ class: "alert alert-danger mb-3" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-exclamation-triangle me-2" },
+            ...{ class: "ni ni-user-run me-2" },
         });
         (__VLS_ctx.validationError);
     }
@@ -214,7 +215,7 @@ if (__VLS_ctx.outsideSegments.length > 0) {
     }
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-check-double me-1" },
+            ...{ class: "ni ni-check-bold me-1" },
         });
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
@@ -223,7 +224,7 @@ if (__VLS_ctx.outsideSegments.length > 0) {
         disabled: (__VLS_ctx.isValidating || __VLS_ctx.validatedSegments.size === 0),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-redo me-1" },
+        ...{ class: "ni ni-bold-right me-1" },
     });
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.video)({
@@ -277,7 +278,7 @@ if (__VLS_ctx.outsideSegments.length > 0) {
                 disabled: (__VLS_ctx.isValidating),
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-check me-1" },
+                ...{ class: "ni ni-check-bold me-1" },
             });
         }
         else {
@@ -285,7 +286,7 @@ if (__VLS_ctx.outsideSegments.length > 0) {
                 ...{ class: "text-success" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-check-circle me-1" },
+                ...{ class: "ni ni-check-bold me-1" },
             });
         }
     }
@@ -295,7 +296,7 @@ else {
         ...{ class: "alert alert-info" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     (props.videoId);
 }
@@ -372,8 +373,8 @@ if (__VLS_ctx.outsideSegments.length > 0) {
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
@@ -389,14 +390,14 @@ if (__VLS_ctx.outsideSegments.length > 0) {
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-double']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-redo']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['segments-overview']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -423,17 +424,17 @@ if (__VLS_ctx.outsideSegments.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({

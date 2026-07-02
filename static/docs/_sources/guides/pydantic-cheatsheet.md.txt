@@ -2,35 +2,31 @@
 
 This guide consolidates strict typing, date handling, and validation into reusable patterns.
 
------
-
 ## The Pydantic V2 Lifecycle
 
-Understanding *when* things happen is key to using the tools below.
+Understanding when validation and serialization run is key to using the tools
+below.
 
------
+## 1. Shared Base Model
 
-## 1. The "Golden Standard" Base Model
-
-Start every project with this. It handles string hygiene and configuration globally, so you don't have to repeat it.
+Use a project base model when schemas share strict input hygiene and model
+configuration.
 
 ```python
 from pydantic import BaseModel, ConfigDict
 
 class AppBaseModel(BaseModel):
     model_config = ConfigDict(
-        # 1. Strips leading/trailing whitespace automatically ("  val  " -> "val")
+        # Strip leading/trailing whitespace automatically ("  val  " -> "val").
         str_strip_whitespace=True,
-        # 2. Rejects extra fields not defined in the model (Security/Strictness)
+        # Reject extra fields not defined in the model.
         extra='forbid',
-        # 3. Validates default values (ensures your defaults aren't broken)
+        # Validate default values.
         validate_default=True,
-        # 4. Allows population by alias (e.g. accepting "camelCase" input)
+        # Allow population by alias, such as accepting "camelCase" input.
         populate_by_name=True,
     )
 ```
-
------
 
 ## 2. DateTime & Timezones (Strict Mode)
 
@@ -41,24 +37,22 @@ from datetime import datetime, timezone
 from pydantic import Field, AwareDatetime
 
 class TimestampModel(AppBaseModel):
-    # ✅ CORRECT: Enforces timezone info in input
+    # Enforces timezone metadata in input.
     event_time: AwareDatetime
 
-    # ✅ CORRECT: Dynamic default (calculated at runtime)
-    # Stores as UTC, ensuring database consistency
+    # Dynamic default calculated at runtime and stored as UTC.
     created_at: AwareDatetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
 
-    # ❌ WRONG: Static default (calculated at server startup)
+    # Bad: static default calculated at server startup.
     # created_at: datetime = datetime.now()
 ```
 
------
-
 ## 3. Reusable Fields (Mixins)
 
-Use Mixins for fields that appear across multiple models (like your `name_de`/`name_en` requirement).
+Use mixins for fields that appear across multiple models, such as localized
+`name_de`/`name_en` labels.
 
 ```python
 from typing import Optional
@@ -84,8 +78,6 @@ class Product(LocalizedNameMixin, AppBaseModel):
     price: float
 ```
 
------
-
 ## 4. Advanced Validation Patterns
 
 ### A. Sorting & Uniqueness (Lists)
@@ -108,7 +100,7 @@ class TaggedItem(AppBaseModel):
         return sorted(list(set(v)))
 ```
 
-### B. The "Best of Both Worlds" (Dict vs List)
+### B. Dictionary Storage With List API Payloads
 
 Store data as a **Dict** (for O(1) performance), but accept and return **Lists** (for API standards).
 
@@ -135,11 +127,10 @@ class Inventory(BaseModel):
         return list(v.values())
 ```
 
------
-
 ## 5. Computed Fields (Derived Data)
 
-Use this for fields that shouldn't be saved to the DB, but should appear in the API response.
+Use computed fields for values that should appear in the API response but should
+not be persisted directly.
 
 ```python
 from pydantic import computed_field
@@ -154,8 +145,6 @@ class Rectangle(AppBaseModel):
 
 # JSON Output: { "width": 10, "height": 5, "area": 50 }
 ```
-
------
 
 ## 6. Managing Aliases (Frontend vs Backend)
 
@@ -173,8 +162,6 @@ class User(AppBaseModel):
 # User(firstName="John") -> sets user.first_name to "John"
 ```
 
------
-
 ## 7. Path Objects & Filesystems
 
 Prefer `pathlib` types over raw strings whenever a model touches the filesystem. This preserves cross-platform semantics and lets Pydantic validate early.
@@ -187,11 +174,11 @@ from pydantic import BaseModel, FilePath, DirectoryPath, ConfigDict, field_valid
 class FileInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    # ✅ Use the specialized validators for existing files/dirs
+    # Use the specialized validators for existing files/dirs.
     template_path: FilePath
     output_dir: DirectoryPath
 
-    # ✅ Accept strings, but normalize to absolute Paths
+    # Accept strings, but normalize to absolute Paths.
     @field_validator('template_path', 'output_dir', mode='after')
     @classmethod
     def resolve_paths(cls, value: Path) -> Path:
@@ -199,7 +186,7 @@ class FileInput(BaseModel):
 
 
 class LazyPathModel(BaseModel):
-    # ✅ When the resource might not exist yet, fall back to plain Path
+    # Use plain Path when the resource might not exist yet.
     export_path: Path = Path('exports/report.json')
 
     @field_validator('export_path', mode='before')
@@ -215,8 +202,6 @@ Best practices:
 - Use `FilePath`/`DirectoryPath` when the path must already exist; use plain `Path` for lazily created artifacts.
 - Keep path defaults inside `Path` objects (not strings) to avoid OS-specific separators.
 - Add validators when business rules apply (extensions, allowed roots, etc.) and document the behavior in docstrings.
-
------
 
 ## 8. YAML Fixtures & Sample Data
 
@@ -256,7 +241,3 @@ Best practices:
 | `@field_validator` | `before` | Pre-processing raw data (e.g., parsing a comma-separated string into a list). |
 | `@model_validator` | `after` | Multi-field logic (e.g., "start_date must be before end_date"). |
 | `@model_validator` | `before` | Reshaping the entire incoming JSON structure before Pydantic touches it. |
-
-## Next Step
-
-Would you like me to show you how to generate **Environment Configuration** (loading `.env` files) using `pydantic-settings`, which is the standard way to handle secrets like database URLs alongside these models?

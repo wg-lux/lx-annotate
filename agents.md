@@ -1,3 +1,9 @@
+# Agent Notice
+
+For Codex-style repository-level instructions, prefer
+[AGENTS.md](/home/admin/dev/lx-annotate/AGENTS.md). This lowercase file is kept
+for local compatibility and historical tooling.
+
 # Node Environment
 
 Inside of the folder frontend, the flake.nix provides a node js / npm development environment.
@@ -475,7 +481,6 @@ export const endpoints = {
     sensitiveMediaId: (pk: Id, mediaType: string) => `media/sensitive-media-id/${pk}/${mediaType}/`,
 
     videos: 'media/videos/',
-    videoDetailStream: (pk: Id) => `media/videos/${pk}/`,
     videoDetail: (pk: Id) => `media/videos/${pk}/details/`,
     videoStream: (pk: Id) => `media/videos/${pk}/stream/`,
     videoReimport: (pk: Id) => `media/videos/${pk}/reimport/`,
@@ -620,7 +625,7 @@ Backend endpoints:
 - `POST /api/lookup/{token}/recompute/`
 - `GET /api/examinations/{examination_id}/findings/`
 - `GET /api/findings/{finding_id}/classifications/`
-- KB template endpoints (non-`endoreg_db`, current frontend uses `/base_api/report-templates/...`)
+- KB template endpoints (non-`endoreg_db`, current frontend uses `/dtypes-api/report-templates/...`)
 
 Key UI panels:
 - Template selector and template metadata
@@ -824,4 +829,3 @@ Fast path (experienced user):
 - Final save can succeed even with unmet requirements (warnings only).
 - Segment frame selections persist and reload via `segment-frame-selector`.
 - PDF preview/download and patient timeline links work after finalization.
-

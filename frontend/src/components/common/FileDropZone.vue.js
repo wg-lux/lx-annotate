@@ -135,7 +135,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "drop-zone-content" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-cloud-upload-alt fa-3x mb-3" },
+    ...{ class: "ni ni-cloud-upload-96 ni-3x mb-3" },
     ...{ class: (__VLS_ctx.isDragOver ? 'text-primary' : 'text-muted') },
 });
 if (__VLS_ctx.isDragOver) {
@@ -157,7 +157,7 @@ if (__VLS_ctx.hasValidationError) {
         ...{ class: "alert alert-danger mt-3 mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-exclamation-triangle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
 }
 if (__VLS_ctx.isUploading) {
@@ -198,9 +198,9 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 /** @type {__VLS_StyleScopedClasses['border-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-none']} */ ;
 /** @type {__VLS_StyleScopedClasses['drop-zone-content']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cloud-upload-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-cloud-upload-96']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['h5']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
@@ -212,8 +212,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['position-absolute']} */ ;
 /** @type {__VLS_StyleScopedClasses['top-0']} */ ;

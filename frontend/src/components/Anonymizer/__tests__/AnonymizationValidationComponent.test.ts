@@ -64,7 +64,7 @@ vi.mock('@/types/api/endpoints', () => ({
       pdfDetail: (fileId: number) => `media/pdfs/${fileId}/`,
       patientTimeline: (patientId: number) => `media/patients/${patientId}/timeline/`,
       pdfStream: (fileId: number) => `media/pdfs/${fileId}/stream/`,
-      videoDetailStream: (fileId: number) => `media/videos/${fileId}/stream/`
+      videoStream: (fileId: number) => `media/videos/${fileId}/stream/`
     },
     examination: {
       patientExaminationList: 'examination/patient-examinations/'
@@ -89,15 +89,16 @@ function buildPdfItem(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function mountComponent() {
+function mountComponent(props = { fileId: 5, mediaType: 'pdf' }) {
   return mount(AnonymizationValidationComponent, {
-    props: {
-      fileId: 5,
-      mediaType: 'pdf'
-    },
+    props,
     global: {
       stubs: {
-        RouterLink: { template: '<a><slot /></a>' },
+        RouterLink: {
+          props: ['to'],
+          template:
+            '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
+        },
         OutsideTimelineComponent: true
       }
     }
@@ -167,6 +168,16 @@ describe('AnonymizationValidationComponent', () => {
     )
   })
 
+  it('renders the source file id in the validation header', async () => {
+    hoisted.anonymizationStoreRef.current.current = buildPdfItem({ id: 99 })
+
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('PDF-ID: 5')
+    expect(wrapper.text()).not.toContain('PDF-ID: 99')
+  })
+
   it('shows backend validation errors when approval fails', async () => {
     vi.mocked(axiosInstance.post).mockRejectedValue({
       response: {
@@ -211,6 +222,9 @@ describe('AnonymizationValidationComponent', () => {
         examination_date: '15.02.2024'
       })
     )
+    expect(vi.mocked(axiosInstance.post).mock.calls[0][1]).not.toHaveProperty(
+      'no_more_names_confirmed'
+    )
     expect(hoisted.toastStoreRef.current.success).toHaveBeenCalledWith({
       text: 'Dokument bestätigt und Anonymisierung validiert'
     })
@@ -218,5 +232,100 @@ describe('AnonymizationValidationComponent', () => {
       text: 'PDF validiert. Patientenfall 42 wurde automatisch zugeordnet und im Berichtseditor geöffnet.'
     })
     expect(hoisted.routerPush).toHaveBeenCalledWith('/reporting/42/report-editor')
+  })
+
+  it('submits no_more_names_confirmed only after an explicit selection', async () => {
+    vi.mocked(axiosInstance.post).mockResolvedValue({
+      data: {
+        report_file: null,
+        case_resolution: {
+          patient_examination_id: 42
+        }
+      }
+    } as any)
+
+    const wrapper = mountComponent()
+    await flushPromises()
+    await wrapper.find('#noMoreNamesConfirmation').setValue('confirmed')
+    await wrapper.find('button.btn.btn-success').trigger('click')
+    await flushPromises()
+
+    expect(vi.mocked(axiosInstance.post).mock.calls[0][1]).toMatchObject({
+      no_more_names_confirmed: true
+    })
+  })
+
+  it('links unresolved validation into case resolution with a return path to validation', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    const resolutionLink = wrapper
+      .findAll('a')
+      .find((link) => link.text().includes('Fallauflösung öffnen'))
+    expect(resolutionLink).toBeTruthy()
+    expect(JSON.parse(resolutionLink!.attributes('data-to')!)).toEqual({
+      path: '/reporting/case-resolution',
+      query: {
+        preferredExamination: 'colonoscopy',
+        returnTo: '/anonymisierung/validierung?fileId=5&mediaType=pdf'
+      }
+    })
+  })
+
+  it('links video validation into the PHI frame-box annotation preset', async () => {
+    hoisted.mediaStoreRef.current.isPdf = false
+    hoisted.mediaStoreRef.current.isVideo = true
+
+    const wrapper = mountComponent({ fileId: 5, mediaType: 'video' })
+    await flushPromises()
+
+    const phiBoxLink = wrapper.find('[data-test="phi-region-frame-annotation-link"]')
+    expect(phiBoxLink.exists()).toBe(true)
+    expect(JSON.parse(phiBoxLink.attributes('data-to')!)).toEqual({
+      path: '/frame-annotation',
+      query: {
+        mode: 'phi_region',
+        taskMode: 'random',
+        targetLabel: 'sensitive_region',
+        informationSource: 'lx_anonymizer_evaluation',
+        fileId: '5',
+        mediaType: 'video',
+        returnTo: '/anonymisierung/validierung?fileId=5&mediaType=video'
+      }
+    })
+  })
+
+  it('releases video stream elements when leaving the validation page', async () => {
+    hoisted.mediaStoreRef.current.isPdf = false
+    hoisted.mediaStoreRef.current.isVideo = true
+    const pauseSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => undefined)
+    const loadSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'load')
+      .mockImplementation(() => undefined)
+
+    const wrapper = mountComponent({ fileId: 5, mediaType: 'video' })
+    await flushPromises()
+
+    const videoElements = wrapper
+      .findAll('video')
+      .map((video) => video.element as HTMLVideoElement)
+    expect(videoElements).toHaveLength(2)
+    for (const element of videoElements) {
+      expect(element.getAttribute('preload')).toBe('none')
+    }
+
+    wrapper.unmount()
+
+    expect(pauseSpy).toHaveBeenCalledTimes(2)
+    expect(loadSpy).toHaveBeenCalledTimes(2)
+    expect(hoisted.anonymizationStoreRef.current.fetchNext).not.toHaveBeenCalled()
+    for (const element of videoElements) {
+      expect(element.getAttribute('src')).toBe('')
+    }
+
+    pauseSpy.mockRestore()
+    loadSpy.mockRestore()
   })
 })

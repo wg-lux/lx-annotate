@@ -6,8 +6,8 @@ export async function fetchPatientExaminationDraft(patientExaminationId) {
 }
 export async function savePatientExaminationDraft(params) {
     const response = await axiosInstance.put(r(endpoints.examination.patientExaminationDraft(params.patientExaminationId)), {
-        module_name: params.moduleName,
-        template_name: params.templateName || '',
+        moduleName: params.moduleName,
+        templateName: params.templateName || '',
         payload: params.payload
     });
     return response.data;

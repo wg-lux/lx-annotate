@@ -9,6 +9,9 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default defineConfig({
+    define: {
+      'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG ?? '')
+    },
     base: '/static/', //needs to be here for correct nginx serving!
     plugins: [vue(), vueJsx(), vueDevTools()],
 
@@ -31,7 +34,7 @@ export default defineConfig({
           assetFileNames: '[name].[ext]',
           format: 'es'
         },
-        external: ['fsevents', 'LabelStudio']
+        external: ['fsevents']
       }
     },
 
@@ -45,7 +48,22 @@ export default defineConfig({
       port: 5173,
       hmr: { host: '127.0.0.1' },
       proxy: {
+        '/endoreg-api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false
+        },
         '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false
+        },
+        '/dtypes-api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false
+        },
+        '/base_api': {
           target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false

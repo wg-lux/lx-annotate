@@ -1,13 +1,15 @@
 /**
- * Typed API endpoint contract for endoreg_db routes.
+ * Typed API endpoint contract for endoreg_db and lx-annotate local routes.
  *
  * Important:
- * - Paths are relative to axios `r()` helper (which prefixes `api/`).
+ * - Paths are relative to axios `endoregApi()` or legacy `r()` helper.
+ * - lx_dtypes routes use the separate `dtypesApi()` helper.
  * - Keep trailing slashes exactly as defined in Django urls.
  */
 export const endpoints = {
     auth: {
         bootstrap: 'auth/bootstrap',
+        context: 'auth/context',
         publicHome: 'endoreg_db/',
         login: 'login/',
         loginCallback: 'login/callback/',
@@ -15,24 +17,25 @@ export const endpoints = {
     },
     router: {
         examinations: 'examinations/',
+        examinationById: (id) => `examinations/${id}/`,
         findings: 'findings/',
         classifications: 'classifications/',
         patientFindings: 'patient-findings/',
-        // Legacy placeholder kept for existing callers. Current endoreg_db exposes
-        // create/list/detail under `examination.patientExamination*`.
-        patientExaminations: 'patient-examinations/',
         patientExaminationReports: 'patient-examination-reports/'
     },
     patient: {
         patients: 'patients/',
         patientById: (id) => `patients/${id}/`,
         patientPseudonym: (id) => `patients/${id}/pseudonym/`,
+        patientDeletionSafety: (id) => `patients/${id}/check_deletion_safety/`,
         centers: 'centers/',
         genders: 'genders/',
         patientFindings: 'patient-findings/',
+        patientFindingById: (id) => `patient-findings/${id}/`,
         checkPatientExaminationExists: (id) => `check_pe_exist/${id}/`
     },
     examination: {
+        examinationsDropdown: 'patient-examinations/examinations_dropdown/',
         examinationFindings: (examinationId) => `examinations/${examinationId}/findings/`,
         findingClassifications: (findingId) => `findings/${findingId}/classifications/`,
         classificationChoices: (classificationId) => `classifications/${classificationId}/choices/`,
@@ -40,6 +43,7 @@ export const endpoints = {
         patientExaminationDetail: (id) => `patient-examinations/${id}/`,
         patientExaminationDraft: (id) => `patient-examinations/${id}/draft/`,
         patientExaminationList: 'patient-examinations/list/',
+        patientExaminationLegacyDetail: (id) => `get_patient_examination/${id}/`,
         patientExaminationClassifications: (examId) => `patient-examinations/${examId}/classifications/`,
         patientExaminationFindings: (examinationId) => `patient-examinations/${examinationId}/findings/`
     },
@@ -48,6 +52,7 @@ export const endpoints = {
         patientExaminationReportById: (id) => `patient-examination-reports/${id}/`,
         patientExaminationReportsByPatientExamination: (patientExaminationId) => `patient-examination-reports/?patient_examination_id=${patientExaminationId}`,
         saveReportSubmission: 'patient-examination-reports/save-submission/',
+        makeReport: 'patient-examination-reports/make-report/',
         segmentFrameSelectorBase: 'patient-examination-reports/segment-frame-selector/',
         segmentFrameSelector: (patientExaminationId, reportId) => reportId == null
             ? `patient-examination-reports/segment-frame-selector/?patient_examination_id=${patientExaminationId}`
@@ -59,29 +64,30 @@ export const endpoints = {
     annotation: {
         randomTask: 'media/annotations/frames/random-task/',
         bulkUpsert: 'media/annotations/frames/bulk-upsert/',
+        frameBoxes: 'media/annotations/frames/boxes/',
         skip: 'media/annotations/frames/skip/'
     },
     upload: {
         upload: 'upload/',
         uploadStatus: (id) => `upload/${id}/status/`
     },
-    requirements: {
-        lookupInit: 'lookup/init/',
-        lookupAll: (token) => `lookup/${token}/all/`,
-        lookupParts: (token, keys) => {
-            if (!keys?.length)
-                return `lookup/${token}/parts/`;
-            return `lookup/${token}/parts/?keys=${encodeURIComponent(keys.join(','))}`;
-        },
-        lookupRecompute: (token) => `lookup/${token}/recompute/`,
-        evaluateRequirements: 'evaluate-requirements/'
-    },
     stats: {
         examinations: 'examinations/stats/',
-        videoSegment: 'video-segment/stats/',
-        videoSegments: 'video-segments/stats/',
-        sensitiveMeta: 'video/sensitivemeta/stats/',
+        videoSegment: 'media/videos/segments/stats/',
+        videoSegments: 'media/videos/segments/stats/',
+        sensitiveMeta: 'media/sensitive-metadata/',
         general: 'stats/'
+    },
+    hubExport: {
+        overview: 'hub-export/overview/',
+        mark: 'hub-export/mark/',
+        unmark: 'hub-export/unmark/'
+    },
+    runtime: {
+        quarantine: 'runtime/quarantine/'
+    },
+    workflow: {
+        saveWorkflowData: 'save-workflow-data/'
     },
     anonymization: {
         itemsOverview: 'anonymization/items/overview/',
@@ -104,7 +110,6 @@ export const endpoints = {
         patientTimeline: (patientId) => `media/patients/${patientId}/timeline/`,
         sensitiveMediaId: (pk, mediaType) => `media/sensitive-media-id/${pk}/${mediaType}/`,
         videos: 'media/videos/',
-        videoDetailStream: (pk) => `media/videos/${pk}/`,
         videoDetail: (pk) => `media/videos/${pk}/details/`,
         videoStream: (pk) => `media/videos/${pk}/stream/`,
         videoReimport: (pk) => `media/videos/${pk}/reimport/`,
@@ -115,13 +120,19 @@ export const endpoints = {
         videoApplyMask: (pk) => `media/videos/${pk}/apply-mask/`,
         videoRemoveFrames: (pk) => `media/videos/${pk}/remove-frames/`,
         videoLabelsList: 'media/videos/labels/list/',
+        videoLabelSetsList: 'media/videos/label-sets/list/',
+        videoPredictionModelsList: 'media/videos/prediction-models/list/',
         segmentsCollection: 'media/videos/segments/',
         segmentsStats: 'media/videos/segments/stats/',
         videoSegments: (pk) => `media/videos/${pk}/segments/`,
+        videoSegmentsBulkMutation: (pk) => `media/videos/${pk}/segments/bulk/`,
         videoSegmentDetail: (pk, segmentId) => `media/videos/${pk}/segments/${segmentId}/`,
+        videoSegmentsImportPredictions: (pk) => `media/videos/${pk}/segments/import-predictions/`,
+        videoSegmentsRerunPredictions: (pk) => `media/videos/${pk}/segments/rerun-predictions/`,
         videoSegmentValidate: (pk, segmentId) => `media/videos/${pk}/segments/${segmentId}/validate/`,
         videoSegmentsValidateBulk: (pk) => `media/videos/${pk}/segments/validate-bulk/`,
         videoSegmentsValidationStatus: (pk) => `media/videos/${pk}/segments/validation-status/`,
+        videoSegmentsBlackenOutside: (pk) => `media/videos/${pk}/segments/blacken-outside/`,
         ensureSegmentAnnotationsForVideo: (pk) => `media/videos/${pk}/ensure-segment-annotations/`,
         ensureSegmentAnnotationsBulk: 'media/videos/ensure-segment-annotations/',
         videoSensitiveMetadata: (pk) => `media/videos/${pk}/sensitive-metadata/`,
@@ -132,9 +143,11 @@ export const endpoints = {
         pdfCaseResolution: (pk) => `media/pdfs/${pk}/case-resolution/`,
         sensitiveMetadataList: 'media/sensitive-metadata/',
         pdfSensitiveMetadataList: 'media/pdfs/sensitive-metadata/',
+        anonymizationMetrics: 'media/anonymization/metrics/',
         pdfs: 'media/pdfs/',
         pdfDetail: (pk) => `media/pdfs/${pk}/`,
         pdfStream: (pk) => `media/pdfs/${pk}/stream/`,
-        pdfReimport: (pk) => `media/pdfs/${pk}/reimport/`
+        pdfReimport: (pk) => `media/pdfs/${pk}/reimport/`,
+        processedVideoDownload: (videoId, historyId) => `media/processed-videos/${videoId}/${historyId}/`
     }
 };

@@ -1,11 +1,13 @@
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { useToastStore } from '@/stores/toastStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
+import { useAuthKcStore } from '@/stores/auth_kc';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
+import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls';
 import { useRoute } from 'vue-router';
 import { useDebug } from '@/composables/useDebug';
 // @ts-ignore
@@ -14,14 +16,18 @@ import { endpoints } from '@/types/api/endpoints';
 const toast = useToastStore();
 const router = useRouter();
 const { isDebug } = useDebug();
+const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation';
+const PHI_REGION_LABEL_NAME = 'sensitive_region';
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
+const authStore = useAuthKcStore();
 // const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
 const route = useRoute();
 const isPdf = computed(() => mediaStore.isPdf);
 const isVideo = computed(() => mediaStore.isVideo);
+const canViewRawVideo = computed(() => authStore.isAuthenticated);
 function restoreLast() {
     const fid = Number(sessionStorage.getItem('last:fileId') || '');
     const sc = sessionStorage.getItem('last:scope');
@@ -71,7 +77,11 @@ watch(mediaInferral, (val) => {
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
-const noMoreNames = ref(false);
+const noMoreNamesConfirmation = ref('unknown');
+const presetValidationTags = ['Nochmal Überprüfen', 'Ausgeschlossen'];
+const selectedTags = ref([]);
+const customTagInput = ref('');
+const validationComment = ref('');
 const caseResolution = ref(null);
 const documentTypeOptions = ref([]);
 const selectedDocumentType = ref('');
@@ -117,6 +127,8 @@ const hasSuccessfulUpload = ref(false);
 const original = ref({
     anonymizedText: '',
     examinationDate: '',
+    tags: [],
+    validationComment: '',
     patient: {
         patientFirstName: '',
         patientLastName: '',
@@ -131,6 +143,39 @@ function shallowEqual(a, b) {
         a.patientGenderName === b.patientGenderName &&
         a.patientDob === b.patientDob &&
         a.casenumber === b.casenumber;
+}
+function normalizeValidationTag(tag) {
+    return tag.trim().replace(/\s+/g, ' ');
+}
+function areSortedStringArraysEqual(a, b) {
+    if (a.length !== b.length)
+        return false;
+    return a.every((value, index) => value === b[index]);
+}
+function addValidationTag(tag) {
+    const normalizedTag = normalizeValidationTag(tag);
+    if (!normalizedTag)
+        return;
+    const hasTag = selectedTags.value.some((entry) => entry.localeCompare(normalizedTag, undefined, { sensitivity: 'base' }) === 0);
+    if (hasTag)
+        return;
+    selectedTags.value = [...selectedTags.value, normalizedTag].sort((a, b) => a.localeCompare(b));
+}
+function toggleValidationTag(tag) {
+    const normalizedTag = normalizeValidationTag(tag);
+    const existingIndex = selectedTags.value.findIndex((entry) => entry.localeCompare(normalizedTag, undefined, { sensitivity: 'base' }) === 0);
+    if (existingIndex >= 0) {
+        selectedTags.value = selectedTags.value.filter((_, index) => index !== existingIndex);
+        return;
+    }
+    addValidationTag(normalizedTag);
+}
+function removeValidationTag(tag) {
+    selectedTags.value = selectedTags.value.filter((entry) => entry.localeCompare(tag, undefined, { sensitivity: 'base' }) !== 0);
+}
+function addCustomValidationTag() {
+    addValidationTag(customTagInput.value);
+    customTagInput.value = '';
 }
 // --- add below your imports/locals ---
 // ============================================================================
@@ -272,6 +317,16 @@ const validationProgressPercent = computed(() => {
 // ============================================================================
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
+const currentFileIdLabel = computed(() => {
+    const targetFileId = resolveFileIdFromContext();
+    if (targetFileId === null)
+        return '';
+    if (sourceMediaScope.value === 'video')
+        return `Video-ID: ${targetFileId}`;
+    if (sourceMediaScope.value === 'pdf')
+        return `PDF-ID: ${targetFileId}`;
+    return `Datei-ID: ${targetFileId}`;
+});
 const patientHashDisplay = computed(() => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null);
 const examinationHashDisplay = computed(() => caseResolution.value?.examinationHashDisplay ?? currentItem.value?.examinationHashDisplay ?? null);
 const pseudoPatientId = computed(() => {
@@ -388,6 +443,30 @@ const caseResolutionRoute = computed(() => {
         query
     };
 });
+const phiRegionFrameAnnotationRoute = computed(() => {
+    const targetFileId = resolveFileIdFromContext();
+    const targetScope = sourceMediaScope.value;
+    const query = {
+        mode: 'phi_region',
+        taskMode: 'random',
+        targetLabel: PHI_REGION_LABEL_NAME,
+        informationSource: ANONYMIZER_INFORMATION_SOURCE,
+        returnTo: '/anonymisierung/validierung'
+    };
+    if (targetFileId !== null) {
+        query.fileId = String(targetFileId);
+    }
+    if (targetScope) {
+        query.mediaType = targetScope;
+    }
+    if (targetFileId !== null && targetScope) {
+        query.returnTo = `/anonymisierung/validierung?fileId=${targetFileId}&mediaType=${targetScope}`;
+    }
+    return {
+        path: '/frame-annotation',
+        query
+    };
+});
 async function fetchCaseResolution() {
     const targetFileId = resolveFileIdFromContext();
     const targetScope = sourceMediaScope.value;
@@ -418,51 +497,39 @@ async function initializeCurrentItemFromRouteContext() {
     const loaded = await anonymizationStore.setCurrentForValidation(targetFileId, targetScope);
     return !!loaded;
 }
-function buildMediaUrl(path, query) {
-    const url = new URL(r(path), window.location.origin);
-    if (query) {
-        for (const [key, value] of Object.entries(query)) {
-            url.searchParams.set(key, value);
-        }
-    }
-    return url.toString();
-}
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
-    if (!isVideo.value || !currentItem.value)
+    if (!isVideo.value || !currentItem.value || !canViewRawVideo.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'raw' });
+    return buildVideoStreamUrl(fileId, 'raw');
 });
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'processed' });
+    return buildVideoStreamUrl(fileId, 'processed');
 });
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)
 const rawPdfSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw' });
+    return buildPdfStreamUrl(fileId, 'raw');
 });
 // ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
 const anonymizedPdfSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'processed' });
+    return buildPdfStreamUrl(fileId, 'processed');
 });
 const rawPdfDownloadSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw', download: '1' });
+    return buildPdfStreamUrl(fileId, 'raw', { download: 1 });
 });
 const anonymizedPdfDownloadSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.pdfStream(fileId), {
-        type: 'processed',
-        download: '1'
-    });
+    return buildPdfStreamUrl(fileId, 'processed', { download: 1 });
 });
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref(null);
@@ -517,6 +584,28 @@ const pauseAllVideos = () => {
         anonymizedVideoElement.value.pause();
     console.log('All videos paused');
 };
+function releaseVideoElement(element) {
+    if (!element)
+        return;
+    try {
+        element.pause();
+    }
+    catch (error) {
+        console.warn('Failed to pause validation video during cleanup:', error);
+    }
+    element.removeAttribute('src');
+    element.src = '';
+    try {
+        element.load();
+    }
+    catch (error) {
+        console.warn('Failed to release validation video source during cleanup:', error);
+    }
+}
+function releaseVideoElements() {
+    releaseVideoElement(rawVideoElement.value);
+    releaseVideoElement(anonymizedVideoElement.value);
+}
 const downloadRawPdf = () => {
     if (!rawPdfDownloadSrc.value) {
         toast.warning({ text: 'Original-PDF nicht verfügbar.' });
@@ -551,7 +640,7 @@ const validateVideoForSegmentAnnotation = async () => {
             shouldShowOutsideTimeline.value = true;
             videoValidationStatus.value = {
                 class: 'alert-warning',
-                icon: 'fas fa-exclamation-triangle',
+                icon: 'ni ni-user-run',
                 title: 'Segmentvalidierung erforderlich',
                 message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
                 details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
@@ -560,7 +649,7 @@ const validateVideoForSegmentAnnotation = async () => {
         else {
             videoValidationStatus.value = {
                 class: 'alert-success',
-                icon: 'fas fa-check-circle',
+                icon: 'ni ni-check-bold',
                 title: 'Video bereit für Annotation',
                 message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
                 details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
@@ -572,7 +661,7 @@ const validateVideoForSegmentAnnotation = async () => {
         console.error('Error validating video for segment annotation:', error);
         videoValidationStatus.value = {
             class: 'alert-danger',
-            icon: 'fas fa-times-circle',
+            icon: 'ni ni-settings-gear-65',
             title: 'Validierung fehlgeschlagen',
             message: 'Video konnte nicht für Segment-Annotation validiert werden.',
             details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
@@ -596,7 +685,7 @@ const onOutsideValidationComplete = () => {
     shouldShowOutsideTimeline.value = false;
     videoValidationStatus.value = {
         class: 'alert-success',
-        icon: 'fas fa-check-circle',
+        icon: 'ni ni-check-bold',
         title: 'Validierung abgeschlossen',
         message: 'Alle Outside-Segmente wurden erfolgreich validiert.',
         details: `Video ${currentItem.value?.id} ist jetzt bereit für die vollständige Segment-Annotation.`
@@ -767,6 +856,8 @@ function loadCurrentItemData(item) {
     documentTypeTouched.value = false;
     patientExaminationLoadError.value = '';
     manualPatientExaminationId.value = '';
+    customTagInput.value = '';
+    noMoreNamesConfirmation.value = 'unknown';
     // dates
     const rawExam = item.examinationDate || '';
     const rawDob = item.patientDobDisplay || item.patientDob;
@@ -789,6 +880,13 @@ function loadCurrentItemData(item) {
     const normalizedAnonymizedText = item.anonymizedText ?? editedPatient.value.anonymizedText ?? item.text ?? '';
     editedAnonymizedText.value = normalizedAnonymizedText;
     editedPatient.value.anonymizedText = normalizedAnonymizedText;
+    selectedTags.value = Array.isArray(item.tags)
+        ? [...item.tags].map((tag) => normalizeValidationTag(tag)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+        : [];
+    validationComment.value =
+        item.validationComment ??
+            item.validation_comment ??
+            '';
     const backendDocumentType = item.documentType ??
         item.document_type ??
         '';
@@ -799,6 +897,8 @@ function loadCurrentItemData(item) {
     original.value = {
         anonymizedText: editedAnonymizedText.value,
         examinationDate: examinationDate.value,
+        tags: [...selectedTags.value],
+        validationComment: validationComment.value,
         patient: { ...editedPatient.value },
     };
     validateAllDates();
@@ -841,6 +941,8 @@ const fetchNextItem = async () => {
 };
 const dirty = computed(() => editedAnonymizedText.value !== original.value.anonymizedText ||
     examinationDate.value !== original.value.examinationDate ||
+    validationComment.value !== original.value.validationComment ||
+    !areSortedStringArraysEqual(selectedTags.value, original.value.tags) ||
     !shallowEqual(editedPatient.value, original.value.patient));
 // ✅ NEW: Can save computed property
 const canSave = computed(() => {
@@ -1010,21 +1112,21 @@ function extractPatientExaminationId(payload) {
     if (directMatch !== null) {
         return directMatch;
     }
-    const reportFile = obj.report_file;
+    const reportFile = obj.reportFile ?? obj.report_file;
     if (reportFile && typeof reportFile === 'object') {
         const nestedMatch = extractPatientExaminationId(reportFile);
         if (nestedMatch !== null) {
             return nestedMatch;
         }
     }
-    const patientExamination = obj.patient_examination;
+    const patientExamination = obj.patientExamination ?? obj.patient_examination;
     if (patientExamination && typeof patientExamination === 'object') {
         const nestedId = toPositiveInteger(patientExamination.id);
         if (nestedId !== null) {
             return nestedId;
         }
     }
-    const caseResolution = obj.case_resolution;
+    const caseResolution = obj.caseResolution ?? obj.case_resolution;
     if (caseResolution && typeof caseResolution === 'object') {
         const nestedId = extractPatientExaminationId(caseResolution);
         if (nestedId !== null) {
@@ -1170,9 +1272,14 @@ const approveItem = async () => {
         center_name: editedPatient.value.centerName || '',
         external_id: editedPatient.value.externalId || '',
         external_id_origin: editedPatient.value.externalIdOrigin || '',
+        tags: selectedTags.value,
+        validation_comment: validationComment.value || '',
     };
     if (isPdf.value) {
         validationPayload.document_type = selectedDocumentType.value;
+    }
+    if (noMoreNamesConfirmation.value !== 'unknown') {
+        validationPayload.no_more_names_confirmed = noMoreNamesConfirmation.value === 'confirmed';
     }
     const validationFileId = resolveFileIdFromContext();
     if (validationFileId === null) {
@@ -1183,7 +1290,7 @@ const approveItem = async () => {
     try {
         console.log(`Validating anonymization for file ${validationFileId}...`);
         const response = await axiosInstance.post(r(endpoints.anonymization.validate(validationFileId)), validationPayload);
-        const reportFileId = response?.data?.report_file?.id;
+        const reportFileId = response?.data?.reportFile?.id ?? response?.data?.report_file?.id;
         if (typeof reportFileId === 'number') {
             sessionStorage.setItem('last:reportFileId', String(reportFileId));
         }
@@ -1193,7 +1300,7 @@ const approveItem = async () => {
     }
     catch (error) {
         console.error('Error approving item:', error);
-        const allowedTypes = normalizeDocumentTypeOptions(error?.response?.data?.allowed_document_types);
+        const allowedTypes = normalizeDocumentTypeOptions(error?.response?.data?.allowedDocumentTypes ?? error?.response?.data?.allowed_document_types);
         if (allowedTypes.length > 0) {
             documentTypeOptions.value = allowedTypes;
         }
@@ -1302,8 +1409,8 @@ onMounted(async () => {
         await fetchCaseResolution();
     }
 });
-onUnmounted(() => {
-    fetchNextItem();
+onBeforeUnmount(() => {
+    releaseVideoElements();
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
@@ -1395,7 +1502,7 @@ if (__VLS_ctx.anonymizationStore.isAnyFileProcessing) {
         ...{ class: "alert alert-warning mt-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.anonymizationStore.processingFiles.length);
@@ -1415,7 +1522,7 @@ if (__VLS_ctx.anonymizationStore.isAnyFileProcessing) {
     }, ...__VLS_functionalComponentArgsRest(__VLS_1));
     __VLS_3.slots.default;
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-eye me-1" },
+        ...{ class: "ni ni-user-run me-1" },
     });
     var __VLS_3;
 }
@@ -1432,12 +1539,19 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.isPdf ? 'PDF-Dokument' : __VLS_ctx.isVideo ? 'Video-Datei' : 'Unbekanntes Format');
     (__VLS_ctx.currentItem?.centerName ? `- ${__VLS_ctx.currentItem.centerName}` : '');
+    if (__VLS_ctx.currentFileIdLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-secondary ms-2 align-middle" },
+            title: "ID aus der Anonymisierungs-Übersicht",
+        });
+        (__VLS_ctx.currentFileIdLabel);
+    }
     if (__VLS_ctx.currentItem && (__VLS_ctx.isVideo || __VLS_ctx.isPdf)) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-end" },
@@ -1446,7 +1560,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-muted" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-tools me-1" },
+            ...{ class: "ni ni-settings-gear-65 me-1" },
         });
         (__VLS_ctx.isVideo ? 'Video-Korrektur verfügbar' : 'Text-Korrektur verfügbar');
     }
@@ -1456,18 +1570,26 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-12" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "form-check" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        type: "checkbox",
-        ...{ class: "form-check-input" },
-        id: "noMoreNames",
-    });
-    (__VLS_ctx.noMoreNames);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "form-check-label" },
-        for: "noMoreNames",
+        ...{ class: "form-label" },
+        for: "noMoreNamesConfirmation",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        id: "noMoreNamesConfirmation",
+        value: (__VLS_ctx.noMoreNamesConfirmation),
+        ...{ class: "form-select" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "unknown",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "confirmed",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "not_confirmed",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "form-text text-muted" },
     });
     if (__VLS_ctx.validationErrors.length > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1484,7 +1606,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "alert-heading" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-exclamation-triangle me-2" },
+            ...{ class: "ni ni-user-run me-2" },
         });
         (__VLS_ctx.validationErrorSummary);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.hr, __VLS_intrinsicElements.hr)({});
@@ -1592,7 +1714,7 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-text text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-1" },
+        ...{ class: "ni ni-user-run me-1" },
     });
     if (__VLS_ctx.dobDisplayFormat) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -1637,7 +1759,7 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-text text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-1" },
+        ...{ class: "ni ni-user-run me-1" },
     });
     if (__VLS_ctx.examDateDisplayFormat) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -1792,6 +1914,80 @@ if (__VLS_ctx.currentItem) {
         value: (__VLS_ctx.editedPatient.centerName),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap gap-2 mb-2" },
+    });
+    for (const [tag] of __VLS_getVForSourceType((__VLS_ctx.presetValidationTags))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.currentItem))
+                        return;
+                    __VLS_ctx.toggleValidationTag(tag);
+                } },
+            key: (tag),
+            type: "button",
+            ...{ class: "btn btn-sm" },
+            ...{ class: (__VLS_ctx.selectedTags.includes(tag) ? 'btn-primary' : 'btn-outline-primary') },
+        });
+        (tag);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "input-group mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+        ...{ onKeyup: (__VLS_ctx.addCustomValidationTag) },
+        value: (__VLS_ctx.customTagInput),
+        type: "text",
+        ...{ class: "form-control" },
+        placeholder: "Eigenen Tag eingeben",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.addCustomValidationTag) },
+        type: "button",
+        ...{ class: "btn btn-outline-secondary" },
+    });
+    if (__VLS_ctx.selectedTags.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex flex-wrap gap-2" },
+        });
+        for (const [tag] of __VLS_getVForSourceType((__VLS_ctx.selectedTags))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                key: (tag),
+                ...{ class: "badge bg-secondary d-inline-flex align-items-center gap-1" },
+            });
+            (tag);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.currentItem))
+                            return;
+                        if (!(__VLS_ctx.selectedTags.length))
+                            return;
+                        __VLS_ctx.removeValidationTag(tag);
+                    } },
+                type: "button",
+                ...{ class: "btn-close btn-close-white btn-close-sm" },
+                'aria-label': "Tag entfernen",
+            });
+        }
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        rows: "3",
+        value: (__VLS_ctx.validationComment),
+        placeholder: "Freitext für Hinweise wie Nachkontrolle oder Ausschluss",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card bg-light" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1835,7 +2031,7 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "alert alert-info mt-2 mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     if (__VLS_ctx.isPdf) {
@@ -1871,7 +2067,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-center mb-3 text-danger" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-file-pdf me-1" },
+            ...{ class: "ni ni-single-copy-04 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
             src: (__VLS_ctx.rawPdfSrc),
@@ -1880,9 +2076,17 @@ if (__VLS_ctx.currentItem) {
             frameborder: "0",
             title: "Original PDF Vorschau",
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-            href: (__VLS_ctx.rawPdfSrc),
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 text-center" },
         });
+        if (__VLS_ctx.rawPdfSrc) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                ...{ class: "btn btn-outline-danger btn-sm" },
+                href: (__VLS_ctx.rawPdfSrc),
+                target: "_blank",
+                rel: "noopener noreferrer",
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-2 text-center" },
         });
@@ -1900,7 +2104,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-center mb-3 text-success" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-shield-alt me-1" },
+            ...{ class: "ni ni-check-bold me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
             src: (__VLS_ctx.anonymizedPdfSrc),
@@ -1909,9 +2113,17 @@ if (__VLS_ctx.currentItem) {
             frameborder: "0",
             title: "Anonymisiertes PDF Vorschau",
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-            href: (__VLS_ctx.anonymizedPdfSrc),
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 text-center" },
         });
+        if (__VLS_ctx.anonymizedPdfSrc) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                ...{ class: "btn btn-outline-success btn-sm" },
+                href: (__VLS_ctx.anonymizedPdfSrc),
+                target: "_blank",
+                rel: "noopener noreferrer",
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-2 text-center" },
         });
@@ -1927,14 +2139,14 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "btn btn-outline-primary btn-sm me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-download me-1" },
+            ...{ class: "ni ni-cloud-upload-96 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.downloadAnonymizedPdf) },
             ...{ class: "btn btn-outline-success btn-sm" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-download me-1" },
+            ...{ class: "ni ni-cloud-upload-96 me-1" },
         });
     }
     else if (__VLS_ctx.isVideo) {
@@ -1954,7 +2166,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-center mb-3 text-danger" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-eye me-1" },
+            ...{ class: "ni ni-user-run me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
             ...{ onError: (__VLS_ctx.onRawVideoError) },
@@ -1965,7 +2177,7 @@ if (__VLS_ctx.currentItem) {
             src: (__VLS_ctx.rawVideoSrc),
             controls: true,
             ...{ style: {} },
-            preload: "metadata",
+            preload: "none",
         });
         /** @type {typeof __VLS_ctx.rawVideoElement} */ ;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1985,7 +2197,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-center mb-3 text-success" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-shield-alt me-1" },
+            ...{ class: "ni ni-check-bold me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
             ...{ onError: (__VLS_ctx.onAnonymizedVideoError) },
@@ -1996,7 +2208,7 @@ if (__VLS_ctx.currentItem) {
             src: (__VLS_ctx.anonymizedVideoSrc),
             controls: true,
             ...{ style: {} },
-            preload: "metadata",
+            preload: "none",
         });
         /** @type {typeof __VLS_ctx.anonymizedVideoElement} */ ;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -2014,14 +2226,14 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "btn btn-outline-primary btn-sm me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-sync me-1" },
+            ...{ class: "ni ni-bold-right me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.pauseAllVideos) },
             ...{ class: "btn btn-outline-secondary btn-sm" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-pause me-1" },
+            ...{ class: "ni ni-button-play me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.validateVideoForSegmentAnnotation) },
@@ -2036,9 +2248,24 @@ if (__VLS_ctx.currentItem) {
         }
         else {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-check me-1" },
+                ...{ class: "ni ni-check-bold me-1" },
             });
         }
+        const __VLS_4 = {}.RouterLink;
+        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+        // @ts-ignore
+        const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
+            ...{ class: "btn btn-outline-danger btn-sm ms-2" },
+            to: (__VLS_ctx.phiRegionFrameAnnotationRoute),
+            dataTest: "phi-region-frame-annotation-link",
+        }));
+        const __VLS_6 = __VLS_5({
+            ...{ class: "btn btn-outline-danger btn-sm ms-2" },
+            to: (__VLS_ctx.phiRegionFrameAnnotationRoute),
+            dataTest: "phi-region-frame-annotation-link",
+        }, ...__VLS_functionalComponentArgsRest(__VLS_5));
+        __VLS_7.slots.default;
+        var __VLS_7;
         if (__VLS_ctx.shouldShowOutsideTimeline && __VLS_ctx.currentItem) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "outside-timeline-container mt-4" },
@@ -2057,7 +2284,7 @@ if (__VLS_ctx.currentItem) {
                 ...{ class: "mb-0 text-warning" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-exclamation-triangle me-2" },
+                ...{ class: "ni ni-user-run me-2" },
             });
             (__VLS_ctx.currentItem.id);
             __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -2092,26 +2319,26 @@ if (__VLS_ctx.currentItem) {
             });
             /** @type {[typeof OutsideTimelineComponent, ]} */ ;
             // @ts-ignore
-            const __VLS_4 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
+            const __VLS_8 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
                 ...{ 'onSegmentValidated': {} },
                 ...{ 'onValidationComplete': {} },
                 videoId: (__VLS_ctx.currentItem.id),
             }));
-            const __VLS_5 = __VLS_4({
+            const __VLS_9 = __VLS_8({
                 ...{ 'onSegmentValidated': {} },
                 ...{ 'onValidationComplete': {} },
                 videoId: (__VLS_ctx.currentItem.id),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_4));
-            let __VLS_7;
-            let __VLS_8;
-            let __VLS_9;
-            const __VLS_10 = {
+            }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+            let __VLS_11;
+            let __VLS_12;
+            let __VLS_13;
+            const __VLS_14 = {
                 onSegmentValidated: (__VLS_ctx.onSegmentValidated)
             };
-            const __VLS_11 = {
+            const __VLS_15 = {
                 onValidationComplete: (__VLS_ctx.onOutsideValidationComplete)
             };
-            var __VLS_6;
+            var __VLS_10;
         }
         if (__VLS_ctx.videoValidationStatus) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -2176,7 +2403,7 @@ if (__VLS_ctx.currentItem) {
             title: (__VLS_ctx.isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-edit me-1" },
+            ...{ class: "ni ni-single-copy-04 me-1" },
         });
         (__VLS_ctx.isVideo ? 'Video-Korrektur' : 'PDF-Korrektur');
         if (__VLS_ctx.dirty) {
@@ -2225,7 +2452,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "alert alert-warning mt-2 mb-0" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-exclamation-triangle me-2" },
+            ...{ class: "ni ni-user-run me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.approvalBlockReason);
@@ -2338,19 +2565,19 @@ if (__VLS_ctx.currentItem) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-2 d-flex flex-wrap gap-2" },
         });
-        const __VLS_12 = {}.RouterLink;
+        const __VLS_16 = {}.RouterLink;
         /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
         // @ts-ignore
-        const __VLS_13 = __VLS_asFunctionalComponent(__VLS_12, new __VLS_12({
+        const __VLS_17 = __VLS_asFunctionalComponent(__VLS_16, new __VLS_16({
             ...{ class: "btn btn-outline-secondary btn-sm" },
             to: (__VLS_ctx.caseResolutionRoute),
         }));
-        const __VLS_14 = __VLS_13({
+        const __VLS_18 = __VLS_17({
             ...{ class: "btn btn-outline-secondary btn-sm" },
             to: (__VLS_ctx.caseResolutionRoute),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_13));
-        __VLS_15.slots.default;
-        var __VLS_15;
+        }, ...__VLS_functionalComponentArgsRest(__VLS_17));
+        __VLS_19.slots.default;
+        var __VLS_19;
     }
 }
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
@@ -2373,15 +2600,15 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -2391,20 +2618,25 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-end']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-tools']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
@@ -2414,8 +2646,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['fade']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-heading']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
@@ -2446,8 +2678,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
@@ -2462,8 +2694,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
@@ -2506,6 +2738,33 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['input-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-inline-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close-white']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
@@ -2526,8 +2785,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
@@ -2539,9 +2798,14 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-file-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -2551,9 +2815,14 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -2564,14 +2833,14 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-cloud-upload-96']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-cloud-upload-96']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -2581,8 +2850,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
@@ -2593,8 +2862,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
@@ -2606,14 +2875,14 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-pause']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
@@ -2622,9 +2891,13 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
@@ -2637,8 +2910,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-end']} */ ;
@@ -2670,8 +2943,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['position-relative']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['position-absolute']} */ ;
 /** @type {__VLS_StyleScopedClasses['top-0']} */ ;
@@ -2696,8 +2969,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
@@ -2763,7 +3036,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             mediaUnknown: mediaUnknown,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
-            noMoreNames: noMoreNames,
+            noMoreNamesConfirmation: noMoreNamesConfirmation,
+            presetValidationTags: presetValidationTags,
+            selectedTags: selectedTags,
+            customTagInput: customTagInput,
+            validationComment: validationComment,
             documentTypeOptions: documentTypeOptions,
             selectedDocumentType: selectedDocumentType,
             isLoadingDocumentTypes: isLoadingDocumentTypes,
@@ -2788,6 +3065,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             originalUrl: originalUrl,
             processedUrl: processedUrl,
             showOriginal: showOriginal,
+            toggleValidationTag: toggleValidationTag,
+            removeValidationTag: removeValidationTag,
+            addCustomValidationTag: addCustomValidationTag,
             firstNameOk: firstNameOk,
             lastNameOk: lastNameOk,
             validationErrorSummary: validationErrorSummary,
@@ -2798,6 +3078,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             approvalBlockReason: approvalBlockReason,
             validationProgressPercent: validationProgressPercent,
             currentItem: currentItem,
+            currentFileIdLabel: currentFileIdLabel,
             patientHashDisplay: patientHashDisplay,
             examinationHashDisplay: examinationHashDisplay,
             linkageStatus: linkageStatus,
@@ -2807,6 +3088,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             pseudoPatientDisplay: pseudoPatientDisplay,
             patientExaminationDisplay: patientExaminationDisplay,
             caseResolutionRoute: caseResolutionRoute,
+            phiRegionFrameAnnotationRoute: phiRegionFrameAnnotationRoute,
             rawVideoSrc: rawVideoSrc,
             anonymizedVideoSrc: anonymizedVideoSrc,
             rawPdfSrc: rawPdfSrc,

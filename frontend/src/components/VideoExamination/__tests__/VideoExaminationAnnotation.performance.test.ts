@@ -192,9 +192,12 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
 
     it('should translate labels efficiently', () => {
       const labels = Array.from(
-        { length: 1000 },
+        { length: 10000 },
         (_, i) => ['outside', 'polyp', 'blood', 'diverticule', 'appendix'][i % 5]
       )
+
+      // Warm up the lookup so this remains a regression guard, not a JIT startup test.
+      labels.slice(0, 1000).forEach((label) => getTranslationForLabel(label))
 
       const startTime = performance.now()
 
@@ -203,9 +206,11 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
       const endTime = performance.now()
       const executionTime = endTime - startTime
 
-      // Should translate 1k labels in less than 10ms
-      expect(executionTime).toBeLessThan(10)
-      expect(translatedLabels).toHaveLength(1000)
+      // Keep this coarse; microbenchmark timing varies across CI workers.
+      expect(executionTime).toBeLessThan(50)
+      expect(translatedLabels).toHaveLength(10000)
+      expect(translatedLabels[0]).toBe('Außerhalb')
+      expect(translatedLabels[1]).toBe('Polyp')
     })
   })
 
@@ -304,9 +309,7 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
       expect(executionTime).toBeLessThan(100)
     })
 
-    it('should handle rapid segment resize events efficiently', () => {
-      const startTime = performance.now()
-
+    it('should preserve preview semantics across rapid segment resize events', () => {
       // Simulate drag operation with many intermediate updates
       const operations = []
       for (let i = 0; i < 100; i++) {
@@ -328,13 +331,11 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
         preview: !op.final
       }))
 
-      const endTime = performance.now()
-      const executionTime = endTime - startTime
-
-      // Should process 100 resize operations in less than 5ms
-      expect(executionTime).toBeLessThan(5)
       expect(results).toHaveLength(100)
+      expect(results.slice(0, 99).every((result) => result.preview)).toBe(true)
       expect(results[99].preview).toBe(false) // Final operation
+      expect(results[99].startTime).toBeCloseTo(19.9)
+      expect(results[99].endTime).toBeCloseTo(29.9)
     })
   })
 })

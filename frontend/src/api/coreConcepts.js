@@ -1,4 +1,4 @@
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance';
 const readKey = (input, camel, snake) => {
     const value = input[camel];
     if (value !== undefined)
@@ -211,6 +211,6 @@ export const normalizeCoreConceptCollection = (raw) => {
     };
 };
 export const fetchCoreConcepts = async (moduleName) => {
-    const response = await axiosInstance.get(`/base_api/core-concepts/${moduleName}`);
+    const response = await axiosInstance.get(dtypesApi(`core-concepts/${moduleName}`));
     return normalizeCoreConceptCollection(response.data);
 };

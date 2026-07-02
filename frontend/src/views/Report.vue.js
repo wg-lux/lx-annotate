@@ -252,14 +252,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loading),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "material-icons" },
+    ...{ class: "ni ni-single-copy-04" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.toggleFilters) },
     ...{ class: "btn btn-primary btn-sm" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "material-icons" },
+    ...{ class: "ni ni-single-copy-04" },
 });
 if (__VLS_ctx.showFilters) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -425,7 +425,7 @@ else if (__VLS_ctx.error) {
         ...{ class: "alert-heading" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
+        ...{ class: "ni ni-single-copy-04" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "mb-2" },
@@ -441,7 +441,7 @@ else if (__VLS_ctx.reportList.length === 0) {
         ...{ class: "text-center py-5" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons text-muted" },
+        ...{ class: "ni ni-single-copy-04 text-muted" },
         ...{ style: {} },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
@@ -535,7 +535,7 @@ else {
             ...{ class: "d-flex align-items-center" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: (`material-icons me-1 text-${__VLS_ctx.getFileTypeColor(report.file_type)}`) },
+            ...{ class: (`ni ni-single-copy-04 me-1 text-${__VLS_ctx.getFileTypeColor(report.file_type)}`) },
             ...{ style: {} },
         });
         (__VLS_ctx.getFileTypeIcon(report.file_type));
@@ -576,7 +576,7 @@ else {
         }, ...__VLS_functionalComponentArgsRest(__VLS_1));
         __VLS_3.slots.default;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
+            ...{ class: "ni ni-single-copy-04" },
             ...{ style: {} },
         });
         var __VLS_3;
@@ -595,7 +595,7 @@ else {
         }, ...__VLS_functionalComponentArgsRest(__VLS_5));
         __VLS_7.slots.default;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
+            ...{ class: "ni ni-single-copy-04" },
             ...{ style: {} },
         });
         var __VLS_7;
@@ -651,11 +651,11 @@ if (__VLS_ctx.showDebugInfo && __VLS_ctx.debugInfo.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -722,14 +722,14 @@ if (__VLS_ctx.showDebugInfo && __VLS_ctx.debugInfo.length > 0) {
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['m-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-heading']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -771,11 +771,11 @@ if (__VLS_ctx.showDebugInfo && __VLS_ctx.debugInfo.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;

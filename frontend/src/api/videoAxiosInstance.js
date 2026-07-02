@@ -1,7 +1,9 @@
 import axios, {} from 'axios';
-// Set the base URL for your video API endpoint.
-// When you call `videoAxiosInstance.get(videoID)` it will append the videoID to this base URL.
-const baseURL = 'http://localhost:8000/api/media/videos'; // Fix: plural videos, not singular
+import { endoregApi } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
+const baseURL = import.meta.env.VITE_API_BASE_URL
+    ? `${import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')}${endoregApi(endpoints.media.videos)}`
+    : endoregApi(endpoints.media.videos);
 const videoAxiosInstance = axios.create({
     baseURL,
     headers: {

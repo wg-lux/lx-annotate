@@ -1,6 +1,8 @@
 // frontend/src/stores/auth_kc.ts
 import { defineStore } from 'pinia';
 import axios from 'axios';
+import { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 const REPORTING_STORAGE_KEYS = [
     'reportingFlowState.v1',
     'reportingFlowState.v2',
@@ -58,8 +60,8 @@ export const useAuthKcStore = defineStore('auth_kc', {
     actions: {
         /**
          * Load the backend-provided auth/bootstrap context exactly once.
-         * Primary endpoint:    GET /api/auth/bootstrap
-         * Back-compat fallback: GET /api/auth/context
+         * Primary endpoint:    GET auth/bootstrap
+         * Back-compat fallback: GET auth/context
          */
         async loadBootstrap() {
             if (this.loaded)
@@ -67,12 +69,12 @@ export const useAuthKcStore = defineStore('auth_kc', {
             try {
                 let data;
                 try {
-                    const res = await axios.get('/api/auth/bootstrap', { withCredentials: true });
+                    const res = await axios.get(r(endpoints.auth.bootstrap), { withCredentials: true });
                     data = res.data;
                 }
                 catch (e) {
                     // Fallback for older backend
-                    const res = await axios.get('/api/auth/context', { withCredentials: true });
+                    const res = await axios.get(r(endpoints.auth.context), { withCredentials: true });
                     data = res.data;
                 }
                 // User & roles (support both shapes)

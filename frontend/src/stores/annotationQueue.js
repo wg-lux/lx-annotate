@@ -1,15 +1,26 @@
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { fetchApplicationSettings } from '@/api/applicationSettingsApi';
 import { endpoints } from '@/types/api/endpoints';
 const SELECTED_GROUP_STORAGE_KEY = 'annotationQueue.selectedLabelGroupId.v1';
 const TASK_MODE_STORAGE_KEY = 'annotationQueue.taskMode.v1';
 const TARGET_LABEL_STORAGE_KEY = 'annotationQueue.targetLabelName.v1';
 const FILTER_LABEL_STORAGE_KEY = 'annotationQueue.filterLabelName.v1';
 const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1';
+const INFORMATION_SOURCE_STORAGE_KEY = 'annotationQueue.informationSource.v1';
+const FRAME_FILE_TYPE_STORAGE_KEY = 'annotationQueue.frameFileType.v1';
+const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1';
+const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1';
+const AI_DATASET_ID_STORAGE_KEY = 'annotationQueue.aiDatasetId.v1';
+const AI_DATASET_NAME_STORAGE_KEY = 'annotationQueue.aiDatasetName.v1';
+const AI_DATASET_TYPE_STORAGE_KEY = 'annotationQueue.aiDatasetType.v1';
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task';
 const DEBUG_DUMMY_TASK_GROUP_ID = '1';
-const DEFAULT_TARGET_LABEL_NAME = 'Target Label';
+const DEFAULT_TARGET_LABEL_NAME = '';
+const DEFAULT_INFORMATION_SOURCE = 'manual_annotation';
+const DEFAULT_FRAME_FILE_TYPE = 'auto';
+const DEFAULT_SAMPLING_STRATEGY = 'balanced';
 function loadStoredGroupId() {
     try {
         const raw = localStorage.getItem(SELECTED_GROUP_STORAGE_KEY);
@@ -58,6 +69,19 @@ function loadStoredTaskMode() {
     const raw = loadStoredText(TASK_MODE_STORAGE_KEY);
     return raw === 'filtered' ? 'filtered' : 'random';
 }
+function normalizeSamplingStrategy(value) {
+    if (value === 'segments' || value === 'annotations' || value === 'none')
+        return value;
+    return DEFAULT_SAMPLING_STRATEGY;
+}
+function normalizeFrameFileType(value) {
+    if (value === 'raw' || value === 'processed')
+        return value;
+    return DEFAULT_FRAME_FILE_TYPE;
+}
+function loadStoredSamplingStrategy() {
+    return normalizeSamplingStrategy(loadStoredText(SAMPLING_STRATEGY_STORAGE_KEY));
+}
 function normalizeLabelName(value) {
     const normalized = value?.trim() ?? '';
     return normalized || DEFAULT_TARGET_LABEL_NAME;
@@ -65,6 +89,17 @@ function normalizeLabelName(value) {
 function loadStoredRandomFallback() {
     try {
         const raw = localStorage.getItem(RANDOM_FALLBACK_STORAGE_KEY);
+        if (raw === null)
+            return true;
+        return raw === '1' || raw.toLowerCase() === 'true';
+    }
+    catch {
+        return true;
+    }
+}
+function loadStoredPredictionSegmentsOnly() {
+    try {
+        const raw = localStorage.getItem(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY);
         if (raw === null)
             return true;
         return raw === '1' || raw.toLowerCase() === 'true';
@@ -101,35 +136,177 @@ function createDummyTask(groupId) {
         }
     };
 }
+function rawField(raw, camelKey, snakeKey) {
+    const nestedData = raw.data;
+    return raw[camelKey] ?? raw[snakeKey] ?? nestedData?.[camelKey] ?? nestedData?.[snakeKey];
+}
+function optionalFiniteNumber(value) {
+    if (value === null || value === undefined || value === '')
+        return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+function optionalTrimmedString(value) {
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
 function coerceTask(raw) {
-    const frameIdRaw = raw.frameId ??
-        raw.frame_id ??
-        raw.data?.frameId ??
-        raw.data?.frame_id;
-    const imageUrlRaw = raw.imageUrl ??
+    const frameIdRaw = rawField(raw, 'frameId', 'frame_id');
+    const videoId = optionalFiniteNumber(rawField(raw, 'videoId', 'video_id'));
+    const frameNumber = optionalFiniteNumber(rawField(raw, 'frameNumber', 'frame_number'));
+    const relativePath = optionalTrimmedString(rawField(raw, 'relativePath', 'relative_path'));
+    const datasetSelectionLabelId = optionalFiniteNumber(rawField(raw, 'datasetSelectionLabelId', 'dataset_selection_label_id'));
+    const datasetSelectionLabelName = optionalTrimmedString(rawField(raw, 'datasetSelectionLabelName', 'dataset_selection_label_name'));
+    const datasetSelectionSource = optionalTrimmedString(rawField(raw, 'datasetSelectionSource', 'dataset_selection_source'));
+    const datasetBucket = optionalTrimmedString(rawField(raw, 'datasetBucket', 'dataset_bucket'));
+    const imageUrlRaw = raw.decodedFrameStreamPath ??
+        raw.decoded_frame_stream_path ??
+        raw.data?.decodedFrameStreamPath ??
+        raw.data?.decoded_frame_stream_path ??
+        raw.imageUrl ??
         raw.image_url ??
+        raw.frameStreamPath ??
+        raw.frame_stream_path ??
         raw.data?.imageUrl ??
-        raw.data?.image_url;
+        raw.data?.image_url ??
+        raw.data?.frameStreamPath ??
+        raw.data?.frame_stream_path;
+    const frameFileTypeRaw = raw.frameFileType ??
+        raw.frame_file_type ??
+        raw.data?.frameFileType ??
+        raw.data?.frame_file_type;
     const existingExternalIdRaw = raw.existingExternalId ??
         raw.existing_external_id ??
         raw.data?.existingExternalId ??
         raw.data?.existing_external_id;
     const idRaw = raw.id ?? raw.taskId ?? raw.task_id;
+    const labelOptionsRaw = raw.labelOptions ??
+        raw.label_options ??
+        raw.data?.labelOptions ??
+        raw.data?.label_options;
+    const manualAnnotationsRaw = raw.manualAnnotations ??
+        raw.manual_annotations ??
+        raw.data?.manualAnnotations ??
+        raw.data?.manual_annotations;
+    const predictionAnnotationsRaw = raw.predictionAnnotations ??
+        raw.prediction_annotations ??
+        raw.data?.predictionAnnotations ??
+        raw.data?.prediction_annotations;
+    const suggestedLabelIdsRaw = raw.suggestedLabelIds ??
+        raw.suggested_label_ids ??
+        raw.data?.suggestedLabelIds ??
+        raw.data?.suggested_label_ids;
+    const annotationModeRaw = raw.annotationMode ??
+        raw.annotation_mode ??
+        raw.data?.annotationMode ??
+        raw.data?.annotation_mode;
     const frameId = Number(frameIdRaw);
     const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw : null;
     if (!Number.isFinite(frameId) || !imageUrl)
         return null;
+    const frameFileType = typeof frameFileTypeRaw === 'string' ? normalizeFrameFileType(frameFileTypeRaw) : undefined;
     const existingExternalId = typeof existingExternalIdRaw === 'string' && existingExternalIdRaw.trim()
         ? existingExternalIdRaw
         : undefined;
+    const labelOptions = Array.isArray(labelOptionsRaw)
+        ? labelOptionsRaw
+            .map((item) => {
+            if (!item || typeof item !== 'object')
+                return null;
+            const row = item;
+            const id = Number(row.id);
+            const name = typeof row.name === 'string' ? row.name.trim() : '';
+            if (!Number.isFinite(id) || !name)
+                return null;
+            return { id, name };
+        })
+            .filter((item) => item !== null)
+        : [];
+    const normalizeAnnotationList = (value) => {
+        if (!Array.isArray(value))
+            return [];
+        const isNonNull = (item) => item !== null;
+        return value
+            .map((item) => {
+            if (!item || typeof item !== 'object')
+                return null;
+            const row = item;
+            const labelId = Number(row.labelId ?? row.label_id);
+            const labelName = typeof (row.labelName ?? row.label_name) === 'string'
+                ? String(row.labelName ?? row.label_name).trim()
+                : '';
+            if (!Number.isFinite(labelId) || !labelName)
+                return null;
+            const normalized = {
+                labelId,
+                labelName,
+                value: !!row.value
+            };
+            if (typeof row.id === 'number' && Number.isFinite(row.id)) {
+                normalized.id = row.id;
+            }
+            else if (typeof row.id === 'string' && row.id.trim()) {
+                const parsedId = Number(row.id);
+                if (Number.isFinite(parsedId)) {
+                    normalized.id = parsedId;
+                }
+            }
+            if (typeof row.floatValue === 'number') {
+                normalized.floatValue = row.floatValue;
+            }
+            else if (typeof row.float_value === 'number') {
+                normalized.floatValue = row.float_value;
+            }
+            else {
+                normalized.floatValue = null;
+            }
+            if (typeof row.externalAnnotationId === 'string') {
+                normalized.externalAnnotationId = row.externalAnnotationId;
+            }
+            else if (typeof row.external_annotation_id === 'string') {
+                normalized.externalAnnotationId = row.external_annotation_id;
+            }
+            else {
+                normalized.externalAnnotationId = null;
+            }
+            if (typeof row.modelMetaId === 'number') {
+                normalized.modelMetaId = row.modelMetaId;
+            }
+            else if (typeof row.model_meta_id === 'number') {
+                normalized.modelMetaId = row.model_meta_id;
+            }
+            else {
+                normalized.modelMetaId = null;
+            }
+            return normalized;
+        })
+            .filter(isNonNull);
+    };
+    const suggestedLabelIds = Array.isArray(suggestedLabelIdsRaw)
+        ? suggestedLabelIdsRaw
+            .map((item) => Number(item))
+            .filter((item) => Number.isFinite(item))
+        : [];
     return {
         id: typeof idRaw === 'string' || typeof idRaw === 'number'
             ? String(idRaw)
-            : crypto.randomUUID(),
+            : globalThis.crypto?.randomUUID?.() ?? `frame-task-${frameId}`,
         data: {
             frameId,
+            videoId,
+            frameNumber,
+            relativePath,
             imageUrl,
-            existingExternalId
+            frameFileType,
+            existingExternalId,
+            annotationMode: typeof annotationModeRaw === 'string' ? annotationModeRaw : undefined,
+            datasetSelectionLabelId,
+            datasetSelectionLabelName,
+            datasetSelectionSource,
+            datasetBucket,
+            labelOptions,
+            manualAnnotations: normalizeAnnotationList(manualAnnotationsRaw),
+            predictionAnnotations: normalizeAnnotationList(predictionAnnotationsRaw),
+            suggestedLabelIds
         }
     };
 }
@@ -158,11 +335,20 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     const targetLabelName = ref(normalizeLabelName(loadStoredText(TARGET_LABEL_STORAGE_KEY)));
     const filterLabelName = ref(loadStoredText(FILTER_LABEL_STORAGE_KEY));
     const allowRandomFallback = ref(loadStoredRandomFallback());
+    const informationSource = ref(loadStoredText(INFORMATION_SOURCE_STORAGE_KEY) ?? DEFAULT_INFORMATION_SOURCE);
+    const frameFileType = ref(normalizeFrameFileType(loadStoredText(FRAME_FILE_TYPE_STORAGE_KEY)));
+    const samplingStrategy = ref(loadStoredSamplingStrategy());
+    const predictionSegmentsOnly = ref(loadStoredPredictionSegmentsOnly());
+    const annotatorPrincipal = ref(null);
     const taskQueue = ref([]);
+    let queueGeneration = 0;
     const isInitialLoading = ref(false);
     const isPrefetching = ref(false);
     const lastError = ref(null);
-    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${allowRandomFallback.value ? '1' : '0'}`);
+    const aiDatasetId = ref(loadStoredText(AI_DATASET_ID_STORAGE_KEY));
+    const aiDatasetName = ref(loadStoredText(AI_DATASET_NAME_STORAGE_KEY));
+    const aiDatasetType = ref(loadStoredText(AI_DATASET_TYPE_STORAGE_KEY));
+    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${frameFileType.value}|${allowRandomFallback.value ? '1' : '0'}|${samplingStrategy.value}|${predictionSegmentsOnly.value ? '1' : '0'}|${aiDatasetId.value ?? ''}|${aiDatasetName.value ?? ''}|${aiDatasetType.value ?? ''}|${annotatorPrincipal.value ?? ''}`);
     watch(selectedLabelGroupId, (next) => {
         persistGroupId(next);
     });
@@ -177,6 +363,27 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     });
     watch(allowRandomFallback, (next) => {
         persistBoolean(RANDOM_FALLBACK_STORAGE_KEY, next);
+    });
+    watch(informationSource, (next) => {
+        persistText(INFORMATION_SOURCE_STORAGE_KEY, next);
+    });
+    watch(frameFileType, (next) => {
+        persistText(FRAME_FILE_TYPE_STORAGE_KEY, next);
+    });
+    watch(samplingStrategy, (next) => {
+        persistText(SAMPLING_STRATEGY_STORAGE_KEY, next);
+    });
+    watch(predictionSegmentsOnly, (next) => {
+        persistBoolean(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY, next);
+    });
+    watch(aiDatasetId, (next) => {
+        persistText(AI_DATASET_ID_STORAGE_KEY, next);
+    });
+    watch(aiDatasetName, (next) => {
+        persistText(AI_DATASET_NAME_STORAGE_KEY, next);
+    });
+    watch(aiDatasetType, (next) => {
+        persistText(AI_DATASET_TYPE_STORAGE_KEY, next);
     });
     function setSelectedLabelGroupId(groupId) {
         selectedLabelGroupId.value = groupId && groupId.trim() ? groupId : null;
@@ -193,17 +400,77 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     function setAllowRandomFallback(enabled) {
         allowRandomFallback.value = !!enabled;
     }
+    function setInformationSource(source) {
+        const normalized = source?.trim() ?? '';
+        informationSource.value = normalized || DEFAULT_INFORMATION_SOURCE;
+    }
+    function setFrameFileType(fileType) {
+        frameFileType.value = normalizeFrameFileType(fileType);
+    }
+    function setSamplingStrategy(strategy) {
+        samplingStrategy.value = normalizeSamplingStrategy(strategy);
+    }
+    function setPredictionSegmentsOnly(enabled) {
+        predictionSegmentsOnly.value = !!enabled;
+    }
+    function setAiDataset(datasetName, datasetType, datasetId = null) {
+        aiDatasetId.value =
+            datasetId !== null && datasetId !== undefined && String(datasetId).trim()
+                ? String(datasetId).trim()
+                : null;
+        aiDatasetName.value = datasetName?.trim() || null;
+        aiDatasetType.value = datasetType?.trim() || null;
+    }
+    function setAnnotatorPrincipal(principal) {
+        annotatorPrincipal.value = principal?.trim() || null;
+    }
+    async function hydrateAiDatasetDefaults() {
+        if (aiDatasetId.value !== null || aiDatasetName.value !== null || aiDatasetType.value !== null)
+            return;
+        try {
+            const settings = await fetchApplicationSettings();
+            aiDatasetName.value = settings.aiDatasetName?.trim() || null;
+            aiDatasetType.value = settings.aiDatasetType?.trim() || null;
+        }
+        catch {
+            aiDatasetId.value = null;
+            aiDatasetName.value = null;
+            aiDatasetType.value = null;
+        }
+    }
     function buildTaskRequestParams(batchSize, mode) {
         const params = {
-            label_group_id: selectedLabelGroupId.value,
             limit: batchSize
         };
+        if (selectedLabelGroupId.value) {
+            params.label_group_id = selectedLabelGroupId.value;
+        }
         params.task_mode = mode;
-        params.target_label = targetLabelName.value;
+        const targetLabel = targetLabelName.value.trim();
+        if (targetLabel) {
+            params.target_label = targetLabel;
+        }
+        params.information_source = informationSource.value;
+        params.information_source_name = informationSource.value;
+        params.frame_file_type = frameFileType.value;
+        if (annotatorPrincipal.value) {
+            params.annotator = annotatorPrincipal.value;
+        }
         if (mode === 'filtered' && filterLabelName.value) {
             params.filter_label = filterLabelName.value;
             params.previous_label = filterLabelName.value;
         }
+        if (aiDatasetId.value) {
+            params.ai_dataset_id = aiDatasetId.value;
+        }
+        if (aiDatasetName.value) {
+            params.ai_dataset_name = aiDatasetName.value;
+        }
+        if (aiDatasetType.value) {
+            params.ai_dataset_type = aiDatasetType.value;
+        }
+        params.dataset_frame_filter = samplingStrategy.value;
+        params.prediction_segments_only = predictionSegmentsOnly.value ? 'true' : 'false';
         return params;
     }
     async function fetchTaskBatchFromApi(batchSize, mode) {
@@ -216,20 +483,33 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     }
     async function fetchBatch(batchSize = 10) {
         if (!selectedLabelGroupId.value) {
-            if (!dummyTaskModeEnabled)
-                return [];
-            selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID;
+            if (dummyTaskModeEnabled) {
+                selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID;
+            }
         }
         lastError.value = null;
+        const currentTaskRequestSignature = () => `${selectedLabelGroupId.value ?? ''}|${taskQuerySignature.value}`;
+        const isCurrentRequest = (generation, signature) => generation === queueGeneration && signature === currentTaskRequestSignature();
+        let requestGeneration = queueGeneration;
+        let requestSignature = currentTaskRequestSignature();
         try {
+            await hydrateAiDatasetDefaults();
+            requestGeneration = queueGeneration;
+            requestSignature = currentTaskRequestSignature();
             let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value);
+            if (!isCurrentRequest(requestGeneration, requestSignature))
+                return [];
             if (taskMode.value === 'filtered' &&
                 allowRandomFallback.value &&
                 parsed.length === 0) {
                 parsed = await fetchTaskBatchFromApi(batchSize, 'random');
+                if (!isCurrentRequest(requestGeneration, requestSignature))
+                    return [];
             }
             taskQueue.value.push(...parsed);
             if (dummyTaskModeEnabled && parsed.length === 0 && taskQueue.value.length === 0) {
+                if (!isCurrentRequest(requestGeneration, requestSignature))
+                    return [];
                 const dummy = createDummyTask(selectedLabelGroupId.value);
                 taskQueue.value.push(dummy);
                 return [dummy];
@@ -237,9 +517,13 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
             return parsed;
         }
         catch (error) {
+            if (!isCurrentRequest(requestGeneration, requestSignature))
+                return [];
             if (taskMode.value === 'filtered' && allowRandomFallback.value) {
                 try {
                     const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random');
+                    if (!isCurrentRequest(requestGeneration, requestSignature))
+                        return [];
                     taskQueue.value.push(...fallbackParsed);
                     if (fallbackParsed.length > 0) {
                         return fallbackParsed;
@@ -255,6 +539,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
                     error?.message ||
                     'Failed to fetch annotation tasks.';
             if (dummyTaskModeEnabled && taskQueue.value.length === 0) {
+                if (!isCurrentRequest(requestGeneration, requestSignature))
+                    return [];
                 const dummy = createDummyTask(selectedLabelGroupId.value);
                 taskQueue.value.push(dummy);
                 return [dummy];
@@ -263,7 +549,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         }
     }
     async function prefetchIfNeeded() {
-        if (isPrefetching.value || !selectedLabelGroupId.value)
+        if (isPrefetching.value)
             return;
         if (taskQueue.value.length >= 3)
             return;
@@ -281,11 +567,10 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         return task;
     }
     function clearQueue() {
+        queueGeneration += 1;
         taskQueue.value = [];
     }
     async function primeQueue(batchSize = 10) {
-        if (!selectedLabelGroupId.value)
-            return;
         isInitialLoading.value = true;
         clearQueue();
         try {
@@ -301,6 +586,14 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         targetLabelName,
         filterLabelName,
         allowRandomFallback,
+        informationSource,
+        frameFileType,
+        samplingStrategy,
+        predictionSegmentsOnly,
+        aiDatasetId,
+        aiDatasetName,
+        aiDatasetType,
+        annotatorPrincipal,
         taskQuerySignature,
         taskQueue,
         isInitialLoading,
@@ -311,6 +604,13 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         setTargetLabelName,
         setFilterLabelName,
         setAllowRandomFallback,
+        setInformationSource,
+        setFrameFileType,
+        setSamplingStrategy,
+        setPredictionSegmentsOnly,
+        setAiDataset,
+        setAnnotatorPrincipal,
+        hydrateAiDatasetDefaults,
         fetchBatch,
         prefetchIfNeeded,
         popNextTask,

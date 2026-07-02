@@ -1,4 +1,4 @@
-"""Sphinx configuration for the lx-data-models documentation."""
+"""Sphinx configuration for the lx-annotate documentation."""
 
 from __future__ import annotations
 

@@ -25,12 +25,14 @@ INSTALLED_APPS = deepcopy(base.INSTALLED_APPS)
 MIDDLEWARE = deepcopy(base.MIDDLEWARE)
 REST_FRAMEWORK = deepcopy(base.REST_FRAMEWORK)
 LOGGING = deepcopy(base.LOGGING)
+STORAGES = deepcopy(base.STORAGES)
 
 # Help mypy
 INSTALLED_APPS = cast(list[str], INSTALLED_APPS)
 MIDDLEWARE = cast(list[str], MIDDLEWARE)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
 LOGGING = cast(dict[str, Any], LOGGING)
+STORAGES = cast(dict[str, Any], STORAGES)
 
 # -----------------------------------------------------------------------------
 # 2. CORE TEST OVERRIDES
@@ -84,6 +86,7 @@ MIGRATION_MODULES = cast(Any, DisableMigrations())
 # Use temp directories for Media/Static so we don't pollute the real user data dir
 MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="lx_test_media_"))
 STATIC_ROOT = str(tempfile.mkdtemp(prefix="lx_test_static_"))
+os.environ["LX_ANNOTATE_ENCRYPTED_DATA_DIR"] = str(base.APP_DATA_DIR)
 
 # Test Assets (Videos/JSONs) should live in the CODE repository, not the data dir.
 # BASE_DIR from settings_base now correctly points to the repo root.
@@ -142,6 +145,12 @@ CACHES = {
 }
 
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+STORAGES["default"] = {
+    "BACKEND": "django.core.files.storage.FileSystemStorage",
+}
+STORAGES["staticfiles"] = {
+    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+}
 
 # -----------------------------------------------------------------------------
 # 8. TEST FLAGS
@@ -152,5 +161,4 @@ RUN_AI_TESTS = os.getenv("RUN_AI_TESTS", "0") == "1"
 RUN_INTEGRATION_TESTS = os.getenv("RUN_INTEGRATION_TESTS", "1") == "1"
 
 print("🧪 TEST MODE ACTIVE: In-memory DB, No Auth, Temp Media Root")
-print(f"📂 Test Assets: {TEST_ASSET_DIR}")
 print(f"🎬 Video Tests: {'ENABLED' if RUN_VIDEO_TESTS else 'DISABLED'}")

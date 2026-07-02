@@ -131,6 +131,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly dob?: string | null | undefined;
             readonly gender?: string | null | undefined;
             readonly center?: string | null | undefined;
+            readonly centerKey?: string | null | undefined;
             readonly email?: string | undefined;
             readonly phone?: string | undefined;
             readonly patientHash?: string | null | undefined;
@@ -284,6 +285,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly dob?: string | null | undefined;
             readonly gender?: string | null | undefined;
             readonly center?: string | null | undefined;
+            readonly centerKey?: string | null | undefined;
             readonly email?: string | undefined;
             readonly phone?: string | undefined;
             readonly patientHash?: string | null | undefined;
@@ -422,6 +424,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             dob?: string | null | undefined;
             gender?: string | null | undefined;
             center?: string | null | undefined;
+            centerKey?: string | null | undefined;
             email?: string | undefined;
             phone?: string | undefined;
             patientHash?: string | null | undefined;
@@ -468,7 +471,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
-}, "loading" | "error" | "patientFindings">, Pick<{
+}, "error" | "loading" | "patientFindings">, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly examination?: string | undefined;
@@ -584,6 +587,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly dob?: string | null | undefined;
             readonly gender?: string | null | undefined;
             readonly center?: string | null | undefined;
+            readonly centerKey?: string | null | undefined;
             readonly email?: string | undefined;
             readonly phone?: string | undefined;
             readonly patientHash?: string | null | undefined;
@@ -737,6 +741,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly dob?: string | null | undefined;
             readonly gender?: string | null | undefined;
             readonly center?: string | null | undefined;
+            readonly centerKey?: string | null | undefined;
             readonly email?: string | undefined;
             readonly phone?: string | undefined;
             readonly patientHash?: string | null | undefined;
@@ -875,6 +880,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             dob?: string | null | undefined;
             gender?: string | null | undefined;
             center?: string | null | undefined;
+            centerKey?: string | null | undefined;
             email?: string | undefined;
             phone?: string | undefined;
             patientHash?: string | null | undefined;
@@ -1037,6 +1043,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly dob?: string | null | undefined;
             readonly gender?: string | null | undefined;
             readonly center?: string | null | undefined;
+            readonly centerKey?: string | null | undefined;
             readonly email?: string | undefined;
             readonly phone?: string | undefined;
             readonly patientHash?: string | null | undefined;
@@ -1190,6 +1197,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly dob?: string | null | undefined;
             readonly gender?: string | null | undefined;
             readonly center?: string | null | undefined;
+            readonly centerKey?: string | null | undefined;
             readonly email?: string | undefined;
             readonly phone?: string | undefined;
             readonly patientHash?: string | null | undefined;
@@ -1328,6 +1336,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             dob?: string | null | undefined;
             gender?: string | null | undefined;
             center?: string | null | undefined;
+            centerKey?: string | null | undefined;
             email?: string | undefined;
             phone?: string | undefined;
             patientHash?: string | null | undefined;

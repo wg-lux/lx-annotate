@@ -1,4 +1,4 @@
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 
 export type ReportTemplateBuilderField = {
   key: string
@@ -61,6 +61,6 @@ export type SaveReportTemplateDefinitionResponse = {
 export async function saveReportTemplateDefinition(
   payload: SaveReportTemplateDefinitionRequest
 ): Promise<SaveReportTemplateDefinitionResponse> {
-  const response = await axiosInstance.post('/base_api/report-templates/builder/templates', payload)
+  const response = await axiosInstance.post(dtypesApi('report-templates/builder/templates'), payload)
   return response.data as SaveReportTemplateDefinitionResponse
 }

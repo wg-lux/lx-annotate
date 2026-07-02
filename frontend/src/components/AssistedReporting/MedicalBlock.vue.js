@@ -12,7 +12,23 @@ const props = defineProps({
     showAction: { type: Boolean, default: true },
     loading: Boolean
 });
+const iconClassMap = {
+    assignment: 'ni ni-single-copy-04',
+    check_circle: 'ni ni-check-bold',
+    description: 'ni ni-single-copy-04',
+    note_add: 'ni ni-fat-add',
+    people: 'ni ni-badge',
+    person: 'ni ni-circle-08',
+    photo_library: 'ni ni-album-2'
+};
 const isExpanded = ref(props.isActive);
+const nucleoIconClass = computed(() => {
+    const icon = props.icon || 'ni ni-single-copy-04';
+    if (icon.startsWith('ni ')) {
+        return icon;
+    }
+    return iconClassMap[icon] || 'ni ni-single-copy-04';
+});
 const expandStyle = computed(() => ({
     transform: isExpanded.value ? 'rotate(180deg)' : 'rotate(0deg)',
     transition: 'transform 0.3s ease'
@@ -40,9 +56,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: (['icon icon-shape shadow-sm border-radius-md me-3', __VLS_ctx.iconBgClass]) },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "material-icons opacity-10" },
+    ...{ class: ([__VLS_ctx.nucleoIconClass, 'opacity-10']) },
 });
-(__VLS_ctx.icon);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
     ...{ class: "mb-0 text-dark" },
@@ -61,7 +76,7 @@ if (__VLS_ctx.isComplete) {
     });
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "material-icons transition-all" },
+    ...{ class: "ni ni-bold-right transition-all" },
     ...{ style: (__VLS_ctx.expandStyle) },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -110,7 +125,6 @@ if (__VLS_ctx.showAction) {
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
@@ -123,7 +137,8 @@ if (__VLS_ctx.showAction) {
 /** @type {__VLS_StyleScopedClasses['badge-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-gradient-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['transition-all']} */ ;
 /** @type {__VLS_StyleScopedClasses['collapse']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
@@ -146,6 +161,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             isExpanded: isExpanded,
+            nucleoIconClass: nucleoIconClass,
             expandStyle: expandStyle,
         };
     },

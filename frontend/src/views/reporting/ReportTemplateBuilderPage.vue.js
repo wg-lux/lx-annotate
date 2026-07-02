@@ -1,5 +1,5 @@
 import { computed, onMounted, ref, watch } from 'vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance';
 import { fetchReportTemplateByName, fetchReportTemplatesByExamination, validateReportTemplateDefinition, validateReportTemplateRuntime } from '@/api/reportTemplatesApi';
 import { saveReportTemplateDefinition } from '@/api/reportTemplateBuilderApi';
 const moduleName = ref('report_template_examples');
@@ -109,7 +109,7 @@ function createSection(sectionType) {
             id: uid('section'),
             sectionType,
             name: 'patient_information',
-            description: 'Patientenstammdaten fuer den Berichtskopf',
+            description: 'Patientenstammdaten für den Berichtskopf',
             fields: [
                 { key: 'first_name', label: 'Vorname', source: 'patient', required: false },
                 { key: 'last_name', label: 'Nachname', source: 'patient', required: false },
@@ -124,7 +124,7 @@ function createSection(sectionType) {
             id: uid('section'),
             sectionType,
             name: 'clinic_address',
-            description: 'Universitaetsklinikum Musterstadt\nKlinik fuer Endoskopie\nMusterstrasse 1\n97070 Wuerzburg',
+            description: 'Universitätsklinikum Musterstadt\nKlinik für Endoskopie\nMusterstraße 1\n97070 Würzburg',
             fields: [],
             findings: []
         };
@@ -133,7 +133,7 @@ function createSection(sectionType) {
         id: uid('section'),
         sectionType: 'findings',
         name: `findings_section_${sections.value.filter((item) => item.sectionType === 'findings').length + 1}`,
-        description: 'Klinische Befunde und zugehoerige Validierungsregeln',
+        description: 'Klinische Befunde und zugehörige Prüfregeln',
         fields: [],
         findings: [defaultFinding()]
     };
@@ -196,9 +196,9 @@ function sectionTitle(section) {
 }
 function sectionExampleLabel(section) {
     if (section.sectionType === 'findings') {
-        return `${section.findings.length} Finding(s) konfiguriert`;
+        return `${section.findings.length} Befund(e) konfiguriert`;
     }
-    return `Preset: ${section.sectionType}`;
+    return `Typ: ${section.sectionType}`;
 }
 function sectionDescriptionPlaceholder(section) {
     if (section.sectionType === 'logo')
@@ -206,8 +206,8 @@ function sectionDescriptionPlaceholder(section) {
     if (section.sectionType === 'clinic_address')
         return 'Klinikadresse oder Briefkopftext';
     if (section.sectionType === 'patient_info')
-        return 'Optionaler Einfuehrungstext fuer die Patientensektion';
-    return 'Beschreibung der Findings-Sektion';
+        return 'Optionaler Einführungstext für die Patientensektion';
+    return 'Beschreibung der Befundsektion';
 }
 function renderSectionPreview(section) {
     if (section.sectionType === 'logo') {
@@ -223,7 +223,7 @@ function renderSectionPreview(section) {
         return section.description || 'Klinikadresse / Briefkopf';
     }
     return [
-        `## ${section.name || 'Findings'}`,
+        `## ${section.name || 'Befunde'}`,
         ...section.findings.map((finding) => {
             const classes = finding.classifications
                 .map((entry) => `${entry.classification}${entry.required ? ' *' : ''}`)
@@ -306,7 +306,7 @@ const runtimePayloadPreview = computed(() => JSON.stringify(runtimePayload.value
 async function loadCoreConcepts() {
     catalogLoading.value = true;
     try {
-        const response = await axiosInstance.get(`/base_api/core-concepts/${encodeURIComponent(moduleName.value)}`);
+        const response = await axiosInstance.get(dtypesApi(`core-concepts/${encodeURIComponent(moduleName.value)}`));
         coreConcepts.value = response.data;
         if (!examination.value && examinationOptions.value.length) {
             examination.value = examinationOptions.value[0];
@@ -346,7 +346,7 @@ async function loadSelectedTemplate() {
     try {
         const template = await fetchReportTemplateByName(moduleName.value, templateName.value);
         if (!template) {
-            throw new Error('Ungueltiges Report-Template-Format.');
+            throw new Error('Ungültiges Format der Berichtsvorlage.');
         }
         selectedTemplate.value = template;
         examination.value = template.examination || examination.value;
@@ -354,7 +354,7 @@ async function loadSelectedTemplate() {
         definitionValidationResult.value = null;
     }
     catch (error) {
-        setError(error?.response?.data?.detail || error?.message || 'Template konnte nicht geladen werden.');
+        setError(error?.response?.data?.detail || error?.message || 'Vorlage konnte nicht geladen werden.');
     }
     finally {
         templateLoading.value = false;
@@ -366,10 +366,10 @@ async function runDefinitionValidation() {
     definitionLoading.value = true;
     try {
         definitionValidationResult.value = await validateReportTemplateDefinition(moduleName.value, templateName.value);
-        successMessage.value = `Strukturvalidierung fuer "${templateName.value}" abgeschlossen.`;
+        successMessage.value = `Strukturprüfung für "${templateName.value}" abgeschlossen.`;
     }
     catch (error) {
-        setError(error?.response?.data?.detail || error?.message || 'Strukturvalidierung fehlgeschlagen.');
+        setError(error?.response?.data?.detail || error?.message || 'Strukturprüfung fehlgeschlagen.');
     }
     finally {
         definitionLoading.value = false;
@@ -377,16 +377,16 @@ async function runDefinitionValidation() {
 }
 async function runRuntimeValidation() {
     if (!selectedTemplate.value) {
-        setError('Zuerst ein persistiertes Template laden.');
+        setError('Bitte zuerst eine gespeicherte Vorlage laden.');
         return;
     }
     runtimeLoading.value = true;
     try {
         runtimeValidationResult.value = await validateReportTemplateRuntime(moduleName.value, selectedTemplate.value.name, runtimePayload.value);
-        successMessage.value = `Runtime-Validierung fuer "${selectedTemplate.value.name}" abgeschlossen.`;
+        successMessage.value = `Eingabeprüfung für "${selectedTemplate.value.name}" abgeschlossen.`;
     }
     catch (error) {
-        setError(error?.response?.data?.detail || error?.message || 'Runtime-Validierung fehlgeschlagen.');
+        setError(error?.response?.data?.detail || error?.message || 'Eingabeprüfung fehlgeschlagen.');
     }
     finally {
         runtimeLoading.value = false;
@@ -414,13 +414,13 @@ async function saveTemplate() {
             description: templateDescription.value,
             sections: sections.value
         });
-        successMessage.value = `Template "${result.templateName}" wurde in ${result.fileName} gespeichert.`;
+        successMessage.value = `Vorlage "${result.templateName}" wurde in ${result.fileName} gespeichert.`;
         showSavePrompt.value = false;
         await refreshTemplateOptions();
         await loadSelectedTemplate();
     }
     catch (error) {
-        setError(error?.response?.data?.detail || error?.message || 'Template konnte nicht gespeichert werden.');
+        setError(error?.response?.data?.detail || error?.message || 'Vorlage konnte nicht gespeichert werden.');
     }
     finally {
         saving.value = false;
@@ -699,7 +699,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     ...{ class: "form-control" },
-    placeholder: "Kommagetrennte Examiner-Namen",
+    placeholder: "Kommagetrennte Namen",
 });
 (__VLS_ctx.runtimeExaminersInput);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -804,7 +804,7 @@ for (const [finding, findingIndex] of __VLS_getVForSourceType((__VLS_ctx.runtime
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
             ...{ class: "form-control form-control-sm" },
-            placeholder: "z. B. size_mm",
+            placeholder: "z. B. Größe_mm",
         });
         (choice.classificationChoice);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -910,7 +910,7 @@ else {
                 ...{ class: "badge" },
                 ...{ class: (issue.level === 'warning' ? 'text-bg-warning' : 'text-bg-danger') },
             });
-            (issue.level);
+            (issue.level === 'warning' ? 'Warnung' : 'Fehler');
             if (issue.nodeId) {
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: "text-muted" },
@@ -982,7 +982,7 @@ else {
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: "text-muted" },
                 });
-                (issue.validatorKind);
+                (issue.validatorKind === 'template' ? 'Vorlage' : issue.validatorKind === 'examination_validator' ? 'Untersuchungsregel' : 'Befundregel');
                 (issue.validatorName);
             }
         }
@@ -1015,7 +1015,7 @@ else {
             ...{ class: "badge" },
             ...{ class: (validator.ok ? 'text-bg-success' : 'text-bg-danger') },
         });
-        (validator.ok ? 'OK' : 'Fail');
+        (validator.ok ? 'OK' : 'Fehler');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-muted" },
         });
@@ -1054,7 +1054,7 @@ else {
             ...{ class: "badge" },
             ...{ class: (validator.ok ? 'text-bg-success' : 'text-bg-danger') },
         });
-        (validator.ok ? 'OK' : 'Fail');
+        (validator.ok ? 'OK' : 'Fehler');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-muted" },
         });
