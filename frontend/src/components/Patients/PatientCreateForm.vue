@@ -4,7 +4,7 @@
       <!-- Basic Information -->
       <div class="form-section">
         <h4>
-          <i class="fas fa-user"></i>
+          <i class="ni ni-circle-08"></i>
           Grunddaten
         </h4>
         
@@ -95,7 +95,7 @@
       <!-- Contact Information -->
       <div class="form-section">
         <h4>
-          <i class="fas fa-address-book"></i>
+          <i class="ni ni-book-bookmark"></i>
           Kontaktdaten
         </h4>
         
@@ -139,7 +139,7 @@
       <!-- Organization -->
       <div class="form-section">
         <h4>
-          <i class="fas fa-hospital"></i>
+          <i class="ni ni-collection"></i>
           Organisation
         </h4>
         
@@ -148,7 +148,7 @@
             <div class="form-group">
               <label for="center">Zentrum</label>
               <select 
-                v-model="form.center"
+                v-model="form.centerKey"
                 id="center"
                 class="form-control"
                 :class="{ 'is-invalid': errors.center }"
@@ -157,7 +157,7 @@
                 <option 
                   v-for="center in centers" 
                   :key="center.id" 
-                  :value="center.name"
+                  :value="center.centerKey || center.name"
                 >
                   {{ center.nameDe || center.name }}
                 </option>
@@ -199,7 +199,7 @@
           :disabled="loading || !isFormValid"
         >
           <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-          <i v-else class="fas fa-save me-2"></i>
+          <i v-else class="ni ni-collection me-2"></i>
           {{ loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
         </button>
         
@@ -209,7 +209,7 @@
           @click="$emit('cancel')"
           :disabled="loading"
         >
-          <i class="fas fa-times me-2"></i>
+          <i class="ni ni-settings-gear-65 me-2"></i>
           Abbrechen
         </button>
       </div>
@@ -221,6 +221,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { usePatientStore, type Patient, type PatientFormData, type Gender, type Center } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
+import { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 
 // Emits
 const emit = defineEmits<{
@@ -244,6 +246,7 @@ const form = ref<PatientFormData>({
   phone: '',
   gender: null,
   center: null,
+  centerKey: null,
   patientHash: '',
   comments: '',
   isRealPerson: true
@@ -334,9 +337,10 @@ const handleSubmit = async () => {
     console.log('📋 Formatierte Daten für API:', formattedData)
     
     // Log the exact URL that will be called
+    const patientCreatePath = r(endpoints.patient.patients)
     console.log('🌐 API-Aufruf wird gestartet...')
-    console.log('URL:', `/api/patients/`)
-    console.log('Full URL wird zu:', `${window.location.origin}/api/patients/`)
+    console.log('URL:', patientCreatePath)
+    console.log('Full URL wird zu:', `${window.location.origin}${patientCreatePath}`)
     
     // Use patientStore instead of patientService for consistency
     const newPatient = await patientStore.createPatient(formattedData)
@@ -352,6 +356,7 @@ const handleSubmit = async () => {
       phone: '',
       gender: null,
       center: null,
+      centerKey: null,
       patientHash: '',
       comments: '',
       isRealPerson: true

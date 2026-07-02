@@ -11,13 +11,13 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+HOME_DIR="$(dirname "$SCRIPT_DIR")"
 SERVICE_NAME="lx-filewatcher"
 SERVICE_FILE="$SCRIPT_DIR/lx-filewatcher.service"
 SYSTEMD_SERVICE_PATH="/etc/systemd/system/$SERVICE_NAME.service"
 
 echo -e "${GREEN}LX-Annotate File Watcher Setup${NC}"
-echo "Project root: $PROJECT_ROOT"
+echo "Project root: $HOME_DIR"
 echo "Service file: $SERVICE_FILE"
 
 # Function to print status
@@ -33,6 +33,45 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+bootstrap_path_env() {
+    export DATA_DIR="${DATA_DIR:-${LX_ANNOTATE_DATA_DIR:-$HOME_DIR/data}}"
+    export STORAGE_DIR="${STORAGE_DIR:-$DATA_DIR}"
+}
+
+bootstrap_pythonpath() {
+    export PYTHONPATH="$HOME_DIR${PYTHONPATH:+:$PYTHONPATH}"
+}
+
+resolve_ingest_directories() {
+    if python - <<'PY' >/dev/null 2>&1
+from endoreg_db.utils.paths import IMPORT_PREANONYMIZED_DIR
+PY
+    then
+        python - <<'PY'
+from endoreg_db.utils.paths import (
+    IMPORT_PREANONYMIZED_DIR,
+    IMPORT_REPORT_DIR,
+    IMPORT_VIDEO_DIR,
+)
+
+for path in (IMPORT_VIDEO_DIR, IMPORT_REPORT_DIR, IMPORT_PREANONYMIZED_DIR):
+    print(path)
+PY
+        return
+    fi
+
+    python manage.py shell -c '
+from endoreg_db.utils.paths import (
+    IMPORT_PREANONYMIZED_DIR,
+    IMPORT_REPORT_DIR,
+    IMPORT_VIDEO_DIR,
+)
+
+for path in (IMPORT_VIDEO_DIR, IMPORT_REPORT_DIR, IMPORT_PREANONYMIZED_DIR):
+    print(path)
+'
+}
+
 # Check if running as root for service installation
 check_root() {
     if [[ $EUID -eq 0 ]]; then
@@ -45,8 +84,7 @@ check_root() {
 # Install dependencies
 install_dependencies() {
     print_status "Installing Python dependencies..."
-    cd "$PROJECT_ROOT"
-    cd lx-annotate
+    cd "$HOME_DIR"
     
     if command -v uv &> /dev/null; then
         print_status "Using uv to install dependencies"
@@ -62,28 +100,35 @@ install_dependencies() {
 
 # Create required directories
 create_directories() {
-    print_status "Creating required directories..."
-    mkdir -p "$PROJECT_ROOT/data/raw_videos"
-    mkdir -p "$PROJECT_ROOT/data/raw_pdfs"
-    mkdir -p "$PROJECT_ROOT/logs"
+    print_status "Creating required directories from endoreg_db.utils.paths..."
+    bootstrap_path_env
+    bootstrap_pythonpath
+
+    mapfile -t ingest_dirs < <(
+        resolve_ingest_directories
+    )
+
+    for ingest_dir in "${ingest_dirs[@]}"; do
+        mkdir -p "$ingest_dir"
+    done
+    mkdir -p "$HOME_DIR/logs"
     
     print_status "Directories created:"
-    echo "  - $PROJECT_ROOT/data/raw_videos"
-    echo "  - $PROJECT_ROOT/data/raw_pdfs"
-    echo "  - $PROJECT_ROOT/logs"
+    for ingest_dir in "${ingest_dirs[@]}"; do
+        echo "  - $ingest_dir"
+    done
+    echo "  - $HOME_DIR/logs"
 }
 
 # Test file watcher
 test_watcher() {
     print_status "Testing file watcher..."
-    cd "$PROJECT_ROOT"
+    cd "$HOME_DIR"
+    bootstrap_path_env
+    bootstrap_pythonpath
     
-    # Set environment variables
-    export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
-    export PYTHONPATH="$PROJECT_ROOT"
-    
-    # Test import by running the file watcher with test mode
-    python scripts/file_watcher.py --help > /dev/null 2>&1
+    # Test packaged watcher command path
+    python manage.py run_filewatcher --dry-run --log-level INFO > /dev/null 2>&1
     local exit_code=$?
     
     if [ $exit_code -eq 0 ]; then
@@ -93,7 +138,7 @@ test_watcher() {
         python -c "
 import os, sys
 sys.path.insert(0, '.')
-os.environ['DJANGO_SETTINGS_MODULE'] = 'lx_annotate.settings.dev'
+os.environ['DJANGO_SETTINGS_MODULE'] = 'lx_annotate.settings.settings_dev'
 import django
 django.setup()
 print('Django setup successful')
@@ -130,21 +175,25 @@ install_service() {
     fi
 }
 
-# Start service manually (development mode)
+# start_dev starts the internal watcher in development mode.
 start_dev() {
     print_status "Starting file watcher in development mode..."
-    cd "$PROJECT_ROOT"
-    
-    # Set environment variables
-    export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+    cd "$HOME_DIR"
+
+    # Ensure expected directory layout exists before starting services
+    create_directories
+
+    export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
     export WATCHER_LOG_LEVEL=DEBUG
-    export PYTHONPATH="$PROJECT_ROOT"
-    
-    # Start watcher
-    python scripts/file_watcher.py
+    bootstrap_path_env
+    bootstrap_pythonpath
+
+    print_status "Starting packaged file watcher command..."
+    python manage.py run_filewatcher --log-level DEBUG
 }
 
-# Show service status
+
+# show_status prints the current systemd status for the service and, if the service is not running, reports whether it is enabled and provides commands to start or install it.
 show_status() {
     if systemctl is-active --quiet "$SERVICE_NAME"; then
         print_status "Service is running"
@@ -168,10 +217,10 @@ show_logs() {
         journalctl -u "$SERVICE_NAME" -f
     else
         print_status "Showing log file..."
-        if [ -f "$PROJECT_ROOT/logs/file_watcher.log" ]; then
-            tail -f "$PROJECT_ROOT/logs/file_watcher.log"
+        if [ -f "$HOME_DIR/logs/file_watcher.log" ]; then
+            tail -f "$HOME_DIR/logs/file_watcher.log"
         else
-            print_warning "No log file found at $PROJECT_ROOT/logs/file_watcher.log"
+            print_warning "No log file found at $HOME_DIR/logs/file_watcher.log"
         fi
     fi
 }

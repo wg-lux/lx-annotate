@@ -1,72 +1,90 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import vueDevTools from 'vite-plugin-vue-devtools';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path'; // ← add dirname
-// ---- make the CommonJS-style globals -------------------
+import { dirname, resolve } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// --------------------------------------------------------
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, process.cwd(), '');
-    return {
-        base: mode === 'development' ? 'http://localhost:3000/' : './',
-        plugins: [vue(), vueJsx(), vueDevTools()],
-        build: {
-            manifest: mode === 'production' ? 'manifest.json' : false,
-            outDir: resolve(__dirname, 'dist'), // FIXED: Keep within frontend
-            target: 'esnext', // Ermöglicht Top-level await
-            rollupOptions: {
-                input: {
-                    main: resolve(__dirname, 'src/main.ts'),
-                },
-                output: {
-                    entryFileNames: '[name].js',
-                    chunkFileNames: '[name].js',
-                    assetFileNames: '[name].[ext]',
-                    format: 'es', // ES-Module Format für moderne Features
-                },
+export default defineConfig({
+    define: {
+        'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG ?? '')
+    },
+    base: '/static/', //needs to be here for correct nginx serving!
+    plugins: [vue(), vueJsx(), vueDevTools()],
+    build: {
+        manifest: true,
+        outDir: resolve(__dirname, '../staticfiles'),
+        // Keep non-Vite static assets (e.g. Django/admin/docs) intact.
+        emptyOutDir: false,
+        target: 'esnext',
+        commonjsOptions: {
+            transformMixedEsModules: true
+        },
+        rollupOptions: {
+            input: {
+                main: resolve(__dirname, 'src/main.ts')
             },
-        },
-        esbuild: {
-            target: 'esnext', // Unterstützt moderne JS-Features inklusive Top-level await
-        },
-        server: {
-            cors: true,
-            port: 5173, // Ändere den Port, um Konflikte mit Django zu vermeiden
-            hmr: { host: 'localhost' },
-            proxy: {
-                // Leite alle API-Requests an Django weiter
-                '/api': {
-                    target: 'http://127.0.0.1:8000',
-                    changeOrigin: true,
-                    secure: false,
-                },
-                // Zusätzliche Endpunkte falls nötig
-                '/admin': {
-                    target: 'http://127.0.0.1:8000',
-                    changeOrigin: true,
-                    secure: false,
-                },
-                '/static': {
-                    target: 'http://127.0.0.1:8000',
-                    changeOrigin: true,
-                    secure: false,
-                },
+            output: {
+                entryFileNames: '[name].js',
+                chunkFileNames: '[name].js',
+                assetFileNames: '[name].[ext]',
+                format: 'es'
             },
-        },
-        resolve: {
-            alias: {
-                '@': resolve(__dirname, 'src'), // one alias is enough
+            external: ['fsevents']
+        }
+    },
+    esbuild: {
+        target: 'esnext'
+    },
+    server: {
+        cors: true,
+        host: '127.0.0.1',
+        port: 5173,
+        hmr: { host: '127.0.0.1' },
+        proxy: {
+            '/endoreg-api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
             },
-        },
-        css: {
-            preprocessorOptions: {
-                scss: {
-                    additionalData: `@import "@/public/assets/scss/material-dashboard/_variables.scss";`,
-                },
+            '/api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
             },
-        },
-    };
+            '/dtypes-api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
+            },
+            '/base_api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
+            },
+            '/static': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
+            },
+            '/admin': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
+            }
+        }
+    },
+    resolve: {
+        alias: {
+            '@': resolve(__dirname, 'src')
+        }
+    },
+    css: {
+        preprocessorOptions: {
+            scss: {
+                additionalData: `@import "@/public/assets/scss/material-dashboard/_variables.scss";`
+            }
+        }
+    }
 });

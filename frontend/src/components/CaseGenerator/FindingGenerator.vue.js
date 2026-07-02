@@ -1,6 +1,8 @@
 import axios from 'axios';
+import { r } from '@/api/axiosInstance';
 import { useReportService } from '@/api/reportService';
 import { patientService } from '@/api/patientService';
+import { endpoints } from '@/types/api/endpoints';
 export default (await import('vue')).defineComponent({
     data() {
         return {
@@ -213,7 +215,7 @@ export default (await import('vue')).defineComponent({
             const csrfToken = this.getCookie('csrftoken');
             const payload = { ...this.formData };
             try {
-                const response = await axios.post('api/save-workflow-data/', payload, {
+                const response = await axios.post(r(endpoints.workflow.saveWorkflowData), payload, {
                     headers: {
                         'X-CSRFToken': csrfToken,
                         'Content-Type': 'application/json'

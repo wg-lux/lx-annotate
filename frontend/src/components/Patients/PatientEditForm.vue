@@ -6,7 +6,7 @@
         <!-- Basic Information Section -->
         <div class="form-section">
           <h5 class="section-title">
-            <i class="fas fa-user"></i>
+            <i class="ni ni-circle-08"></i>
             Grunddaten
           </h5>
           
@@ -94,7 +94,7 @@
         <!-- Contact Information Section -->
         <div class="form-section">
           <h5 class="section-title">
-            <i class="fas fa-address-book"></i>
+            <i class="ni ni-book-bookmark"></i>
             Kontaktdaten
           </h5>
 
@@ -138,7 +138,7 @@
             </label>
             <select
               id="center"
-              v-model="form.center"
+              v-model="form.centerKey"
               class="form-select"
               :class="{ 'is-invalid': errors.center }"
             >
@@ -146,7 +146,7 @@
               <option
                 v-for="center in centers"
                 :key="center.id"
-                :value="center.name"
+                :value="center.centerKey || center.name"
               >
                 {{ center.nameDe || center.name }}
               </option>
@@ -177,7 +177,7 @@
 
       <!-- Error Display -->
       <div v-if="generalError" class="alert alert-danger">
-        <i class="fas fa-exclamation-triangle"></i>
+        <i class="ni ni-user-run"></i>
         <strong>Fehler:</strong> {{ generalError }}
       </div>
 
@@ -190,7 +190,7 @@
             @click="$emit('cancel')"
             :disabled="loading"
           >
-            <i class="fas fa-times"></i>
+            <i class="ni ni-settings-gear-65"></i>
             Abbrechen
           </button>
 
@@ -200,7 +200,7 @@
             :disabled="loading || !isFormValid"
           >
             <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-            <i v-else class="fas fa-save me-2"></i>
+            <i v-else class="ni ni-collection me-2"></i>
             {{ loading ? 'Wird gespeichert...' : 'Speichern' }}
           </button>
         </div>
@@ -213,7 +213,7 @@
             @click="showDeleteModal = true"
             :disabled="loading"
           >
-            <i class="fas fa-trash"></i>
+            <i class="ni ni-settings-gear-65"></i>
             Patient löschen
           </button>
         </div>
@@ -226,13 +226,13 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">
-              <i class="fas fa-exclamation-triangle text-danger"></i>
+              <i class="ni ni-user-run text-danger"></i>
               Patient löschen bestätigen
             </h5>
           </div>
           <div class="modal-body">
             <div class="alert alert-warning">
-              <i class="fas fa-exclamation-triangle"></i>
+              <i class="ni ni-user-run"></i>
               <strong>Achtung!</strong> Diese Aktion kann nicht rückgängig gemacht werden.
             </div>
             
@@ -276,7 +276,7 @@
               :disabled="deleting"
             >
               <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              <i v-else class="fas fa-trash me-2"></i>
+              <i v-else class="ni ni-settings-gear-65 me-2"></i>
               {{ deleting ? 'Wird gelöscht...' : 'Endgültig löschen' }}
             </button>
           </div>
@@ -290,6 +290,8 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
 import { patientService, type PatientFormData } from '@/api/patientService'
+import { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 
 // Props
 interface Props {
@@ -323,6 +325,7 @@ const form = reactive<PatientFormData>({
   dob: props.patient.dob ? props.patient.dob.split('T')[0] : null,
   gender: props.patient.gender || null,
   center: props.patient.center || null,
+  centerKey: props.patient.centerKey || props.patient.center || null,
   email: props.patient.email || '',
   phone: props.patient.phone || '',
   patientHash: props.patient.patientHash || '',
@@ -452,7 +455,7 @@ const confirmDelete = async () => {
 const loadDeletionInfo = async () => {
   try {
     // This would call the safety check endpoint to get deletion impact
-    const response = await fetch(`/api/patients/${props.patient.id}/check_deletion_safety/`)
+    const response = await fetch(r(endpoints.patient.patientDeletionSafety(props.patient.id!)))
     if (response.ok) {
       const data = await response.json()
       deletionInfo.value = data.related_objects

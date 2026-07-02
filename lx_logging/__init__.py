@@ -1,17 +1,18 @@
 import logging
 import sys
+from typing import Any, cast
 
 # Define a custom verbose log level
 VERBOSE_LOG_LEVEL = 15
 logging.addLevelName(VERBOSE_LOG_LEVEL, "VERBOSE")
 
-def verbose(self, message, *args, **kwargs):
+def verbose(self: logging.Logger, message: object, *args: object, **kwargs: Any) -> None:
     if self.isEnabledFor(VERBOSE_LOG_LEVEL):
         self._log(VERBOSE_LOG_LEVEL, message, args, **kwargs)
 
-logging.Logger.verbose = verbose
+setattr(logging.Logger, "verbose", verbose)
 
-def configure_global_logger(verbose=False):
+def configure_global_logger(verbose: bool = False) -> logging.Logger:
     """
     Configure the global logger with optional verbose logging.
 
@@ -34,7 +35,7 @@ def configure_global_logger(verbose=False):
 
     return logger
 
-def get_logger(name):
+def get_logger(name: str) -> logging.Logger:
     """
     Create a logger with the given name.
 

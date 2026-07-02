@@ -15,7 +15,7 @@
   
   
   export default {
-    name: 'Profil',
+    name: 'PatientAdder',
     components: {
         PatientAdder
     },

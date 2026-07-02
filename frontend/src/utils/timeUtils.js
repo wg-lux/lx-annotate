@@ -92,19 +92,19 @@ export function formatDuration(seconds) {
 /**
  * Konvertiert Sekunden zu Frames basierend auf FPS
  * @param seconds - Zeit in Sekunden
- * @param fps - Frames per Second (Standard: 30)
+ * @param fps - Frames per Second (Standard: 50)
  * @returns Frame-Nummer
  */
-export function secondsToFrames(seconds, fps = 30) {
+export function secondsToFrames(seconds, fps = 50) {
     return Math.round(seconds * fps);
 }
 /**
  * Konvertiert Frames zu Sekunden basierend auf FPS
  * @param frames - Frame-Nummer
- * @param fps - Frames per Second (Standard: 30)
+ * @param fps - Frames per Second (Standard: 50)
  * @returns Zeit in Sekunden
  */
-export function framesToSeconds(frames, fps = 30) {
+export function framesToSeconds(frames, fps = 50) {
     return frames / fps;
 }
 /**

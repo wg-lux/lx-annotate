@@ -1,231 +1,105 @@
-````markdown
-# File Watcher Service
+# File Watcher Service Documentation
 
-Automatic service for monitoring and processing video and PDF files.
+This document covers the automatic media ingestion watcher used by LX-Annotate.
 
 ## Overview
 
-The File Watcher Service automatically monitors the following directories:
-- `./data/raw_videos/` - For video files (.mp4, .avi, .mov, .mkv, .webm, .m4v)
-- `./data/raw_pdfs/` - For PDF files (.pdf)
+Primary service:
 
-When new files are detected, the following processes are automatically triggered:
-- **Videos**: Import, anonymization, and segmentation
-- **PDFs**: Import and anonymization
+- `python manage.py run_filewatcher`
+- Watches incoming files and triggers processing via Django services
+
+Supported monitored inputs (via project data paths):
+
+- Videos
+- PDF reports
+- Preanonymized video or report drops with sidecar metadata
+
+In most local setups these map to:
+
+- `data/import/video_import/`
+- `data/import/report_import/`
+- `data/import/preanonymized_import/`
+
+## Atomic Handoff Contract
+
+Writers must not stream bytes directly into final watched names such as
+`exam.mp4`. Write a temporary handoff file first, flush and fsync it, close it,
+then atomically rename it to the final watched name.
+
+The watcher skips in-progress names ending in `.tmp`, `.part`, `.partial`,
+`.crdownload`, or `.download`, and marker names containing `.tmp.` or `.part.`.
+When the temp file is renamed to a final media name, the move event is processed.
+
+Python producers should use
+`endoreg_db.utils.filesystem.file_operations.atomic_handoff_file(...)` so the
+temporary file, file fsync, directory fsync, and atomic rename behavior stay
+consistent with endoreg-db ingest.
 
 ## Quick Start
 
-### 1. Setup and Installation
-```bash
-# Full setup
-./scripts/start_filewatcher.sh setup
-````
-
-### 2. Start the Service
+Prerequisites:
 
 ```bash
-# As a system service (recommended)
-sudo ./scripts/start_filewatcher.sh start
+uv sync
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
+```
 
-# Or in development mode (foreground)
+Start in development mode:
+
+```bash
 ./scripts/start_filewatcher.sh dev
 ```
 
-### 3. Check Status
+Run watcher directly:
 
 ```bash
-./scripts/start_filewatcher.sh status
+python manage.py run_filewatcher
 ```
 
-### 4. View Logs
+## `start_filewatcher.sh` Commands
 
 ```bash
+./scripts/start_filewatcher.sh setup
+./scripts/start_filewatcher.sh dev
+./scripts/start_filewatcher.sh status
 ./scripts/start_filewatcher.sh logs
 ```
 
-## Usage
-
-### Adding Files
-
-Simply copy or move files into the monitored directories:
+System-level control (requires root):
 
 ```bash
-# Videos
-cp my_video.mp4 ./data/raw_videos/
-
-# PDFs
-cp my_document.pdf ./data/raw_pdfs/
-```
-
-Files will be processed automatically once they are fully written.
-
-### Django Management Command
-
-You can also start the service via Django:
-
-```bash
-# Start service
-python manage.py start_filewatcher
-
-# Test configuration only
-python manage.py start_filewatcher --test
-
-# Process existing files
-python manage.py start_filewatcher --existing
-
-# With debug logging
-python manage.py start_filewatcher --log-level DEBUG
-```
-
-## Available Commands
-
-| Command   | Description                                                        |
-| --------- | ------------------------------------------------------------------ |
-| `setup`   | Full setup (dependencies, directories, test, service installation) |
-| `start`   | Start service                                                      |
-| `stop`    | Stop service                                                       |
-| `restart` | Restart service                                                    |
-| `status`  | Show status                                                        |
-| `logs`    | Show logs (follow mode)                                            |
-| `dev`     | Start in development mode (foreground)                             |
-| `test`    | Test configuration                                                 |
-
-## Configuration
-
-### Environment Variables
-
-* `DJANGO_SETTINGS_MODULE`: Django settings (default: `lx_annotate.settings.dev`)
-* `WATCHER_LOG_LEVEL`: Log level (default: `INFO`)
-
-### Default Settings
-
-* **Center**: `university_hospital_wuerzburg`
-* **Processor**: `olympus_cv_1500`
-* **AI Model**: `image_multilabel_classification_colonoscopy_default`
-
-### Directory Structure
-
-```
-./data/
-├── raw_videos/          # Monitored for video files
-├── raw_pdfs/            # Monitored for PDF files
-└── ...
-
-./logs/
-└── file_watcher.log     # Log file
-```
-
-## Systemd Service
-
-### Installation
-
-```bash
-# Install service (requires root)
 sudo ./scripts/start_filewatcher.sh install-service
+sudo ./scripts/start_filewatcher.sh start
+sudo ./scripts/start_filewatcher.sh stop
+sudo ./scripts/start_filewatcher.sh restart
 ```
 
-### Systemd Commands
+## Environment Variables
 
-```bash
-sudo systemctl start lx-filewatcher
-sudo systemctl stop lx-filewatcher
-sudo systemctl status lx-filewatcher
-sudo journalctl -u lx-filewatcher -f
-sudo systemctl enable lx-filewatcher
-```
+- `DJANGO_SETTINGS_MODULE` (default for dev workflows: `lx_annotate.settings.settings_dev`)
+- `WATCHER_LOG_LEVEL` (for example `DEBUG`, `INFO`, `WARNING`, `ERROR`)
 
-## Processing
+## Logs
 
-### Videos
-
-1. **Import**: File is imported into the system
-2. **Anonymization**: OCR-based extraction and anonymization of patient data
-3. **Segmentation**: AI-based analysis and classification of video content
-4. **Default Patient Data**: Default values are set if OCR fails
-
-### PDFs
-
-1. **Import**: File is imported into the system
-2. **Anonymization**: Text extraction and anonymization of sensitive data
+- File log: `logs/file_watcher.log`
+- Systemd journal: `journalctl -u lx-filewatcher -f`
 
 ## Troubleshooting
 
-### Check Logs
+Check service wiring:
 
 ```bash
-./scripts/start_filewatcher.sh logs
-# Or directly
-tail -f ./logs/file_watcher.log
+./scripts/start_filewatcher.sh test
+python scripts/diagnose_watcher.py
 ```
 
-### Common Issues
+Common checks:
 
-| Issue               | Solution                                                           |
-| ------------------- | ------------------------------------------------------------------ |
-| Service won't start | Run `./scripts/start_filewatcher.sh test`                          |
-| Files not processed | Check logs and permissions                                         |
-| Django error        | Ensure `DJANGO_SETTINGS_MODULE` is set correctly                   |
-| Import error        | Reinstall dependencies with `./scripts/start_filewatcher.sh setup` |
+- Verify Django settings are set correctly.
+- Verify monitored input directories exist and are writable.
+- Verify required Python dependencies are installed.
 
-### File Stability
+## Notes
 
-The service waits for files to be fully written:
-
-* **Timeout**: 30 seconds
-* **Stable Checks**: 3 consecutive size checks
-* **Temporary Files**: Ignored if prefixed with `.` or `~`
-
-## Monitoring
-
-### Status
-
-```bash
-sudo systemctl is-active lx-filewatcher
-./scripts/start_filewatcher.sh status
-```
-
-### Performance
-
-* **Memory Limit**: 2GB (systemd)
-* **File Descriptors**: 65536 (systemd)
-* **Health Check**: Every 10 seconds
-* **Restart Policy**: Automatic on failure (10s delay)
-
-## Security
-
-### Systemd Security Settings
-
-* `NoNewPrivileges=true`
-* `PrivateTmp=true`
-* `ProtectSystem=strict`
-* Write access only to required directories
-
-### Permissions
-
-* Runs as `admin` user
-* Read/write access limited to required directories
-* No elevated privileges needed
-
-## Development
-
-### Development Mode
-
-```bash
-./scripts/start_filewatcher.sh dev
-```
-
-### Debugging
-
-```bash
-python manage.py start_filewatcher --test
-python manage.py start_filewatcher --verbosity 2
-```
-
-### Customization
-
-* **File Extensions**: Adjust in `AutoProcessingHandler.__init__()`
-* **Processing Logic**: Extend `_process_video()` and `_process_pdf()`
-* **Default Settings**: Change class variables in `AutoProcessingHandler`
-
-```
-```
+Older project docs may reference `scripts/core/*`. Those paths are not part of the current repository layout.

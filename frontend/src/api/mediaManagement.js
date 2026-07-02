@@ -1,6 +1,7 @@
 // frontend/src/api/mediaManagement.ts
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { endoregApi } from '@/api/axiosInstance';
 import { ref, readonly } from 'vue';
+import { endpoints } from '@/types/api/endpoints';
 const api = axiosInstance;
 /**
  * Media Management API Service
@@ -11,7 +12,7 @@ export class MediaManagementAPI {
      * Get comprehensive status overview of all media
      */
     static async getStatusOverview() {
-        const response = await api.get('/api/media-management/status/');
+        const response = await api.get(endoregApi(endpoints.mediaManagement.status));
         return response.data;
     }
     /**
@@ -20,7 +21,9 @@ export class MediaManagementAPI {
      * @param force - Whether to actually delete (true) or dry-run (false)
      */
     static async performCleanup(type = 'unfinished', force = false) {
-        const response = await api.delete(`/api/media-management/cleanup/?type=${type}&force=${force}`);
+        const response = await api.delete(endoregApi(endpoints.mediaManagement.cleanup), {
+            params: { type, force }
+        });
         return response.data;
     }
     /**
@@ -28,7 +31,7 @@ export class MediaManagementAPI {
      * @param fileId - ID of the file to remove
      */
     static async forceRemoveMedia(fileId) {
-        const response = await api.delete(`/api/media-management/force-remove/${fileId}/`);
+        const response = await api.delete(endoregApi(endpoints.mediaManagement.forceRemove(fileId)));
         return response.data;
     }
     /**
@@ -36,14 +39,14 @@ export class MediaManagementAPI {
      * @param fileId - ID of the file to reset
      */
     static async resetProcessingStatus(fileId) {
-        const response = await api.post(`/api/media-management/reset-status/${fileId}/`);
+        const response = await api.post(endoregApi(endpoints.mediaManagement.resetStatus(fileId)));
         return response.data;
     }
     /**
      * Get polling coordinator information
      */
     static async getPollingCoordinatorInfo() {
-        const response = await api.get('/api/anonymization/polling-info/');
+        const response = await api.get(endoregApi(endpoints.anonymization.pollingInfo));
         return response.data;
     }
     /**
@@ -51,8 +54,9 @@ export class MediaManagementAPI {
      * @param fileType - Optional file type filter ('video' or 'pdf')
      */
     static async clearProcessingLocks(fileType) {
-        const params = fileType ? `?type=${fileType}` : '';
-        const response = await api.delete(`/api/anonymization/clear-locks/${params}`);
+        const response = await api.delete(endoregApi(endpoints.anonymization.clearLocks), {
+            params: fileType ? { type: fileType } : undefined
+        });
         return response.data;
     }
     /**
@@ -61,7 +65,7 @@ export class MediaManagementAPI {
      * @param fileType - Type of file ('video' or 'pdf')
      */
     static async getAnonymizationStatusSafe(fileId, fileType) {
-        const response = await api.get(`/api/anonymization/${fileId}/status/`);
+        const response = await api.get(endoregApi(endpoints.anonymization.status(fileId)));
         return response.data;
     }
     /**
@@ -69,23 +73,35 @@ export class MediaManagementAPI {
      * @param fileId - ID of the file to process
      */
     static async startAnonymizationSafe(fileId) {
-        const response = await api.post(`/api/anonymization/${fileId}/start/`);
+        const response = await api.post(endoregApi(endpoints.anonymization.start(fileId)));
         return response.data;
     }
     /**
      * Validate anonymization with coordination
      * @param fileId - ID of the file to validate
      */
-    static async validateAnonymizationSafe(fileId) {
-        const response = await api.post(`/api/anonymization/${fileId}/validate/`);
+    static async validateAnonymizationSafe(fileId, documentType) {
+        const response = await api.post(endoregApi(endpoints.anonymization.validate(fileId)), {
+            ...(documentType ? { document_type: documentType } : {})
+        });
         return response.data;
     }
     /**
      * Re-import a video file to regenerate metadata
+     * Uses the modern media framework endpoint aligned with PDF reimport
      * @param fileId - ID of the video file to re-import
      */
     static async reimportVideo(fileId) {
-        const response = await api.post(`/api/video/${fileId}/reimport/`);
+        const response = await api.post(endoregApi(endpoints.media.videoReimport(fileId)));
+        return response.data;
+    }
+    /**
+     * Re-import a PDF file to regenerate metadata
+     * Uses the modern media framework endpoint aligned with video reimport
+     * @param fileId - ID of the PDF file to re-import
+     */
+    static async reimportPdf(fileId) {
+        const response = await api.post(endoregApi(endpoints.media.pdfReimport(fileId)));
         return response.data;
     }
     /**
@@ -93,7 +109,7 @@ export class MediaManagementAPI {
      * @param fileId - ID of the file to delete
      */
     static async deleteMediaFile(fileId) {
-        const response = await api.delete(`/api/media-management/force-remove/${fileId}/`);
+        const response = await api.delete(endoregApi(endpoints.mediaManagement.forceRemove(fileId)));
         return response.data;
     }
 }
@@ -136,7 +152,9 @@ export function useMediaManagement() {
     return {
         isLoading: readonly(isLoading),
         error: readonly(error),
-        clearError: () => { error.value = null; },
+        clearError: () => {
+            error.value = null;
+        },
         // Status operations
         getStatusOverview: () => safeApiCall(() => MediaManagementAPI.getStatusOverview()),
         // Cleanup operations
@@ -146,12 +164,13 @@ export function useMediaManagement() {
         resetProcessingStatus: (fileId) => safeApiCall(() => MediaManagementAPI.resetProcessingStatus(fileId)),
         deleteMediaFile: (fileId) => safeApiCall(() => MediaManagementAPI.deleteMediaFile(fileId)),
         reimportVideo: (fileId) => safeApiCall(() => MediaManagementAPI.reimportVideo(fileId)),
+        reimportPdf: (fileId) => safeApiCall(() => MediaManagementAPI.reimportPdf(fileId)),
         // Safe anonymization operations
         getStatusSafe: (fileId, fileType) => safeApiCall(() => MediaManagementAPI.getAnonymizationStatusSafe(fileId, fileType)),
         startAnonymizationSafe: (fileId) => safeApiCall(() => MediaManagementAPI.startAnonymizationSafe(fileId)),
-        validateAnonymizationSafe: (fileId) => safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId)),
+        validateAnonymizationSafe: (fileId, documentType) => safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId, documentType)),
         // Coordinator operations
         getPollingInfo: () => safeApiCall(() => MediaManagementAPI.getPollingCoordinatorInfo()),
-        clearAllLocks: (fileType) => safeApiCall(() => MediaManagementAPI.clearProcessingLocks(fileType)),
+        clearAllLocks: (fileType) => safeApiCall(() => MediaManagementAPI.clearProcessingLocks(fileType))
     };
 }

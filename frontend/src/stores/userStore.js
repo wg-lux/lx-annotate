@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
 // Import axios to make HTTP requests
-import axios from "axios";
-export const useUserStore = defineStore("user", {
+import axios from 'axios';
+export const useUserStore = defineStore('user', {
     state: () => ({
-        users: [],
+        users: []
     }),
     getters: {
         getUsers(state) {
@@ -21,5 +21,5 @@ export const useUserStore = defineStore("user", {
                 console.log(error);
             }
         }
-    },
+    }
 });

@@ -2,7 +2,8 @@ import { ref, computed } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService, generatePatientPseudonym } from '@/api/patientService';
 import PatientEditForm from './PatientEditForm.vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 const props = defineProps();
 const emit = defineEmits();
 // Composables
@@ -30,7 +31,7 @@ const checkDeletionSafety = async () => {
         }
         const patientId = patientStore.resolveCurrentPatientId(currentPatient.id, true);
         // Use axiosInstance instead of fetch
-        const response = await axiosInstance.get(`/api/patients/${patientId}/check_deletion_safety/`);
+        const response = await axiosInstance.get(r(endpoints.patient.patientDeletionSafety(patientId)));
         deletionCheck.value = response.data;
         showDeletionModal.value = true;
     }
@@ -172,7 +173,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2
     ...{ class: "patient-title" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-user" },
+    ...{ class: "ni ni-circle-08" },
 });
 (__VLS_ctx.patient.firstName);
 (__VLS_ctx.patient.lastName);
@@ -181,7 +182,7 @@ if (__VLS_ctx.patient.isRealPerson) {
         ...{ class: "badge bg-success" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-shield-alt" },
+        ...{ class: "ni ni-check-bold" },
     });
 }
 else {
@@ -189,7 +190,7 @@ else {
         ...{ class: "badge bg-secondary" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-user-secret" },
+        ...{ class: "ni ni-check-bold" },
     });
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -203,7 +204,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loading),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-times" },
+    ...{ class: "ni ni-settings-gear-65" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (...[$event]) => {
@@ -213,7 +214,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loading || __VLS_ctx.showEditForm),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-edit" },
+    ...{ class: "ni ni-single-copy-04" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.checkDeletionSafety) },
@@ -221,14 +222,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loading || __VLS_ctx.showEditForm),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-trash" },
+    ...{ class: "ni ni-settings-gear-65" },
 });
 if (__VLS_ctx.error) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "alert alert-danger" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-exclamation-triangle" },
+        ...{ class: "ni ni-user-run" },
     });
     (__VLS_ctx.error);
 }
@@ -237,7 +238,7 @@ if (__VLS_ctx.successMessage) {
         ...{ class: "alert alert-success" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check-circle" },
+        ...{ class: "ni ni-check-bold" },
     });
     (__VLS_ctx.successMessage);
 }
@@ -255,7 +256,7 @@ if (__VLS_ctx.showEditForm) {
         ...{ class: "card-title" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-edit" },
+        ...{ class: "ni ni-single-copy-04" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
@@ -312,7 +313,7 @@ else {
         ...{ class: "card-title" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-user" },
+        ...{ class: "ni ni-circle-08" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
@@ -355,7 +356,7 @@ else {
         }
         else {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-refresh" },
+                ...{ class: "ni ni-bold-right" },
             });
         }
         (__VLS_ctx.generatingPseudonym ? 'Generiere...' : 'Neu');
@@ -373,7 +374,7 @@ else {
         }
         else {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-user-secret" },
+                ...{ class: "ni ni-check-bold" },
             });
         }
         (__VLS_ctx.generatingPseudonym ? 'Generiere...' : 'Pseudonym generieren');
@@ -409,7 +410,7 @@ else {
         ...{ class: "card-title" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-address-book" },
+        ...{ class: "ni ni-book-bookmark" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
@@ -481,7 +482,7 @@ else {
     }
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-key me-1" },
+            ...{ class: "ni ni-check-bold me-1" },
         });
     }
     (__VLS_ctx.generatingPseudonym ? 'Generiere...' : (__VLS_ctx.patient.patientHash ? 'Aktualisieren' : 'Generieren'));
@@ -501,7 +502,7 @@ else {
         ...{ class: "card-title" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-cog" },
+        ...{ class: "ni ni-settings-gear-65" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
@@ -530,7 +531,7 @@ else {
             ...{ class: "badge bg-success" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-shield-alt" },
+            ...{ class: "ni ni-check-bold" },
         });
     }
     else {
@@ -538,7 +539,7 @@ else {
             ...{ class: "badge bg-secondary" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-user-secret" },
+            ...{ class: "ni ni-check-bold" },
         });
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -574,7 +575,7 @@ if (__VLS_ctx.showDeletionModal) {
         ...{ class: "modal-title" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-exclamation-triangle text-warning" },
+        ...{ class: "ni ni-user-run text-warning" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "modal-body" },
@@ -584,7 +585,7 @@ if (__VLS_ctx.showDeletionModal) {
             ...{ class: "alert alert-info" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-info-circle" },
+            ...{ class: "ni ni-user-run" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
@@ -596,520 +597,17 @@ if (__VLS_ctx.showDeletionModal) {
             ...{ class: "alert alert-warning" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-exclamation-triangle" },
+            ...{ class: "ni ni-user-run" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
             ...{ class: "mt-2 mb-0" },
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "patient-detail-view" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "detail-header" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "patient-header-info" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-            ...{ class: "patient-title" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-user" },
-        });
-        (__VLS_ctx.patient.firstName);
-        (__VLS_ctx.patient.lastName);
-        if (__VLS_ctx.patient.isRealPerson) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "badge bg-success" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-shield-alt" },
-            });
-        }
-        else {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "badge bg-secondary" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-user-secret" },
-            });
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "detail-actions" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.showDeletionModal))
-                        return;
-                    if (!!(__VLS_ctx.deletionCheck?.canDelete))
-                        return;
-                    __VLS_ctx.$emit('close');
-                } },
-            ...{ class: "btn btn-secondary btn-sm" },
-            disabled: (__VLS_ctx.loading),
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-times" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.showDeletionModal))
-                        return;
-                    if (!!(__VLS_ctx.deletionCheck?.canDelete))
-                        return;
-                    __VLS_ctx.showEditForm = true;
-                } },
-            ...{ class: "btn btn-primary btn-sm" },
-            disabled: (__VLS_ctx.loading || __VLS_ctx.showEditForm),
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-edit" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.checkDeletionSafety) },
-            ...{ class: "btn btn-outline-danger btn-sm" },
-            disabled: (__VLS_ctx.loading || __VLS_ctx.showEditForm),
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-trash" },
-        });
-        if (__VLS_ctx.error) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "alert alert-danger" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-exclamation-triangle" },
-            });
-            (__VLS_ctx.error);
-        }
-        if (__VLS_ctx.successMessage) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "alert alert-success" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-check-circle" },
-            });
-            (__VLS_ctx.successMessage);
-        }
-        if (__VLS_ctx.showEditForm) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "edit-section" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card-header" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
-                ...{ class: "card-title" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-edit" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card-body" },
-            });
-            /** @type {[typeof PatientEditForm, ]} */ ;
-            // @ts-ignore
-            const __VLS_9 = __VLS_asFunctionalComponent(PatientEditForm, new PatientEditForm({
-                ...{ 'onPatientUpdated': {} },
-                ...{ 'onPatientDeleted': {} },
-                ...{ 'onCancel': {} },
-                patient: (__VLS_ctx.patient),
-            }));
-            const __VLS_10 = __VLS_9({
-                ...{ 'onPatientUpdated': {} },
-                ...{ 'onPatientDeleted': {} },
-                ...{ 'onCancel': {} },
-                patient: (__VLS_ctx.patient),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_9));
-            let __VLS_12;
-            let __VLS_13;
-            let __VLS_14;
-            const __VLS_15 = {
-                onPatientUpdated: (__VLS_ctx.onPatientUpdated)
-            };
-            const __VLS_16 = {
-                onPatientDeleted: (__VLS_ctx.onPatientDeleted)
-            };
-            const __VLS_17 = {
-                onCancel: (...[$event]) => {
-                    if (!(__VLS_ctx.showDeletionModal))
-                        return;
-                    if (!!(__VLS_ctx.deletionCheck?.canDelete))
-                        return;
-                    if (!(__VLS_ctx.showEditForm))
-                        return;
-                    __VLS_ctx.showEditForm = false;
-                }
-            };
-            var __VLS_11;
-        }
-        else {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "patient-info-display" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "row" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "col-md-6" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card info-card" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card-header" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-                ...{ class: "card-title" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-user" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card-body" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-grid" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.patient.firstName || 'Nicht angegeben');
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.patient.lastName || 'Nicht angegeben');
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            if (__VLS_ctx.patient.pseudonymFirstName && __VLS_ctx.patient.pseudonymLastName) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: "pseudonym-names" },
-                });
-                (__VLS_ctx.patient.pseudonymFirstName);
-                (__VLS_ctx.patient.pseudonymLastName);
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (__VLS_ctx.regeneratePseudonym) },
-                    ...{ class: "btn btn-outline-secondary btn-sm ms-2" },
-                    disabled: (__VLS_ctx.generatingPseudonym),
-                    title: "Neue Pseudonamen generieren",
-                });
-                if (__VLS_ctx.generatingPseudonym) {
-                    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: "spinner-border spinner-border-sm me-1" },
-                    });
-                }
-                else {
-                    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                        ...{ class: "fas fa-refresh" },
-                    });
-                }
-                (__VLS_ctx.generatingPseudonym ? 'Generiere...' : 'Neu');
-            }
-            else {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (__VLS_ctx.generatePseudonym) },
-                    ...{ class: "btn btn-outline-primary btn-sm" },
-                    disabled: (__VLS_ctx.generatingPseudonym),
-                });
-                if (__VLS_ctx.generatingPseudonym) {
-                    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: "spinner-border spinner-border-sm me-1" },
-                    });
-                }
-                else {
-                    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                        ...{ class: "fas fa-user-secret" },
-                    });
-                }
-                (__VLS_ctx.generatingPseudonym ? 'Generiere...' : 'Pseudonym generieren');
-            }
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatDate(__VLS_ctx.patient.dob));
-            if (__VLS_ctx.patient.age) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: "text-muted" },
-                });
-                (__VLS_ctx.patient.age);
-            }
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.getGenderDisplay(__VLS_ctx.patient.gender));
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "col-md-6" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card info-card" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card-header" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-                ...{ class: "card-title" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-address-book" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card-body" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-grid" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            if (__VLS_ctx.patient.email) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-                    href: (`mailto:${__VLS_ctx.patient.email}`),
-                    ...{ class: "link" },
-                });
-                (__VLS_ctx.patient.email);
-            }
-            else {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: "text-muted" },
-                });
-            }
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            if (__VLS_ctx.patient.phone) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-                    href: (`tel:${__VLS_ctx.patient.phone}`),
-                    ...{ class: "link" },
-                });
-                (__VLS_ctx.patient.phone);
-            }
-            else {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: "text-muted" },
-                });
-            }
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.getCenterDisplay(__VLS_ctx.patient.center));
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "font-mono" },
-            });
-            (__VLS_ctx.patient.patientHash ? (__VLS_ctx.patient.patientHash.length >= 8 ? __VLS_ctx.patient.patientHash.substring(0, 8) + '...' : __VLS_ctx.patient.patientHash) : 'Nicht generiert');
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "row mt-3" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "col-12" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card info-card" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card-header" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-                ...{ class: "card-title" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-cog" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "card-body" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "row" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "col-md-6" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "font-mono" },
-            });
-            (__VLS_ctx.patient.id);
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            if (__VLS_ctx.patient.isRealPerson) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: "badge bg-success" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-shield-alt" },
-                });
-            }
-            else {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: "badge bg-secondary" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-user-secret" },
-                });
-            }
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "col-md-6" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatDateTime(__VLS_ctx.patient.createdAt));
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "info-item" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatDateTime(__VLS_ctx.patient.updatedAt));
-        }
-        if (__VLS_ctx.showDeletionModal) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "modal-overlay" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "modal-dialog" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "modal-content" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "modal-header" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-                ...{ class: "modal-title" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-exclamation-triangle text-warning" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "modal-body" },
-            });
-            if (__VLS_ctx.deletionCheck?.canDelete) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "alert alert-info" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-info-circle" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                    ...{ class: "mb-0 mt-2" },
-                });
-            }
-            else {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "alert alert-warning" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-exclamation-triangle" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
-                    ...{ class: "mt-2 mb-0" },
-                });
-                for (const [warning] of __VLS_getVForSourceType((__VLS_ctx.deletionCheck?.warnings?.filter((w) => w)))) {
-                    __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-                        key: (warning),
-                    });
-                    (warning);
-                }
-            }
-            if (__VLS_ctx.deletionCheck?.relatedObjects) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "mt-3" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "related-objects" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "object-count" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-stethoscope" },
-                });
-                (__VLS_ctx.deletionCheck.relatedObjects.examinations);
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "object-count" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-search" },
-                });
-                (__VLS_ctx.deletionCheck.relatedObjects.findings);
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "object-count" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-video" },
-                });
-                (__VLS_ctx.deletionCheck.relatedObjects.videos);
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: "object-count" },
-                });
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "fas fa-file-pdf" },
-                });
-                (__VLS_ctx.deletionCheck.relatedObjects.reports);
-            }
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "modal-footer" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.closeDeletionModal) },
-                type: "button",
-                ...{ class: "btn btn-secondary" },
-                disabled: (__VLS_ctx.deleting),
-            });
-            if (__VLS_ctx.deletionCheck?.canDelete) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (__VLS_ctx.confirmDeletion) },
-                    type: "button",
-                    ...{ class: "btn btn-danger" },
-                    disabled: (__VLS_ctx.deleting),
-                });
-                if (__VLS_ctx.deleting) {
-                    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: "spinner-border spinner-border-sm me-2" },
-                    });
-                }
-                else {
-                    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                        ...{ class: "fas fa-trash me-2" },
-                    });
-                }
-                (__VLS_ctx.deleting ? 'Wird gelöscht...' : 'Endgültig löschen');
-            }
+        for (const [warning] of __VLS_getVForSourceType((__VLS_ctx.deletionCheck?.warnings?.filter((w) => w)))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+                key: (warning),
+            });
+            (warning);
         }
     }
     if (__VLS_ctx.deletionCheck?.relatedObjects) {
@@ -1124,28 +622,28 @@ if (__VLS_ctx.showDeletionModal) {
             ...{ class: "object-count" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-stethoscope" },
+            ...{ class: "ni ni-user-run" },
         });
         (__VLS_ctx.deletionCheck.relatedObjects.examinations);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "object-count" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-search" },
+            ...{ class: "ni ni-tv-2" },
         });
         (__VLS_ctx.deletionCheck.relatedObjects.findings);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "object-count" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-video" },
+            ...{ class: "ni ni-button-play" },
         });
         (__VLS_ctx.deletionCheck.relatedObjects.videos);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "object-count" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-file-pdf" },
+            ...{ class: "ni ni-single-copy-04" },
         });
         (__VLS_ctx.deletionCheck.relatedObjects.reports);
     }
@@ -1172,7 +670,7 @@ if (__VLS_ctx.showDeletionModal) {
         }
         else {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-trash me-2" },
+                ...{ class: "ni ni-settings-gear-65 me-2" },
             });
         }
         (__VLS_ctx.deleting ? 'Wird gelöscht...' : 'Endgültig löschen');
@@ -1182,46 +680,46 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['detail-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['patient-header-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['patient-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-circle-08']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-secret']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['detail-actions']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['edit-section']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['patient-info-display']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -1230,8 +728,8 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['info-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-circle-08']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-grid']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
@@ -1245,16 +743,16 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-refresh']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-secret']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
@@ -1263,8 +761,8 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['info-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-address-book']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-book-bookmark']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-grid']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
@@ -1285,8 +783,8 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-key']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
@@ -1295,8 +793,8 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['info-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cog']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
@@ -1305,12 +803,12 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-secret']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['info-item']} */ ;
@@ -1319,181 +817,36 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['modal-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['patient-detail-view']} */ ;
-/** @type {__VLS_StyleScopedClasses['detail-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['patient-header-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['patient-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-secret']} */ ;
-/** @type {__VLS_StyleScopedClasses['detail-actions']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
-/** @type {__VLS_StyleScopedClasses['edit-section']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['patient-info-display']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-grid']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['pseudonym-names']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-refresh']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-secret']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-address-book']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-grid']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['link']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['link']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['font-mono']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cog']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['font-mono']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-secret']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['info-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-overlay']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-dialog']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-content']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['related-objects']} */ ;
 /** @type {__VLS_StyleScopedClasses['object-count']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['object-count']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-search']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-tv-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['object-count']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['object-count']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-file-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-footer']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
@@ -1502,33 +855,8 @@ if (__VLS_ctx.showDeletionModal) {
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['related-objects']} */ ;
-/** @type {__VLS_StyleScopedClasses['object-count']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
-/** @type {__VLS_StyleScopedClasses['object-count']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-search']} */ ;
-/** @type {__VLS_StyleScopedClasses['object-count']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
-/** @type {__VLS_StyleScopedClasses['object-count']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-file-pdf']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-footer']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({

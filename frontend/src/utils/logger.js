@@ -15,11 +15,16 @@ class Logger {
     getLogLevelFromConfig() {
         const level = LOG_CONFIG.level.toLowerCase();
         switch (level) {
-            case 'debug': return LogLevel.DEBUG;
-            case 'info': return LogLevel.INFO;
-            case 'warn': return LogLevel.WARN;
-            case 'error': return LogLevel.ERROR;
-            default: return LogLevel.INFO;
+            case 'debug':
+                return LogLevel.DEBUG;
+            case 'info':
+                return LogLevel.INFO;
+            case 'warn':
+                return LogLevel.WARN;
+            case 'error':
+                return LogLevel.ERROR;
+            default:
+                return LogLevel.INFO;
         }
     }
     shouldLog(level) {
@@ -31,7 +36,7 @@ class Logger {
             message,
             timestamp: new Date(),
             context,
-            error,
+            error
         };
     }
     formatLogMessage(entry) {

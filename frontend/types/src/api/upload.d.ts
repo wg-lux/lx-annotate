@@ -2,6 +2,11 @@ export interface UploadResponse {
     uploadId: string;
     statusUrl: string;
 }
+export interface UploadRequestOptions {
+    centerKey?: string;
+    sourceSystem?: string;
+    idempotencyKey?: string;
+}
 export interface UploadStatusResponse {
     status: 'processing' | 'error' | 'anonymized';
     detail?: string;
@@ -12,9 +17,10 @@ export interface UploadStatusResponse {
 /**
  * Upload files to the anonymization backend
  * @param files - FileList or File array to upload
+ * @param options - Optional machine-facing upload metadata
  * @returns Promise with upload_id and status_url
  */
-export declare const uploadFiles: (files: FileList | File[]) => Promise<UploadResponse>;
+export declare const uploadFiles: (files: FileList | File[], options?: UploadRequestOptions) => Promise<UploadResponse>;
 /**
  * Check the status of an upload
  * @param statusUrl - The status URL returned from uploadFiles

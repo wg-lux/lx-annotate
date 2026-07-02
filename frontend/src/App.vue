@@ -1,137 +1,200 @@
-<!doctype html>
 <template>
-  <header>
-        <!--     Fonts and icons     -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap" rel="stylesheet">    
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
-    <link
-        rel="stylesheet"
-        type="text/css"
-        href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons"
-      />
-    <!-- Font Awesome 6.5.1 Free (CSS only, no JS kit required) -->
-    <link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-      integrity="sha512-xh6IYswF2Yt+0e1yz3F6j2CvkJyDk6cfogmfVZBt3WgBp1x5Yp1p9ggbo2mcqzg4bV7+ydRZo7ljZHFQUNq9PQ=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer">
-
-    <link rel="stylesheet" href="@assets/css/custom-overrides.css">
-  </header>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-
-  <AuthCheck>
-    <template #unauthenticated-content>
-      <template v-if="!isMenuOpen">
-        <aside
-          class="sidenav navbar navbar-vertical navbar-expand-xs ms-3"
-          id="sidenav-main">
-        
+  <div class="g-sidenav-show">
+    
+    <template v-if="!isMenuOpen">
+      <aside class="sidenav navbar navbar-vertical navbar-expand-xs ms-3 sidebar-shell sidebar-shell--collapsed" id="sidenav-main">
         <div class="g-sidenav-hidden">
-        <div class="sidenav m-1">
-          <button @click="toggleMenu" class="material-icons btn btn-outline-primary border-0 my-3 btn-sm mb-0 me-3">menu</button>
-        </div>
-        </div>
-        </aside>
-      </template>
-
-      <div class="g-sidenav-show">
-
-      <template v-if="isMenuOpen">
-        <aside
-          class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark"
-          id="sidenav-main">
-          <button @click="toggleMenu" class="material-icons btn btn-outline-info btn-sm mb-0 me-3 bg-gradient-dark">close</button>
-          <SidebarComponent/>
-        </aside>
-      </template>
-
-
-        <main class="main-content position-relative max-height-vh-95 h-100 border-radius-lg">
-          
-          <NavbarComponent />
-          <div class="container-fluid h-100 w-100 py-1 px-4">
-            <div class="row">
-              <div class="col-12">
-                <router-view />
-                <ToastMessageContainer />
-              </div>
-            </div>
+          <div class="sidenav m-1">
+            <button
+              type="button"
+              @click="toggleMenu"
+              class="btn btn-outline-primary border-0 my-3 mb-0 me-3 sidebar-toggle-button sidebar-toggle-button--closed"
+              aria-label="Sidebar öffnen"
+              :aria-expanded="String(isMenuOpen)"
+              title="Sidebar öffnen"
+            >
+              <span class="sidebar-toggle-icon sidebar-toggle-icon--menu" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+            </button>
           </div>
-        </main>
-      </div>
+        </div>
+      </aside>
     </template>
 
-    <template #authenticated-content>
-      <div class="g-sidenav-hidden">
-        
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+    <template v-if="isMenuOpen">
+      <aside class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark sidebar-shell sidebar-shell--open" id="sidenav-main">
+        <button
+          type="button"
+          @click="toggleMenu"
+          class="btn btn-outline-info mb-0 me-3 bg-gradient-dark sidebar-toggle-button sidebar-toggle-button--open"
+          aria-label="Sidebar schließen"
+          :aria-expanded="String(isMenuOpen)"
+          title="Sidebar schließen"
+        >
+          <i class="ni ni-fat-remove" aria-hidden="true"></i>
+        </button>
+        <SidebarComponent />
+      </aside>
+    </template>
 
-        <div class="container-fluid h-100 w-100 py-1 px-4">
-          <main class="main-content center position-relative max-width max-height-vh-95 h-100 border-radius-lg">
-
-            <LoginComponent />
-          </main>
+    <main class="main-content position-relative max-height-vh-95 h-100 border-radius-lg">
+      <NavbarComponent />
+      <div class="container-fluid h-100 w-100 py-1 px-4">
+        <div class="row">
+          <div class="col-12">
+            <router-view />
+            <ToastMessageContainer />
+          </div>
         </div>
       </div>
-    </template>
-  </AuthCheck>
+    </main>
+    
+  </div>
 </template>
 
 <script>
-import NavbarComponent from './components/NavbarComponent.vue';
-import SidebarComponent from './components/SidebarComponent.vue';
-import DashboardComponent from './components/DashboardComponent.vue';
-import LoginComponent from './components/LoginComponent.vue';
+import NavbarComponent from './components/Menus/NavbarComponent.vue';
+import SidebarComponent from './components/Menus/SidebarComponent.vue';
 import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
-import '@/assets/custom-overrides.css';
-
 import axios from 'axios';
-axios.defaults.baseURL = '/';
 
+// Move this to your http_kc.ts or main.ts if possible, but it works here too
+axios.defaults.baseURL = '/';
 
 export default {
   name: "App",
-
+  components: {
+    NavbarComponent,
+    SidebarComponent,
+    ToastMessageContainer
+  },
   data() {
-
     return {
-      staticUrl: window.STATIC_URL || "/static/",
       isMenuOpen: false,
-
     };
   },
   methods: {
     toggleMenu() {
       this.isMenuOpen = !this.isMenuOpen;
     }
-  },
-  components: {
-    NavbarComponent,
-    SidebarComponent,
-    DashboardComponent,
-    LoginComponent,
-    ToastMessageContainer,
-  },
+  }
 };
-
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap');
-@import url('@/../src/assets/custom-overrides.css');
-@media (max-width: 1200px) {
-  .sidenav {
+.sidebar-shell--collapsed {
+  width: 4.75rem !important;
+  min-width: 4.75rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.25rem;
+}
+
+.sidebar-shell--collapsed .g-sidenav-hidden,
+.sidebar-shell--collapsed .sidenav {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar-shell--open {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-shell--open > div {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.sidebar-shell--open > div > .sidenav {
+  height: 100%;
+}
+
+.sidebar-toggle-button {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+
+.sidebar-toggle-button .ni {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.sidebar-toggle-button:focus-visible {
+  outline: 2px solid #9dc2ff;
+  outline-offset: 2px;
+}
+
+.sidebar-toggle-button--closed {
+  color: #2d3047;
+  background: #ffffff;
+  border-color: rgba(45, 48, 71, 0.16) !important;
+}
+
+.sidebar-toggle-button--closed:hover,
+.sidebar-toggle-button--closed:focus {
+  color: #263fff;
+  background: #f5f7ff;
+}
+
+.sidebar-toggle-button--open {
+  margin: 0.75rem 0.75rem 0.25rem auto !important;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.36);
+  z-index: 2;
+}
+
+.sidebar-toggle-button--open:hover,
+.sidebar-toggle-button--open:focus {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.sidebar-toggle-icon--menu {
+  display: inline-flex;
+  width: 1.35rem;
+  height: 1rem;
+  flex-direction: column;
+  justify-content: space-between;
+  color: currentColor;
+}
+
+.sidebar-toggle-icon--menu span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+@media (max-width: 1199.98px) {
+  .g-sidenav-show > aside.sidenav.navbar {
     transform: none !important;
     position: static;
     width: auto;
     height: auto;
     background: none;
   }
+
+  .g-sidenav-show > aside.sidenav.navbar.sidebar-shell--collapsed {
+    width: 4.75rem !important;
+  }
 }
-
-
 </style>

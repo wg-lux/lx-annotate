@@ -1,5 +1,6 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
     videos: never[];
+    videoLabels: never[];
     selectedVideoId: null;
     currentTime: number;
     duration: number;
@@ -10,11 +11,12 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     selectedLabelType: string;
     isMarkingLabel: boolean;
     labelMarkingStart: number;
-    labelSegments: never[];
     currentLabel: null;
     isMarking: boolean;
     markingStartTime: null;
     videoId: null;
+    errorMessage: null;
+    successMessage: null;
 }, {
     currentVideoUrl(): any;
     showExaminationForm(): boolean;
@@ -26,9 +28,10 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     canFinishLabeling(): boolean;
     currentTimePosition(): number;
     timelineMarkers(): {
-        time: any;
+        time: number;
         position: number;
     }[];
+    labelSegments(): import("@/stores/videoStore").Segment[];
 }, {
     loadVideos(): Promise<void>;
     loadSavedExaminations(): Promise<void>;
@@ -67,6 +70,8 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     };
     seekToSegment(segment: any): void;
     deleteSegment(segmentId: any): Promise<void>;
+    clearErrorMessage(): void;
+    clearSuccessMessage(): void;
     getCsrfToken(): string | null;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
     SimpleExaminationForm: import("vue").DefineComponent<Record<string, unknown>, unknown, unknown>;

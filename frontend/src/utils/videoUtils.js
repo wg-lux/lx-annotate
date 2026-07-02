@@ -19,18 +19,31 @@ export function getTranslationForLabel(label) {
     return translationMap[label] ?? label;
 }
 const colourMap = {
-    outside: '#e74c3c', polyp: '#f39c12', needle: '#3498db', blood: '#e74c3c',
-    snare: '#9b59b6', grasper: '#2ecc71', water_jet: '#1abc9c', appendix: '#f1c40f',
-    ileum: '#e67e22', diverticule: '#34495e', ileocaecalvalve: '#95a5a6',
-    nbi: '#8e44ad', low_quality: '#7f8c8d', wound: '#c0392b'
+    outside: '#e74c3c',
+    polyp: '#f39c12',
+    needle: '#3498db',
+    blood: '#e74c3c',
+    snare: '#9b59b6',
+    grasper: '#2ecc71',
+    water_jet: '#1abc9c',
+    appendix: '#f1c40f',
+    ileum: '#e67e22',
+    diverticule: '#34495e',
+    ileocaecalvalve: '#95a5a6',
+    nbi: '#8e44ad',
+    low_quality: '#7f8c8d',
+    wound: '#c0392b'
 };
 export function getColorForLabel(label) {
     return colourMap[label] ?? '#95a5a6';
 }
+const TWO_DIGIT_STRINGS = Array.from({ length: 60 }, (_, index) => index < 10 ? `0${index}` : String(index));
 export const formatTime = (seconds) => {
-    if (!seconds || seconds < 0)
+    if (!Number.isFinite(seconds) || seconds <= 0)
         return '00:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const wholeSeconds = Math.floor(seconds);
+    const mins = Math.floor(wholeSeconds / 60);
+    const secs = wholeSeconds - mins * 60;
+    const minsText = mins < 10 ? `0${mins}` : String(mins);
+    return `${minsText}:${TWO_DIGIT_STRINGS[secs]}`;
 };

@@ -30,7 +30,7 @@
     <!-- Drop zone content -->
     <div class="drop-zone-content">
       <i 
-        class="fas fa-cloud-upload-alt fa-3x mb-3"
+        class="ni ni-cloud-upload-96 ni-3x mb-3"
         :class="isDragOver ? 'text-primary' : 'text-muted'"
       ></i>
       
@@ -49,7 +49,7 @@
 
     <!-- Validation error message -->
     <div v-if="hasValidationError" class="alert alert-danger mt-3 mb-0">
-      <i class="fas fa-exclamation-triangle me-2"></i>
+      <i class="ni ni-user-run me-2"></i>
       Bitte Datei auswählen oder hierher ziehen.
     </div>
 

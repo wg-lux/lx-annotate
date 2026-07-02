@@ -6,12 +6,12 @@
 export function formatTime(seconds: number): string {
   // Handle edge cases
   if (Number.isNaN(seconds) || !Number.isFinite(seconds) || seconds < 0) {
-    return '00:00';
+    return '00:00'
   }
-  
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
 /**
@@ -21,26 +21,26 @@ export function formatTime(seconds: number): string {
  */
 export function parseTime(timeString: string): number | null {
   if (!timeString || typeof timeString !== 'string') {
-    return null;
+    return null
   }
-  
-  const parts = timeString.split(':');
+
+  const parts = timeString.split(':')
   if (parts.length !== 2) {
-    return null;
+    return null
   }
-  
-  const minutes = parseInt(parts[0], 10);
-  const seconds = parseInt(parts[1], 10);
-  
+
+  const minutes = parseInt(parts[0], 10)
+  const seconds = parseInt(parts[1], 10)
+
   if (Number.isNaN(minutes) || Number.isNaN(seconds)) {
-    return null;
+    return null
   }
-  
+
   if (seconds < 0 || seconds >= 60 || minutes < 0) {
-    return null;
+    return null
   }
-  
-  return minutes * 60 + seconds;
+
+  return minutes * 60 + seconds
 }
 
 /**
@@ -52,16 +52,16 @@ export function parseTime(timeString: string): number | null {
 export function isValidTimeRange(startTime: number, endTime: number): boolean {
   // Check for invalid numbers
   if (Number.isNaN(startTime) || Number.isNaN(endTime)) {
-    return false;
+    return false
   }
-  
+
   // Check for negative times
   if (startTime < 0 || endTime < 0) {
-    return false;
+    return false
   }
-  
+
   // End time must be after start time
-  return endTime > startTime;
+  return endTime > startTime
 }
 
 /**
@@ -72,10 +72,10 @@ export function isValidTimeRange(startTime: number, endTime: number): boolean {
  */
 export function calculateDuration(startTime: number, endTime: number): number {
   if (!isValidTimeRange(startTime, endTime)) {
-    return 0;
+    return 0
   }
-  
-  return endTime - startTime;
+
+  return endTime - startTime
 }
 
 /**
@@ -85,46 +85,46 @@ export function calculateDuration(startTime: number, endTime: number): number {
  */
 export function formatDuration(seconds: number): string {
   if (Number.isNaN(seconds) || seconds < 0) {
-    return '0s';
+    return '0s'
   }
-  
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  
-  const parts: string[] = [];
-  
+
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+
+  const parts: string[] = []
+
   if (hours > 0) {
-    parts.push(`${hours}h`);
+    parts.push(`${hours}h`)
   }
   if (minutes > 0) {
-    parts.push(`${minutes}m`);
+    parts.push(`${minutes}m`)
   }
   if (secs > 0 || parts.length === 0) {
-    parts.push(`${secs}s`);
+    parts.push(`${secs}s`)
   }
-  
-  return parts.join(' ');
+
+  return parts.join(' ')
 }
 
 /**
  * Konvertiert Sekunden zu Frames basierend auf FPS
  * @param seconds - Zeit in Sekunden
- * @param fps - Frames per Second (Standard: 30)
+ * @param fps - Frames per Second (Standard: 50)
  * @returns Frame-Nummer
  */
-export function secondsToFrames(seconds: number, fps: number = 30): number {
-  return Math.round(seconds * fps);
+export function secondsToFrames(seconds: number, fps: number = 50): number {
+  return Math.round(seconds * fps)
 }
 
 /**
  * Konvertiert Frames zu Sekunden basierend auf FPS
  * @param frames - Frame-Nummer
- * @param fps - Frames per Second (Standard: 30)
+ * @param fps - Frames per Second (Standard: 50)
  * @returns Zeit in Sekunden
  */
-export function framesToSeconds(frames: number, fps: number = 30): number {
-  return frames / fps;
+export function framesToSeconds(frames: number, fps: number = 50): number {
+  return frames / fps
 }
 
 /**
@@ -134,8 +134,8 @@ export function framesToSeconds(frames: number, fps: number = 30): number {
  * @returns Gerundete Zeit
  */
 export function roundTime(seconds: number, decimals: number = 1): number {
-  const factor = Math.pow(10, decimals);
-  return Math.round(seconds * factor) / factor;
+  const factor = Math.pow(10, decimals)
+  return Math.round(seconds * factor) / factor
 }
 
 /**
@@ -147,12 +147,12 @@ export function roundTime(seconds: number, decimals: number = 1): number {
  * @returns true wenn sich die Bereiche überschneiden
  */
 export function timeRangesOverlap(
-  start1: number, 
-  end1: number, 
-  start2: number, 
+  start1: number,
+  end1: number,
+  start2: number,
   end2: number
 ): boolean {
-  return start1 < end2 && start2 < end1;
+  return start1 < end2 && start2 < end1
 }
 
 /**
@@ -163,9 +163,9 @@ export function timeRangesOverlap(
  * @returns Normalisierte Zeit
  */
 export function clampTime(time: number, minTime: number = 0, maxTime?: number): number {
-  let clampedTime = Math.max(time, minTime);
+  let clampedTime = Math.max(time, minTime)
   if (maxTime !== undefined) {
-    clampedTime = Math.min(clampedTime, maxTime);
+    clampedTime = Math.min(clampedTime, maxTime)
   }
-  return clampedTime;
+  return clampedTime
 }

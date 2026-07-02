@@ -14,6 +14,7 @@ const formData = ref({
     phone: '',
     gender: null,
     center: null,
+    centerKey: null,
     patientHash: '',
     comments: '',
     isRealPerson: true
@@ -31,6 +32,7 @@ const resetForm = () => {
         phone: '',
         gender: null,
         center: null,
+        centerKey: null,
         patientHash: '',
         comments: '',
         isRealPerson: true
@@ -180,7 +182,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements
     for: "centerSelect",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    value: (__VLS_ctx.formData.center),
+    value: (__VLS_ctx.formData.centerKey),
     id: "centerSelect",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
@@ -189,7 +191,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
 for (const [center] of __VLS_getVForSourceType((__VLS_ctx.centers))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         key: (center.id),
-        value: (center.name),
+        value: (center.centerKey || center.name),
     });
     (center.nameDe || center.name);
 }

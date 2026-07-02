@@ -1,0 +1,801 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Core Concept Contract" href="core-concept-contract.html"><link rel="prev" title="Pydantic V2 Cheat Sheet" href="pydantic-cheatsheet.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>Dtypes Findings Migration (Incremental, Endoreg-Safe) - lx-annotate Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">lx-annotate Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">lx-annotate Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
+<li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">Dates and Times</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/guides/dtypes-findings-migration.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="dtypes-findings-migration-incremental-endoreg-safe">
+<h1>Dtypes Findings Migration (Incremental, Endoreg-Safe)<a class="headerlink" href="#dtypes-findings-migration-incremental-endoreg-safe" title="Link to this heading">¶</a></h1>
+<p>Last updated: 2026-06-03
+Owner: reporting/frontend/backend</p>
+<section id="scope">
+<h2>Scope<a class="headerlink" href="#scope" title="Link to this heading">¶</a></h2>
+<p>Migrate findings read/write flows to a dtypes-driven API surface exposed by
+<code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code> under <code class="docutils literal notranslate"><span class="pre">/base_api/**</span></code> without breaking existing <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code>
+behavior mounted under <code class="docutils literal notranslate"><span class="pre">/api/**</span></code>.</p>
+<p>In the current frontend, <code class="docutils literal notranslate"><span class="pre">dtypesApi()</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">/dtypes-api/**</span></code> and
+<code class="docutils literal notranslate"><span class="pre">endoregApi()</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">/endoreg-api/**</span></code>; those prefixes are reverse-proxy
+front doors for the underlying <code class="docutils literal notranslate"><span class="pre">/base_api/**</span></code> and <code class="docutils literal notranslate"><span class="pre">/api/**</span></code> services. Some
+legacy frontend call sites still hard-code <code class="docutils literal notranslate"><span class="pre">/api/**</span></code>.</p>
+</section>
+<section id="current-state-inventory">
+<h2>Current-State Inventory<a class="headerlink" href="#current-state-inventory" title="Link to this heading">¶</a></h2>
+<section id="uses-dtypes-today">
+<h3>Uses dtypes today<a class="headerlink" href="#uses-dtypes-today" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Frontend <code class="docutils literal notranslate"><span class="pre">findingsApi</span></code> supports backend mode flag <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code>
+(<code class="docutils literal notranslate"><span class="pre">endoreg</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>).</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code> and <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> modes, frontend findings reads use
+<code class="docutils literal notranslate"><span class="pre">/dtypes-api/examinations/{examination_id}/findings/</span></code>,
+<code class="docutils literal notranslate"><span class="pre">/dtypes-api/findings/{finding_id}/classifications/</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">/dtypes-api/classifications/{classification_id}/choices/</span></code>.</p></li>
+<li><p>Those <code class="docutils literal notranslate"><span class="pre">/dtypes-api/**</span></code> routes proxy to <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code> <code class="docutils literal notranslate"><span class="pre">/base_api/**</span></code> endpoints.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> mode, patient finding CRUD uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code>
+and validates finding/examination compatibility plus classification/choice
+consistency before persistence.</p></li>
+<li><p>The frontend default is now <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> when <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> is unset or
+invalid, so read and patient-finding write traffic defaults to <code class="docutils literal notranslate"><span class="pre">/dtypes-api/**</span></code>.</p></li>
+</ul>
+</section>
+<section id="uses-endoreg-db-today">
+<h3>Uses endoreg_db today<a class="headerlink" href="#uses-endoreg-db-today" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/api/**</span></code> remains the backend endoreg_db route namespace.</p></li>
+<li><p>The current frontend helper default for endoreg routes is <code class="docutils literal notranslate"><span class="pre">/endoreg-api/**</span></code>;
+older stores/components still call <code class="docutils literal notranslate"><span class="pre">/api/**</span></code> directly.</p></li>
+<li><p>Explicit <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> remains available as a rollback mode.</p></li>
+<li><p>In explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> mode, findings reads use:
+<code class="docutils literal notranslate"><span class="pre">/api/examinations/{examination_id}/findings/</span></code> and
+<code class="docutils literal notranslate"><span class="pre">/api/findings/{finding_id}/classifications/</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getClassificationChoices()</span></code> still exposes the endoreg
+<code class="docutils literal notranslate"><span class="pre">/api/classifications/{classification_id}/choices/</span></code> route, but no current
+frontend source call site invokes it outside the service definition.</p></li>
+<li><p>Patient finding persistence is still on endoreg_db tables (<code class="docutils literal notranslate"><span class="pre">PatientFinding</span></code>, <code class="docutils literal notranslate"><span class="pre">PatientFindingClassification</span></code>) for <code class="docutils literal notranslate"><span class="pre">/base_api/patient-findings/**</span></code>.</p></li>
+<li><p>Patient finding row CRUD uses <code class="docutils literal notranslate"><span class="pre">/api/patient-findings/**</span></code> only in explicit
+<code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> or <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=dtypes_read</span></code> modes.
+In <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> mode, classification replacement still goes through
+<code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/{id}/classifications/</span></code>.</p></li>
+<li><p>Patient, gender, center, and patient-examination workflows still use
+endoreg_db routes from <code class="docutils literal notranslate"><span class="pre">patient.py</span></code> and <code class="docutils literal notranslate"><span class="pre">examination.py</span></code>.</p></li>
+<li><p>Report save flows still submit to <code class="docutils literal notranslate"><span class="pre">/api/patient-examination-reports/save-submission/</span></code>.</p></li>
+</ul>
+</section>
+</section>
+<section id="route-usage-audit-2026-06-03">
+<h2>Route Usage Audit (2026-06-03)<a class="headerlink" href="#route-usage-audit-2026-06-03" title="Link to this heading">¶</a></h2>
+<p>Question checked: are routes from these backend URL modules still used by the
+frontend?</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/home/admin/endoreg-db/endoreg_db/urls/examination.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/home/admin/endoreg-db/endoreg_db/urls/classification.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/home/admin/endoreg-db/endoreg_db/urls/patient.py</span></code></p></li>
+</ul>
+<section id="examination-py">
+<h3><code class="docutils literal notranslate"><span class="pre">examination.py</span></code><a class="headerlink" href="#examination-py" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Backend route</p></th>
+<th class="head"><p>Frontend status</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/examinations/{examination_id}/findings/</span></code></p></td>
+<td><p>Used only in explicit endoreg mode</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getExaminationFindings()</span></code> now defaults to <code class="docutils literal notranslate"><span class="pre">/dtypes-api/examinations/{id}/findings/</span></code>; this route remains the <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> rollback path.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/findings/{finding_id}/classifications/</span></code></p></td>
+<td><p>Used only in explicit endoreg mode</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getFindingClassifications()</span></code> now defaults to <code class="docutils literal notranslate"><span class="pre">/dtypes-api/findings/{id}/classifications/</span></code>; this route remains the <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> rollback path.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/classifications/{classification_id}/choices/</span></code></p></td>
+<td><p>Exposed, not actively called</p></td>
+<td><p>Implemented by <code class="docutils literal notranslate"><span class="pre">findingsApi.getClassificationChoices()</span></code>, but no frontend source call site invokes it today.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/examinations/{exam_id}/indications/</span></code></p></td>
+<td><p>Not found in current frontend source</p></td>
+<td><p>Reporting currently derives indication options from patient-examination detail and examination detail payloads instead.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/indications/{indication_id}/choices/</span></code></p></td>
+<td><p>Not found in current frontend source</p></td>
+<td><p>No current source call site found.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-examinations/create/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Used by reporting case setup and case resolution flows when creating a patient examination context.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-examinations/{pk}/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Used by the reporting shell and report editor for patient-examination detail hydration.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-examinations/list/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Used by reporting shell, case resolution, anonymization validation, and <code class="docutils literal notranslate"><span class="pre">patientExaminationStore</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-examinations/{exam_id}/classifications/</span></code></p></td>
+<td><p>Not actively called</p></td>
+<td><p>Present in <code class="docutils literal notranslate"><span class="pre">endpoints.ts</span></code>, but no current frontend source call site invokes it.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-examinations/{examination_id}/findings/</span></code></p></td>
+<td><p>Not actively called</p></td>
+<td><p>Present in <code class="docutils literal notranslate"><span class="pre">endpoints.ts</span></code>, but current findings reads use <code class="docutils literal notranslate"><span class="pre">examinations/{id}/findings/</span></code> through <code class="docutils literal notranslate"><span class="pre">findingsApi</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/examinations/{exam_id}/interventions/</span></code></p></td>
+<td><p>Not found in current frontend source</p></td>
+<td><p>No current source call site found.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/examinations/{exam_id}/findings/{finding_id}/interventions/</span></code></p></td>
+<td><p>Not found in current frontend source</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SimpleExaminationForm.vue</span></code> has stale legacy calls under <code class="docutils literal notranslate"><span class="pre">examination/...</span></code>, but that component is not routed and the paths do not match this backend route.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="classification-py">
+<h3><code class="docutils literal notranslate"><span class="pre">classification.py</span></code><a class="headerlink" href="#classification-py" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">classification.py</span></code> currently contributes an empty <code class="docutils literal notranslate"><span class="pre">url_patterns</span></code> list; the NICE,
+PARIS, batch, and status paths are commented out. No frontend source call sites
+for <code class="docutils literal notranslate"><span class="pre">/api/classifications/nice/</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/classifications/paris/</span></code>,
+<code class="docutils literal notranslate"><span class="pre">/api/classifications/batch/</span></code>, or <code class="docutils literal notranslate"><span class="pre">/api/classifications/status/{video_id}/</span></code>
+were found.</p>
+</section>
+<section id="patient-py">
+<h3><code class="docutils literal notranslate"><span class="pre">patient.py</span></code><a class="headerlink" href="#patient-py" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Backend route family</p></th>
+<th class="head"><p>Frontend status</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patients/</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/patients/{id}/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Used by <code class="docutils literal notranslate"><span class="pre">patientService</span></code>, <code class="docutils literal notranslate"><span class="pre">patientStore</span></code>, <code class="docutils literal notranslate"><span class="pre">PatientDashboard</span></code>, patient create/edit/detail components, and case-resolution patient creation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patients/{id}/pseudonym/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Router-generated <code class="docutils literal notranslate"><span class="pre">PatientViewSet</span></code> action used by <code class="docutils literal notranslate"><span class="pre">patientService.generatePatientPseudonym()</span></code> and patient detail UI.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patients/{id}/check_deletion_safety/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Router-generated <code class="docutils literal notranslate"><span class="pre">PatientViewSet</span></code> action used by patient edit/detail deletion checks.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/centers/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Used by patient lookup loading in <code class="docutils literal notranslate"><span class="pre">patientService</span></code>, <code class="docutils literal notranslate"><span class="pre">patientStore</span></code>, and patient forms.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/genders/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Used by patient lookup loading in <code class="docutils literal notranslate"><span class="pre">patientService</span></code>, <code class="docutils literal notranslate"><span class="pre">patientStore</span></code>, and patient forms.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-findings/</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/patient-findings/{id}/</span></code></p></td>
+<td><p>Used only in explicit endoreg or dtypes-read modes</p></td>
+<td><p>Default row CRUD now uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code>; these routes remain available for <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> and <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=dtypes_read</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/check_pe_exist/{pk}/</span></code></p></td>
+<td><p>Used</p></td>
+<td><p>Called by <code class="docutils literal notranslate"><span class="pre">patientExaminationStore.doesPatientExaminationExist()</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="legacy-residual-notes">
+<h3>Legacy/Residual Notes<a class="headerlink" href="#legacy-residual-notes" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/components/Examination/SimpleExaminationForm.vue</span></code> remains in
+source but is not registered in the current router. Its legacy
+<code class="docutils literal notranslate"><span class="pre">examination/...</span></code> endpoint strings do not match the active
+<code class="docutils literal notranslate"><span class="pre">examination.py</span></code> routes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/components/CaseGenerator/FindingGenerator*.vue</span></code> are legacy/demo
+components and are not reachable from the current router.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/views/PatientAdder.vue</span></code> exists but is not currently routed.</p></li>
+<li><p>The current routed reporting flow is under <code class="docutils literal notranslate"><span class="pre">/reporting/**</span></code>; the legacy
+<code class="docutils literal notranslate"><span class="pre">/untersuchung</span></code> and <code class="docutils literal notranslate"><span class="pre">/report-generator</span></code> routes redirect to
+<code class="docutils literal notranslate"><span class="pre">/reporting/case-setup</span></code>.</p></li>
+</ul>
+</section>
+</section>
+<section id="phased-checklist">
+<h2>Phased Checklist<a class="headerlink" href="#phased-checklist" title="Link to this heading">¶</a></h2>
+<section id="phase-0-stabilize-current-findings-flow-no-behavior-break">
+<h3>Phase 0: Stabilize current findings flow (no behavior break)<a class="headerlink" href="#phase-0-stabilize-current-findings-flow-no-behavior-break" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>[x] Remove duplicate findings reactive reload triggers in <code class="docutils literal notranslate"><span class="pre">FindingsDetail</span></code> and <code class="docutils literal notranslate"><span class="pre">AddableFindingsDetail</span></code>.</p></li>
+<li><p>[x] Normalize findings network calls through a single service layer (<code class="docutils literal notranslate"><span class="pre">findingsApi</span></code>) for edited components/stores.</p></li>
+<li><p>[x] Keep endoreg-safe create contract: create finding first, then dedicated classifications update route.</p></li>
+<li><p>[x] Add structured error parsing (<code class="docutils literal notranslate"><span class="pre">required-finding</span></code>, <code class="docutils literal notranslate"><span class="pre">duplicate-finding</span></code>, <code class="docutils literal notranslate"><span class="pre">invalid-choice</span></code>, <code class="docutils literal notranslate"><span class="pre">invalid-finding</span></code>).</p></li>
+<li><p>Acceptance criteria:</p>
+<ul>
+<li><p>No repeated watcher-trigger loops for single finding render.</p></li>
+<li><p>400 errors surface actionable code/message.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="phase-1-frontend-findings-api-abstraction">
+<h3>Phase 1: Frontend findings API abstraction<a class="headerlink" href="#phase-1-frontend-findings-api-abstraction" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>[x] Add <code class="docutils literal notranslate"><span class="pre">frontend/src/api/findingsApi.ts</span></code> + <code class="docutils literal notranslate"><span class="pre">.js</span></code>.</p></li>
+<li><p>[x] Add <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> env typing.</p></li>
+<li><p>[x] Route <code class="docutils literal notranslate"><span class="pre">patientFindingStore</span></code> and <code class="docutils literal notranslate"><span class="pre">examinationStore</span></code> through <code class="docutils literal notranslate"><span class="pre">findingsApi</span></code>.</p></li>
+<li><p>[x] Route findings reads in the current reporting flow and stores through
+<code class="docutils literal notranslate"><span class="pre">findingsApi</span></code>.</p></li>
+<li><p>Acceptance criteria:</p>
+<ul>
+<li><p>Component/store layer remains camelCase-compatible.</p></li>
+<li><p>Backend switching does not require component-level endpoint changes.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="phase-2-dtypes-read-endpoints-parallel-non-breaking">
+<h3>Phase 2: dtypes read endpoints (parallel, non-breaking)<a class="headerlink" href="#phase-2-dtypes-read-endpoints-parallel-non-breaking" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>[x] <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/base_api/examinations/{examination_id}/findings/</span></code></p></li>
+<li><p>[x] <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/base_api/findings/{finding_id}/classifications/</span></code></p></li>
+<li><p>[x] <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/base_api/classifications/{classification_id}/choices/</span></code></p></li>
+<li><p>[x] Compatibility-oriented payload shape preserved (<code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">required</span></code>, <code class="docutils literal notranslate"><span class="pre">choices</span></code>, legacy fields where needed).</p></li>
+<li><p>Acceptance criteria:</p>
+<ul>
+<li><p>Frontend can run in <code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code> mode without <code class="docutils literal notranslate"><span class="pre">/api</span></code> findings reads.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="phase-3-dtypes-write-endpoints-endoreg-safe-persistence">
+<h3>Phase 3: dtypes write endpoints (endoreg-safe persistence)<a class="headerlink" href="#phase-3-dtypes-write-endpoints-endoreg-safe-persistence" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>[x] <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/base_api/patient-findings/?patient_examination=...</span></code></p></li>
+<li><p>[x] <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/base_api/patient-findings/</span></code></p></li>
+<li><p>[x] <code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/base_api/patient-findings/{id}/</span></code></p></li>
+<li><p>[x] <code class="docutils literal notranslate"><span class="pre">DELETE</span> <span class="pre">/base_api/patient-findings/{id}/</span></code></p></li>
+<li><p>[x] <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/base_api/patient-findings/{id}/classifications/</span></code></p></li>
+<li><p>[x] Validation rules enforced before persistence.</p></li>
+<li><p>[x] Persistence remains endoreg_db tables for compatibility.</p></li>
+<li><p>Acceptance criteria:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">/api/**</span></code> remains fully operational with no contract regression.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="phase-4-cutover-governance">
+<h3>Phase 4: Cutover governance<a class="headerlink" href="#phase-4-cutover-governance" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>[x] Track migration in this document.</p></li>
+<li><p>[ ] Parity test suite green in CI for all findings endpoints/modes.</p></li>
+<li><p>[ ] Soak window complete (no regressions in configured period).</p></li>
+<li><p>[x] Flip default <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> from <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> to <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> when the
+env var is unset or invalid.</p></li>
+</ul>
+</section>
+</section>
+<section id="compatibility-matrix">
+<h2>Compatibility Matrix<a class="headerlink" href="#compatibility-matrix" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Endpoint / Area</p></th>
+<th class="head"><p>Read/Write Source</p></th>
+<th class="head"><p>Persistence</p></th>
+<th class="head"><p>Rollout Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/examinations/*/findings/</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/examinations/*/findings/</span></code></p></td>
+<td><p>endoreg_db</p></td>
+<td><p>endoreg_db</p></td>
+<td><p>Explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> fallback read path</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/findings/*/classifications/</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/findings/*/classifications/</span></code></p></td>
+<td><p>endoreg_db</p></td>
+<td><p>endoreg_db</p></td>
+<td><p>Explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> fallback read path</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/classifications/*/choices/</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/classifications/*/choices/</span></code></p></td>
+<td><p>endoreg_db</p></td>
+<td><p>endoreg_db</p></td>
+<td><p>Exposed by service, no active frontend caller found</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-findings/**</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/patient-findings/**</span></code></p></td>
+<td><p>endoreg_db</p></td>
+<td><p>endoreg_db</p></td>
+<td><p>Explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code>/<code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code> fallback row CRUD path</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/examinations/*/findings/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/examinations/*/findings/</span></code></p></td>
+<td><p>dtypes KB</p></td>
+<td><p>n/a</p></td>
+<td><p>Implemented; default active path</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/findings/*/classifications/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/findings/*/classifications/</span></code></p></td>
+<td><p>dtypes KB + db mapping</p></td>
+<td><p>n/a</p></td>
+<td><p>Implemented; default active path</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/classifications/*/choices/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/classifications/*/choices/</span></code></p></td>
+<td><p>dtypes KB + db mapping</p></td>
+<td><p>n/a</p></td>
+<td><p>Implemented; no active frontend caller found</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/patient-findings/**</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code></p></td>
+<td><p>dtypes-validated API</p></td>
+<td><p>endoreg_db tables</p></td>
+<td><p>Implemented; default active CRUD path</p></td>
+</tr>
+<tr class="row-even"><td><p>Frontend findings integration</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi</span></code> mode switch</p></td>
+<td><p>n/a</p></td>
+<td><p>Implemented (default <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="decision-log">
+<h2>Decision Log<a class="headerlink" href="#decision-log" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Date</p></th>
+<th class="head"><p>Decision</p></th>
+<th class="head"><p>Rationale</p></th>
+<th class="head"><p>Owner</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>2026-03-09</p></td>
+<td><p>Keep <code class="docutils literal notranslate"><span class="pre">/api/**</span></code> as default while introducing <code class="docutils literal notranslate"><span class="pre">/base_api/**</span></code> in parallel.</p></td>
+<td><p>Avoid production regressions during migration.</p></td>
+<td><p>reporting/backend</p></td>
+</tr>
+<tr class="row-odd"><td><p>2026-03-09</p></td>
+<td><p>Use <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> feature mode (<code class="docutils literal notranslate"><span class="pre">endoreg</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>).</p></td>
+<td><p>Enables incremental rollout and targeted testing.</p></td>
+<td><p>frontend</p></td>
+</tr>
+<tr class="row-even"><td><p>2026-03-09</p></td>
+<td><p>Validate with dtypes but persist patient findings in existing endoreg tables for now.</p></td>
+<td><p>Reduces schema/data migration risk while gaining validation parity.</p></td>
+<td><p>backend</p></td>
+</tr>
+<tr class="row-odd"><td><p>2026-03-09</p></td>
+<td><p>Keep explicit create-then-classification flow for endoreg-safe mode.</p></td>
+<td><p>Matches existing behavior and prevents nested-write ambiguity.</p></td>
+<td><p>frontend/backend</p></td>
+</tr>
+<tr class="row-even"><td><p>2026-03-09</p></td>
+<td><p>Pin pytest CI settings to a deterministic findings module (<code class="docutils literal notranslate"><span class="pre">report_template_examples</span></code>) when env var is unset.</p></td>
+<td><p>Avoids environment-dependent <code class="docutils literal notranslate"><span class="pre">lx_knowledge_base</span></code> lookup failures in contract tests.</p></td>
+<td><p>backend</p></td>
+</tr>
+<tr class="row-odd"><td><p>2026-06-03</p></td>
+<td><p>Document frontend route usage against <code class="docutils literal notranslate"><span class="pre">examination.py</span></code>, <code class="docutils literal notranslate"><span class="pre">classification.py</span></code>, and <code class="docutils literal notranslate"><span class="pre">patient.py</span></code>.</p></td>
+<td><p>Clarifies which endoreg routes remain part of the active frontend contract during dtypes migration.</p></td>
+<td><p>frontend/backend</p></td>
+</tr>
+<tr class="row-even"><td><p>2026-06-03</p></td>
+<td><p>Default unset/invalid <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> to <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>.</p></td>
+<td><p>Moves active findings read/write traffic to the dtypes API while preserving explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> rollback.</p></td>
+<td><p>frontend</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="progress-log">
+<h2>Progress Log<a class="headerlink" href="#progress-log" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Date</p></th>
+<th class="head"><p>Reference</p></th>
+<th class="head"><p>Status</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>2026-03-09</p></td>
+<td><p>Working tree changes in <code class="docutils literal notranslate"><span class="pre">lx_dtypes/django/api/main.py</span></code> and <code class="docutils literal notranslate"><span class="pre">test_findings_api.py</span></code></p></td>
+<td><p>Completed</p></td>
+<td><p>Added <code class="docutils literal notranslate"><span class="pre">/base_api</span></code> findings read/write endpoints + validation + tests.</p></td>
+</tr>
+<tr class="row-odd"><td><p>2026-03-09</p></td>
+<td><p>Working tree changes in <code class="docutils literal notranslate"><span class="pre">lx_dtypes/django_settings_ci_test.py</span></code>, <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>, and API error/deactivation handling</p></td>
+<td><p>Completed</p></td>
+<td><p>Fixed pytest execution path for backend contract tests; <code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">lx-data-models/lx_dtypes/django/api/tests/test_findings_api.py</span> <span class="pre">-q</span></code> passes locally from repo root.</p></td>
+</tr>
+<tr class="row-even"><td><p>2026-03-09</p></td>
+<td><p>Working tree changes in <code class="docutils literal notranslate"><span class="pre">frontend/src/api/findingsApi.*</span></code></p></td>
+<td><p>Completed</p></td>
+<td><p>Added unified service layer and backend mode switch.</p></td>
+</tr>
+<tr class="row-odd"><td><p>2026-03-09</p></td>
+<td><p>Working tree changes in findings components/stores/reporting views</p></td>
+<td><p>Completed</p></td>
+<td><p>Removed duplicate reload triggers and migrated key calls to <code class="docutils literal notranslate"><span class="pre">findingsApi</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>2026-03-09</p></td>
+<td><p>Frontend validation (<code class="docutils literal notranslate"><span class="pre">vue-tsc</span></code>) + targeted vitest (<code class="docutils literal notranslate"><span class="pre">findingsApi</span></code>, requirement crash guard)</p></td>
+<td><p>Completed</p></td>
+<td><p>Type-check and targeted migration tests pass locally.</p></td>
+</tr>
+<tr class="row-odd"><td><p>2026-06-03</p></td>
+<td><p>Frontend route audit against endoreg URL modules</p></td>
+<td><p>Completed</p></td>
+<td><p>Confirmed active use of selected <code class="docutils literal notranslate"><span class="pre">examination.py</span></code> and <code class="docutils literal notranslate"><span class="pre">patient.py</span></code> routes; <code class="docutils literal notranslate"><span class="pre">classification.py</span></code> has no active routes.</p></td>
+</tr>
+<tr class="row-even"><td><p>2026-06-03</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">frontend/src/api/findingsApi.ts</span></code> default backend mode</p></td>
+<td><p>Completed</p></td>
+<td><p>Missing or invalid <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> now resolves to <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>; focused routing tests updated.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="post-cutover-follow-up">
+<h2>Post-Cutover Follow-Up<a class="headerlink" href="#post-cutover-follow-up" title="Link to this heading">¶</a></h2>
+<p>Keep the <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> default and consider retiring the explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> fallback
+only when all are true:</p>
+<ul class="simple">
+<li><p>Contract tests pass for <code class="docutils literal notranslate"><span class="pre">/base_api</span></code> read/write findings endpoints.</p></li>
+<li><p>Frontend mode tests pass for <code class="docutils literal notranslate"><span class="pre">endoreg</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code>, and <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>.</p></li>
+<li><p>End-to-end create/update/delete/classification flows pass in staging.</p></li>
+<li><p>No agreed regression during soak period.</p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="core-concept-contract.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Core Concept Contract</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="pydantic-cheatsheet.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Pydantic V2 Cheat Sheet</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 1980, Thomas J. Lux
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a><ul>
+<li><a class="reference internal" href="#scope">Scope</a></li>
+<li><a class="reference internal" href="#current-state-inventory">Current-State Inventory</a><ul>
+<li><a class="reference internal" href="#uses-dtypes-today">Uses dtypes today</a></li>
+<li><a class="reference internal" href="#uses-endoreg-db-today">Uses endoreg_db today</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#route-usage-audit-2026-06-03">Route Usage Audit (2026-06-03)</a><ul>
+<li><a class="reference internal" href="#examination-py"><code class="docutils literal notranslate"><span class="pre">examination.py</span></code></a></li>
+<li><a class="reference internal" href="#classification-py"><code class="docutils literal notranslate"><span class="pre">classification.py</span></code></a></li>
+<li><a class="reference internal" href="#patient-py"><code class="docutils literal notranslate"><span class="pre">patient.py</span></code></a></li>
+<li><a class="reference internal" href="#legacy-residual-notes">Legacy/Residual Notes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#phased-checklist">Phased Checklist</a><ul>
+<li><a class="reference internal" href="#phase-0-stabilize-current-findings-flow-no-behavior-break">Phase 0: Stabilize current findings flow (no behavior break)</a></li>
+<li><a class="reference internal" href="#phase-1-frontend-findings-api-abstraction">Phase 1: Frontend findings API abstraction</a></li>
+<li><a class="reference internal" href="#phase-2-dtypes-read-endpoints-parallel-non-breaking">Phase 2: dtypes read endpoints (parallel, non-breaking)</a></li>
+<li><a class="reference internal" href="#phase-3-dtypes-write-endpoints-endoreg-safe-persistence">Phase 3: dtypes write endpoints (endoreg-safe persistence)</a></li>
+<li><a class="reference internal" href="#phase-4-cutover-governance">Phase 4: Cutover governance</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compatibility-matrix">Compatibility Matrix</a></li>
+<li><a class="reference internal" href="#decision-log">Decision Log</a></li>
+<li><a class="reference internal" href="#progress-log">Progress Log</a></li>
+<li><a class="reference internal" href="#post-cutover-follow-up">Post-Cutover Follow-Up</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=25e3ca35"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    </body>
+</html>

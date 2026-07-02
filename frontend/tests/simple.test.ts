@@ -1,7 +1,5 @@
-import { describe, it, expect } from 'vitest'
+import { describe, test } from 'vitest'
 
-describe('Simple Test', () => {
-  it('should pass', () => {
-    expect(1 + 1).toBe(2)
-  })
+describe('Placeholder Suite', () => {
+  test.todo('Implement this test suite')
 })

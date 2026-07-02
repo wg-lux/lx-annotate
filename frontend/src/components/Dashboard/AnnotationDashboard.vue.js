@@ -1,9 +1,10 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
-import AnnotationStatsComponent from '@/components/AnnotationStatsComponent.vue';
+import AnnotationStatsComponent from '@/components/Stats/AnnotationStatsComponent.vue';
 import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 const toast = useToastStore(); // Use your notification system here
 const router = useRouter();
 const annotationStatsStore = useAnnotationStatsStore();
@@ -15,6 +16,8 @@ const sensitiveMetaData = ref([]);
 const loadingSegments = ref(false);
 const loadingExaminations = ref(false);
 const loadingSensitiveMeta = ref(false);
+const MAX_VIDEOS_FOR_SEGMENT_OVERVIEW = 25;
+const MAX_SEGMENTS_IN_OVERVIEW = 500;
 // Methods for fetching detailed data
 // Add at the top of script setup
 const showError = (message) => {
@@ -26,8 +29,29 @@ const showError = (message) => {
 const refreshSegments = async () => {
     loadingSegments.value = true;
     try {
-        const response = await axiosInstance.get('/api/video-segments/');
-        segments.value = response.data.results || response.data || [];
+        const videosResponse = await axiosInstance.get(r(endpoints.media.videos));
+        const videos = videosResponse.data?.results ||
+            videosResponse.data?.videos ||
+            videosResponse.data ||
+            [];
+        const videoIds = videos
+            .map((video) => Number(video.id))
+            .filter((id) => Number.isFinite(id))
+            .slice(0, MAX_VIDEOS_FOR_SEGMENT_OVERVIEW);
+        const segmentLists = await Promise.all(videoIds.map(async (videoId) => {
+            try {
+                const response = await axiosInstance.get(r(endpoints.media.videoSegments(videoId)));
+                const videoSegments = response.data?.results || response.data || [];
+                return videoSegments.map((segment) => ({
+                    ...segment,
+                    videoId: segment.videoId ?? segment.video_id ?? videoId,
+                }));
+            }
+            catch {
+                return [];
+            }
+        }));
+        segments.value = segmentLists.flat().slice(0, MAX_SEGMENTS_IN_OVERVIEW);
     }
     catch (error) {
         showError('Fehler beim Laden der Video-Segmente');
@@ -40,7 +64,7 @@ const refreshSegments = async () => {
 const refreshExaminations = async () => {
     loadingExaminations.value = true;
     try {
-        const response = await axiosInstance.get('/api/examinations/');
+        const response = await axiosInstance.get(r(endpoints.router.examinations));
         examinations.value = response.data.results || response.data || [];
     }
     catch (error) {
@@ -54,19 +78,23 @@ const refreshExaminations = async () => {
 const refreshSensitiveMeta = async () => {
     loadingSensitiveMeta.value = true;
     try {
-        // Combine video and PDF sensitive meta data
+        // Combine video and PDF sensitive meta data using Modern Media Framework
         const [videoResponse, pdfResponse] = await Promise.all([
-            axiosInstance.get('/api/media/videos/').catch(() => ({ data: [] })),
-            axiosInstance.get('/api/pdf/sensitivemeta/').catch(() => ({ data: [] }))
+            axiosInstance.get(r(endpoints.media.videos)).catch(() => ({ data: [] })),
+            axiosInstance.get(r(endpoints.media.pdfSensitiveMetadataList)).catch(() => ({ data: { results: [] } }))
         ]);
+        // Extract data from responses
         const videoData = Array.isArray(videoResponse.data) ? videoResponse.data :
             videoResponse.data ? [{ ...videoResponse.data, content_type: 'video' }] : [];
-        const pdfData = Array.isArray(pdfResponse.data) ? pdfResponse.data :
-            pdfResponse.data ? [{ ...pdfResponse.data, content_type: 'pdf' }] : [];
+        // PDF endpoint returns paginated data with 'results' array
+        const pdfData = pdfResponse.data?.results ||
+            (Array.isArray(pdfResponse.data) ? pdfResponse.data :
+                pdfResponse.data ? [pdfResponse.data] : []);
         // Add content type identifier
         videoData.forEach(item => item.content_type = 'video');
         pdfData.forEach(item => item.content_type = 'pdf');
         sensitiveMetaData.value = [...videoData, ...pdfData];
+        console.log('Loaded sensitive metadata:', sensitiveMetaData.value.length, 'items');
     }
     catch (error) {
         console.error('Fehler beim Laden der Patientendaten:', error);
@@ -133,14 +161,24 @@ const getSensitiveMetaStatusText = (status) => {
 };
 // Action methods
 const editSegment = (segment) => {
+    const videoId = segment.videoId ?? segment.video_id;
+    if (!videoId) {
+        showError('Segment kann nicht geöffnet werden: Video-ID fehlt');
+        return;
+    }
     router.push({
         name: 'Frame Annotation',
-        query: { videoId: segment.video_id, segmentId: segment.id }
+        query: { videoId, segmentId: segment.id }
     });
 };
 const markSegmentComplete = async (segment) => {
     try {
-        await axiosInstance.patch(`/api/video-segments/${segment.id}/`, { status: 'completed' });
+        const videoId = segment.videoId ?? segment.video_id;
+        if (!videoId) {
+            showError('Segment kann nicht aktualisiert werden: Video-ID fehlt');
+            return;
+        }
+        await axiosInstance.patch(r(endpoints.media.videoSegmentDetail(videoId, segment.id)), { status: 'completed' });
         annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
         await refreshSegments();
     }
@@ -150,13 +188,13 @@ const markSegmentComplete = async (segment) => {
 };
 const editExamination = (examination) => {
     router.push({
-        name: 'Untersuchung',
-        query: { examinationId: examination.id }
+        path: '/reporting/case-setup',
+        query: { legacyExaminationId: String(examination.id) }
     });
 };
 const markExaminationComplete = async (examination) => {
     try {
-        await axiosInstance.patch(`/api/examinations/${examination.id}/`, { status: 'completed' });
+        await axiosInstance.patch(r(endpoints.router.examinationById(examination.id)), { status: 'completed' });
         annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
         await refreshExaminations();
     }
@@ -175,8 +213,8 @@ const validateSensitiveMeta = (meta) => {
 const markSensitiveMetaComplete = async (meta) => {
     try {
         const endpoint = meta.content_type === 'video'
-            ? `/api/media/videos/`
-            : `/api/media/pdf/`;
+            ? r(endpoints.media.videos)
+            : r(endpoints.media.pdfs);
         await axiosInstance.patch(endpoint, {
             sensitive_meta_id: meta.id,
             requires_validation: false,
@@ -215,13 +253,24 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
-/** @type {__VLS_StyleScopedClasses['table']} */ ;
-/** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-table']} */ ;
 /** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-hero']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "container-fluid py-4" },
+    ...{ class: "container-fluid py-4 annotation-dashboard" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
+    ...{ class: "dashboard-hero mb-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+    ...{ class: "dashboard-title mb-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+    ...{ class: "dashboard-subtitle mb-0" },
 });
 /** @type {[typeof AnnotationStatsComponent, ]} */ ;
 // @ts-ignore
@@ -234,16 +283,16 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "col-12 mb-4" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card" },
+    ...{ class: "card dashboard-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header d-flex justify-content-between align-items-center" },
+    ...{ class: "card-header dashboard-card-header d-flex justify-content-between align-items-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
     ...{ class: "mb-0" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-video text-primary me-2" },
+    ...{ class: "ni ni-button-play text-primary me-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "header-actions" },
@@ -254,8 +303,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loadingSegments),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-sync-alt" },
-    ...{ class: ({ 'fa-spin': __VLS_ctx.loadingSegments }) },
+    ...{ class: "ni ni-bold-right" },
+    ...{ class: ({ 'ni-spin': __VLS_ctx.loadingSegments }) },
 });
 const __VLS_3 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
@@ -270,20 +319,20 @@ const __VLS_5 = __VLS_4({
 }, ...__VLS_functionalComponentArgsRest(__VLS_4));
 __VLS_6.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-plus me-1" },
+    ...{ class: "ni ni-fat-add me-1" },
 });
 var __VLS_6;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body" },
+    ...{ class: "card-body p-0" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "table-responsive" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-    ...{ class: "table table-hover" },
+    ...{ class: "table table-hover align-middle mb-0 dashboard-table" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
-    ...{ class: "table-dark" },
+    ...{ class: "table-light" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
@@ -298,14 +347,13 @@ if (__VLS_ctx.loadingSegments) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
         colspan: "7",
-        ...{ class: "text-center" },
+        ...{ class: "text-center py-4" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "spinner-border text-primary" },
-        role: "status",
+        ...{ class: "table-loading-state" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "visually-hidden" },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "ni ni-button-play me-2" },
     });
 }
 else if (__VLS_ctx.segments.length === 0) {
@@ -315,7 +363,7 @@ else if (__VLS_ctx.segments.length === 0) {
         ...{ class: "text-center text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-video fa-2x mb-2" },
+        ...{ class: "ni ni-button-play ni-2x mb-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
 }
@@ -363,7 +411,7 @@ else {
             title: ('Segment bearbeiten'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-edit" },
+            ...{ class: "ni ni-single-copy-04" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
@@ -378,7 +426,7 @@ else {
             title: ('Als abgeschlossen markieren'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-check" },
+            ...{ class: "ni ni-check-bold" },
         });
     }
 }
@@ -386,16 +434,16 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "col-12 mb-4" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card" },
+    ...{ class: "card dashboard-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header d-flex justify-content-between align-items-center" },
+    ...{ class: "card-header dashboard-card-header d-flex justify-content-between align-items-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
     ...{ class: "mb-0" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-stethoscope text-success me-2" },
+    ...{ class: "ni ni-user-run text-success me-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "header-actions" },
@@ -406,36 +454,36 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loadingExaminations),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-sync-alt" },
-    ...{ class: ({ 'fa-spin': __VLS_ctx.loadingExaminations }) },
+    ...{ class: "ni ni-bold-right" },
+    ...{ class: ({ 'ni-spin': __VLS_ctx.loadingExaminations }) },
 });
 const __VLS_7 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_8 = __VLS_asFunctionalComponent(__VLS_7, new __VLS_7({
-    to: "/untersuchung",
+    to: "/reporting/case-setup",
     ...{ class: "btn btn-success btn-sm" },
 }));
 const __VLS_9 = __VLS_8({
-    to: "/untersuchung",
+    to: "/reporting/case-setup",
     ...{ class: "btn btn-success btn-sm" },
 }, ...__VLS_functionalComponentArgsRest(__VLS_8));
 __VLS_10.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-plus me-1" },
+    ...{ class: "ni ni-fat-add me-1" },
 });
 var __VLS_10;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body" },
+    ...{ class: "card-body p-0" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "table-responsive" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-    ...{ class: "table table-hover" },
+    ...{ class: "table table-hover align-middle mb-0 dashboard-table" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
-    ...{ class: "table-dark" },
+    ...{ class: "table-light" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
@@ -450,14 +498,13 @@ if (__VLS_ctx.loadingExaminations) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
         colspan: "7",
-        ...{ class: "text-center" },
+        ...{ class: "text-center py-4" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "spinner-border text-primary" },
-        role: "status",
+        ...{ class: "table-loading-state" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "visually-hidden" },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "ni ni-button-play me-2" },
     });
 }
 else if (__VLS_ctx.examinations.length === 0) {
@@ -467,7 +514,7 @@ else if (__VLS_ctx.examinations.length === 0) {
         ...{ class: "text-center text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-stethoscope fa-2x mb-2" },
+        ...{ class: "ni ni-user-run ni-2x mb-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
 }
@@ -523,7 +570,7 @@ else {
             title: ('Untersuchung bearbeiten'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-edit" },
+            ...{ class: "ni ni-single-copy-04" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
@@ -538,7 +585,7 @@ else {
             title: ('Als abgeschlossen markieren'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-check" },
+            ...{ class: "ni ni-check-bold" },
         });
     }
 }
@@ -546,16 +593,16 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "col-12 mb-4" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card" },
+    ...{ class: "card dashboard-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header d-flex justify-content-between align-items-center" },
+    ...{ class: "card-header dashboard-card-header d-flex justify-content-between align-items-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
     ...{ class: "mb-0" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-user-shield text-warning me-2" },
+    ...{ class: "ni ni-check-bold text-warning me-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "header-actions" },
@@ -566,8 +613,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loadingSensitiveMeta),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-sync-alt" },
-    ...{ class: ({ 'fa-spin': __VLS_ctx.loadingSensitiveMeta }) },
+    ...{ class: "ni ni-bold-right" },
+    ...{ class: ({ 'ni-spin': __VLS_ctx.loadingSensitiveMeta }) },
 });
 const __VLS_11 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
@@ -582,20 +629,20 @@ const __VLS_13 = __VLS_12({
 }, ...__VLS_functionalComponentArgsRest(__VLS_12));
 __VLS_14.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-play me-1" },
+    ...{ class: "ni ni-button-play me-1" },
 });
 var __VLS_14;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body" },
+    ...{ class: "card-body p-0" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "table-responsive" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-    ...{ class: "table table-hover" },
+    ...{ class: "table table-hover align-middle mb-0 dashboard-table" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
-    ...{ class: "table-dark" },
+    ...{ class: "table-light" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
@@ -610,14 +657,13 @@ if (__VLS_ctx.loadingSensitiveMeta) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
         colspan: "7",
-        ...{ class: "text-center" },
+        ...{ class: "text-center py-4" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "spinner-border text-primary" },
-        role: "status",
+        ...{ class: "table-loading-state" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "visually-hidden" },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "ni ni-button-play me-2" },
     });
 }
 else if (__VLS_ctx.sensitiveMetaData.length === 0) {
@@ -627,7 +673,7 @@ else if (__VLS_ctx.sensitiveMetaData.length === 0) {
         ...{ class: "text-center text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-user-shield fa-2x mb-2" },
+        ...{ class: "ni ni-check-bold ni-2x mb-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
 }
@@ -645,7 +691,7 @@ else {
             ...{ class: (meta.content_type === 'video' ? 'bg-primary' : 'bg-danger') },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: (meta.content_type === 'video' ? 'fas fa-video' : 'fas fa-file-pdf') },
+            ...{ class: (meta.content_type === 'video' ? 'ni ni-button-play' : 'ni ni-single-copy-04') },
         });
         (meta.content_type?.toUpperCase() || 'UNBEKANNT');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
@@ -664,7 +710,7 @@ else {
             ...{ class: (meta.requires_validation ? 'text-warning' : 'text-success') },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: (meta.requires_validation ? 'fas fa-exclamation-triangle' : 'fas fa-check-circle') },
+            ...{ class: (meta.requires_validation ? 'ni ni-user-run' : 'ni ni-check-bold') },
         });
         (meta.requires_validation ? 'Ja' : 'Nein');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
@@ -683,7 +729,7 @@ else {
             title: ('Patientendaten validieren'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-edit" },
+            ...{ class: "ni ni-single-copy-04" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
@@ -698,24 +744,33 @@ else {
             title: ('Als validiert markieren'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-check" },
+            ...{ class: "ni ni-check-bold" },
         });
     }
 }
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotation-dashboard']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-hero']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-subtitle']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
@@ -723,29 +778,35 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
-/** @type {__VLS_StyleScopedClasses['table-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-loading-state']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-2x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
@@ -754,22 +815,24 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
@@ -777,29 +840,35 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
-/** @type {__VLS_StyleScopedClasses['table-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-loading-state']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-2x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
@@ -812,22 +881,24 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-shield']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
@@ -835,29 +906,35 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
-/** @type {__VLS_StyleScopedClasses['table-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-loading-state']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-shield']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-2x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
@@ -865,12 +942,12 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {

@@ -1,0 +1,6 @@
+inputs:
+  nixpkgs:
+    url: github:cachix/devenv-nixpkgs/rolling
+  lx-data-models:
+    url: github:wg-lux/lx-data-models/report_template
+allowUnfree: true

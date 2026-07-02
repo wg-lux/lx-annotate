@@ -24,6 +24,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -38,19 +39,24 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];
@@ -68,6 +74,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             dob?: string | null | undefined;
             gender?: string | null | undefined;
             center?: string | null | undefined;
+            centerKey?: string | null | undefined;
             email?: string | undefined;
             phone?: string | undefined;
             patientHash?: string | null | undefined;
@@ -82,19 +89,24 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
         };
         examination: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         };
         video: {
             [x: string]: any;
             id: number;
+            center_key?: string | undefined;
             center_name?: string | undefined;
             processor_name?: string | undefined;
             original_file_name?: string | undefined;
             status?: string | undefined;
             video_url?: string | undefined;
+            exportSegmentsByVideo?: boolean | undefined;
+            frameCount?: number | undefined;
         } | null;
         id: number;
     } | null;
@@ -109,6 +121,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -123,19 +136,24 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];
@@ -157,6 +175,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -171,19 +190,24 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];
@@ -205,6 +229,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -219,19 +244,24 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];
@@ -249,6 +279,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             dob?: string | null | undefined;
             gender?: string | null | undefined;
             center?: string | null | undefined;
+            centerKey?: string | null | undefined;
             email?: string | undefined;
             phone?: string | undefined;
             patientHash?: string | null | undefined;
@@ -263,19 +294,24 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
         };
         examination: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         };
         video: {
             [x: string]: any;
             id: number;
+            center_key?: string | undefined;
             center_name?: string | undefined;
             processor_name?: string | undefined;
             original_file_name?: string | undefined;
             status?: string | undefined;
             video_url?: string | undefined;
+            exportSegmentsByVideo?: boolean | undefined;
+            frameCount?: number | undefined;
         } | null;
         id: number;
     }[];
@@ -290,6 +326,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 dob?: string | null | undefined;
                 gender?: string | null | undefined;
                 center?: string | null | undefined;
+                centerKey?: string | null | undefined;
                 email?: string | undefined;
                 phone?: string | undefined;
                 patientHash?: string | null | undefined;
@@ -304,19 +341,24 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
                 id: number;
+                center_key?: string | undefined;
                 center_name?: string | undefined;
                 processor_name?: string | undefined;
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];

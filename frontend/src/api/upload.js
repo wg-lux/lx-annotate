@@ -1,23 +1,37 @@
-import axiosInstance from './axiosInstance';
+import axiosInstance, { endoregApi } from './axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 /**
  * Upload files to the anonymization backend
  * @param files - FileList or File array to upload
+ * @param options - Optional machine-facing upload metadata
  * @returns Promise with upload_id and status_url
  */
-export const uploadFiles = async (files) => {
+export const uploadFiles = async (files, options = {}) => {
     const formData = new FormData();
     // Add all files to the form data
     const fileArray = Array.from(files);
     if (fileArray.length === 0) {
         throw new Error('No files provided for upload');
     }
-    console.log('Uploading files:', fileArray.map(f => f.name));
+    console.log('Uploading files:', fileArray.map((f) => f.name));
     fileArray.forEach((file, index) => {
         console.log(`Adding file ${index}: ${file.name} (${file.size} bytes)`);
         formData.append('file', file);
     });
+    if (options.centerKey) {
+        formData.append('center_key', options.centerKey);
+    }
+    if (options.sourceSystem) {
+        formData.append('source_system', options.sourceSystem);
+    }
     console.log('▶︎ FormData just before POST', fileArray.map((file, index) => [`file[${index}]`, file.name, file.size]));
-    const response = await axiosInstance.post('/api/upload/', formData);
+    const response = await axiosInstance.post(endoregApi(endpoints.upload.upload), formData, {
+        headers: options.idempotencyKey
+            ? {
+                'Idempotency-Key': options.idempotencyKey
+            }
+            : undefined
+    });
     // Note: Removed headers object - let browser set Content-Type with boundary
     return response.data;
 };

@@ -61,10 +61,16 @@ export interface AnonymizationStatusResponse {
     cooldown_active?: boolean;
 }
 export interface ProcessingResponse {
-    detail: string;
-    file_id: number;
-    file_type: string;
+    detail?: string;
+    message?: string;
+    file_id?: number;
+    file_type?: string;
     processing_locked?: boolean;
+    status?: 'queued' | 'already_queued' | 'completed' | 'failed' | 'busy' | string;
+    task_id?: string;
+    history_id?: number | null;
+    video_id?: number;
+    uuid?: string;
 }
 /**
  * Media Management API Service
@@ -119,12 +125,19 @@ export declare class MediaManagementAPI {
      * Validate anonymization with coordination
      * @param fileId - ID of the file to validate
      */
-    static validateAnonymizationSafe(fileId: number): Promise<ProcessingResponse>;
+    static validateAnonymizationSafe(fileId: number, documentType?: string): Promise<ProcessingResponse>;
     /**
      * Re-import a video file to regenerate metadata
+     * Uses the modern media framework endpoint aligned with PDF reimport
      * @param fileId - ID of the video file to re-import
      */
     static reimportVideo(fileId: number): Promise<ProcessingResponse>;
+    /**
+     * Re-import a PDF file to regenerate metadata
+     * Uses the modern media framework endpoint aligned with video reimport
+     * @param fileId - ID of the PDF file to re-import
+     */
+    static reimportPdf(fileId: number): Promise<ProcessingResponse>;
     /**
      * Delete/remove a media file completely
      * @param fileId - ID of the file to delete
@@ -144,9 +157,10 @@ export declare function useMediaManagement(): {
     resetProcessingStatus: (fileId: number) => Promise<ProcessingResponse | null>;
     deleteMediaFile: (fileId: number) => Promise<ProcessingResponse | null>;
     reimportVideo: (fileId: number) => Promise<ProcessingResponse | null>;
+    reimportPdf: (fileId: number) => Promise<ProcessingResponse | null>;
     getStatusSafe: (fileId: number, fileType?: 'video' | 'pdf') => Promise<AnonymizationStatusResponse | null>;
     startAnonymizationSafe: (fileId: number) => Promise<ProcessingResponse | null>;
-    validateAnonymizationSafe: (fileId: number) => Promise<ProcessingResponse | null>;
+    validateAnonymizationSafe: (fileId: number, documentType?: string) => Promise<ProcessingResponse | null>;
     getPollingInfo: () => Promise<PollingCoordinatorInfo | null>;
     clearAllLocks: (fileType?: 'video' | 'pdf') => Promise<{
         detail: string;

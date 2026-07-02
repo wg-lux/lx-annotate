@@ -8,23 +8,27 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default defineConfig({
-  root: __dirname,        // <-- pin root to frontend explicitly
   plugins: [vue(), vueJsx()],
   test: {
     environment: 'jsdom',
-    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/.direnv/**'],
+    include: ['tests/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
+    exclude: [
+      '**/.direnv/**',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/e2e/**',
+      '**/types/**'
+    ],
+    root: fileURLToPath(new URL('./', import.meta.url)),
     globals: true,
     setupFiles: ['./tests/setup.ts'],
-    pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: true  // <-- Ultimativer Fix: Single-Thread = kein Tinypool Worker
-      }
-    }
+    clearMocks: true,
+    restoreMocks: true,
+    mockReset: true
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
-    },
-  },
+      '@': resolve(__dirname, 'src')
+    }
+  }
 })

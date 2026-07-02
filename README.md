@@ -1,546 +1,337 @@
-## lx-annotate - API
+# LX-Annotate
 
-LX-Annotate is a Vue-based Frontend living in a Django app. It utilizes an API to interact with the Endoreg-DB backend. This API is designed to facilitate the seamless integration of the annotation and review functionalities needed in day to day clinical work as well as for the basis of AI training.
- 
+LX-Annotate is a Django + Vue application for annotating AI-generated outputs,
+with a media ingestion pipeline for videos and PDFs. This project was created by a team at Universitätsklinikum Würzburg, Bavaria.  
 
-## Features of the ecosystem - made available in a frontend
+## Highlights
 
-- **Video Annotation Interface**
-- **Frame By Frame Annotation**
-- **Case Generation**
+- Django backend with REST APIs and optional OIDC authentication
+- Vue 3 SPA frontend integrated with Django via `django-vite`
+- File watcher for automated video and PDF processing
+- Reproducible environments via `devenv`/Nix and Docker
 
-## Functionality
+## Repository Layout
 
-When this project is started, a Django REST API is set up. For this, the backend in endoreg-db needs to be up and running. 
+- `lx_annotate/` Django app and settings
+- `frontend/` Vue 3 application
+- `scripts/` operational tooling and file watcher scripts
+- `data/` runtime data (raw videos, PDFs, model cache)
+- `conf_template/` sample configuration templates
+- `container/` Dockerfiles and container docs
 
-lx-annotate handles its setup mostly automatically using devenv.nix.
+## Requirements
 
-- Installation of django dependencies and npm dependencies
-- Compilation of Vue-JS app using npm to static folder
+- Python 3.12
+- Node.js 18+ (frontend)
+- PostgreSQL (main app)
+- Optional: `uv`, `direnv`, `devenv`, Nix, Docker
 
-## Installation
+## Quick Start (Development)
 
-Lx-annotate is set up by a devenv.nix and pyproject.toml automatically. These define all inputs to the program, enable CUDA on the system and then set up a python environment containing all the dependencies. To start the installation follow these steps:
+1. `direnv allow` (if you use `devenv`)
+2. `uv sync` (or install dependencies with `pip`)
+3. `cp conf_template/default.env .env` and update values
+4. `export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev`
+5. `python manage.py load_base_db_data`
+6. `python manage.py runserver`
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/wg-lux/lx-annotate.git
-   cd lx-annotate
-   ```
+Open `http://127.0.0.1:8000/`.
 
-2. **Adding packages**:
-   First you need to add the packages to pyproject.toml,
-   then uv will handle the installation through devenv.
+## Backend Test Execution
 
-   Disclaimer: you might need to set up direnv first.
-
-   ```bash
-   direnv allow
-   ```
-
-   You will probably need to run manually:
-
-   ```bash
-   uv sync
-   ```
-
-3. **Using the Frontend**
-  Requires compiling to the static folder of django.
-
-  This is all the commands that need to be executed manually:
-
-      ```bash
-        direnv allow
-        cd frontend
-        direnv allow
-        npm install
-        npm run build
-        cd ..
-        ```
-
-  Per default, our application is compiled to the Django static folder.
-  ./lx-annotate/static
-
-  You can change this, however it is not recommended.
-
-  Ideally, running:
-
-        ```bash
-        direnv allow
-        ```
-
-  should handle the setup steps mentioned above automatically.
-
-
-## File Import
-
-File import works by placing files into raw_frames and raw_videos.
-
-## API Setup
-
-The API is set up to relay requests to the backend module endoreg_db_api. Django acts like a proxy API.
-
-All requests to {base_url}/api/{route} get rerouted to the backend. In testing, this is set up to be rerouted to http://127.0.0.1:8000/endoreg_db/api/
-
-In production the URL should be automatically updated by the django app. You need to export the django production settings for this to work.
-
-## Implementing new components
-
-1. Create the Component inside of frontend/src/components
-2. Register it in the vue router at:
-
-./lx-annotate/frontend/src/router/index.ts
-
-3. Use it in a view or define a new one at:
-
-./lx-annotate/frontend/src/views
-
-4. Dashboard will show new views automatically, the sidebar however needs to be provided with the link. This can be done in:
-
-./lx-annotate/frontend/src/components/SidebarComponent.vue
-
-## Error Handling
-
-If the API encounters any error during processing, it will return a response with the error message and the stack trace for debugging purposes.
-
-```json
-{
-  "error": "Description of the error",
-  "traceback": "Detailed traceback for debugging"
-}
-```
-
-Other useful information can come from the network tab in your browser.
-
-## File handling
-
-Video or image files are per default uploaded via the api. I case a local video is to be uploaded and segments are to be added, the file upload is handled by FilePond.
-
-Here, a locally stored video can be edited.
-This is especially useful in testing.
-
-
-
-## Usage of lx-anonymizer !!CURRENTLY DISABLED!!
-
-To use the lx-anonymizer API, follow these steps:
-
-1. **Prepare Your Images**:
-   Place the images you want to process in a designated folder.
-
-2. **Configure Settings**:
-   Adjust settings in the settings.py file
-
-2.5. **Setup Frontend**
-
-    ```bash
-        direnv allow
-        cd frontend
-        direnv allow
-        npm install
-        npm run build
-        cd ..
-    ```
-
-3. **Run the Django Server**:
-
-   ```bash
-   python manage.py runserver
-   ```
-
-4. **Make API Requests**:
-   Use an API client like Postman, cURL, or the `requests` library in Python to interact with the lxAnonymizer API. Example request using the `requests` library:
-
-   ```python
-   import requests
-   import os
-
-   # Get the directory of the current script
-   base_dir = os.path.dirname(os.path.abspath(__file__))
-
-   # Define the path to the image file located in the 'requests_agl_anonymizer' folder
-   image_path = os.path.join(base_dir, 'frame_0.jpg')
-
-   # Ensure the file exists
-   if not os.path.exists(image_path):
-       raise FileNotFoundError(f"No such file or directory: '{image_path}'")
-
-   # Define the URL of the Django API endpoint
-   url = 'http://127.0.0.1:8000/process/'
-
-   # Open the file in binary mode and send it as part of the multipart form-data payload
-   with open(image_path, 'rb') as image_file:
-       files = {
-           'file': image_file,
-       }
-       data = {
-           'title': 'Example Image',
-       }
-       response = requests.post(url, files=files, data=data)
-
-   # Print the response from the server
-   print(response.status_code)
-   print(response.json())  # Assuming the server returns a JSON response
-   ```
-
-# API Endpoint: Process File
-
-This API endpoint allows users to upload a file (image) for anonymization and further processing. The file can be processed in two modes:
-
-Validation Mode: When enabled, the processed data will be sent to the Endoreg Client Manager for validation and saving.
-Non-validation Mode: The processed file and the original image are saved, and their URLs are returned in the response.
-
-## URL
-
-POST /process-file/
-
-## Parameters
-
-1. file: The image file to be processed (required).
-2. device: The device name (optional). Default is olympus_cv_1500.
-3. validation: A flag to indicate if the validation mode is enabled (optional). Can be true or false. Default is false.
-
-## Request Example (Non-validation Mode)
+If native Python dependencies such as NumPy fail to import because the shell is
+missing Nix runtime libraries, run backend tests through the repo wrapper so
+`devenv` exports the expected environment first:
 
 ```bash
-curl -X POST http://<your-server>/process-file/ \
-    -F "file=@/path/to/your/image.jpg" \
-    -F "device=olympus_cv_1500" \
-    -F "validation=false"
+./scripts/run-backend-checks.sh
 ```
 
-## Request Example (Validation Mode)
+Equivalent Make target:
 
 ```bash
-curl -X POST http://<your-server>/process-file/ \
-    -F "file=@/path/to/your/image.jpg" \
-    -F "device=olympus_cv_1500" \
-    -F "validation=true"
-Response (Non-validation Mode)
+make test-real
 ```
 
-If the validation mode is disabled, the API will return URLs for both the processed file and the original image.
-
-```json
-{
-  "status": "success",
-  "message": "Processing completed",
-  "processed_file_url": "<url-to-processed-file>",
-  "original_image_url": "<url-to-original-image>",
-  "gender_pars": {
-    "male": 0.6,
-    "female": 0.4
-  }
-}
-```
-
-## Response (Validation Mode)
-
-If validation mode is enabled, the processed data will be sent to the Endoreg Client Manager to be displayed later once the user logs into the AGL Validator. The API will return the following response:
-
-**-> For this to work, the correct url must be defined inside of settings.py **
-
-```json
-{
-  "status": "success",
-  "message": "Processing completed and data sent to endoreg client manager",
-  "api_response": {
-    "status": "ok",
-    "message": "Data saved successfully"
-  }
-}
-```
-
-
-### UploadedFile
-
-Represents an uploaded file with fields for the original file, upload date, and an optional description.
-
-```python
-from django.db import models
-from django.utils import timezone
-
-class UploadedFile(models.Model):
-    original_file = models.FileField(upload_to='uploads/original/')
-    upload_date = models.DateTimeField(default=timezone.now)
-    description = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.original_file.name
-
-```
-
-### Intro for Python Devs
-
-### Intro
-**Teaching Vue and TypeScript based on repository**
-
-The user is looking for a quick, practical crash course tailored to the repository they've shared. They already have a strong background in Python, HTML, and experience with Pinia and Django, so I should tailor the lesson to their knowledge, focusing on how Vue 3 and TypeScript are used in that particular codebase. I’ll open the repository, check the code patterns, and gather high-quality documentation and examples to make this a quick yet solid learning experience. I'll reference at least 10 sources for accuracy.
-
-
-**Planning Vue and TypeScript Tutorial**
-
-To teach Vue and TypeScript based on the repository, we'll focus on key patterns: using the Composition API with script setup, .vue component structure, and Pinia for state management. I’ll emphasize how to define stores with `defineStore`, passing state and actions. Axios will be covered for API calls, and we'll also touch on TypeScript for defining interfaces like those for API responses. Although some searching didn’t yield results, we know enough from earlier to proceed with these concepts and provide examples to the user.
-
-
-**Gathering resources for Vue and TypeScript tutorial**
-
-I’ll gather at least 10 high-quality sources, using official documentation: Vue, Pinia, TypeScript, Axios, and MDN for additional fetch details. These will give me the most accurate and reliable information. I’ll look into specific Vue and Pinia docs for using TypeScript, focusing on Vue’s Composition API, script setup, and Pinia with TypeScript. I'll also check for Axios integration with TypeScript and consider exploring additional TypeScript resources for a thorough understanding. This will ensure that the user will get comprehensive, solid information for the tutorial.
-
-
-**Crafting quick and dirty tutorial**
-
-For the "quick and dirty" Vue + TypeScript tutorial, I’ll cover the foundational concepts like Single File Components (SFC), script setup, reactivity, and useful Vue features like `defineProps`, `emit`, and `provide/inject`. I’ll also include Pinia store usage with Axios integration to match patterns in the code snippet from the repository. To help Python developers, I'll highlight key parallels between Vue + TypeScript and Python concepts. Citations are ready, drawing from official docs and previous code insight for proper reference.
-
-
-Thought for 47 seconds
-
-
-Below is a “90-minute crash course” that reverse-engineers the patterns you already have in **lx-annotate** and links them to the official Vue 3 / TypeScript / Pinia idioms.  If you can read Python, HTML and Django views, you already know 80 % of the concepts—this guide just hands you the JS / TS syntax.
-
----
-
-## 1 Mental model
-
-* **Vue 3** is the template + reactivity layer—think of it as Django templates that re-render automatically when the “context” (state) changes.
-* **Composition API** (with **`<script setup>`**) lets you declare that state as plain variables and functions instead of the old Options API’s dictionaries.  It feels very close to Python modules. ([Vue.js][1])
-* **TypeScript** adds static types, catches typos and documents payload shapes; Vue ships its own type definitions so you get autocomplete out-of-the-box. ([Vue.js][2])
-* **Pinia** is basically *Django models for the browser*—a global, reactive datastore with computed properties (getters) and transaction-like methods (actions). ([pinia.vuejs.org][3])
-
-The rest is just file layout and syntax.
-
----
-
-## 2 Project anatomy in `lx_annotate`
-
-```
-src/
-  components/        # *.vue single-file components
-  stores/            # Pinia stores (e.g. videoStore.ts)
-  api/               # axios wrappers (axiosInstance.ts, videoAxiosInstance.ts)
-  router/            # vue-router config (if you add it later)
-  main.ts            # createApp(), createPinia(), mount('#app')
-```
-
-A Single File Component (SFC) contains three blocks:
-
-```vue
-<template>             <!-- HTML-ish markup with Vue directives -->
-  <div>{{ video.fileName }}</div>
-</template>
-
-<script setup lang="ts"> <!-- Composition API + TS -->
-import { ref } from 'vue'
-const props = defineProps<{ id: number }>()
-const fileName = ref('')
-</script>
-
-<style scoped>/* optional css */</style>
-```
-
-`lang="ts"` is all you need to turn on TypeScript in that file. ([Vue.js][4])
-
----
-
-## 3 The Composition API in 10 lines
-
-```ts
-<script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-
-// 1. local reactive state
-const count = ref(0)
-
-// 2. derived state
-const doubled = computed(() => count.value * 2)
-
-// 3. side effects
-watch(count, (n) => console.log('changed to', n))
-
-// 4. expose to template – everything is automatically public
-function inc() { count.value++ }
-</script>
-```
-
-*`ref` ⇒ scalar, `reactive` ⇒ object/array; `computed` ≈ Django `@cached_property`.* ([Vue.js][5])
-
----
-
-## 4 Pinia “setup” stores ⇢ match your `videoStore.js`
-
-### 4.1 Skeleton
-
-```ts
-// stores/video.ts
-import { defineStore } from 'pinia'
-import axios from '@/api/axiosInstance'   // alias via Vite tsconfig
-
-export const useVideoStore = defineStore('video', () => {
-  /** -------------------- state -------------------- **/
-  const current = ref<Video | null>(null)
-  const list    = ref<VideoMeta[]>([])
-
-  /** ------------------- getters ------------------- **/
-  const hasVideo   = computed(() => !!current.value)
-  const duration   = computed(() => current.value?.duration ?? 0)
-
-  /** ------------------- actions ------------------- **/
-  async function fetchAll() {
-    const { data } = await axios.get<VideoMeta[]>('videos/')
-    list.value = data
-  }
-  async function load(id: number) {
-    current.value = await axios.get<Video>(`video/${id}/`).then(r => r.data)
-  }
-
-  return { current, list, hasVideo, duration, fetchAll, load }
-})
-```
-
-* `defineStore()` must get a unique-across-app name (`'video'` above). ([pinia.vuejs.org][6])
-* `ref<T>()` tells TS the inner type; the template reads `current.videoUrl`, not `current.value.videoUrl`.
-* Getters are just `computed`s; Pinia merges them under the hood. ([pinia.vuejs.org][7])
-* Actions can be async; Pinia auto-wraps them so component code is simply `await videoStore.fetchAll()`. ([pinia.vuejs.org][8])
-
-### 4.2 Using the store in a component
-
-```vue
-<script setup lang="ts">
-import { useVideoStore } from '@/stores/video'
-const video = useVideoStore()
-
-onMounted(video.fetchAll)        // lifecycle hook
-</script>
-
-<template>
-  <div v-if="video.hasVideo">
-    {{ video.current?.videoUrl }}
-  </div>
-</template>
-```
-
-The store is singleton—every component refers to the same reactive instance (like importing a Python module).
-
----
-
-## 5 Type-safe API calls with Axios
-
-```ts
-// api/axiosInstance.ts
-import axios from 'axios'
-
-export default axios.create({
-  baseURL: '/api/',               // matches Django include("")
-  headers:  { 'Accept': 'application/json' },
-})
-```
-
-```ts
-interface VideoMeta {
-  id: number
-  originalFileName: string
-  status: 'available' | 'in_progress' | 'completed'
-  anonymized: boolean
-}
-
-const { data } = await axios.get<VideoMeta[]>('videos/')  // TS infers array shape
-```
-
-Axios’ generic argument fills `response.data` with strongly-typed objects—no need to cast.  (Vue / TS docs show the same pattern.) ([Vue Test Utils][9])
-
----
-
-## 6 SFC patterns you’ll see in the repo
-
-| Pattern in repo                                         | Vue / TS concept                           | Docs                     |
-| ------------------------------------------------------- | ------------------------------------------ | ------------------------ |
-| `computed(() => ...)` in store                          | Pinia getter                               | ([pinia.vuejs.org][10])  |
-| `const videoUrl = ref('')`                              | local reactive state                       | ([Vue.js][5])            |
-| `async function fetchSegmentsByLabel(id, label)`        | Pinia action                               | ([pinia.vuejs.org][8])   |
-| `defineStore('video', () => { ... })`                   | setup-style store                          | ([pinia.vuejs.org][6])   |
-| `export interface VideoResponse { ... }`                | TS interface for API JSON                  | ([Vue.js][2])            |
-| `<template>` loop with `v-for="segment in allSegments"` | directive equivalent to Django `{% for %}` | ([Vue.js][11])           |
-| `<style scoped>`                                        | CSS isolation per component                | (SFC spec) ([Vue.js][1]) |
-
----
-
-## 7 Cheat-sheet for a Python-minded developer
-
-| You know in Django       | In Vue / TS                        | One-liner              |
-| ------------------------ | ---------------------------------- | ---------------------- |
-| `models.py` + `QuerySet` | Pinia store state + getters        | reactive DB            |
-| template tags            | mustache `{{ }}` / directives      | auto-updates           |
-| CBV `get()`              | Pinia action hitting REST          | async/await            |
-| `@cached_property`       | `computed()`                       | memoised derived state |
-| `urlpatterns`            | Vite dev-server proxy / vue-router | optional               |
-
----
-
-## 8 Common pitfalls (and how to avoid them)
-
-1. **Forget `.value`** – only needed inside TS/JS, never in templates.
-2. **Mutable props** – always `const prop = toRef(props, 'xxx')` or use `defineProps<{…}>()` when you need to mutate. ([Vue.js][4])
-3. **Big reactive objects in Pinia** – mutate deeply and Vue will still track; don’t reassign the whole object or you’ll lose reactivity (similar to Django queryset vs list copy). ([pinia.vuejs.org][8])
-4. **Mixing Option API and Composition API** – possible but confusing; stick to `<script setup>` everywhere for consistency. ([Vue.js][12])
-5. **Storing route params in store** – use vue-router’s `useRoute()` instead, or you’ll create hard-to-debug duplicates.  (Pinia best-practices.) ([Pinia Mastery][13])
-
----
-
-## 9 Where to deepen next
-
-* Official **Vue 3 guide / TypeScript** section – concise and project-ready examples. ([Vue.js][2])
-* **Pinia documentation** – read “Core concepts” start-to-finish; it takes less than an hour. ([pinia.vuejs.org][10])
-* **Mastering Pinia** blog for antipatterns. ([Pinia Mastery][13])
-* **VueUse** (community library) for ready-made composables—saves boilerplate when you start writing more Composition-API logic. (Search when needed.)
-* Vite’s hot-module-replacement works out-of-the-box; keep one terminal running `npm run dev`.
-
----
-
-### TL;DR 
+## Environment Variables and Secrets
+
+Production secrets are injected by the host system, LuxNix, or another secret
+manager. For local development, use either `secretspec.toml` defaults or a
+local `.env` file.
+
+`secretspec.toml` is the tracked environment contract. It defines profile
+defaults and variable names, but it must not contain real production secrets.
+The Django settings flow is:
+
+- `secretspec.toml`: declares environment variables and profile defaults.
+- `lx_annotate/settings/config.py`: parses environment values into typed app
+  config.
+- `lx_annotate/settings/settings_prod.py`: applies production security policy
+  and fails startup when required settings are missing.
+
+Production should prefer secret-file variables such as
+`DJANGO_SECRET_KEY_FILE`, `DJANGO_DB_PASSWORD_FILE`,
+`DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`, and `LX_ANNOTATE_MASTER_KEY_FILE`.
+Compatibility aliases from the current secretspec contract are also accepted,
+including `ALLOWED_HOSTS`, `OIDC_RP_CLIENT_ID`, `OIDC_RP_CLIENT_SECRET`, and
+`TIME_ZONE`.
+
+Development example:
 
 ```bash
-# create a component
-touch src/components/Greeting.vue
-# create a store
-touch src/stores/greeting.ts
+direnv allow
+secretspec --provider dotenv --profile development python manage.py runserver
 ```
 
-**Greeting.vue**
+Production check example:
 
-```vue
-<template><h1>{{ message }}</h1></template>
-<script setup lang="ts">
-import { useGreetingStore } from '@/stores/greeting'
-const s = useGreetingStore(); s.load()
-</script>
+```bash
+secretspec --provider dotenv --profile production \
+  python -m django check --settings=lx_annotate.settings.settings_prod
 ```
 
-**greeting.ts**
+See `docs/guides/wheel-deployment.md` for the full runtime contract and
+<https://secretspec.dev/> for secretspec usage.
 
-```ts
-export const useGreetingStore = defineStore('greeting', () => {
-  const message = ref(''); async function load() {
-    message.value = await fetch('/api/hello').then(r => r.text())
-  }
-  return { message, load }
-})
+## Frontend
+
+```bash
+cd frontend
+npm install
+npm run build
 ```
 
-That’s the entire flow—compose state ➜ expose to template ➜ react to API or user events.  Everything else (router, testing, build) can be layered on when you need it.
+Hot-reload development:
 
-Enjoy hacking on **lx-annotate**—you already have the Python mindset; Vue + TypeScript is just Pythonic data-binding with different brackets.
+```bash
+cd frontend
+npm run dev
+```
 
-[1]: https://vuejs.org/api/sfc-script-setup?utm_source=chatgpt.com "<script setup> | Vue.js"
-[2]: https://vuejs.org/guide/typescript/overview?utm_source=chatgpt.com "Using Vue with TypeScript - Vue.js"
-[3]: https://pinia.vuejs.org/introduction.html?utm_source=chatgpt.com "Introduction | Pinia - Vue.js"
-[4]: https://vuejs.org/guide/typescript/composition-api?utm_source=chatgpt.com "TypeScript with Composition API - Vue.js"
-[5]: https://vuejs.org/api/composition-api-setup.html?utm_source=chatgpt.com "Composition API: setup() - Vue.js"
-[6]: https://pinia.vuejs.org/core-concepts/?utm_source=chatgpt.com "Defining a Store - Pinia"
-[7]: https://pinia.vuejs.org/core-concepts/getters.html?utm_source=chatgpt.com "Getters | Pinia"
-[8]: https://pinia.vuejs.org/core-concepts/actions.html?utm_source=chatgpt.com "Actions | Pinia - Vue.js"
-[9]: https://v1.test-utils.vuejs.org/guides/using-with-typescript.html?utm_source=chatgpt.com "Using with TypeScript - Vue Test Utils"
-[10]: https://pinia.vuejs.org/core-concepts/state.html?utm_source=chatgpt.com "State | Pinia"
-[11]: https://vuejs.org/guide/quick-start?utm_source=chatgpt.com "Quick Start - Vue.js"
-[12]: https://vuejs.org/guide/extras/composition-api-faq?utm_source=chatgpt.com "Composition API FAQ - Vue.js"
-[13]: https://masteringpinia.com/blog/top-5-mistakes-to-avoid-when-using-pinia?utm_source=chatgpt.com "Top 5 mistakes to avoid when using Pinia"
+In another terminal:
 
+```bash
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
+python manage.py runserver
+```
+
+## File Watcher
+
+The file watcher ingests media placed in:
+
+- `data/import/video_import/`
+- `data/import/report_import/`
+
+```bash
+./scripts/start_filewatcher.sh dev
+# or
+python manage.py run_filewatcher
+```
+
+## Ingress Modes
+
+`lx-annotate` supports two first-class ingest boundaries:
+
+- `watcher`: trusted local drop-folder ingestion for files written into the
+  runtime import directories
+- `api`: authenticated web/API upload ingestion for remote clients and hub-style
+  integrations
+
+These are parallel ingress modes, not competing ones. The contract for new
+development is:
+
+- both ingress modes remain supported
+- both ingress modes create `UploadJob` records
+- both ingress modes converge on the shared ingest and managed-storage services
+  after boundary-specific checks
+
+The watcher remains the right boundary for local system dropoff and SAP-style
+handoff flows. The API remains the right boundary for authenticated remote
+uploads and future hub integrations.
+
+## Hub Contract Upgrade
+
+When upgrading to the hub-aware ingest model in `endoreg_db`, treat these as
+deployment requirements for LuxNix and host environments:
+
+- use `center_key` for machine-facing API payloads and automation (not mutable
+  center display names)
+- set `ENDOREG_DEPLOYMENT_ROLE` explicitly to one of:
+  `central_hub`, `site_node`, `standalone`
+- for `central_hub`, require authenticated API uploads with declared
+  `center_key`; do not rely on default-center fallback for API ingest
+- keep `STORAGE_DIR` inside
+  `LX_ANNOTATE_ENCRYPTED_DATA_DIR`
+- run package migrations during upgrade so upload-job and content-hash lifecycle
+  changes are active
+
+Deployment role matrix:
+
+- `standalone`: local deployment, no hub transfer receiver behavior
+- `site_node`: networked node behavior without central hub receiver policy
+- `central_hub`: strict hub ingest policy, authenticated API uploads with
+  explicit `center_key`, and production mTLS transfer contract
+
+## Hub Export
+
+Outbound hub transfer is tracked as a separate sender workflow from ingest.
+
+- only anonymized resources are eligible for outbound transfer
+- the sender exports processed media only
+- resources must be explicitly marked for upload before they are queued
+- the export UI is planned as a new workflow page derived from the
+  anonymization overview, not from the legacy annotation segment export screen
+
+The sender-side workflow contract is documented in
+[docs/guides/hub-export-workflow.md](/home/admin/dev/lx-annotate/docs/guides/hub-export-workflow.md).
+
+## Configuration
+
+- Development `.env` is read from the repository root or `~/.local/share/lx-annotate/.env`.
+- Settings are driven by environment variables (see `secretspec.toml` defaults).
+- Sample configs live in `conf_template/`.
+
+## Nix Builds
+
+The Nix package exposes stable runtime entrypoints that do not clone the repo,
+run `uv sync`, or install Python packages at service start:
+
+```bash
+nix build .#lx-annotate
+./result/bin/lx-annotate-web
+```
+
+```bash
+./result/bin/lx-annotate-manage check
+./result/bin/lx-annotate-worker --hostname="maintenance@%h" --queues=maintenance,default
+LX_ANNOTATE_FILEWATCHER_ARGS=--process-existing-once ./result/bin/lx-annotate-watch
+```
+
+The primary entrypoints are `lx-annotate-web`, `lx-annotate-manage`,
+`lx-annotate-worker`, and `lx-annotate-watch`. `lx-annotate-server` remains as
+a compatibility alias for the web command.
+
+The repository flake also exposes the existing `devenv` environment as a Nix
+dev shell:
+
+```bash
+nix develop --no-pure-eval
+```
+
+This evaluates [`devenv.nix`](/home/admin/dev/lx-annotate/devenv.nix) through
+the top-level `flake.nix`, so the same shell can be entered either with
+`devenv`/`direnv` or directly through `nix develop`.
+
+## Wheel Deployment
+
+The CI pipeline can now build a production wheel with frontend staticfiles
+included via `hatchling`. Production runtime no longer needs Node.js or the
+full `devenv` shell.
+
+The current deployment strategy is:
+
+- CI builds frontend assets and packages the app as a wheel
+- production installs that wheel into a Python virtualenv
+- host packages provide FFmpeg, Tesseract, and shared libraries
+- `systemd` runs Daphne and the file watcher as separate services
+- the web app and watcher remain parallel supported ingress boundaries, both
+  feeding the same upload-job-driven ingest core
+- LuxNix deployments can also run a SAP IS-H import path/unit pair that converts
+  dropped SAP zip exports into watcher-ready preanonymized files
+- some legacy-to-runtime cutovers also run a one-shot data recovery service
+- Nginx serves static/media files directly
+
+Use `make package` to build release artifacts locally. That target rebuilds the
+frontend, verifies that `staticfiles/.vite/manifest.json` is valid and contains
+the required `src/main.ts` mapping, and only then runs `python -m build` for
+the wheel and sdist.
+
+Runtime layout is intentionally split:
+
+- runtime code and the Python virtualenv live under the service user home
+- runtime data, media, staticfiles, and `.env.systemd` live under `/var/lib/lx-annotate`
+
+This split is required for the next hardening step: encrypting the data path and
+restricting access to the `endoreg-service-user` while keeping application code
+and deployment mechanics separate from protected patient data.
+
+The canonical host-owned runtime variable for this boundary is
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR`. The app derives compatibility aliases and
+managed storage paths from that root.
+
+Current runtime path roles:
+
+- `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root
+- `LX_ANNOTATE_DATA_DIR`: app-owned compatibility alias for the same root
+- `DATA_DIR`: app-owned legacy compatibility alias for the same root
+- `STORAGE_DIR`: managed storage subtree, usually `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`
+- `PROTECTED_MEDIA_ROOT` and `LX_ANNOTATE_STREAMABLE_VIDEO_*`: app-owned
+  storage paths derived under `STORAGE_DIR`
+
+The same app contract owns `DJANGO_SETTINGS_MODULE`, `DJANGO_ENV`,
+`STATIC_URL`, `MEDIA_URL`, `NGINX_PROTECTED_MEDIA_URL`, and
+`SERVE_WITH_NGINX`. Host environment files should provide only host paths,
+network settings, service endpoints, and secret file references.
+
+New deployment code should anchor path derivation on
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR` and leave the derived path variables out of
+host-owned environment files.
+
+For application-layer envelope encryption, `lx_annotate` uses
+`lx_annotate.storage.encrypted.EncryptedStorage` as the default Django storage
+backend. Runtime deployments must provide `LX_ANNOTATE_MASTER_KEY` or
+`LX_ANNOTATE_MASTER_KEY_FILE`; production deployments should use the file form
+through the host secret manager. The backend generates a per-file DEK, wraps it
+with the service-level KEK, writes ciphertext only under
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR`, and encrypts/decrypts in chunks so large
+uploads do not have to fit into memory. The KEK is intentionally
+service-scoped rather than tied to a Keycloak session so background workers such
+as `manage.py run_filewatcher` can still process stored files.
+
+Encryption itself should not be implemented by generating random keys inside the
+application process. The app only consumes the mounted/unlocked path. Key
+management and unlock policy belong in a dedicated LuxNix service or external
+secrets/KMS layer.
+
+For the architecture and mode selection details, see
+`docs/guides/deployment-strategy.md`.
+
+Deployment assets live in `deployment_example/`:
+
+- `deployment_example/bootstrap-host.sh`
+- `deployment_example/deploy.sh`
+- `deployment_example/lx-annotate.service`
+- `deployment_example/.env.systemd.example`
+
+See `docs/guides/wheel-deployment.md` for the full host bootstrap and `systemd`
+flow.
+
+For the current production-style service environment, including the
+repo-local-data to `/var/lib/lx-annotate/data` recovery flow and the SAP IS-H
+drop-to-watcher import path, see `docs/guides/deployment-strategy.md`.
+
+## Containers
+
+Docker images now install Python packages into `/app/.devenv/state/venv` so the
+container path matches the repository's preferred virtualenv layout.
+
+This does **not** mean Docker runs the full Nix/`devenv` shell. Inside the
+container, `uv` creates and manages the environment at that path, and the image
+`PATH` is configured to use `/app/.devenv/state/venv/bin`.
+
+See `container/README.md` for development and production Docker usage.
+
+## Tests
+
+```bash
+pytest
+```
+
+```bash
+cd frontend
+npm run test:unit
+```
+
+## License
+
+MIT. See `LICENSE`.

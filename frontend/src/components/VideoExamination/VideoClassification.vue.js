@@ -275,7 +275,7 @@ if (__VLS_ctx.activeTab === 'nice') {
         disabled: (__VLS_ctx.loadingNice),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
+        ...{ class: "ni ni-bold-right" },
     });
     (__VLS_ctx.loadingNice ? 'Laden...' : 'Aktualisieren');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -311,8 +311,7 @@ if (__VLS_ctx.activeTab === 'nice') {
             ...{ class: "text-center py-5 text-muted" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
-            ...{ style: {} },
+            ...{ class: "ni ni-collection ni-3x" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
             ...{ class: "mt-2" },
@@ -365,7 +364,7 @@ if (__VLS_ctx.activeTab === 'nice') {
                 ...{ class: "btn btn-sm btn-primary me-2" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "material-icons" },
+                ...{ class: "ni ni-user-run" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
@@ -382,7 +381,7 @@ if (__VLS_ctx.activeTab === 'nice') {
                 ...{ class: "btn btn-sm btn-success" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "material-icons" },
+                ...{ class: "ni ni-check-bold" },
             });
         }
     }
@@ -409,7 +408,7 @@ if (__VLS_ctx.activeTab === 'paris') {
         disabled: (__VLS_ctx.loadingParis),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
+        ...{ class: "ni ni-bold-right" },
     });
     (__VLS_ctx.loadingParis ? 'Laden...' : 'Aktualisieren');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -445,8 +444,7 @@ if (__VLS_ctx.activeTab === 'paris') {
             ...{ class: "text-center py-5 text-muted" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
-            ...{ style: {} },
+            ...{ class: "ni ni-collection ni-3x" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
             ...{ class: "mt-2" },
@@ -499,7 +497,7 @@ if (__VLS_ctx.activeTab === 'paris') {
                 ...{ class: "btn btn-sm btn-primary me-2" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "material-icons" },
+                ...{ class: "ni ni-user-run" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
@@ -516,7 +514,7 @@ if (__VLS_ctx.activeTab === 'paris') {
                 ...{ class: "btn btn-sm btn-success" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "material-icons" },
+                ...{ class: "ni ni-check-bold" },
             });
         }
     }
@@ -636,7 +634,7 @@ if (__VLS_ctx.showDetailsModal) {
                     ...{ class: "btn btn-sm btn-outline-primary" },
                 });
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: "material-icons" },
+                    ...{ class: "ni ni-button-play" },
                 });
             }
         }
@@ -880,7 +878,7 @@ if (__VLS_ctx.showClassificationModal) {
         disabled: (!__VLS_ctx.isClassificationValid),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
+        ...{ class: "ni ni-collection" },
     });
 }
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
@@ -910,7 +908,8 @@ if (__VLS_ctx.showClassificationModal) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
@@ -923,7 +922,9 @@ if (__VLS_ctx.showClassificationModal) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
@@ -934,11 +935,13 @@ if (__VLS_ctx.showClassificationModal) {
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
@@ -951,7 +954,8 @@ if (__VLS_ctx.showClassificationModal) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
@@ -964,7 +968,9 @@ if (__VLS_ctx.showClassificationModal) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
@@ -975,11 +981,13 @@ if (__VLS_ctx.showClassificationModal) {
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal']} */ ;
 /** @type {__VLS_StyleScopedClasses['fade']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
@@ -1005,7 +1013,8 @@ if (__VLS_ctx.showClassificationModal) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-footer']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
@@ -1063,6 +1072,7 @@ if (__VLS_ctx.showClassificationModal) {
 /** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 var __VLS_dollars;
 let __VLS_self;

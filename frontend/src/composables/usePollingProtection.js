@@ -132,7 +132,7 @@ export function usePollingProtection() {
             // Clear local locks
             if (fileType) {
                 // Clear only specific type
-                Array.from(processingLocks.value.keys()).forEach(key => {
+                Array.from(processingLocks.value.keys()).forEach((key) => {
                     if (key.startsWith(`${fileType}:`))
                         processingLocks.value.delete(key);
                 });
@@ -152,12 +152,15 @@ export function usePollingProtection() {
      * Get current processing locks info
      */
     const getProcessingLocksInfo = computed(() => {
-        const locks = Array.from(processingLocks.value.entries()).map(([key, expiresAt]) => ({ key, expiresAt }));
+        const locks = Array.from(processingLocks.value.entries()).map(([key, expiresAt]) => ({
+            key,
+            expiresAt
+        }));
         return {
             totalLocks: locks.length,
             locks,
-            videoLocks: locks.filter(l => l.key.startsWith('video:')),
-            pdfLocks: locks.filter(l => l.key.startsWith('pdf:'))
+            videoLocks: locks.filter((l) => l.key.startsWith('video:')),
+            pdfLocks: locks.filter((l) => l.key.startsWith('pdf:'))
         };
     });
     return {

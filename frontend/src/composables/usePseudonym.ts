@@ -2,7 +2,8 @@
 // Add this to your patient detail/edit component
 
 import { ref } from 'vue'
-import axios from 'axios' // Using axios directly - adjust to your setup
+import axiosInstance, { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 
 interface PseudonymResponse {
   patient_id: number
@@ -34,8 +35,8 @@ async function generatePseudonym(patientId: number): Promise<string | null> {
   pseudonymSuccess.value = null
 
   try {
-    const response = await axios.post<PseudonymResponse>(
-      `/api/patients/${patientId}/pseudonym/`
+    const response = await axiosInstance.post<PseudonymResponse>(
+      r(endpoints.patient.patientPseudonym(patientId))
     )
 
     const { patient_hash, persisted, message } = response.data

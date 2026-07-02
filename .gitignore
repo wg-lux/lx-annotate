@@ -1,13 +1,19 @@
+conf/db.yaml
+conf/db_pwd.example
+conf/db_pwd
 .devenv-vars.json
 .devenv/
 django-settings.json
 #frozen_east_text_detection.pb
 # Byte-compiled / optimized / DLL files
+.direnv/
+.venv/
 __pycache__/
 *.py[cod]
 *$py.class
 *.kate-swp
 db.sqlite3
+conf/
 .direnv/
 logs/
 .env
@@ -26,8 +32,7 @@ devenv.lock
 .devenv.nix
 .env
 flake.json
-storage/
-static/
+.make-cache/
 .staticfiles/
 staticfiles
 ./frontend/public/video.mp4
@@ -39,7 +44,6 @@ results/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -56,6 +60,7 @@ share/python-wheels/
 MANIFEST
 EAST/
 .venv/
+.lx-annotate-static.*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -121,18 +126,18 @@ result
 # (Usually these are created outside the project, but if you accidentally include one, ignore it)
 venv/
 .env/
-.env.*
 
 # -------------------------------
 # Node / NPM related (for the root and frontend)
 # -------------------------------
 node_modules/
 frontend/node_modules/
+static/img/frames_demo/*
 
 # -------------------------------
 # Frontend build and Vite-related files
 # -------------------------------
-# Although your Vite config outputs to ../static/dist (which is versioned in STATICFILES_DIRS),
+# Although your Vite config outputs to ../static (which is versioned in STATICFILES_DIRS),
 # you don’t want to commit any other generated files.
 # (If you ever have a build folder inside the frontend directory, ignore it)
 frontend/dist/
@@ -158,3 +163,12 @@ Thumbs.db
 *.swp
 .env
 .env
+
+*./conf
+
+secret.key
+
+./lx-terminology-editor
+./lx-report-generator
+study_data/*.csv
+dist/*

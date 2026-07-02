@@ -1,35 +1,27 @@
-import type { Finding } from '@/stores/findingStore';
-export interface Examination {
+import type { Finding, FindingClassification } from '@/api/findings.contract';
+import { type ClassificationChoiceCore, type ExaminationCore } from '@/types/coreConcepts';
+export interface Examination extends Pick<ExaminationCore, 'name'> {
     id: number;
-    name: string;
+    nameDe?: string;
+    nameEn?: string;
     name_de?: string;
     name_en?: string;
     displayName?: string;
 }
-export interface LocationClassificationChoice {
+export interface LocationClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
     id: number;
-    name: string;
+    nameDe?: string;
     name_de?: string;
+    displayName?: string;
 }
-export interface MorphologyClassificationChoice {
+export interface MorphologyClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
     id: number;
-    name: string;
+    nameDe?: string;
     name_de?: string;
+    displayName?: string;
 }
-export interface LocationClassification {
-    id: number;
-    name: string;
-    name_de?: string;
-    choices: LocationClassificationChoice[];
-    required?: boolean;
-}
-export interface MorphologyClassification {
-    id: number;
-    name: string;
-    name_de?: string;
-    choices: MorphologyClassificationChoice[];
-    required?: boolean;
-}
+export type LocationClassification = FindingClassification;
+export type MorphologyClassification = FindingClassification;
 type ClassifPayload = {
     locationClassifications: LocationClassification[];
     morphologyClassifications: MorphologyClassification[];
@@ -47,55 +39,133 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         error: string | null;
         exams: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
-            name: string;
-            nameDe?: string | undefined;
             description: string;
+            nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
-            PatientExaminationId?: number | undefined;
+            patientExaminationId?: number | undefined;
+            classifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
+            locationClassifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
+            morphologyClassifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
             FindingClassifications: {
                 id: number;
-                name?: string | undefined;
+                name: string;
                 description?: string | undefined;
-                classificationType?: string[] | undefined;
-                choices?: {
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                }[] | undefined;
-                required?: boolean | undefined;
+                }[];
             }[];
             findingTypes: string[];
             findingInterventions: string[];
+            name: string;
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
                 id: number;
                 name: string;
-                name_de?: string | undefined;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
                 choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                    name_de?: string | undefined;
                 }[];
-                required?: boolean | undefined;
             }[];
             morphologyClassifications: {
                 id: number;
                 name: string;
-                name_de?: string | undefined;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
                 choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                    name_de?: string | undefined;
                 }[];
-                required?: boolean | undefined;
             }[];
         }> & Omit<Map<number, ClassifPayload>, keyof Map<any, any>>;
     } & import("pinia").PiniaCustomStateProperties<{
@@ -111,55 +181,133 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         error: string | null;
         exams: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
-            name: string;
-            nameDe?: string | undefined;
             description: string;
+            nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
-            PatientExaminationId?: number | undefined;
+            patientExaminationId?: number | undefined;
+            classifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
+            locationClassifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
+            morphologyClassifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
             FindingClassifications: {
                 id: number;
-                name?: string | undefined;
+                name: string;
                 description?: string | undefined;
-                classificationType?: string[] | undefined;
-                choices?: {
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                }[] | undefined;
-                required?: boolean | undefined;
+                }[];
             }[];
             findingTypes: string[];
             findingInterventions: string[];
+            name: string;
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
                 id: number;
                 name: string;
-                name_de?: string | undefined;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
                 choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                    name_de?: string | undefined;
                 }[];
-                required?: boolean | undefined;
             }[];
             morphologyClassifications: {
                 id: number;
                 name: string;
-                name_de?: string | undefined;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
                 choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                    name_de?: string | undefined;
                 }[];
-                required?: boolean | undefined;
             }[];
         }> & Omit<Map<number, ClassifPayload>, keyof Map<any, any>>;
     } & import("pinia").PiniaCustomStateProperties<{
@@ -179,55 +327,133 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         error: string | null;
         exams: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
-            name: string;
-            nameDe?: string | undefined;
             description: string;
+            nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
-            PatientExaminationId?: number | undefined;
+            patientExaminationId?: number | undefined;
+            classifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
+            locationClassifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
+            morphologyClassifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
             FindingClassifications: {
                 id: number;
-                name?: string | undefined;
+                name: string;
                 description?: string | undefined;
-                classificationType?: string[] | undefined;
-                choices?: {
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                }[] | undefined;
-                required?: boolean | undefined;
+                }[];
             }[];
             findingTypes: string[];
             findingInterventions: string[];
+            name: string;
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
                 id: number;
                 name: string;
-                name_de?: string | undefined;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
                 choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                    name_de?: string | undefined;
                 }[];
-                required?: boolean | undefined;
             }[];
             morphologyClassifications: {
                 id: number;
                 name: string;
-                name_de?: string | undefined;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
                 choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                    name_de?: string | undefined;
                 }[];
-                required?: boolean | undefined;
             }[];
         }> & Omit<Map<number, ClassifPayload>, keyof Map<any, any>>;
     } & import("pinia").PiniaCustomStateProperties<{
@@ -243,55 +469,133 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         error: string | null;
         exams: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
-            name: string;
-            nameDe?: string | undefined;
             description: string;
+            nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
-            PatientExaminationId?: number | undefined;
+            patientExaminationId?: number | undefined;
+            classifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
+            locationClassifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
+            morphologyClassifications: {
+                id: number;
+                name: string;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
+                    id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
+                    name: string;
+                }[];
+            }[];
             FindingClassifications: {
                 id: number;
-                name?: string | undefined;
+                name: string;
                 description?: string | undefined;
-                classificationType?: string[] | undefined;
-                choices?: {
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
+                choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                }[] | undefined;
-                required?: boolean | undefined;
+                }[];
             }[];
             findingTypes: string[];
             findingInterventions: string[];
+            name: string;
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
                 id: number;
                 name: string;
-                name_de?: string | undefined;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
                 choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                    name_de?: string | undefined;
                 }[];
-                required?: boolean | undefined;
             }[];
             morphologyClassifications: {
                 id: number;
                 name: string;
-                name_de?: string | undefined;
+                description?: string | undefined;
+                nameDe?: string | undefined;
+                displayName?: string | undefined;
+                required: boolean;
+                classificationTypes: string[];
                 choices: {
                     id: number;
+                    description?: string | undefined;
+                    nameDe?: string | undefined;
+                    displayName?: string | undefined;
+                    subcategories: import("@/api/findings.contract").JsonMap;
+                    numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
-                    name_de?: string | undefined;
                 }[];
-                required?: boolean | undefined;
             }[];
         }> & Omit<Map<number, ClassifPayload>, keyof Map<any, any>>;
     } & import("pinia").PiniaCustomStateProperties<{
@@ -307,8 +611,8 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     /**
      * Load examinations list.
      * We have 2 viable endpoints in your project:
-     *  - /api/examinations/  (generic list)
-     *  - /api/patient-examinations/examinations_dropdown/ (already tailored for dropdown)
+     *  - examinations/  (generic list)
+     *  - patient-examinations/examinations_dropdown/ (already tailored for dropdown)
      *
      * While patient Examinations will filter the examinations available for the patient, examinations query will return all available examinations.
      */

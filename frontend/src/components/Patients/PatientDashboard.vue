@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="dashboard-header">
       <h1 class="dashboard-title">
-        <i class="fas fa-users"></i>
+        <i class="ni ni-circle-08"></i>
         Patienten-Dashboard
       </h1>
       <div class="header-actions">
@@ -12,7 +12,7 @@
           @click="showCreateForm = true"
           :disabled="loading"
         >
-          <i class="fas fa-plus"></i>
+          <i class="ni ni-fat-add"></i>
           Neuer Patient
         </button>
       </div>
@@ -42,7 +42,7 @@
     <div v-if="showCreateForm && !loading" class="card form-card">
       <div class="card-header">
         <h3 class="card-title">
-          <i class="fas fa-user-plus"></i>
+          <i class="ni ni-fat-add"></i>
           Neuen Patienten erstellen
         </h3>
       </div>
@@ -59,7 +59,7 @@
       <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
           <h3 class="card-title mb-0">
-            <i class="fas fa-list"></i>
+            <i class="ni ni-single-copy-04"></i>
             Patienten ({{ patients.length }})
           </h3>
           <div class="search-box">
@@ -91,20 +91,20 @@
             <div class="patient-card-body">
               <div class="patient-info">
                 <div class="info-item">
-                  <i class="fas fa-birthday-cake"></i>
+                  <i class="ni ni-book-bookmark"></i>
                   <span>{{ formatDate(patient.dob) }}</span>
                   <small v-if="patient.age">({{ patient.age }} Jahre)</small>
                 </div>
                 <div class="info-item" v-if="patient.gender">
-                  <i class="fas fa-venus-mars"></i>
+                  <i class="ni ni-circle-08"></i>
                   <span>{{ getGenderName(patient.gender) }}</span>
                 </div>
                 <div class="info-item" v-if="patient.center">
-                  <i class="fas fa-hospital"></i>
+                  <i class="ni ni-collection"></i>
                   <span>{{ getCenterName(patient.center) }}</span>
                 </div>
                 <div class="info-item" v-if="patient.email">
-                  <i class="fas fa-envelope"></i>
+                  <i class="ni ni-single-copy-04"></i>
                   <span>{{ patient.email }}</span>
                 </div>
               </div>
@@ -119,7 +119,7 @@
 
         <!-- Empty State -->
         <div v-else-if="!loading" class="empty-state">
-          <i class="fas fa-users fa-3x text-muted"></i>
+          <i class="ni ni-circle-08 ni-3x text-muted"></i>
           <h4>Keine Patienten gefunden</h4>
           <p class="text-muted">
             {{ searchTerm ? 'Keine Patienten entsprechen der Suche.' : 'Erstellen Sie den ersten Patienten.' }}
@@ -129,7 +129,7 @@
             class="btn btn-primary"
             @click="showCreateForm = true"
           >
-            <i class="fas fa-plus"></i>
+            <i class="ni ni-fat-add"></i>
             Ersten Patienten erstellen
           </button>
         </div>

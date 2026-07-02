@@ -1,189 +1,205 @@
-export interface FindingChoice {
-    id: number;
-    name: string;
-    description: string;
-    subcategories: Record<string, any>;
-    numerical_descriptors: Record<string, any>;
-}
-export interface FindingClassification {
-    id: number;
-    name: string;
-    description: string;
-    choices: FindingChoice[];
-    classification_types: number[];
-}
-export interface Finding {
-    id: number;
-    name: string;
-    nameDe?: string;
-    description: string;
-    examinations: string[];
-    PatientExaminationId?: number;
-    FindingClassifications: FindingClassification[];
-    findingTypes: string[];
-    findingInterventions: string[];
-    classifications?: FindingClassification[];
-    location_classifications?: FindingClassification[];
-    morphology_classifications?: FindingClassification[];
-}
+import { type Finding, type FindingClassification } from '@/api/findings.contract';
+export type { Finding, FindingClassification };
 export declare const useFindingClassificationStore: import("pinia").StoreDefinition<"findingsClassificationStore", Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
-            readonly PatientExaminationId?: number | undefined;
+            readonly patientExaminationId?: number | undefined;
+            readonly classifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly locationClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly morphologyClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name: string;
-                readonly description: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
-                        readonly [x: string]: any;
+                        readonly [x: string]: Readonly<unknown>;
                     };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
-            readonly classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly location_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly morphology_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
+            readonly name: string;
         };
     }, {
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
-            readonly PatientExaminationId?: number | undefined;
+            readonly patientExaminationId?: number | undefined;
+            readonly classifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly locationClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly morphologyClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name: string;
-                readonly description: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
-                        readonly [x: string]: any;
+                        readonly [x: string]: Readonly<unknown>;
                     };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
-            readonly classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly location_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly morphology_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
+            readonly name: string;
         };
     }>>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
@@ -194,165 +210,209 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     clearFindings: () => void;
     setError: (err: string) => void;
     setLoading: (isLoading: boolean) => void;
-    setClassificationChoicesFromLookup: (lookupFindings: Finding[]) => void;
-}, "loading" | "error" | "findings">, Pick<{
+    replaceFindings: (entries: Finding[]) => void;
+    upsertFindings: (entries: Finding[]) => void;
+    setClassificationChoicesFromLookup: (lookupFindings: unknown) => void;
+}, "error" | "loading" | "findings">, Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
-            readonly PatientExaminationId?: number | undefined;
+            readonly patientExaminationId?: number | undefined;
+            readonly classifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly locationClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly morphologyClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name: string;
-                readonly description: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
-                        readonly [x: string]: any;
+                        readonly [x: string]: Readonly<unknown>;
                     };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
-            readonly classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly location_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly morphology_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
+            readonly name: string;
         };
     }, {
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
-            readonly PatientExaminationId?: number | undefined;
+            readonly patientExaminationId?: number | undefined;
+            readonly classifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly locationClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly morphologyClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name: string;
-                readonly description: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
-                        readonly [x: string]: any;
+                        readonly [x: string]: Readonly<unknown>;
                     };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
-            readonly classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly location_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly morphology_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
+            readonly name: string;
         };
     }>>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
@@ -363,165 +423,209 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     clearFindings: () => void;
     setError: (err: string) => void;
     setLoading: (isLoading: boolean) => void;
-    setClassificationChoicesFromLookup: (lookupFindings: Finding[]) => void;
+    replaceFindings: (entries: Finding[]) => void;
+    upsertFindings: (entries: Finding[]) => void;
+    setClassificationChoicesFromLookup: (lookupFindings: unknown) => void;
 }, "getAllFindings">, Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
-            readonly PatientExaminationId?: number | undefined;
+            readonly patientExaminationId?: number | undefined;
+            readonly classifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly locationClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly morphologyClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name: string;
-                readonly description: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
-                        readonly [x: string]: any;
+                        readonly [x: string]: Readonly<unknown>;
                     };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
-            readonly classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly location_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly morphology_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
+            readonly name: string;
         };
     }, {
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
-            readonly PatientExaminationId?: number | undefined;
+            readonly patientExaminationId?: number | undefined;
+            readonly classifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly locationClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
+            readonly morphologyClassifications: readonly {
+                readonly id: number;
+                readonly name: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
+                readonly choices: readonly {
+                    readonly id: number;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
+                    readonly subcategories: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
+                    };
+                    readonly name: string;
+                }[];
+            }[];
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name: string;
-                readonly description: string;
+                readonly description?: string | undefined;
+                readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
+                readonly required: boolean;
+                readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
+                    readonly description?: string | undefined;
+                    readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
-                        readonly [x: string]: any;
+                        readonly [x: string]: Readonly<unknown>;
                     };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
+                    readonly numericalDescriptors: {
+                        readonly [x: string]: Readonly<unknown>;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
-            readonly classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly location_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
-            readonly morphology_classifications?: readonly {
-                readonly id: number;
-                readonly name: string;
-                readonly description: string;
-                readonly choices: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                    readonly description: string;
-                    readonly subcategories: {
-                        readonly [x: string]: any;
-                    };
-                    readonly numerical_descriptors: {
-                        readonly [x: string]: any;
-                    };
-                }[];
-                readonly classification_types: readonly number[];
-            }[] | undefined;
+            readonly name: string;
         };
     }>>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
@@ -532,5 +636,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     clearFindings: () => void;
     setError: (err: string) => void;
     setLoading: (isLoading: boolean) => void;
-    setClassificationChoicesFromLookup: (lookupFindings: Finding[]) => void;
-}, "getFindingById" | "getClassificationsForFinding" | "clearFindings" | "setError" | "setLoading" | "setClassificationChoicesFromLookup">>;
+    replaceFindings: (entries: Finding[]) => void;
+    upsertFindings: (entries: Finding[]) => void;
+    setClassificationChoicesFromLookup: (lookupFindings: unknown) => void;
+}, "getFindingById" | "getClassificationsForFinding" | "clearFindings" | "setError" | "setLoading" | "replaceFindings" | "upsertFindings" | "setClassificationChoicesFromLookup">>;

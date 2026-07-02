@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useVideoStore } from '@/stores/videoStore';
+import axiosInstance from '@/api/axiosInstance';
 import { framesToSeconds, secondsToFrames, safeTimeConversion } from '@/utils/timeHelpers';
 // ✅ FIX: Mock axiosInstance at the top level with a factory function
 vi.mock('@/api/axiosInstance', () => ({
@@ -15,6 +16,7 @@ vi.mock('@/api/axiosInstance', () => ({
 describe('VideoStore - Frame to Time Conversion', () => {
     beforeEach(() => {
         setActivePinia(createPinia());
+        vi.clearAllMocks();
     });
     describe('Helper Functions', () => {
         it('should convert frames to seconds correctly', () => {
@@ -50,6 +52,50 @@ describe('VideoStore - Frame to Time Conversion', () => {
         });
     });
     describe('VideoStore Integration', () => {
+        it('should clamp end_frame_number to frameCount when creating a segment', async () => {
+            const store = useVideoStore();
+
+            axiosInstance.get.mockResolvedValueOnce({
+                data: [{ id: 1, name: 'polyp', color: '#ff0000' }]
+            });
+            await store.fetchLabels();
+
+            store.setVideo({
+                id: 1,
+                isAnnotated: true,
+                errorMessage: '',
+                segments: [],
+                videoUrl: '',
+                status: 'available',
+                assignedUser: null,
+                duration: 10,
+                fps: 50,
+                frameCount: 500
+            });
+
+            axiosInstance.post.mockResolvedValueOnce({
+                data: {
+                    id: 42,
+                    videoId: 1,
+                    labelName: 'polyp',
+                    startFrameNumber: 0,
+                    endFrameNumber: 500,
+                    startTime: 0,
+                    endTime: 10
+                }
+            });
+
+            await store.createSegment(1, 'polyp', 0, 10.1);
+
+            expect(axiosInstance.post).toHaveBeenCalledWith(
+                'media/videos/1/segments/',
+                expect.objectContaining({
+                    start_frame_number: 0,
+                    end_frame_number: 500
+                })
+            );
+        });
+
         it('should process segments with correct time conversion', async () => {
             const store = useVideoStore();
             // Mock video metadata
@@ -71,7 +117,7 @@ describe('VideoStore - Frame to Time Conversion', () => {
                     label_id: 1,
                     label_name: 'polyp',
                     start_frame_number: 30, // Frame 30
-                    end_frame_number: 90, // Frame 90
+                    end_frame_number: 90 // Frame 90
                     // No start_time/end_time - should be calculated from frames
                 },
                 {
@@ -81,11 +127,11 @@ describe('VideoStore - Frame to Time Conversion', () => {
                     start_time: 2, // Already in seconds
                     end_time: 4, // Already in seconds
                     start_frame_number: 60,
-                    end_frame_number: 120,
+                    end_frame_number: 120
                 }
             ];
             // Process segments (this would normally be called by fetchVideoSegments)
-            const processedSegments = mockSegmentData.map(segment => {
+            const processedSegments = mockSegmentData.map((segment) => {
                 const fps = 30;
                 const startTime = safeTimeConversion(segment.start_time ?? segment.start_frame_number, segment.start_time === undefined, fps);
                 const endTime = safeTimeConversion(segment.end_time ?? segment.end_frame_number, segment.end_time === undefined, fps);
@@ -151,7 +197,7 @@ describe('VideoStore - Frame to Time Conversion', () => {
             const twoSecondSegment = { startTime: 1, endTime: 3 };
             const width = ((twoSecondSegment.endTime - twoSecondSegment.startTime) / videoDuration) * 100;
             expect(width).toBe(20);
-            // 5-second segment should be 50% width  
+            // 5-second segment should be 50% width
             const fiveSecondSegment = { startTime: 2, endTime: 7 };
             const width2 = ((fiveSecondSegment.endTime - fiveSecondSegment.startTime) / videoDuration) * 100;
             expect(width2).toBe(50);

@@ -1,6 +1,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService } from '@/api/patientService';
+import { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 const emit = defineEmits();
 // Composables
 const patientStore = usePatientStore();
@@ -16,6 +18,7 @@ const form = ref({
     phone: '',
     gender: null,
     center: null,
+    centerKey: null,
     patientHash: '',
     comments: '',
     isRealPerson: true
@@ -89,9 +92,10 @@ const handleSubmit = async () => {
         formattedData = patientStore.formatPatientForSubmission(form.value);
         console.log('📋 Formatierte Daten für API:', formattedData);
         // Log the exact URL that will be called
+        const patientCreatePath = r(endpoints.patient.patients);
         console.log('🌐 API-Aufruf wird gestartet...');
-        console.log('URL:', `/api/patients/`);
-        console.log('Full URL wird zu:', `${window.location.origin}/api/patients/`);
+        console.log('URL:', patientCreatePath);
+        console.log('Full URL wird zu:', `${window.location.origin}${patientCreatePath}`);
         // Use patientStore instead of patientService for consistency
         const newPatient = await patientStore.createPatient(formattedData);
         console.log('🎉 Patient erfolgreich erstellt:', newPatient);
@@ -105,6 +109,7 @@ const handleSubmit = async () => {
             phone: '',
             gender: null,
             center: null,
+            centerKey: null,
             patientHash: '',
             comments: '',
             isRealPerson: true
@@ -198,7 +203,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-user" },
+    ...{ class: "ni ni-circle-08" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "row" },
@@ -320,7 +325,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-address-book" },
+    ...{ class: "ni ni-book-bookmark" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "row" },
@@ -376,7 +381,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-hospital" },
+    ...{ class: "ni ni-collection" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "row" },
@@ -391,7 +396,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements
     for: "center",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    value: (__VLS_ctx.form.center),
+    value: (__VLS_ctx.form.centerKey),
     id: "center",
     ...{ class: "form-control" },
     ...{ class: ({ 'is-invalid': __VLS_ctx.errors.center }) },
@@ -402,7 +407,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
 for (const [center] of __VLS_getVForSourceType((__VLS_ctx.centers))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         key: (center.id),
-        value: (center.name),
+        value: (center.centerKey || center.name),
     });
     (center.nameDe || center.name);
 }
@@ -449,7 +454,7 @@ if (__VLS_ctx.loading) {
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-save me-2" },
+        ...{ class: "ni ni-collection me-2" },
     });
 }
 (__VLS_ctx.loading ? 'Wird gespeichert...' : 'Patient erstellen');
@@ -462,12 +467,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loading),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-times me-2" },
+    ...{ class: "ni ni-settings-gear-65 me-2" },
 });
 /** @type {__VLS_StyleScopedClasses['patient-create-form']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-section']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-circle-08']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-group']} */ ;
@@ -495,8 +500,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)(
 /** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
 /** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-section']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-address-book']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-book-bookmark']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-group']} */ ;
@@ -509,8 +514,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)(
 /** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
 /** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-section']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-hospital']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-group']} */ ;
@@ -534,14 +539,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)(
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-save']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({

@@ -26,50 +26,50 @@ export function formatLocalizedName(item, fallback = 'Unbekannt') {
 export function translateToGerman(text) {
     const translations = {
         // Status translations
-        'planned': 'Geplant',
-        'in_progress': 'In Bearbeitung',
-        'completed': 'Abgeschlossen',
-        'cancelled': 'Abgebrochen',
-        'active': 'Aktiv',
-        'inactive': 'Inaktiv',
+        planned: 'Geplant',
+        in_progress: 'In Bearbeitung',
+        completed: 'Abgeschlossen',
+        cancelled: 'Abgebrochen',
+        active: 'Aktiv',
+        inactive: 'Inaktiv',
         // Common medical terms
-        'location': 'Lokalisation',
-        'morphology': 'Morphologie',
-        'finding': 'Befund',
-        'examination': 'Untersuchung',
-        'patient': 'Patient',
-        'notes': 'Notizen',
-        'date': 'Datum',
-        'time': 'Zeit',
-        'required': 'Erforderlich',
-        'optional': 'Optional',
+        location: 'Lokalisation',
+        morphology: 'Morphologie',
+        finding: 'Befund',
+        examination: 'Untersuchung',
+        patient: 'Patient',
+        notes: 'Notizen',
+        date: 'Datum',
+        time: 'Zeit',
+        required: 'Erforderlich',
+        optional: 'Optional',
         // Anatomical terms
-        'upper': 'Oberer',
-        'lower': 'Unterer',
-        'left': 'Links',
-        'right': 'Rechts',
-        'anterior': 'Vorderer',
-        'posterior': 'Hinterer',
-        'medial': 'Medial',
-        'lateral': 'Lateral',
-        'proximal': 'Proximal',
-        'distal': 'Distal',
+        upper: 'Oberer',
+        lower: 'Unterer',
+        left: 'Links',
+        right: 'Rechts',
+        anterior: 'Vorderer',
+        posterior: 'Hinterer',
+        medial: 'Medial',
+        lateral: 'Lateral',
+        proximal: 'Proximal',
+        distal: 'Distal',
         // Size/severity terms
-        'small': 'Klein',
-        'medium': 'Mittel',
-        'large': 'Groß',
-        'mild': 'Leicht',
-        'moderate': 'Mäßig',
-        'severe': 'Schwer',
+        small: 'Klein',
+        medium: 'Mittel',
+        large: 'Groß',
+        mild: 'Leicht',
+        moderate: 'Mäßig',
+        severe: 'Schwer',
         // Common descriptors
-        'normal': 'Normal',
-        'abnormal': 'Abnormal',
-        'positive': 'Positiv',
-        'negative': 'Negativ',
-        'unknown': 'Unbekannt',
-        'other': 'Andere',
-        'multiple': 'Mehrfach',
-        'single': 'Einzeln'
+        normal: 'Normal',
+        abnormal: 'Abnormal',
+        positive: 'Positiv',
+        negative: 'Negativ',
+        unknown: 'Unbekannt',
+        other: 'Andere',
+        multiple: 'Mehrfach',
+        single: 'Einzeln'
     };
     // Try exact match first
     const exactMatch = translations[text.toLowerCase()];
@@ -77,7 +77,7 @@ export function translateToGerman(text) {
         return exactMatch;
     // Try to translate individual words and format
     const words = text.split(/[_\s]+/);
-    const translatedWords = words.map(word => {
+    const translatedWords = words.map((word) => {
         const translation = translations[word.toLowerCase()];
         return translation || word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     });

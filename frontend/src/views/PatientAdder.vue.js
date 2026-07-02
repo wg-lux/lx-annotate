@@ -1,6 +1,6 @@
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 export default (await import('vue')).defineComponent({
-    name: 'Profil',
+    name: 'PatientAdder',
     components: {
         PatientAdder
     },

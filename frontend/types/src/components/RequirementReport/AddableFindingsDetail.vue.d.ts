@@ -1,10 +1,3 @@
-/**
- * Component Props
- *
- * @interface Props
- * @property {number} [patientExaminationId] - Optional patient examination ID override
- * @property {number} [examinationId] - Optional examination ID for context
- */
 interface Props {
     patientExaminationId?: number;
     examinationId?: number;
@@ -16,7 +9,7 @@ declare const _default: import("vue").DefineComponent<Props, {}, {}, {}, {}, imp
     "onFinding-added"?: ((findingId: number, findingName: string) => any) | undefined;
     "onFinding-error"?: ((error: string) => any) | undefined;
 }>, {
-    examinationId: number;
     patientExaminationId: number;
+    examinationId: number;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, any>;
 export default _default;

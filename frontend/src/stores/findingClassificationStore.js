@@ -1,29 +1,16 @@
 import { defineStore } from 'pinia';
-import { reactive, ref, computed, readonly } from 'vue';
+import { computed, readonly, ref } from 'vue';
+import { mergeFindingClassifications, normalizeFindings } from '@/api/findings.contract';
 export const useFindingClassificationStore = defineStore('findingsClassificationStore', () => {
-    // State
     const findings = ref({});
     const loading = ref(false);
     const error = ref(null);
-    // Getters
     const getClassificationsForFinding = (findingId) => {
         const finding = findings.value[findingId];
-        if (!finding)
-            return [];
-        return [
-            ...(finding.classifications || []),
-            ...(finding.location_classifications || []),
-            ...(finding.morphology_classifications || [])
-        ];
+        return mergeFindingClassifications(finding);
     };
     const getAllFindings = computed(() => Object.values(findings.value));
-    const getFindingById = (id) => {
-        if (!findings.value[id]) {
-            getAllFindings.value; // Trigger loading if not already loaded
-        }
-        return findings.value[id];
-    };
-    // Actions
+    const getFindingById = (id) => findings.value[id];
     const clearFindings = () => {
         findings.value = {};
         error.value = null;
@@ -34,27 +21,33 @@ export const useFindingClassificationStore = defineStore('findingsClassification
     const setLoading = (isLoading) => {
         loading.value = isLoading;
     };
+    const replaceFindings = (entries) => {
+        findings.value = Object.fromEntries(entries.map((finding) => [finding.id, finding]));
+    };
+    const upsertFindings = (entries) => {
+        if (!entries.length)
+            return;
+        findings.value = {
+            ...findings.value,
+            ...Object.fromEntries(entries.map((finding) => [finding.id, finding]))
+        };
+    };
     const setClassificationChoicesFromLookup = (lookupFindings) => {
-        const findingsMap = {};
-        lookupFindings.forEach(finding => {
-            findingsMap[finding.id] = finding;
-        });
-        findings.value = findingsMap;
-        console.log('📋 [FindingsClassificationStore] Set findings from lookup:', Object.keys(findingsMap).length, 'findings');
+        const normalized = normalizeFindings(lookupFindings);
+        replaceFindings(normalized);
     };
     return {
-        // State
         findings: readonly(findings),
         loading: readonly(loading),
         error: readonly(error),
-        // Getters
         getFindingById,
         getClassificationsForFinding,
         getAllFindings,
-        // Actions
         clearFindings,
         setError,
         setLoading,
+        replaceFindings,
+        upsertFindings,
         setClassificationChoicesFromLookup
     };
 });
