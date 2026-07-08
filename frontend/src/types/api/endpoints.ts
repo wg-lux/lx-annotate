@@ -136,6 +136,7 @@ export const endpoints = {
     videos: 'media/videos/',
     videoDetail: (pk: Id) => `media/videos/${pk}/details/`,
     videoStream: (pk: Id) => `media/videos/${pk}/stream/`,
+    videoHlsPlaylist: (pk: Id) => `media/videos/${pk}/hls/playlist/`,
     videoReimport: (pk: Id) => `media/videos/${pk}/reimport/`,
     exportAnnotated: 'media/videos/export-annotated/',
 

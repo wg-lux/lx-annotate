@@ -767,6 +767,14 @@ wheels = [
 ]
 
 [[package]]
+name = "de-core-news-sm"
+version = "3.8.0"
+source = { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl" }
+wheels = [
+    { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl", hash = "sha256:fec69fec52b1780f2d269d5af7582a5e28028738bd3190532459aeb473bfa3e7" },
+]
+
+[[package]]
 name = "decorator"
 version = "5.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1106,7 +1114,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.4.7"
+version = "1.0.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1174,9 +1182,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/90/40/9f4e88c6cce78848526d3041695729e5a95bf2d22bd2aec443f5e157cf1b/endoreg_db-1.0.4.7.tar.gz", hash = "sha256:c9bf741c13fe8067cd53532e81fedd40303f65029b6c35e243e0201e71400936", size = 980283, upload-time = "2026-07-02T06:35:42.948Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/dc/a1/d20f2aa12bf3b31d36277aee8994a9c8f84d87af80dd65d757cbff4756f3/endoreg_db-1.0.5.1.tar.gz", hash = "sha256:af184583178e1c43cdbde1a0bbd5fcdd410d46accd9c58f0a80178aebae1c618", size = 1028379, upload-time = "2026-07-08T11:31:58.286Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/9c/bbc8ec49b6267e73623bb5352ab11acd0750f93f101ef6d11fc810128c6b/endoreg_db-1.0.4.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a2c17fc06432c0623b7a1948a1369d028c599250c94430fb8c8737e4693a1446", size = 1672781, upload-time = "2026-07-02T06:35:40.716Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/ce/759747a458060bd6e42d0dcc84ff733fb60911fd011759305ed3226e0205/endoreg_db-1.0.5.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4d730446e5486dec6aa6330bef1661d896aab6c3c025e15843c2faac5262bacd", size = 1730611, upload-time = "2026-07-08T11:31:55.052Z" },
 ]
 
 [[package]]
@@ -1980,6 +1988,7 @@ dependencies = [
     { name = "celery" },
     { name = "cryptography" },
     { name = "daphne" },
+    { name = "de-core-news-sm" },
     { name = "django" },
     { name = "django-cors-headers" },
     { name = "django-environ" },
@@ -2058,6 +2067,7 @@ requires-dist = [
     { name = "celery", specifier = ">=5.5.3" },
     { name = "cryptography", specifier = ">=45.0.0" },
     { name = "daphne", specifier = ">=4.2.1" },
+    { name = "de-core-news-sm", url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl" },
     { name = "django", specifier = "==6.0.3" },
     { name = "django-cors-headers", specifier = ">=4.0.0" },
     { name = "django-environ", specifier = ">=0.12.0" },
@@ -2071,7 +2081,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.4.7" },
+    { name = "endoreg-db", specifier = "==1.0.5.1" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2124,11 +2134,12 @@ provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "lx-anonymizer"
-version = "0.9.2.6"
+version = "0.9.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
     { name = "dateparser" },
+    { name = "de-core-news-sm" },
     { name = "faker" },
     { name = "gender-guesser" },
     { name = "lx-dtypes" },
@@ -2151,10 +2162,11 @@ dependencies = [
     { name = "tiktoken" },
     { name = "transformers" },
     { name = "verovio" },
+    { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/97/86a9eb1a51deee01ad116e133cfeabdf90d2f5e5ff74f5789d9f24cc7fba/lx_anonymizer-0.9.2.6.tar.gz", hash = "sha256:02341b319f4892844735a5214be9016312e529652b6807a0b2bdd4a9de0fa302", size = 1350016, upload-time = "2026-06-12T16:47:42.144Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2d/c2/92f0dfb50bdd70507886b0e7c5670abc95053b83dff71bdf8eb89f888f5d/lx_anonymizer-0.9.3.1.tar.gz", hash = "sha256:2b2a68d8481134c8ac1639842bc381554668a8b0b3f6042b47a5c7f44518ecaf", size = 1387064, upload-time = "2026-07-07T17:14:10.432Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/16/13/3c1ffcc0ded6b316a417be9b69fc8fc7c781b22584c6481354426a4a3ac1/lx_anonymizer-0.9.2.6-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:92e6aeeef9a2cb46bceba55b74d2296bea4bc1df4281fc5497a1f540cf45bb8a", size = 1250327, upload-time = "2026-06-12T16:47:38.366Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/05/07fcafab0faab33623d5123e2cd62edb44dc09d016f17a3a55298247616a/lx_anonymizer-0.9.3.1-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:0451a286701a0ca6292d0ab956e7e799c0c11cf40edc9d195ba5f8494e153e01", size = 1459533, upload-time = "2026-07-07T17:14:06.686Z" },
 ]
 
 [package.optional-dependencies]

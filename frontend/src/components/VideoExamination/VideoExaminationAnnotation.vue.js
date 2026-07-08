@@ -9,7 +9,8 @@ import Timeline from '@/components/VideoExamination/Timeline.vue';
 import { storeToRefs } from 'pinia';
 import { useToastStore } from '@/stores/toastStore';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
-import { buildVideoStreamUrl } from '@/utils/mediaUrls';
+import { buildVideoPlaybackUrls } from '@/utils/mediaUrls';
+import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthKcStore } from '@/stores/auth_kc';
 import { clearAnnotatorOverride, getAnnotatorPrincipalFromAuthUser, loadAnnotatorOverride, saveAnnotatorOverride } from '@/utils/annotationPrincipal';
@@ -471,13 +472,18 @@ function revertVideoAnnotatorOverride() {
 watch([baseAnnotatorPrincipal, annotatorOverrideScope], () => {
     syncAnnotatorOverrideFromStorage();
 }, { immediate: true });
-// Video streaming URL using MediaStore logic like AnonymizationValidationComponent
-const anonymizedVideoSrc = computed(() => {
-    if (!selectedVideoId.value)
-        return undefined;
+const streamableVideoId = computed(() => {
+    if (selectedVideoId.value === null)
+        return null;
     if (!canViewProcessedVideo(selectedVideoId.value))
+        return null;
+    return selectedVideoId.value;
+});
+// Progressive fallback URL retained for existing visibility and store contracts.
+const anonymizedVideoSrc = computed(() => {
+    if (streamableVideoId.value === null)
         return undefined;
-    return buildVideoStreamUrl(selectedVideoId.value, 'processed');
+    return buildVideoPlaybackUrls(streamableVideoId.value).fallbackStreamUrl;
 });
 const hasVideos = computed(() => {
     return videos.value.length > 0;
@@ -601,6 +607,19 @@ const showErrorMessage = (message, tone = 'hint') => {
     errorMessage.value = message;
     messageTone.value = tone;
 };
+const { playbackMode, playbackSourceUrl, playbackError } = useAuthenticatedVideoStream({
+    videoElement: videoRef,
+    videoId: streamableVideoId,
+    onFatalError: (error) => {
+        console.error('[VideoExamination] Authenticated video playback failed:', error);
+        showErrorMessage(error.message);
+    }
+});
+watch(playbackError, (error) => {
+    if (error) {
+        console.error('[VideoExamination] Video playback error state:', error);
+    }
+});
 function getSegmentMutationBlockedMessage() {
     if (selectedVideoId.value !== null && !canAnnotateSegments(selectedVideoId.value)) {
         return 'Segmentbearbeitung ist erst nach validierter Anonymisierung möglich.';
@@ -629,7 +648,7 @@ const loadVideoDetail = async (videoId) => {
                 scope: 'video',
                 mediaType: 'video',
                 filename: currentVideo.original_file_name,
-                processedStreamUrl: buildVideoStreamUrl(videoId, 'processed')
+                processedStreamUrl: buildVideoPlaybackUrls(videoId).fallbackStreamUrl
             });
             console.log('MediaStore updated with video:', videoId);
         }
@@ -730,7 +749,8 @@ const onVideoLoaded = () => {
             isPlaying.value = false;
         });
         console.log('🎥 Video loaded - Frontend');
-        console.log(`- Video source URL: ${anonymizedVideoSrc.value}`);
+        console.log(`- Video source URL: ${playbackSourceUrl.value || anonymizedVideoSrc.value}`);
+        console.log(`- Playback mode: ${playbackMode.value}`);
         console.log(`- Legacy stream URL: ${videoStreamUrl.value}`);
         console.log(`- Video readyState: ${videoRef.value.readyState}`);
         console.log(`- Video networkState: ${videoRef.value.networkState}`);
@@ -1484,7 +1504,7 @@ const onVideoError = (event) => {
     showErrorMessage('Fehler beim Laden des Videos. Bitte versuchen Sie es erneut.');
 };
 const onVideoLoadStart = () => {
-    console.log('Video loading started for:', anonymizedVideoSrc.value);
+    console.log('Video loading started for:', playbackSourceUrl.value || anonymizedVideoSrc.value);
 };
 const onVideoCanPlay = () => {
     console.log('Video can play, loaded successfully');
@@ -2051,7 +2071,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
         ...{ onCanplay: (__VLS_ctx.onVideoCanPlay) },
         ref: "videoRef",
         'data-cy': "video-player",
-        src: (__VLS_ctx.anonymizedVideoSrc),
+        crossorigin: "use-credentials",
         controls: true,
         ...{ class: "w-100" },
         ...{ style: {} },

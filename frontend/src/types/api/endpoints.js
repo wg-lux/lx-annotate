@@ -112,6 +112,7 @@ export const endpoints = {
         videos: 'media/videos/',
         videoDetail: (pk) => `media/videos/${pk}/details/`,
         videoStream: (pk) => `media/videos/${pk}/stream/`,
+        videoHlsPlaylist: (pk) => `media/videos/${pk}/hls/playlist/`,
         videoReimport: (pk) => `media/videos/${pk}/reimport/`,
         exportAnnotated: 'media/videos/export-annotated/',
         videoCorrection: (pk) => `media/videos/video-correction/${pk}`,

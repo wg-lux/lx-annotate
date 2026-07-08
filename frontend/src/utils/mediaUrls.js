@@ -19,6 +19,18 @@ export function buildVideoStreamUrl(fileId, type, query) {
         ...query
     });
 }
+export function buildVideoHlsPlaylistUrl(fileId, type = 'processed', query) {
+    return buildApiUrl(endpoints.media.videoHlsPlaylist(fileId), {
+        type,
+        ...query
+    });
+}
+export function buildVideoPlaybackUrls(fileId) {
+    return {
+        hlsPlaylistUrl: buildVideoHlsPlaylistUrl(fileId, 'processed'),
+        fallbackStreamUrl: buildVideoStreamUrl(fileId, 'processed')
+    };
+}
 export function buildPdfStreamUrl(fileId, type, query) {
     return buildApiUrl(endpoints.media.pdfStream(fileId), {
         ...(type ? { type } : {}),

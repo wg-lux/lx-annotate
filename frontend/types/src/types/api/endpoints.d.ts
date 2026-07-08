@@ -110,6 +110,7 @@ export declare const endpoints: {
         readonly videos: "media/videos/";
         readonly videoDetail: (pk: Id) => string;
         readonly videoStream: (pk: Id) => string;
+        readonly videoHlsPlaylist: (pk: Id) => string;
         readonly videoReimport: (pk: Id) => string;
         readonly exportAnnotated: "media/videos/export-annotated/";
         readonly videoCorrection: (pk: Id) => string;

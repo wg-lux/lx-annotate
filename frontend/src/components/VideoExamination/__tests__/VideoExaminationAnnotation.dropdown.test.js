@@ -371,7 +371,9 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         await flushPromises();
         await selectVideoFromDropdown(wrapper, 'needs-validation.mp4');
         expect(wrapper.vm.selectedVideoId).toBe(6);
-        expect(wrapper.find('[data-cy="video-player"]').exists()).toBe(true);
+        const player = wrapper.find('[data-cy="video-player"]');
+        expect(player.exists()).toBe(true);
+        expect(player.attributes('crossorigin')).toBe('use-credentials');
         expect(wrapper.text()).not.toContain('Video löschen?');
         expect(wrapper.text()).not.toContain('Alle Segmente validieren');
         const saveButton = findButtonByText(wrapper, 'Segmentänderungen speichern');

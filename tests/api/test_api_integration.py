@@ -655,39 +655,15 @@ class VideoFileFixedTests(APIIntegrationTestCase):
             else:
                 raise
 
-    def test_video_streaming_endpoint_with_renderer_fix(self):
-        """Test: Video-Streaming Endpunkt mit Renderer-Problem-Fix"""
+    def test_video_streaming_endpoint_for_redirect(self):
+        """Test: Video-Streaming Endpunkt auf erfolgreichen redirect"""
         url = f"/endoreg-api/media/videos/{self.video.pk}/stream/"
 
-        try:
-            response = self.client.get(url)
+        response = self.client.get(url)
 
-            # Erwarte verschiedene mögliche Antworten
-            self.assertIn(
-                response.status_code,
-                [
-                    status.HTTP_200_OK,
-                    status.HTTP_409_CONFLICT,
-                    status.HTTP_404_NOT_FOUND,
-                    status.HTTP_500_INTERNAL_SERVER_ERROR,
-                ],
-            )
-            if response.status_code == status.HTTP_409_CONFLICT:
-                self.assertIn(
-                    response.headers.get("X-Stream-State"),
-                    {
-                        "encrypted_streamable_artifact",
-                        "invalid_streamable_artifact",
-                        "missing_streamable_artifact",
-                        "nginx_offload_required",
-                        "raw_django_streaming_disabled",
-                        "unreadable_streamable_artifact",
-                    },
-                )
-
-        except IndexError as e:
-            if "list index out of range" in str(e):
-                # Das ist ein bekannter DRF Renderer-Fehler
-                self.skipTest(f"DRF Renderer Konfigurationsproblem: {e}")
-            else:
-                raise
+        # self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            f"/endoreg-api/media/videos/{self.video.pk}/hls/playlist.m3u8?type=processed",
+            response["Location"],
+        )
+        self.assertNotIn("/stream/", response["Location"])

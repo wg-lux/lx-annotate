@@ -77,7 +77,11 @@ vi.mock('@/api/axiosInstance', () => ({
 }))
 
 vi.mock('@/utils/mediaUrls', () => ({
-  buildVideoStreamUrl: (id: number) => `/api/media/videos/${id}/stream/processed/`
+  buildVideoStreamUrl: (id: number) => `/api/media/videos/${id}/stream/processed/`,
+  buildVideoPlaybackUrls: (id: number) => ({
+    hlsPlaylistUrl: `/api/media/videos/${id}/hls/playlist/?type=processed`,
+    fallbackStreamUrl: `/api/media/videos/${id}/stream/processed/`
+  })
 }))
 
 vi.mock('vue-router', () => ({
