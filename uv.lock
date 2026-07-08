@@ -1114,7 +1114,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.5.1"
+version = "1.0.5.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1182,9 +1182,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dc/a1/d20f2aa12bf3b31d36277aee8994a9c8f84d87af80dd65d757cbff4756f3/endoreg_db-1.0.5.1.tar.gz", hash = "sha256:af184583178e1c43cdbde1a0bbd5fcdd410d46accd9c58f0a80178aebae1c618", size = 1028379, upload-time = "2026-07-08T11:31:58.286Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/e9/672eb97b6411d9af807c1b43d25cd2d6f3eef8a80f733e5410873e7ef38d/endoreg_db-1.0.5.2.tar.gz", hash = "sha256:097b5f1e76e8a3359d3cf94ae9c1319c1d955053832d6398b9345535b8e39ed1", size = 1029125, upload-time = "2026-07-08T13:46:08.158Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9d/ce/759747a458060bd6e42d0dcc84ff733fb60911fd011759305ed3226e0205/endoreg_db-1.0.5.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4d730446e5486dec6aa6330bef1661d896aab6c3c025e15843c2faac5262bacd", size = 1730611, upload-time = "2026-07-08T11:31:55.052Z" },
+    { url = "https://files.pythonhosted.org/packages/10/36/733893950ee9ccd17f524273f588b56ab9d8d15f12d47da0591fe02c89a7/endoreg_db-1.0.5.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6404bee110d6e7ca56e883b7cc7494625373f365e5aef0b476c0534b969e1bcd", size = 1731145, upload-time = "2026-07-08T13:46:05.821Z" },
 ]
 
 [[package]]
@@ -1980,7 +1980,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.9.21"
+version = "0.9.23"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -2081,7 +2081,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.5.1" },
+    { name = "endoreg-db", specifier = "==1.0.5.2" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2134,12 +2134,11 @@ provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "lx-anonymizer"
-version = "0.9.3.1"
+version = "0.9.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
     { name = "dateparser" },
-    { name = "de-core-news-sm" },
     { name = "faker" },
     { name = "gender-guesser" },
     { name = "lx-dtypes" },
@@ -2164,9 +2163,9 @@ dependencies = [
     { name = "verovio" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2d/c2/92f0dfb50bdd70507886b0e7c5670abc95053b83dff71bdf8eb89f888f5d/lx_anonymizer-0.9.3.1.tar.gz", hash = "sha256:2b2a68d8481134c8ac1639842bc381554668a8b0b3f6042b47a5c7f44518ecaf", size = 1387064, upload-time = "2026-07-07T17:14:10.432Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/15/9e5913261842ca890c373a374ecee1faf27ddb5c5b3793aa40d81bdb2ae0/lx_anonymizer-0.9.3.2.tar.gz", hash = "sha256:11f31ee7bb578e5674997d5c23e76bbd0e2cb995962081cfefb74a3ca02d48e5", size = 1392305, upload-time = "2026-07-08T13:41:13.768Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/05/07fcafab0faab33623d5123e2cd62edb44dc09d016f17a3a55298247616a/lx_anonymizer-0.9.3.1-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:0451a286701a0ca6292d0ab956e7e799c0c11cf40edc9d195ba5f8494e153e01", size = 1459533, upload-time = "2026-07-07T17:14:06.686Z" },
+    { url = "https://files.pythonhosted.org/packages/56/1f/f307726852a5ee817c2604798b1e878d28ec82209232abca105811cfead0/lx_anonymizer-0.9.3.2-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:0957f4dd7f39a1a5a46557809de4c6e1c3bbfee2315b32273fd234c03e87d800", size = 1464461, upload-time = "2026-07-08T13:41:10.119Z" },
 ]
 
 [package.optional-dependencies]
