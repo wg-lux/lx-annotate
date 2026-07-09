@@ -767,14 +767,6 @@ wheels = [
 ]
 
 [[package]]
-name = "de-core-news-sm"
-version = "3.8.0"
-source = { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl" }
-wheels = [
-    { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl", hash = "sha256:fec69fec52b1780f2d269d5af7582a5e28028738bd3190532459aeb473bfa3e7" },
-]
-
-[[package]]
 name = "decorator"
 version = "5.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1980,7 +1972,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.9.23"
+version = "0.9.26"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -1988,7 +1980,6 @@ dependencies = [
     { name = "celery" },
     { name = "cryptography" },
     { name = "daphne" },
-    { name = "de-core-news-sm" },
     { name = "django" },
     { name = "django-cors-headers" },
     { name = "django-environ" },
@@ -2067,7 +2058,6 @@ requires-dist = [
     { name = "celery", specifier = ">=5.5.3" },
     { name = "cryptography", specifier = ">=45.0.0" },
     { name = "daphne", specifier = ">=4.2.1" },
-    { name = "de-core-news-sm", url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl" },
     { name = "django", specifier = "==6.0.3" },
     { name = "django-cors-headers", specifier = ">=4.0.0" },
     { name = "django-environ", specifier = ">=0.12.0" },
