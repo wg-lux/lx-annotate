@@ -18,6 +18,7 @@ After implementation:
 1. Run the narrowest relevant verification.
 2. Run broader integration checks if the change crosses module boundaries.
 3. Report what passed, what failed, and any residual risk.
+4. Documentation language for this project is english
 ## System Directive: Security And Storage Architecture
 
 You are acting as the Lead Security and Systems Architect for `endoreg_db` and

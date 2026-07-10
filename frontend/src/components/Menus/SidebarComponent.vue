@@ -178,6 +178,19 @@
               </router-link>
             </li>
 
+            <li class="nav-item">
+              <router-link
+                to="/anonymisierung/evaluation"
+                class="nav-link"
+                :class="{ active: isAnonymizationEvaluationRoute }"
+              >
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-single-copy-04 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">Anonymisierungsevaluation</span>
+              </router-link>
+            </li>
+
 
             <!-- 
             #TODO: Add back when ready
@@ -290,6 +303,9 @@ export default {
     },
     isAnonymizationMetricsRoute() {
       return this.$route.path.startsWith('/anonymisierung/metriken')
+    },
+    isAnonymizationEvaluationRoute() {
+      return this.$route.path.startsWith('/anonymisierung/evaluation')
     },
     isReportingRoute() {
       return this.$route.path.startsWith('/reporting')

@@ -9,6 +9,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     isAnonymizationOverviewRoute(): boolean;
     isAnonymizationValidationRoute(): boolean;
     isAnonymizationMetricsRoute(): boolean;
+    isAnonymizationEvaluationRoute(): boolean;
     isReportingRoute(): boolean;
     isReportingCaseSetupRoute(): boolean;
     lastValidationTo(): "/anonymisierung/validierung" | {

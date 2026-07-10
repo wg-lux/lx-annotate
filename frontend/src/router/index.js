@@ -200,6 +200,14 @@ const router = createRouter({
             }
         },
         {
+            path: '/anonymisierung/evaluation',
+            name: 'Anonymisierung Evaluation',
+            component: () => import('@/views/AnonymizationEvaluation.vue'),
+            meta: {
+                description: 'Aus lx-anonymizer extrahierte SensitiveMeta-Daten für Videos und PDFs.'
+            }
+        },
+        {
             path: '/anonymisierung/validierung',
             name: 'AnonymisierungValidierung',
             component: () => import('@/components/Anonymizer/AnonymizationValidationComponent.vue'),
