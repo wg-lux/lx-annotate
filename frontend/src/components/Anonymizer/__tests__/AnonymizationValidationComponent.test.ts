@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 
 import axiosInstance from '@/api/axiosInstance'
 import AnonymizationValidationComponent from '../AnonymizationValidationComponent.vue'
@@ -9,7 +9,8 @@ const hoisted = vi.hoisted(() => ({
   anonymizationStoreRef: { current: null as any },
   mediaStoreRef: { current: null as any },
   toastStoreRef: { current: null as any },
-  routerPush: vi.fn()
+  routerPush: vi.fn(),
+  useAuthenticatedVideoStream: vi.fn()
 }))
 
 vi.mock('@/api/axiosInstance', () => ({
@@ -43,6 +44,10 @@ vi.mock('@/composables/useDebug', () => ({
   useDebug: () => ({ isDebug: false })
 }))
 
+vi.mock('@/composables/useAuthenticatedVideoStream', () => ({
+  useAuthenticatedVideoStream: hoisted.useAuthenticatedVideoStream
+}))
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: hoisted.routerPush
@@ -64,7 +69,8 @@ vi.mock('@/types/api/endpoints', () => ({
       pdfDetail: (fileId: number) => `media/pdfs/${fileId}/`,
       patientTimeline: (patientId: number) => `media/patients/${patientId}/timeline/`,
       pdfStream: (fileId: number) => `media/pdfs/${fileId}/stream/`,
-      videoStream: (fileId: number) => `media/videos/${fileId}/stream/`
+      videoStream: (fileId: number) => `media/videos/${fileId}/stream/`,
+      videoHlsPlaylist: (fileId: number) => `media/videos/${fileId}/hls/playlist/`
     },
     examination: {
       patientExaminationList: 'examination/patient-examinations/'
@@ -108,6 +114,12 @@ function mountComponent(props = { fileId: 5, mediaType: 'pdf' }) {
 describe('AnonymizationValidationComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.useAuthenticatedVideoStream.mockImplementation(() => ({
+      playbackMode: ref('idle'),
+      playbackSourceUrl: ref(''),
+      playbackError: ref(null),
+      isHlsPlayback: ref(false)
+    }))
 
     hoisted.anonymizationStoreRef.current = reactive({
       loading: false,
@@ -295,15 +307,9 @@ describe('AnonymizationValidationComponent', () => {
     })
   })
 
-  it('releases video stream elements when leaving the validation page', async () => {
+  it('uses authenticated raw and processed HLS players without direct src bindings', async () => {
     hoisted.mediaStoreRef.current.isPdf = false
     hoisted.mediaStoreRef.current.isVideo = true
-    const pauseSpy = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'pause')
-      .mockImplementation(() => undefined)
-    const loadSpy = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'load')
-      .mockImplementation(() => undefined)
 
     const wrapper = mountComponent({ fileId: 5, mediaType: 'video' })
     await flushPromises()
@@ -314,18 +320,17 @@ describe('AnonymizationValidationComponent', () => {
     expect(videoElements).toHaveLength(2)
     for (const element of videoElements) {
       expect(element.getAttribute('preload')).toBe('none')
+      expect(element.getAttribute('src')).toBeNull()
     }
+    expect(hoisted.useAuthenticatedVideoStream).toHaveBeenCalledTimes(2)
+    expect(hoisted.useAuthenticatedVideoStream).toHaveBeenCalledWith(
+      expect.objectContaining({ artifactKind: 'raw' })
+    )
+    expect(hoisted.useAuthenticatedVideoStream).toHaveBeenCalledWith(
+      expect.objectContaining({ artifactKind: 'processed' })
+    )
 
     wrapper.unmount()
-
-    expect(pauseSpy).toHaveBeenCalledTimes(2)
-    expect(loadSpy).toHaveBeenCalledTimes(2)
     expect(hoisted.anonymizationStoreRef.current.fetchNext).not.toHaveBeenCalled()
-    for (const element of videoElements) {
-      expect(element.getAttribute('src')).toBe('')
-    }
-
-    pauseSpy.mockRestore()
-    loadSpy.mockRestore()
   })
 })

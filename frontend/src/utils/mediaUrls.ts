@@ -4,7 +4,7 @@ import { endpoints } from '@/types/api/endpoints'
 type QueryValue = string | number | boolean | null | undefined
 type QueryParams = Record<string, QueryValue>
 type MediaFileType = 'raw' | 'processed'
-type StreamableVideoFileType = 'processed'
+export type StreamableVideoFileType = 'raw' | 'processed'
 
 export interface VideoPlaybackUrls {
   hlsPlaylistUrl: string
@@ -50,10 +50,13 @@ export function buildVideoHlsPlaylistUrl(
   })
 }
 
-export function buildVideoPlaybackUrls(fileId: number): VideoPlaybackUrls {
+export function buildVideoPlaybackUrls(
+  fileId: number,
+  type: StreamableVideoFileType = 'processed'
+): VideoPlaybackUrls {
   return {
-    hlsPlaylistUrl: buildVideoHlsPlaylistUrl(fileId, 'processed'),
-    fallbackStreamUrl: buildVideoStreamUrl(fileId, 'processed')
+    hlsPlaylistUrl: buildVideoHlsPlaylistUrl(fileId, type),
+    fallbackStreamUrl: buildVideoStreamUrl(fileId, type)
   }
 }
 

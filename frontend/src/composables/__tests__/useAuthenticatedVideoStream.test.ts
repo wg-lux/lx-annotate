@@ -71,7 +71,10 @@ interface HostVm {
   playbackSourceUrl: string
 }
 
-function mountHost(onFatalError = vi.fn()) {
+function mountHost(
+  onFatalError = vi.fn(),
+  artifactKind: 'raw' | 'processed' = 'processed'
+) {
   const Host = defineComponent({
     template: '<video ref="video"></video>',
     setup() {
@@ -80,6 +83,7 @@ function mountHost(onFatalError = vi.fn()) {
       const stream = useAuthenticatedVideoStream({
         videoElement: video,
         videoId,
+        artifactKind,
         onFatalError
       })
 
@@ -150,6 +154,22 @@ describe('useAuthenticatedVideoStream', () => {
     instance.config.xhrSetup?.(crossOriginXhr, 'https://untrusted.invalid/segment.ts')
     expect(abort).toHaveBeenCalledOnce()
     expect(crossOriginXhr.withCredentials).toBe(false)
+  })
+
+  it('loads the authenticated raw HLS playlist when explicitly requested', async () => {
+    const wrapper = mountHost(vi.fn(), 'raw')
+    await flushPromises()
+
+    const urls = buildVideoPlaybackUrls(42, 'raw')
+    const instance = hlsMock.instances[0]
+    const vm = wrapper.vm as unknown as HostVm
+
+    expect(axiosInstance.get).toHaveBeenCalledWith(
+      urls.hlsPlaylistUrl,
+      expect.objectContaining({ withCredentials: true })
+    )
+    expect(instance.loadSource).toHaveBeenCalledWith(urls.hlsPlaylistUrl)
+    expect(vm.playbackSourceUrl).toBe(urls.hlsPlaylistUrl)
   })
 
   it('uses native HLS with credentialed video requests when the browser supports it', async () => {

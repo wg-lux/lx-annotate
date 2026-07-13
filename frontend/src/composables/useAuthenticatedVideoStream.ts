@@ -3,7 +3,10 @@ import Hls from 'hls.js'
 import { computed, onBeforeUnmount, readonly, ref, watch, type ComputedRef, type Ref } from 'vue'
 
 import axiosInstance, { silentRequestConfig } from '@/api/axiosInstance'
-import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
+import {
+  buildVideoPlaybackUrls,
+  type StreamableVideoFileType
+} from '@/utils/mediaUrls'
 
 type ReadableRef<T> = Ref<T> | ComputedRef<T>
 
@@ -44,6 +47,7 @@ export class AuthenticatedVideoStreamError extends Error {
 export interface UseAuthenticatedVideoStreamOptions {
   videoElement: Ref<HTMLVideoElement | null>
   videoId: ReadableRef<number | null | undefined>
+  artifactKind?: StreamableVideoFileType
   enabled?: ReadableRef<boolean>
   onFatalError?: (error: AuthenticatedVideoStreamError) => void
 }
@@ -276,7 +280,7 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
       return
     }
 
-    const urls = buildVideoPlaybackUrls(videoId)
+    const urls = buildVideoPlaybackUrls(videoId, options.artifactKind ?? 'processed')
     let hlsPlaylistUrl: string
     try {
       hlsPlaylistUrl = validateSameOriginMediaUrl(urls.hlsPlaylistUrl)

@@ -493,7 +493,6 @@
                           </h6>
                           <video
                             ref="rawVideoElement"
-                            :src="rawVideoSrc"
                             controls
                             style="width: 100%; max-height: 350px;"
                             preload="none"
@@ -504,9 +503,16 @@
                           >
                             Ihr Browser unterstützt dieses Video-Format nicht.
                           </video>
+                          <div
+                            v-if="rawVideoPlaybackError"
+                            class="alert alert-danger py-2 mt-2 mb-0"
+                            role="alert"
+                          >
+                            {{ rawVideoPlaybackError.message }}
+                          </div>
                           <div class="mt-2 text-center">
                             <small class="text-muted">
-                              URL: {{ rawVideoSrc || 'Nicht verfügbar' }}
+                              URL: {{ rawVideoPlaybackSourceUrl || rawVideoSrc || 'Nicht verfügbar' }}
                             </small>
                           </div>
                         </div>
@@ -521,7 +527,6 @@
                           </h6>
                           <video
                             ref="anonymizedVideoElement"
-                            :src="anonymizedVideoSrc"
                             controls
                             style="width: 100%; max-height: 350px;"
                             preload="none"
@@ -532,9 +537,16 @@
                           >
                             Ihr Browser unterstützt dieses Video-Format nicht.
                           </video>
+                          <div
+                            v-if="anonymizedVideoPlaybackError"
+                            class="alert alert-danger py-2 mt-2 mb-0"
+                            role="alert"
+                          >
+                            {{ anonymizedVideoPlaybackError.message }}
+                          </div>
                           <div class="mt-2 text-center">
                             <small class="text-muted">
-                              URL: {{ anonymizedVideoSrc || 'Nicht verfügbar' }}
+                              URL: {{ anonymizedVideoPlaybackSourceUrl || anonymizedVideoSrc || 'Nicht verfügbar' }}
                             </small>
                           </div>
                         </div>
@@ -790,7 +802,7 @@
 
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizationStore';
 import {useVideoStore} from '@/stores/videoStore';
@@ -799,7 +811,8 @@ import { useMediaTypeStore, type MediaScope } from '@/stores/mediaTypeStore';
 import { useAuthKcStore } from '@/stores/auth_kc';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
-import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls';
+import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream';
+import { buildPdfStreamUrl, buildVideoHlsPlaylistUrl } from '@/utils/mediaUrls';
 import {useRoute} from 'vue-router';
 import { useDebug } from '@/composables/useDebug';
 
@@ -1464,13 +1477,15 @@ async function initializeCurrentItemFromRouteContext(): Promise<boolean> {
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value || !canViewRawVideo.value) return undefined;
-  return buildVideoStreamUrl(fileId, 'raw');
+  const targetFileId = sourceFileId.value;
+  return targetFileId === null ? undefined : buildVideoHlsPlaylistUrl(targetFileId, 'raw');
 });
 
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value) return undefined;
-  return buildVideoStreamUrl(fileId, 'processed');
+  const targetFileId = sourceFileId.value;
+  return targetFileId === null ? undefined : buildVideoHlsPlaylistUrl(targetFileId, 'processed');
 });
 
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)
@@ -1499,6 +1514,27 @@ const anonymizedPdfDownloadSrc = computed(() => {
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref<HTMLVideoElement | null>(null);
 const anonymizedVideoElement = ref<HTMLVideoElement | null>(null);
+const validationVideoId = computed(() => isVideo.value ? sourceFileId.value : null);
+
+const {
+  playbackError: rawVideoPlaybackError,
+  playbackSourceUrl: rawVideoPlaybackSourceUrl
+} = useAuthenticatedVideoStream({
+  videoElement: rawVideoElement,
+  videoId: validationVideoId,
+  artifactKind: 'raw',
+  enabled: computed(() => isVideo.value && canViewRawVideo.value)
+});
+
+const {
+  playbackError: anonymizedVideoPlaybackError,
+  playbackSourceUrl: anonymizedVideoPlaybackSourceUrl
+} = useAuthenticatedVideoStream({
+  videoElement: anonymizedVideoElement,
+  videoId: validationVideoId,
+  artifactKind: 'processed',
+  enabled: isVideo
+});
 
 // ✅ NEW: Video event handlers for raw video
 const onRawVideoError = (event: Event) => {
@@ -1558,30 +1594,6 @@ const pauseAllVideos = () => {
   if (anonymizedVideoElement.value) anonymizedVideoElement.value.pause();
   console.log('All videos paused');
 };
-
-function releaseVideoElement(element: HTMLVideoElement | null): void {
-  if (!element) return;
-
-  try {
-    element.pause();
-  } catch (error) {
-    console.warn('Failed to pause validation video during cleanup:', error);
-  }
-
-  element.removeAttribute('src');
-  element.src = '';
-
-  try {
-    element.load();
-  } catch (error) {
-    console.warn('Failed to release validation video source during cleanup:', error);
-  }
-}
-
-function releaseVideoElements(): void {
-  releaseVideoElement(rawVideoElement.value);
-  releaseVideoElement(anonymizedVideoElement.value);
-}
 
 const downloadRawPdf = () => {
   if (!rawPdfDownloadSrc.value) {
@@ -2541,9 +2553,6 @@ onMounted(async () => {
 });
 
 
-onBeforeUnmount(() => {
-  releaseVideoElements();
-});
 </script>
 
 <style scoped>
