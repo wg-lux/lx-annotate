@@ -5,9 +5,7 @@
   "compilerOptions": {
     /* keep the build incremental */
     "composite": true,
-    "declaration": true,
-    "declarationDir": "types",
-    "noEmit": false,
+    "noEmit": true,
 
     /* 🟢 ESM everywhere */
     "module": "esnext",

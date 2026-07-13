@@ -49,6 +49,7 @@
                 terminology.importing ? 'Terminologie wird importiert…' : 'Terminologie importieren'
               }}
             </button>
+            <ReportImportPanel @completed="handleReportImportCompleted" />
             <button
               class="btn btn-outline-secondary"
               :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
@@ -472,6 +473,7 @@ import { useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
+import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import {
   buildReportTemplateRuntimePayload,
   fetchReportTemplateByName,
@@ -1904,6 +1906,10 @@ async function refreshMediaPreload() {
             : `Fehler beim Laden der Medien: ${detail || 'unbekannt'}`
     flow.setMediaPreloadError(message)
   }
+}
+
+async function handleReportImportCompleted(): Promise<void> {
+  await refreshMediaPreload()
 }
 
 function isActive(path: string): boolean {

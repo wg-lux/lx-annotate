@@ -7,16 +7,13 @@ import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
 
 type ReadableRef<T> = Ref<T> | ComputedRef<T>
 
-export type AuthenticatedVideoPlaybackMode =
-  | 'idle'
-  | 'hls'
-  | 'native_hls'
-  | 'progressive'
-  | 'error'
+export type AuthenticatedVideoPlaybackMode = 'idle' | 'hls' | 'native_hls' | 'error'
 
 export type AuthenticatedVideoStreamErrorReason =
   | 'hls_playlist_unauthorized'
   | 'hls_playlist_forbidden'
+  | 'hls_playlist_unavailable'
+  | 'hls_playlist_invalid_response'
   | 'hls_playlist_request_failed'
   | 'hls_playback_failed'
 
@@ -52,6 +49,10 @@ export interface UseAuthenticatedVideoStreamOptions {
 }
 
 const HLS_PLAYLIST_ACCEPT = 'application/vnd.apple.mpegurl, application/x-mpegURL, */*'
+const HLS_PLAYLIST_CONTENT_TYPES = new Set([
+  'application/vnd.apple.mpegurl',
+  'application/x-mpegurl'
+])
 
 function readRef<T>(value: ReadableRef<T>): T {
   return value.value
@@ -80,6 +81,13 @@ function buildPlaylistError(error: unknown, url: string): AuthenticatedVideoStre
       { status, url, cause: error }
     )
   }
+  if (status === 404) {
+    return new AuthenticatedVideoStreamError(
+      'hls_playlist_unavailable',
+      'Encrypted HLS playback is not available for this video yet.',
+      { status, url, cause: error }
+    )
+  }
   return new AuthenticatedVideoStreamError(
     'hls_playlist_request_failed',
     status === undefined
@@ -100,22 +108,50 @@ function normalizeStreamError(error: unknown): AuthenticatedVideoStreamError {
   )
 }
 
-async function hlsPlaylistExists(url: string): Promise<boolean> {
+function validateSameOriginMediaUrl(url: string): string {
+  const parsedUrl = new URL(url, window.location.origin)
+  if (
+    parsedUrl.origin !== window.location.origin ||
+    !['http:', 'https:'].includes(parsedUrl.protocol)
+  ) {
+    throw new AuthenticatedVideoStreamError(
+      'hls_playlist_request_failed',
+      'The encrypted media URL violates the same-origin policy.'
+    )
+  }
+  return parsedUrl.toString()
+}
+
+async function validateHlsPlaylist(url: string, signal: AbortSignal): Promise<void> {
   try {
-    await axiosInstance.get<string>(
+    const response = await axiosInstance.get<string>(
       url,
       silentRequestConfig({
         headers: {
           Accept: HLS_PLAYLIST_ACCEPT
         },
         responseType: 'text',
+        signal,
         withCredentials: true
       })
     )
-    return true
+    const contentType = String(response.headers['content-type'] || '')
+      .split(';', 1)[0]
+      .trim()
+      .toLowerCase()
+    if (
+      !HLS_PLAYLIST_CONTENT_TYPES.has(contentType) ||
+      !response.data.trimStart().startsWith('#EXTM3U')
+    ) {
+      throw new AuthenticatedVideoStreamError(
+        'hls_playlist_invalid_response',
+        'The encrypted HLS playlist response is invalid.',
+        { url }
+      )
+    }
   } catch (error) {
-    if (axiosStatus(error) === 404) {
-      return false
+    if (error instanceof AuthenticatedVideoStreamError) {
+      throw error
     }
     throw buildPlaylistError(error, url)
   }
@@ -134,6 +170,8 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
   )
 
   let hlsInstance: Hls | null = null
+  let playlistAbortController: AbortController | null = null
+  let mediaRecoveryAttempted = false
   let loadSerial = 0
 
   function destroyHls(): void {
@@ -144,9 +182,19 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
   }
 
   function clearVideoElement(video: HTMLVideoElement | null): void {
+    playlistAbortController?.abort()
+    playlistAbortController = null
     destroyHls()
     if (video) {
+      const hadSource = Boolean(video.getAttribute('src') || video.currentSrc)
+      if (!video.paused) {
+        video.pause()
+      }
       video.removeAttribute('src')
+      if (hadSource) {
+        // Force the user agent to release buffered, decrypted media data.
+        video.load()
+      }
     }
     playbackSourceUrl.value = ''
   }
@@ -155,15 +203,6 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     playbackMode.value = 'error'
     playbackError.value = error
     options.onFatalError?.(error)
-  }
-
-  function useProgressiveStream(video: HTMLVideoElement, url: string): void {
-    destroyHls()
-    video.crossOrigin = 'use-credentials'
-    video.src = url
-    playbackSourceUrl.value = url
-    playbackMode.value = 'progressive'
-    playbackError.value = null
   }
 
   function useNativeHls(video: HTMLVideoElement, url: string): void {
@@ -177,10 +216,22 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
 
   function useHlsJs(video: HTMLVideoElement, url: string): void {
     destroyHls()
+    mediaRecoveryAttempted = false
     video.crossOrigin = 'use-credentials'
 
     const hls = new Hls({
-      xhrSetup: (xhr: XMLHttpRequest) => {
+      backBufferLength: 30,
+      capLevelToPlayerSize: true,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 120,
+      startFragPrefetch: false,
+      xhrSetup: (xhr: XMLHttpRequest, requestUrl: string) => {
+        try {
+          validateSameOriginMediaUrl(requestUrl)
+        } catch {
+          xhr.abort()
+          return
+        }
         xhr.withCredentials = true
       }
     })
@@ -191,7 +242,12 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
       if (!data.fatal) {
         return
       }
-      destroyHls()
+      if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !mediaRecoveryAttempted) {
+        mediaRecoveryAttempted = true
+        hls.recoverMediaError()
+        return
+      }
+      clearVideoElement(video)
       setError(
         new AuthenticatedVideoStreamError(
           'hls_playback_failed',
@@ -221,40 +277,52 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     }
 
     const urls = buildVideoPlaybackUrls(videoId)
+    let hlsPlaylistUrl: string
+    try {
+      hlsPlaylistUrl = validateSameOriginMediaUrl(urls.hlsPlaylistUrl)
+    } catch (error) {
+      setError(normalizeStreamError(error))
+      return
+    }
     const canUseHlsJs = Hls.isSupported()
     const canUseNative = canPlayNativeHls(video)
 
     if (!canUseHlsJs && !canUseNative) {
-      useProgressiveStream(video, urls.fallbackStreamUrl)
+      setError(
+        new AuthenticatedVideoStreamError(
+          'hls_playback_failed',
+          'This browser cannot securely play encrypted HLS video.'
+        )
+      )
       return
     }
 
-    let hasPlaylist: boolean
+    const abortController = new AbortController()
+    playlistAbortController = abortController
     try {
-      hasPlaylist = await hlsPlaylistExists(urls.hlsPlaylistUrl)
+      await validateHlsPlaylist(hlsPlaylistUrl, abortController.signal)
     } catch (error) {
       if (serial !== loadSerial) {
         return
       }
       setError(normalizeStreamError(error))
       return
+    } finally {
+      if (playlistAbortController === abortController) {
+        playlistAbortController = null
+      }
     }
 
     if (serial !== loadSerial) {
       return
     }
 
-    if (!hasPlaylist) {
-      useProgressiveStream(video, urls.fallbackStreamUrl)
-      return
-    }
-
     if (canUseHlsJs) {
-      useHlsJs(video, urls.hlsPlaylistUrl)
+      useHlsJs(video, hlsPlaylistUrl)
       return
     }
 
-    useNativeHls(video, urls.hlsPlaylistUrl)
+    useNativeHls(video, hlsPlaylistUrl)
   }
 
   watch(

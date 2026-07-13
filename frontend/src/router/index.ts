@@ -67,6 +67,14 @@ const router = createRouter({
       ]
     },
     {
+      path: '/studies',
+      name: 'Registerstudien',
+      component: () => import('@/views/studies/StudyCohortPage.vue'),
+      meta: {
+        description: 'Hypothesen formulieren und gruppierte Registerstudien-Kohorten filtern.'
+      }
+    },
+    {
       path: '/annotationen',
       name: 'Annotationen',
       component: () => import('@/views/AnnotationDashboard.vue'),

@@ -3,9 +3,12 @@ from __future__ import annotations
 
 from django.core.files.base import ContentFile
 from django.test import TestCase
+from django.test import override_settings
+from unittest.mock import patch
 
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
 from lx_annotate.models import OutboundHubTransferJob
+from tests.hub_payload_helpers import verify_hub_report_artifact
 
 import base64
 import os
@@ -37,6 +40,7 @@ class HubExportApiTests(TestCase):
             anonymized=True,
             sensitive_meta_processed=True,
             processing_started=True,
+            anonymization_validated=True,
         )
         self.report = RawPdfFile.objects.create(
             center=self.center,
@@ -48,6 +52,7 @@ class HubExportApiTests(TestCase):
                 name="report-1-processed.pdf",
             ),
         )
+        verify_hub_report_artifact(self.report)
 
     def test_hub_export_overview_lists_eligible_items(self):
         response = self.client.get("/api/hub-export/overview/")
@@ -100,6 +105,24 @@ class HubExportApiTests(TestCase):
             OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).count(),
             0,
         )
+
+    @override_settings(LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=True)
+    @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
+    def test_mark_dispatches_secure_transfer_worker(self, delay_mock):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                "/api/hub-export/mark/",
+                data={
+                    "targetNodeKey": "hub-node",
+                    "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                },
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
+        self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.QUEUED)
+        delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
 
     def test_hub_export_overview_reports_not_ready_when_multiple_hubs_exist(self):
         NetworkNode.objects.create(

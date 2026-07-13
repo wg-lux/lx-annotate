@@ -7,12 +7,16 @@ from unittest.mock import MagicMock, patch
 from pathlib import Path
 
 from django.core.files.base import ContentFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
-from tests.hub_payload_helpers import create_hub_sensitive_meta
+from tests.hub_payload_helpers import (
+    create_hub_sensitive_meta,
+    verify_hub_report_artifact,
+)
 from lx_annotate.hub.hub_export_worker import (
     resolve_outbound_node_secret,
+    resolve_hub_transport_config,
     run_outbound_transfer_job,
 )
 from lx_annotate.models import OutboundHubTransferJob
@@ -25,6 +29,7 @@ TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 
 
+@override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
 class HubExportWorkerTests(TestCase):
     def setUp(self) -> None:
         self.center = Center.objects.create(
@@ -47,18 +52,21 @@ class HubExportWorkerTests(TestCase):
             anonymized=True,
             sensitive_meta_processed=True,
             processing_started=True,
+            anonymization_validated=True,
         )
         self.report = RawPdfFile.objects.create(
             center=self.center,
             state=self.report_state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-1",
+            anonymized_text="Anonymized report text",
             file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
             processed_file=ContentFile(
                 b"%PDF-1.4\nprocessed\n%%EOF\n",
                 name="report-1-processed.pdf",
             ),
         )
+        verify_hub_report_artifact(self.report)
         self.job = OutboundHubTransferJob.objects.create(
             resource_kind=OutboundHubTransferJob.ResourceKind.REPORT,
             raw_pdf_file=self.report,
@@ -70,6 +78,47 @@ class HubExportWorkerTests(TestCase):
     def test_resolve_outbound_node_secret_requires_explicit_or_env_value(self):
         with self.assertRaisesMessage(ValueError, "Missing outbound hub node secret"):
             resolve_outbound_node_secret(source_node_key="site-node")
+
+    def test_resolve_outbound_node_secret_reads_secret_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            secret_file = Path(tmpdir) / "node-secret"
+            secret_file.write_text("file-secret\n", encoding="utf-8")
+            with patch.dict(
+                os.environ,
+                {"LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE": str(secret_file)},
+                clear=False,
+            ):
+                self.assertEqual(
+                    resolve_outbound_node_secret(source_node_key="site-node"),
+                    "file-secret",
+                )
+
+    @override_settings(
+        LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=True,
+        LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE="",
+        LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE="",
+    )
+    def test_hub_transport_fails_closed_without_client_identity(self):
+        with self.assertRaisesMessage(ValueError, "requires mTLS"):
+            resolve_hub_transport_config()
+
+    def test_hub_transport_supplies_client_identity_and_private_ca(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cert_file = Path(tmpdir) / "client.crt"
+            key_file = Path(tmpdir) / "client.key"
+            ca_file = Path(tmpdir) / "hub-ca.crt"
+            for path in (cert_file, key_file, ca_file):
+                path.write_text("test", encoding="utf-8")
+            with override_settings(
+                LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=True,
+                LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE=str(cert_file),
+                LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE=str(key_file),
+                LX_ANNOTATE_HUB_EXPORT_CA_FILE=str(ca_file),
+            ):
+                transport = resolve_hub_transport_config()
+
+        self.assertEqual(transport.cert, (str(cert_file), str(key_file)))
+        self.assertEqual(transport.verify, str(ca_file))
 
     def test_run_outbound_transfer_job_rejects_non_https_hub_target(self):
         self.hub_node.base_url = "http://hub.example/"

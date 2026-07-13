@@ -6,11 +6,15 @@ from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
-from tests.hub_payload_helpers import create_hub_sensitive_meta
+from tests.hub_payload_helpers import (
+    create_hub_sensitive_meta,
+    verify_hub_report_artifact,
+)
 from lx_annotate.hub.hub_export_worker import run_outbound_transfer_job
 from lx_annotate.models import OutboundHubTransferJob
 
 
+@override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
 class HubExportCleanupPolicyTests(TestCase):
     def setUp(self) -> None:
         self.center = Center.objects.create(
@@ -33,18 +37,21 @@ class HubExportCleanupPolicyTests(TestCase):
             anonymized=True,
             sensitive_meta_processed=True,
             processing_started=True,
+            anonymization_validated=True,
         )
         self.report = RawPdfFile.objects.create(
             center=self.center,
             state=self.report_state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-cleanup-1",
+            anonymized_text="Anonymized report text",
             file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-cleanup-1.pdf"),
             processed_file=ContentFile(
                 b"%PDF-1.4\nprocessed\n%%EOF\n",
                 name="report-cleanup-1-processed.pdf",
             ),
         )
+        verify_hub_report_artifact(self.report)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_completed_transfer_retains_processed_media_by_default(

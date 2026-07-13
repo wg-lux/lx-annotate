@@ -83,6 +83,10 @@ export const endpoints = {
     skip: 'media/annotations/frames/skip/'
   },
 
+  study: {
+    cohortPreview: 'media/studies/cohort-preview/'
+  },
+
   upload: {
     upload: 'upload/',
     uploadStatus: (id: UUID) => `upload/${id}/status/`

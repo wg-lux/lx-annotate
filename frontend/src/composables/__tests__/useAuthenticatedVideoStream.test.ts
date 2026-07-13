@@ -7,23 +7,35 @@ import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
 import axiosInstance from '@/api/axiosInstance'
 
 const hlsMock = vi.hoisted(() => {
-  type ErrorHandler = (event: string, data: { fatal?: boolean; type?: string; details?: string }) => void
+  type ErrorHandler = (
+    event: string,
+    data: { fatal?: boolean; type?: string; details?: string }
+  ) => void
 
   class MockHls {
     static Events = { ERROR: 'hlsError' }
+    static ErrorTypes = { MEDIA_ERROR: 'mediaError' }
     static isSupported = vi.fn()
 
-    config: { xhrSetup?: (xhr: XMLHttpRequest) => void }
+    config: {
+      backBufferLength?: number
+      capLevelToPlayerSize?: boolean
+      maxBufferLength?: number
+      maxMaxBufferLength?: number
+      startFragPrefetch?: boolean
+      xhrSetup?: (xhr: XMLHttpRequest, url: string) => void
+    }
     handlers = new Map<string, ErrorHandler>()
     loadSource = vi.fn()
     attachMedia = vi.fn()
     destroy = vi.fn()
+    recoverMediaError = vi.fn()
     on = vi.fn((event: string, handler: ErrorHandler) => {
       this.handlers.set(event, handler)
       return this
     })
 
-    constructor(config: { xhrSetup?: (xhr: XMLHttpRequest) => void } = {}) {
+    constructor(config: MockHls['config'] = {}) {
       this.config = config
       hlsMock.instances.push(this)
     }
@@ -93,7 +105,12 @@ describe('useAuthenticatedVideoStream', () => {
   beforeEach(() => {
     hlsMock.instances.length = 0
     hlsMock.MockHls.isSupported.mockReturnValue(true)
-    axiosMock.get.mockResolvedValue({ data: '#EXTM3U' })
+    axiosMock.get.mockResolvedValue({
+      data: '#EXTM3U',
+      headers: { 'content-type': 'application/vnd.apple.mpegurl' }
+    })
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
   })
 
   it('uses hls.js with credentialed playlist, key, and segment requests', async () => {
@@ -118,8 +135,21 @@ describe('useAuthenticatedVideoStream', () => {
     expect(vm.playbackSourceUrl).toBe(urls.hlsPlaylistUrl)
 
     const xhr = new XMLHttpRequest()
-    instance.config.xhrSetup?.(xhr)
+    instance.config.xhrSetup?.(xhr, urls.hlsPlaylistUrl)
     expect(xhr.withCredentials).toBe(true)
+    expect(instance.config).toMatchObject({
+      backBufferLength: 30,
+      capLevelToPlayerSize: true,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 120,
+      startFragPrefetch: false
+    })
+
+    const crossOriginXhr = new XMLHttpRequest()
+    const abort = vi.spyOn(crossOriginXhr, 'abort')
+    instance.config.xhrSetup?.(crossOriginXhr, 'https://untrusted.invalid/segment.ts')
+    expect(abort).toHaveBeenCalledOnce()
+    expect(crossOriginXhr.withCredentials).toBe(false)
   })
 
   it('uses native HLS with credentialed video requests when the browser supports it', async () => {
@@ -140,18 +170,42 @@ describe('useAuthenticatedVideoStream', () => {
     expect(vm.playbackMode).toBe('native_hls')
   })
 
-  it('falls back to the progressive stream only when the HLS playlist is missing', async () => {
+  it('fails closed when the encrypted HLS playlist is missing', async () => {
+    const onFatalError = vi.fn()
     axiosMock.get.mockRejectedValue(axiosError(404))
 
-    const wrapper = mountHost()
+    const wrapper = mountHost(onFatalError)
     await flushPromises()
 
-    const urls = buildVideoPlaybackUrls(42)
     const vm = wrapper.vm as unknown as HostVm
 
     expect(hlsMock.instances).toHaveLength(0)
-    expect(vm.video?.src).toBe(urls.fallbackStreamUrl)
-    expect(vm.playbackMode).toBe('progressive')
+    expect(vm.video?.getAttribute('src')).toBeNull()
+    expect(vm.playbackMode).toBe('error')
+    expect(onFatalError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'hls_playlist_unavailable',
+        status: 404
+      })
+    )
+  })
+
+  it('rejects a successful response that is not an HLS playlist', async () => {
+    const onFatalError = vi.fn()
+    axiosMock.get.mockResolvedValue({
+      data: '<!doctype html><title>Sign in</title>',
+      headers: { 'content-type': 'text/html' }
+    })
+
+    const wrapper = mountHost(onFatalError)
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as HostVm
+    expect(hlsMock.instances).toHaveLength(0)
+    expect(vm.playbackMode).toBe('error')
+    expect(onFatalError).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: 'hls_playlist_invalid_response' })
+    )
   })
 
   it('does not fall back when the HLS playlist is forbidden', async () => {
@@ -202,6 +256,29 @@ describe('useAuthenticatedVideoStream', () => {
     )
   })
 
+  it('attempts one bounded recovery for a fatal media error', async () => {
+    const onFatalError = vi.fn()
+    mountHost(onFatalError)
+    await flushPromises()
+
+    const instance = hlsMock.instances[0]
+    const handler = instance.handlers.get(hlsMock.MockHls.Events.ERROR)
+    handler?.('hlsError', {
+      fatal: true,
+      type: hlsMock.MockHls.ErrorTypes.MEDIA_ERROR,
+      details: 'bufferAppendError'
+    })
+    handler?.('hlsError', {
+      fatal: true,
+      type: hlsMock.MockHls.ErrorTypes.MEDIA_ERROR,
+      details: 'bufferAppendError'
+    })
+    await flushPromises()
+
+    expect(instance.recoverMediaError).toHaveBeenCalledTimes(1)
+    expect(onFatalError).toHaveBeenCalledTimes(1)
+  })
+
   it('destroys the hls.js instance on unmount', async () => {
     const wrapper = mountHost()
     await flushPromises()
@@ -210,5 +287,20 @@ describe('useAuthenticatedVideoStream', () => {
     wrapper.unmount()
 
     expect(instance.destroy).toHaveBeenCalled()
+  })
+
+  it('cancels a stale playlist validation request when the selected video changes', async () => {
+    axiosMock.get.mockImplementation(() => new Promise(() => undefined))
+    const wrapper = mountHost()
+    await Promise.resolve()
+
+    const firstConfig = axiosMock.get.mock.calls[0]?.[1] as { signal?: AbortSignal }
+    expect(firstConfig.signal?.aborted).toBe(false)
+    ;(wrapper.vm as unknown as HostVm).videoId = 43
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(firstConfig.signal?.aborted).toBe(true)
+    wrapper.unmount()
   })
 })

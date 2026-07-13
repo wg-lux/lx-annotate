@@ -226,12 +226,32 @@ ENDOREG_HUB_TRANSFER_MTLS_META_KEY = str(
 ENDOREG_HUB_TRANSFER_MTLS_META_VALUE = str(
     os.getenv("ENDOREG_HUB_TRANSFER_MTLS_META_VALUE", "") or ""
 ).strip()
+ENDOREG_HUB_TRANSFER_MAX_UPLOAD_BYTES = max(
+    int(os.getenv("ENDOREG_HUB_TRANSFER_MAX_UPLOAD_BYTES", str(50 * 1024**3))),
+    1,
+)
 LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE = os.getenv(
     "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
+LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS = os.getenv(
+    "LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS", "1"
+).strip().lower() in {"1", "true", "yes", "on"}
+LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE = str(
+    os.getenv("LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE", "") or ""
+).strip()
+LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE = str(
+    os.getenv("LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE", "") or ""
+).strip()
+LX_ANNOTATE_HUB_EXPORT_CA_FILE = str(
+    os.getenv("LX_ANNOTATE_HUB_EXPORT_CA_FILE", "") or ""
+).strip()
 LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS = max(
     int(os.getenv("LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS", "1800")),
     60,
+)
+LX_ANNOTATE_HUB_EXPORT_MAX_RETRIES = max(
+    int(os.getenv("LX_ANNOTATE_HUB_EXPORT_MAX_RETRIES", "5")),
+    0,
 )
 LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY = str(
     os.getenv(
@@ -274,6 +294,10 @@ CELERY_MAINTENANCE_QUEUE = (
     str(os.getenv("CELERY_MAINTENANCE_QUEUE", "maintenance") or "").strip()
     or "maintenance"
 )
+CELERY_HUB_TRANSFER_QUEUE = (
+    str(os.getenv("CELERY_HUB_TRANSFER_QUEUE", "hub_transfer") or "").strip()
+    or "hub_transfer"
+)
 CELERY_TASK_CREATE_MISSING_QUEUES = False
 CELERY_TASK_QUEUES = tuple(
     Queue(queue_name, Exchange(queue_name), routing_key=queue_name)
@@ -286,6 +310,7 @@ CELERY_TASK_QUEUES = tuple(
         CELERY_TRAINING_QUEUE,
         CELERY_LLM_INFERENCE_QUEUE,
         CELERY_MAINTENANCE_QUEUE,
+        CELERY_HUB_TRANSFER_QUEUE,
     )
 )
 CELERY_TASK_ROUTES = {
@@ -330,16 +355,16 @@ CELERY_TASK_ROUTES = {
         "routing_key": CELERY_MAINTENANCE_QUEUE,
     },
     "lx_annotate.run_outbound_hub_transfer_job": {
-        "queue": CELERY_MAINTENANCE_QUEUE,
-        "routing_key": CELERY_MAINTENANCE_QUEUE,
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
     },
     "lx_annotate.reconcile_outbound_hub_transfer_job": {
-        "queue": CELERY_MAINTENANCE_QUEUE,
-        "routing_key": CELERY_MAINTENANCE_QUEUE,
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
     },
     "lx_annotate.recover_stale_outbound_hub_transfer_jobs": {
-        "queue": CELERY_MAINTENANCE_QUEUE,
-        "routing_key": CELERY_MAINTENANCE_QUEUE,
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
     },
 }
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1

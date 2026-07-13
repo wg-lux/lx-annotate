@@ -1106,7 +1106,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.5.5"
+version = "1.0.5.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1171,12 +1171,13 @@ dependencies = [
     { name = "urllib3" },
     { name = "vector-quantize-pytorch" },
     { name = "vocos" },
+    { name = "vulture" },
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/af/fcb096479404040dd191e791b8760dc97e9363565e6e2a5c0904a67cf866/endoreg_db-1.0.5.5.tar.gz", hash = "sha256:99b4824cc901626e26f772923bc495570804881f97e0bf4e151d1fa4b745173d", size = 1032383, upload-time = "2026-07-10T11:06:43.172Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/8b/3f81fee6a462b2010dcb102ee64a3d7c59cac0804f2e8530bf2783f9cbc2/endoreg_db-1.0.5.6.tar.gz", hash = "sha256:9f605ce9060f6dfb806bb27fa72c746f87e7d153289ddda51ea1722630491443", size = 1038131, upload-time = "2026-07-13T10:06:28.134Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/65/27c0499d88caf0bc6f34b56b3d0a0370914d4c1e2ee848fdba6fc529e1f2/endoreg_db-1.0.5.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a1940e40f6aa76fc80000ec19c122efead079b9a7d2d083db5b54bc44914face", size = 1735577, upload-time = "2026-07-10T11:06:40.14Z" },
+    { url = "https://files.pythonhosted.org/packages/51/19/f0cc5006738be32659662f1e28567eefa055cb93b630be11c4f1671e0998/endoreg_db-1.0.5.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0c6a04d0902fc26d98cf96a458796b89216c76b8754bdf009a03c839c3c2c73c", size = 1739787, upload-time = "2026-07-13T10:06:24.919Z" },
 ]
 
 [[package]]
@@ -1972,7 +1973,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.9.28"
+version = "0.9.29"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -2071,7 +2072,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.5.5" },
+    { name = "endoreg-db", specifier = "==1.0.5.6" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -5113,6 +5114,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/db/48/1e4d3a4a97292e47ebaa18e3eae6ecb2f57bde47693ccab0e7acb23f9ffe/vocos-0.1.0.tar.gz", hash = "sha256:b488224dbe398ff7d4790a027ad659478b4bc02e465db992c62c12b32ca043d8", size = 21107, upload-time = "2023-10-14T00:57:29.631Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0a/45/82fe9b5696eb5dd4f84632f75b549b48bed0c33a5920b6309fbafd7e3477/vocos-0.1.0-py3-none-any.whl", hash = "sha256:0ac13eaef68596074301e912d781399b3defa4b4ca60b6bc52c8a4b9209ca235", size = 24085, upload-time = "2023-10-14T00:57:27.972Z" },
+]
+
+[[package]]
+name = "vulture"
+version = "2.16"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/3e/4d08c5903b2c0c70cad583c170cc4a663fc6a61e2ad00b711fcda61358cd/vulture-2.16.tar.gz", hash = "sha256:f8d9f6e2af03011664a3c6c240c9765b3f392917d3135fddca6d6a68d359f717", size = 52680, upload-time = "2026-03-25T14:41:27.141Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/be/f935130312330614811dae2ea9df3f395f6d63889eb6c2e68c14507152ee/vulture-2.16-py3-none-any.whl", hash = "sha256:6e0f1c312cef1c87856957e5c2ca9608834a7c794c2180477f30bf0e4cc58eee", size = 26993, upload-time = "2026-03-25T14:41:26.21Z" },
 ]
 
 [[package]]

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 
-from endoreg_db.models import RawPdfFile, VideoFile
-from endoreg_db.models.state.anonymization import AnonymizationState
+from endoreg_db.models import NetworkNode, RawPdfFile, VideoFile
 from endoreg_db.models.state.video_segment_validation import (
     resolve_segment_annotation_status,
     segment_annotations_are_final,
@@ -14,17 +14,60 @@ from .hub_export_audit import emit_hub_export_audit_event
 from ..models import OutboundHubTransferJob
 
 
-_ELIGIBLE_ANONYMIZATION_STATES = {
-    AnonymizationState.ANONYMIZED,
-    AnonymizationState.DONE_PROCESSING_ANONYMIZATION,
-    AnonymizationState.VALIDATED,
-}
-
 _INELIGIBLE_MESSAGE = "Resource is not currently eligible for hub export."
 
 
 def hub_export_auto_queue_enabled() -> bool:
     return bool(getattr(settings, "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE", False))
+
+
+def has_usable_processed_artifact(resource: RawPdfFile | VideoFile) -> bool:
+    """Fail closed unless the managed processed artifact exists and is non-empty."""
+    processed_file = resource.processed_file
+    stored_name = str(getattr(processed_file, "name", "") or "").strip()
+    if not stored_name:
+        return False
+    try:
+        return (
+            bool(processed_file.storage.exists(stored_name))
+            and int(processed_file.size) > 0
+        )
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def _schedule_outbound_job(job: OutboundHubTransferJob) -> None:
+    source_node = (
+        NetworkNode.objects.filter(
+            role=NetworkNode.Role.SITE_NODE,
+            is_active=True,
+        )
+        .order_by("pk")
+        .first()
+    )
+    if source_node is None:
+        raise ValueError("No active site node is configured for outbound hub export.")
+
+    job_id = str(job.pk)
+    source_node_key = source_node.node_key
+
+    def _dispatch() -> None:
+        from lx_annotate.tasks import run_outbound_hub_transfer_job_task
+
+        run_outbound_hub_transfer_job_task.delay(job_id, source_node_key)
+
+    transaction.on_commit(_dispatch)
+
+
+def queue_outbound_job(job: OutboundHubTransferJob) -> bool:
+    if job.local_status != OutboundHubTransferJob.LocalStatus.MARKED:
+        return False
+    job.local_status = OutboundHubTransferJob.LocalStatus.QUEUED
+    job.queued_at = timezone.now()
+    job.save(update_fields=["local_status", "queued_at", "updated_at"])
+    emit_hub_export_audit_event("hub_export.queued", outbound_job=job)
+    _schedule_outbound_job(job)
+    return True
 
 
 def video_hub_export_blocked_reason(video: VideoFile) -> str:
@@ -33,7 +76,7 @@ def video_hub_export_blocked_reason(video: VideoFile) -> str:
         return "not ready for export"
     if not state.anonymization_validated:
         return "not ready for export"
-    if not bool(video.processed_file and video.processed_file.name):
+    if not has_usable_processed_artifact(video):
         return "processed media missing"
 
     segment_status = resolve_segment_annotation_status(video)
@@ -56,9 +99,12 @@ def is_report_hub_export_eligible(report: RawPdfFile) -> bool:
     state = report.state
     if state is None:
         return False
-    if state.anonymization_status not in _ELIGIBLE_ANONYMIZATION_STATES:
+    if not state.anonymization_validated:
         return False
-    return bool(report.processed_file and report.processed_file.name)
+    processed_file_sha256 = getattr(state, "processed_file_sha256", None)
+    if processed_file_sha256 is not None and not str(processed_file_sha256).strip():
+        return False
+    return has_usable_processed_artifact(report)
 
 
 def _sync_outbound_jobs(
@@ -81,9 +127,12 @@ def _sync_outbound_jobs(
                 hub_export_auto_queue_enabled()
                 and job.local_status == OutboundHubTransferJob.LocalStatus.MARKED
             ):
-                job.local_status = OutboundHubTransferJob.LocalStatus.QUEUED
-                job.queued_at = timezone.now()
-                update_fields.extend(["local_status", "queued_at"])
+                if update_fields:
+                    job.save(update_fields=[*update_fields, "updated_at"])
+                    updated += 1
+                if queue_outbound_job(job):
+                    updated += 1
+                continue
         else:
             if job.last_error != ineligible_message:
                 job.last_error = ineligible_message
@@ -101,9 +150,7 @@ def _sync_outbound_jobs(
             job.save(update_fields=[*update_fields, "updated_at"])
             if "local_status" in update_fields:
                 emit_hub_export_audit_event(
-                    "hub_export.queued"
-                    if eligible
-                    else "hub_export.ineligible_state_detected",
+                    "hub_export.ineligible_state_detected",
                     outbound_job=job,
                 )
             updated += 1
