@@ -47,6 +47,14 @@
               <span class="nav-link-text ms-1">Einstellungen</span>
             </router-link>
           </li>
+          <li class="nav-item">
+            <router-link to="/administration" class="nav-link" :class="{ active: $route.path === '/administration' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                <i class="ni ni-settings opacity-10"></i>
+              </div>
+              <span class="nav-link-text ms-1">Administration</span>
+            </router-link>
+          </li>
           <li class="nav-item" v-can="'page.patients.view:GET'">
             <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">

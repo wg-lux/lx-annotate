@@ -155,6 +155,14 @@ const router = createRouter({
       }
     },
     {
+      path: '/administration',
+      name: 'Administration',
+      component: () => import('@/views/AdministrationPage.vue'),
+      meta: {
+        description: 'Hub-Transfer überwachen und lokale Center-Zugriffe verwalten.'
+      }
+    },
+    {
       path: '/untersuchung',
       name: 'Untersuchung',
       redirect: '/reporting/case-setup',

@@ -106,6 +106,12 @@ export const endpoints = {
     unmark: 'hub-export/unmark/'
   },
 
+  administration: {
+    overview: 'administration/overview/',
+    centerScopes: 'administration/center-scopes/',
+    centerScope: (userId: Id) => `administration/center-scopes/${userId}/`
+  },
+
   runtime: {
     quarantine: 'runtime/quarantine/'
   },

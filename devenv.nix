@@ -115,6 +115,7 @@ let
     FFMPEG_EXECUTABLE = config.secretspec.secrets.FFMPEG_EXECUTABLE;
     FFMPEG_BINARY = config.secretspec.secrets.FFMPEG_BINARY;
     FFMPEG_PATH = config.secretspec.secrets.FFMPEG_PATH;
+    FFMPEG_TRANSCODE_QUALITY_MODE = config.secretspec.secrets.FFMPEG_TRANSCODE_QUALITY_MODE;
   };
 
   devenv_utils = import ./devenv/default.nix {
