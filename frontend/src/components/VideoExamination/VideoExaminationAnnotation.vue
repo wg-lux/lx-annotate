@@ -1738,44 +1738,10 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
 }
 
 const loadSavedExaminations = async (): Promise<void> => {
-  if (selectedVideoId.value === null) return
-
-  try {
-    // TODO: Migrate to new media framework URL when backend supports /api/media/videos/{id}/examinations/
-    // Currently using old URL as part of partial migration strategy
-    const response = await axiosInstance.get(r(`video/${selectedVideoId.value}/examinations/`))
-    savedExaminations.value = response.data
-
-    // Create markers for saved examinations
-    examinationMarkers.value = response.data.map(
-      (exam: SavedExamination): ExaminationMarker => ({
-        id: `exam-${exam.id}`,
-        timestamp: exam.timestamp,
-        examination_data: exam.data
-      })
-    )
-  } catch (error: any) {
-    // Check if this is an anonymization error like VideoClassificationComponent
-    const errorMessage =
-      error?.response?.data?.error ||
-      error?.response?.data?.detail ||
-      error?.message ||
-      error.toString()
-    if (
-      errorMessage.includes('darf nicht annotiert werden') ||
-      errorMessage.includes('anonymisierung') ||
-      errorMessage.includes('anonymization')
-    ) {
-      showErrorMessage(
-        `Video ${selectedVideoId.value} darf nicht annotiert werden, solange die Anonymisierung nicht abgeschlossen ist.`
-      )
-    } else if (error?.response?.status !== 404) {
-      await guarded(Promise.reject(error))
-    }
-
-    savedExaminations.value = []
-    examinationMarkers.value = []
-  }
+  // The deployed API has no per-video saved-examination resource. Keep this
+  // optional legacy UI empty instead of issuing a guaranteed 404 request.
+  savedExaminations.value = []
+  examinationMarkers.value = []
 }
 
 const loadVideoMetadata = async (): Promise<void> => {

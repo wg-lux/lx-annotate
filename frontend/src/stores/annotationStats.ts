@@ -220,7 +220,9 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
 
     async fetchExaminationStats() {
       try {
-        const response = await axios.get(r(endpoints.router.examinations))
+        const response = await axios.get(
+          `/api/${endpoints.examination.patientExaminationList}`
+        )
         const data = response.data
         const items = Array.isArray(data?.results)
           ? data.results

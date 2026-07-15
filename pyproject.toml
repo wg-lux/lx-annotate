@@ -71,7 +71,8 @@ dependencies = [
     "build>=1.4.2",
     "redis>=7.4.0",
     "lx-dtypes==0.2.0",
-    "twine>=6.2.0",
+    "de-core-news-sm",
+    "endoreg-db==1.0.3.9",
 ]
 
 [project.scripts]
@@ -172,6 +173,11 @@ module = [
 ]
 ignore_missing_imports = true
 
+
+[dependency-groups]
+dev = [
+    "build>=1.4.2",
+]
 
 # [tool.uv.sources]
 # endoreg-db = { workspace = true }

@@ -405,7 +405,7 @@ const refreshSegments = async () => {
 const refreshExaminations = async () => {
   loadingExaminations.value = true;
   try {
-    const response = await axiosInstance.get(r(endpoints.router.examinations));
+    const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList));
     examinations.value = response.data.results || response.data || [];
   } catch (error) {
     console.error('Fehler beim Laden der Untersuchungen:', error);
@@ -425,8 +425,13 @@ const refreshSensitiveMeta = async () => {
     ]);
 
     // Extract data from responses
-    const videoData = Array.isArray(videoResponse.data) ? videoResponse.data : 
-                     videoResponse.data ? [{ ...videoResponse.data, content_type: 'video' }] : [];
+    const videoData = Array.isArray(videoResponse.data?.results)
+      ? videoResponse.data.results
+      : Array.isArray(videoResponse.data?.videos)
+        ? videoResponse.data.videos
+        : Array.isArray(videoResponse.data)
+          ? videoResponse.data
+          : [];
     
     // PDF endpoint returns paginated data with 'results' array
     const pdfData = pdfResponse.data?.results || 
@@ -548,7 +553,10 @@ const editExamination = (examination) => {
 
 const markExaminationComplete = async (examination) => {
   try {
-    await axiosInstance.patch(r(endpoints.router.examinationById(examination.id)), { status: 'completed' });
+    await axiosInstance.patch(
+      r(endpoints.examination.patientExaminationDetail(examination.id)),
+      { status: 'completed' }
+    );
     annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
     await refreshExaminations();
   } catch (error) {
