@@ -1088,7 +1088,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.3.0"
+version = "1.0.3.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1156,14 +1156,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6b/21/5251d88ab1a043494cc8878733ee4ea541da44e0685244d08e1e4435760d/endoreg_db-1.0.3.0.tar.gz", hash = "sha256:935769f5b0003e973f50c2e611dcb9b55c471ab52018d770ae9f7a4fbe7abc11", size = 979937, upload-time = "2026-06-12T16:02:55.546Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/c2/4e9aa1f9df4d95872dc6fae8ea9355c9e8e10aef5aec765420b9e7337db4/endoreg_db-1.0.3.9.tar.gz", hash = "sha256:1400dd15075310a14c0979b8c3369abdf6e570a66a7aa024fea33b39aca11004", size = 958535, upload-time = "2026-06-16T09:12:24.869Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/1d/ab4907debf49da717367f6eedfe7da61f3b6c8d2934030c547990a6cd47c/endoreg_db-1.0.3.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0b5c340a7829ae6be92a046b8d05d7a5b33d87d624bcff3eb62eb28a00f983b6", size = 1732202, upload-time = "2026-06-12T16:02:51.766Z" },
-]
-
-[package.optional-dependencies]
-spacy = [
-    { name = "de-core-news-sm" },
+    { url = "https://files.pythonhosted.org/packages/0f/ab/9479187074d9c6d59fa60ffa9fb5b822e09f99f37f285021e551ccd5c863/endoreg_db-1.0.3.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fa24f1d77118647b7dba570bbed94ce96d578e22a6eb2391fd97591710341e3f", size = 1615279, upload-time = "2026-06-16T09:12:22.417Z" },
 ]
 
 [[package]]
@@ -1959,7 +1954,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.8.4"
+version = "0.8.13"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -1981,7 +1976,7 @@ dependencies = [
     { name = "django-webpack-loader" },
     { name = "djangorestframework" },
     { name = "drf-spectacular" },
-    { name = "endoreg-db", extra = ["spacy"] },
+    { name = "endoreg-db" },
     { name = "gunicorn" },
     { name = "lx-dtypes" },
     { name = "mozilla-django-oidc" },
@@ -2037,6 +2032,11 @@ docs = [
     { name = "sphinx-copybutton" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "build" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "black", specifier = ">=25.12.0" },
@@ -2059,7 +2059,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", extras = ["spacy"], specifier = "==1.0.3.0" },
+    { name = "endoreg-db", specifier = "==1.0.3.9" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2108,6 +2108,9 @@ requires-dist = [
     { name = "whitenoise", specifier = ">=6.8.2" },
 ]
 provides-extras = ["dev", "docs"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "build", specifier = ">=1.4.2" }]
 
 [[package]]
 name = "lx-anonymizer"

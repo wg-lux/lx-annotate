@@ -99,17 +99,7 @@ export const useExaminationStore = defineStore('examination', {
                     Array.isArray(dropdownPayload.data?.results)
                         ? dropdownPayload.data.results
                         : [];
-                if (Array.isArray(dropdownRows) && dropdownRows.length > 0) {
-                    normalizeRows(dropdownRows);
-                    return;
-                }
-                const fallbackPayload = await axiosInstance.get(`/api/${endpoints.router.examinations}`);
-                const fallbackRows = Array.isArray(fallbackPayload.data)
-                    ? fallbackPayload.data
-                    : Array.isArray(fallbackPayload.data?.results)
-                        ? fallbackPayload.data.results
-                        : [];
-                normalizeRows(fallbackRows);
+                normalizeRows(dropdownRows);
             }
             catch (e) {
                 this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler';
