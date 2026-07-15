@@ -104,11 +104,13 @@ describe('Sidebar linked routes', () => {
       '/anonymisierung/uebersicht',
       '/anonymisierung/validierung',
       '/anonymisierung/metriken',
+      '/anonymisierung/evaluation',
       '/video-untersuchung',
       '/frame-annotation',
       '/model-training',
       '/ai-dataset-buckets',
       '/ai-dataset-settings',
+      '/studies',
       '/reporting/case-setup',
       '/reporting',
       '/export',
@@ -222,6 +224,34 @@ describe('Sidebar linked routes', () => {
       .find((node) => node.text().includes('Anonymisierungsmetriken'))
     expect(metricsLink).toBeTruthy()
     expect(metricsLink!.classes()).toContain('active')
+
+    wrapper.unmount()
+  })
+
+  it('markiert Anonymisierungsevaluation als aktiv auf /anonymisierung/evaluation', async () => {
+    const wrapper = mount(SidebarComponent, {
+      global: {
+        stubs: {
+          RouterLink: RouterLinkStub
+        },
+        directives: {
+          can: () => {}
+        },
+        mocks: {
+          $route: {
+            path: '/anonymisierung/evaluation'
+          }
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const evaluationLink = wrapper
+      .findAll('.nav-link')
+      .find((node) => node.text().includes('Anonymisierungsevaluation'))
+    expect(evaluationLink).toBeTruthy()
+    expect(evaluationLink!.classes()).toContain('active')
 
     wrapper.unmount()
   })

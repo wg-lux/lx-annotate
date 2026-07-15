@@ -55,19 +55,43 @@ make test-real
 
 ## Environment Variables and Secrets
 
-Production secrets are typically injected by the host system.
-For local development, use either `secretspec.toml` defaults or a local `.env` file.
+Production secrets are injected by the host system, LuxNix, or another secret
+manager. For local development, use either `secretspec.toml` defaults or a
+local `.env` file.
 
-Do not commit secrets. `secretspec.toml` is tracked in git.
+`secretspec.toml` is the tracked environment contract. It defines profile
+defaults and variable names, but it must not contain real production secrets.
+The Django settings flow is:
 
-Example:
+- `secretspec.toml`: declares environment variables and profile defaults.
+- `lx_annotate/settings/config.py`: parses environment values into typed app
+  config.
+- `lx_annotate/settings/settings_prod.py`: applies production security policy
+  and fails startup when required settings are missing.
+
+Production should prefer secret-file variables such as
+`DJANGO_SECRET_KEY_FILE`, `DJANGO_DB_PASSWORD_FILE`,
+`DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`, and `LX_ANNOTATE_MASTER_KEY_FILE`.
+Compatibility aliases from the current secretspec contract are also accepted,
+including `ALLOWED_HOSTS`, `OIDC_RP_CLIENT_ID`, `OIDC_RP_CLIENT_SECRET`, and
+`TIME_ZONE`.
+
+Development example:
 
 ```bash
 direnv allow
 secretspec --provider dotenv --profile development python manage.py runserver
 ```
 
-See <https://secretspec.dev/> for details.
+Production check example:
+
+```bash
+secretspec --provider dotenv --profile production \
+  python -m django check --settings=lx_annotate.settings.settings_prod
+```
+
+See `docs/guides/wheel-deployment.md` for the full runtime contract and
+<https://secretspec.dev/> for secretspec usage.
 
 ## Frontend
 
@@ -103,6 +127,56 @@ The file watcher ingests media placed in:
 # or
 python manage.py run_filewatcher
 ```
+
+## Production HLS Materialization
+
+Production video playback uses HLS as the safe streaming path. The watcher or
+API first creates an `UploadJob`. The import then stores the source video behind
+the encrypted storage boundary, creates the anonymized `processed_file`, and
+finalizes the video record. After that point the processed video can be
+materialized into HLS.
+
+Materialization is handled by the Django/Celery task
+`endoreg_db.tasks.video_hls_materialization`. The task creates or updates a
+`VideoHlsArtifact` record, reads the processed video through the storage
+boundary, and streams it to FFmpeg. FFmpeg writes a `playlist.m3u8` file and
+`seg_*.ts` segments into the protected streamable video root. The HLS segments
+are encrypted with FFmpeg's native HLS encryption, while the HLS content key is
+managed separately and served through the key endpoint.
+
+Nginx does not serve proprietary `LXENC01` encrypted storage files. Django
+returns protected media responses with `X-Accel-Redirect`, and Nginx only
+offloads the standard HLS artifacts from the protected media area. Progressive
+MP4 streaming is legacy compatibility behavior and redirects to the processed
+HLS playlist in production.
+
+The LuxNix runtime exposes two HLS systemd services:
+
+- `lx-annotate-hls-backfill.service`: automatic boot and upgrade dispatcher for
+  missing processed-video HLS artifacts. It runs after migrations, base data
+  loading, and encrypted-storage validation.
+- `lx-annotate-hls-materialization.service`: manual dispatcher for audited
+  repair runs. It is exposed but not started by any target.
+
+Both services call the same guarded wrapper,
+`runLxAnnotateHlsMaterialization`. The wrapper always uses processed HLS,
+dispatches work to the `ffmpeg_media` queue, and rejects unsafe overrides such
+as `--force`, `--inline`, and `--artifact-kind`.
+
+Operational requirements:
+
+- the migration containing the `VideoHlsArtifact` model must be applied to the
+  production database
+- `SERVE_WITH_NGINX=true` and `NGINX_PROTECTED_MEDIA_URL` must match the Nginx
+  protected-media configuration
+- the `ffmpeg_media` Celery worker must be running and able to reach Redis
+- the master key must be readable for encrypted storage and HLS key operations
+- `check_production_hls_readiness` must pass against the production database
+
+Upgrade behavior is intentionally idempotent. The backfill dispatcher runs
+without `--force`; existing READY artifacts with valid playlist and segment
+files are returned as `already_ready`, while missing or inconsistent artifacts
+are materialized or fail loudly.
 
 ## Ingress Modes
 

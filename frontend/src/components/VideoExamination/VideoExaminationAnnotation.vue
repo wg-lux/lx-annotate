@@ -238,7 +238,7 @@
             </div>
 
             <!-- No Video Selected State -->
-            <div v-if="!anonymizedVideoSrc && hasVideos" class="text-center text-muted py-5">
+            <div v-if="!hasStreamableVideo && hasVideos" class="text-center text-muted py-5">
               <i class="ni ni-button-play ni-3x"></i>
               <p class="mt-2">
                 {{
@@ -278,7 +278,7 @@
             </div>
 
             <!-- Video Player -->
-            <div v-if="anonymizedVideoSrc" ref="videoContainerRef" class="video-container">
+            <div v-if="hasStreamableVideo" ref="videoContainerRef" class="video-container">
               <button
                 type="button"
                 class="fullscreen-toggle"
@@ -290,12 +290,18 @@
               <video
                 ref="videoRef"
                 data-cy="video-player"
-                :src="anonymizedVideoSrc"
+                crossorigin="use-credentials"
+                preload="metadata"
+                playsinline
+                controlslist="nodownload noremoteplayback"
+                disablepictureinpicture
+                disableremoteplayback
                 @timeupdate="handleTimeUpdate"
                 @loadedmetadata="onVideoLoaded"
+                @play="onVideoPlay"
+                @pause="onVideoPause"
+                @ended="onVideoEnded"
                 @error="onVideoError"
-                @loadstart="onVideoLoadStart"
-                @canplay="onVideoCanPlay"
                 controls
                 class="w-100"
                 style="max-height: 400px"
@@ -559,8 +565,8 @@
                   v-if="segmentSourceMode === 'prediction'"
                   class="alert alert-warning py-2 px-3 mb-0"
                 >
-                  KI-Segmente sind zur Referenz einsehbar. Zum Speichern in die manuelle
-                  Annotation den Button "Als manuelle Segmente übernehmen" verwenden.
+                  KI-Segmente sind zur Referenz einsehbar. Zum Speichern in die manuelle Annotation
+                  den Button "Als manuelle Segmente übernehmen" verwenden.
                 </div>
                 <div class="d-flex align-items-center">
                   <label class="form-label mb-0 me-2">Neues Label setzen:</label>
@@ -900,7 +906,8 @@ import Timeline from '@/components/VideoExamination/Timeline.vue'
 import { storeToRefs } from 'pinia'
 import { useToastStore } from '@/stores/toastStore'
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
-import { buildVideoStreamUrl } from '@/utils/mediaUrls'
+import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
+import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthKcStore } from '@/stores/auth_kc'
 import {
@@ -965,7 +972,7 @@ const mediaStore = useMediaTypeStore()
 const authStore = useAuthKcStore()
 const videoStoreRefs = storeToRefs(videoStore)
 
-const { videoList, videoStreamUrl, timelineSegments } = videoStoreRefs
+const { videoList, timelineSegments } = videoStoreRefs
 const predictionModels = videoStoreRefs.predictionModels ?? ref<PredictionModelMeta[]>([])
 const defaultHuggingfaceModelId = videoStoreRefs.defaultHuggingfaceModelId ?? ref('')
 const defaultPredictionLabelsetName = videoStoreRefs.defaultPredictionLabelsetName ?? ref('')
@@ -1100,8 +1107,7 @@ async function loadSegmentAiDatasetOptions() {
   segmentAiDatasetError.value = ''
   try {
     segmentAiDatasetOptions.value = await fetchAiDatasetOptions()
-  } catch (error) {
-    console.error('[VideoExamination] AI dataset list could not be loaded:', error)
+  } catch {
     segmentAiDatasetError.value = 'KI-Datensätze konnten nicht geladen werden.'
   } finally {
     isLoadingSegmentAiDatasets.value = false
@@ -1150,10 +1156,7 @@ async function loadSelectedVideo() {
     await loadVideoDetail(selectedVideoId.value)
     await guarded(loadSavedExaminations())
     await guarded(loadVideoMetadata())
-
-    console.log('Video fully loaded:', selectedVideoId.value)
   } catch (err: any) {
-    console.error('loadSelectedVideo failed', err)
     await guarded(Promise.reject(err))
   }
 }
@@ -1544,12 +1547,13 @@ watch(
   { immediate: true }
 )
 
-// Video streaming URL using MediaStore logic like AnonymizationValidationComponent
-const anonymizedVideoSrc = computed(() => {
-  if (!selectedVideoId.value) return undefined
-  if (!canViewProcessedVideo(selectedVideoId.value)) return undefined
-  return buildVideoStreamUrl(selectedVideoId.value, 'processed')
+const streamableVideoId = computed(() => {
+  if (selectedVideoId.value === null) return null
+  if (!canViewProcessedVideo(selectedVideoId.value)) return null
+  return selectedVideoId.value
 })
+
+const hasStreamableVideo = computed(() => streamableVideoId.value !== null)
 
 const hasVideos = computed(() => {
   return videos.value.length > 0
@@ -1571,7 +1575,7 @@ const timelineSegmentsForSelectedVideo = computed<Segment[]>(() => {
 const canStartLabeling = computed(() => {
   return (
     selectedVideoId.value &&
-    anonymizedVideoSrc.value &&
+    hasStreamableVideo.value &&
     selectedLabelType.value &&
     !isMarkingLabel.value &&
     duration.value > 0 &&
@@ -1581,32 +1585,25 @@ const canStartLabeling = computed(() => {
 
 // ✅ PRIORITY: Load labels first, then videos, then anonymization status
 onMounted(async () => {
-  console.log('🚀 [VideoExamination] Component mounted - loading data in priority order...')
   isInitialLoading.value = true
   try {
     // Step 1: Load labels with high priority
     await videoStore.fetchLabels()
-    console.log(`✅ [VideoExamination] Labels loaded: ${videoStore.labels.length}`)
 
     try {
       if (typeof videoStore.fetchPredictionModels === 'function') {
         await videoStore.fetchPredictionModels()
       }
-    } catch (error) {
-      console.warn('[VideoExamination] Prediction model list could not be loaded:', error)
-    }
+    } catch {}
 
     await loadSegmentAiDatasetOptions()
 
     // Step 2: Load anonymization overview BEFORE videos (needed for filtering)
     await anonymizationStore.fetchOverview()
-    console.log(`✅ [VideoExamination] Anonymization status loaded: ${overview.value.length} items`)
 
     // Step 3: Load videos after labels and anonymization status are available
     await videoStore.fetchAllVideos()
     pollExistingSegmentCleanupVideos()
-    console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`)
-    console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`)
 
     if (selectedVideoId.value !== null) {
       videoStore.setCurrentVideo(selectedVideoId.value)
@@ -1615,8 +1612,7 @@ onMounted(async () => {
         await loadVideoSegments()
       }
     }
-  } catch (error) {
-    console.error('❌ [VideoExamination] Error during initial load:', error)
+  } catch {
     showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.')
   } finally {
     isInitialLoading.value = false
@@ -1659,7 +1655,6 @@ async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
     return await p
   } catch (e: any) {
     if (isAbortLikeError(e)) {
-      console.debug('[VideoExamination] Ignoring aborted request/media load:', e)
       return undefined
     }
     const errorMsg =
@@ -1668,10 +1663,6 @@ async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
     return undefined
   }
 }
-
-watch(videoStreamUrl, (newUrl) => {
-  console.log('Video stream URL updated:', newUrl)
-})
 
 // Alert management methods
 const clearErrorMessage = (): void => {
@@ -1696,6 +1687,14 @@ const showErrorMessage = (message: string, tone: MessageTone = 'hint'): void => 
   messageTone.value = tone
 }
 
+useAuthenticatedVideoStream({
+  videoElement: videoRef,
+  videoId: streamableVideoId,
+  onFatalError: (error) => {
+    showErrorMessage(error.message)
+  }
+})
+
 function getSegmentMutationBlockedMessage(): string {
   if (selectedVideoId.value !== null && !canAnnotateSegments(selectedVideoId.value)) {
     return 'Segmentbearbeitung ist erst nach validierter Anonymisierung möglich.'
@@ -1708,9 +1707,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
   if (!videoId) return
 
   try {
-    console.log('Loading video detail for ID:', videoId)
     const response = await axiosInstance.get(r(endpoints.media.videoDetail(videoId)))
-    console.log('Video detail response:', response.data)
 
     videoDetail.value = {}
     videoMeta.value = {
@@ -1727,20 +1724,15 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
         scope: 'video',
         mediaType: 'video',
         filename: currentVideo.original_file_name,
-        processedStreamUrl: buildVideoStreamUrl(videoId, 'processed')
+        processedStreamUrl: buildVideoPlaybackUrls(videoId).hlsPlaylistUrl
       })
-      console.log('MediaStore updated with video:', videoId)
     }
 
     // Update local duration if available
     if (videoMeta.value.duration > 0) {
       duration.value = videoMeta.value.duration
     }
-
-    console.log('Video meta loaded:', videoMeta.value)
-    console.log('Stream source will be:', anonymizedVideoSrc.value)
   } catch (error) {
-    console.error('Error loading video detail:', error)
     await guarded(Promise.reject(error))
   }
 }
@@ -1756,14 +1748,20 @@ const loadVideoMetadata = async (): Promise<void> => {
   if (videoRef.value) {
     await new Promise<void>((resolve) => {
       const video = videoRef.value!
+      const updateDurationFromMedia = (): void => {
+        const mediaDuration = video.duration
+        if (Number.isFinite(mediaDuration) && mediaDuration > 0) {
+          duration.value = mediaDuration
+        }
+      }
       if (video.readyState >= 1) {
-        duration.value = video.duration
+        updateDurationFromMedia()
         resolve()
       } else {
         video.addEventListener(
           'loadedmetadata',
           () => {
-            duration.value = video.duration
+            updateDurationFromMedia()
             resolve()
           },
           { once: true }
@@ -1781,10 +1779,8 @@ async function loadVideoSegments(): Promise<void> {
     await videoStore.fetchAllSegments(selectedVideoId.value, true, {
       sourceKind: segmentSourceMode.value
     })
-    console.log('Video segments loaded for video:', selectedVideoId.value)
-    console.log('Timeline segments count:', rawSegments.value.length)
-  } catch (error) {
-    console.error('Error loading video segments:', error)
+  } catch {
+    showErrorMessage('Fehler beim Laden der Videosegmente.')
   }
 }
 
@@ -1797,35 +1793,24 @@ const onVideoLoaded = (): void => {
   if (videoRef.value) {
     duration.value = videoRef.value.duration
 
-    // ✅ NEW: Add play/pause event listeners for state tracking
-    videoRef.value.addEventListener('play', () => {
-      isPlaying.value = true
-    })
-
-    videoRef.value.addEventListener('pause', () => {
-      isPlaying.value = false
-    })
-
-    videoRef.value.addEventListener('ended', () => {
-      isPlaying.value = false
-    })
-
-    console.log('🎥 Video loaded - Frontend')
-    console.log(`- Video source URL: ${anonymizedVideoSrc.value}`)
-    console.log(`- Legacy stream URL: ${videoStreamUrl.value}`)
-    console.log(`- Video readyState: ${videoRef.value.readyState}`)
-    console.log(`- Video networkState: ${videoRef.value.networkState}`)
-
-    if (videoRef.value.videoWidth && videoRef.value.videoHeight) {
-      console.log(`- Video dimensions: ${videoRef.value.videoWidth}x${videoRef.value.videoHeight}`)
-    }
-
     if (duration.value < 10) {
-      console.warn(`⚠️ WARNING: Video duration seems very short (${duration.value}s)`)
+      showErrorMessage(`Die Videodauer ist ungewöhnlich kurz (${Math.round(duration.value)}s).`)
     } else {
       showSuccessMessage(`Video geladen: ${Math.round(duration.value)}s Dauer`)
     }
   }
+}
+
+const onVideoPlay = (): void => {
+  isPlaying.value = true
+}
+
+const onVideoPause = (): void => {
+  isPlaying.value = false
+}
+
+const onVideoEnded = (): void => {
+  isPlaying.value = false
 }
 
 const handleTimeUpdate = (): void => {
@@ -1856,8 +1841,7 @@ const handlePlayPause = (...args: unknown[]): void => {
   if (!videoRef.value) return
 
   if (videoRef.value.paused) {
-    videoRef.value.play().catch((error) => {
-      console.error('Error playing video:', error)
+    videoRef.value.play().catch(() => {
       showErrorMessage('Fehler beim Abspielen des Videos')
     })
   } else {
@@ -1869,7 +1853,6 @@ const handlePlayPause = (...args: unknown[]): void => {
 const handleSegmentSelect = (...args: unknown[]): void => {
   const [segmentId] = args as [number]
   selectedSegmentId.value = segmentId
-  console.log('Segment selected:', segmentId)
 }
 
 const handleSegmentLabelChange = (...args: unknown[]): void => {
@@ -1877,7 +1860,6 @@ const handleSegmentLabelChange = (...args: unknown[]): void => {
 
   const [segmentId, label, labelId] = args as [number, string, number | null]
   if (!Number.isFinite(segmentId) || !label) {
-    console.warn('[VideoExamination] Invalid segment label change:', args)
     return
   }
 
@@ -1905,7 +1887,6 @@ const handleSegmentResize = (...args: unknown[]): void => {
   ]
 
   if (!Number.isFinite(segmentId)) {
-    console.warn('[VideoExamination] Invalid segment ID for resize:', segmentId)
     return
   }
 
@@ -1933,7 +1914,6 @@ const handleSegmentMove = (...args: unknown[]): void => {
   const [segmentId, newStart, newEnd, _final] = args as [number, number, number, boolean?]
 
   if (!Number.isFinite(segmentId)) {
-    console.warn('[VideoExamination] Invalid segment ID for move:', segmentId)
     return
   }
 
@@ -1957,17 +1937,12 @@ const handleTimeSelection = (...args: unknown[]): void => {
 
   // ✅ FIXED: Only create segment if we have a selected label type
   if (selectedLabelType.value && selectedVideoId.value) {
-    console.log(
-      `Creating segment from time selection: ${formatTime(data.start)} - ${formatTime(data.end)} with label: ${selectedLabelType.value}`
-    )
-
     handleCreateSegment({
       label: selectedLabelType.value,
       start: data.start,
       end: data.end
     })
   } else {
-    console.warn('Cannot create segment: no label selected or no video selected')
     showErrorMessage('Bitte wählen Sie ein Label aus, bevor Sie ein Segment erstellen.')
   }
 }
@@ -2010,7 +1985,6 @@ const handleSegmentDelete = (...args: unknown[]): Promise<void> => {
     }
 
     if (!segment.id || typeof segment.id !== 'number') {
-      console.warn('Cannot delete draft or temporary segment:', segment.id)
       resolve()
       return
     }
@@ -2036,7 +2010,6 @@ const handleSegmentDelete = (...args: unknown[]): Promise<void> => {
       showSuccessMessage(`Segment gelöscht: ${getTranslationForLabel(segment.label)}`)
       resolve()
     } catch (err: any) {
-      console.error('Segment konnte nicht gelöscht werden:', err)
       const errorMsg =
         err?.response?.data?.detail || err?.response?.data?.error || err?.message || String(err)
       showErrorMessage(errorMsg, 'danger')
@@ -2052,9 +2025,7 @@ const seekToTime = (time: number): void => {
   }
 }
 
-const onLabelSelect = (): void => {
-  console.log('Label selected:', selectedLabelType.value)
-}
+const onLabelSelect = (): void => {}
 
 const handleFullscreenChange = (): void => {
   isFullscreen.value = document.fullscreenElement === videoContainerRef.value
@@ -2070,9 +2041,7 @@ const toggleFullscreen = async (): Promise<void> => {
     } else {
       await container.requestFullscreen()
     }
-  } catch (error) {
-    console.error('Fullscreen toggle failed:', error)
-  }
+  } catch {}
 }
 
 const closeLabelOverlay = (): void => {
@@ -2195,8 +2164,6 @@ const startLabelMarking = (): void => {
 
   // FIX: Use startDraft statt startDraftSegment
   videoStore.startDraft(selectedLabelType.value, currentTime.value)
-
-  console.log(`Draft gestartet: ${selectedLabelType.value} bei ${formatTime(currentTime.value)}`)
 }
 
 const finishLabelMarking = async (): Promise<void> => {
@@ -2220,18 +2187,14 @@ const finishLabelMarking = async (): Promise<void> => {
 
     // Reset state (keep last selected label)
     isMarkingLabel.value = false
-
-    console.log('Label-Markierung abgeschlossen')
-  } catch (error) {
-    console.error('Error finishing label marking:', error)
+  } catch {
+    showErrorMessage('Label-Markierung konnte nicht abgeschlossen werden.')
   }
 }
 
 const cancelLabelMarking = (): void => {
   videoStore.cancelDraft()
   isMarkingLabel.value = false
-
-  console.log('Label-Markierung abgebrochen')
 }
 
 const jumpToExamination = (examination: SavedExamination): void => {
@@ -2256,9 +2219,7 @@ const deleteExamination = async (examinationId: number): Promise<void> => {
     }
 
     showSuccessMessage(`Untersuchung ${examinationId} gelöscht`)
-    console.log('Examination deleted:', examinationId)
   } catch (error: any) {
-    console.error('Error deleting examination:', error)
     const errorMsg =
       error?.response?.data?.detail ||
       error?.response?.data?.error ||
@@ -2404,11 +2365,7 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
       end_time: s.endTime
     }))
 
-  console.log('🔄 Sending segments to backend:', segmentPayload)
-
   try {
-    console.log(`🔍 Validating all segments for video ${videoId}...`)
-
     const response = await axiosInstance.post(
       r(`media/videos/${videoId}/segments/validate-bulk/`),
       {
@@ -2420,8 +2377,6 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
         annotator: activeAnnotatorPrincipal.value
       }
     )
-
-    console.log('✅ Validation response:', response.data)
     const validationState = normalizeSegmentValidationResponse(response.data)
 
     if (
@@ -2451,7 +2406,6 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
     // Reload segments to reflect validation status + updated times
     await loadVideoSegments()
   } catch (error: any) {
-    console.error('❌ Error validating video segments:', error)
     const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler'
     showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`)
   } finally {
@@ -2598,7 +2552,6 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
     ) {
       return
     }
-    console.error('Fehler beim Schwärzen der Außerhalb-Segmente:', error)
     await guarded(Promise.reject(error))
   } finally {
     setOutsideBlackeningRequestState(videoId, false)
@@ -2620,7 +2573,6 @@ const saveSegmentChanges = async (): Promise<void> => {
     await videoStore.persistDirtySegments()
     showSuccessMessage('Segment-Änderungen gespeichert')
   } catch (error: any) {
-    console.error('Fehler beim Speichern der Segment-Änderungen:', error)
     await guarded(Promise.reject(error))
   }
 }
@@ -2673,7 +2625,6 @@ const importPredictionSegmentsToManual = async (): Promise<void> => {
     await loadVideoSegments()
     showSuccessMessage('KI-Vorhersagen wurden als manuelle Segmente übernommen')
   } catch (error: any) {
-    console.error('Error importing prediction segments:', error)
     await guarded(Promise.reject(error))
   } finally {
     isImportingPredictionSegments.value = false
@@ -2707,7 +2658,6 @@ const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
       `KI-Vorhersagen neu berechnet (${response.predictionSegmentsCount} Segmente)`
     )
   } catch (error: any) {
-    console.error('Error rerunning prediction segments:', error)
     await guarded(Promise.reject(error))
   } finally {
     isRerunningPredictionSegments.value = false
@@ -2717,27 +2667,9 @@ const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
 // Video event handlers from AnonymizationValidationComponent
 const onVideoError = (event: Event): void => {
   if (isAbortLikeError(event)) {
-    console.debug('[VideoExamination] Ignoring aborted video load:', event)
     return
   }
-
-  console.error('Video loading error:', event)
-  const video = event.target as HTMLVideoElement
-  console.error('Video error details:', {
-    error: video.error,
-    networkState: video.networkState,
-    readyState: video.readyState,
-    currentSrc: video.currentSrc
-  })
   showErrorMessage('Fehler beim Laden des Videos. Bitte versuchen Sie es erneut.')
-}
-
-const onVideoLoadStart = (): void => {
-  console.log('Video loading started for:', anonymizedVideoSrc.value)
-}
-
-const onVideoCanPlay = (): void => {
-  console.log('Video can play, loaded successfully')
 }
 
 const getVideoDropdownStatusText = (videoId: number): string => {
@@ -2883,7 +2815,6 @@ const isVideoValidated = (videoId: number): boolean => {
 // Fire loader whenever selectedVideoId changes programmatically.
 // Keep this after all setup bindings it can call; immediate watchers run during setup.
 watch(selectedVideoId, async (newId) => {
-  console.log('Selected video ID changed, syncing store and loading details:', newId)
   if (typeof newId === 'number') {
     videoStore.setCurrentVideo(newId)
   } else if (newId !== null) {
@@ -2908,7 +2839,6 @@ watch(
 </script>
 
 <style scoped>
-
 .video-container {
   position: relative;
   background: #000;

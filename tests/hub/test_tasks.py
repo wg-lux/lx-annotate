@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
 from django.conf import settings
 
 from lx_annotate import tasks
@@ -66,6 +68,30 @@ def test_run_outbound_hub_transfer_task_delegates_and_returns_small_result() -> 
     )
 
 
+def test_run_outbound_hub_transfer_task_surfaces_retryable_failure_to_celery() -> None:
+    retryable_result = SimpleNamespace(
+        retry_count=1,
+        last_error="Hub transfer registration failed: timeout",
+    )
+    current_task = _current_task(tasks.run_outbound_hub_transfer_job_task)
+    with (
+        patch(
+            "lx_annotate.hub.hub_export_worker.run_outbound_transfer_job",
+            return_value=retryable_result,
+        ),
+        patch.object(
+            current_task,
+            "retry",
+            side_effect=RuntimeError("celery retry requested"),
+        ) as retry,
+        pytest.raises(RuntimeError, match="celery retry requested"),
+    ):
+        tasks.run_outbound_hub_transfer_job_task.run("123", "456")
+
+    retry.assert_called_once()
+    assert retry.call_args.kwargs["max_retries"] == 5
+
+
 def test_reconcile_outbound_hub_transfer_task_delegates() -> None:
     with patch(
         "lx_annotate.hub.hub_export_reconciliation.reconcile_outbound_transfer_job",
@@ -80,7 +106,13 @@ def test_reconcile_outbound_hub_transfer_task_delegates() -> None:
 
 
 def test_recover_stale_outbound_hub_transfer_jobs_task_returns_summary() -> None:
-    summary = {"scanned": 1, "recovered": 0, "failed": 1, "skipped": 0}
+    summary = {
+        "scanned": 1,
+        "recovered": 0,
+        "redispatched": 0,
+        "failed": 1,
+        "skipped": 0,
+    }
 
     with patch(
         "lx_annotate.hub.hub_export_reconciliation."

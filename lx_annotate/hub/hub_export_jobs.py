@@ -12,8 +12,10 @@ from endoreg_db.models import NetworkNode, RawPdfFile, VideoFile
 from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_cleanup import configured_local_cleanup_policy
 from .hub_export_state import (
+    hub_export_auto_queue_enabled,
     is_report_hub_export_eligible,
     is_video_hub_export_eligible,
+    queue_outbound_job,
     video_hub_export_blocked_reason,
 )
 from ..models import OutboundHubTransferJob
@@ -471,6 +473,8 @@ def mark_resources_for_hub_upload(
                 source_node_key=source_node.node_key,
                 created=created,
             )
+            if hub_export_auto_queue_enabled():
+                queue_outbound_job(job)
             created_or_existing.append(job)
             continue
 
@@ -507,6 +511,8 @@ def mark_resources_for_hub_upload(
                 source_node_key=source_node.node_key,
                 created=created,
             )
+            if hub_export_auto_queue_enabled():
+                queue_outbound_job(job)
             created_or_existing.append(job)
             continue
 

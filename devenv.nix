@@ -253,8 +253,28 @@ in
     else
       echo "Note: .env.systemd not found. Defaults apply."
     fi
+    # Keep a manually activated legacy .venv from shadowing the devenv-managed
+    # interpreter when direnv reloads the shell.
+    if [ -n "''${VIRTUAL_ENV:-}" ] && [ "''${VIRTUAL_ENV}" != "$PWD/.devenv/state/venv" ]; then
+      if command -v deactivate >/dev/null 2>&1; then
+        deactivate
+      fi
+      clean_path=""
+      old_ifs="$IFS"
+      IFS=:
+      for entry in $PATH; do
+        if [ "$entry" != "$PWD/.venv/bin" ]; then
+          clean_path="''${clean_path:+$clean_path:}$entry"
+        fi
+      done
+      IFS="$old_ifs"
+      export PATH="$clean_path"
+      unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT
+    fi
+
     # Activate Python virtual environment managed by uv inside of devenv
     echo "Virtual environment activated."
+    source .devenv/state/venv/bin/activate
 
   '';
 }

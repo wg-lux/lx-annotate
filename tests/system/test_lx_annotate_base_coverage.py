@@ -82,6 +82,7 @@ def test_keycloak_extract_roles_aggregates_claim_sources():
 
     roles = keycloak_auth_mod.KeycloakJWTAuthentication._extract_roles(
         {
+            "sub": "test-user-id",
             "roles": ["reader"],
             "realm_access": {"roles": ["annotator"]},
             "resource_access": {

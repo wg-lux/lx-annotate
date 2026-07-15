@@ -172,8 +172,6 @@ module = [
 ]
 ignore_missing_imports = true
 
-[tool.uv.sources]
-de-core-news-sm = { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl" }
 
 [dependency-groups]
 dev = [

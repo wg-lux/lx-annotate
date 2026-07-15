@@ -61,6 +61,7 @@ def test_app_config_applies_secret_files_when_field_not_explicitly_set(
     monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
     monkeypatch.delenv("DJANGO_DB_PASSWORD", raising=False)
     monkeypatch.delenv("DJANGO_KEYCLOAK_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("OIDC_RP_CLIENT_SECRET", raising=False)
     secret_key_file = tmp_path / "secret.key"
     db_pwd_file = tmp_path / "db.pwd"
     keycloak_secret_file = tmp_path / "keycloak.env"
@@ -109,6 +110,9 @@ def test_load_config_reads_values_from_explicit_env_file(tmp_path, monkeypatch):
         "DJANGO_ALLOWED_HOSTS",
         "DJANGO_CSRF_TRUSTED_ORIGINS",
         "DJANGO_CORS_ALLOWED_ORIGINS",
+        "ALLOWED_HOSTS",
+        "OIDC_RP_CLIENT_ID",
+        "OIDC_RP_CLIENT_SECRET",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -120,6 +124,8 @@ def test_load_config_reads_values_from_explicit_env_file(tmp_path, monkeypatch):
                 "DJANGO_ALLOWED_HOSTS=api.example.com",
                 "DJANGO_CSRF_TRUSTED_ORIGINS=https://api.example.com",
                 "DJANGO_CORS_ALLOWED_ORIGINS=https://frontend.example.com",
+                "OIDC_RP_CLIENT_ID=endoregdb-api",
+                "OIDC_RP_CLIENT_SECRET=kc-secret",
             ]
         )
         + "\n",
@@ -132,6 +138,93 @@ def test_load_config_reads_values_from_explicit_env_file(tmp_path, monkeypatch):
     assert cfg.allowed_hosts == ["api.example.com"]
     assert cfg.csrf_trusted_origins == ["https://api.example.com"]
     assert cfg.cors_allowed_origins == ["https://frontend.example.com"]
+    assert cfg.keycloak_client_id == "endoregdb-api"
+    assert cfg.keycloak_client_secret == "kc-secret"
+
+
+def test_load_config_accepts_legacy_allowed_hosts_env(monkeypatch):
+    monkeypatch.delenv("DJANGO_ALLOWED_HOSTS", raising=False)
+    monkeypatch.setenv("ALLOWED_HOSTS", "lx-annotate.local,localhost")
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "l" * 64)
+
+    cfg = load_config()
+
+    assert cfg.allowed_hosts == ["lx-annotate.local", "localhost"]
+
+
+def test_load_config_accepts_legacy_allowed_hosts_from_env_file(tmp_path, monkeypatch):
+    for key in ("ALLOWED_HOSTS", "DJANGO_ALLOWED_HOSTS", "DJANGO_SECRET_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
+    env_file = tmp_path / "settings.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "DJANGO_SECRET_KEY=" + ("m" * 64),
+                "ALLOWED_HOSTS=lx-annotate.local,localhost",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(env_file=env_file)
+
+    assert cfg.allowed_hosts == ["lx-annotate.local", "localhost"]
+
+
+def test_load_config_accepts_secretspec_keycloak_and_timezone_aliases(monkeypatch):
+    for key in (
+        "DJANGO_KEYCLOAK_CLIENT_ID",
+        "DJANGO_KEYCLOAK_CLIENT_SECRET",
+        "DJANGO_TIME_ZONE",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("OIDC_RP_CLIENT_ID", "endoregdb-api")
+    monkeypatch.setenv("OIDC_RP_CLIENT_SECRET", "oidc-secret")
+    monkeypatch.setenv("TIME_ZONE", "Europe/Berlin")
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "n" * 64)
+
+    cfg = load_config()
+
+    assert cfg.keycloak_client_id == "endoregdb-api"
+    assert cfg.keycloak_client_secret == "oidc-secret"
+    assert cfg.time_zone == "Europe/Berlin"
+
+
+def test_load_config_accepts_secretspec_keycloak_and_timezone_from_env_file(
+    tmp_path, monkeypatch
+):
+    for key in (
+        "DJANGO_KEYCLOAK_CLIENT_ID",
+        "DJANGO_KEYCLOAK_CLIENT_SECRET",
+        "DJANGO_TIME_ZONE",
+        "OIDC_RP_CLIENT_ID",
+        "OIDC_RP_CLIENT_SECRET",
+        "TIME_ZONE",
+        "DJANGO_SECRET_KEY",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    env_file = tmp_path / "settings.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "DJANGO_SECRET_KEY=" + ("o" * 64),
+                "OIDC_RP_CLIENT_ID=endoregdb-api",
+                "OIDC_RP_CLIENT_SECRET=oidc-secret",
+                "TIME_ZONE=Europe/Berlin",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(env_file=env_file)
+
+    assert cfg.keycloak_client_id == "endoregdb-api"
+    assert cfg.keycloak_client_secret == "oidc-secret"
+    assert cfg.time_zone == "Europe/Berlin"
 
 
 def test_settings_base_enables_encrypted_storage_backend(monkeypatch):
@@ -357,6 +450,7 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
     monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "annotate.example.test,localhost")
     monkeypatch.setenv("DJANGO_CSRF_TRUSTED_ORIGINS", "https://annotate.example.test")
     monkeypatch.setenv("DJANGO_CORS_ALLOWED_ORIGINS", "https://frontend.example.test")
+    monkeypatch.delenv("ALLOWED_HOSTS", raising=False)
     monkeypatch.setenv("DJANGO_STATIC_ROOT", str(static_root))
     monkeypatch.setenv("DJANGO_DB_NAME", "lxAnnotateLocal")
     monkeypatch.setenv("DJANGO_DB_USER", "lxAnnotateLocal")

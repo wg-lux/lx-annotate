@@ -51,6 +51,7 @@ export const endpoints = {
     patientExaminationDetail: (id: Id) => `patient-examinations/${id}/`,
     patientExaminationDraft: (id: Id) => `patient-examinations/${id}/draft/`,
     patientExaminationList: 'patient-examinations/list/',
+    patientExaminationLegacyDetail: (id: Id) => `get_patient_examination/${id}/`,
     patientExaminationClassifications: (examId: Id) =>
       `patient-examinations/${examId}/classifications/`,
     patientExaminationFindings: (examinationId: Id) =>
@@ -82,6 +83,10 @@ export const endpoints = {
     skip: 'media/annotations/frames/skip/'
   },
 
+  study: {
+    cohortPreview: 'media/studies/cohort-preview/'
+  },
+
   upload: {
     upload: 'upload/',
     uploadStatus: (id: UUID) => `upload/${id}/status/`
@@ -103,6 +108,10 @@ export const endpoints = {
 
   runtime: {
     quarantine: 'runtime/quarantine/'
+  },
+
+  workflow: {
+    saveWorkflowData: 'save-workflow-data/'
   },
 
   anonymization: {
@@ -131,6 +140,7 @@ export const endpoints = {
     videos: 'media/videos/',
     videoDetail: (pk: Id) => `media/videos/${pk}/details/`,
     videoStream: (pk: Id) => `media/videos/${pk}/stream/`,
+    videoHlsPlaylist: (pk: Id) => `media/videos/${pk}/hls/playlist/`,
     videoReimport: (pk: Id) => `media/videos/${pk}/reimport/`,
     exportAnnotated: 'media/videos/export-annotated/',
 
@@ -173,7 +183,9 @@ export const endpoints = {
     pdfs: 'media/pdfs/',
     pdfDetail: (pk: Id) => `media/pdfs/${pk}/`,
     pdfStream: (pk: Id) => `media/pdfs/${pk}/stream/`,
-    pdfReimport: (pk: Id) => `media/pdfs/${pk}/reimport/`
+    pdfReimport: (pk: Id) => `media/pdfs/${pk}/reimport/`,
+    processedVideoDownload: (videoId: Id, historyId: Id) =>
+      `media/processed-videos/${videoId}/${historyId}/`
   }
 } as const
 

@@ -322,6 +322,91 @@ the host.</p>
 </ul>
 <p>This split is required for encrypted data storage and tighter filesystem access
 control around patient data.</p>
+</section>
+<section id="settings-and-secretspec">
+<h2>Settings And Secretspec<a class="headerlink" href="#settings-and-secretspec" title="Link to this heading">¶</a></h2>
+<p>Runtime configuration has three layers:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code> is the deployable environment contract. It lists the
+variables that development, CI, LuxNix, and systemd-style deployments are
+expected to provide.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/config.py</span></code> converts environment values into the typed
+<code class="docutils literal notranslate"><span class="pre">AppConfig</span></code> object used by Django settings. It parses comma-separated list
+values, booleans, paths, secret-file references, and accepted legacy aliases.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/settings_prod.py</span></code> applies production policy. It turns
+off debug mode, configures static assets, CORS, CSRF, Keycloak, database
+settings, and security headers, then fails startup if required production
+secrets or origins are missing.</p></li>
+</ul>
+<p>The settings loader accepts values from the process environment and from an
+explicit env file when one is passed by the base settings module. Env files may
+use plain <code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> lines or <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">KEY=value</span></code> lines. The process environment
+has the final word when both sources define the same setting.</p>
+<p>For list values, use comma-separated strings:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">DJANGO_ALLOWED_HOSTS</span><span class="o">=</span>annotate.example.test,localhost
+<span class="nv">DJANGO_CSRF_TRUSTED_ORIGINS</span><span class="o">=</span>https://annotate.example.test
+<span class="nv">DJANGO_CORS_ALLOWED_ORIGINS</span><span class="o">=</span>https://frontend.example.test
+</pre></div>
+</div>
+<p>Prefer the canonical Django-prefixed names in new deployments:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_CSRF_TRUSTED_ORIGINS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_CORS_ALLOWED_ORIGINS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_ID</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_TIME_ZONE</span></code></p></li>
+</ul>
+<p>The loader also accepts these aliases for compatibility with existing
+secretspec and Keycloak conventions:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ALLOWED_HOSTS</span></code> for allowed hosts</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_ID</span></code> for the Keycloak/OIDC client id</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span></code> for the Keycloak/OIDC client secret</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TIME_ZONE</span></code> for the Django time zone</p></li>
+</ul>
+<p>Use secret file variables for production secrets whenever possible:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY_FILE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD_FILE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_MASTER_KEY_FILE</span></code></p></li>
+</ul>
+<p>Literal secret variables such as <code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD</span></code>,
+<code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span></code>, and <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_MASTER_KEY</span></code> are useful for local
+development and CI smoke tests, but they should not be the production default.
+The long-lived storage master key must remain local to the node and must not be
+sent over the network or committed to version control.</p>
+<p>Production startup requires these values to resolve to non-empty settings:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code> or <code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY_FILE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code> or <code class="docutils literal notranslate"><span class="pre">ALLOWED_HOSTS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_CSRF_TRUSTED_ORIGINS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_CORS_ALLOWED_ORIGINS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD</span></code> or <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD_FILE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET</span></code>, <code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code></p></li>
+</ul>
+<section id="secretspec-usage">
+<h3>Secretspec Usage<a class="headerlink" href="#secretspec-usage" title="Link to this heading">¶</a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code> as the source of variable names and profile defaults. The
+tracked defaults are not production secrets; production values must come from
+the host secret manager, an operator-owned env file, or LuxNix-generated
+environment.</p>
+<p>For local development:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>secretspec<span class="w"> </span>--provider<span class="w"> </span>dotenv<span class="w"> </span>--profile<span class="w"> </span>development<span class="w"> </span>python<span class="w"> </span>manage.py<span class="w"> </span>runserver
+</pre></div>
+</div>
+<p>For production checks, source or generate the production environment first, then
+run Django with the production profile:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>secretspec<span class="w"> </span>--provider<span class="w"> </span>dotenv<span class="w"> </span>--profile<span class="w"> </span>production<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>python<span class="w"> </span>-m<span class="w"> </span>django<span class="w"> </span>check<span class="w"> </span>--settings<span class="o">=</span>lx_annotate.settings.settings_prod
+</pre></div>
+</div>
+<p>For systemd deployments, generate or maintain <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code>
+with the same variable names from <code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code>, then load it through
+<code class="docutils literal notranslate"><span class="pre">EnvironmentFile=</span></code> in the service unit. Keep file permissions restricted to the
+service user and trusted operators.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> as the canonical host-owned runtime
 variable for the protected data mount. The application derives compatibility
 aliases and managed subdirectories from that root.</p>
@@ -365,6 +450,7 @@ aliases and storage subdirectories.</p>
 <p>The application should not generate or manage encryption keys itself. A
 dedicated LuxNix service or external KMS/secrets system should own key
 management and unlock policy.</p>
+</section>
 </section>
 <section id="ingress-contract">
 <h2>Ingress Contract<a class="headerlink" href="#ingress-contract" title="Link to this heading">¶</a></h2>
@@ -751,6 +837,10 @@ cache growth on long-lived hosts.</p></li>
 <li><a class="reference internal" href="#scope">Scope</a></li>
 <li><a class="reference internal" href="#host-packages">Host Packages</a></li>
 <li><a class="reference internal" href="#runtime-contract">Runtime Contract</a></li>
+<li><a class="reference internal" href="#settings-and-secretspec">Settings And Secretspec</a><ul>
+<li><a class="reference internal" href="#secretspec-usage">Secretspec Usage</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#ingress-contract">Ingress Contract</a></li>
 <li><a class="reference internal" href="#storage-recommendations">Storage Recommendations</a></li>
 <li><a class="reference internal" href="#hub-deployment-profile">Hub Deployment Profile</a></li>
@@ -775,7 +865,7 @@ cache growth on long-lived hosts.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=b41f4c93"></script>
+</div><script src="../_static/documentation_options.js?v=0670f93a"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

@@ -294,4 +294,38 @@ describe('AnonymizationValidationComponent', () => {
       }
     })
   })
+
+  it('releases video stream elements when leaving the validation page', async () => {
+    hoisted.mediaStoreRef.current.isPdf = false
+    hoisted.mediaStoreRef.current.isVideo = true
+    const pauseSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => undefined)
+    const loadSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'load')
+      .mockImplementation(() => undefined)
+
+    const wrapper = mountComponent({ fileId: 5, mediaType: 'video' })
+    await flushPromises()
+
+    const videoElements = wrapper
+      .findAll('video')
+      .map((video) => video.element as HTMLVideoElement)
+    expect(videoElements).toHaveLength(2)
+    for (const element of videoElements) {
+      expect(element.getAttribute('preload')).toBe('none')
+    }
+
+    wrapper.unmount()
+
+    expect(pauseSpy).toHaveBeenCalledTimes(2)
+    expect(loadSpy).toHaveBeenCalledTimes(2)
+    expect(hoisted.anonymizationStoreRef.current.fetchNext).not.toHaveBeenCalled()
+    for (const element of videoElements) {
+      expect(element.getAttribute('src')).toBe('')
+    }
+
+    pauseSpy.mockRestore()
+    loadSpy.mockRestore()
+  })
 })

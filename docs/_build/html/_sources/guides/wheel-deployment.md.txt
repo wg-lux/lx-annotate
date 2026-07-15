@@ -72,6 +72,100 @@ The runtime layout is intentionally split:
 This split is required for encrypted data storage and tighter filesystem access
 control around patient data.
 
+## Settings And Secretspec
+
+Runtime configuration has three layers:
+
+- `secretspec.toml` is the deployable environment contract. It lists the
+  variables that development, CI, LuxNix, and systemd-style deployments are
+  expected to provide.
+- `lx_annotate/settings/config.py` converts environment values into the typed
+  `AppConfig` object used by Django settings. It parses comma-separated list
+  values, booleans, paths, secret-file references, and accepted legacy aliases.
+- `lx_annotate/settings/settings_prod.py` applies production policy. It turns
+  off debug mode, configures static assets, CORS, CSRF, Keycloak, database
+  settings, and security headers, then fails startup if required production
+  secrets or origins are missing.
+
+The settings loader accepts values from the process environment and from an
+explicit env file when one is passed by the base settings module. Env files may
+use plain `KEY=value` lines or `export KEY=value` lines. The process environment
+has the final word when both sources define the same setting.
+
+For list values, use comma-separated strings:
+
+```bash
+DJANGO_ALLOWED_HOSTS=annotate.example.test,localhost
+DJANGO_CSRF_TRUSTED_ORIGINS=https://annotate.example.test
+DJANGO_CORS_ALLOWED_ORIGINS=https://frontend.example.test
+```
+
+Prefer the canonical Django-prefixed names in new deployments:
+
+- `DJANGO_ALLOWED_HOSTS`
+- `DJANGO_CSRF_TRUSTED_ORIGINS`
+- `DJANGO_CORS_ALLOWED_ORIGINS`
+- `DJANGO_KEYCLOAK_CLIENT_ID`
+- `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`
+- `DJANGO_TIME_ZONE`
+
+The loader also accepts these aliases for compatibility with existing
+secretspec and Keycloak conventions:
+
+- `ALLOWED_HOSTS` for allowed hosts
+- `OIDC_RP_CLIENT_ID` for the Keycloak/OIDC client id
+- `OIDC_RP_CLIENT_SECRET` for the Keycloak/OIDC client secret
+- `TIME_ZONE` for the Django time zone
+
+Use secret file variables for production secrets whenever possible:
+
+- `DJANGO_SECRET_KEY_FILE`
+- `DJANGO_DB_PASSWORD_FILE`
+- `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`
+- `LX_ANNOTATE_MASTER_KEY_FILE`
+
+Literal secret variables such as `DJANGO_SECRET_KEY`, `DJANGO_DB_PASSWORD`,
+`OIDC_RP_CLIENT_SECRET`, and `LX_ANNOTATE_MASTER_KEY` are useful for local
+development and CI smoke tests, but they should not be the production default.
+The long-lived storage master key must remain local to the node and must not be
+sent over the network or committed to version control.
+
+Production startup requires these values to resolve to non-empty settings:
+
+- `DJANGO_SECRET_KEY` or `DJANGO_SECRET_KEY_FILE`
+- `DJANGO_ALLOWED_HOSTS` or `ALLOWED_HOSTS`
+- `DJANGO_CSRF_TRUSTED_ORIGINS`
+- `DJANGO_CORS_ALLOWED_ORIGINS`
+- `DJANGO_DB_PASSWORD` or `DJANGO_DB_PASSWORD_FILE`
+- `DJANGO_KEYCLOAK_CLIENT_SECRET`, `OIDC_RP_CLIENT_SECRET`, or
+  `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`
+
+### Secretspec Usage
+
+Use `secretspec.toml` as the source of variable names and profile defaults. The
+tracked defaults are not production secrets; production values must come from
+the host secret manager, an operator-owned env file, or LuxNix-generated
+environment.
+
+For local development:
+
+```bash
+secretspec --provider dotenv --profile development python manage.py runserver
+```
+
+For production checks, source or generate the production environment first, then
+run Django with the production profile:
+
+```bash
+secretspec --provider dotenv --profile production \
+  python -m django check --settings=lx_annotate.settings.settings_prod
+```
+
+For systemd deployments, generate or maintain `/var/lib/lx-annotate/.env.systemd`
+with the same variable names from `secretspec.toml`, then load it through
+`EnvironmentFile=` in the service unit. Keep file permissions restricted to the
+service user and trusted operators.
+
 Use `LX_ANNOTATE_ENCRYPTED_DATA_DIR` as the canonical host-owned runtime
 variable for the protected data mount. The application derives compatibility
 aliases and managed subdirectories from that root.

@@ -21,6 +21,7 @@ from endoreg_db.models import (
 from endoreg_db.models.state import video_segment_validation as segment_state
 from lx_annotate.hub.hub_export_jobs import build_hub_export_overview
 from lx_annotate.models import OutboundHubTransferJob
+from tests.hub_payload_helpers import verify_hub_report_artifact
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 
@@ -59,6 +60,7 @@ class HubExportHookTests(TestCase):
                 name="report-1-processed.pdf",
             ),
         )
+        verify_hub_report_artifact(report)
         job = OutboundHubTransferJob.objects.create(
             resource_kind=OutboundHubTransferJob.ResourceKind.REPORT,
             raw_pdf_file=report,
@@ -69,8 +71,14 @@ class HubExportHookTests(TestCase):
 
         report_state.anonymized = True
         report_state.sensitive_meta_processed = True
+        report_state.anonymization_validated = True
         report_state.save(
-            update_fields=["anonymized", "sensitive_meta_processed", "date_modified"]
+            update_fields=[
+                "anonymized",
+                "sensitive_meta_processed",
+                "anonymization_validated",
+                "date_modified",
+            ]
         )
 
         job.refresh_from_db()

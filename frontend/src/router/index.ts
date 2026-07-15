@@ -67,6 +67,14 @@ const router = createRouter({
       ]
     },
     {
+      path: '/studies',
+      name: 'Registerstudien',
+      component: () => import('@/views/studies/StudyCohortPage.vue'),
+      meta: {
+        description: 'Hypothesen formulieren und gruppierte Registerstudien-Kohorten filtern.'
+      }
+    },
+    {
       path: '/annotationen',
       name: 'Annotationen',
       component: () => import('@/views/AnnotationDashboard.vue'),
@@ -197,6 +205,14 @@ const router = createRouter({
       meta: {
         description: 'Aggregierte Workflow- und Qualitätsmetriken der Anonymisierung.',
         cap: 'page.anonymization.metrics'
+      }
+    },
+    {
+      path: '/anonymisierung/evaluation',
+      name: 'Anonymisierung Evaluation',
+      component: () => import('@/views/AnonymizationEvaluation.vue'),
+      meta: {
+        description: 'Aus lx-anonymizer extrahierte SensitiveMeta-Daten für Videos und PDFs.'
       }
     },
     {

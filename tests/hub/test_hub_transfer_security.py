@@ -47,7 +47,7 @@ class HubTransferSecurityTests(TestCase):
             "processing_policy": TransferJob.ProcessingPolicy.PRESERVE_PROCESSING_STATE,
             "processing_intent": TransferJob.ProcessingIntent.STATE_PRESERVATION,
             "cleanup_policy": TransferJob.CleanupPolicy.RETAIN_ALL,
-            "payload_schema_version": "1.0",
+            "payload_schema_version": "2.0",
             "resource_rows": valid_report_resource_rows(pdf_hash="hash-1"),
             "processing_snapshot": {
                 "sender_processing_success": True,
@@ -68,7 +68,7 @@ class HubTransferSecurityTests(TestCase):
             processing_policy=TransferJob.ProcessingPolicy.PRESERVE_PROCESSING_STATE,
             processing_intent=TransferJob.ProcessingIntent.STATE_PRESERVATION,
             cleanup_policy=TransferJob.CleanupPolicy.RETAIN_ALL,
-            payload_schema_version="1.0",
+            payload_schema_version="2.0",
             resource_rows={},
             processing_snapshot={},
             provenance={},

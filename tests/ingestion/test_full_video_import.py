@@ -66,6 +66,17 @@ def _configure_isolated_runtime(monkeypatch, settings, tmp_path: Path):
     monkeypatch.setenv("STORAGE_DIR", str(storage_root))
     monkeypatch.setenv("DATA_DIR", str(data_root))
     monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(storage_root))
+    streamable_root = storage_root / "streamable_videos"
+    streamable_raw_root = streamable_root / "raw"
+    streamable_processed_root = streamable_root / "processed"
+    monkeypatch.setenv("LX_ANNOTATE_STREAMABLE_VIDEO_ROOT", str(streamable_root))
+    monkeypatch.setenv(
+        "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT", str(streamable_raw_root)
+    )
+    monkeypatch.setenv(
+        "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT",
+        str(streamable_processed_root),
+    )
     monkeypatch.setenv("WATCHER_STABLE_AFTER_SECONDS", "0")
     monkeypatch.setenv("WATCHER_POLL_INTERVAL_SECONDS", "0.01")
 
@@ -76,6 +87,20 @@ def _configure_isolated_runtime(monkeypatch, settings, tmp_path: Path):
 
     paths = path_utils.EndoregPathsModel.from_environment()
     path_utils.rebind_path_exports(paths)
+
+    from endoreg_db.services import streamable_media
+
+    monkeypatch.setattr(streamable_media, "STREAMABLE_VIDEO_ROOT", streamable_root)
+    monkeypatch.setattr(
+        streamable_media,
+        "STREAMABLE_RAW_VIDEO_ROOT",
+        streamable_raw_root,
+    )
+    monkeypatch.setattr(
+        streamable_media,
+        "STREAMABLE_PROCESSED_VIDEO_ROOT",
+        streamable_processed_root,
+    )
     return paths
 
 

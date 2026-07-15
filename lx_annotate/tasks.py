@@ -21,11 +21,23 @@ def run_outbound_hub_transfer_job_task(
     source_node_key: str,
 ) -> bool:
     from .hub.hub_export_worker import run_outbound_transfer_job
+    from .hub.hub_export_reconciliation import (
+        hub_export_max_retries,
+        is_retryable_outbound_failure,
+    )
 
-    run_outbound_transfer_job(
+    result = run_outbound_transfer_job(
         outbound_job_id=str(outbound_job_id),
         source_node_key=str(source_node_key),
     )
+    if is_retryable_outbound_failure(result):
+        retry_count = max(int(result.retry_count or 0), 1)
+        countdown = min(30 * (2 ** (retry_count - 1)), 15 * 60)
+        raise _task.retry(
+            exc=RuntimeError(result.last_error),
+            countdown=countdown,
+            max_retries=hub_export_max_retries(),
+        )
     return True
 
 

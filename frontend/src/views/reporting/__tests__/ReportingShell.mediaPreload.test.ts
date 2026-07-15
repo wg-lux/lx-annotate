@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ReportingShell from '../ReportingShell.vue'
+import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 
 const hoisted = vi.hoisted(() => ({
   flowRef: { current: null as any },
@@ -526,5 +527,27 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.find('img[alt="Selected frame stream preview"]').attributes('src')).toBe(
       '/timeline/frame/v2'
     )
+  })
+
+  it('refreshes the selected case media after a report import completes', async () => {
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+    const wrapper = mountShell()
+    await flushPromises()
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockClear()
+
+    wrapper.getComponent(ReportImportPanel).vm.$emit('completed', 73, {
+      status: 'anonymized'
+    })
+    await flushPromises()
+
+    expect(hoisted.timelineApi.fetchPatientTimelineLatest).toHaveBeenCalledWith({
+      patientId: 42,
+      patientExaminationId: 314
+    })
   })
 })

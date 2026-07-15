@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
 from lx_annotate.hub.hub_export_jobs import build_hub_export_overview
 from lx_annotate.models import OutboundHubTransferJob
+from tests.hub_payload_helpers import verify_hub_report_artifact
 
 import base64
 import os
@@ -48,6 +49,7 @@ class HubExportPostProcessingTests(TestCase):
                 name="report-pp-1-processed.pdf",
             ),
         )
+        verify_hub_report_artifact(self.report)
 
     def test_overview_reflects_eligibility_after_state_transition(self):
         before = build_hub_export_overview(target_node=self.hub_node)
@@ -55,6 +57,7 @@ class HubExportPostProcessingTests(TestCase):
 
         self.report_state.anonymized = True
         self.report_state.sensitive_meta_processed = True
+        self.report_state.anonymization_validated = True
         self.report_state.processing_started = True
         self.report_state.save()
 
@@ -74,6 +77,7 @@ class HubExportPostProcessingTests(TestCase):
 
         self.report_state.anonymized = True
         self.report_state.sensitive_meta_processed = True
+        self.report_state.anonymization_validated = True
         self.report_state.processing_started = True
         self.report_state.save()
 
@@ -84,6 +88,7 @@ class HubExportPostProcessingTests(TestCase):
     def test_inflight_job_fails_when_resource_becomes_ineligible(self):
         self.report_state.anonymized = True
         self.report_state.sensitive_meta_processed = True
+        self.report_state.anonymization_validated = True
         self.report_state.processing_started = True
         self.report_state.save()
 
@@ -98,6 +103,7 @@ class HubExportPostProcessingTests(TestCase):
 
         self.report_state.anonymized = False
         self.report_state.sensitive_meta_processed = False
+        self.report_state.anonymization_validated = False
         self.report_state.processing_started = True
         self.report_state.save()
 

@@ -1,10 +1,11 @@
 # pyright: reportAttributeAccessIssue=false
 from __future__ import annotations
 
+import hashlib
 from unittest.mock import MagicMock, patch
 
 from django.core.files.base import ContentFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from endoreg_db.models import (
@@ -17,9 +18,13 @@ from endoreg_db.models import (
 )
 from lx_annotate.hub.hub_export_worker import run_outbound_transfer_job
 from lx_annotate.models import OutboundHubTransferJob
-from tests.hub_payload_helpers import create_hub_sensitive_meta
+from tests.hub_payload_helpers import (
+    create_hub_sensitive_meta,
+    verify_hub_report_artifact,
+)
 
 
+@override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
 class HubExportEndToEndTests(TestCase):
     def setUp(self) -> None:
         self.center = Center.objects.create(
@@ -45,18 +50,21 @@ class HubExportEndToEndTests(TestCase):
             anonymized=True,
             sensitive_meta_processed=True,
             processing_started=True,
+            anonymization_validated=True,
         )
         report = RawPdfFile.objects.create(
             center=self.center,
             state=report_state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-1",
+            anonymized_text="Anonymized report text",
             file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
             processed_file=ContentFile(
                 b"%PDF-1.4\nprocessed\n%%EOF\n",
                 name="report-1-processed.pdf",
             ),
         )
+        verify_hub_report_artifact(report)
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
@@ -100,6 +108,7 @@ class HubExportEndToEndTests(TestCase):
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_video_mark_then_transfer_completes(self, post_mock: MagicMock) -> None:
+        processed_hash = hashlib.sha256(b"processed-video").hexdigest()
         video_state = VideoState.objects.create(
             anonymized=True,
             sensitive_meta_processed=True,
@@ -111,13 +120,14 @@ class HubExportEndToEndTests(TestCase):
             ready_for_export=True,
             ready_for_export_at=timezone.now(),
             ready_for_export_by="test-suite",
-            processed_file_sha256="a" * 64,
+            processed_file_sha256=processed_hash,
         )
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
             video_hash="video-hash-1",
+            processed_video_hash=processed_hash,
             original_file_name="video-1.mp4",
             suffix=".mp4",
             fps=25.0,

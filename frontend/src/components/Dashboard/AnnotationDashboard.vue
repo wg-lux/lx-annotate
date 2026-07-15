@@ -534,7 +534,7 @@ const markSegmentComplete = async (segment) => {
       return;
     }
     await axiosInstance.patch(
-      `/api/${endpoints.media.videoSegmentDetail(videoId, segment.id)}`,
+      r(endpoints.media.videoSegmentDetail(videoId, segment.id)),
       { status: 'completed' }
     );
     annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
@@ -575,8 +575,8 @@ const validateSensitiveMeta = (meta) => {
 const markSensitiveMetaComplete = async (meta) => {
   try {
     const endpoint = meta.content_type === 'video' 
-      ? `/api/${endpoints.media.videos}`
-      : `/api/${endpoints.media.pdfs}`;
+      ? r(endpoints.media.videos)
+      : r(endpoints.media.pdfs);
     
     await axiosInstance.patch(endpoint, { 
       sensitive_meta_id: meta.id,

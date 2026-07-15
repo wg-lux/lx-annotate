@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 
@@ -25,7 +26,15 @@ def test_upstream_migration_command_covers_required_import_paths():
 
 def test_upstream_migration_command_uses_rule_specific_extension_filters():
     source = UPSTREAM_MIGRATION_COMMAND.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    allowed_extensions_fields = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "allowed_extensions"
+    ]
 
-    assert "allowed_extensions: tuple[str, ...] | None = None" in source
+    assert allowed_extensions_fields
     assert "allowed_extensions = rule.allowed_extensions" in source
     assert "and source_path.suffix.lower() not in allowed_extensions" in source

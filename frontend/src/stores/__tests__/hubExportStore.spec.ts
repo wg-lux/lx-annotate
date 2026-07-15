@@ -10,6 +10,7 @@ const hoisted = vi.hoisted(() => ({
 }))
 
 vi.mock('@/api/axiosInstance', () => ({
+  r: (path: string) => `/api/${path}`,
   default: {
     get: hoisted.get,
     post: hoisted.post

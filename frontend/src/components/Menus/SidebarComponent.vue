@@ -165,6 +165,14 @@
                 <span class="nav-link-text ms-1">Datensatz-Einstellungen</span>
               </router-link>
             </li>
+            <li class="nav-item">
+              <router-link to="/studies" class="nav-link" :class="{ active: $route.path === '/studies' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-chart-pie-35 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">Registerstudien</span>
+              </router-link>
+            </li>
                         <li class="nav-item" v-can="'page.anonymization.metrics:GET'">
               <router-link
                 to="/anonymisierung/metriken"
@@ -175,6 +183,19 @@
                   <i class="ni ni-chart-bar-32 opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Anonymisierungsmetriken</span>
+              </router-link>
+            </li>
+
+            <li class="nav-item">
+              <router-link
+                to="/anonymisierung/evaluation"
+                class="nav-link"
+                :class="{ active: isAnonymizationEvaluationRoute }"
+              >
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-single-copy-04 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">Anonymisierungsevaluation</span>
               </router-link>
             </li>
 
@@ -290,6 +311,9 @@ export default {
     },
     isAnonymizationMetricsRoute() {
       return this.$route.path.startsWith('/anonymisierung/metriken')
+    },
+    isAnonymizationEvaluationRoute() {
+      return this.$route.path.startsWith('/anonymisierung/evaluation')
     },
     isReportingRoute() {
       return this.$route.path.startsWith('/reporting')

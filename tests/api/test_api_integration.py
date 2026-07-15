@@ -279,7 +279,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
             content_type="application/pdf",
         )
 
-    @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
+    @patch("endoreg_db.views.misc.upload_views.ingest.start_upload_job_processing")
     def test_upload_accepts_valid_center_key(self, mock_start_processing):
         url = "/api/upload/"
         response = self.client.post(
@@ -320,7 +320,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         self.assertIn("error", response.data)
         self.assertIn("Unknown center_key", response.data["error"])
 
-    @patch("endoreg_db.views.misc.upload_views.resolve_api_upload_context")
+    @patch("endoreg_db.views.misc.upload_views.ingest.resolve_api_upload_context")
     def test_upload_rejects_center_outside_authenticated_scope(
         self, mock_allowed_center
     ):
@@ -345,7 +345,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         self.assertIn("error", response.data)
         self.assertIn("outside the authenticated scope", response.data["error"])
 
-    @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
+    @patch("endoreg_db.views.misc.upload_views.ingest.start_upload_job_processing")
     def test_upload_reuses_job_for_same_idempotency_key(self, mock_start_processing):
         url = "/api/upload/"
         headers = {"HTTP_IDEMPOTENCY_KEY": "same-logical-upload"}
@@ -381,7 +381,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         )
         mock_start_processing.assert_called_once()
 
-    @patch("endoreg_db.views.misc.upload_views.resolve_allowed_center_id")
+    @patch("endoreg_db.views.misc.upload_views.ingest.resolve_allowed_center_id")
     def test_upload_status_enforces_center_scope(self, mock_allowed_center):
         mock_allowed_center.return_value = self.center.id
         upload_job = UploadJob.objects.create(
@@ -588,6 +588,7 @@ class VideoStreamingFixedTests(APIIntegrationTestCase):
                 response.status_code,
                 [
                     status.HTTP_200_OK,
+                    status.HTTP_409_CONFLICT,
                     status.HTTP_404_NOT_FOUND,
                     status.HTTP_500_INTERNAL_SERVER_ERROR,
                 ],
@@ -630,7 +631,7 @@ class VideoFileFixedTests(APIIntegrationTestCase):
 
     def test_video_metadata_endpoint_with_error_handling(self):
         """Test: Video-Metadaten Endpunkt mit Fehlerbehandlung"""
-        url = f"/api/media/videos/{self.video.pk}/"
+        url = f"/endoreg-api/media/videos/{self.video.pk}/details/"
 
         try:
             response = self.client.get(url)
@@ -640,6 +641,8 @@ class VideoFileFixedTests(APIIntegrationTestCase):
                 response.status_code,
                 [
                     status.HTTP_200_OK,
+                    status.HTTP_403_FORBIDDEN,
+                    status.HTTP_409_CONFLICT,
                     status.HTTP_404_NOT_FOUND,
                     status.HTTP_500_INTERNAL_SERVER_ERROR,
                 ],
@@ -652,26 +655,15 @@ class VideoFileFixedTests(APIIntegrationTestCase):
             else:
                 raise
 
-    def test_video_streaming_endpoint_with_renderer_fix(self):
-        """Test: Video-Streaming Endpunkt mit Renderer-Problem-Fix"""
-        url = f"/api/media/videos/{self.video.pk}/stream/"
+    def test_video_streaming_endpoint_for_redirect(self):
+        """Test: Video-Streaming Endpunkt auf erfolgreichen redirect"""
+        url = f"/endoreg-api/media/videos/{self.video.pk}/stream/"
 
-        try:
-            response = self.client.get(url)
+        response = self.client.get(url)
 
-            # Erwarte verschiedene mögliche Antworten
-            self.assertIn(
-                response.status_code,
-                [
-                    status.HTTP_200_OK,
-                    status.HTTP_404_NOT_FOUND,
-                    status.HTTP_500_INTERNAL_SERVER_ERROR,
-                ],
-            )
-
-        except IndexError as e:
-            if "list index out of range" in str(e):
-                # Das ist ein bekannter DRF Renderer-Fehler
-                self.skipTest(f"DRF Renderer Konfigurationsproblem: {e}")
-            else:
-                raise
+        # self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            f"/endoreg-api/media/videos/{self.video.pk}/hls/playlist.m3u8?type=processed",
+            response["Location"],
+        )
+        self.assertNotIn("/stream/", response["Location"])

@@ -3,6 +3,13 @@ import { endpoints } from '@/types/api/endpoints'
 
 type QueryValue = string | number | boolean | null | undefined
 type QueryParams = Record<string, QueryValue>
+type MediaFileType = 'raw' | 'processed'
+type StreamableVideoFileType = 'processed'
+
+export interface VideoPlaybackUrls {
+  hlsPlaylistUrl: string
+  fallbackStreamUrl: string
+}
 
 export function buildApiUrl(path: string, query?: QueryParams): string {
   const url = new URL(r(path), window.location.origin)
@@ -23,7 +30,7 @@ export function buildApiUrl(path: string, query?: QueryParams): string {
 
 export function buildVideoStreamUrl(
   fileId: number,
-  type?: 'raw' | 'processed',
+  type?: MediaFileType,
   query?: QueryParams
 ): string {
   return buildApiUrl(endpoints.media.videoStream(fileId), {
@@ -32,9 +39,27 @@ export function buildVideoStreamUrl(
   })
 }
 
+export function buildVideoHlsPlaylistUrl(
+  fileId: number,
+  type: StreamableVideoFileType = 'processed',
+  query?: QueryParams
+): string {
+  return buildApiUrl(endpoints.media.videoHlsPlaylist(fileId), {
+    type,
+    ...query
+  })
+}
+
+export function buildVideoPlaybackUrls(fileId: number): VideoPlaybackUrls {
+  return {
+    hlsPlaylistUrl: buildVideoHlsPlaylistUrl(fileId, 'processed'),
+    fallbackStreamUrl: buildVideoStreamUrl(fileId, 'processed')
+  }
+}
+
 export function buildPdfStreamUrl(
   fileId: number,
-  type?: 'raw' | 'processed',
+  type?: MediaFileType,
   query?: QueryParams
 ): string {
   return buildApiUrl(endpoints.media.pdfStream(fileId), {

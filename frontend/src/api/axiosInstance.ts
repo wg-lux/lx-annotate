@@ -7,7 +7,8 @@ import { useAuthKcStore } from '@/stores/auth_kc'
 // This handles requests to the local Django APIs.
 
 const LEGACY_API_PREFIX = import.meta.env.VITE_API_PREFIX
-const ENDOREG_API_PREFIX = import.meta.env.VITE_ENDOREG_API_PREFIX ?? LEGACY_API_PREFIX ?? 'endoreg-api/'
+const ENDOREG_API_PREFIX =
+  import.meta.env.VITE_ENDOREG_API_PREFIX ?? LEGACY_API_PREFIX ?? 'endoreg-api/'
 const DTYPES_API_PREFIX = import.meta.env.VITE_DTYPES_API_PREFIX ?? 'dtypes-api/'
 
 function joinApiPath(prefix: string, path: string): string {
@@ -48,7 +49,7 @@ axiosInstance.interceptors.response.use(
     // 🔒 If backend says "unauthenticated", send user to Keycloak login
     if (status === 401) {
       // Optional: clear any local state here if you keep some user info in Pinia
-      auth.login()  // 👈 IMPORTANT: this must call Keycloak, not a Vue /login page
+      auth.login() // 👈 IMPORTANT: this must call Keycloak, not a Vue /login page
       return Promise.reject(err)
     }
 
@@ -66,7 +67,6 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(err) // keep the rejection chain intact
   }
 )
-
 
 // Helper for endoreg_db plus lx-annotate local API routes.
 export function endoregApi(path: string): string {
@@ -88,7 +88,9 @@ export function a(path: string): string {
   return r(`pdf/${path}`)
 }
 
-export function silentRequestConfig<T extends AxiosRequestConfig = AxiosRequestConfig>(config?: T): T & {
+export function silentRequestConfig<T extends AxiosRequestConfig = AxiosRequestConfig>(
+  config?: T
+): T & {
   suppressErrorToast: true
 } {
   return {
@@ -110,8 +112,6 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (csrftoken && config.headers) {
     config.headers['X-CSRFToken'] = csrftoken
   }
-  // Log headers for debugging TODO: Remove in production
-  console.log('Request Headers:', config.headers)
   return config
 })
 
@@ -163,21 +163,5 @@ axiosInstance.interceptors.response.use((response) => {
   }
   return response
 })
-
-axiosInstance.interceptors.response.use(
-  (r) => r,
-  (err) => {
-    console.error('AXIOS ERROR', {
-      message: err.message,
-      code: err.code,
-      status: err.response?.status,
-      method: err.config?.method,
-      url: err.config?.url,
-      requestData: err.config?.data,
-      responseData: err.response?.data
-    })
-    return Promise.reject(err)
-  }
-)
 
 export default axiosInstance
