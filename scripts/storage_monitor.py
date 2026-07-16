@@ -7,25 +7,26 @@ Add to crontab:
 0 * * * * /home/admin/test/lx-annotate/scripts/storage_monitor.py >> /home/admin/test/lx-annotate/logs/storage_monitor.log 2>&1
 """
 
+import logging
 import os
 import sys
-import logging
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to Python path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Set Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.settings_dev')
 
 # Configure Django
 import django
+
 django.setup()
 
-from django.core.management import call_command
 from django.conf import settings
+from django.core.management import call_command
 
 # Configure logging
 logging.basicConfig(

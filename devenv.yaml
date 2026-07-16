@@ -1,11 +1,15 @@
 inputs:
   nixpkgs:
+    url: github:cachix/devenv-nixpkgs/rolling
+  nixpkgs-unstable:
     url: github:NixOS/nixpkgs/nixpkgs-unstable
-  nix2container:
-    url: github:nlewo/nix2container
-    inputs:
-      nixpkgs:
-        follows: nixpkgs
   mk-shell-bin:
     url: github:rrbutani/nix-mk-shell-bin
+  lx-anonymizer:
+    url: github:wg-lux/lx-anonymizer
+  lx-data-models:
+    url: github:wg-lux/lx-data-models/report_template
 allowUnfree: true
+secretspec:
+  enable: true
+  provider: "env"

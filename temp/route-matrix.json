@@ -1,0 +1,1723 @@
+{
+  "effective_missing_backend": [],
+  "effective_missing_backend_count": 0,
+  "frontend_checked": 94,
+  "missing_backend": [],
+  "missing_backend_count": 0,
+  "results": [
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "auth-bootstrap",
+          "path": "api/auth/bootstrap",
+          "source": "endoreg_db.authz.views_auth.auth_bootstrap"
+        }
+      ],
+      "frontend_path": "auth/bootstrap",
+      "key": "auth.bootstrap",
+      "normalized_path": "auth/bootstrap",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "ANY"
+          ],
+          "name": "public_home",
+          "path": "api/endoreg_db/",
+          "source": "endoreg_db.views.auth.keycloak.public_home"
+        }
+      ],
+      "frontend_path": "endoreg_db/",
+      "key": "auth.publicHome",
+      "normalized_path": "endoreg_db/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "ANY"
+          ],
+          "name": "keycloak_login",
+          "path": "api/login/",
+          "source": "endoreg_db.views.auth.keycloak.keycloak_login"
+        }
+      ],
+      "frontend_path": "login/",
+      "key": "auth.login",
+      "normalized_path": "login/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "ANY"
+          ],
+          "name": "keycloak_callback",
+          "path": "api/login/callback/",
+          "source": "endoreg_db.views.auth.keycloak.keycloak_callback"
+        }
+      ],
+      "frontend_path": "login/callback/",
+      "key": "auth.loginCallback",
+      "normalized_path": "login/callback/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "ANY"
+          ],
+          "name": "csrf_token",
+          "path": "api/conf/",
+          "source": "endoreg_db.views.misc.csrf.csrf_token_view"
+        }
+      ],
+      "frontend_path": "conf/",
+      "key": "auth.conf",
+      "normalized_path": "conf/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "examination-list",
+          "path": "api/^examinations/$",
+          "source": "endoreg_db.views.examination.examination.ExaminationViewSet"
+        }
+      ],
+      "frontend_path": "examinations/",
+      "key": "router.examinations",
+      "normalized_path": "examinations/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "finding-list",
+          "path": "api/^findings/$",
+          "source": "endoreg_db.views.finding.finding.FindingViewSet"
+        }
+      ],
+      "frontend_path": "findings/",
+      "key": "router.findings",
+      "normalized_path": "findings/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "findingclassification-list",
+          "path": "api/^classifications/$",
+          "source": "endoreg_db.views.finding_classification.finding_classification.FindingClassificationViewSet"
+        }
+      ],
+      "frontend_path": "classifications/",
+      "key": "router.classifications",
+      "normalized_path": "classifications/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patientfinding-list",
+          "path": "api/^patient-findings/$",
+          "source": "endoreg_db.views.patient_finding.patient_finding.PatientFindingViewSet"
+        },
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patientfinding-list",
+          "path": "api/^patient-findings/$",
+          "source": "endoreg_db.views.patient_finding.patient_finding.PatientFindingViewSet"
+        }
+      ],
+      "frontend_path": "patient-findings/",
+      "key": "router.patientFindings",
+      "normalized_path": "patient-findings/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patientexamination-list",
+          "path": "api/^patient-examinations/$",
+          "source": "endoreg_db.views.patient_examination.patient_examination.PatientExaminationViewSet"
+        }
+      ],
+      "frontend_path": "patient-examinations/",
+      "key": "router.patientExaminations",
+      "normalized_path": "patient-examinations/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patientexaminationreport-list",
+          "path": "api/^patient-examination-reports/$",
+          "source": "endoreg_db.views.report.patient_examination_report.PatientExaminationReportViewSet"
+        }
+      ],
+      "frontend_path": "patient-examination-reports/",
+      "key": "router.patientExaminationReports",
+      "normalized_path": "patient-examination-reports/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patient-list",
+          "path": "api/^patients/$",
+          "source": "endoreg_db.views.patient.patient.PatientViewSet"
+        }
+      ],
+      "frontend_path": "patients/",
+      "key": "patient.patients",
+      "normalized_path": "patients/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "PUT"
+          ],
+          "name": "patient-detail",
+          "path": "api/^patients/(?P<pk>[^/.]+)/$",
+          "source": "endoreg_db.views.patient.patient.PatientViewSet"
+        }
+      ],
+      "frontend_path": "patients/__ARG1__/",
+      "key": "patient.patientById",
+      "normalized_path": "patients/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "patient-generate-pseudonym",
+          "path": "api/^patients/(?P<pk>[^/.]+)/pseudonym/$",
+          "source": "endoreg_db.views.patient.patient.PatientViewSet"
+        }
+      ],
+      "frontend_path": "patients/__ARG1__/pseudonym/",
+      "key": "patient.patientPseudonym",
+      "normalized_path": "patients/{param}/pseudonym/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "center-list",
+          "path": "api/^centers/$",
+          "source": "endoreg_db.views.misc.center.CenterViewSet"
+        }
+      ],
+      "frontend_path": "centers/",
+      "key": "patient.centers",
+      "normalized_path": "centers/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "gender-list",
+          "path": "api/^genders/$",
+          "source": "endoreg_db.views.misc.gender.GenderViewSet"
+        }
+      ],
+      "frontend_path": "genders/",
+      "key": "patient.genders",
+      "normalized_path": "genders/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patientfinding-list",
+          "path": "api/^patient-findings/$",
+          "source": "endoreg_db.views.patient_finding.patient_finding.PatientFindingViewSet"
+        },
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patientfinding-list",
+          "path": "api/^patient-findings/$",
+          "source": "endoreg_db.views.patient_finding.patient_finding.PatientFindingViewSet"
+        }
+      ],
+      "frontend_path": "patient-findings/",
+      "key": "patient.patientFindings",
+      "normalized_path": "patient-findings/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "check_pe_exist",
+          "path": "api/check_pe_exist/<int:pk>/",
+          "source": "endoreg_db.views.patient.patient.PatientViewSet"
+        }
+      ],
+      "frontend_path": "check_pe_exist/__ARG1__/",
+      "key": "patient.checkPatientExaminationExists",
+      "normalized_path": "check_pe_exist/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "examination-findings",
+          "path": "api/^examinations/(?P<pk>[^/.]+)/findings/$",
+          "source": "endoreg_db.views.examination.examination.ExaminationViewSet"
+        },
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "get_findings_for_examination",
+          "path": "api/examinations/<int:examination_id>/findings/",
+          "source": "endoreg_db.views.examination.get_findings.get_findings_for_examination"
+        }
+      ],
+      "frontend_path": "examinations/__ARG1__/findings/",
+      "key": "examination.examinationFindings",
+      "normalized_path": "examinations/{param}/findings/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "get_classifications_for_finding",
+          "path": "api/findings/<int:finding_id>/classifications/",
+          "source": "endoreg_db.views.finding.get_classifications.get_classifications_for_finding"
+        }
+      ],
+      "frontend_path": "findings/__ARG1__/classifications/",
+      "key": "examination.findingClassifications",
+      "normalized_path": "findings/{param}/classifications/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "findingclassification-choices",
+          "path": "api/^classifications/(?P<pk>[^/.]+)/choices/$",
+          "source": "endoreg_db.views.finding_classification.finding_classification.FindingClassificationViewSet"
+        },
+        {
+          "methods": [
+            "ANY"
+          ],
+          "name": "get_choices_for_classification",
+          "path": "api/classifications/<int:classification_id>/choices/",
+          "source": "endoreg_db.views.finding_classification.get_classification_choices.get_classification_choices"
+        }
+      ],
+      "frontend_path": "classifications/__ARG1__/choices/",
+      "key": "examination.classificationChoices",
+      "normalized_path": "classifications/{param}/choices/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "patient_examination_create",
+          "path": "api/patient-examinations/create/",
+          "source": "endoreg_db.views.patient_examination.patient_examination_create.ExaminationCreateView"
+        }
+      ],
+      "frontend_path": "patient-examinations/create/",
+      "key": "examination.patientExaminationCreate",
+      "normalized_path": "patient-examinations/create/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "PUT"
+          ],
+          "name": "patientexamination-detail",
+          "path": "api/^patient-examinations/(?P<pk>[^/.]+)/$",
+          "source": "endoreg_db.views.patient_examination.patient_examination.PatientExaminationViewSet"
+        },
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "patient_examination_detail",
+          "path": "api/patient-examinations/<int:pk>/",
+          "source": "endoreg_db.views.patient_examination.patient_examination_detail.PatientExaminationDetailView"
+        }
+      ],
+      "frontend_path": "patient-examinations/__ARG1__/",
+      "key": "examination.patientExaminationDetail",
+      "normalized_path": "patient-examinations/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "patient_examination_list",
+          "path": "api/patient-examinations/list/",
+          "source": "endoreg_db.views.patient_examination.patient_examination_list.PatientExaminationListView"
+        }
+      ],
+      "frontend_path": "patient-examinations/list/",
+      "key": "examination.patientExaminationList",
+      "normalized_path": "patient-examinations/list/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "get_classifications_for_examination",
+          "path": "api/patient-examinations/<int:exam_id>/classifications/",
+          "source": "endoreg_db.views.examination.get_finding_classifications.get_classifications_for_examination"
+        }
+      ],
+      "frontend_path": "patient-examinations/__ARG1__/classifications/",
+      "key": "examination.patientExaminationClassifications",
+      "normalized_path": "patient-examinations/{param}/classifications/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "get_patient_examination_findings",
+          "path": "api/patient-examinations/<int:examination_id>/findings/",
+          "source": "endoreg_db.views.examination.get_findings.get_findings_for_examination"
+        }
+      ],
+      "frontend_path": "patient-examinations/__ARG1__/findings/",
+      "key": "examination.patientExaminationFindings",
+      "normalized_path": "patient-examinations/{param}/findings/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patientexaminationreport-list",
+          "path": "api/^patient-examination-reports/$",
+          "source": "endoreg_db.views.report.patient_examination_report.PatientExaminationReportViewSet"
+        }
+      ],
+      "frontend_path": "patient-examination-reports/",
+      "key": "report.patientExaminationReports",
+      "normalized_path": "patient-examination-reports/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "PUT"
+          ],
+          "name": "patientexaminationreport-detail",
+          "path": "api/^patient-examination-reports/(?P<pk>[^/.]+)/$",
+          "source": "endoreg_db.views.report.patient_examination_report.PatientExaminationReportViewSet"
+        }
+      ],
+      "frontend_path": "patient-examination-reports/__ARG1__/",
+      "key": "report.patientExaminationReportById",
+      "normalized_path": "patient-examination-reports/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "patientexaminationreport-list",
+          "path": "api/^patient-examination-reports/$",
+          "source": "endoreg_db.views.report.patient_examination_report.PatientExaminationReportViewSet"
+        }
+      ],
+      "frontend_path": "patient-examination-reports/?patient_examination_id=__ARG1__",
+      "key": "report.patientExaminationReportsByPatientExamination",
+      "normalized_path": "patient-examination-reports/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "patientexaminationreport-save-submission",
+          "path": "api/^patient-examination-reports/save-submission/$",
+          "source": "endoreg_db.views.report.patient_examination_report.PatientExaminationReportViewSet"
+        }
+      ],
+      "frontend_path": "patient-examination-reports/save-submission/",
+      "key": "report.saveReportSubmission",
+      "normalized_path": "patient-examination-reports/save-submission/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "PATCH"
+          ],
+          "name": "patientexaminationreport-segment-frame-selector",
+          "path": "api/^patient-examination-reports/segment-frame-selector/$",
+          "source": "endoreg_db.views.report.patient_examination_report.PatientExaminationReportViewSet"
+        }
+      ],
+      "frontend_path": "patient-examination-reports/segment-frame-selector/",
+      "key": "report.segmentFrameSelectorBase",
+      "normalized_path": "patient-examination-reports/segment-frame-selector/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "PATCH"
+          ],
+          "name": "patientexaminationreport-segment-frame-selector",
+          "path": "api/^patient-examination-reports/segment-frame-selector/$",
+          "source": "endoreg_db.views.report.patient_examination_report.PatientExaminationReportViewSet"
+        }
+      ],
+      "frontend_path": "patient-examination-reports/segment-frame-selector/?patient_examination_id=__ARG1__&report_id=__ARG2__",
+      "key": "report.segmentFrameSelector",
+      "normalized_path": "patient-examination-reports/segment-frame-selector/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "patientexaminationreport-history-context",
+          "path": "api/^patient-examination-reports/history-context/$",
+          "source": "endoreg_db.views.report.patient_examination_report.PatientExaminationReportViewSet"
+        }
+      ],
+      "frontend_path": "patient-examination-reports/history-context/?patient_examination_id=__ARG1__&limit=__ARG2__",
+      "key": "report.reportHistoryContext",
+      "normalized_path": "patient-examination-reports/history-context/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "frame-annotations-random-task",
+          "path": "api/media/annotations/frames/random-task/",
+          "source": "endoreg_db.views.video.ai.frame_annotations.FrameAnnotationRandomTaskView"
+        }
+      ],
+      "frontend_path": "media/annotations/frames/random-task/",
+      "key": "annotation.randomTask",
+      "normalized_path": "media/annotations/frames/random-task/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "frame-annotations-bulk-upsert",
+          "path": "api/media/annotations/frames/bulk-upsert/",
+          "source": "endoreg_db.views.video.ai.frame_annotations.FrameAnnotationBulkUpsertView"
+        }
+      ],
+      "frontend_path": "media/annotations/frames/bulk-upsert/",
+      "key": "annotation.bulkUpsert",
+      "normalized_path": "media/annotations/frames/bulk-upsert/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "frame-annotations-skip",
+          "path": "api/media/annotations/frames/skip/",
+          "source": "endoreg_db.views.video.ai.frame_annotations.FrameAnnotationSkipView"
+        }
+      ],
+      "frontend_path": "media/annotations/frames/skip/",
+      "key": "annotation.skip",
+      "normalized_path": "media/annotations/frames/skip/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video_upload",
+          "path": "api/upload/",
+          "source": "endoreg_db.views.misc.upload_views.UploadFileView"
+        }
+      ],
+      "frontend_path": "upload/",
+      "key": "upload.upload",
+      "normalized_path": "upload/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "upload_status",
+          "path": "api/upload/<uuid:id>/status/",
+          "source": "endoreg_db.views.misc.upload_views.UploadStatusView"
+        }
+      ],
+      "frontend_path": "upload/__ARG1__/status/",
+      "key": "upload.uploadStatus",
+      "normalized_path": "upload/{param}/status/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "lookup/-init",
+          "path": "api/^lookup/init/$",
+          "source": "endoreg_db.views.requirement.lookup.LookupViewSet"
+        }
+      ],
+      "frontend_path": "lookup/init/",
+      "key": "requirements.lookupInit",
+      "normalized_path": "lookup/init/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "lookup/-get-all",
+          "path": "api/^lookup/(?P<pk>[^/.]+)/all/$",
+          "source": "endoreg_db.views.requirement.lookup.LookupViewSet"
+        }
+      ],
+      "frontend_path": "lookup/__ARG1__/all/",
+      "key": "requirements.lookupAll",
+      "normalized_path": "lookup/{param}/all/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "PATCH"
+          ],
+          "name": "lookup/-parts",
+          "path": "api/^lookup/(?P<pk>[^/.]+)/parts/$",
+          "source": "endoreg_db.views.requirement.lookup.LookupViewSet"
+        }
+      ],
+      "frontend_path": "lookup/__TOKEN__/parts/?keys=__KEY__",
+      "key": "requirements.lookupParts",
+      "normalized_path": "lookup/{param}/parts/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "lookup/-recompute",
+          "path": "api/^lookup/(?P<pk>[^/.]+)/recompute/$",
+          "source": "endoreg_db.views.requirement.lookup.LookupViewSet"
+        }
+      ],
+      "frontend_path": "lookup/__ARG1__/recompute/",
+      "key": "requirements.lookupRecompute",
+      "normalized_path": "lookup/{param}/recompute/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "evaluate-requirements/",
+          "path": "api/evaluate-requirements/",
+          "source": "endoreg_db.views.requirement.evaluate.evaluate_requirements"
+        }
+      ],
+      "frontend_path": "evaluate-requirements/",
+      "key": "requirements.evaluateRequirements",
+      "normalized_path": "evaluate-requirements/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "examination_stats",
+          "path": "api/examinations/stats/",
+          "source": "endoreg_db.views.misc.stats.ExaminationStatsView"
+        }
+      ],
+      "frontend_path": "examinations/stats/",
+      "key": "stats.examinations",
+      "normalized_path": "examinations/stats/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video_segment_stats",
+          "path": "api/video-segment/stats/",
+          "source": "endoreg_db.views.misc.stats.VideoSegmentStatsView"
+        }
+      ],
+      "frontend_path": "video-segment/stats/",
+      "key": "stats.videoSegment",
+      "normalized_path": "video-segment/stats/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video_segments_stats",
+          "path": "api/video-segments/stats/",
+          "source": "endoreg_db.views.misc.stats.VideoSegmentStatsView"
+        },
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video_segments_stats",
+          "path": "api/video-segments/stats/",
+          "source": "endoreg_db.views.misc.stats.VideoSegmentStatsView"
+        }
+      ],
+      "frontend_path": "video-segments/stats/",
+      "key": "stats.videoSegments",
+      "normalized_path": "video-segments/stats/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "sensitive_meta_stats",
+          "path": "api/video/sensitivemeta/stats/",
+          "source": "endoreg_db.views.misc.stats.SensitiveMetaStatsView"
+        }
+      ],
+      "frontend_path": "video/sensitivemeta/stats/",
+      "key": "stats.sensitiveMeta",
+      "normalized_path": "video/sensitivemeta/stats/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "general_stats",
+          "path": "api/stats/",
+          "source": "endoreg_db.views.misc.stats.GeneralStatsView"
+        }
+      ],
+      "frontend_path": "stats/",
+      "key": "stats.general",
+      "normalized_path": "stats/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "anonymization_items_overview",
+          "path": "api/anonymization/items/overview/",
+          "source": "endoreg_db.views.anonymization.overview.AnonymizationOverviewView"
+        }
+      ],
+      "frontend_path": "anonymization/items/overview/",
+      "key": "anonymization.itemsOverview",
+      "normalized_path": "anonymization/items/overview/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "anonymization_document_types_dropdown",
+          "path": "api/anonymization/document-types/dropdown/",
+          "source": "endoreg_db.views.anonymization.validate.anonymization_document_types_dropdown"
+        }
+      ],
+      "frontend_path": "anonymization/document-types/dropdown/",
+      "key": "anonymization.documentTypesDropdown",
+      "normalized_path": "anonymization/document-types/dropdown/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST",
+            "PUT"
+          ],
+          "name": "set_current_for_validation",
+          "path": "api/anonymization/<int:file_id>/current/",
+          "source": "endoreg_db.views.anonymization.overview.anonymization_current"
+        }
+      ],
+      "frontend_path": "anonymization/__ARG1__/current/",
+      "key": "anonymization.current",
+      "normalized_path": "anonymization/{param}/current/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "start_anonymization",
+          "path": "api/anonymization/<int:file_id>/start/",
+          "source": "endoreg_db.views.anonymization.overview.start_anonymization"
+        }
+      ],
+      "frontend_path": "anonymization/__ARG1__/start/",
+      "key": "anonymization.start",
+      "normalized_path": "anonymization/{param}/start/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "get_anonymization_status",
+          "path": "api/anonymization/<int:file_id>/status/",
+          "source": "endoreg_db.views.anonymization.overview.anonymization_status"
+        }
+      ],
+      "frontend_path": "anonymization/__ARG1__/status/",
+      "key": "anonymization.status",
+      "normalized_path": "anonymization/{param}/status/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "validate_anonymization",
+          "path": "api/anonymization/<int:file_id>/validate/",
+          "source": "endoreg_db.views.anonymization.validate.AnonymizationValidateView"
+        }
+      ],
+      "frontend_path": "anonymization/__ARG1__/validate/",
+      "key": "anonymization.validate",
+      "normalized_path": "anonymization/{param}/validate/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "polling_coordinator_info",
+          "path": "api/anonymization/polling-info/",
+          "source": "endoreg_db.views.anonymization.overview.polling_coordinator_info"
+        }
+      ],
+      "frontend_path": "anonymization/polling-info/",
+      "key": "anonymization.pollingInfo",
+      "normalized_path": "anonymization/polling-info/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE"
+          ],
+          "name": "clear_processing_locks",
+          "path": "api/anonymization/clear-locks/",
+          "source": "endoreg_db.views.anonymization.overview.clear_processing_locks"
+        }
+      ],
+      "frontend_path": "anonymization/clear-locks/",
+      "key": "anonymization.clearLocks",
+      "normalized_path": "anonymization/clear-locks/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "has_raw_video_file",
+          "path": "api/anonymization/<int:file_id>/has-raw/",
+          "source": "endoreg_db.views.anonymization.overview.has_raw_video_file"
+        }
+      ],
+      "frontend_path": "anonymization/__ARG1__/has-raw/",
+      "key": "anonymization.hasRaw",
+      "normalized_path": "anonymization/{param}/has-raw/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "media_management_status",
+          "path": "api/media-management/status/",
+          "source": "endoreg_db.views.anonymization.media_management.MediaManagementView"
+        }
+      ],
+      "frontend_path": "media-management/status/",
+      "key": "mediaManagement.status",
+      "normalized_path": "media-management/status/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "media_management_cleanup",
+          "path": "api/media-management/cleanup/",
+          "source": "endoreg_db.views.anonymization.media_management.MediaManagementView"
+        }
+      ],
+      "frontend_path": "media-management/cleanup/",
+      "key": "mediaManagement.cleanup",
+      "normalized_path": "media-management/cleanup/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE"
+          ],
+          "name": "force_remove_media",
+          "path": "api/media-management/force-remove/<int:file_id>/",
+          "source": "endoreg_db.views.anonymization.media_management.force_remove_media"
+        }
+      ],
+      "frontend_path": "media-management/force-remove/__ARG1__/",
+      "key": "mediaManagement.forceRemove",
+      "normalized_path": "media-management/force-remove/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "reset_processing_status",
+          "path": "api/media-management/reset-status/<int:file_id>/",
+          "source": "endoreg_db.views.anonymization.media_management.reset_processing_status"
+        }
+      ],
+      "frontend_path": "media-management/reset-status/__ARG1__/",
+      "key": "mediaManagement.resetStatus",
+      "normalized_path": "media-management/reset-status/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "patient-media-timeline",
+          "path": "api/media/patients/<int:patient_id>/timeline/",
+          "source": "endoreg_db.views.media.patient_media_timeline.PatientMediaTimelineView"
+        }
+      ],
+      "frontend_path": "media/patients/__ARG1__/timeline/",
+      "key": "media.patientTimeline",
+      "normalized_path": "media/patients/{param}/timeline/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "sm-pk",
+          "path": "api/media/sensitive-media-id/<int:pk>/<str:mediaType>/",
+          "source": "endoreg_db.views.media.sensitive_metadata.get_sensitive_metadata_pk"
+        }
+      ],
+      "frontend_path": "media/sensitive-media-id/__ARG1__/__ARG2__/",
+      "key": "media.sensitiveMediaId",
+      "normalized_path": "media/sensitive-media-id/{param}/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-list",
+          "path": "api/media/videos/",
+          "source": "endoreg_db.views.media.video_media.VideoMediaView"
+        }
+      ],
+      "frontend_path": "media/videos/",
+      "key": "media.videos",
+      "normalized_path": "media/videos/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-detail-stream",
+          "path": "api/media/videos/<int:pk>/",
+          "source": "endoreg_db.views.video.video_stream.VideoStreamView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/",
+      "key": "media.videoDetailStream",
+      "normalized_path": "media/videos/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-detail",
+          "path": "api/media/videos/<int:pk>/details/",
+          "source": "endoreg_db.views.media.video_media.VideoMediaView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/details/",
+      "key": "media.videoDetail",
+      "normalized_path": "media/videos/{param}/details/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-stream",
+          "path": "api/media/videos/<int:pk>/stream/",
+          "source": "endoreg_db.views.video.video_stream.VideoStreamView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/stream/",
+      "key": "media.videoStream",
+      "normalized_path": "media/videos/{param}/stream/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-reimport",
+          "path": "api/media/videos/<int:pk>/reimport/",
+          "source": "endoreg_db.views.video.reimport.VideoReimportView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/reimport/",
+      "key": "media.videoReimport",
+      "normalized_path": "media/videos/{param}/reimport/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "video-annotated-export",
+          "path": "api/media/videos/export-annotated/",
+          "source": "endoreg_db.views.video.export_annotated.export_annotated_data"
+        }
+      ],
+      "frontend_path": "media/videos/export-annotated/",
+      "key": "media.exportAnnotated",
+      "normalized_path": "media/videos/export-annotated/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-correction",
+          "path": "api/media/videos/video-correction/<int:pk>",
+          "source": "endoreg_db.views.video.correction.VideoCorrectionView"
+        }
+      ],
+      "frontend_path": "media/videos/video-correction/__ARG1__",
+      "key": "media.videoCorrection",
+      "normalized_path": "media/videos/video-correction/{param}",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-metadata",
+          "path": "api/media/videos/<int:pk>/metadata/",
+          "source": "endoreg_db.views.video.video_metadata.VideoMetadataStatsView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/metadata/",
+      "key": "media.videoMetadata",
+      "normalized_path": "media/videos/{param}/metadata/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-fps",
+          "path": "api/media/videos/<int:pk>/fps/",
+          "source": "endoreg_db.views.video.video_fps.VideoFpsView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/fps/",
+      "key": "media.videoFps",
+      "normalized_path": "media/videos/{param}/fps/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-apply-mask",
+          "path": "api/media/videos/<int:pk>/apply-mask/",
+          "source": "endoreg_db.views.video.correction.VideoApplyMaskView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/apply-mask/",
+      "key": "media.videoApplyMask",
+      "normalized_path": "media/videos/{param}/apply-mask/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-remove-frames",
+          "path": "api/media/videos/<int:pk>/remove-frames/",
+          "source": "endoreg_db.views.video.correction.VideoRemoveFramesView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/remove-frames/",
+      "key": "media.videoRemoveFrames",
+      "normalized_path": "media/videos/{param}/remove-frames/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "get_lvs_list",
+          "path": "api/media/videos/labels/list/",
+          "source": "endoreg_db.views.video.ai.label.label_list"
+        }
+      ],
+      "frontend_path": "media/videos/labels/list/",
+      "key": "media.videoLabelsList",
+      "normalized_path": "media/videos/labels/list/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "video-segments-collection",
+          "path": "api/media/videos/segments/",
+          "source": "endoreg_db.views.video.segments_crud.video_segments_collection"
+        }
+      ],
+      "frontend_path": "media/videos/segments/",
+      "key": "media.segmentsCollection",
+      "normalized_path": "media/videos/segments/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "video-segments-stats",
+          "path": "api/media/videos/segments/stats/",
+          "source": "endoreg_db.views.video.segments_crud.video_segments_stats"
+        }
+      ],
+      "frontend_path": "media/videos/segments/stats/",
+      "key": "media.segmentsStats",
+      "normalized_path": "media/videos/segments/stats/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "video-segments-by-video",
+          "path": "api/media/videos/<int:pk>/segments/",
+          "source": "endoreg_db.views.video.segments_crud.video_segments_by_video"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/segments/",
+      "key": "media.videoSegments",
+      "normalized_path": "media/videos/{param}/segments/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH"
+          ],
+          "name": "video-segment-detail",
+          "path": "api/media/videos/<int:pk>/segments/<int:segment_id>/",
+          "source": "endoreg_db.views.video.segments_crud.video_segment_detail"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/segments/__ARG2__/",
+      "key": "media.videoSegmentDetail",
+      "normalized_path": "media/videos/{param}/segments/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "video-segment-validate",
+          "path": "api/media/videos/<int:pk>/segments/<int:segment_id>/validate/",
+          "source": "endoreg_db.views.video.segments_crud.video_segment_validate"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/segments/__ARG2__/validate/",
+      "key": "media.videoSegmentValidate",
+      "normalized_path": "media/videos/{param}/segments/{param}/validate/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "video-segments-validate-bulk",
+          "path": "api/media/videos/<int:pk>/segments/validate-bulk/",
+          "source": "endoreg_db.views.video.segments_crud.video_segments_validate_bulk"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/segments/validate-bulk/",
+      "key": "media.videoSegmentsValidateBulk",
+      "normalized_path": "media/videos/{param}/segments/validate-bulk/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "name": "video-segments-validation-status",
+          "path": "api/media/videos/<int:pk>/segments/validation-status/",
+          "source": "endoreg_db.views.video.segments_crud.video_segments_validation_status"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/segments/validation-status/",
+      "key": "media.videoSegmentsValidationStatus",
+      "normalized_path": "media/videos/{param}/segments/validation-status/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "video-segment-ensure-annotations",
+          "path": "api/media/videos/<int:pk>/ensure-segment-annotations/",
+          "source": "endoreg_db.views.video.segments_crud.ensure_segment_annotations_for_video"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/ensure-segment-annotations/",
+      "key": "media.ensureSegmentAnnotationsForVideo",
+      "normalized_path": "media/videos/{param}/ensure-segment-annotations/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "video-segments-ensure-annotations",
+          "path": "api/media/videos/ensure-segment-annotations/",
+          "source": "endoreg_db.views.video.segments_crud.ensure_segment_annotations_bulk"
+        }
+      ],
+      "frontend_path": "media/videos/ensure-segment-annotations/",
+      "key": "media.ensureSegmentAnnotationsBulk",
+      "normalized_path": "media/videos/ensure-segment-annotations/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "PATCH"
+          ],
+          "name": "video-sensitive-metadata",
+          "path": "api/media/videos/<int:pk>/sensitive-metadata/",
+          "source": "endoreg_db.views.media.sensitive_metadata.video_sensitive_metadata"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/sensitive-metadata/",
+      "key": "media.videoSensitiveMetadata",
+      "normalized_path": "media/videos/{param}/sensitive-metadata/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "video-sensitive-metadata-verify",
+          "path": "api/media/videos/<int:pk>/sensitive-metadata/verify/",
+          "source": "endoreg_db.views.media.sensitive_metadata.video_sensitive_metadata_verify"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/sensitive-metadata/verify/",
+      "key": "media.videoSensitiveMetadataVerify",
+      "normalized_path": "media/videos/{param}/sensitive-metadata/verify/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET",
+            "PATCH"
+          ],
+          "name": "pdf-sensitive-metadata",
+          "path": "api/media/pdfs/<int:pk>/sensitive-metadata/",
+          "source": "endoreg_db.views.media.sensitive_metadata.pdf_sensitive_metadata"
+        }
+      ],
+      "frontend_path": "media/pdfs/__ARG1__/sensitive-metadata/",
+      "key": "media.pdfSensitiveMetadata",
+      "normalized_path": "media/pdfs/{param}/sensitive-metadata/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "POST"
+          ],
+          "name": "pdf-sensitive-metadata-verify",
+          "path": "api/media/pdfs/<int:pk>/sensitive-metadata/verify/",
+          "source": "endoreg_db.views.media.sensitive_metadata.pdf_sensitive_metadata_verify"
+        }
+      ],
+      "frontend_path": "media/pdfs/__ARG1__/sensitive-metadata/verify/",
+      "key": "media.pdfSensitiveMetadataVerify",
+      "normalized_path": "media/pdfs/{param}/sensitive-metadata/verify/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "sensitive-metadata-list",
+          "path": "api/media/sensitive-metadata/",
+          "source": "endoreg_db.views.media.sensitive_metadata.sensitive_metadata_list"
+        }
+      ],
+      "frontend_path": "media/sensitive-metadata/",
+      "key": "media.sensitiveMetadataList",
+      "normalized_path": "media/sensitive-metadata/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "pdf-sensitive-metadata-list",
+          "path": "api/media/pdfs/sensitive-metadata/",
+          "source": "endoreg_db.views.media.sensitive_metadata.pdf_sensitive_metadata_list"
+        }
+      ],
+      "frontend_path": "media/pdfs/sensitive-metadata/",
+      "key": "media.pdfSensitiveMetadataList",
+      "normalized_path": "media/pdfs/sensitive-metadata/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "pdf-list",
+          "path": "api/media/pdfs/",
+          "source": "endoreg_db.views.media.pdf_media.PdfMediaView"
+        }
+      ],
+      "frontend_path": "media/pdfs/",
+      "key": "media.pdfs",
+      "normalized_path": "media/pdfs/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "pdf-detail",
+          "path": "api/media/pdfs/<int:pk>/",
+          "source": "endoreg_db.views.media.pdf_media.PdfMediaView"
+        }
+      ],
+      "frontend_path": "media/pdfs/__ARG1__/",
+      "key": "media.pdfDetail",
+      "normalized_path": "media/pdfs/{param}/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "pdf-stream",
+          "path": "api/media/pdfs/<int:pk>/stream/",
+          "source": "endoreg_db.views.report.report_stream.ReportStreamView"
+        }
+      ],
+      "frontend_path": "media/pdfs/__ARG1__/stream/",
+      "key": "media.pdfStream",
+      "normalized_path": "media/pdfs/{param}/stream/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "report-reimport",
+          "path": "api/media/pdfs/<int:pk>/reimport/",
+          "source": "endoreg_db.views.report.reimport.ReportReimportView"
+        }
+      ],
+      "frontend_path": "media/pdfs/__ARG1__/reimport/",
+      "key": "media.pdfReimport",
+      "normalized_path": "media/pdfs/{param}/reimport/",
+      "status": "match"
+    }
+  ]
+}

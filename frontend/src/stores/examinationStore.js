@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
-import { reactive, ref, computed, readonly } from 'vue';
-import axiosInstance, { r } from '@/api/axiosInstance';
+import axiosInstance from '@/api/axiosInstance';
+import { findingsApi, parseFindingsApiError } from '@/api/findingsApi';
+import { endpoints } from '@/types/api/endpoints';
+import { getCoreConceptDisplayName } from '@/types/coreConcepts';
 export const useExaminationStore = defineStore('examination', {
     state: () => ({
         loading: false,
@@ -9,28 +11,28 @@ export const useExaminationStore = defineStore('examination', {
         selectedExaminationId: null,
         // cache (optional)
         findingsByExam: new Map(),
-        classificationsByFinding: new Map(),
+        classificationsByFinding: new Map()
     }),
     getters: {
         examinations(state) {
             return state.exams;
         },
         examinationsDropdown(state) {
-            return state.exams.map(e => ({
+            return state.exams.map((e) => ({
                 id: e.id,
                 name: e.name,
-                displayName: e.displayName ?? e.name_de ?? e.name,
+                displayName: getCoreConceptDisplayName(e, e.name)
             }));
         },
         selectedExamination(state) {
-            return state.exams.find(e => e.id === state.selectedExaminationId) ?? null;
+            return state.exams.find((e) => e.id === state.selectedExaminationId) ?? null;
         },
         availableFindings(state) {
             const id = state.selectedExaminationId;
             if (!id)
                 return [];
             return state.findingsByExam.get(id) ?? [];
-        },
+        }
     },
     actions: {
         setSelectedExamination(id) {
@@ -48,17 +50,59 @@ export const useExaminationStore = defineStore('examination', {
             this.loading = true;
             this.error = null;
             try {
-                const res = await axiosInstance.get('/api/examinations/');
-                // Normalize to Examination[]
-                this.exams = res.data.map((e) => ({
-                    id: e.id,
-                    name: e.name,
-                    name_de: e.name_de,
-                    name_en: e.name_en,
-                    displayName: e.displayName ?? e.name_de ?? e.name_en ?? e.name,
-                }));
+                const normalizeRows = (rows) => {
+                    this.exams = rows
+                        .map((entry) => {
+                        if (!entry || typeof entry !== 'object')
+                            return null;
+                        const row = entry;
+                        const fallbackName = typeof row.name === 'string' ? row.name : typeof row.name_de === 'string' ? row.name_de : '';
+                        const name = typeof row.name === 'string'
+                            ? row.name
+                            : typeof row.nameDe === 'string'
+                                ? String(row.nameDe)
+                                : fallbackName;
+                        const nameDe = typeof row.nameDe === 'string'
+                            ? row.nameDe
+                            : typeof row.name_de === 'string'
+                                ? row.name_de
+                                : undefined;
+                        const nameEn = typeof row.nameEn === 'string'
+                            ? row.nameEn
+                            : typeof row.name_en === 'string'
+                                ? row.name_en
+                                : undefined;
+                        const displayNameSource = typeof row.displayName === 'string'
+                            ? String(row.displayName)
+                            : typeof row.display_name === 'string'
+                                ? String(row.display_name)
+                                : undefined;
+                        return {
+                            id: Number(row.id),
+                            name,
+                            nameDe,
+                            nameEn,
+                            name_de: nameDe,
+                            name_en: nameEn,
+                            displayName: getCoreConceptDisplayName({
+                                name,
+                                nameDe,
+                                nameEn,
+                                displayName: displayNameSource
+                            }, name)
+                        };
+                    })
+                        .filter((entry) => entry && Number.isFinite(entry.id));
+                };
+                const dropdownPayload = await axiosInstance.get(endpoints.examination.examinationsDropdown);
+                const dropdownRows = Array.isArray(dropdownPayload.data) ? dropdownPayload.data :
+                    Array.isArray(dropdownPayload.data?.results)
+                        ? dropdownPayload.data.results
+                        : [];
+                normalizeRows(dropdownRows);
             }
             catch (e) {
+                this.exams = [];
                 this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler';
             }
             finally {
@@ -75,13 +119,13 @@ export const useExaminationStore = defineStore('examination', {
             this.loading = true;
             this.error = null;
             try {
-                const res = await axiosInstance.get(`/api/examinations/${examId}/findings/`);
-                const findings = res.data;
+                const findings = await findingsApi.getExaminationFindings(examId);
                 this.findingsByExam.set(examId, findings);
                 return findings;
             }
             catch (e) {
-                this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler';
+                const parsed = parseFindingsApiError(e);
+                this.error = parsed.message;
                 return [];
             }
             finally {
@@ -103,18 +147,22 @@ export const useExaminationStore = defineStore('examination', {
             this.loading = true;
             this.error = null;
             try {
-                const res = await axiosInstance.get(`/api/findings/${findingId}/classifications/`);
-                const payload = res.data;
+                const classifications = await findingsApi.getFindingClassifications(findingId);
+                const payload = {
+                    locationClassifications: classifications.filter((classification) => classification.classificationTypes.includes('location')),
+                    morphologyClassifications: classifications.filter((classification) => classification.classificationTypes.includes('morphology'))
+                };
                 this.classificationsByFinding.set(findingId, payload);
                 return payload;
             }
             catch (e) {
-                this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler';
+                const parsed = parseFindingsApiError(e);
+                this.error = parsed.message;
                 return { locationClassifications: [], morphologyClassifications: [] };
             }
             finally {
                 this.loading = false;
             }
-        },
-    },
+        }
+    }
 });

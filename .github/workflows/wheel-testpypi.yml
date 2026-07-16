@@ -1,0 +1,299 @@
+name: Wheel Artifact And TestPyPI Smoke
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+    inputs:
+      publish_to_testpypi:
+        description: "Upload this run's development build to TestPyPI and test installing it from there."
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wheel-testpypi-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+  DJANGO_SETTINGS_MODULE: lx_annotate.settings.settings_test
+
+jobs:
+  build-distribution:
+    name: Build Wheel And Sdist
+    runs-on: ubuntu-latest
+    outputs:
+      package-version: ${{ steps.version.outputs.package-version }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install runtime system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-deu libgl1 libglib2.0-0 libxcb1
+
+      - name: Create unique development version
+        id: version
+        env:
+          PUBLISH_TO_TESTPYPI: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_to_testpypi }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          path = Path("pyproject.toml")
+          text = path.read_text(encoding="utf-8")
+          match = re.search(r'(?m)^version = "([^"]+)"$', text)
+          if match is None:
+              raise SystemExit("pyproject.toml does not contain a static project.version")
+
+          base_version = match.group(1)
+          package_version = base_version
+          if os.environ["PUBLISH_TO_TESTPYPI"] == "true":
+              dev_serial = f"{os.environ['GITHUB_RUN_NUMBER']}{os.environ['GITHUB_RUN_ATTEMPT']}"
+              package_version = f"{base_version}.dev{dev_serial}"
+              text = re.sub(
+                  r'(?m)^version = "[^"]+"$',
+                  f'version = "{package_version}"',
+                  text,
+                  count=1,
+              )
+              path.write_text(text, encoding="utf-8")
+
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"package-version={package_version}\n")
+          print(package_version)
+          PY
+
+      - name: Install backend build dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Build frontend staticfiles
+        run: npm --prefix frontend run build
+
+      - name: Verify Vite manifest
+        run: test -f staticfiles/.vite/manifest.json
+
+      - name: Build Python distribution
+        run: uv run python -m build
+
+      - name: Check distribution metadata
+        run: uv run twine check dist/*
+
+      - name: Record package version
+        run: printf '%s\n' "${{ steps.version.outputs.package-version }}" > dist/PACKAGE_VERSION.txt
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/*
+
+  test-artifact-install:
+    name: Install Artifact On ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs:
+      - build-distribution
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Linux runtime system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-deu libgl1 libglib2.0-0 libxcb1
+
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist
+
+      - name: Install wheel artifact and smoke test console scripts
+        shell: python
+        run: |
+          import os
+          import pathlib
+          import subprocess
+          import sys
+
+          root = pathlib.Path.cwd()
+          venv_dir = root / ".venv-wheel-smoke"
+          subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+          python = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+          scripts = python.parent
+
+          wheels = sorted((root / "dist").glob("lx_annotate-*.whl"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected exactly one lx-annotate wheel, found: {wheels}")
+
+          subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip"])
+          subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
+          subprocess.check_call([str(python), "-m", "pip", "check"])
+          subprocess.check_call(
+              [
+                  str(python),
+                  "-c",
+                  "from importlib.metadata import version; import lx_annotate.cli; print(version('lx-annotate'))",
+              ],
+          )
+
+          manage = scripts / ("lx-annotate-manage.exe" if os.name == "nt" else "lx-annotate-manage")
+          subprocess.check_call(
+              [str(manage), "check", "--settings=lx_annotate.settings.settings_test"],
+              env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
+          )
+
+  publish-testpypi:
+    name: Publish To TestPyPI
+    runs-on: ubuntu-latest
+    needs:
+      - build-distribution
+      - test-artifact-install
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_to_testpypi }}
+    environment: testpypi
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist
+
+      - name: Remove workflow metadata from publish directory
+        run: rm -f dist/PACKAGE_VERSION.txt
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@v1.14.0
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  test-testpypi-install:
+    name: Install TestPyPI Build On ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs:
+      - build-distribution
+      - publish-testpypi
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_to_testpypi }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Linux runtime system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-deu libgl1 libglib2.0-0 libxcb1
+
+      - name: Wait for TestPyPI indexing
+        run: sleep 90
+        shell: bash
+
+      - name: Install from TestPyPI and smoke test console scripts
+        shell: python
+        env:
+          PACKAGE_VERSION: ${{ needs.build-distribution.outputs.package-version }}
+        run: |
+          import os
+          import pathlib
+          import subprocess
+          import sys
+
+          root = pathlib.Path.cwd()
+          wheel_dir = root / "testpypi-wheel"
+          wheel_dir.mkdir(exist_ok=True)
+          venv_dir = root / ".venv-testpypi-smoke"
+          subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+          python = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+          scripts = python.parent
+
+          subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip"])
+          subprocess.check_call(
+              [
+                  str(python),
+                  "-m",
+                  "pip",
+                  "download",
+                  "--no-deps",
+                  "--only-binary=:all:",
+                  "--index-url",
+                  "https://test.pypi.org/simple/",
+                  "--dest",
+                  str(wheel_dir),
+                  f"lx-annotate=={os.environ['PACKAGE_VERSION']}",
+              ],
+          )
+          wheels = sorted(wheel_dir.glob("lx_annotate-*.whl"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected exactly one TestPyPI wheel, found: {wheels}")
+
+          subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
+          subprocess.check_call([str(python), "-m", "pip", "check"])
+          subprocess.check_call(
+              [
+                  str(python),
+                  "-c",
+                  "from importlib.metadata import version; import lx_annotate.cli; print(version('lx-annotate'))",
+              ],
+          )
+
+          manage = scripts / ("lx-annotate-manage.exe" if os.name == "nt" else "lx-annotate-manage")
+          subprocess.check_call(
+              [str(manage), "check", "--settings=lx_annotate.settings.settings_test"],
+              env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
+          )

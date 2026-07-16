@@ -1,119 +1,167 @@
-import axios, { type AxiosRequestConfig } from 'axios';
-import Cookies from 'js-cookie';
-import camelcaseKeys from 'camelcase-keys';
-import snakecaseKeys from 'snakecase-keys';
+import axios from 'axios'
+import Cookies from 'js-cookie'
+import camelcaseKeys from 'camelcase-keys'
 import { useToastStore } from '@/stores/toastStore'
+import { useAuthKcStore } from '@/stores/auth_kc'
 
-// This handles requests to the local Django API
+// This handles requests to the local Django APIs.
 
-const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'api/';
+const LEGACY_API_PREFIX = import.meta.env.VITE_API_PREFIX
+const ENDOREG_API_PREFIX =
+  import.meta.env.VITE_ENDOREG_API_PREFIX ?? LEGACY_API_PREFIX ?? 'endoreg-api/'
+const DTYPES_API_PREFIX = import.meta.env.VITE_DTYPES_API_PREFIX ?? 'dtypes-api/'
+
+function joinApiPath(prefix: string, path: string): string {
+  const normalizedPrefix = prefix.trim().replace(/^\/+|\/+$/g, '')
+  const normalizedPath = path.replace(/^\/+/, '')
+  return normalizedPrefix ? `/${normalizedPrefix}/${normalizedPath}` : `/${normalizedPath}`
+}
 const axiosInstance = axios.create({
   // Da die Vue-App als statische Dateien über Django serviert wird,
   // verwenden wir relative URLs (kein baseURL nötig)
   baseURL: '/',
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Accept: 'application/json'
   },
-  withCredentials: true,
-});
+  withCredentials: true
+})
 
 // Error toast - Skip toast messages for polling requests
+// Error handling: Keycloak login on 401 + toast for other errors
 axiosInstance.interceptors.response.use(
-  r => r,
-  err => {
+  (r) => r,
+  (err) => {
     const toast = useToastStore()
-    
-    // Skip toast messages for polling/status requests to avoid spamming users
-    const url = err?.config?.url || '';
-    const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/');
-    
-    if (!isPollingRequest) {
+    const auth = useAuthKcStore()
+    const status = err?.response?.status
+    const url = err?.config?.url || ''
+    const suppressErrorToast =
+      err?.config?.suppressErrorToast === true ||
+      url.includes('/dtypes-api/') ||
+      url.startsWith('dtypes-api/') ||
+      url.includes('/base_api/') ||
+      url.startsWith('base_api/')
+
+    // Skip spam for polling/status requests
+    const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/')
+
+    // 🔒 If backend says "unauthenticated", send user to Keycloak login
+    if (status === 401) {
+      // Optional: clear any local state here if you keep some user info in Pinia
+      auth.login() // 👈 IMPORTANT: this must call Keycloak, not a Vue /login page
+      return Promise.reject(err)
+    }
+
+    // All other errors → show toast (except polling)
+    if (!isPollingRequest && !suppressErrorToast) {
       const msg =
         err?.response?.data?.detail ||
-        err?.response?.data?.error  ||
+        err?.response?.data?.error ||
         err?.message ||
         'Unbekannter Netzwerk- oder Serverfehler'
 
       toast.error({ text: msg })
     }
-    
-    return Promise.reject(err)   // keep the rejection chain intact
+
+    return Promise.reject(err) // keep the rejection chain intact
   }
 )
 
+// Helper for endoreg_db plus lx-annotate local API routes.
+export function endoregApi(path: string): string {
+  return joinApiPath(ENDOREG_API_PREFIX, path)
+}
 
-// Helper zur Erzeugung des vollständigen API-Pfads
+// Helper for lx_dtypes API routes.
+export function dtypesApi(path: string): string {
+  return joinApiPath(DTYPES_API_PREFIX, path)
+}
+
+// Compatibility helper for existing callers. Prefer endoregApi() in new code.
 export function r(path: string): string {
-  return `${API_PREFIX}${path}`;
+  return endoregApi(path)
 }
 
 // Helper zur Erzeugung des API-Pfads für PDF-Endpunkte
 export function a(path: string): string {
-  return r(`pdf/${path}`);
+  return r(`pdf/${path}`)
 }
 
-import type { InternalAxiosRequestConfig } from 'axios';
+export function silentRequestConfig<T extends AxiosRequestConfig = AxiosRequestConfig>(
+  config?: T
+): T & {
+  suppressErrorToast: true
+} {
+  return {
+    ...(config || ({} as T)),
+    suppressErrorToast: true
+  } as T & { suppressErrorToast: true }
+}
+
+import type { AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
 
 axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const csrftoken = Cookies.get('csrftoken');
+  const csrftoken = Cookies.get('csrftoken')
   if (config.data instanceof FormData) {
     // Let the browser automatically set 'Content-Type: multipart/form-data; boundary=…'
     // Do NOT manually set Content-Type for FormData - the browser handles this correctly
-    delete config.headers['Content-Type'];
+    delete config.headers['Content-Type']
     // Don't set it back! The browser will add the correct boundary automatically
   }
   if (csrftoken && config.headers) {
-    config.headers['X-CSRFToken'] = csrftoken;
+    config.headers['X-CSRFToken'] = csrftoken
   }
-  // Log headers for debugging TODO: Remove in production
-  console.log('Request Headers:', config.headers);
-  return config;
-});
+  return config
+})
 
 function localSnakecaseKeys(obj: any, options: { deep?: boolean } = {}): any {
-  if (Array.isArray(obj)) {
-    return obj.map((item) => item && typeof item === 'object' ? snakecaseKeys(item, options) : item);
-  } else if (obj && typeof obj === 'object') {
-    return Object.keys(obj).reduce((acc, key) => {
-      const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`);
-      acc[newKey] = options.deep && obj[key] && typeof obj[key] === 'object' ? snakecaseKeys(obj[key], options) : obj[key];
-      return acc;
-    }, {} as Record<string, any>);
+  const isPlainObject = (v: unknown): v is Record<string, any> => {
+    if (!v || typeof v !== 'object') return false
+    if (Object.prototype.toString.call(v) !== '[object Object]') return false
+    const proto = Object.getPrototypeOf(v)
+    return proto === Object.prototype || proto === null
   }
-  return obj;
+
+  if (Array.isArray(obj)) {
+    // Keep arrays of primitives intact; recurse only when elements are arrays/objects.
+    if (!options.deep) return obj
+    return obj.map((item) =>
+      Array.isArray(item) || isPlainObject(item) ? localSnakecaseKeys(item, options) : item
+    )
+  }
+
+  if (!isPlainObject(obj)) return obj
+
+  return Object.keys(obj).reduce(
+    (acc, key) => {
+      const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`)
+      const value = obj[key]
+      acc[newKey] =
+        options.deep && (Array.isArray(value) || isPlainObject(value))
+          ? localSnakecaseKeys(value, options)
+          : value
+      return acc
+    },
+    {} as Record<string, any>
+  )
 }
 
 // ─── Convert outgoing payload from camelCase → snake_case ───────────
 axiosInstance.interceptors.request.use((config) => {
   // Skip snake_case conversion for FormData - it should be passed through as-is
   if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
-    config.data = localSnakecaseKeys(config.data, { deep: true });
+    config.data = localSnakecaseKeys(config.data, { deep: true })
   }
-  return config;
-});
+  return config
+})
 
 // ─── Convert incoming payload from snake_case → camelCase ───────────
 axiosInstance.interceptors.response.use((response) => {
   if (response.data && typeof response.data === 'object') {
-    response.data = camelcaseKeys(response.data, { deep: true });
+    response.data = camelcaseKeys(response.data, { deep: true })
   }
-  return response;
-});
+  return response
+})
 
-axiosInstance.interceptors.response.use(
-  r => r,
-  err => {
-    console.error("AXIOS ERROR", {
-      message : err.message,
-      code    : err.code,
-      status  : err.response?.status,
-      data    : err.response?.data,
-    });
-    return Promise.reject(err);
-  }
-);
-
-
-export default axiosInstance;
-
+export default axiosInstance

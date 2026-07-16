@@ -9,18 +9,11 @@
             @click="refreshOverview"
             :disabled="isRefreshing"
           >
-            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
+            <i class="ni ni-bold-right" :class="{ 'ni-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
-          <!-- use the same route the Validate-button jumps to -->
-          <router-link 
-            to="/anonymisierung/validierung" 
-            class="btn btn-primary btn-sm"
-          >
-            <i class="fas fa-play me-1"></i>
-            Validierung starten
-          </router-link>
         </div>
+
       </div>
 
       <div class="card-body">
@@ -39,41 +32,52 @@
         <!-- Empty State -->
         <div v-else-if="!availableFiles.length" class="text-center py-5">
           <div class="mb-4">
-            <i class="fas fa-folder-open fa-3x text-muted"></i>
+            <i class="ni ni-collection ni-3x text-muted"></i>
           </div>
           <h5 class="text-muted">Keine Dateien vorhanden</h5>
           <p class="text-muted mb-4">
-            Laden Sie Videos oder PDFs hoch, um mit der Anonymisierung zu beginnen.
+            Laden Sie Videos oder PDFs in den <code>data</code>-Ordner oder den <code>import</code>-Ordner, um mit der Anonymisierung zu beginnen.
           </p>
-          <router-link to="/upload" class="btn btn-primary">
-            <i class="fas fa-upload me-2"></i>
-            Dateien hochladen
-          </router-link>
         </div>
 
         <!-- Files Table -->
         <div v-else class="table-responsive">
-          <table class="table table-hover">
+          <table class="table table-hover overview-files-table">
             <thead class="table-light">
               <tr>
-                <th>Dateiname</th>
+                <th class="sticky-filename-column">Dateiname</th>
                 <th>Typ</th>
+                <th>Aktionen</th>
+                <th>Import</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
+                <th>Validierung</th>
+                <th>Originaldatei gelöscht?</th>
                 <th>Erstellt</th>
-                <th>Aktionen</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="file in availableFiles" :key="file.id">
+              <tr
+                v-for="file in availableFiles"
+                :key="`${file.mediaType}-${file.id}`"
+                :class="{ 'table-warning': file.quarantined }"
+              >
                 <!-- Filename -->
-                <td>
-                  <div class="d-flex align-items-center">
+                <td class="sticky-filename-column">
+                  <div class="d-flex align-items-start filename-cell-content">
                     <i 
                       :class="getFileIcon(file.mediaType)" 
-                      class="me-2"
+                      class="me-2 flex-shrink-0"
                     ></i>
-                    <span class="fw-medium">{{ file.filename }}</span>
+                    <div class="filename-details">
+                      <span class="fw-medium filename-text">{{ getFileDisplayName(file) }}</span>
+                      <div class="small text-muted mt-1">
+                        {{ getFileIdLabel(file) }}
+                      </div>
+                      <div v-if="file.quarantined" class="small text-warning mt-1 quarantine-file-note">
+                        Import blockiert: Datei liegt in Quarantäne.
+                      </div>
+                    </div>
                   </div>
                 </td>
 
@@ -86,6 +90,128 @@
                     {{ file.mediaType.toUpperCase() }}
                   </span>
                 </td>
+                <!-- Actions -->
+                <td>
+                  <div v-if="file.quarantined" class="small text-warning quarantine-action-note">
+                    Serverseitige Quarantäne
+                  </div>
+                  <div v-else class="btn-group btn-group-sm" role="group">
+                    <!-- Re-import for videos with missing/incorrect metadata -->
+                    <button
+                      v-if="file.mediaType === 'video' && needsReimport(file)"
+                      @click="reimportVideo(file.id)"
+                      class="btn btn-outline-info"
+                      :disabled="isProcessing(file.id)"
+                      title="Video erneut importieren und Metadaten aktualisieren"
+                    >
+                      <i class="ni ni-bold-right"></i>
+                      Erneut importieren
+                    </button>
+
+                    <!-- Re-import for PDFs (using reset-status for now) -->
+                    <button
+                      v-if="file.mediaType === 'pdf' && needsReimport(file)"
+                      @click="reimportPdf(file.id)"
+                      class="btn btn-outline-info"
+                      :disabled="isProcessing(file.id)"
+                      title="PDF erneut importieren und verarbeiten"
+                    >
+                      <i class="ni ni-bold-right"></i>
+                      Erneut importieren
+                    </button>
+
+                    <!-- Start Anonymization -->
+                    <button
+                      v-if="file.anonymizationStatus === 'not_started'"
+                      @click="startAnonymization(file.id)"
+                      class="btn btn-outline-primary"
+                      :disabled="isProcessing(file.id)"
+                    >
+                      <i class="ni ni-button-play"></i>
+                      Starten
+                    </button>
+
+                    <!-- Restart Anonymization -->
+                    <button
+                      v-if="file.anonymizationStatus === 'failed'"
+                      @click="startAnonymization(file.id)"
+                      class="btn btn-outline-warning"
+                      :disabled="isProcessing(file.id)"
+                    >
+                      <i class="ni ni-bold-right"></i>
+                      Erneut versuchen
+                    </button>
+
+                    <!-- Video Correction -->
+                    <button
+                      v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')"
+                      @click="correctVideo(file.id)"
+                      class="btn btn-outline-warning"
+                      :disabled="isProcessing(file.id)"
+                    >
+                      <i class="ni ni-single-copy-04"></i>
+                      Korrektur
+                    </button>
+
+                    <!-- Delete Button - Show for all files -->
+                    <button
+                      data-test="delete-file-button"
+                      @click="deleteFile(file.id)"
+                      class="btn btn-outline-danger"
+                      :disabled="isProcessing(file.id)"
+                      :aria-label="`Datei ${file.id} löschen`"
+                      title="Datei permanent löschen"
+                    >
+                      <i class="ni ni-settings-gear-65"></i>
+                      Löschen
+                    </button>
+
+                    <!-- Processing indicator -->
+                    <button
+                      v-if="file.anonymizationStatus === 'processing_anonymization'"
+                      class="btn btn-outline-info"
+                      disabled
+                    >
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
+                      Anonymisierung...
+                    </button>
+                    <button
+                      v-if="file.anonymizationStatus === 'extracting_frames'"
+                      class="btn btn-outline-info"
+                      disabled
+                    >
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
+                      Einzelbilder werden extrahiert...
+                    </button>
+
+                  </div>
+                </td>
+
+                <!-- Upload Job Status -->
+                <td>
+                  <div v-if="file.uploadJob" class="upload-job-summary">
+                    <span
+                      class="badge"
+                      :class="getUploadJobStatusBadgeClass(file.uploadJob.status)"
+                    >
+                      {{ getUploadJobStatusText(file.uploadJob.status) }}
+                    </span>
+                    <div v-if="getUploadJobOriginLabel(file.uploadJob)" class="small text-muted mt-1 upload-job-text">
+                      {{ getUploadJobOriginLabel(file.uploadJob) }}
+                    </div>
+                    <div v-if="getUploadJobCleanupLabel(file.uploadJob)" class="small text-muted upload-job-text">
+                      {{ getUploadJobCleanupLabel(file.uploadJob) }}
+                    </div>
+                    <div
+                      v-if="getUploadJobNotice(file)"
+                      class="small mt-1 upload-job-text"
+                      :class="getUploadJobNoticeClass(file)"
+                    >
+                      {{ getUploadJobNotice(file) }}
+                    </div>
+                  </div>
+                  <span v-else class="text-muted">-</span>
+                </td>
 
                 <!-- Anonymization Status -->
                 <td>
@@ -95,7 +221,7 @@
                   >
                     <i 
                       v-if="file.anonymizationStatus === 'processing_anonymization'"
-                      class="fas fa-spinner fa-spin me-1"
+                      class="ni ni-settings-gear-65 ni-spin me-1"
                     ></i>
                     {{ getStatusText(file.anonymizationStatus) }}
                   </span>
@@ -111,114 +237,40 @@
                   </span>
                 </td>
 
+                <!-- Validation Action -->
+                <td>
+                  <button
+                    v-if="file.anonymizationStatus === 'done_processing_anonymization'"
+                    @click="validateFile(file.id, file.mediaType)"
+                    class="btn btn-success btn-sm"
+                    :disabled="!isReadyForValidation(file.id)"
+                  >
+                    <i class="ni ni-user-run me-1"></i>
+                    Validieren
+                  </button>
+                  <span v-else-if="file.anonymizationStatus === 'validated'" class="badge bg-success">
+                    <i class="ni ni-check-bold me-1"></i>
+                    Validiert
+                  </span>
+                  <span v-else class="text-muted">-</span>
+                </td>
+
+                <!-- Original File Cleanup -->
+                <td>
+                  <span :class="getOriginalFileDeletionClass(file)">
+                    <i :class="getOriginalFileDeletionIcon(file)" class="me-1"></i>
+                    {{ getOriginalFileDeletionText(file) }}
+                  </span>
+                  <div v-if="getOriginalFileDeletionHint(file)" class="small text-muted raw-file-state-hint">
+                    {{ getOriginalFileDeletionHint(file) }}
+                  </div>
+                </td>
+
                 <!-- Created Date -->
                 <td>
                   <small class="text-muted">
                     {{ formatDate(file.createdAt) }}
                   </small>
-                </td>
-
-                <!-- Actions -->
-                <td>
-                  <div class="btn-group btn-group-sm" role="group">
-                    <!-- Re-import for videos with missing/incorrect metadata -->
-                    <button
-                      v-if="file.mediaType === 'video' && needsReimport(file)"
-                      @click="reimportVideo(file.id)"
-                      class="btn btn-outline-info"
-                      :disabled="isProcessing(file.id)"
-                      title="Video erneut importieren und Metadaten aktualisieren"
-                    >
-                      <i class="fas fa-redo-alt"></i>
-                      Erneut importieren
-                    </button>
-
-                    <!-- Re-import for PDFs (using reset-status for now) -->
-                    <button
-                      v-if="file.mediaType === 'pdf' && needsReimport(file)"
-                      @click="reimportPdf(file.id)"
-                      class="btn btn-outline-info"
-                      :disabled="isProcessing(file.id)"
-                      title="PDF erneut importieren und verarbeiten"
-                    >
-                      <i class="fas fa-redo-alt"></i>
-                      Erneut importieren
-                    </button>
-
-                    <!-- Start Anonymization -->
-                    <button
-                      v-if="file.anonymizationStatus === 'not_started'"
-                      @click="startAnonymization(file.id)"
-                      class="btn btn-outline-primary"
-                      :disabled="isProcessing(file.id)"
-                    >
-                      <i class="fas fa-play"></i>
-                      Starten
-                    </button>
-
-                    <!-- Restart Anonymization -->
-                    <button
-                      v-if="file.anonymizationStatus === 'failed'"
-                      @click="startAnonymization(file.id)"
-                      class="btn btn-outline-warning"
-                      :disabled="isProcessing(file.id)"
-                    >
-                      <i class="fas fa-redo"></i>
-                      Erneut versuchen
-                    </button>
-
-                    <!-- View/Validate - only show when anonymization is done -->
-                    <button
-                      v-if="file.anonymizationStatus === 'done'"
-                      @click="validateFile(file.id)"
-                      class="btn btn-outline-success bg-success"
-                      :disabled="!isReadyForValidation(file.id)"
-                    >
-                      <i class="fas fa-eye"></i>
-                      Validieren
-                    </button>
-
-                    <!-- Video Correction -->
-                    <button
-                      v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')"
-                      @click="correctVideo(file.id)"
-                      class="btn btn-outline-warning"
-                      :disabled="isProcessing(file.id)"
-                    >
-                      <i class="fas fa-edit"></i>
-                      Korrektur
-                    </button>
-
-                    <!-- Delete Button - Show for all files -->
-                    <button
-                      @click="deleteFile(file.id)"
-                      class="btn btn-outline-danger"
-                      :disabled="isProcessing(file.id)"
-                      title="Datei permanent löschen"
-                    >
-                      <i class="fas fa-trash"></i>
-                      Löschen
-                    </button>
-
-                    <!-- Processing indicator -->
-                    <button
-                      v-if="file.anonymizationStatus === 'processing_anonymization'"
-                      class="btn btn-outline-info"
-                      disabled
-                    >
-                      <i class="fas fa-spinner fa-spin me-1"></i>
-                      Anonymisierung...
-                    </button>
-                    <button
-                      v-if="file.anonymizationStatus === 'extracting_frames'"
-                      class="btn btn-outline-info"
-                      disabled
-                    >
-                      <i class="fas fa-spinner fa-spin me-1"></i>
-                      Frames extrahieren...
-                    </button>
-
-                  </div>
                 </td>
               </tr>
             </tbody>
@@ -260,7 +312,7 @@
                   <div class="col-md-3">
                     <div class="mb-2">
                       <span class="badge bg-success fs-6">
-                        {{ getTotalByStatus('done') }}
+                        {{ getTotalByStatus('done_processing_anonymization') }}
                       </span>
                     </div>
                     <small class="text-muted">Fertig</small>
@@ -281,7 +333,7 @@
 
         <!-- Show warning if files were filtered out -->
         <div v-if="filteredOutCount > 0" class="alert alert-warning mt-3" role="alert">
-          <i class="fas fa-exclamation-triangle me-2"></i>
+          <i class="ni ni-user-run me-2"></i>
           <strong>Hinweis:</strong> {{ filteredOutCount }} Datei(en) wurden ausgeblendet, da die ursprünglichen Dateien nicht mehr verfügbar sind.
         </div>
       </div>
@@ -292,18 +344,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
-import { useVideoStore } from '@/stores/videoStore';
-import { useAnnotationStore } from '@/stores/annotationStore';
+import { useAnonymizationStore, type FileItem, type UploadJobOverview } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 import { useMediaManagement } from '@/api/mediaManagement';
+import { type MediaType } from '../../stores/mediaTypeStore';
 
 // Composables
 const router = useRouter();
 const anonymizationStore = useAnonymizationStore();
-const videoStore = useVideoStore();
-const annotationStore = useAnnotationStore();
 const mediaStore = useMediaTypeStore();
 const pollingProtection = usePollingProtection();
 const mediaManagement = useMediaManagement();
@@ -324,6 +373,7 @@ const refreshOverview = async () => {
   isRefreshing.value = true;
   try {
     await anonymizationStore.fetchOverview();
+    mediaStore.seedTypesFromOverview(anonymizationStore.overview);
   } finally {
     isRefreshing.value = false;
   }
@@ -357,9 +407,19 @@ const correctVideo = async (fileId: number) => {
   if (file) {
     mediaStore.setCurrentItem(file as any);
   }
-  
+  else {
+    console.warn('File not found for correction:', fileId);
+    return;
+  }
+
+
+
   // Navigate directly to the correction component with the video ID
-  router.push({ name: 'AnonymisierungKorrektur', params: { fileId } });
+  router.push({
+    name: 'Anonymisierung Korrektur',
+    params: { fileId: String(fileId) },
+    query: { mediaType: file.mediaType }
+  });
 };
 
 const isReadyForValidation = (fileId: number) => {
@@ -368,20 +428,10 @@ const isReadyForValidation = (fileId: number) => {
   if (!file) return false;
 
   // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated';
+  return file.anonymizationStatus === 'done_processing_anonymization';
 };
 
-const isValidated = (fileId: number) => {
-  // Check if the file is validated
-  const file = availableFiles.value.find(f => f.id === fileId);
-  if (!file) return false;
-
-  // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'validated';
-};
-
-const validateFile = async (fileId: number) => {
-  // Find the file to determine media type
+const validateFile = async (fileId: number, mediaType: string) => {
   processingFiles.value.add(fileId);
   if (!fileId) {
     console.warn('File not found for validation:', fileId);
@@ -389,29 +439,46 @@ const validateFile = async (fileId: number) => {
   }
 
   try {
-    // Set the file in MediaStore for consistency
-    const result = await anonymizationStore.setCurrentForValidation(fileId);
+    const result = await anonymizationStore.setCurrentForValidation(fileId, mediaType);
+
     if (result) {
-        const file = availableFiles.value.find(f => f.id === fileId);
-        if (!file) 
-        {
-          console.warn('File not found for validation:', fileId);
-          return;
+      // 🔧 use BOTH id and mediaType here to avoid choosing the wrong file when ids are the same (different media types)
+      const file = availableFiles.value.find(
+        f => f.id === fileId && f.mediaType === mediaType
+      );
+      if (!file) {
+        console.warn('File not found for validation with given mediaType:', { fileId, mediaType });
+        return;
+      }
+      mediaStore.setCurrentItem(file as any);
+      const kind = file.mediaType as MediaType;
+
+      try {
+        mediaStore.rememberType(fileId, kind, kind);
+      } catch (e) {
+        console.error('Error remembering media type for file:', fileId, e);
+      }
+
+      if (file.sensitiveMetaId) {
+        mediaStore.rememberType(file.sensitiveMetaId, kind, 'meta');
+      }
+
+      sessionStorage.setItem('last:fileId', String(fileId));
+      sessionStorage.setItem('last:scope', kind);
+
+      console.log('File set for validation:', fileId, 'file media type:', file.mediaType);
+
+      router.push({
+        name: 'AnonymisierungValidierung',
+        query: {
+          fileId: String(fileId),
+          mediaType: file.mediaType   // now correctly 'pdf' when you clicked a pdf
         }
-        else {
-          mediaStore.setCurrentItem(file as any);
+      });
     }
-    
-    // Simply navigate to validation page without changing status
-    // The status should only change when user actually completes validation
-    router.push('/anonymisierung/validierung'); 
-    
-  }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Navigation to validation failed:', error);
-  }
-  finally {
+  } finally {
     processingFiles.value.delete(fileId);
   }
 };
@@ -436,13 +503,12 @@ const reimportVideo = async (fileId: number) => {
 const reimportPdf = async (fileId: number) => {
   processingFiles.value.add(fileId);
   try {
-    // For PDFs, use reset status for now as there's no specific PDF reimport endpoint
-    // This will reset the PDF to allow re-processing
-    const result = await mediaManagement.resetProcessingStatus(fileId);
-    if (result) {
+    // Use the dedicated PDF reimport endpoint from the anonymization store
+    const success = await anonymizationStore.reimportPdf(fileId);
+    if (success) {
       // Refresh overview to get updated status
       await refreshOverview();
-      console.log('PDF re-import initiated successfully:', fileId);
+      console.log('PDF re-imported successfully:', fileId);
     } else {
       console.warn('PDF re-import failed - staying on current page');
     }
@@ -462,7 +528,7 @@ const deleteFile = async (fileId: number) => {
   }
 
   // Ask for confirmation
-  const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${file.filename}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
+  const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${getFileDisplayName(file)}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
   if (!confirmed) {
     return;
   }
@@ -498,22 +564,31 @@ const isProcessing = (fileId: number) => {
     return processingFiles.value.has(fileId);
   }
   
-  return processingFiles.value.has(fileId) || 
+  return processingFiles.value.has(fileId) ||
+         isUploadJobActive(file) ||
+         anonymizationStore.isVideoReimportQueued(fileId) ||
          !pollingProtection.canProcessMedia.value(fileId, mediaType as 'video' | 'pdf');
 };
 
 const needsReimport = (file: FileItem) => {
+  const metadataMissing = file.sensitiveMetaId == null || file.metadataImported === false;
+
   // Video files need re-import if metadata is missing
   if (file.mediaType === 'video') {
-    return !file.metadataImported;
+    return metadataMissing;
   }
   
   // PDF files might need re-import if anonymization failed or no text extracted
   if (file.mediaType === 'pdf') {
-    return file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
+    return metadataMissing || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
   }
   
   return false;
+};
+
+const isUploadJobActive = (file: FileItem) => {
+  const status = String(file.uploadJob?.status || '').toLowerCase();
+  return status === 'pending' || status === 'processing';
 };
 
 const getFileIcon = (mediaType: string) => {
@@ -524,15 +599,70 @@ const getMediaTypeBadgeClass = (mediaType: string) => {
   return mediaStore.getMediaTypeBadgeClass(mediaType as any);
 };
 
+const documentTypeLabels: Record<string, string> = {
+  report: 'Befund',
+  report_draft: 'Befund-Entwurf',
+  report_final: 'Finaler Befund',
+  report_correction: 'Befund-Korrektur',
+  histology_draft: 'Histologie-Entwurf',
+  histology_final: 'Finale Histologie',
+  referral: 'Überweisung',
+  discharge: 'Entlassbrief'
+};
+
+const getDocumentTypeLabel = (documentType?: string | null) => {
+  if (!documentType) return '';
+  const normalized = documentType.trim();
+  if (!normalized) return '';
+  return documentTypeLabels[normalized] || `Dokumenttyp: ${normalized}`;
+};
+
+const getPdfPatientLabel = (file: FileItem) => {
+  if (typeof file.pseudoPatientId === 'number') {
+    return `Pseudo-Patient ${file.pseudoPatientId}`;
+  }
+  if (file.patientHashDisplay) {
+    return `Patient ${file.patientHashDisplay}`;
+  }
+  return '';
+};
+
+const getFileDisplayName = (file: FileItem) => {
+  if (file.mediaType !== 'pdf' || file.quarantined) {
+    return file.filename;
+  }
+
+  const labelParts = [
+    getPdfPatientLabel(file),
+    getDocumentTypeLabel(file.documentType)
+  ].filter(Boolean);
+
+  if (labelParts.length > 0) {
+    return labelParts.join(' - ');
+  }
+
+  return file.filename || `PDF-ID: ${file.id}`;
+};
+
+const getFileIdLabel = (file: FileItem) => {
+  if (file.quarantined) {
+    return `Quarantäne: ${file.quarantineDirectoryLabel || file.quarantineDirectoryKey || 'lx-annotate'}`;
+  }
+  return file.mediaType === 'video'
+    ? `Video-ID: ${file.id}`
+    : `PDF-ID: ${file.id}`;
+};
+
 const getStatusBadgeClass = (status: string) => {
   const classes: { [key: string]: string } = {
     'not_started': 'bg-secondary',
     'processing_anonymization': 'bg-warning',
     'extracting_frames': 'bg-info',
     'predicting_segments': 'bg-info',
-    'done': 'bg-success',
+    'done_processing_anonymization': 'bg-success',
     'validated': 'bg-success',
     'failed': 'bg-danger'
+
   };
   return classes[status] || 'bg-secondary';
 };
@@ -541,13 +671,193 @@ const getStatusText = (status: string) => {
   const texts: { [key: string]: string } = {
     'not_started': 'Nicht gestartet',
     'processing_anonymization': 'Anonymisierung läuft',
-    'extracting_frames': 'Frames extrahieren',
-    'predicting_segments': 'Segmente vorhersagen',
-    'done': 'Fertig',
+    'extracting_frames': 'Einzelbilder werden extrahiert',
+    'predicting_segments': 'Segmentvorhersage läuft',
+    'done_processing_anonymization': 'Fertig',
     'validated': 'Validiert',
     'failed': 'Fehlgeschlagen'
   };
-  return texts[status] || status;
+  return texts[status] || `Unbekannter Status (${status})`;
+};
+
+const getUploadJobStatusBadgeClass = (status: string) => {
+  const classes: { [key: string]: string } = {
+    pending: 'bg-secondary',
+    processing: 'bg-warning',
+    anonymized: 'bg-success',
+    quarantined: 'bg-warning text-dark',
+    error: 'bg-danger',
+    lost: 'bg-danger'
+  };
+  return classes[status] || 'bg-secondary';
+};
+
+const getUploadJobStatusText = (status: string) => {
+  const texts: { [key: string]: string } = {
+    pending: 'Import wartet',
+    processing: 'Import läuft',
+    anonymized: 'Import abgeschlossen',
+    quarantined: 'In Quarantäne',
+    error: 'Importfehler',
+    lost: 'Import nicht möglich. Bitte Eintrag löschen und erneut importieren!'
+  };
+  return texts[status] || `Unbekannter Importstatus (${status})`;
+};
+
+const DUPLICATE_KEY_IMPORT_ERROR_PATTERN = /\bduplicate key\b|\bunique constraint\b/i;
+const DUPLICATE_IMPORT_NOTICE = 'Duplikat erkannt. Die vorhandene validierte Annotation bleibt erhalten.';
+const IMPORT_ERROR_NOTICE = 'Importfehler. Details sind im Server-Log verfügbar.';
+
+const isUploadJobError = (uploadJob: UploadJobOverview) => {
+  const status = String(uploadJob.status || '').toLowerCase();
+  return status === 'error' || status === 'lost';
+};
+
+const isDuplicateKeyImportError = (file: FileItem) => {
+  if (!file.uploadJob || !isUploadJobError(file.uploadJob)) {
+    return false;
+  }
+
+  const errorDetail = file.uploadJob.errorDetail || file.errorDetail || '';
+  return DUPLICATE_KEY_IMPORT_ERROR_PATTERN.test(errorDetail);
+};
+
+const getUploadJobNotice = (file: FileItem) => {
+  if (!file.uploadJob?.errorDetail) {
+    return '';
+  }
+
+  if (isDuplicateKeyImportError(file)) {
+    return DUPLICATE_IMPORT_NOTICE;
+  }
+
+  if (isUploadJobError(file.uploadJob)) {
+    return IMPORT_ERROR_NOTICE;
+  }
+
+  return '';
+};
+
+const getUploadJobNoticeClass = (file: FileItem) => {
+  if (isDuplicateKeyImportError(file)) {
+    return 'text-muted';
+  }
+  return 'text-danger';
+};
+
+const getUploadJobOriginLabel = (uploadJob: UploadJobOverview) => {
+  const parts: string[] = [];
+  if (uploadJob.ingestMode === 'watcher') {
+    parts.push('Ordnerimport');
+  } else if (uploadJob.ingestMode === 'api') {
+    parts.push('API');
+  } else if (uploadJob.ingestMode) {
+    parts.push(`Importweg: ${uploadJob.ingestMode}`);
+  }
+
+  if (uploadJob.sourceSystem) {
+    parts.push(uploadJob.sourceSystem);
+  }
+
+  if (uploadJob.sourceCenterKey) {
+    parts.push(uploadJob.sourceCenterKey);
+  }
+
+  return parts.join(' / ');
+};
+
+const getUploadJobCleanupStatusText = (status: string) => {
+  const texts: { [key: string]: string } = {
+    pending: 'Bereinigung offen',
+    eligible: 'Bereinigung bereit',
+    completed: 'Bereinigt',
+    skipped: 'Bereinigung übersprungen'
+  };
+  return texts[status] || `Unbekannter Bereinigungsstatus (${status})`;
+};
+
+const getUploadJobCleanupLabel = (uploadJob: UploadJobOverview) => {
+  const sourceLabel =
+    typeof uploadJob.sourceFilePersisted === 'boolean'
+      ? uploadJob.sourceFilePersisted
+        ? 'Quelle vorhanden'
+        : 'Quelle bereinigt'
+      : '';
+
+  const cleanupLabel = uploadJob.cleanupStatus
+    ? getUploadJobCleanupStatusText(uploadJob.cleanupStatus)
+    : '';
+
+  return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
+};
+
+type OriginalFileDeletionState = 'deleted' | 'present' | 'quarantined' | 'unknown';
+
+const getOriginalFileDeletionState = (file: FileItem): OriginalFileDeletionState => {
+  if (file.quarantined) {
+    return 'quarantined';
+  }
+
+  if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
+    return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
+  }
+
+  const cleanupStatus = file.uploadJob?.cleanupStatus?.toLowerCase();
+  if (cleanupStatus === 'completed') {
+    return 'deleted';
+  }
+  if (cleanupStatus === 'pending' || cleanupStatus === 'eligible') {
+    return 'present';
+  }
+
+  if (file.rawFile && file.rawFile.trim() !== '') {
+    return 'present';
+  }
+
+  return 'unknown';
+};
+
+const getOriginalFileDeletionText = (file: FileItem): string => {
+  const texts: Record<OriginalFileDeletionState, string> = {
+    deleted: 'Ja, gelöscht',
+    present: 'Nein, vorhanden',
+    quarantined: 'In Quarantäne',
+    unknown: 'Unbekannt'
+  };
+  return texts[getOriginalFileDeletionState(file)];
+};
+
+const getOriginalFileDeletionClass = (file: FileItem): string => {
+  const classes: Record<OriginalFileDeletionState, string> = {
+    deleted: 'text-success',
+    present: 'text-warning',
+    quarantined: 'text-warning',
+    unknown: 'text-muted'
+  };
+  return classes[getOriginalFileDeletionState(file)];
+};
+
+const getOriginalFileDeletionIcon = (file: FileItem): string => {
+  const icons: Record<OriginalFileDeletionState, string> = {
+    deleted: 'ni ni-check-bold',
+    present: 'ni ni-single-copy-04',
+    quarantined: 'ni ni-settings-gear-65',
+    unknown: 'ni ni-settings-gear-65'
+  };
+  return icons[getOriginalFileDeletionState(file)];
+};
+
+const getOriginalFileDeletionHint = (file: FileItem): string => {
+  if (file.quarantined) {
+    return 'Import wurde vor der Datenbankanlage gestoppt';
+  }
+  if (file.uploadJob?.cleanupStatus) {
+    return getUploadJobCleanupStatusText(file.uploadJob.cleanupStatus);
+  }
+  if (file.rawFile && file.rawFile.trim() !== '') {
+    return 'Rohdatei ist noch referenziert';
+  }
+  return '';
 };
 
 const formatDate = (dateString: string | null) => {
@@ -567,7 +877,7 @@ const getTotalByStatus = (status: string) => {
   const statusMap: { [key: string]: string[] } = {
     'not_started': ['not_started'],
     'processing': ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
-    'done': ['done', 'validated'],
+    'done_processing_anonymization': ['done_processing_anonymization', 'validated'],
     'failed': ['failed']
   };
   
@@ -577,46 +887,33 @@ const getTotalByStatus = (status: string) => {
   ).length;
 };
 
-const validateSegmentsFile = async (fileId: number) => {
-  processingFiles.value.add(fileId);
-  try {
-
-    const success = await annotationStore.validateSegmentsAndExaminations(fileId);
-    if (success) {
-      // Refresh overview to get updated status
-      await refreshOverview();
-      console.log('Segments validated successfully for file', fileId);
-    } else {
-      console.warn('validateSegmentsFile failed - staying on current page');
-    }
-  } finally {
-    processingFiles.value.delete(fileId);
-  }
-};
-
-const hasOriginalFile = (file: FileItem): boolean => {
-  // Check if the file has the necessary properties to indicate original file exists
-  if (file.mediaType === 'video') {
-    // For videos, check if rawFile exists and has a valid path
-    return !!(file.rawFile && file.rawFile.trim() !== '');
-  } else if (file.mediaType === 'pdf') {
-    // For PDFs, check if original_file exists and has a valid path
-    return !!(file.rawFile && file.rawFile.trim() !== '');
-  }
-  
-  // If we can't determine the media type, assume it's available
-  return true;
-};
 
 // Lifecycle
 onMounted(async () => {
   // Fetch overview data
   await anonymizationStore.fetchOverview();
+  mediaStore.seedTypesFromOverview(anonymizationStore.overview);
+    console.table(
+      anonymizationStore.overview.map(f => ({
+        id: f.id,
+        fromOverview: f.mediaType,
+        remembered: mediaStore.getType(f.id) // scans both pdf/video scopes
+      }))
+    )
+
+  // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
+  const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
   
-  // Start polling for all files
   anonymizationStore.overview.forEach((file: FileItem) => {
-    anonymizationStore.startPolling(file.id);
+    if (processingStatuses.includes(file.anonymizationStatus)) {
+      console.log(`Starting polling for processing file ${file.id} (status: ${file.anonymizationStatus})`);
+      anonymizationStore.startPolling(file.id);
+    } else {
+      console.log(`Skipping polling for file ${file.id} (status: ${file.anonymizationStatus})`);
+    }
   });
+
+
 });
 
 onUnmounted(() => {
@@ -630,10 +927,6 @@ onUnmounted(() => {
 
 <style scoped>
 
-.bg-success {
-  background-color: #6c757d !important;
-}
-
 .table th {
   border-top: none;
   font-weight: 600;
@@ -643,6 +936,59 @@ onUnmounted(() => {
 
 .table td {
   vertical-align: middle;
+}
+
+.overview-files-table {
+  min-width: 1180px;
+}
+
+.overview-files-table .sticky-filename-column {
+  position: sticky;
+  left: 0;
+  width: 22rem;
+  min-width: 18rem;
+  max-width: 22rem;
+  background: #fff;
+  box-shadow: 0.25rem 0 0.75rem rgba(0, 0, 0, 0.04);
+  z-index: 2;
+}
+
+.overview-files-table thead .sticky-filename-column {
+  background: #f8f9fa;
+  z-index: 3;
+}
+
+.overview-files-table tbody tr:hover .sticky-filename-column {
+  background: var(--bs-table-hover-bg, #f8f9fa);
+}
+
+.filename-cell-content,
+.filename-details {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.filename-text {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.upload-job-summary {
+  width: 17rem;
+  min-width: 0;
+  max-width: 17rem;
+}
+
+.upload-job-summary .small,
+.upload-job-text,
+.raw-file-state-hint {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .btn-group-sm .btn {
@@ -671,6 +1017,17 @@ onUnmounted(() => {
   .btn-group-sm .btn {
     padding: 0.125rem 0.25rem;
     font-size: 0.7rem;
+  }
+
+  .overview-files-table .sticky-filename-column {
+    width: 15rem;
+    min-width: 13rem;
+    max-width: 15rem;
+  }
+
+  .upload-job-summary {
+    width: 14rem;
+    max-width: 14rem;
   }
 }
 </style>

@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.7
+    hooks:
+      - id: ruff
+        args: ["--fix", "lx_annotate", "tests"]
+        pass_filenames: false
+      - id: ruff-format
+        args: ["lx_annotate", "tests"]
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright type check
+        entry: devenv shell -- pyright lx_annotate
+        language: system
+        pass_filenames: false
+      - id: pytest
+        name: pytest suite
+        entry: devenv shell -- pytest
+        language: system
+        pass_filenames: false
+
+      - id: frontend-vitest
+        name: frontend vitest
+        entry: devenv shell -- npm --prefix frontend run test:unit -- --run
+        language: system
+        pass_filenames: false
+
+      - id: frontend-typecheck
+        name: frontend type-check
+        entry: devenv shell -- npm --prefix frontend run type-check
+        language: system
+        pass_filenames: false

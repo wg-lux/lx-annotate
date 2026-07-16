@@ -1,0 +1,796 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="AI Training Data Export" href="guides/ai-training-data-export.html"><link rel="prev" title="Wheel Deployment" href="guides/wheel-deployment.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage) - lx-annotate Documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">lx-annotate Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">lx-annotate Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="guides/general-documentation.html">General Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/asset-deployment.html">Frontend Asset Deployment Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/wheel-deployment.html">Wheel Deployment</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/ai-training-data-export.html">AI Training Data Export</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html">Dates and Times</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/assisted-reporting-report.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="reporting-template-requirement-sets-page-templaterequirementspage">
+<h1>Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)<a class="headerlink" href="#reporting-template-requirement-sets-page-templaterequirementspage" title="Link to this heading">¶</a></h1>
+<section id="audience-and-purpose">
+<h2>Audience and Purpose<a class="headerlink" href="#audience-and-purpose" title="Link to this heading">¶</a></h2>
+<p>This guide is written for:</p>
+<ul class="simple">
+<li><p>Medical staff (physicians, nurses, documentation staff)</p></li>
+<li><p>Clinical trainers</p></li>
+<li><p>Product owners and project coordinators</p></li>
+</ul>
+<p>No software engineering background is required.</p>
+<p>The goal of this page is simple:</p>
+<ol class="arabic simple">
+<li><p>Select the correct report template for an examination.</p></li>
+<li><p>Load and manage requirement sets for that case.</p></li>
+<li><p>Prepare the case for the next reporting steps (findings, review, report editor).</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="where-this-page-is-used">
+<h2>Where This Page Is Used<a class="headerlink" href="#where-this-page-is-used" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">TemplateRequirementsPage</span></code> is a page inside the reporting workflow shell:</p>
+<ul class="simple">
+<li><p>Shell component: <code class="docutils literal notranslate"><span class="pre">frontend/src/views/reporting/ReportingShell.vue</span></code></p></li>
+<li><p>Page component: <code class="docutils literal notranslate"><span class="pre">frontend/src/views/reporting/TemplateRequirementsPage.vue</span></code></p></li>
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/:patient_examination_id/template-requirements</span></code></p></li>
+</ul>
+<p>This means it is part of the guided multi-step reporting process, not a standalone page.</p>
+</section>
+<hr class="docutils" />
+<section id="what-you-see-on-the-page">
+<h2>What You See on the Page<a class="headerlink" href="#what-you-see-on-the-page" title="Link to this heading">¶</a></h2>
+<p>The page has two main blocks.</p>
+<section id="template-selection">
+<h3>1. Template Selection<a class="headerlink" href="#template-selection" title="Link to this heading">¶</a></h3>
+<p>This block lets you:</p>
+<ul class="simple">
+<li><p>Choose the knowledge-base module (<code class="docutils literal notranslate"><span class="pre">KB</span> <span class="pre">module</span></code>)</p></li>
+<li><p>See the current examination</p></li>
+<li><p>Load templates for that examination</p></li>
+<li><p>Select one template from the dropdown</p></li>
+<li><p>See a summary of sections and validator counts</p></li>
+</ul>
+<p>For clinical onboarding, a default training example is available:</p>
+<ul class="simple">
+<li><p>Module: <code class="docutils literal notranslate"><span class="pre">report_template_examples</span></code></p></li>
+<li><p>Example template for colonoscopy: <code class="docutils literal notranslate"><span class="pre">colonoscopy_training_basic</span></code></p></li>
+</ul>
+</section>
+<section id="template-requirement-sets">
+<h3>2. Template &amp; Requirement Sets<a class="headerlink" href="#template-requirement-sets" title="Link to this heading">¶</a></h3>
+<p>This block lets you:</p>
+<ul class="simple">
+<li><p>View the current <code class="docutils literal notranslate"><span class="pre">patient_examination_id</span></code></p></li>
+<li><p>View the active lookup token</p></li>
+<li><p>Load lookup status</p></li>
+<li><p>Select or deselect requirement sets</p></li>
+<li><p>Trigger recomputation</p></li>
+<li><p>Review suggested actions from lookup logic</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="why-requirement-sets-matter-clinical-view">
+<h2>Why Requirement Sets Matter (Clinical View)<a class="headerlink" href="#why-requirement-sets-matter-clinical-view" title="Link to this heading">¶</a></h2>
+<p>Think of requirement sets as structured checklists derived from:</p>
+<ul class="simple">
+<li><p>Examination context</p></li>
+<li><p>Selected template</p></li>
+<li><p>Existing findings</p></li>
+<li><p>Rule logic in the backend</p></li>
+</ul>
+<p>If sets are missing, downstream steps can be incomplete, and the final report quality may be lower.</p>
+</section>
+<hr class="docutils" />
+<section id="typical-step-by-step-workflow">
+<h2>Typical Step-by-Step Workflow<a class="headerlink" href="#typical-step-by-step-workflow" title="Link to this heading">¶</a></h2>
+<p>Use this sequence for training sessions.</p>
+<ol class="arabic simple">
+<li><p>Open a reporting case via deep link, for example:
+<code class="docutils literal notranslate"><span class="pre">/reporting/&lt;patient_examination_id&gt;/template-requirements</span></code></p></li>
+<li><p>Confirm the displayed <code class="docutils literal notranslate"><span class="pre">PatientExamination-ID</span></code> is correct.</p></li>
+<li><p>In <strong>Template Selection</strong>, keep module <code class="docutils literal notranslate"><span class="pre">report_template_examples</span></code> (for training) or switch to your production module.</p></li>
+<li><p>Click <strong>Templates for examination load</strong>.</p></li>
+<li><p>Select a template from the dropdown.</p></li>
+<li><p>In <strong>Template &amp; Requirement Sets</strong>, verify that requirement sets are shown.</p></li>
+<li><p>Select relevant sets (switches on the right side).</p></li>
+<li><p>Click recompute if needed.</p></li>
+<li><p>Continue to next workflow pages (Findings, Requirements Review, Report Editor).</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="full-reporting-flow-all-steps">
+<h2>Full Reporting Flow (All Steps)<a class="headerlink" href="#full-reporting-flow-all-steps" title="Link to this heading">¶</a></h2>
+<p>The reporting process is designed as a sequence inside <code class="docutils literal notranslate"><span class="pre">ReportingShell</span></code>.</p>
+<section id="step-0-worklist">
+<h3>Step 0: Worklist<a class="headerlink" href="#step-0-worklist" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting</span></code></p></li>
+<li><p>Main goal: Start a new report or resume an existing one.</p></li>
+<li><p>Typical actions:</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Filter by status (<code class="docutils literal notranslate"><span class="pre">draft</span></code>, <code class="docutils literal notranslate"><span class="pre">final</span></code>, or all).</p></li>
+<li><p>Open an existing case.</p></li>
+<li><p>Or click <strong>Start new report</strong> to begin a new case.</p></li>
+</ol>
+</section>
+<section id="step-1-case-setup">
+<h3>Step 1: Case Setup<a class="headerlink" href="#step-1-case-setup" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/case-setup</span></code></p></li>
+<li><p>Main goal: Create a valid case context.</p></li>
+<li><p>Typical actions:</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Select patient.</p></li>
+<li><p>Select examination.</p></li>
+<li><p>Start patient examination and lookup session.</p></li>
+<li><p>Confirm that both fields are populated:
+<code class="docutils literal notranslate"><span class="pre">PatientExamination-ID</span></code> and <code class="docutils literal notranslate"><span class="pre">Lookup-Token</span></code>.</p></li>
+</ol>
+<p>Without this step, later pages cannot calculate requirement logic reliably.</p>
+</section>
+<section id="step-2-template-requirement-sets">
+<h3>Step 2: Template &amp; Requirement Sets<a class="headerlink" href="#step-2-template-requirement-sets" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/&lt;patient_examination_id&gt;/template-requirements</span></code></p></li>
+<li><p>Main goal: Align template structure and requirement logic for this case.</p></li>
+<li><p>Typical actions:</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Load templates for the selected examination.</p></li>
+<li><p>Select a template.</p></li>
+<li><p>Load lookup state.</p></li>
+<li><p>Select requirement sets.</p></li>
+<li><p>Recompute if needed.</p></li>
+</ol>
+<p>This step controls what should be documented in later steps.</p>
+</section>
+<section id="step-3-findings-capture">
+<h3>Step 3: Findings Capture<a class="headerlink" href="#step-3-findings-capture" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/&lt;patient_examination_id&gt;/findings</span></code></p></li>
+<li><p>Main goal: Enter clinical findings and their classifications.</p></li>
+<li><p>Typical actions:</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Add findings to the case.</p></li>
+<li><p>Set or update classifications.</p></li>
+<li><p>Recompute lookup after important changes.</p></li>
+<li><p>Review available findings from lookup.</p></li>
+</ol>
+<p>For clinical documentation quality, this is one of the most important steps.</p>
+</section>
+<section id="step-4-requirements-review">
+<h3>Step 4: Requirements Review<a class="headerlink" href="#step-4-requirements-review" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/&lt;patient_examination_id&gt;/requirements-review</span></code></p></li>
+<li><p>Main goal: Check unmet requirements and suggested actions.</p></li>
+<li><p>Typical actions:</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Load lookup hints.</p></li>
+<li><p>Review unmet requirement sets.</p></li>
+<li><p>Review advisory recommendations.</p></li>
+<li><p>If needed, return to Findings or Template/Requirement Sets and adjust.</p></li>
+</ol>
+<p>Important: This page is advisory; it supports decision-making but does not replace medical judgement.</p>
+</section>
+<section id="step-5-report-editor">
+<h3>Step 5: Report Editor<a class="headerlink" href="#step-5-report-editor" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/&lt;patient_examination_id&gt;/report-editor</span></code></p></li>
+<li><p>Main goal: Produce and save the report text/content.</p></li>
+<li><p>Typical actions:</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Confirm template context.</p></li>
+<li><p>Fill section notes (draft text per section).</p></li>
+<li><p>Set indication rows when needed.</p></li>
+<li><p>Save as <code class="docutils literal notranslate"><span class="pre">draft</span></code> during work-in-progress.</p></li>
+<li><p>Save as <code class="docutils literal notranslate"><span class="pre">final</span></code> when complete.</p></li>
+</ol>
+<p>The editor creates/updates structured report submissions linked to the case.</p>
+</section>
+<section id="step-6-segment-frame-selector-optional">
+<h3>Step 6: Segment/Frame Selector (Optional)<a class="headerlink" href="#step-6-segment-frame-selector-optional" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/&lt;patient_examination_id&gt;/frame-selector</span></code></p></li>
+<li><p>Main goal: Select representative frames for segments and optionally link findings.</p></li>
+<li><p>Typical actions:</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Select a segment.</p></li>
+<li><p>Set a representative frame manually or with helper actions.</p></li>
+<li><p>Optionally attach/remove finding links.</p></li>
+</ol>
+<p>Use this step when image/video evidence selection is needed.</p>
+</section>
+<section id="step-7-finalization-artifacts">
+<h3>Step 7: Finalization / Artifacts<a class="headerlink" href="#step-7-finalization-artifacts" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/&lt;patient_examination_id&gt;/finalized</span></code></p></li>
+<li><p>Main goal: Access final outputs and verify traceability.</p></li>
+<li><p>Typical actions:</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Load latest finalized report state.</p></li>
+<li><p>Open/download PDF artifact.</p></li>
+<li><p>Open patient timeline.</p></li>
+<li><p>Verify status, version, and document type.</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="related-specialized-guides">
+<h2>Related Specialized Guides<a class="headerlink" href="#related-specialized-guides" title="Link to this heading">¶</a></h2>
+<p>For detailed operational instructions, use these dedicated pages:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="guides/segment-annotation-workflow.html"><span class="std std-doc">Segment Annotation Workflow</span></a></p></li>
+<li><p><a class="reference internal" href="guides/anonymization-validation-correction-workflow.html"><span class="std std-doc">Anonymization Validation and Correction Workflow</span></a></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="quick-practical-path-for-clinical-documentation">
+<h2>Quick Practical Path for Clinical Documentation<a class="headerlink" href="#quick-practical-path-for-clinical-documentation" title="Link to this heading">¶</a></h2>
+<p>If the primary objective is to document findings quickly and safely:</p>
+<ol class="arabic simple">
+<li><p>Complete <strong>Case Setup</strong>.</p></li>
+<li><p>In <strong>Template &amp; Requirement Sets</strong>, select the matching template and requirement sets.</p></li>
+<li><p>In <strong>Findings Capture</strong>, add findings and classifications.</p></li>
+<li><p>Use <strong>Requirements Review</strong> to catch missing documentation.</p></li>
+<li><p>Complete <strong>Report Editor</strong> and save as draft/final.</p></li>
+<li><p>Confirm output in <strong>Finalization</strong>.</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="deep-link-behavior">
+<h2>Deep Link Behavior<a class="headerlink" href="#deep-link-behavior" title="Link to this heading">¶</a></h2>
+<p>When this page is opened with <code class="docutils literal notranslate"><span class="pre">:patient_examination_id</span></code> in the route:</p>
+<ol class="arabic simple">
+<li><p>The page uses that ID as the active case context.</p></li>
+<li><p>It fetches patient examination details.</p></li>
+<li><p>It attempts to initialize a lookup session if no token exists.</p></li>
+<li><p>It loads lookup data automatically.</p></li>
+</ol>
+<p>This reduces manual setup and makes training demos reliable.</p>
+</section>
+<hr class="docutils" />
+<section id="field-and-button-reference">
+<h2>Field and Button Reference<a class="headerlink" href="#field-and-button-reference" title="Link to this heading">¶</a></h2>
+<section id="template-block">
+<h3>Template Block<a class="headerlink" href="#template-block" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">KB</span> <span class="pre">module</span></code>: Source module for templates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Examination</span></code>: Current case examination (read-only).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Template</span></code>: Select template for this case.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Templates</span> <span class="pre">for</span> <span class="pre">examination</span> <span class="pre">load</span></code>: Refreshes available templates.</p></li>
+</ul>
+</section>
+<section id="requirement-set-block">
+<h3>Requirement Set Block<a class="headerlink" href="#requirement-set-block" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">PatientExamination-ID</span></code>: Current case identifier.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Lookup-Token</span></code>: Active lookup session identifier.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Refresh</span></code>: Reload full lookup state.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Load</span> <span class="pre">parts</span></code>: Reload selected lookup fields.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Recompute</span></code>: Re-run requirement logic with current selections.</p></li>
+<li><p>Requirement set switches: Enable/disable each requirement set.</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="developer-mapping-requirement-objects-to-lx-dtypes-validators">
+<h2>Developer Mapping: Requirement Objects to <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code> Validators<a class="headerlink" href="#developer-mapping-requirement-objects-to-lx-dtypes-validators" title="Link to this heading">¶</a></h2>
+<p>The new <code class="docutils literal notranslate"><span class="pre">base_api</span></code> requirement routes are projected from <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code> report templates and validator runtime execution.</p>
+<p>Source implementation:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-data-models/lx_dtypes/django/api/main.py</span></code></p></li>
+</ul>
+<section id="get-base-api-requirement-sets">
+<h3><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/base_api/requirement-sets</span></code><a class="headerlink" href="#get-base-api-requirement-sets" title="Link to this heading">¶</a></h3>
+<p>Mapping:</p>
+<ul class="simple">
+<li><p>One requirement set maps to one <code class="docutils literal notranslate"><span class="pre">report_template</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirement_set.id</span></code> -&gt; 1-based index over <code class="docutils literal notranslate"><span class="pre">sorted(kb.report_template.keys())</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirement_set.name</span></code> / <code class="docutils literal notranslate"><span class="pre">template_name</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">report_template.name</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirement_set.type</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">report_template.examination</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirement_set.requirements[]</span></code> -&gt; flattened validator references from:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">template.validators.findings_validators</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">template.validators.examination_validators</span></code></p></li>
+</ol>
+</li>
+</ul>
+<p>Nested requirement mapping:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">requirements[i].id</span></code> -&gt; 1-based local index in the set.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirements[i].name</span></code> -&gt; validator name.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirements[i].kind</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">findings_validator</span></code> or <code class="docutils literal notranslate"><span class="pre">examination_validator</span></code>.</p></li>
+</ul>
+</section>
+<section id="post-base-api-evaluate-requirement-set">
+<h3><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/base_api/evaluate-requirement-set</span></code><a class="headerlink" href="#post-base-api-evaluate-requirement-set" title="Link to this heading">¶</a></h3>
+<p>Input selectors:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">requirement_set_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirement_set_ids</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirementSetIds</span></code> (legacy compatibility)</p></li>
+</ul>
+<p>Evaluation mapping:</p>
+<ul class="simple">
+<li><p>For each selected requirement set/template:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">kb.evaluate_report_template_validators(template_name,</span> <span class="pre">reported_findings=...)</span></code></p></li>
+</ul>
+</li>
+<li><p>Per result row:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">requirement_name</span></code> -&gt; validator runtime <code class="docutils literal notranslate"><span class="pre">name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">met</span></code> -&gt; validator runtime <code class="docutils literal notranslate"><span class="pre">ok</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">status</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">PASSED</span></code> / <code class="docutils literal notranslate"><span class="pre">FAILED</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">details</span></code> -&gt; summary from validator issue messages</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">validator_result</span></code> -&gt; full validator runtime payload</p></li>
+</ul>
+</li>
+</ul>
+<p>Compatibility notes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">patient_examination_id</span></code> stays in request/response meta for frontend compatibility.</p></li>
+<li><p>These requirement routes no longer depend on <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> requirement models/services.</p></li>
+<li><p>Projected IDs are not persisted DB IDs and can shift if template names/order change.</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="common-problems-and-practical-fixes">
+<h2>Common Problems and Practical Fixes<a class="headerlink" href="#common-problems-and-practical-fixes" title="Link to this heading">¶</a></h2>
+<section id="problem-no-templates-found-for-colonoscopy">
+<h3>Problem: “No templates found for colonoscopy”<a class="headerlink" href="#problem-no-templates-found-for-colonoscopy" title="Link to this heading">¶</a></h3>
+<p>Possible causes:</p>
+<ul class="simple">
+<li><p>No template exists for examination <code class="docutils literal notranslate"><span class="pre">colonoscopy</span></code> in selected module.</p></li>
+<li><p>Wrong module selected.</p></li>
+</ul>
+<p>What to do:</p>
+<ol class="arabic simple">
+<li><p>Set module to <code class="docutils literal notranslate"><span class="pre">report_template_examples</span></code>.</p></li>
+<li><p>Reload templates.</p></li>
+<li><p>Verify template <code class="docutils literal notranslate"><span class="pre">colonoscopy_training_basic</span></code> appears.</p></li>
+</ol>
+</section>
+<section id="problem-0-set-s-and-no-requirement-sets-found">
+<h3>Problem: “0 set(s)” and “No requirement sets found”<a class="headerlink" href="#problem-0-set-s-and-no-requirement-sets-found" title="Link to this heading">¶</a></h3>
+<p>Possible causes:</p>
+<ul class="simple">
+<li><p>No lookup token exists yet.</p></li>
+<li><p>Lookup session expired.</p></li>
+<li><p>Case was opened without valid <code class="docutils literal notranslate"><span class="pre">patient_examination_id</span></code>.</p></li>
+<li><p>Backend rule engine returned no sets for current data.</p></li>
+</ul>
+<p>What to do:</p>
+<ol class="arabic simple">
+<li><p>Verify <code class="docutils literal notranslate"><span class="pre">PatientExamination-ID</span></code> is present.</p></li>
+<li><p>Check that <code class="docutils literal notranslate"><span class="pre">Lookup-Token</span></code> is present.</p></li>
+<li><p>Use refresh/recompute.</p></li>
+<li><p>If still empty, return to case setup and reinitialize lookup.</p></li>
+</ol>
+</section>
+<section id="problem-mismatch-warning-between-route-parameter-and-stored-case">
+<h3>Problem: Mismatch warning between route parameter and stored case<a class="headerlink" href="#problem-mismatch-warning-between-route-parameter-and-stored-case" title="Link to this heading">¶</a></h3>
+<p>Meaning:</p>
+<ul class="simple">
+<li><p>The URL case ID and locally stored flow state refer to different cases.</p></li>
+</ul>
+<p>What to do:</p>
+<ol class="arabic simple">
+<li><p>Reload the intended deep-link URL.</p></li>
+<li><p>Avoid using stale browser tabs from older cases.</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="training-checklist-for-clinical-onboarding">
+<h2>Training Checklist (For Clinical Onboarding)<a class="headerlink" href="#training-checklist-for-clinical-onboarding" title="Link to this heading">¶</a></h2>
+<p>Use this checklist when teaching staff.</p>
+<ol class="arabic simple">
+<li><p>Can the user identify current <code class="docutils literal notranslate"><span class="pre">PatientExamination-ID</span></code>?</p></li>
+<li><p>Can the user explain the purpose of each reporting step/page?</p></li>
+<li><p>Can the user load templates for the examination?</p></li>
+<li><p>Can the user select the correct template?</p></li>
+<li><p>Can the user understand requirement set status (fulfilled / not fulfilled / unknown)?</p></li>
+<li><p>Can the user toggle a set and recompute?</p></li>
+<li><p>Can the user add findings and update classifications?</p></li>
+<li><p>Can the user use Requirements Review to identify gaps?</p></li>
+<li><p>Can the user save draft/final report in the editor?</p></li>
+<li><p>Can the user verify artifacts in Finalization?</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="glossary-plain-language">
+<h2>Glossary (Plain Language)<a class="headerlink" href="#glossary-plain-language" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Template</strong>: A predefined report structure with sections and expected findings.</p></li>
+<li><p><strong>Requirement set</strong>: A grouped rule/checklist for report completeness.</p></li>
+<li><p><strong>Lookup token</strong>: Session key for requirement calculations.</p></li>
+<li><p><strong>Recompute</strong>: Re-run backend logic after changes.</p></li>
+<li><p><strong>Patient examination</strong>: The concrete clinical case instance used for reporting.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="related-technical-files-for-admins-developers">
+<h2>Related Technical Files (for Admins/Developers)<a class="headerlink" href="#related-technical-files-for-admins-developers" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/views/reporting/ReportingShell.vue</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/views/reporting/TemplateRequirementsPage.vue</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/composables/reporting/useReportTemplates.ts</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/composables/reporting/useLookupActions.ts</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/stores/reportingFlowStore.ts</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-data-models/lx_dtypes/data/report_template_examples/report_templates.yaml</span></code></p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="guides/ai-training-data-export.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">AI Training Data Export</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="guides/wheel-deployment.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Wheel Deployment</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 1980, Thomas J. Lux
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a><ul>
+<li><a class="reference internal" href="#audience-and-purpose">Audience and Purpose</a></li>
+<li><a class="reference internal" href="#where-this-page-is-used">Where This Page Is Used</a></li>
+<li><a class="reference internal" href="#what-you-see-on-the-page">What You See on the Page</a><ul>
+<li><a class="reference internal" href="#template-selection">1. Template Selection</a></li>
+<li><a class="reference internal" href="#template-requirement-sets">2. Template &amp; Requirement Sets</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#why-requirement-sets-matter-clinical-view">Why Requirement Sets Matter (Clinical View)</a></li>
+<li><a class="reference internal" href="#typical-step-by-step-workflow">Typical Step-by-Step Workflow</a></li>
+<li><a class="reference internal" href="#full-reporting-flow-all-steps">Full Reporting Flow (All Steps)</a><ul>
+<li><a class="reference internal" href="#step-0-worklist">Step 0: Worklist</a></li>
+<li><a class="reference internal" href="#step-1-case-setup">Step 1: Case Setup</a></li>
+<li><a class="reference internal" href="#step-2-template-requirement-sets">Step 2: Template &amp; Requirement Sets</a></li>
+<li><a class="reference internal" href="#step-3-findings-capture">Step 3: Findings Capture</a></li>
+<li><a class="reference internal" href="#step-4-requirements-review">Step 4: Requirements Review</a></li>
+<li><a class="reference internal" href="#step-5-report-editor">Step 5: Report Editor</a></li>
+<li><a class="reference internal" href="#step-6-segment-frame-selector-optional">Step 6: Segment/Frame Selector (Optional)</a></li>
+<li><a class="reference internal" href="#step-7-finalization-artifacts">Step 7: Finalization / Artifacts</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#related-specialized-guides">Related Specialized Guides</a></li>
+<li><a class="reference internal" href="#quick-practical-path-for-clinical-documentation">Quick Practical Path for Clinical Documentation</a></li>
+<li><a class="reference internal" href="#deep-link-behavior">Deep Link Behavior</a></li>
+<li><a class="reference internal" href="#field-and-button-reference">Field and Button Reference</a><ul>
+<li><a class="reference internal" href="#template-block">Template Block</a></li>
+<li><a class="reference internal" href="#requirement-set-block">Requirement Set Block</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#developer-mapping-requirement-objects-to-lx-dtypes-validators">Developer Mapping: Requirement Objects to <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code> Validators</a><ul>
+<li><a class="reference internal" href="#get-base-api-requirement-sets"><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/base_api/requirement-sets</span></code></a></li>
+<li><a class="reference internal" href="#post-base-api-evaluate-requirement-set"><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/base_api/evaluate-requirement-set</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#common-problems-and-practical-fixes">Common Problems and Practical Fixes</a><ul>
+<li><a class="reference internal" href="#problem-no-templates-found-for-colonoscopy">Problem: “No templates found for colonoscopy”</a></li>
+<li><a class="reference internal" href="#problem-0-set-s-and-no-requirement-sets-found">Problem: “0 set(s)” and “No requirement sets found”</a></li>
+<li><a class="reference internal" href="#problem-mismatch-warning-between-route-parameter-and-stored-case">Problem: Mismatch warning between route parameter and stored case</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#training-checklist-for-clinical-onboarding">Training Checklist (For Clinical Onboarding)</a></li>
+<li><a class="reference internal" href="#glossary-plain-language">Glossary (Plain Language)</a></li>
+<li><a class="reference internal" href="#related-technical-files-for-admins-developers">Related Technical Files (for Admins/Developers)</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=8aa58abc"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
+    </body>
+</html>

@@ -4,7 +4,6 @@
 
 1. git clone --recursive https://github.com/wg-lux/lx-annotate.git
 2. direnv allow
-3. python env_setup.py
 4. uv sync
 5. python manage.py load_base_db_data
 
@@ -13,6 +12,13 @@
 1. direnv allow
 2. uv sync
 
+## Updating the frontend
+
+1. cd frontend
+2. direnv allow
+3. npm run build
+
+This installs the env dependencies of the frontend, installs the dependencies and runs the typescript compiler.
 
 ## Running the server
 
@@ -25,13 +31,16 @@ python manage.py runserver
 
 to start the django server.
 
+In luxnix production this changes to
+
+https://lx-annotate.local/
+
 Videos need to be placed in
 
-data/raw_videos
+data/import/video_import
 
 pdfs in
 
-data/raw_pdfs
+data/import/report_import
 
 to start processing.
-

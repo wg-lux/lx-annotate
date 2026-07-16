@@ -16,7 +16,7 @@ import shutil
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple
+from typing import Any, List, Dict, cast
 import json
 
 # Configure logging
@@ -27,10 +27,31 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _timestamp_seconds(value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.timestamp()
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _delete_cached_repo(repo: object) -> None:
+    repo_path = getattr(repo, "repo_path", None)
+    if isinstance(repo_path, Path):
+        shutil.rmtree(repo_path, ignore_errors=True)
+        return
+    if isinstance(repo_path, str):
+        shutil.rmtree(repo_path, ignore_errors=True)
+        return
+    raise AttributeError("Cached repository metadata does not expose repo_path.")
+
+
 class HuggingFaceCacheManager:
     """Manages HuggingFace cache directory to prevent storage issues."""
     
-    def __init__(self, cache_dir: Path = None):
+    def __init__(self, cache_dir: Path | None = None):
         """
         Initialize cache manager.
         
@@ -85,7 +106,7 @@ class HuggingFaceCacheManager:
             logger.error(f"Failed to get cache info: {e}")
             return {'total_gb': 0, 'hub_gb': 0, 'transformers_gb': 0, 'datasets_gb': 0}
     
-    def list_cached_models(self) -> List[Dict[str, any]]:
+    def list_cached_models(self) -> List[Dict[str, Any]]:
         """List all cached models with size information."""
         models = []
         
@@ -104,7 +125,7 @@ class HuggingFaceCacheManager:
                     'size_gb': repo.size_on_disk / (1024**3),
                     'last_accessed': repo.last_accessed,
                     'last_modified': repo.last_modified,
-                    'refs': [ref.ref_name for ref in repo.refs]
+                    'refs': [str(ref) for ref in repo.refs]
                 })
             
             # Sort by size (largest first)
@@ -118,7 +139,7 @@ class HuggingFaceCacheManager:
         
         return models
     
-    def _manual_list_models(self) -> List[Dict[str, any]]:
+    def _manual_list_models(self) -> List[Dict[str, Any]]:
         """Manual model listing when huggingface_hub is not available."""
         models = []
         
@@ -164,7 +185,9 @@ class HuggingFaceCacheManager:
         
         return models
     
-    def cleanup_old_models(self, max_age_days: int = 30, preserve_models: List[str] = None) -> float:
+    def cleanup_old_models(
+        self, max_age_days: int = 30, preserve_models: List[str] | None = None
+    ) -> float:
         """
         Clean up old cached models.
         
@@ -181,7 +204,7 @@ class HuggingFaceCacheManager:
                 'microsoft/DialoGPT-medium',  # Preserve other essential models
             ]
         
-        cutoff_date = datetime.now() - timedelta(days=max_age_days)
+        cutoff_timestamp = (datetime.now() - timedelta(days=max_age_days)).timestamp()
         total_freed = 0
         
         try:
@@ -200,7 +223,8 @@ class HuggingFaceCacheManager:
                     continue
                 
                 # Check if model is old
-                if repo.last_accessed and repo.last_accessed < cutoff_date:
+                last_accessed = _timestamp_seconds(repo.last_accessed)
+                if last_accessed is not None and last_accessed < cutoff_timestamp:
                     models_to_delete.append(repo)
                 elif repo.size_on_disk > 15 * 1024**3:  # Large models (>15GB)
                     logger.info(f"Marking large model for deletion: {repo.repo_id} ({repo.size_on_disk / 1024**3:.1f}GB)")
@@ -210,7 +234,7 @@ class HuggingFaceCacheManager:
             for repo in models_to_delete:
                 try:
                     size_before = repo.size_on_disk
-                    repo.delete()
+                    _delete_cached_repo(repo)
                     total_freed += size_before
                     logger.info(f"Deleted cached model: {repo.repo_id} ({size_before / 1024**3:.1f}GB)")
                 except Exception as e:
@@ -382,7 +406,7 @@ class HuggingFaceCacheManager:
                     for repo in cache_info.repos:
                         if repo.repo_id == model['repo_id']:
                             size_before = repo.size_on_disk
-                            repo.delete()
+                            _delete_cached_repo(repo)
                             total_freed += size_before / (1024**3)
                             current_size -= size_before / (1024**3)
                             

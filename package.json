@@ -1,0 +1,33 @@
+{
+  "name": "lx-annotate",
+  "version": "1.0.0",
+  "description": "A package to solve challenges in medical ai and data processing.",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "npm --prefix frontend run test:unit",
+    "test:frontend": "npm --prefix frontend run test:unit",
+    "type-check:frontend": "npm --prefix frontend run type-check"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wg-lux/lx-annotate.git"
+  },
+  "keywords": [
+    "ai",
+    "medicine",
+    "database"
+  ],
+  "author": "Max Hild, Thomas J. Lux, SM Hamza Zahid",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wg-lux/lx-annotate/issues"
+  },
+  "homepage": "https://github.com/wg-lux/lx-annotate#readme",
+  "dependencies": {
+    "@google/gemini-cli": "^0.34.0"
+  }
+}
