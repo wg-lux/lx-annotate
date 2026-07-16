@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { endpoints } from '@/types/api/endpoints'
 
 const hoisted = vi.hoisted(() => ({
   axios: {
@@ -10,10 +11,17 @@ const hoisted = vi.hoisted(() => ({
 }))
 
 vi.mock('@/api/axiosInstance', () => ({
-  default: hoisted.axios
+  default: hoisted.axios,
+  endoregApi: (path: string) => `/endoreg-api/${path.replace(/^\/+/, '')}`,
+  dtypesApi: (path: string) => `/dtypes-api/${path.replace(/^\/+/, '')}`
 }))
 
-import { findingsApi, getFindingsBackendMode, parseFindingsApiError } from '@/api/findingsApi'
+import {
+  DEFAULT_FINDINGS_BACKEND_MODE,
+  findingsApi,
+  getFindingsBackendMode,
+  parseFindingsApiError
+} from '@/api/findingsApi'
 
 describe('findingsApi backend mode routing', () => {
   beforeEach(() => {
@@ -21,22 +29,28 @@ describe('findingsApi backend mode routing', () => {
     vi.unstubAllEnvs()
   })
 
-  it('defaults to endoreg mode when backend flag is missing or invalid', () => {
-    expect(getFindingsBackendMode()).toBe('endoreg')
+  it('defaults to dtypes mode when backend flag is missing or invalid', () => {
+    expect(DEFAULT_FINDINGS_BACKEND_MODE).toBe('dtypes')
+    expect(getFindingsBackendMode()).toBe('dtypes')
     vi.stubEnv('VITE_FINDINGS_BACKEND', 'unknown')
-    expect(getFindingsBackendMode()).toBe('endoreg')
+    expect(getFindingsBackendMode()).toBe('dtypes')
   })
 
   it('routes examination findings reads by backend mode', async () => {
     hoisted.axios.get.mockResolvedValue({ data: [] })
 
-    vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg')
     await findingsApi.getExaminationFindings(12)
-    expect(hoisted.axios.get).toHaveBeenLastCalledWith('/api/examinations/12/findings/')
+    expect(hoisted.axios.get).toHaveBeenLastCalledWith('/dtypes-api/examinations/12/findings/')
 
     vi.stubEnv('VITE_FINDINGS_BACKEND', 'dtypes_read')
     await findingsApi.getExaminationFindings(12)
-    expect(hoisted.axios.get).toHaveBeenLastCalledWith('/base_api/examinations/12/findings/')
+    expect(hoisted.axios.get).toHaveBeenLastCalledWith('/dtypes-api/examinations/12/findings/')
+
+    vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg')
+    await findingsApi.getExaminationFindings(12)
+    expect(hoisted.axios.get).toHaveBeenLastCalledWith(
+      `/endoreg-api/${endpoints.examination.examinationFindings(12)}`
+    )
   })
 
   it('keeps endoreg-safe create contract with dedicated classification write', async () => {
@@ -51,13 +65,13 @@ describe('findingsApi backend mode routing', () => {
       classifications: [{ classification: 11, choice: 44 }]
     })
 
-    expect(hoisted.axios.post).toHaveBeenNthCalledWith(1, '/api/patient-findings/', {
+    expect(hoisted.axios.post).toHaveBeenNthCalledWith(1, `/endoreg-api/${endpoints.patient.patientFindings}`, {
       patientExamination: 35,
       finding: 7
     })
     expect(hoisted.axios.post).toHaveBeenNthCalledWith(
       2,
-      '/base_api/patient-findings/91/classifications/',
+      '/dtypes-api/patient-findings/91/classifications/',
       {
         replace: true,
         classifications: [{ classification: 11, choice: 44 }]
@@ -65,8 +79,7 @@ describe('findingsApi backend mode routing', () => {
     )
   })
 
-  it('uses dtypes patient-findings endpoint directly in dtypes mode', async () => {
-    vi.stubEnv('VITE_FINDINGS_BACKEND', 'dtypes')
+  it('uses dtypes patient-findings endpoint directly by default', async () => {
     hoisted.axios.post.mockResolvedValue({ data: { id: 101, finding: 6 } })
 
     await findingsApi.createPatientFinding({
@@ -76,10 +89,20 @@ describe('findingsApi backend mode routing', () => {
     })
 
     expect(hoisted.axios.post).toHaveBeenCalledTimes(1)
-    expect(hoisted.axios.post).toHaveBeenCalledWith('/base_api/patient-findings/', {
+    expect(hoisted.axios.post).toHaveBeenCalledWith('/dtypes-api/patient-findings/', {
       patient_examination: 88,
       finding: 6,
       classifications: [{ classification: 5, choice: 9 }]
+    })
+  })
+
+  it('lists patient findings through dtypes by default', async () => {
+    hoisted.axios.get.mockResolvedValue({ data: [] })
+
+    await findingsApi.listPatientFindings(42)
+
+    expect(hoisted.axios.get).toHaveBeenCalledWith('/dtypes-api/patient-findings/', {
+      params: { patient_examination: 42 }
     })
   })
 

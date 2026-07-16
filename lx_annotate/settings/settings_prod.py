@@ -2,7 +2,8 @@
 Production settings.
 """
 
-from lx_annotate.settings.config import load_config, AppConfig
+from lx_annotate.settings import config as config_module
+from lx_annotate.settings.config import AppConfig
 from .settings_base import (
     APP_DATA_DIR,
     SECRET_KEY,
@@ -11,6 +12,7 @@ from .settings_base import (
     LOGGING,
     REST_FRAMEWORK,
     MIGRATION_MODULES,
+    STORAGES,
     TEMPLATES,
     ROOT_URLCONF,
     STATIC_URL,
@@ -28,6 +30,7 @@ from typing import Any, cast
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
 MIGRATION_MODULES = cast(dict[str, str], MIGRATION_MODULES)
+STORAGES = cast(dict[str, dict[str, str]], STORAGES)
 TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
 ROOT_URLCONF = cast(str, ROOT_URLCONF)
 STATIC_URL = cast(str, STATIC_URL)
@@ -38,7 +41,7 @@ config = cast(AppConfig, config)
 
 # -----------------------------------------------------------------------------
 
-config = load_config()
+config = cast(AppConfig, config_module.load_config())
 
 STATIC_ROOT = config.static_root
 static_root_path = Path(STATIC_ROOT).resolve(strict=False)
@@ -70,6 +73,7 @@ DJANGO_VITE = {
 # ManifestStaticFilesStorage would rewrite `main.js` to an older hashed bundle
 # via Django's own manifest, which breaks route loading after deploy.
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+STORAGES["staticfiles"] = {"BACKEND": STATICFILES_STORAGE}
 
 # 3. SECURITY HEADERS
 SECURE_SSL_REDIRECT = True
@@ -179,20 +183,6 @@ if not DATABASES["default"]["PASSWORD"]:
 ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "1") == "1"  # default OFF
 
 try:
-    # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
-    import sys
-    from pathlib import Path
-
-    # BASE_DIR comes from settings_base.py which you imported above
-    KEYCLOAK_CONFIG_ROOT = BASE_DIR / "libs" / "endoreg-db"
-    if KEYCLOAK_CONFIG_ROOT.exists() and str(KEYCLOAK_CONFIG_ROOT) not in sys.path:
-        sys.path.insert(0, str(KEYCLOAK_CONFIG_ROOT))
-        print(f"🔧 Added to sys.path for Keycloak: {KEYCLOAK_CONFIG_ROOT}")
-    else:
-        print(
-            f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
-        )
-
     from endoreg_db.config.settings import keycloak as KEYCLOAK
 
     DEBUG = False  # force prod behavior so PolicyPermission doesn't bypass
@@ -233,7 +223,7 @@ try:
 
     print("🔒 ENFORCE_AUTH=1 → Keycloak enabled (session SSO) + RBAC ON")
 except ImportError as e:
-    print(f"❌ Keycloak integration failed to load: {e}")
+    print(f"❌ Keycloak integration failed to load from installed packages: {e}")
     if ENFORCE_AUTH:
         raise RuntimeError(
             "🚨 SECURITY ERROR: ENFORCE_AUTH=1 but Keycloak integration failed to load!"
@@ -243,10 +233,6 @@ except ImportError as e:
 # Stable Hosting using NGINX, so we can trust the X-Forwarded-* headers
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
-
-# Ensure Nginx can read these
-MEDIA_ROOT = Path(os.environ.get("LX_ANNOTATE_DATA_DIR", BASE_DIR / "media"))
 
 
 print("🔐 PRODUCTION SETTINGS LOADED")

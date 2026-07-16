@@ -23,11 +23,11 @@
           
           <!-- Processing Status Alert -->
           <div v-if="anonymizationStore.isAnyFileProcessing" class="alert alert-warning mt-3">
-            <i class="fas fa-info-circle me-2"></i>
+            <i class="ni ni-user-run me-2"></i>
             <strong>{{ anonymizationStore.processingFiles.length }} Datei(en)</strong> werden gerade anonymisiert.
             <div class="mt-2">
               <router-link to="/anonymisierung/uebersicht" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-eye me-1"></i>
+                <i class="ni ni-user-run me-1"></i>
                 Zur Übersicht
               </router-link>
             </div>
@@ -41,16 +41,23 @@
             <div class="col-12">
               <div class="alert alert-info d-flex align-items-center justify-content-between" role="alert">
                 <div>
-                  <i class="fas fa-info-circle me-2"></i>
+                  <i class="ni ni-user-run me-2"></i>
                   <span>
                     <strong>Validierung:</strong> 
                     {{ isPdf ? 'PDF-Dokument' : isVideo ? 'Video-Datei' : 'Unbekanntes Format' }}
                     {{ currentItem?.centerName ? `- ${currentItem.centerName}` : '' }}
+                    <span
+                      v-if="currentFileIdLabel"
+                      class="badge bg-secondary ms-2 align-middle"
+                      title="ID aus der Anonymisierungs-Übersicht"
+                    >
+                      {{ currentFileIdLabel }}
+                    </span>
                   </span>
                 </div>
                 <div v-if="currentItem && (isVideo || isPdf)" class="text-end">
                   <small class="text-muted">
-                    <i class="fas fa-tools me-1"></i>
+                    <i class="ni ni-settings-gear-65 me-1"></i>
                     {{ isVideo ? 'Video-Korrektur verfügbar' : 'Text-Korrektur verfügbar' }}
                   </small>
                 </div>
@@ -60,19 +67,22 @@
 
 
           <div class="row mb-4">
-            <!--Checkbox indicating if there are no more names present in the video or pdf-->
             <div class="col-12">
-              <div class="form-check">
-                <input 
-                  type="checkbox" 
-                  class="form-check-input" 
-                  id="noMoreNames" 
-                  v-model="noMoreNames"
-                >
-                <label class="form-check-label" for="noMoreNames">
-                  Keine weiteren Namen im Video oder PDF vorhanden
-                </label>
-              </div>
+              <label class="form-label" for="noMoreNamesConfirmation">
+                Weitere Namen im Video oder PDF
+              </label>
+              <select
+                id="noMoreNamesConfirmation"
+                v-model="noMoreNamesConfirmation"
+                class="form-select"
+              >
+                <option value="unknown">Nicht bewertet</option>
+                <option value="confirmed">Keine weiteren Namen vorhanden</option>
+                <option value="not_confirmed">Weitere Namen nicht ausgeschlossen</option>
+              </select>
+              <small class="form-text text-muted">
+                Diese Angabe ist optional und blockiert die Validierung nicht.
+              </small>
             </div>
           </div>
 
@@ -81,7 +91,7 @@
             <div class="col-12">
               <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <h6 class="alert-heading">
-                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <i class="ni ni-user-run me-2"></i>
                   {{ validationErrorSummary }}
                 </h6>
                 <hr>
@@ -146,7 +156,7 @@
                       @blur="onDobBlur"
                     >
                     <small class="form-text text-muted">
-                      <i class="fas fa-info-circle me-1"></i>
+                      <i class="ni ni-user-run me-1"></i>
                       <span v-if="dobDisplayFormat" class="ms-2 badge bg-secondary">
                         {{ dobDisplayFormat }}
                       </span>
@@ -176,7 +186,7 @@
                       @blur="onExamDateBlur"
                     >
                     <small class="form-text text-muted">
-                      <i class="fas fa-info-circle me-1"></i>
+                      <i class="ni ni-user-run me-1"></i>
                       <span v-if="examDateDisplayFormat" class="ms-2 badge bg-secondary">
                         {{ examDateDisplayFormat }}
                       </span>
@@ -279,6 +289,61 @@
                       v-model="editedPatient.centerName"
                     >
                     </textarea>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Validierungs-Tags:</label>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                      <button
+                        v-for="tag in presetValidationTags"
+                        :key="tag"
+                        type="button"
+                        class="btn btn-sm"
+                        :class="selectedTags.includes(tag) ? 'btn-primary' : 'btn-outline-primary'"
+                        @click="toggleValidationTag(tag)"
+                      >
+                        {{ tag }}
+                      </button>
+                    </div>
+                    <div class="input-group mb-2">
+                      <input
+                        v-model="customTagInput"
+                        type="text"
+                        class="form-control"
+                        placeholder="Eigenen Tag eingeben"
+                        @keyup.enter="addCustomValidationTag"
+                      >
+                      <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        @click="addCustomValidationTag"
+                      >
+                        Tag hinzufügen
+                      </button>
+                    </div>
+                    <div v-if="selectedTags.length" class="d-flex flex-wrap gap-2">
+                      <span
+                        v-for="tag in selectedTags"
+                        :key="tag"
+                        class="badge bg-secondary d-inline-flex align-items-center gap-1"
+                      >
+                        {{ tag }}
+                        <button
+                          type="button"
+                          class="btn-close btn-close-white btn-close-sm"
+                          aria-label="Tag entfernen"
+                          @click="removeValidationTag(tag)"
+                        ></button>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Validierungsnotiz:</label>
+                    <textarea
+                      class="form-control"
+                      rows="3"
+                      v-model="validationComment"
+                      placeholder="Freitext für Hinweise wie Nachkontrolle oder Ausschluss"
+                    ></textarea>
                 </div>
               </div>
 
@@ -309,7 +374,7 @@
                   </h5>
                   <!-- Clear Data Format Message -->
                   <div class="alert alert-info mt-2 mb-0">
-                    <i class="fas fa-info-circle me-2"></i>
+                    <i class="ni ni-user-run me-2"></i>
                     <strong>Datenformat:</strong> 
                     <span v-if="isPdf">
                       PDF-Dokument ({{ Math.round((anonymizedPdfSrc?.length || 0) / 1024) || 'Nicht Verfügbar' }} KB)
@@ -330,7 +395,7 @@
                       <div class="col-md-6">
                         <div class="pdf-section raw-pdf">
                           <h6 class="text-center mb-3 text-danger">
-                            <i class="fas fa-file-pdf me-1"></i>
+                            <i class="ni ni-single-copy-04 me-1"></i>
                             Original PDF (Raw)
                           </h6>
                           <iframe
@@ -340,8 +405,19 @@
                             frameborder="0"
                             title="Original PDF Vorschau"
                           >
-                            Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="rawPdfSrc">hier herunterladen</a>.
+                            Ihr Browser unterstützt keine eingebetteten PDFs.
                           </iframe>
+                          <div class="mt-2 text-center">
+                            <a
+                              v-if="rawPdfSrc"
+                              class="btn btn-outline-danger btn-sm"
+                              :href="rawPdfSrc"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Original-PDF öffnen
+                            </a>
+                          </div>
                           <div class="mt-2 text-center">
                             <small class="text-muted">
                               URL: {{ rawPdfSrc || 'Nicht verfügbar' }}
@@ -354,7 +430,7 @@
                       <div class="col-md-6">
                         <div class="pdf-section anonymized-pdf">
                           <h6 class="text-center mb-3 text-success">
-                            <i class="fas fa-shield-alt me-1"></i>
+                            <i class="ni ni-check-bold me-1"></i>
                             Anonymisiertes PDF (Processed)
                           </h6>
                           <iframe
@@ -364,8 +440,19 @@
                             frameborder="0"
                             title="Anonymisiertes PDF Vorschau"
                           >
-                            Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="anonymizedPdfSrc">hier herunterladen</a>.
+                            Ihr Browser unterstützt keine eingebetteten PDFs.
                           </iframe>
+                          <div class="mt-2 text-center">
+                            <a
+                              v-if="anonymizedPdfSrc"
+                              class="btn btn-outline-success btn-sm"
+                              :href="anonymizedPdfSrc"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Anonymisiertes PDF öffnen
+                            </a>
+                          </div>
                           <div class="mt-2 text-center">
                             <small class="text-muted">
                               URL: {{ anonymizedPdfSrc || 'Nicht verfügbar' }}
@@ -381,35 +468,73 @@
                         class="btn btn-outline-primary btn-sm me-2"
                         @click="downloadRawPdf"
                       >
-                        <i class="fas fa-download me-1"></i>
+                        <i class="ni ni-cloud-upload-96 me-1"></i>
                         Original herunterladen
                       </button>
                       <button 
                         class="btn btn-outline-success btn-sm"
                         @click="downloadAnonymizedPdf"
                       >
-                        <i class="fas fa-download me-1"></i>
+                        <i class="ni ni-cloud-upload-96 me-1"></i>
                         Anonymisiert herunterladen
                       </button>
                     </div>
                   </div>
                   
-                                    <!-- ✅ ENHANCED: Dual Video Viewer for Raw vs Anonymized Comparison -->
+                  <!-- ✅ ENHANCED: Dual Video Viewer for Raw vs Anonymized Comparison -->
                   <div v-else-if="isVideo" class="dual-video-container">
+                    <div
+                      class="alert mb-3"
+                      :class="videoAnonymizationReady ? 'alert-warning' : 'alert-danger'"
+                      role="status"
+                    >
+                      <div v-if="isLoadingVideoAnonymization" class="d-flex align-items-center gap-2">
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                        Release-Artefakt wird geprüft...
+                      </div>
+                      <template v-else-if="videoAnonymizationStatus">
+                        <div class="d-flex flex-wrap justify-content-between gap-2">
+                          <div>
+                            <strong>{{ videoStrategyLabel }}</strong>
+                            <div class="small mt-1">
+                              Modell: {{ videoModelDisplay }}<br>
+                              Verfügbare OCR-Kaskade: {{ videoAnonymizationStatus.ocr_engines?.join(', ') || 'Nicht gemeldet' }}<br>
+                              <span class="text-muted">
+                                {{ videoAnonymizationStatus.selected_strategy === 'detector_assisted'
+                                  ? 'OCR war nicht Bestandteil der All-Frame-Maskierung.'
+                                  : 'OCR war nicht Bestandteil dieses Prozessorregion-Laufs.' }}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="text-end">
+                            <span class="badge" :class="videoAnonymizationStatus.processed_artifact.available ? 'bg-success' : 'bg-danger'">
+                              {{ videoAnonymizationStatus.processed_artifact.available ? 'Anonymisierte Fassung verfügbar' : 'Kein anonymisiertes Artefakt' }}
+                            </span>
+                            <div class="small mt-1">
+                              {{ videoAnonymizationStatus.review_required
+                                ? 'Menschliche Prüfung und Freigabe erforderlich'
+                                : 'Review-Anforderung fehlt' }}
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                      <template v-else>
+                        {{ videoAnonymizationError || 'Anonymisierungsstatus ist nicht verfügbar.' }}
+                      </template>
+                    </div>
                     <div class="row">
                       <!-- Raw Video (Original) -->
                       <div class="col-md-6">
                         <div class="video-section raw-video">
                           <h6 class="text-center mb-3 text-danger">
-                            <i class="fas fa-eye me-1"></i>
+                            <i class="ni ni-user-run me-1"></i>
                             Original Video (Raw)
                           </h6>
                           <video
                             ref="rawVideoElement"
-                            :src="rawVideoSrc"
                             controls
                             style="width: 100%; max-height: 350px;"
-                            preload="metadata"
+                            preload="none"
                             @error="onRawVideoError"
                             @loadstart="onRawVideoLoadStart"
                             @canplay="onRawVideoCanPlay"
@@ -417,9 +542,16 @@
                           >
                             Ihr Browser unterstützt dieses Video-Format nicht.
                           </video>
+                          <div
+                            v-if="rawVideoPlaybackError"
+                            class="alert alert-danger py-2 mt-2 mb-0"
+                            role="alert"
+                          >
+                            {{ rawVideoPlaybackError.message }}
+                          </div>
                           <div class="mt-2 text-center">
                             <small class="text-muted">
-                              URL: {{ rawVideoSrc || 'Nicht verfügbar' }}
+                              URL: {{ rawVideoPlaybackSourceUrl || rawVideoSrc || 'Nicht verfügbar' }}
                             </small>
                           </div>
                         </div>
@@ -429,15 +561,14 @@
                       <div class="col-md-6">
                         <div class="video-section anonymized-video">
                           <h6 class="text-center mb-3 text-success">
-                            <i class="fas fa-shield-alt me-1"></i>
+                            <i class="ni ni-check-bold me-1"></i>
                             Anonymisiertes Video (Processed)
                           </h6>
                           <video
                             ref="anonymizedVideoElement"
-                            :src="anonymizedVideoSrc"
                             controls
                             style="width: 100%; max-height: 350px;"
-                            preload="metadata"
+                            preload="none"
                             @error="onAnonymizedVideoError"
                             @loadstart="onAnonymizedVideoLoadStart"
                             @canplay="onAnonymizedVideoCanPlay"
@@ -445,9 +576,16 @@
                           >
                             Ihr Browser unterstützt dieses Video-Format nicht.
                           </video>
+                          <div
+                            v-if="anonymizedVideoPlaybackError"
+                            class="alert alert-danger py-2 mt-2 mb-0"
+                            role="alert"
+                          >
+                            {{ anonymizedVideoPlaybackError.message }}
+                          </div>
                           <div class="mt-2 text-center">
                             <small class="text-muted">
-                              URL: {{ anonymizedVideoSrc || 'Nicht verfügbar' }}
+                              URL: {{ anonymizedVideoPlaybackSourceUrl || anonymizedVideoSrc || 'Nicht verfügbar' }}
                             </small>
                           </div>
                         </div>
@@ -460,14 +598,14 @@
                         class="btn btn-outline-primary btn-sm me-2"
                         @click="syncVideos"
                       >
-                        <i class="fas fa-sync me-1"></i>
+                        <i class="ni ni-bold-right me-1"></i>
                         Videos synchronisieren
                       </button>
                       <button 
                         class="btn btn-outline-secondary btn-sm"
                         @click="pauseAllVideos"
                       >
-                        <i class="fas fa-pause me-1"></i>
+                        <i class="ni ni-button-play me-1"></i>
                         Alle pausieren
                       </button>
                       <button 
@@ -476,9 +614,16 @@
                         :disabled="isValidatingVideo"
                       >
                         <span v-if="isValidatingVideo" class="spinner-border spinner-border-sm me-1" role="status"></span>
-                        <i v-else class="fas fa-check me-1"></i>
+                        <i v-else class="ni ni-check-bold me-1"></i>
                         Segment-Annotation prüfen
                       </button>
+                      <RouterLink
+                        class="btn btn-outline-danger btn-sm ms-2"
+                        :to="phiRegionFrameAnnotationRoute"
+                        data-test="phi-region-frame-annotation-link"
+                      >
+                        Patienteninformationen-Boxen annotieren
+                      </RouterLink>
                     </div>
                     
                     <!-- Outside Timeline Component for Segment Validation -->
@@ -488,7 +633,7 @@
                           <div class="d-flex justify-content-between align-items-center">
                             <div>
                               <h6 class="mb-0 text-warning">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <i class="ni ni-user-run me-2"></i>
                                 Segmente zur Entfernung - Video ID: {{ currentItem.id }}
                               </h6>
                               <small class="text-muted">
@@ -565,7 +710,7 @@
                   :disabled="isApproving"
                   :title="isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'"
                 >
-                  <i class="fas fa-edit me-1"></i>
+                  <i class="ni ni-single-copy-04 me-1"></i>
                   {{ isVideo ? 'Video-Korrektur' : 'PDF-Korrektur' }}
                   <!-- Unsaved changes indicator -->
                   <span 
@@ -604,7 +749,7 @@
 
                 <!-- Phase 3.1: Show warning if approval blocked due to unvalidated segments -->
                 <div v-if="!canApprove && approvalBlockReason" class="alert alert-warning mt-2 mb-0">
-                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <i class="ni ni-user-run me-2"></i>
                   <strong>Bestätigung blockiert:</strong> {{ approvalBlockReason }}
                 </div>
               </div>
@@ -696,35 +841,43 @@
 
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizationStore';
 import {useVideoStore} from '@/stores/videoStore';
 import { useToastStore } from '@/stores/toastStore';
 import { useMediaTypeStore, type MediaScope } from '@/stores/mediaTypeStore';
+import { useAuthKcStore } from '@/stores/auth_kc';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
+import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream';
+import { buildPdfStreamUrl, buildVideoHlsPlaylistUrl } from '@/utils/mediaUrls';
 import {useRoute} from 'vue-router';
 import { useDebug } from '@/composables/useDebug';
 
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
+import type { VideoAnonymizationStatus } from '@/types/anonymizationPipeline';
 
 
 const toast = useToastStore();
 const router = useRouter();
 const { isDebug } = useDebug();
+const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation';
+const PHI_REGION_LABEL_NAME = 'sensitive_region';
 
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
+const authStore = useAuthKcStore();
 // const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
 
 const route = useRoute();
 const isPdf   = computed(() => mediaStore.isPdf);
 const isVideo = computed(() => mediaStore.isVideo);
+const canViewRawVideo = computed(() => authStore.isAuthenticated);
 
 function restoreLast(): { fileId?: number; scope?: MediaScope } {
   const fid = Number(sessionStorage.getItem('last:fileId') || '');
@@ -746,6 +899,28 @@ const sourceFileId = ref<number | null>(Number.isFinite(fileId) ? fileId : null)
 const sourceMediaScope = ref<MediaScope | null>(
   scope === 'video' || scope === 'pdf' ? scope : null
 );
+const videoAnonymizationStatus = ref<VideoAnonymizationStatus | null>(null);
+const isLoadingVideoAnonymization = ref(false);
+const videoAnonymizationError = ref('');
+
+const videoAnonymizationReady = computed(() =>
+  videoAnonymizationStatus.value?.processed_artifact?.available === true &&
+  videoAnonymizationStatus.value?.review_required === true
+);
+
+const videoStrategyLabel = computed(() =>
+  videoAnonymizationStatus.value?.selected_strategy === 'processor_region'
+    ? 'Prozessorregion (Legacy)'
+    : 'PHI-Detektor-gestützte All-Frame-Anonymisierung'
+);
+
+const videoModelDisplay = computed(() => {
+  const model = videoAnonymizationStatus.value?.model;
+  if (!model) return 'Nicht gemeldet';
+  const identity = [model.name, model.version].filter(Boolean).join(' ');
+  const checksum = model.sha256 ? `SHA-256 ${model.sha256.slice(0, 12)}…` : '';
+  return [identity, checksum].filter(Boolean).join(' · ') || 'Nicht gemeldet';
+});
 
 
 console.log("fileid and scope", fileId, scope)
@@ -828,10 +1003,36 @@ type CaseResolutionPayload = {
   patientExaminationMatches?: CaseResolutionMatch[];
 };
 
+type NoMoreNamesConfirmation = 'unknown' | 'confirmed' | 'not_confirmed';
+
+interface AnonymizationValidationPayload {
+  patient_first_name?: string | null;
+  patient_last_name?: string | null;
+  patient_gender?: string | null;
+  patient_dob?: string;
+  examination_date?: string;
+  casenumber?: string;
+  anonymized_text?: string;
+  text?: string;
+  is_verified: 'true';
+  file_type: 'pdf' | 'video';
+  center_name?: string;
+  external_id?: string;
+  external_id_origin?: string;
+  tags: string[];
+  validation_comment?: string;
+  document_type?: string;
+  no_more_names_confirmed?: boolean;
+}
+
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
-const noMoreNames = ref(false);
+const noMoreNamesConfirmation = ref<NoMoreNamesConfirmation>('unknown');
+const presetValidationTags = ['Nochmal Überprüfen', 'Ausgeschlossen'];
+const selectedTags = ref<string[]>([]);
+const customTagInput = ref('');
+const validationComment = ref('');
 const caseResolution = ref<CaseResolutionPayload | null>(null);
 const documentTypeOptions = ref<DocumentTypeOption[]>([]);
 const selectedDocumentType = ref('');
@@ -906,10 +1107,14 @@ type Editable = {
 const original = ref<{
   anonymizedText: string;
   examinationDate: string; // raw as shown in UI
+  tags: string[];
+  validationComment: string;
   patient: Editable;
 }>({
   anonymizedText: '',
   examinationDate: '',
+  tags: [],
+  validationComment: '',
   patient: {
     patientFirstName: '',
     patientLastName: '',
@@ -926,6 +1131,48 @@ function shallowEqual(a: Editable, b: Editable): boolean {
          a.patientGenderName === b.patientGenderName &&
          a.patientDob === b.patientDob &&
          a.casenumber === b.casenumber;
+}
+
+function normalizeValidationTag(tag: string): string {
+  return tag.trim().replace(/\s+/g, ' ');
+}
+
+function areSortedStringArraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
+
+function addValidationTag(tag: string): void {
+  const normalizedTag = normalizeValidationTag(tag);
+  if (!normalizedTag) return;
+  const hasTag = selectedTags.value.some(
+    (entry) => entry.localeCompare(normalizedTag, undefined, { sensitivity: 'base' }) === 0
+  );
+  if (hasTag) return;
+  selectedTags.value = [...selectedTags.value, normalizedTag].sort((a, b) => a.localeCompare(b));
+}
+
+function toggleValidationTag(tag: string): void {
+  const normalizedTag = normalizeValidationTag(tag);
+  const existingIndex = selectedTags.value.findIndex(
+    (entry) => entry.localeCompare(normalizedTag, undefined, { sensitivity: 'base' }) === 0
+  );
+  if (existingIndex >= 0) {
+    selectedTags.value = selectedTags.value.filter((_, index) => index !== existingIndex);
+    return;
+  }
+  addValidationTag(normalizedTag);
+}
+
+function removeValidationTag(tag: string): void {
+  selectedTags.value = selectedTags.value.filter(
+    (entry) => entry.localeCompare(tag, undefined, { sensitivity: 'base' }) !== 0
+  );
+}
+
+function addCustomValidationTag(): void {
+  addValidationTag(customTagInput.value);
+  customTagInput.value = '';
 }
 
 // --- add below your imports/locals ---
@@ -1026,6 +1273,10 @@ const canApprove = computed(() => {
 
   // Manual patient examination selection must be valid if used
   if (!hasValidPatientExaminationSelection.value) return false;
+
+  // Video approval is fail-closed until the canonical processed artifact is
+  // available and explicitly marked for mandatory human review.
+  if (isVideo.value && !videoAnonymizationReady.value) return false;
   
   // For videos: Check if outside segments need validation
   if (isVideo.value && shouldShowOutsideTimeline.value) {
@@ -1057,6 +1308,22 @@ const approvalBlockReason = computed(() => {
   if (!hasValidPatientExaminationSelection.value) {
     return 'Bitte geben Sie eine gültige PatientExamination-ID ein oder wählen Sie "Automatisch bestimmen".';
   }
+
+  if (isVideo.value && isLoadingVideoAnonymization.value) {
+    return 'Das anonymisierte Release-Artefakt wird noch geprüft.';
+  }
+
+  if (isVideo.value && !videoAnonymizationStatus.value) {
+    return videoAnonymizationError.value || 'Der Anonymisierungsstatus konnte nicht geprüft werden.';
+  }
+
+  if (isVideo.value && !videoAnonymizationStatus.value?.processed_artifact.available) {
+    return 'Es ist noch keine anonymisierte Video-Fassung verfügbar.';
+  }
+
+  if (isVideo.value && !videoAnonymizationStatus.value?.review_required) {
+    return 'Das Artefakt ist nicht als verpflichtend menschlich zu prüfende Fassung gekennzeichnet.';
+  }
   
   if (isVideo.value && shouldShowOutsideTimeline.value) {
     const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value;
@@ -1081,6 +1348,14 @@ const validationProgressPercent = computed(() => {
 
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
+const currentFileIdLabel = computed(() => {
+  const targetFileId = resolveFileIdFromContext();
+  if (targetFileId === null) return '';
+
+  if (sourceMediaScope.value === 'video') return `Video-ID: ${targetFileId}`;
+  if (sourceMediaScope.value === 'pdf') return `PDF-ID: ${targetFileId}`;
+  return `Datei-ID: ${targetFileId}`;
+});
 
 const patientHashDisplay = computed(
   () => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null
@@ -1212,6 +1487,33 @@ const caseResolutionRoute = computed(() => {
   };
 });
 
+const phiRegionFrameAnnotationRoute = computed(() => {
+  const targetFileId = resolveFileIdFromContext();
+  const targetScope = sourceMediaScope.value;
+  const query: Record<string, string> = {
+    mode: 'phi_region',
+    taskMode: 'random',
+    targetLabel: PHI_REGION_LABEL_NAME,
+    informationSource: ANONYMIZER_INFORMATION_SOURCE,
+    returnTo: '/anonymisierung/validierung'
+  };
+
+  if (targetFileId !== null) {
+    query.fileId = String(targetFileId);
+  }
+  if (targetScope) {
+    query.mediaType = targetScope;
+  }
+  if (targetFileId !== null && targetScope) {
+    query.returnTo = `/anonymisierung/validierung?fileId=${targetFileId}&mediaType=${targetScope}`;
+  }
+
+  return {
+    path: '/frame-annotation',
+    query
+  };
+});
+
 async function fetchCaseResolution(): Promise<void> {
   const targetFileId = resolveFileIdFromContext();
   const targetScope = sourceMediaScope.value;
@@ -1231,6 +1533,33 @@ async function fetchCaseResolution(): Promise<void> {
     caseResolution.value = data;
   } catch (error) {
     console.warn('Case resolution lookup failed; falling back to sensitive metadata payload.', error);
+  }
+}
+
+async function fetchVideoAnonymizationStatus(): Promise<void> {
+  videoAnonymizationStatus.value = null;
+  videoAnonymizationError.value = '';
+  if (!isVideo.value) return;
+
+  const targetFileId = resolveFileIdFromContext();
+  if (targetFileId === null) {
+    videoAnonymizationError.value = 'Video-ID konnte nicht bestimmt werden.';
+    return;
+  }
+
+  isLoadingVideoAnonymization.value = true;
+  try {
+    const { data } = await axiosInstance.get<VideoAnonymizationStatus>(
+      r(endpoints.media.videoCorrectionAnonymization(targetFileId))
+    );
+    videoAnonymizationStatus.value = data;
+  } catch (error: any) {
+    videoAnonymizationError.value =
+      error?.response?.data?.error ||
+      error?.message ||
+      'Release-Artefakt konnte nicht geprüft werden.';
+  } finally {
+    isLoadingVideoAnonymization.value = false;
   }
 }
 
@@ -1254,59 +1583,67 @@ async function initializeCurrentItemFromRouteContext(): Promise<boolean> {
   return !!loaded;
 }
 
-function buildMediaUrl(path: string, query?: Record<string, string>): string {
-  const url = new URL(r(path), window.location.origin);
-  if (query) {
-    for (const [key, value] of Object.entries(query)) {
-      url.searchParams.set(key, value);
-    }
-  }
-  return url.toString();
-}
-
-
-
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
-  if (!isVideo.value || !currentItem.value) return undefined;
-  return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'raw' });
+  if (!isVideo.value || !currentItem.value || !canViewRawVideo.value) return undefined;
+  const targetFileId = sourceFileId.value;
+  return targetFileId === null ? undefined : buildVideoHlsPlaylistUrl(targetFileId, 'raw');
 });
 
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value) return undefined;
-  return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'processed' });
+  const targetFileId = sourceFileId.value;
+  return targetFileId === null ? undefined : buildVideoHlsPlaylistUrl(targetFileId, 'processed');
 });
 
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)
 const rawPdfSrc = computed(() => {
   if (!isPdf.value || !currentItem.value) return undefined;
-  return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw' });
+  return buildPdfStreamUrl(fileId, 'raw');
 });
 
 // ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
 const anonymizedPdfSrc = computed(() => {
   if (!isPdf.value || !currentItem.value) return undefined;
-  return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'processed' });
+  return buildPdfStreamUrl(fileId, 'processed');
 });
 
 const rawPdfDownloadSrc = computed(() => {
   if (!isPdf.value || !currentItem.value) return undefined;
-  return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw', download: '1' });
+  return buildPdfStreamUrl(fileId, 'raw', { download: 1 });
 });
 
 const anonymizedPdfDownloadSrc = computed(() => {
   if (!isPdf.value || !currentItem.value) return undefined;
-  return buildMediaUrl(endpoints.media.pdfStream(fileId), {
-    type: 'processed',
-    download: '1'
-  });
+  return buildPdfStreamUrl(fileId, 'processed', { download: 1 });
 });
 
 
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref<HTMLVideoElement | null>(null);
 const anonymizedVideoElement = ref<HTMLVideoElement | null>(null);
+const validationVideoId = computed(() => isVideo.value ? sourceFileId.value : null);
+
+const {
+  playbackError: rawVideoPlaybackError,
+  playbackSourceUrl: rawVideoPlaybackSourceUrl
+} = useAuthenticatedVideoStream({
+  videoElement: rawVideoElement,
+  videoId: validationVideoId,
+  artifactKind: 'raw',
+  enabled: computed(() => isVideo.value && canViewRawVideo.value)
+});
+
+const {
+  playbackError: anonymizedVideoPlaybackError,
+  playbackSourceUrl: anonymizedVideoPlaybackSourceUrl
+} = useAuthenticatedVideoStream({
+  videoElement: anonymizedVideoElement,
+  videoId: validationVideoId,
+  artifactKind: 'processed',
+  enabled: isVideo
+});
 
 // ✅ NEW: Video event handlers for raw video
 const onRawVideoError = (event: Event) => {
@@ -1413,7 +1750,7 @@ const validateVideoForSegmentAnnotation = async () => {
       shouldShowOutsideTimeline.value = true;
       videoValidationStatus.value = {
         class: 'alert-warning',
-        icon: 'fas fa-exclamation-triangle',
+        icon: 'ni ni-user-run',
         title: 'Segmentvalidierung erforderlich',
         message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
         details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
@@ -1421,7 +1758,7 @@ const validateVideoForSegmentAnnotation = async () => {
     } else {
       videoValidationStatus.value = {
         class: 'alert-success',
-        icon: 'fas fa-check-circle',
+        icon: 'ni ni-check-bold',
         title: 'Video bereit für Annotation',
         message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
         details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
@@ -1433,7 +1770,7 @@ const validateVideoForSegmentAnnotation = async () => {
     console.error('Error validating video for segment annotation:', error);
     videoValidationStatus.value = {
       class: 'alert-danger',
-      icon: 'fas fa-times-circle',
+      icon: 'ni ni-settings-gear-65',
       title: 'Validierung fehlgeschlagen',
       message: 'Video konnte nicht für Segment-Annotation validiert werden.',
       details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
@@ -1460,7 +1797,7 @@ const onOutsideValidationComplete = () => {
   
   videoValidationStatus.value = {
     class: 'alert-success',
-    icon: 'fas fa-check-circle',
+    icon: 'ni ni-check-bold',
     title: 'Validierung abgeschlossen',
     message: 'Alle Outside-Segmente wurden erfolgreich validiert.',
     details: `Video ${currentItem.value?.id} ist jetzt bereit für die vollständige Segment-Annotation.`
@@ -1646,6 +1983,8 @@ function loadCurrentItemData(item: SensitiveMeta) {
   documentTypeTouched.value = false;
   patientExaminationLoadError.value = '';
   manualPatientExaminationId.value = '';
+  customTagInput.value = '';
+  noMoreNamesConfirmation.value = 'unknown';
 
   // dates
   const rawExam = item.examinationDate || '';
@@ -1672,6 +2011,13 @@ function loadCurrentItemData(item: SensitiveMeta) {
     item.anonymizedText ?? editedPatient.value.anonymizedText ?? item.text ?? '';
   editedAnonymizedText.value = normalizedAnonymizedText;
   editedPatient.value.anonymizedText = normalizedAnonymizedText;
+  selectedTags.value = Array.isArray(item.tags)
+    ? [...item.tags].map((tag) => normalizeValidationTag(tag)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+    : [];
+  validationComment.value =
+    item.validationComment ??
+    item.validation_comment ??
+    '';
 
   const backendDocumentType =
     (item as SensitiveMeta & { documentType?: string | null }).documentType ??
@@ -1686,6 +2032,8 @@ function loadCurrentItemData(item: SensitiveMeta) {
   original.value = {
     anonymizedText: editedAnonymizedText.value,
     examinationDate: examinationDate.value,
+    tags: [...selectedTags.value],
+    validationComment: validationComment.value,
     patient: { ...editedPatient.value },
   };
 
@@ -1704,6 +2052,7 @@ watch(currentItem, async (newItem) => {
   if (!newItem) return;
   loadCurrentItemData(newItem);
   await fetchCaseResolution();
+  await fetchVideoAnonymizationStatus();
   if (isPdf.value) {
     await fetchPatientExaminationOptions();
   }
@@ -1738,6 +2087,8 @@ const fetchNextItem = async () => {
 const dirty = computed(() =>
   editedAnonymizedText.value !== original.value.anonymizedText ||
   examinationDate.value      !== original.value.examinationDate ||
+  validationComment.value    !== original.value.validationComment ||
+  !areSortedStringArraysEqual(selectedTags.value, original.value.tags) ||
   !shallowEqual(editedPatient.value, original.value.patient)
 );
 
@@ -1944,7 +2295,7 @@ function extractPatientExaminationId(payload: unknown): number | null {
     return directMatch;
   }
 
-  const reportFile = obj.report_file;
+  const reportFile = obj.reportFile ?? obj.report_file;
   if (reportFile && typeof reportFile === 'object') {
     const nestedMatch = extractPatientExaminationId(reportFile);
     if (nestedMatch !== null) {
@@ -1952,7 +2303,7 @@ function extractPatientExaminationId(payload: unknown): number | null {
     }
   }
 
-  const patientExamination = obj.patient_examination;
+  const patientExamination = obj.patientExamination ?? obj.patient_examination;
   if (patientExamination && typeof patientExamination === 'object') {
     const nestedId = toPositiveInteger(
       (patientExamination as Record<string, unknown>).id
@@ -1962,7 +2313,7 @@ function extractPatientExaminationId(payload: unknown): number | null {
     }
   }
 
-  const caseResolution = obj.case_resolution;
+  const caseResolution = obj.caseResolution ?? obj.case_resolution;
   if (caseResolution && typeof caseResolution === 'object') {
     const nestedId = extractPatientExaminationId(caseResolution);
     if (nestedId !== null) {
@@ -2143,7 +2494,7 @@ const approveItem = async () => {
     return;
   }
 
-  const validationPayload: Record<string, unknown> = {
+  const validationPayload: AnonymizationValidationPayload = {
     patient_first_name: editedPatient.value.patientFirstName,
     patient_last_name:  editedPatient.value.patientLastName,
     patient_gender:     editedPatient.value.patientGenderName,
@@ -2157,10 +2508,16 @@ const approveItem = async () => {
     center_name:        editedPatient.value.centerName || '',
     external_id:        editedPatient.value.externalId || '',
     external_id_origin: editedPatient.value.externalIdOrigin || '',
+    tags:               selectedTags.value,
+    validation_comment: validationComment.value || '',
   };
 
   if (isPdf.value) {
     validationPayload.document_type = selectedDocumentType.value;
+  }
+
+  if (noMoreNamesConfirmation.value !== 'unknown') {
+    validationPayload.no_more_names_confirmed = noMoreNamesConfirmation.value === 'confirmed';
   }
 
   const validationFileId = resolveFileIdFromContext();
@@ -2175,7 +2532,7 @@ const approveItem = async () => {
       r(endpoints.anonymization.validate(validationFileId)),
       validationPayload
     );
-    const reportFileId = response?.data?.report_file?.id;
+    const reportFileId = response?.data?.reportFile?.id ?? response?.data?.report_file?.id;
     if (typeof reportFileId === 'number') {
       sessionStorage.setItem('last:reportFileId', String(reportFileId));
     }
@@ -2187,7 +2544,9 @@ const approveItem = async () => {
 
   } catch (error: any) {
     console.error('Error approving item:', error);
-    const allowedTypes = normalizeDocumentTypeOptions(error?.response?.data?.allowed_document_types);
+    const allowedTypes = normalizeDocumentTypeOptions(
+      error?.response?.data?.allowedDocumentTypes ?? error?.response?.data?.allowed_document_types
+    );
     if (allowedTypes.length > 0) {
       documentTypeOptions.value = allowedTypes;
     }
@@ -2273,7 +2632,11 @@ const navigateToCorrection = async () => {
         toast.error({ text: 'Datei-ID für Korrektur konnte nicht bestimmt werden.' });
         return;
       }
-      router.push({ name: 'Anonymisierung Korrektur', params: { fileId: String(correctionFileId) } });
+      await router.push({
+        name: 'Anonymisierung Korrektur',
+        params: { fileId: String(correctionFileId) },
+        query: { mediaType: sourceMediaScope.value || (isVideo.value ? 'video' : 'pdf') }
+      });
       // approveItem will navigate to next item, so we need to return
       toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
       return;
@@ -2300,13 +2663,11 @@ onMounted(async () => {
   } else if (anonymizationStore.current) {
     loadCurrentItemData(anonymizationStore.current);
     await fetchCaseResolution();
+    await fetchVideoAnonymizationStatus();
   }
 });
 
 
-onUnmounted(() => {
-  fetchNextItem();
-});
 </script>
 
 <style scoped>

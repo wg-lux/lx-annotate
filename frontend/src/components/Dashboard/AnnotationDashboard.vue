@@ -1,5 +1,12 @@
 <template>
-  <div class="container-fluid py-4">
+  <div class="container-fluid py-4 annotation-dashboard">
+    <section class="dashboard-hero mb-4">
+      <div>
+        <h2 class="dashboard-title mb-1">Dashboard</h2>
+        <p class="dashboard-subtitle mb-0">Status, offene Arbeitspakete und Schnellzugriffe an einem Ort.</p>
+      </div>
+    </section>
+
     <!-- Einheitliche Annotation-Statistiken -->
     <AnnotationStatsComponent />
     
@@ -7,10 +14,10 @@
     <div class="row mt-4">
       <!-- Video-Segmente -->
       <div class="col-12 mb-4">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card dashboard-card">
+          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-              <i class="fas fa-video text-primary me-2"></i>
+              <i class="ni ni-button-play text-primary me-2"></i>
               Video-Segment Annotationen
             </h5>
             <div class="header-actions">
@@ -19,22 +26,22 @@
                 @click="refreshSegments"
                 :disabled="loadingSegments"
               >
-                <i class="fas fa-sync-alt" :class="{ 'fa-spin': loadingSegments }"></i>
+                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingSegments }"></i>
                 Aktualisieren
               </button>
               <router-link 
                 to="/frame-annotation" 
                 class="btn btn-primary btn-sm"
               >
-                <i class="fas fa-plus me-1"></i>
+                <i class="ni ni-fat-add me-1"></i>
                 Neue Annotation
               </router-link>
             </div>
           </div>
-          <div class="card-body">
+          <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover">
-                <thead class="table-dark">
+              <table class="table table-hover align-middle mb-0 dashboard-table">
+                <thead class="table-light">
                   <tr>
                     <th>Video ID</th>
                     <th>Segment</th>
@@ -47,15 +54,16 @@
                 </thead>
                 <tbody>
                   <tr v-if="loadingSegments">
-                    <td colspan="7" class="text-center">
-                      <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Laden...</span>
+                    <td colspan="7" class="text-center py-4">
+                      <div class="table-loading-state">
+                        <i class="ni ni-button-play me-2"></i>
+                        Segmente werden geladen...
                       </div>
                     </td>
                   </tr>
                   <tr v-else-if="segments.length === 0">
                     <td colspan="7" class="text-center text-muted">
-                      <i class="fas fa-video fa-2x mb-2"></i>
+                      <i class="ni ni-button-play ni-2x mb-2"></i>
                       <br>
                       Keine Video-Segmente verfügbar
                     </td>
@@ -84,7 +92,7 @@
                           @click="editSegment(segment)"
                           :title="'Segment bearbeiten'"
                         >
-                          <i class="fas fa-edit"></i>
+                          <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
@@ -92,7 +100,7 @@
                           :disabled="segment.status === 'completed'"
                           :title="'Als abgeschlossen markieren'"
                         >
-                          <i class="fas fa-check"></i>
+                          <i class="ni ni-check-bold"></i>
                         </button>
                       </div>
                     </td>
@@ -106,10 +114,10 @@
 
       <!-- Examination Annotationen -->
       <div class="col-12 mb-4">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card dashboard-card">
+          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-              <i class="fas fa-stethoscope text-success me-2"></i>
+              <i class="ni ni-user-run text-success me-2"></i>
               Examination Annotationen
             </h5>
             <div class="header-actions">
@@ -118,22 +126,22 @@
                 @click="refreshExaminations"
                 :disabled="loadingExaminations"
               >
-                <i class="fas fa-sync-alt" :class="{ 'fa-spin': loadingExaminations }"></i>
+                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingExaminations }"></i>
                 Aktualisieren
               </button>
               <router-link 
                 to="/reporting/case-setup" 
                 class="btn btn-success btn-sm"
               >
-                <i class="fas fa-plus me-1"></i>
+                <i class="ni ni-fat-add me-1"></i>
                 Neue Befundung
               </router-link>
             </div>
           </div>
-          <div class="card-body">
+          <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover">
-                <thead class="table-dark">
+              <table class="table table-hover align-middle mb-0 dashboard-table">
+                <thead class="table-light">
                   <tr>
                     <th>ID</th>
                     <th>Patient</th>
@@ -146,15 +154,16 @@
                 </thead>
                 <tbody>
                   <tr v-if="loadingExaminations">
-                    <td colspan="7" class="text-center">
-                      <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Laden...</span>
+                    <td colspan="7" class="text-center py-4">
+                      <div class="table-loading-state">
+                        <i class="ni ni-button-play me-2"></i>
+                        Untersuchungen werden geladen...
                       </div>
                     </td>
                   </tr>
                   <tr v-else-if="examinations.length === 0">
                     <td colspan="7" class="text-center text-muted">
-                      <i class="fas fa-stethoscope fa-2x mb-2"></i>
+                      <i class="ni ni-user-run ni-2x mb-2"></i>
                       <br>
                       Keine Untersuchungen verfügbar
                     </td>
@@ -188,7 +197,7 @@
                           @click="editExamination(examination)"
                           :title="'Untersuchung bearbeiten'"
                         >
-                          <i class="fas fa-edit"></i>
+                          <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
@@ -196,7 +205,7 @@
                           :disabled="examination.status === 'completed'"
                           :title="'Als abgeschlossen markieren'"
                         >
-                          <i class="fas fa-check"></i>
+                          <i class="ni ni-check-bold"></i>
                         </button>
                       </div>
                     </td>
@@ -210,10 +219,10 @@
 
       <!-- Sensitive Meta Annotationen -->
       <div class="col-12 mb-4">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card dashboard-card">
+          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-              <i class="fas fa-user-shield text-warning me-2"></i>
+              <i class="ni ni-check-bold text-warning me-2"></i>
               Patientendaten Validierung
             </h5>
             <div class="header-actions">
@@ -222,22 +231,22 @@
                 @click="refreshSensitiveMeta"
                 :disabled="loadingSensitiveMeta"
               >
-                <i class="fas fa-sync-alt" :class="{ 'fa-spin': loadingSensitiveMeta }"></i>
+                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingSensitiveMeta }"></i>
                 Aktualisieren
               </button>
               <router-link 
                 to="/video-meta-annotation" 
                 class="btn btn-warning btn-sm"
               >
-                <i class="fas fa-play me-1"></i>
+                <i class="ni ni-button-play me-1"></i>
                 Validierung starten
               </router-link>
             </div>
           </div>
-          <div class="card-body">
+          <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover">
-                <thead class="table-dark">
+              <table class="table table-hover align-middle mb-0 dashboard-table">
+                <thead class="table-light">
                   <tr>
                     <th>ID</th>
                     <th>Typ</th>
@@ -250,15 +259,16 @@
                 </thead>
                 <tbody>
                   <tr v-if="loadingSensitiveMeta">
-                    <td colspan="7" class="text-center">
-                      <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Laden...</span>
+                    <td colspan="7" class="text-center py-4">
+                      <div class="table-loading-state">
+                        <i class="ni ni-button-play me-2"></i>
+                        Patientendaten werden geladen...
                       </div>
                     </td>
                   </tr>
                   <tr v-else-if="sensitiveMetaData.length === 0">
                     <td colspan="7" class="text-center text-muted">
-                      <i class="fas fa-user-shield fa-2x mb-2"></i>
+                      <i class="ni ni-check-bold ni-2x mb-2"></i>
                       <br>
                       Keine Patientendaten zur Validierung verfügbar
                     </td>
@@ -267,7 +277,7 @@
                     <td><code>{{ meta.id }}</code></td>
                     <td>
                       <span class="badge" :class="meta.content_type === 'video' ? 'bg-primary' : 'bg-danger'">
-                        <i :class="meta.content_type === 'video' ? 'fas fa-video' : 'fas fa-file-pdf'"></i>
+                        <i :class="meta.content_type === 'video' ? 'ni ni-button-play' : 'ni ni-single-copy-04'"></i>
                         {{ meta.content_type?.toUpperCase() || 'UNBEKANNT' }}
                       </span>
                     </td>
@@ -282,7 +292,7 @@
                     </td>
                     <td>
                       <span :class="meta.requires_validation ? 'text-warning' : 'text-success'">
-                        <i :class="meta.requires_validation ? 'fas fa-exclamation-triangle' : 'fas fa-check-circle'"></i>
+                        <i :class="meta.requires_validation ? 'ni ni-user-run' : 'ni ni-check-bold'"></i>
                         {{ meta.requires_validation ? 'Ja' : 'Nein' }}
                       </span>
                     </td>
@@ -293,7 +303,7 @@
                           @click="validateSensitiveMeta(meta)"
                           :title="'Patientendaten validieren'"
                         >
-                          <i class="fas fa-edit"></i>
+                          <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
@@ -301,7 +311,7 @@
                           :disabled="!meta.requires_validation"
                           :title="'Als validiert markieren'"
                         >
-                          <i class="fas fa-check"></i>
+                          <i class="ni ni-check-bold"></i>
                         </button>
                       </div>
                     </td>
@@ -323,6 +333,7 @@ import { useAnnotationStatsStore } from '@/stores/annotationStats';
 import AnnotationStatsComponent from '@/components/Stats/AnnotationStatsComponent.vue';
 import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 
 
 const toast = useToastStore(); // Use your notification system here
@@ -353,7 +364,7 @@ const showError = (message) => {
 const refreshSegments = async () => {
   loadingSegments.value = true;
   try {
-    const videosResponse = await axiosInstance.get(r('media/videos/'));
+    const videosResponse = await axiosInstance.get(r(endpoints.media.videos));
     const videos =
       videosResponse.data?.results ||
       videosResponse.data?.videos ||
@@ -369,7 +380,7 @@ const refreshSegments = async () => {
       videoIds.map(async (videoId) => {
         try {
           const response = await axiosInstance.get(
-            r(`media/videos/${videoId}/segments/`)
+            r(endpoints.media.videoSegments(videoId))
           );
           const videoSegments = response.data?.results || response.data || [];
           return videoSegments.map((segment) => ({
@@ -394,7 +405,7 @@ const refreshSegments = async () => {
 const refreshExaminations = async () => {
   loadingExaminations.value = true;
   try {
-    const response = await axiosInstance.get('/api/examinations/');
+    const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList));
     examinations.value = response.data.results || response.data || [];
   } catch (error) {
     console.error('Fehler beim Laden der Untersuchungen:', error);
@@ -409,13 +420,18 @@ const refreshSensitiveMeta = async () => {
   try {
     // Combine video and PDF sensitive meta data using Modern Media Framework
     const [videoResponse, pdfResponse] = await Promise.all([
-      axiosInstance.get(r('media/videos/')).catch(() => ({ data: [] })),
-      axiosInstance.get(r('media/pdfs/sensitive-metadata/')).catch(() => ({ data: { results: [] } }))
+      axiosInstance.get(r(endpoints.media.videos)).catch(() => ({ data: [] })),
+      axiosInstance.get(r(endpoints.media.pdfSensitiveMetadataList)).catch(() => ({ data: { results: [] } }))
     ]);
 
     // Extract data from responses
-    const videoData = Array.isArray(videoResponse.data) ? videoResponse.data : 
-                     videoResponse.data ? [{ ...videoResponse.data, content_type: 'video' }] : [];
+    const videoData = Array.isArray(videoResponse.data?.results)
+      ? videoResponse.data.results
+      : Array.isArray(videoResponse.data?.videos)
+        ? videoResponse.data.videos
+        : Array.isArray(videoResponse.data)
+          ? videoResponse.data
+          : [];
     
     // PDF endpoint returns paginated data with 'results' array
     const pdfData = pdfResponse.data?.results || 
@@ -518,7 +534,7 @@ const markSegmentComplete = async (segment) => {
       return;
     }
     await axiosInstance.patch(
-      `/api/media/videos/${videoId}/segments/${segment.id}/`,
+      r(endpoints.media.videoSegmentDetail(videoId, segment.id)),
       { status: 'completed' }
     );
     annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
@@ -537,7 +553,10 @@ const editExamination = (examination) => {
 
 const markExaminationComplete = async (examination) => {
   try {
-    await axiosInstance.patch(`/api/examinations/${examination.id}/`, { status: 'completed' });
+    await axiosInstance.patch(
+      r(endpoints.examination.patientExaminationDetail(examination.id)),
+      { status: 'completed' }
+    );
     annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
     await refreshExaminations();
   } catch (error) {
@@ -556,8 +575,8 @@ const validateSensitiveMeta = (meta) => {
 const markSensitiveMetaComplete = async (meta) => {
   try {
     const endpoint = meta.content_type === 'video' 
-      ? `/api/media/videos/`
-      : `/api/media/pdfs/`;
+      ? r(endpoints.media.videos)
+      : r(endpoints.media.pdfs);
     
     await axiosInstance.patch(endpoint, { 
       sensitive_meta_id: meta.id,
@@ -597,18 +616,57 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.card {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+.annotation-dashboard {
+  --dashboard-border: rgba(45, 48, 71, 0.1);
+}
+
+.dashboard-hero {
+  background: radial-gradient(circle at top left, rgba(67, 86, 255, 0.16), rgba(67, 86, 255, 0.03) 45%, rgba(255, 255, 255, 0.95) 70%);
+  border: 1px solid var(--dashboard-border);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+.dashboard-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #2d3047;
+}
+
+.dashboard-subtitle {
+  color: #63748a;
+}
+
+.dashboard-card {
+  box-shadow: 0 14px 28px rgba(26, 36, 59, 0.08);
   margin-bottom: 20px;
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--dashboard-border);
+  overflow: hidden;
+}
+
+.dashboard-card-header {
+  background: linear-gradient(180deg, #fcfdff 0%, #f6f9ff 100%);
+  border-bottom: 1px solid var(--dashboard-border);
+  padding: 0.9rem 1rem;
 }
 
 .table {
   margin-bottom: 0;
 }
 
-.table th, .table td {
+.dashboard-table th,
+.dashboard-table td {
   vertical-align: middle;
+  border-color: rgba(45, 48, 71, 0.08);
+}
+
+.dashboard-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4f5e79;
+  font-weight: 700;
 }
 
 .header-actions {
@@ -617,7 +675,7 @@ onMounted(async () => {
 }
 
 .table-hover tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: #f4f8ff;
 }
 
 .badge {
@@ -629,10 +687,36 @@ onMounted(async () => {
   font-size: 0.875rem;
 }
 
+.table-loading-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #4f5e79;
+  font-weight: 600;
+  background: linear-gradient(90deg, #f0f4fb 0%, #e7eef9 50%, #f0f4fb 100%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.4s linear infinite;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @media (max-width: 768px) {
   .header-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .dashboard-hero {
+    padding: 0.9rem 1rem;
   }
   
   .table-responsive {

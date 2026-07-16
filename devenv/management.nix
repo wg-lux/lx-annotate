@@ -17,11 +17,21 @@ let
     REPO_ROOT="''${WORKING_DIR:-${env.WORKING_DIR}}"
     cd "$REPO_ROOT"
   '';
-  frontendBuildExec = ''
-    ${repoRootSetup}
-    BUILD_PATH="$(${pkgs.nix}/bin/nix build ./frontend#frontend --no-link --print-out-paths)"
-    mkdir -p staticfiles
-    cp -r "$BUILD_PATH/dist/." staticfiles/
+  staticRootSetup = ''
+    static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/staticfiles}"
+    if [ "''${static_root%/}" = "$REPO_ROOT/static" ]; then
+      echo "❌ Misconfigured DJANGO_STATIC_ROOT: $static_root"
+      echo "   DJANGO_STATIC_ROOT must not point to $REPO_ROOT/static (Vite source assets)."
+      echo "   Use $REPO_ROOT/staticfiles as STATIC_ROOT and run collectstatic."
+      exit 1
+    fi
+
+    if [ -L "$static_root" ]; then
+      static_root="$(readlink -f "$static_root")"
+    fi
+
+    static_root_parent="$(dirname "$static_root")"
+    mkdir -p "$static_root_parent"
   '';
   verifyViteArtifactsExec = ''
     set -euo pipefail
@@ -33,11 +43,17 @@ let
     fi
 
     echo "🔎 Verifying Vite artifacts in static are up to date..."
-    ${frontendBuildExec}
+    devenv tasks run vue:build
+    ${staticRootSetup}
 
-    if ! git diff --quiet -- static || ! git diff --cached --quiet -- static; then
+    if [ "''${static_root%/}" != "$REPO_ROOT/staticfiles" ]; then
+      echo "ℹ️  Skipping git static drift check for external DJANGO_STATIC_ROOT=$static_root"
+      exit 0
+    fi
+
+    if ! git diff --quiet -- staticfiles || ! git diff --cached --quiet -- staticfiles; then
       echo "❌ static changed after vue:build. Commit updated frontend artifacts."
-      git --no-pager diff --name-only -- static || true
+      git --no-pager diff --name-only -- staticfiles || true
       exit 1
     fi
 
@@ -169,7 +185,8 @@ in
     '';
 
     "vue-build".exec = ''
-      ${frontendBuildExec}
+      ${repoRootSetup}
+      devenv tasks run vue:build
     '';
 
     "service-runtime".exec = ''
@@ -184,7 +201,7 @@ in
       while [ "$#" -gt 0 ]; do
         case "$1" in
           frontend-build)
-            ${frontendBuildExec}
+            devenv tasks run vue:build
             ;;
           verify-vite-artifacts)
             ${verifyViteArtifactsExec}
@@ -323,7 +340,7 @@ PY
           esac
         fi
 
-        secretspec run --provider env $VENV_PYTHON scripts/file_watcher.py
+        secretspec run --provider env $VENV_PYTHON manage.py run_filewatcher ''${LX_ANNOTATE_FILEWATCHER_ARGS:-}
     '';
 
   };

@@ -34,7 +34,7 @@ Here, your components need to be registered. If creating a new one, just copy an
 
 ## Stores
 
-Used by some components to persist data across different views.
+Pinia stores are used for data persistance across pages and even sessions. They are used by components to store the data in the browser cache.
 This is useful to reduce the amount of API interactions as well as to keep data in a multi page workflow like the one in the Anonymizer folder or the Video annotation.
 
 Refer:
@@ -52,6 +52,6 @@ The router also supports the functionality to push to a new route.
 
 axiosInstance.ts appends the correct prefix for the backend.
 
-## Importing VIdeos or PDFs
+## Importing Videos or PDFs
 
-When runing the server, the file watcher is running. The import starts after placing files in lx-annotate/data/raw-videos or lx-annotate/data/raw-pdf.
+When running the server, the file watcher is active. The import starts after placing files in lx-annotate/data/raw-videos or lx-annotate/data/raw-pdf. Caution: running the server also starts the watcher.

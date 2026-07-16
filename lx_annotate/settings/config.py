@@ -5,7 +5,8 @@ from typing import Annotated
 import ast
 import json
 import os
-from pydantic import Field, field_validator, model_validator
+import shlex
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from .secret_key import get_or_create_secret_key
@@ -49,6 +50,165 @@ def _read_keycloak_secret_file(path: Path) -> str:
     return raw
 
 
+def _parse_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        try:
+            parsed = shlex.split(value, comments=False, posix=True)
+        except ValueError:
+            parsed = [value.strip()]
+        values[key] = parsed[0] if parsed else ""
+    return values
+
+
+def _first_config_value(
+    sources: list[dict[str, str]],
+    *keys: str,
+) -> str | None:
+    for source in sources:
+        for key in keys:
+            value = source.get(key)
+            if value is not None:
+                return value
+    return None
+
+
+def _coerce_debug(value: str) -> bool:
+    normalized = value.strip().lower()
+    return normalized in {"1", "true", "yes", "on", "y", "t"}
+
+
+def _coerce_list(value: str) -> list[str]:
+    raw = value.strip()
+    if not raw:
+        return []
+    if raw.startswith(("[", "{", "(", '"', "'")):
+        try:
+            decoded = json.loads(raw)
+        except json.JSONDecodeError:
+            decoded = None
+        if isinstance(decoded, list):
+            return [str(item).strip() for item in decoded if str(item).strip()]
+        if isinstance(decoded, str):
+            return [decoded.strip()] if decoded.strip() else []
+        try:
+            decoded = ast.literal_eval(raw)
+        except (SyntaxError, ValueError):
+            decoded = None
+        if isinstance(decoded, (list, tuple, set)):
+            return [str(item).strip() for item in decoded if str(item).strip()]
+        if isinstance(decoded, str):
+            return [decoded.strip()] if decoded.strip() else []
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _coerce_optional_path(value: str) -> Path | None:
+    value = value.strip()
+    if not value:
+        return None
+    return Path(value)
+
+
+def _coerce_path(value: str) -> Path:
+    return Path(value)
+
+
+_ConfigKwargValue = str | bool | list[str] | Path | None
+
+
+def _config_kwargs_from_sources(
+    sources: list[dict[str, str]],
+) -> dict[str, _ConfigKwargValue]:
+    alias_map: dict[str, tuple[str, ...]] = {
+        "secret_key": ("DJANGO_SECRET_KEY",),
+        "secret_key_file": ("DJANGO_SECRET_KEY_FILE",),
+        "debug": ("DJANGO_DEBUG",),
+        "allowed_hosts": ("DJANGO_ALLOWED_HOSTS", "ALLOWED_HOSTS"),
+        "csrf_trusted_origins": ("DJANGO_CSRF_TRUSTED_ORIGINS",),
+        "cors_allowed_origins": ("DJANGO_CORS_ALLOWED_ORIGINS",),
+        "db_engine": ("DJANGO_DB_ENGINE",),
+        "db_name": ("DJANGO_DB_NAME",),
+        "db_user": ("DJANGO_DB_USER",),
+        "db_password": ("DJANGO_DB_PASSWORD",),
+        "db_password_file": ("DJANGO_DB_PASSWORD_FILE",),
+        "db_host": ("DJANGO_DB_HOST",),
+        "db_port": ("DJANGO_DB_PORT",),
+        "db_sslmode": ("DJANGO_DB_SSLMODE",),
+        "static_root": ("DJANGO_STATIC_ROOT",),
+        "keycloak_server_url": ("DJANGO_KEYCLOAK_SERVER_URL",),
+        "keycloak_client_id": ("DJANGO_KEYCLOAK_CLIENT_ID", "OIDC_RP_CLIENT_ID"),
+        "keycloak_client_secret": (
+            "DJANGO_KEYCLOAK_CLIENT_SECRET",
+            "OIDC_RP_CLIENT_SECRET",
+        ),
+        "keycloak_client_secret_file": ("DJANGO_KEYCLOAK_CLIENT_SECRET_FILE",),
+        "time_zone": ("DJANGO_TIME_ZONE", "TIME_ZONE"),
+        "language_code": ("DJANGO_LANGUAGE_CODE",),
+    }
+    kwargs: dict[str, _ConfigKwargValue] = {}
+    for field_name, keys in alias_map.items():
+        value = _first_config_value(sources, *keys)
+        if value is not None:
+            if field_name in {
+                "allowed_hosts",
+                "csrf_trusted_origins",
+                "cors_allowed_origins",
+            }:
+                kwargs[field_name] = _coerce_list(value)
+                continue
+            if field_name in {"debug"}:
+                kwargs[field_name] = _coerce_debug(value)
+                continue
+            if field_name == "static_root":
+                kwargs[field_name] = _coerce_path(value)
+                continue
+            if field_name in {
+                "secret_key_file",
+                "db_password_file",
+                "keycloak_client_secret_file",
+            }:
+                kwargs[field_name] = _coerce_optional_path(value)
+                continue
+            kwargs[field_name] = value
+    return kwargs
+
+
+def _default_static_root() -> Path:
+    configured = os.getenv("DJANGO_STATIC_ROOT", "").strip()
+    if configured:
+        return Path(configured)
+
+    runtime_data_dir = (
+        os.getenv("LX_ANNOTATE_DATA_DIR", "").strip()
+        or os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "").strip()
+        or os.getenv("DATA_DIR", "").strip()
+    )
+    if runtime_data_dir:
+        data_path = Path(runtime_data_dir).expanduser()
+        runtime_root = data_path.parent if data_path.name == "data" else data_path
+        return runtime_root / "staticfiles"
+
+    return Path("./staticfiles")
+
+
+def _default_allowed_hosts() -> list[str]:
+    legacy_value = os.getenv("ALLOWED_HOSTS", "").strip()
+    if legacy_value:
+        return [item.strip() for item in legacy_value.split(",") if item.strip()]
+    return ["lx-annotate.local", "localhost", "127.0.0.1", "[::1]"]
+
+
 class AppConfig(BaseSettings):
     """
     Typed, validated configuration input for django settings.
@@ -58,6 +218,7 @@ class AppConfig(BaseSettings):
         env_prefix="DJANGO_",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,
     )
 
     # Core
@@ -67,7 +228,10 @@ class AppConfig(BaseSettings):
 
     # Security: Hosts, CORS, CSRF
     allowed_hosts: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["lx-annotate.local", "localhost", "127.0.0.1", "[::1]"]
+        default_factory=_default_allowed_hosts,
+        validation_alias=AliasChoices(
+            "allowed_hosts", "DJANGO_ALLOWED_HOSTS", "ALLOWED_HOSTS"
+        ),
     )
     csrf_trusted_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
@@ -81,18 +245,31 @@ class AppConfig(BaseSettings):
     db_password_file: Path | None = None
     db_host: str = os.getenv("DJANGO_DB_HOST", "localhost")
     db_port: str = os.getenv("DJANGO_DB_PORT", "5432")
-    db_sslmode: str = "prefer"
-    static_root: Path = Path(os.getenv("DJANGO_STATIC_ROOT", "./staticfiles"))
+    db_sslmode: str = "require"
+    static_root: Path = Field(default_factory=_default_static_root)
 
     keycloak_server_url: str = "https://keycloak-endoreg.net"
-    keycloak_client_id: str = "lx-frontend"
+    keycloak_client_id: str = Field(
+        default="lx-frontend",
+        validation_alias=AliasChoices(
+            "keycloak_client_id", "DJANGO_KEYCLOAK_CLIENT_ID", "OIDC_RP_CLIENT_ID"
+        ),
+    )
     keycloak_client_secret: str = Field(
-        default_factory=lambda: os.getenv("OIDC_RP_CLIENT_SECRET", "")
+        default_factory=lambda: os.getenv("OIDC_RP_CLIENT_SECRET", ""),
+        validation_alias=AliasChoices(
+            "keycloak_client_secret",
+            "DJANGO_KEYCLOAK_CLIENT_SECRET",
+            "OIDC_RP_CLIENT_SECRET",
+        ),
     )
     keycloak_client_secret_file: Path | None = None
 
     # I18N
-    time_zone: str = "UTC"
+    time_zone: str = Field(
+        default="UTC",
+        validation_alias=AliasChoices("time_zone", "DJANGO_TIME_ZONE", "TIME_ZONE"),
+    )
     language_code: str = "en-us"
 
     @field_validator(
@@ -192,7 +369,10 @@ class AppConfig(BaseSettings):
             return
         current_value = getattr(self, field_name)
         value_set = field_name in self.__pydantic_fields_set__
-        if value_set and current_value:
+        generated_placeholder = field_name == "keycloak_client_secret" and str(
+            current_value
+        ).startswith("changeme_")
+        if value_set and current_value and not generated_placeholder:
             return
         if field_name == "keycloak_client_secret":
             secret_value = _read_keycloak_secret_file(file_path)
@@ -202,9 +382,8 @@ class AppConfig(BaseSettings):
 
 
 def load_config(env_file: Path | None = None) -> AppConfig:
-    # If explicit file provided, we use it by creating a temporary class
+    sources: list[dict[str, str]] = []
     if env_file and env_file.exists():
-        return AppConfig(_env_file=env_file)  # type: ignore[call-arg]
-
-    # Otherwise Pydantic automatically reads os.environ
-    return AppConfig()  # type: ignore[call-arg]
+        sources.append(_parse_env_file(env_file))
+    sources.append(dict(os.environ))
+    return AppConfig.model_validate(_config_kwargs_from_sources(sources))

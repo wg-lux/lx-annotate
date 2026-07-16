@@ -1,5 +1,6 @@
 import axiosInstance, { r } from './axiosInstance';
 import type { AxiosResponse } from 'axios';
+import { endpoints } from '@/types/api/endpoints'
 
 // Shape returned by backend (snake_case); we'll map in the component
 export type GeneratePseudonymResponse = {
@@ -13,7 +14,7 @@ export type GeneratePseudonymResponse = {
 
 export async function generatePatientPseudonym(id: number): Promise<GeneratePseudonymResponse> {
   if (!Number.isFinite(id) || id <= 0) throw new Error('Ungültige patientId')
-  const { data } = await axiosInstance.post(r(`/patients/${id}/pseudonym/`))
+  const { data } = await axiosInstance.post(r(endpoints.patient.patientPseudonym(id)))
   return data as GeneratePseudonymResponse
 }
 
@@ -29,6 +30,7 @@ export interface Gender {
 
 export interface Center {
   id: number;
+  centerKey?: string;
   name: string;
   nameDe?: string;
   nameEn?: string;
@@ -42,6 +44,7 @@ export interface Patient {
   dob?: string | null;
   gender?: string | null;  // Changed to string to match backend
   center?: string | null;  // Changed to string to match backend
+  centerKey?: string | null;
   email?: string;
   phone?: string;
   patientHash?: string | null;
@@ -65,7 +68,8 @@ export interface PatientFormData {
   lastName: string;
   dob: string | null | undefined;  // Allow undefined for compatibility
   gender: string | null;  // Changed to string to match backend
-  center: string | null;  // Changed to string to match backend
+  center?: string | null;  // Optional because centerKey is the canonical write field
+  centerKey?: string | null;
   email: string;
   phone: string;
   patientHash: string;
@@ -79,6 +83,7 @@ export interface PatientCreateData {
   dob?: string | null;
   gender?: string | null;  // Changed to string
   center?: string | null;  // Changed to string
+  centerKey?: string | null;
   email?: string;
   phone?: string;
   patientHash?: string | null;
@@ -99,7 +104,7 @@ export interface PatientListResponse {
 export const patientService = {
   async getPatients(): Promise<Patient[]> {
     try {
-      const response: AxiosResponse<Patient[] | PatientListResponse> = await axiosInstance.get(r('patients/'));
+      const response: AxiosResponse<Patient[] | PatientListResponse> = await axiosInstance.get(r(endpoints.patient.patients));
       
       // Handle both array response and paginated response
       if (Array.isArray(response.data)) {
@@ -116,7 +121,7 @@ export const patientService = {
   async addPatient(patientData: PatientCreateData): Promise<Patient> {
     try {
       console.log('PatientService: Sende Patientendaten an API:', patientData);
-      const response: AxiosResponse<Patient> = await axiosInstance.post(r('patients/'), patientData);
+      const response: AxiosResponse<Patient> = await axiosInstance.post(r(endpoints.patient.patients), patientData);
       console.log('PatientService: Erfolgreiche Antwort erhalten:', response.data);
       return response.data;
     } catch (error: any) {
@@ -141,7 +146,7 @@ export const patientService = {
 
   async updatePatient(patientId: number, patientData: Partial<PatientCreateData>): Promise<Patient> {
     try {
-      const response: AxiosResponse<Patient> = await axiosInstance.put(r(`patients/${patientId}/`), patientData);
+      const response: AxiosResponse<Patient> = await axiosInstance.put(r(endpoints.patient.patientById(patientId)), patientData);
       return response.data;
     } catch (error) {
       console.error('Error updating patient:', error);
@@ -151,7 +156,7 @@ export const patientService = {
 
   async deletePatient(patientId: number): Promise<void> {
     try {
-      await axiosInstance.delete(r(`patients/${patientId}/`));
+      await axiosInstance.delete(r(endpoints.patient.patientById(patientId)));
     } catch (error) {
       console.error('Error deleting patient:', error);
       throw error;
@@ -162,7 +167,7 @@ export const patientService = {
   async getGenders(): Promise<Gender[]> {
     try {
       // Verwende den korrekten Gender-Endpunkt
-      const response: AxiosResponse<Gender[]> = await axiosInstance.get(r('genders/')).catch(async () => {
+      const response: AxiosResponse<Gender[]> = await axiosInstance.get(r(endpoints.patient.genders)).catch(async () => {
         // Fallback: Standard Gender-Optionen
         return { 
           data: [
@@ -191,7 +196,7 @@ export const patientService = {
   async getCenters(): Promise<Center[]> {
     try {
       // Versuche Centers über verschiedene mögliche Endpunkte zu laden
-      const response: AxiosResponse<Center[]> = await axiosInstance.get(r('centers/')).catch(async () => {
+      const response: AxiosResponse<Center[]> = await axiosInstance.get(r(endpoints.patient.centers)).catch(async () => {
         // Fallback über andere verfügbare Endpunkte
         return { 
           data: [
@@ -220,7 +225,8 @@ export const patientService = {
       lastName: patientForm.lastName,
       dob: patientForm.dob || null,
       gender: patientForm.gender || null,
-      center: patientForm.center || null,
+      center: patientForm.centerKey ? null : (patientForm.center || null),
+      centerKey: patientForm.centerKey || null,
       email: patientForm.email || undefined,
       phone: patientForm.phone || undefined,
       patientHash: patientForm.patientHash || null,
@@ -234,6 +240,13 @@ export const patientService = {
         delete (formattedData as any)[key];
       }
     });
+
+    if (formattedData.center === null && !formattedData.centerKey) {
+      delete (formattedData as any).center;
+    }
+    if (formattedData.centerKey === null) {
+      delete (formattedData as any).centerKey;
+    }
 
     return formattedData;
   },

@@ -144,9 +144,9 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   /* ---------------------------- Config ----------------------------- */
 
   const mediaTypeConfigs: Record<MediaType, MediaTypeConfig> = {
-    pdf:   { icon: 'fas fa-file-pdf text-danger',  badgeClass: 'bg-danger',  displayName: 'PDF',   supportedExtensions: ['.pdf'] },
-    video: { icon: 'fas fa-video text-primary',    badgeClass: 'bg-primary', displayName: 'Video', supportedExtensions: ['.mp4','.avi','.mov','.mkv','.webm'] },
-    unknown: { icon: 'fas fa-question-circle text-muted', badgeClass: 'bg-secondary', displayName: 'Unbekannt', supportedExtensions: [] }
+    pdf: { icon: 'ni ni-single-copy-04 text-danger', badgeClass: 'bg-danger', displayName: 'PDF', supportedExtensions: ['.pdf'] },
+    video: { icon: 'ni ni-button-play text-primary', badgeClass: 'bg-primary', displayName: 'Video', supportedExtensions: ['.mp4', '.avi', '.mov', '.mkv', '.webm'] },
+    unknown: { icon: 'ni ni-user-run text-muted', badgeClass: 'bg-secondary', displayName: 'Unbekannt', supportedExtensions: [] }
   }
 
   /* --------------------------- Computed ---------------------------- */

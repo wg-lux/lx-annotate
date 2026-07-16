@@ -4,12 +4,12 @@ Development settings.
 
 from typing import Any, cast
 from .settings_base import (
-    APP_DATA_DIR,
     INSTALLED_APPS,
     MIDDLEWARE,
     LOGGING,
     REST_FRAMEWORK,
     MIGRATION_MODULES,
+    STORAGES,
     SECRET_KEY,
     TEMPLATES,
     ROOT_URLCONF,
@@ -30,6 +30,7 @@ import os
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
 MIGRATION_MODULES = cast(dict[str, str], MIGRATION_MODULES)
+STORAGES = cast(dict[str, dict[str, str]], STORAGES)
 TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
 ROOT_URLCONF = cast(str, ROOT_URLCONF)
 STATIC_URL = cast(str, STATIC_URL)
@@ -51,7 +52,7 @@ DJANGO_VITE = {
     "default": {
         "dev_mode": False,
         "static_url_prefix": "",
-        "manifest_path": os.path.join(BASE_DIR, "static", ".vite", "manifest.json"),
+        "manifest_path": os.path.join(STATIC_ROOT, ".vite", "manifest.json"),
     }
 }
 
@@ -66,20 +67,6 @@ ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "0") == "1"
 if ENFORCE_AUTH:
     print("🔒 AUTH: ENFORCED (Keycloak Mock/Real)")
     try:
-        # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
-        import sys
-        from pathlib import Path
-
-        # BASE_DIR comes from settings_base.py which you imported above
-        KEYCLOAK_CONFIG_ROOT = BASE_DIR / "libs" / "endoreg-db"
-        if KEYCLOAK_CONFIG_ROOT.exists() and str(KEYCLOAK_CONFIG_ROOT) not in sys.path:
-            sys.path.insert(0, str(KEYCLOAK_CONFIG_ROOT))
-            print(f"🔧 Added to sys.path for Keycloak: {KEYCLOAK_CONFIG_ROOT}")
-        else:
-            print(
-                f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
-            )
-
         from endoreg_db.config.settings import keycloak as KEYCLOAK
 
         INSTALLED_APPS.extend(KEYCLOAK.EXTRA_INSTALLED_APPS)
@@ -120,11 +107,14 @@ if ENFORCE_AUTH:
         print("OIDC_RP_CLIENT_SECRET set? =", bool(os.getenv("OIDC_RP_CLIENT_SECRET")))
 
     except ImportError:
-        print("⚠️  WARNING: endoreg_db not found, falling back to basic auth")
+        print(
+            "⚠️  WARNING: endoreg_db Keycloak integration is not installed in the "
+            "active environment, falling back to basic auth"
+        )
 else:
     print("🔓 AUTH: DISABLED (Open Access)")
     REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
         "rest_framework.permissions.AllowAny"
     ]
 
-print(f"🚀 DEV SETTINGS LOADED. Data Dir: {APP_DATA_DIR}")
+print("🚀 DEV SETTINGS LOADED")

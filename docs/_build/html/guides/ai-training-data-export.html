@@ -1,0 +1,563 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Segment Annotation Workflow" href="segment-annotation-workflow.html"><link rel="prev" title="Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)" href="../assisted-reporting-report.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>AI Training Data Export - lx-annotate Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">lx-annotate Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">lx-annotate Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">AI Training Data Export</a></li>
+<li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">Dates and Times</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/guides/ai-training-data-export.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="ai-training-data-export">
+<h1>AI Training Data Export<a class="headerlink" href="#ai-training-data-export" title="Link to this heading">¶</a></h1>
+<p>This guide explains the current <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code>/<code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> paths for extracting
+frames and annotation payloads for AI training, including GastroNet-style image
+multilabel training.</p>
+<section id="data-safety-boundary">
+<h2>Data Safety Boundary<a class="headerlink" href="#data-safety-boundary" title="Link to this heading">¶</a></h2>
+<p>Use these exports only after the video has passed anonymization validation. The
+export workflows are intended for anonymized processed media and derived
+annotations. Raw media export is prohibited.</p>
+<p>For clinical deployments, keep the output on the local protected storage or an
+approved encrypted volume. If the exported artifact leaves the local storage
+boundary, use the LuxNix envelope-encryption transfer workflow rather than
+copying raw files directly.</p>
+</section>
+<section id="recommended-user-workflow">
+<h2>Recommended User Workflow<a class="headerlink" href="#recommended-user-workflow" title="Link to this heading">¶</a></h2>
+<p>Use the application UI when the goal is to create a training-ready dataset with
+minimal manual steps.</p>
+<ol class="arabic simple">
+<li><p>Finish anonymization validation for the video.</p></li>
+<li><p>Open the segment annotation page and validate the clinically relevant
+segments.</p></li>
+<li><p>In the export panel, select the video and mark the segments that should be
+part of the export.</p></li>
+<li><p>Click <strong>Fehlende Annotationen erzeugen</strong> if segment annotations have not yet
+been materialized as frame-level <code class="docutils literal notranslate"><span class="pre">ImageClassificationAnnotation</span></code> rows.</p></li>
+<li><p>Enable <strong>Frames exportieren</strong> when image files should be copied into the
+export directory.</p></li>
+<li><p>Enable <strong>Frames transkodieren</strong> when fresh frame images should be extracted
+from the processed video. The current defaults are 30 FPS in the frontend and
+JPG frame output in the backend exporter.</p></li>
+<li><p>Start the export.</p></li>
+</ol>
+<p>The export panel calls:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/media/videos/&lt;video_id&gt;/ensure-segment-annotations/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/media/videos/export-annotated/</span></code></p></li>
+</ul>
+<p>The annotation export writes a CSV or JSON metadata file and can also create:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">videos/</span></code> with exported processed video files, when <code class="docutils literal notranslate"><span class="pre">export_videos</span></code> is true</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frames/video_&lt;video_id&gt;/...</span></code> with exported frame files, when <code class="docutils literal notranslate"><span class="pre">export_frames</span></code>
+is true</p></li>
+</ul>
+</section>
+<section id="export-output">
+<h2>Export Output<a class="headerlink" href="#export-output" title="Link to this heading">¶</a></h2>
+<p>The frame annotation table contains one row per frame-label annotation. The
+current fields are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">annotation_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">video_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">video_hash</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frame_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frame_number</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frame_relative_path</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frame_timestamp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">label_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">label_name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">value</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">float_value</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">annotator</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">information_source_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">information_source_name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model_meta_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">date_created</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">date_modified</span></code></p></li>
+</ul>
+<p>For image classification training, use <code class="docutils literal notranslate"><span class="pre">frame_relative_path</span></code> to locate the image
+under the exported <code class="docutils literal notranslate"><span class="pre">frames/</span></code> directory and use <code class="docutils literal notranslate"><span class="pre">label_name</span></code>, <code class="docutils literal notranslate"><span class="pre">label_id</span></code>,
+<code class="docutils literal notranslate"><span class="pre">value</span></code>, and <code class="docutils literal notranslate"><span class="pre">float_value</span></code> as the multilabel target data.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">use_frame_pk_paths</span></code> is enabled, exported frames use stable names like
+<code class="docutils literal notranslate"><span class="pre">frame_&lt;frame_id&gt;.jpg</span></code>. This is the easiest layout for external PyTorch or
+GastroNet-like dataloaders because the path can be derived directly from
+<code class="docutils literal notranslate"><span class="pre">frame_id</span></code>.</p>
+</section>
+<section id="api-example">
+<h2>API Example<a class="headerlink" href="#api-example" title="Link to this heading">¶</a></h2>
+<p>The export endpoint accepts snake_case payload keys.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LX_ANNOTATE_BASE_URL</span><span class="s2">/api/media/videos/export-annotated/&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">    &quot;video_id&quot;: 123,</span>
+<span class="s1">    &quot;output_dir&quot;: &quot;data/export/video_123_training&quot;,</span>
+<span class="s1">    &quot;output_path&quot;: &quot;annotations.csv&quot;,</span>
+<span class="s1">    &quot;output_format&quot;: &quot;csv&quot;,</span>
+<span class="s1">    &quot;use_export_flags&quot;: true,</span>
+<span class="s1">    &quot;export_videos&quot;: false,</span>
+<span class="s1">    &quot;export_frames&quot;: true,</span>
+<span class="s1">    &quot;transcode_frames&quot;: true,</span>
+<span class="s1">    &quot;transcode_fps&quot;: 30,</span>
+<span class="s1">    &quot;transcode_quality&quot;: 2,</span>
+<span class="s1">    &quot;transcode_ext&quot;: &quot;jpg&quot;,</span>
+<span class="s1">    &quot;use_frame_pk_paths&quot;: true</span>
+<span class="s1">  }&#39;</span>
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">segment_ids</span></code> instead of <code class="docutils literal notranslate"><span class="pre">use_export_flags</span></code> when the caller wants an
+explicit segment subset:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;video_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;segment_ids&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="mi">12</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;output_dir&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;data/export/video_123_training&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;output_format&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;export_frames&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;use_frame_pk_paths&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="management-command-example">
+<h2>Management Command Example<a class="headerlink" href="#management-command-example" title="Link to this heading">¶</a></h2>
+<p>The same exporter is available as a Django management command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>manage.py<span class="w"> </span>export_frame_annot<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output-dir<span class="w"> </span>data/export/video_123_training<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output-path<span class="w"> </span>annotations.csv<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--video-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--only-true<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--use-export-flags<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--export-frames<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--transcode-frames<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--transcode-fps<span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--transcode-quality<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--transcode-ext<span class="w"> </span>jpg<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--use-frame-pk-paths
+</pre></div>
+</div>
+<p>To create frame-level annotations from selected segments before export:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>manage.py<span class="w"> </span>ensure_segment_annotations<span class="w"> </span>--video-id<span class="w"> </span><span class="m">123</span>
+</pre></div>
+</div>
+<p>Run this command only after the selected video or segment set has been reviewed;
+unlike the UI backfill request, the command does not enforce a validated-only
+filter. Use <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> first to inspect how many annotations would be created:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>manage.py<span class="w"> </span>ensure_segment_annotations<span class="w"> </span>--video-id<span class="w"> </span><span class="m">123</span><span class="w"> </span>--dry-run
+</pre></div>
+</div>
+</section>
+<section id="standardized-ai-dataset-json">
+<h2>Standardized AI Dataset JSON<a class="headerlink" href="#standardized-ai-dataset-json" title="Link to this heading">¶</a></h2>
+<p>For application-level AI datasets, use the settings page:</p>
+<ol class="arabic simple">
+<li><p>Open <code class="docutils literal notranslate"><span class="pre">/application-settings</span></code>.</p></li>
+<li><p>Choose the AI dataset name and type.</p></li>
+<li><p>Save the settings.</p></li>
+<li><p>Click <strong>KI-Datensatz exportieren</strong>.</p></li>
+</ol>
+<p>The frontend calls:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/settings/application/dropdowns/ai_datasets/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/settings/application/ai_dataset_export/</span></code></p></li>
+</ul>
+<p>The export writes a validated JSON payload under
+<code class="docutils literal notranslate"><span class="pre">&lt;EXPORT_DIR&gt;/ai_datasets/&lt;dataset&gt;_&lt;type&gt;_&lt;timestamp&gt;.json</span></code>.</p>
+<p>The JSON payload includes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">schema_version</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dataset_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dataset_type</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ai_model_type</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">summary</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">patient_videos</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frame_annotations</span></code></p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">frame_annotations</span></code> contains frame ids, frame numbers, relative paths, labels,
+annotation values, annotators, information source names, model metadata ids, and
+timestamps. <code class="docutils literal notranslate"><span class="pre">patient_videos</span></code> contains the standardized <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code>
+<code class="docutils literal notranslate"><span class="pre">PatientVideoFile</span></code> structure and attached video segments.</p>
+<p>This JSON path is the better choice when downstream tooling should consume a
+single typed contract instead of a flat CSV.</p>
+</section>
+<section id="gastronet-style-training">
+<h2>GastroNet-Style Training<a class="headerlink" href="#gastronet-style-training" title="Link to this heading">¶</a></h2>
+<p>The current backend exposes an image multilabel training path for
+<code class="docutils literal notranslate"><span class="pre">AIDataSet</span></code> rows whose:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dataset_type</span></code> is <code class="docutils literal notranslate"><span class="pre">image</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ai_model_type</span></code> is <code class="docutils literal notranslate"><span class="pre">image_multilabel_classification</span></code></p></li>
+</ul>
+<p>Users can start training from <code class="docutils literal notranslate"><span class="pre">/model-training</span></code>. The UI offers active image
+multilabel datasets, sampling strategy controls, and backbone options including
+<code class="docutils literal notranslate"><span class="pre">gastro_rn50</span></code>.</p>
+<p>The API path is:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/settings/application/model_training/options/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/settings/application/model_training/runs/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/settings/application/model_training/runs/&lt;run_id&gt;/</span></code></p></li>
+</ul>
+<p>The equivalent management command is:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>manage.py<span class="w"> </span>train_image_multilabel_model<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dataset-id<span class="w"> </span><span class="m">7</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--backbone-name<span class="w"> </span>gastro_rn50<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--epochs<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--batch-size<span class="w"> </span><span class="m">32</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--labelset-version<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--freeze-backbone<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--treat-unlabeled-as-negative
+</pre></div>
+</div>
+<p>For custom training code, the helper dataset class is
+<code class="docutils literal notranslate"><span class="pre">endoreg_db.utils.ai.model_training.dataset.EndoMultiLabelDataset</span></code>. It expects:</p>
+<ul class="simple">
+<li><p>image paths</p></li>
+<li><p>label vectors</p></li>
+<li><p>label masks</p></li>
+</ul>
+<p>This matches the exported annotation structure: group rows by frame, create one
+vector position per label, set the value from <code class="docutils literal notranslate"><span class="pre">value</span></code>, and set the mask for
+labels with known annotations.</p>
+</section>
+<section id="practical-checks">
+<h2>Practical Checks<a class="headerlink" href="#practical-checks" title="Link to this heading">¶</a></h2>
+<p>Before handing an export to model training, verify:</p>
+<ul class="simple">
+<li><p>The source video was anonymization-validated.</p></li>
+<li><p>Segment validation and frame annotation creation are complete.</p></li>
+<li><p>The exported CSV or JSON has non-zero annotation rows.</p></li>
+<li><p>Every <code class="docutils literal notranslate"><span class="pre">frame_relative_path</span></code> resolves under the exported <code class="docutils literal notranslate"><span class="pre">frames/</span></code> directory
+when frame files are needed.</p></li>
+<li><p>The dataset type matches the model path: image multilabel training only uses
+<code class="docutils literal notranslate"><span class="pre">AIDataSet</span></code> rows with <code class="docutils literal notranslate"><span class="pre">dataset_type=image</span></code>.</p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="segment-annotation-workflow.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Segment Annotation Workflow</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="../assisted-reporting-report.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 1980, Thomas J. Lux
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">AI Training Data Export</a><ul>
+<li><a class="reference internal" href="#data-safety-boundary">Data Safety Boundary</a></li>
+<li><a class="reference internal" href="#recommended-user-workflow">Recommended User Workflow</a></li>
+<li><a class="reference internal" href="#export-output">Export Output</a></li>
+<li><a class="reference internal" href="#api-example">API Example</a></li>
+<li><a class="reference internal" href="#management-command-example">Management Command Example</a></li>
+<li><a class="reference internal" href="#standardized-ai-dataset-json">Standardized AI Dataset JSON</a></li>
+<li><a class="reference internal" href="#gastronet-style-training">GastroNet-Style Training</a></li>
+<li><a class="reference internal" href="#practical-checks">Practical Checks</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=8aa58abc"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    </body>
+</html>

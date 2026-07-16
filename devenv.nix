@@ -8,12 +8,17 @@
   ... }:
 let
   appName = "lx_annotate";
+  secret = name: default: config.secretspec.secrets.${name} or default;
+  runtimeEnvironment = import ./nix/runtime-environment.nix { inherit lib; };
+  secretspecEncryptedDataDir = secret "LX_ANNOTATE_ENCRYPTED_DATA_DIR" "";
+  runtimeDataDir =
+    if secretspecEncryptedDataDir == "" then secret "DATA_DIR" "data" else secretspecEncryptedDataDir;
 
   DEPLOYMENT_MODE = "prod";
 
   python = pkgs.python312;
   uvPackage = pkgs.uv;
-
+  env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ];
   devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; env=baseEnv; };
 
   languages.javascript.enable = true;
@@ -24,12 +29,20 @@ let
   isDev = if config.secretspec.secrets.DJANGO_ENV == "development" then true else false;
 
   # 1. DEFINE STATIC ENV VARS HERE
-  baseEnv = {
+  baseEnv = runtimeEnvironment.mkAppOwnedEnvironment {
+    dataDir = runtimeDataDir;
+    settingsModule = config.secretspec.secrets.DJANGO_SETTINGS_MODULE;
+    djangoEnv = config.secretspec.secrets.DJANGO_ENV;
+    staticUrl = config.secretspec.secrets.STATIC_URL;
+    protectedMediaUrl = config.secretspec.secrets.NGINX_PROTECTED_MEDIA_URL;
+    mediaUrl = config.secretspec.secrets.MEDIA_URL;
+    serveWithNginx = config.secretspec.secrets.SERVE_WITH_NGINX;
+  } // {
 
     # --- Directories & Paths ---
     containerHost = "None";
     containerMode = false;
-    STORAGE_DIR = config.secretspec.secrets.STORAGE_DIR;
+    LX_ANNOTATE_ENCRYPTED_DATA_DIR = runtimeDataDir;
     EXPORT_OUTPUT_DIR = config.secretspec.secrets.EXPORT_OUTPUT_DIR;
     ASSET_DIR = config.secretspec.secrets.ASSET_DIR;
     HOME_DIR = config.secretspec.secrets.HOME_DIR;
@@ -44,8 +57,6 @@ let
     ALLOWED_HOSTS = config.secretspec.secrets.ALLOWED_HOSTS;
     DJANGO_ALLOWED_HOSTS = config.secretspec.secrets.ALLOWED_HOSTS;
     DJANGO_CSRF_TRUSTED_ORIGINS = config.secretspec.secrets.DJANGO_CSRF_TRUSTED_ORIGINS;
-    STATIC_URL = config.secretspec.secrets.STATIC_URL;
-    MEDIA_URL = config.secretspec.secrets.MEDIA_URL;
     EXEMPT_URLS = config.secretspec.secrets.EXEMPT_URLS;
     LOGIN_URL = config.secretspec.secrets.LOGIN_URL;
 
@@ -58,14 +69,12 @@ let
     DJANGO_DB_PORT = config.secretspec.secrets.DJANGO_DB_PORT;
 
     # --- Django Core ---
-    DJANGO_SETTINGS_MODULE = config.secretspec.secrets.DJANGO_SETTINGS_MODULE;
-    DJANGO_SETTINGS_MODULE_PRODUCTION = config.secretspec.secrets.DJANGO_SETTINGS_MODULE_PRODUCTION;
     DJANGO_SETTINGS_MODULE_DEVELOPMENT = config.secretspec.secrets.DJANGO_SETTINGS_MODULE_DEVELOPMENT;
-    DJANGO_ENV = config.secretspec.secrets.DJANGO_ENV;
     DJANGO_DEBUG = config.secretspec.secrets.DJANGO_DEBUG;
-    VITE_ENABLE_DEBUG = config.secretspec.secrets.VITE_ENABLE_DEBUG;
+    VITE_ENABLE_DEBUG = secret "VITE_ENABLE_DEBUG" "false";
     TIME_ZONE = config.secretspec.secrets.TIME_ZONE;
     DEFAULT_CENTER = config.secretspec.secrets.CENTER_NAME;
+    LX_DTYPES_HOST_MODELS_MODULE = "endoreg_db.integrations.lx_dtypes_host_models";
 
     # --- Authentication & Secrets ---
     DJANGO_SECRET_KEY = config.secretspec.secrets.DJANGO_SECRET_KEY;
@@ -95,9 +104,15 @@ let
     DRF_THROTTLE_USER = config.secretspec.secrets.DRF_THROTTLE_USER;
     TEST_RUN_FRAME_NUMBER = config.secretspec.secrets.TEST_RUN_FRAME_NUMBER;
     DJANGO_CORS_ALLOWED_ORIGINS = config.secretspec.secrets.DJANGO_CORS_ALLOWED_ORIGINS;
-    SERVE_WITH_NGINX = config.secretspec.secrets.SERVE_WITH_NGINX;
-    NGINX_PROTECTED_MEDIA_URL = config.secretspec.secrets.NGINX_PROTECTED_MEDIA_URL;
-
+    # --- Watcher Dirs ---
+    WATCHER_VIDEO_DIR = config.secretspec.secrets.WATCHER_VIDEO_DIR;
+    WATCHER_REPORT_DIR = config.secretspec.secrets.WATCHER_REPORT_DIR;
+    WATCHER_PREANONYMIZED_DIR = config.secretspec.secrets.WATCHER_PREANONYMIZED_DIR;
+    FFMPEG_TRANSCODE_TIMEOUT_SECONDS = config.secretspec.secrets.FFMPEG_TRANSCODE_TIMEOUT_SECONDS;
+    FFMPEG_EXECUTABLE = config.secretspec.secrets.FFMPEG_EXECUTABLE;
+    FFMPEG_BINARY = config.secretspec.secrets.FFMPEG_BINARY;
+    FFMPEG_PATH = config.secretspec.secrets.FFMPEG_PATH;
+    FFMPEG_TRANSCODE_QUALITY_MODE = config.secretspec.secrets.FFMPEG_TRANSCODE_QUALITY_MODE;
   };
 
   devenv_utils = import ./devenv/default.nix {
@@ -172,7 +187,7 @@ in
     uv = {
       enable = true;
       package = uvPackage;
-      sync.enable = true;
+      sync.enable = false;
     };
   };
 
@@ -216,48 +231,10 @@ in
   } // devenv_utils.scripts;
 
   enterShell = lib.mkAfter ''
-    # 1. Check if the venv interpreter actually exists
-    VENV_PATH=".devenv/state/venv"
-    if [ -d "$VENV_PATH" ]; then
-      if ! "$VENV_PATH/bin/python" --version >/dev/null 2>&1; then
-        echo "⚠️ Virtual env interpreter is broken. Removing..."
-        rm -rf "$VENV_PATH"
-      fi
-    fi
 
-    source .devenv/state/venv/bin/activate 2>/dev/null || true
 
-    validate_python_env() {
-      [ -x "$VENV_PATH/bin/python" ] || return 1
-      "$VENV_PATH/bin/python" -c 'import pydantic, pydantic_settings' >/dev/null 2>&1
-    }
 
-    # 2. Refined Sync Logic
-    SYNC_STAMP=".devenv/state/uv.syncstamp"
-    if [ -f "uv.lock" ] && [ -f "pyproject.toml" ]; then
-      LOCK_HASH="$(${pkgs.coreutils}/bin/sha256sum uv.lock pyproject.toml 2>/dev/null | ${pkgs.coreutils}/bin/sha256sum | ${pkgs.gawk}/bin/awk '{print $1}')"
-    else
-      LOCK_HASH=""
-    fi
-    PREV_LOCK_HASH="$(${pkgs.coreutils}/bin/cat "$SYNC_STAMP" 2>/dev/null || true)"
-
-    # Sync if the lock changed OR if the venv is missing or unhealthy.
-    if [ ! -d "$VENV_PATH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ] || ! validate_python_env; then
-      echo "uv deps changed, venv missing, or venv validation failed -> syncing..."
-      if $SYNC_CMD; then
-        if validate_python_env; then
-          echo "$LOCK_HASH" > "$SYNC_STAMP"
-        else
-          echo "Warning: uv sync completed but required Python packages are still missing."
-        fi
-      else
-        echo "Warning: uv sync failed."
-      fi
-    else
-      echo "uv deps unchanged -> skipping sync."
-    fi
-
-    mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
+    mkdir -p "${baseEnv.STORAGE_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
     mkdir -p "${config.secretspec.secrets.HOME_DIR}"
     mkdir -p "${config.secretspec.secrets.WORKING_DIR}"
@@ -274,8 +251,28 @@ in
     else
       echo "Note: .env.systemd not found. Defaults apply."
     fi
+    # Keep a manually activated legacy .venv from shadowing the devenv-managed
+    # interpreter when direnv reloads the shell.
+    if [ -n "''${VIRTUAL_ENV:-}" ] && [ "''${VIRTUAL_ENV}" != "$PWD/.devenv/state/venv" ]; then
+      if command -v deactivate >/dev/null 2>&1; then
+        deactivate
+      fi
+      clean_path=""
+      old_ifs="$IFS"
+      IFS=:
+      for entry in $PATH; do
+        if [ "$entry" != "$PWD/.venv/bin" ]; then
+          clean_path="''${clean_path:+$clean_path:}$entry"
+        fi
+      done
+      IFS="$old_ifs"
+      export PATH="$clean_path"
+      unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT
+    fi
+
     # Activate Python virtual environment managed by uv inside of devenv
     echo "Virtual environment activated."
+    source .devenv/state/venv/bin/activate
 
   '';
 }

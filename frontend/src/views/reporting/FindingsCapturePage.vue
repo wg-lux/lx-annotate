@@ -3,7 +3,7 @@
     <MedicalBlock
       title="Template & Dokumentationsregeln"
       subtitle="Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren"
-      icon="description"
+      icon="ni ni-single-copy-04"
       icon-bg-class="bg-gradient-primary"
       :is-complete="!!selectedTemplateName && !!currentRuntimeDraft"
       :is-active="true"
@@ -129,6 +129,7 @@
               <div
                 v-for="templateFinding in section.findings"
                 :key="`${section.name}:${templateFinding.finding}`"
+                :id="findingAnchorId(templateFinding.finding)"
                 class="border rounded p-3"
               >
                 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -266,6 +267,7 @@
               :loading="templateValidationLoading"
               :error-message="templateValidationError"
               :result="flow.lastTemplateValidation"
+              :finding-anchors="findingAnchors"
             />
           </div>
         </template>
@@ -380,8 +382,22 @@ const backendMessagesByFinding = computed<Record<string, string[]>>(() => {
   return Object.fromEntries(entries)
 })
 
+const findingAnchors = computed<Record<string, string>>(() => {
+  const entries = sectionBlocks.value
+    .flatMap((section) => section.findings)
+    .map((finding) => [
+      normalizeKey(finding.finding),
+      findingAnchorId(finding.finding)
+    ] as const)
+  return Object.fromEntries(entries)
+})
+
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
+}
+
+function findingAnchorId(findingName: string): string {
+  return `finding-${normalizeKey(findingName)}`
 }
 
 function clearMessages() {
@@ -760,7 +776,8 @@ function onDescriptorInput(
 async function runRuntimeValidation(forceFeedback = false) {
   const draft = currentRuntimeDraft.value
   const templateName = selectedTemplateName.value
-  if (!draft || !templateName) {
+  const patientExaminationId = flow.patientExaminationId
+  if (!draft || !templateName || !patientExaminationId) {
     templateValidationError.value = null
     flow.setLastTemplateValidation(null)
     return
@@ -772,6 +789,7 @@ async function runRuntimeValidation(forceFeedback = false) {
 
   templateValidationLoading.value = true
   templateValidationError.value = null
+  let validationFailed = false
   try {
     const result = await validateReportTemplateRuntime(
       flow.selectedKbModule,
@@ -780,12 +798,23 @@ async function runRuntimeValidation(forceFeedback = false) {
     )
     flow.setLastTemplateValidation(result)
   } catch (e: any) {
+    validationFailed = true
     flow.setLastTemplateValidation(null)
     templateValidationError.value = formatApiError(
       e,
       'Template-Validierung konnte nicht ausgefuehrt werden.'
     )
   } finally {
+    try {
+      await flow.persistCurrentRuntimeDraft()
+    } catch (e: any) {
+      if (!validationFailed) {
+        templateValidationError.value = formatApiError(
+          e,
+          'Der Reporting-Entwurf konnte nach der Validierung nicht gespeichert werden.'
+        )
+      }
+    }
     templateValidationLoading.value = false
   }
 }

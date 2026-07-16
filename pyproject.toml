@@ -1,12 +1,15 @@
+[build-system]
+requires = ["hatchling>=1.29.0"]
+build-backend = "hatchling.build"
+
 [project]
 name = "lx-annotate"
 
-version = "0.0.1"
-description = "This webapp provides a frontend interface for annotating AI generated output."
+version = "0.9.36"
+description = "This webapp provides a frontend interface for pseudonymizing and annotating data and applying AI predictions."
 authors = [
     { name = "Max Hild", email = "maxhild10@gmail.com"},
     { name = "Thomas J. Lux", email = "lux_t1@ukw.de" },
-    { name = "Hamza Zahid" },
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -26,8 +29,7 @@ readme = "README.md"
 requires-python = ">=3.12.0,<3.13"
 
 dependencies = [
-    "django>=5.1.1",
-    "django-ninja>=1.3.0",
+    "django==6.0.3",
     "gunicorn>=23.0.0",
     "djangorestframework>=3.12.4",
     "django-cors-headers>=4.0.0",
@@ -37,7 +39,6 @@ dependencies = [
     "whitenoise>=6.8.2",
     "django-extensions>=3.2.3",
     "python-dotenv>=1.0.1",
-    "python-environ>=0.4.54",
     "pytest>=8.3.5",
     "pytest-django>=4.11.1",
     "django-environ>=0.12.0",
@@ -45,7 +46,7 @@ dependencies = [
     "watchdog>=3.0.0",
     "torch>=2.0.0",
     "torchvision>=0.15.0",
-    "transformers>=4.44.0,<4.45.0",
+    "transformers==4.45.0",
     "pillow>=9.0.0",
     "numpy>=1.21.0",
     "celery>=5.5.3",
@@ -55,17 +56,34 @@ dependencies = [
     "psycopg[binary,pool]>=3.2.12",
     "mozilla-django-oidc>=4.0.1",
     "pre-commit>=4.5.0",
-    "de-core-news-lg",
     "django-stubs>=5.2.8",
     "types-requests>=2.32.4.20250913",
     "black>=25.12.0",
     "mypy>=1.18.2",
-    "endoreg-db==0.9.1.6",
+    "endoreg-db==1.0.6.3",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
-    "lx-anonymizer==0.9.0.5",
     "sops>=1.18",
+    "django-ninja==1.5.3",
+    "pytest-cov>=7.0.0",
+    "cryptography>=45.0.0",
+    "django-linear-migrations>=2.19.0",
+    "build>=1.4.2",
+    "redis>=7.4.0",
+    "lx-dtypes==0.2.0",
 ]
+
+[project.scripts]
+lx-annotate-web = "lx_annotate.cli:web"
+lx-annotate-server = "lx_annotate.cli:web"
+lx-annotate-manage = "lx_annotate.cli:manage"
+lx-annotate-migrate = "lx_annotate.cli:migrate"
+lx-annotate-load-base-data = "lx_annotate.cli:load_base_data"
+lx-annotate-worker = "lx_annotate.cli:worker"
+lx-annotate-celery = "lx_annotate.cli:celery"
+lx-annotate-watch = "lx_annotate.cli:watch"
+lx-annotate-export-frames = "lx_annotate.cli:export_frames"
+lx-annotate-import-sap = "lx_annotate.cli:import_sap"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "lx_annotate.settings"
@@ -75,8 +93,33 @@ addopts = [
   "-ra",
 ]
 
-[tool.uv.sources]
-de-core-news-lg = { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_lg-3.8.0/de_core_news_lg-3.8.0-py3-none-any.whl" }
+[tool.hatch.build]
+include = [
+  "/README.md",
+  "/manage.py",
+  "/lx_annotate/**/*.py",
+  "/lx_annotate/templates/**/*.html",
+  "/lx_annotate/static/**/*",
+  "/lx_annotate/staticfiles/**/*",
+  "/staticfiles/**/*",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["lx_annotate"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"staticfiles" = "lx_annotate/staticfiles"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/README.md",
+  "/manage.py",
+  "/lx_annotate",
+  "/staticfiles",
+]
+
+[tool.hatch.build.targets.sdist.force-include]
+"staticfiles" = "staticfiles"
 
 [project.optional-dependencies]
 dev = [
@@ -128,12 +171,17 @@ module = [
 ]
 ignore_missing_imports = true
 
+
+[dependency-groups]
+dev = [
+    "build>=1.4.2",
+]
+
 # [tool.uv.sources]
 # endoreg-db = { workspace = true }
 # lx-anonymizer = { workspace = true }
 
 # [tool.uv.workspace]
 # members = [
-#    "libs/endoreg-db",
 #    "libs/lx-anonymizer",
 # ]

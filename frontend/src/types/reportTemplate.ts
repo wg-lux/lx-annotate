@@ -109,7 +109,13 @@ export type RuntimeValidationIssue = {
   level: 'error' | 'warning'
   message: string
   validatorName?: string
-  validatorKind?: 'findings_validator' | 'examination_validator' | 'template'
+  validatorKind?:
+    | 'classification_validator'
+    | 'intervention_validator'
+    | 'findings_validator'
+    | 'examination_validator'
+    | 'template'
+    | 'unit_validator'
   details?: Record<string, unknown>
 }
 
@@ -188,12 +194,55 @@ export type ExaminationValidatorExecution = {
   issues: RuntimeValidationIssue[]
 }
 
+export type ClassificationValidatorExecution = {
+  name: string
+  ok: boolean
+  operator: string
+  finding: string
+  classification: string
+  precedence: 'required' | 'optional'
+  matchedOccurrences: number
+  triggeredOccurrences: number
+  hint: Record<string, unknown>
+  issues: RuntimeValidationIssue[]
+}
+
+export type InterventionValidatorExecution = {
+  name: string
+  ok: boolean
+  operator: string
+  finding: string
+  intervention: string
+  precedence: 'required' | 'optional'
+  matchedOccurrences: number
+  triggeredOccurrences: number
+  hint: Record<string, unknown>
+  issues: RuntimeValidationIssue[]
+}
+
+export type UnitValidatorExecution = {
+  name: string
+  ok: boolean
+  operator: string
+  finding: string
+  classification: string
+  unit: string
+  precedence: 'required' | 'optional'
+  matchedOccurrences: number
+  triggeredOccurrences: number
+  hint: Record<string, unknown>
+  issues: RuntimeValidationIssue[]
+}
+
 export type ReportTemplateRuntimeValidationResult = {
   templateName: string
   ok: boolean
   evaluatedFindingsCount: number
+  classificationValidators: ClassificationValidatorExecution[]
+  interventionValidators: InterventionValidatorExecution[]
   findingsValidators: FindingsValidatorExecution[]
   examinationValidators: ExaminationValidatorExecution[]
+  unitValidators: UnitValidatorExecution[]
   issues: RuntimeValidationIssue[]
 }
 

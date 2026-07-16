@@ -55,11 +55,24 @@ const router = createRouter({
           component: () => import('@/views/reporting/FrameSelectorPage.vue')
         },
         {
+          path: ':patient_examination_id/report-export',
+          name: 'Reporting Report Export',
+          component: () => import('@/views/reporting/ReportExportPage.vue')
+        },
+        {
           path: ':patient_examination_id/finalized',
           name: 'Reporting Finalisierung und Artefakte',
           component: () => import('@/views/reporting/FinalizedResultPage.vue')
         }
       ]
+    },
+    {
+      path: '/studies',
+      name: 'Registerstudien',
+      component: () => import('@/views/studies/StudyCohortPage.vue'),
+      meta: {
+        description: 'Hypothesen formulieren und gruppierte Registerstudien-Kohorten filtern.'
+      }
     },
     {
       path: '/annotationen',
@@ -82,7 +95,31 @@ const router = createRouter({
       name: 'Frame Annotation',
       component: () => import('@/views/FrameAnnotation.vue'),
       meta: {
-        description: 'Annotieren Sie zufällige Frames in Label Studio.'
+        description: 'Annotieren Sie zufällige Frames direkt in der Anwendung.'
+      }
+    },
+    {
+      path: '/model-training',
+      name: 'Modelltraining',
+      component: () => import('@/views/ModelTrainingPage.vue'),
+      meta: {
+        description: 'Starten Sie Trainingsläufe für Image-Multilabel-Modelle.'
+      }
+    },
+    {
+      path: '/ai-dataset-buckets',
+      name: 'KI-Datensatz-Buckets',
+      component: () => import('@/views/AiDatasetBucketsPage.vue'),
+      meta: {
+        description: 'Aktuelle Frame-Bucket-Verteilung der KI-Datensätze prüfen.'
+      }
+    },
+    {
+      path: '/ai-dataset-settings',
+      name: 'KI-Datensatz-Einstellungen',
+      component: () => import('@/views/AiDatasetSettingsPage.vue'),
+      meta: {
+        description: 'Training-Manifest-Konfiguration für KI-Datensätze verwalten.'
       }
     },
     {
@@ -110,6 +147,22 @@ const router = createRouter({
       }
     },
     {
+      path: '/einstellungen',
+      name: 'Einstellungen',
+      component: () => import('@/views/ApplicationSettingsPage.vue'),
+      meta: {
+        description: 'Standardwerte für Zentrum, Prozessor und Berichtsvorlagen verwalten.'
+      }
+    },
+    {
+      path: '/administration',
+      name: 'Administration',
+      component: () => import('@/views/AdministrationPage.vue'),
+      meta: {
+        description: 'Hub-Transfer überwachen und lokale Center-Zugriffe verwalten.'
+      }
+    },
+    {
       path: '/untersuchung',
       name: 'Untersuchung',
       redirect: '/reporting/case-setup',
@@ -117,12 +170,20 @@ const router = createRouter({
         description: 'Legacy route redirected to the centralized reporting setup.'
       }
     },
-        {
+    {
       path: '/export',
       name: 'Export',
       component: () => import('@/views/Export.vue'),
       meta: {
         description: 'Hier können Sie Annotationen exportieren.'
+      }
+    },
+    {
+      path: '/hub-export',
+      name: 'Hub Export',
+      component: () => import('@/views/HubExport.vue'),
+      meta: {
+        description: 'Anonymisierte Ressourcen für den Transfer zum Hub markieren.'
       }
     },
     {
@@ -146,6 +207,23 @@ const router = createRouter({
       }
     },
     {
+      path: '/anonymisierung/metriken',
+      name: 'Anonymisierung Metriken',
+      component: () => import('@/views/AnonymizationMetrics.vue'),
+      meta: {
+        description: 'Aggregierte Workflow- und Qualitätsmetriken der Anonymisierung.',
+        cap: 'page.anonymization.metrics'
+      }
+    },
+    {
+      path: '/anonymisierung/evaluation',
+      name: 'Anonymisierung Evaluation',
+      component: () => import('@/views/AnonymizationEvaluation.vue'),
+      meta: {
+        description: 'Aus lx-anonymizer extrahierte SensitiveMeta-Daten für Videos und PDFs.'
+      }
+    },
+    {
       path: '/anonymisierung/validierung',
       name: 'AnonymisierungValidierung',
       component: () => import('@/components/Anonymizer/AnonymizationValidationComponent.vue'),
@@ -161,7 +239,10 @@ const router = createRouter({
       path: '/anonymisierung/korrektur/:fileId(\\d+)',
       name: 'Anonymisierung Korrektur',
       component: () => import('@/components/Anonymizer/AnonymizationCorrectionComponent.vue'),
-      props: (route) => ({ fileId: Number(route.params.fileId), mediaType: route.params.mediaType as string })
+      props: (route) => ({
+        fileId: Number(route.params.fileId),
+        mediaType: route.query.mediaType as string
+      })
     },
     {
       path: '/report-generator',

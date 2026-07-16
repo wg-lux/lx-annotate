@@ -8,7 +8,7 @@
             class="btn btn-outline-secondary btn-sm"
             @click="goBack"
           >
-            <i class="fas fa-arrow-left me-1"></i>
+            <i class="ni ni-bold-right me-1 icon-reverse"></i>
             Zurück zur Übersicht
           </button>
           <button 
@@ -16,7 +16,7 @@
             @click="refreshCurrentVideo"
             :disabled="isRefreshing"
           >
-            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
+            <i class="ni ni-bold-right" :class="{ 'ni-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
         </div>
@@ -38,7 +38,7 @@
 
         <!-- No File Selected -->
         <div v-else-if="!currentVideo" class="alert alert-info" role="alert">
-          <i class="fas fa-info-circle me-2"></i>
+          <i class="ni ni-user-run me-2"></i>
           Keine Datei ausgewählt. Bitte wählen Sie eine Datei aus der Übersicht aus.
         </div>
 
@@ -68,7 +68,7 @@
                             @click="reloadPdfDocument"
                             :disabled="isRenderingPdf"
                           >
-                            <i class="fas fa-file-pdf me-1"></i>
+                            <i class="ni ni-single-copy-04 me-1"></i>
                             PDF neu laden
                           </button>
                           <button
@@ -76,7 +76,7 @@
                             @click="generateRedactedPdf"
                             :disabled="isRenderingPdf || totalPdfBoxCount === 0"
                           >
-                            <i class="fas fa-shield-alt me-1"></i>
+                            <i class="ni ni-check-bold me-1"></i>
                             Anonymisierte PDF erzeugen
                           </button>
                           <button
@@ -84,7 +84,7 @@
                             @click="downloadRedactedPdf"
                             :disabled="!redactedPdfUrl"
                           >
-                            <i class="fas fa-download me-1"></i>
+                            <i class="ni ni-cloud-upload-96 me-1"></i>
                             PDF herunterladen
                           </button>
                           <button
@@ -92,7 +92,7 @@
                             @click="uploadRedactedPdf"
                             :disabled="!redactedPdfBytes || isProcessing"
                           >
-                            <i class="fas fa-upload me-1"></i>
+                            <i class="ni ni-cloud-upload-96 me-1"></i>
                             Als neue Datei hochladen
                           </button>
                         </div>
@@ -115,7 +115,7 @@
                         @click="previousPdfPage"
                         :disabled="activePdfPage <= 1 || isRenderingPdf"
                       >
-                        <i class="fas fa-chevron-left"></i>
+                        <i class="ni ni-bold-right icon-reverse"></i>
                       </button>
                       <span class="small text-muted">Seite {{ activePdfPage }} / {{ pdfPageCount || 1 }}</span>
                       <button
@@ -123,7 +123,7 @@
                         @click="nextPdfPage"
                         :disabled="activePdfPage >= pdfPageCount || isRenderingPdf"
                       >
-                        <i class="fas fa-chevron-right"></i>
+                        <i class="ni ni-bold-right"></i>
                       </button>
                     </div>
                   </div>
@@ -182,7 +182,7 @@
                       @click="undoLastPdfBox"
                       :disabled="getCurrentPageBoxCount() === 0"
                     >
-                      <i class="fas fa-undo me-1"></i>
+                      <i class="ni ni-bold-right me-1"></i>
                       Letzte Box entfernen
                     </button>
                     <button
@@ -190,7 +190,7 @@
                       @click="clearCurrentPdfPageBoxes"
                       :disabled="getCurrentPageBoxCount() === 0"
                     >
-                      <i class="fas fa-eraser me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Seite leeren
                     </button>
                     <button
@@ -198,7 +198,7 @@
                       @click="clearAllPdfBoxes"
                       :disabled="totalPdfBoxCount === 0"
                     >
-                      <i class="fas fa-trash me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Alle Boxen löschen
                     </button>
                     <hr class="my-2">
@@ -265,7 +265,7 @@
                           @click="analyzeVideo"
                           :disabled="isProcessing"
                         >
-                          <i class="fas fa-search me-1"></i>
+                          <i class="ni ni-tv-2 me-1"></i>
                           Video analysieren
                         </button>
                         <button 
@@ -273,10 +273,71 @@
                           @click="reprocessVideo"
                           :disabled="isProcessing"
                         >
-                          <i class="fas fa-redo me-1"></i>
+                          <i class="ni ni-bold-right me-1"></i>
                           Erneut verarbeiten
                         </button>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Release anonymization strategy -->
+          <div class="row mb-4">
+            <div class="col-12">
+              <div class="card border-primary">
+                <div class="card-header">
+                  <h5 class="mb-0">Anonymisierungsverfahren</h5>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-lg-7">
+                      <label class="form-label" for="anonymizationStrategy">Verfahren:</label>
+                      <select
+                        id="anonymizationStrategy"
+                        v-model="selectedStrategy"
+                        class="form-select"
+                        :disabled="isProcessing"
+                      >
+                        <option
+                          v-for="strategy in availableStrategies"
+                          :key="strategy"
+                          :value="strategy"
+                        >
+                          {{ strategyLabel(strategy) }}
+                        </option>
+                      </select>
+                      <p class="small text-muted mt-2 mb-0">
+                        <template v-if="selectedStrategy === 'detector_assisted'">
+                          Das freigegebene PHI-Modell prüft jeden Frame und schwärzt erkannte Regionen.
+                        </template>
+                        <template v-else>
+                          Die bisherige statische Prozessor-/Geräteregion wird über das gesamte Video maskiert.
+                        </template>
+                      </p>
+                    </div>
+                    <div class="col-lg-5">
+                      <dl class="row small mb-0">
+                        <dt class="col-5">Modell</dt>
+                        <dd class="col-7">{{ modelDisplay }}</dd>
+                        <dt class="col-5">OCR verfügbar</dt>
+                        <dd class="col-7">
+                          {{ anonymizationStatus?.ocr_engines?.join(', ') || 'Nicht gemeldet' }}
+                          <span class="d-block text-muted">
+                            {{ selectedStrategy === 'detector_assisted'
+                              ? 'Nicht Teil dieses All-Frame-Maskierungslaufs'
+                              : 'Nicht Teil dieses Prozessorregion-Laufs' }}
+                          </span>
+                        </dd>
+                        <dt class="col-5">Prüfung</dt>
+                        <dd class="col-7">
+                          <span class="badge" :class="anonymizationStatus?.review_required ? 'bg-warning text-dark' : 'bg-danger'">
+                            {{ anonymizationStatus?.review_required ? 'Menschliche Freigabe erforderlich' : 'Nicht freigabefähig' }}
+                          </span>
+                        </dd>
+                      </dl>
                     </div>
                   </div>
                 </div>
@@ -291,26 +352,27 @@
               <div class="card h-100">
                 <div class="card-header">
                   <h5 class="mb-0">
-                    <i class="fas fa-mask me-2"></i>
-                    Video Maskierung
+                    <i class="ni ni-check-bold me-2"></i>
+                    {{ selectedStrategy === 'detector_assisted' ? 'Detektor-gestützte All-Frame-Anonymisierung' : 'Prozessorregion' }}
                   </h5>
                 </div>
                 <div class="card-body">
                   <p class="text-muted mb-3">
-                    Empfohlen bei hoher Sensitivität (>10%). Verdeckt sensible Bereiche dauerhaft.
+                    {{ selectedStrategy === 'detector_assisted'
+                      ? 'Empfohlen: PHI-Modell-gestützte Schwärzung in jedem Frame.'
+                      : 'Legacy-Verfahren: dauerhafte statische Maskierung der gewählten Prozessorregion.' }}
                   </p>
                   
                   <!-- Mask Configuration -->
-                  <div class="mb-3">
+                  <div v-if="selectedStrategy === 'processor_region'" class="mb-3">
                     <label class="form-label">Maskierungstyp:</label>
                     <select v-model="maskConfig.type" class="form-select">
                       <option value="device_default">Gerätespezifische Maske</option>
-                      <option value="roi_based">ROI-basierte Maske</option>
                       <option value="custom">Benutzerdefiniert</option>
                     </select>
                   </div>
 
-                  <div v-if="maskConfig.type === 'device_default'" class="mb-3">
+                  <div v-if="selectedStrategy === 'processor_region' && maskConfig.type === 'device_default'" class="mb-3">
                     <label class="form-label">Endoskop-Gerät:</label>
                     <select v-model="maskConfig.deviceName" class="form-select">
                       <option value="olympus_cv_1500">Olympus CV-1500</option>
@@ -320,7 +382,7 @@
                     </select>
                   </div>
 
-                  <div v-if="maskConfig.type === 'custom'" class="mb-3">
+                  <div v-if="selectedStrategy === 'processor_region' && maskConfig.type === 'custom'" class="mb-3">
                     <div class="row">
                       <div class="col-6">
                         <label class="form-label">Endoskop X:</label>
@@ -377,13 +439,13 @@
                     @click="applyMasking"
                     :disabled="isProcessing || !canApplyMask"
                   >
-                    <i class="fas fa-mask me-2"></i>
+                    <i class="ni ni-check-bold me-2"></i>
                     <span v-if="isProcessing && currentOperation === 'masking'">
-                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
                       Maskierung wird angewendet...
                     </span>
                     <span v-else>
-                      Maskierung anwenden
+                    Anonymisierung anwenden
                     </span>
                   </button>
                 </div>
@@ -395,7 +457,7 @@
               <div class="card h-100">
                 <div class="card-header">
                   <h5 class="mb-0">
-                    <i class="fas fa-cut me-2"></i>
+                    <i class="ni ni-single-copy-04 me-2"></i>
                     Frame-Entfernung
                   </h5>
                 </div>
@@ -490,9 +552,9 @@
                     @click="removeFrames"
                     :disabled="isProcessing || !canRemoveFrames"
                   >
-                    <i class="fas fa-cut me-2"></i>
+                    <i class="ni ni-single-copy-04 me-2"></i>
                     <span v-if="isProcessing && currentOperation === 'frame_removal'">
-                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
                       Frames werden entfernt...
                     </span>
                     <span v-else>
@@ -527,7 +589,7 @@
                       class="btn btn-outline-danger btn-sm"
                       @click="cancelProcessing"
                     >
-                      <i class="fas fa-times me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Abbrechen
                     </button>
                   </div>
@@ -567,24 +629,26 @@
                       controls
                       width="100%"
                       height="600px"
-                      :src="getVideoUrl()"
                       @error="onVideoError"
                       @loadstart="onVideoLoadStart"
                       @canplay="onVideoCanPlay"
                     >
                       Ihr Browser unterstützt dieses Video-Format nicht.
                     </video>
+                    <div v-if="videoPlaybackError" class="alert alert-warning py-2 mt-2 mb-0">
+                      {{ videoPlaybackError.message }}
+                    </div>
                   </div>
                   
                   <!-- Video Controls -->
                   <div class="mt-3 d-flex justify-content-between align-items-center">
                     <div class="d-flex gap-2">
                       <button class="btn btn-outline-secondary btn-sm" @click="seekVideo(-10)">
-                        <i class="fas fa-backward me-1"></i>
+                        <i class="ni ni-bold-right me-1 icon-reverse"></i>
                         -10s
                       </button>
                       <button class="btn btn-outline-secondary btn-sm" @click="seekVideo(10)">
-                        <i class="fas fa-forward me-1"></i>
+                        <i class="ni ni-bold-right me-1"></i>
                         +10s
                       </button>
                     </div>
@@ -636,9 +700,9 @@
                             <button 
                               v-if="entry.status === 'success' && entry.outputPath"
                               class="btn btn-outline-primary btn-sm"
-                              @click="downloadResult(entry.outputPath)"
+                              @click="downloadResult(entry.id)"
                             >
-                              <i class="fas fa-download"></i>
+                              <i class="ni ni-cloud-upload-96"></i>
                             </button>
                           </td>
                         </tr>
@@ -662,6 +726,14 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
+import { buildPdfStreamUrl, type StreamableVideoFileType } from '@/utils/mediaUrls';
+import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream';
+import type {
+  VideoAnonymizationRequest,
+  VideoAnonymizationStatus,
+  VideoAnonymizationStrategy,
+} from '@/types/anonymizationPipeline';
 
 // Composables
 const router = useRouter();
@@ -690,6 +762,8 @@ const videoMetadata = ref({
   duration: null as number | null,
   resolution: null as string | null
 });
+const anonymizationStatus = ref<VideoAnonymizationStatus | null>(null);
+const selectedStrategy = ref<VideoAnonymizationStrategy>('detector_assisted');
 
 // Patient data for correction
 const editedPatient = ref({
@@ -715,7 +789,7 @@ const pseudonymMapping = ref({
 
 // Configuration for masking
 const maskConfig = ref({
-  type: 'device_default' as 'device_default' | 'roi_based' | 'custom',
+  type: 'device_default' as 'device_default' | 'custom',
   deviceName: 'olympus_cv_1500',
   processingMethod: 'streaming' as 'streaming' | 'direct',
   endoscopeX: 550,
@@ -741,6 +815,18 @@ const processingHistory = ref<Array<{
   details: string;
   outputPath?: string;
 }>>([]);
+
+const normalizeProcessingHistory = (raw: unknown) => {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry: any) => ({
+    id: Number(entry.id),
+    timestamp: String(entry.timestamp || entry.created_at || entry.completed_at || ''),
+    operation: String(entry.operation || 'anonymization'),
+    status: String(entry.status || ''),
+    details: String(entry.details || entry.message || ''),
+    outputPath: entry.outputPath || entry.output_path || entry.output_file || undefined,
+  }));
+};
 
 type CorrectionMediaType = 'video' | 'pdf';
 type PdfRedactionBox = {
@@ -770,11 +856,37 @@ let pdfDocument: any = null;
 
 // Computed properties
 const canApplyMask = computed(() => {
-  return currentVideo.value && !isProcessing.value && 
-    (maskConfig.value.type !== 'custom' || 
+  return currentVideo.value && !isProcessing.value &&
+    anonymizationStatus.value?.review_required === true &&
+    (selectedStrategy.value !== 'processor_region' ||
+     maskConfig.value.type !== 'custom' ||
      (maskConfig.value.endoscopeX >= 0 && maskConfig.value.endoscopeY >= 0 &&
       maskConfig.value.endoscopeWidth > 0 && maskConfig.value.endoscopeHeight > 0));
 });
+
+const availableStrategies = computed<VideoAnonymizationStrategy[]>(() => {
+  const configured = (anonymizationStatus.value?.strategies || [])
+    .map((strategy) => typeof strategy === 'string' ? strategy : strategy.id)
+    .filter((strategy): strategy is VideoAnonymizationStrategy =>
+      strategy === 'detector_assisted' || strategy === 'processor_region'
+    );
+  return configured.length > 0
+    ? configured
+    : ['detector_assisted', 'processor_region'];
+});
+
+const modelDisplay = computed(() => {
+  const model = anonymizationStatus.value?.model;
+  if (!model) return 'Nicht gemeldet';
+  const identity = [model.name, model.version].filter(Boolean).join(' ');
+  const checksum = model.sha256 ? model.sha256.slice(0, 12) : '';
+  return [identity, checksum ? `SHA-256 ${checksum}…` : ''].filter(Boolean).join(' · ') || 'Nicht gemeldet';
+});
+
+const strategyLabel = (strategy: VideoAnonymizationStrategy) =>
+  strategy === 'detector_assisted'
+    ? 'PHI-Detektor, alle Frames (empfohlen)'
+    : 'Prozessorregion (Legacy)';
 
 const canRemoveFrames = computed(() => {
   return currentVideo.value && !isProcessing.value &&
@@ -783,9 +895,24 @@ const canRemoveFrames = computed(() => {
 });
 
 const hasProcessedVersion = computed(() => {
-  return processingHistory.value.some(entry => 
+  return anonymizationStatus.value?.processed_artifact?.available === true ||
+    processingHistory.value.some(entry =>
     entry.status === 'success' && entry.outputPath
   );
+});
+
+const correctionVideoId = computed<number | null>(() => currentVideo.value?.id ?? null);
+const correctionArtifactKind = computed<StreamableVideoFileType>(() =>
+  previewMode.value === 'processed' && hasProcessedVersion.value ? 'processed' : 'raw'
+);
+const {
+  playbackError: videoPlaybackError,
+  playbackSourceUrl: videoPlaybackSourceUrl
+} = useAuthenticatedVideoStream({
+  videoElement,
+  videoId: correctionVideoId,
+  artifactKind: correctionArtifactKind,
+  enabled: computed(() => correctionVideoId.value !== null)
 });
 
 // Props interface for route params
@@ -890,15 +1017,23 @@ const loadVideoDetails = async (videoId: number) => {
   
   try {
     // Load video metadata and processing history
-    const [videoResponse, metadataResponse, historyResponse] = await Promise.all([
+    const [videoResponse, metadataResponse, historyResponse, anonymizationResponse] = await Promise.all([
       axiosInstance.get(r(`media/videos/video-correction/${videoId}`)),
       axiosInstance.get(r(`media/videos/${videoId}/metadata/`)),
-      axiosInstance.get(r(`media/videos/${videoId}/processing-history/`))
+      axiosInstance.get(r(`media/videos/${videoId}/processing-history/`)),
+      axiosInstance.get<VideoAnonymizationStatus>(
+        r(endpoints.media.videoCorrectionAnonymization(videoId))
+      )
     ]);
     
     currentVideo.value = videoResponse.data;
     videoMetadata.value = metadataResponse.data;
-    processingHistory.value = historyResponse.data;
+    processingHistory.value = normalizeProcessingHistory(historyResponse.data);
+    anonymizationStatus.value = anonymizationResponse.data;
+    selectedStrategy.value =
+      anonymizationResponse.data.selected_strategy ||
+      anonymizationResponse.data.default_strategy ||
+      'detector_assisted';
     
     // Update MediaStore with current video for consistent type detection
     if (currentVideo.value) {
@@ -928,8 +1063,7 @@ const loadPdfDocument = async (pdfId: number) => {
   pdfRenderError.value = '';
   try {
     await ensurePdfJs();
-    const response = await axiosInstance.get(r(`media/pdfs/${pdfId}/stream/`), {
-      params: { type: 'raw' },
+    const response = await axiosInstance.get(buildPdfStreamUrl(pdfId, 'raw'), {
       responseType: 'arraybuffer',
     });
 
@@ -1241,7 +1375,7 @@ const uploadRedactedPdf = async () => {
       timestamp: new Date().toISOString(),
       operation: 'pdf_upload',
       status: 'success',
-      details: `Upload-ID: ${response.data.upload_id || 'n/a'}`,
+      details: `Upload-ID: ${response.data.uploadId ?? response.data.upload_id ?? 'n/a'}`,
     });
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Fehler beim Upload der anonymisierten PDF';
@@ -1298,31 +1432,53 @@ const applyMasking = async () => {
   processingStatus.value = 'Maskierung wird vorbereitet...';
   
   try {
-    const payload = {
-      mask_type: maskConfig.value.type,
-      device_name: maskConfig.value.deviceName,
-      use_streaming: maskConfig.value.processingMethod === 'streaming',
-      custom_mask: maskConfig.value.type === 'custom' ? {
-        endoscope_x: maskConfig.value.endoscopeX,
-        endoscope_y: maskConfig.value.endoscopeY,
-        endoscope_width: maskConfig.value.endoscopeWidth,
-        endoscope_height: maskConfig.value.endoscopeHeight
-      } : undefined
+    const payload: VideoAnonymizationRequest = {
+      strategy: selectedStrategy.value,
+      processing_method: maskConfig.value.processingMethod,
+      region: maskConfig.value.type === 'custom'
+        ? {
+            mode: 'custom',
+            roi: {
+              x: maskConfig.value.endoscopeX,
+              y: maskConfig.value.endoscopeY,
+              width: maskConfig.value.endoscopeWidth,
+              height: maskConfig.value.endoscopeHeight,
+            },
+          }
+        : {
+            mode: 'device',
+            device_name: maskConfig.value.deviceName,
+          },
+      human_review_required: true,
     };
     
-    // Start masking operation
-    const response = await axiosInstance.post(
-      r(`media/videos/${currentVideo.value.id}/apply-mask/`), 
+    const response = await axiosInstance.post<VideoAnonymizationStatus>(
+      r(endpoints.media.videoCorrectionAnonymization(currentVideo.value.id)),
       payload
     );
-    
-    // Start polling for progress
-    const taskId = response.data.task_id;
-    await pollTaskProgress(taskId, 'masking');
+
+    anonymizationStatus.value = response.data;
+    selectedStrategy.value = response.data.selected_strategy || selectedStrategy.value;
+    const latestRun = response.data.latest_run;
+    processingProgress.value = 100;
+    processingStatus.value = 'Anonymisierung abgeschlossen';
+    processingHistory.value.unshift({
+      id: typeof latestRun?.id === 'number' ? latestRun.id : Date.now(),
+      timestamp: latestRun?.completed_at || latestRun?.created_at || new Date().toISOString(),
+      operation: 'anonymization',
+      status: latestRun?.status || 'success',
+      details: latestRun?.message || latestRun?.details || `${strategyLabel(selectedStrategy.value)} abgeschlossen`,
+      outputPath: response.data.output_file || latestRun?.output_file || undefined,
+    });
+    previewMode.value = 'processed';
+    await refreshCurrentVideo();
+    if (videoElement.value) videoElement.value.load();
+    isProcessing.value = false;
+    currentOperation.value = '';
     
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Maskierung';
-    console.error('Error applying mask:', err);
+    error.value = err.response?.data?.error || 'Fehler bei der Anonymisierung';
+    console.error('Error applying anonymization:', err);
     isProcessing.value = false;
     currentOperation.value = '';
   }
@@ -1352,9 +1508,15 @@ const removeFrames = async () => {
       payload
     );
     
-    // Start polling for progress
-    const taskId = response.data.task_id;
-    await pollTaskProgress(taskId, 'frame_removal');
+    const taskId = response.data.taskId ?? response.data.task_id;
+    if (taskId) {
+      await pollTaskProgress(taskId, 'frame_removal');
+    } else {
+      await finalizeCorrectionProcessing('frame_removal', {
+        output_path: response.data.outputFile ?? response.data.output_file,
+        summary: response.data.message || 'Frame-Entfernung erfolgreich abgeschlossen'
+      });
+    }
     
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Fehler bei der Frame-Entfernung';
@@ -1390,60 +1552,54 @@ const parseManualFrames = (frameString: string): number[] => {
   return [...new Set(frames)].sort((a, b) => a - b);
 };
 
-const pollTaskProgress = async (taskId: string, operation: string) => {
-  const pollInterval = 5000; // Increased from 2000ms to 5000ms (5 seconds)
-  const maxPolls = 300; // 10 minutes max
-  let polls = 0;
-  
-  const poll = async () => {
-    if (polls >= maxPolls) {
-      throw new Error('Zeitüberschreitung bei der Verarbeitung');
+const pollTaskProgress = async (
+  taskId: string,
+  operation: 'masking' | 'frame_removal'
+) => {
+  const pollInterval = 5000;
+  const maxPolls = 300;
+  for (let polls = 0; polls < maxPolls && isProcessing.value; polls += 1) {
+    const response = await axiosInstance.get(r(`media/videos/task-status/${taskId}/`));
+    const { status, progress, message, result } = response.data;
+    processingProgress.value = progress || 0;
+    processingStatus.value = message || 'Verarbeitung läuft...';
+
+    if (status === 'SUCCESS') {
+      await finalizeCorrectionProcessing(operation, result);
+      return;
     }
-    
-    try {
-      const response = await axiosInstance.get(r(`media/videos/task-status/${taskId}/`));
-      const { status, progress, message, result } = response.data;
-      
-      processingProgress.value = progress || 0;
-      processingStatus.value = message || 'Verarbeitung läuft...';
-      
-      if (status === 'SUCCESS') {
-        processingProgress.value = 100;
-        processingStatus.value = 'Verarbeitung abgeschlossen';
-        
-        // Add to history
-        processingHistory.value.unshift({
-          id: Date.now(),
-          timestamp: new Date().toISOString(),
-          operation,
-          status: 'success',
-          details: result?.summary || 'Verarbeitung erfolgreich',
-          outputPath: result?.output_path
-        });
-        
-        // Refresh video details
-        await refreshCurrentVideo();
-        
-        isProcessing.value = false;
-        currentOperation.value = '';
-        return;
-      }
-      
-      if (status === 'FAILURE') {
-        throw new Error(message || 'Verarbeitung fehlgeschlagen');
-      }
-      
-      // Continue polling
-      polls++;
-      setTimeout(poll, pollInterval);
-      
-    } catch (err: any) {
-      console.error('Polling error:', err);
-      throw err;
+    if (status === 'FAILURE') {
+      throw new Error(message || 'Verarbeitung fehlgeschlagen');
     }
-  };
-  
-  await poll();
+    await new Promise((resolve) => window.setTimeout(resolve, pollInterval));
+  }
+  if (isProcessing.value) {
+    throw new Error('Zeitüberschreitung bei der Verarbeitung');
+  }
+};
+
+const finalizeCorrectionProcessing = async (
+  operation: 'masking' | 'frame_removal',
+  result?: { output_path?: string; summary?: string } | null
+) => {
+  if (!currentVideo.value) return;
+
+  processingProgress.value = 100;
+  processingStatus.value = 'Verarbeitung abgeschlossen';
+
+  processingHistory.value.unshift({
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    operation,
+    status: 'success',
+    details: result?.summary || 'Verarbeitung erfolgreich',
+    outputPath: result?.output_path
+  });
+
+  await refreshCurrentVideo();
+
+  isProcessing.value = false;
+  currentOperation.value = '';
 };
 
 const cancelProcessing = async () => {
@@ -1466,40 +1622,19 @@ const reprocessVideo = async () => {
   }
 };
 
-const getVideoUrl = () => {
-  if (!currentVideo.value) return '';
-  
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  
-  if (previewMode.value === 'processed' && hasProcessedVersion.value) {
-    // Get the latest processed version
-    const latestProcessed = processingHistory.value
-      .filter(entry => entry.status === 'success' && entry.outputPath)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-    
-    if (latestProcessed) {
-      return `${base}/api/media/videos/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
-    }
-  }
-  
-  // Default to original
-  return `${base}/api/media/videos/${currentVideo.value.id}/`;
-};
-
 const seekVideo = (seconds: number) => {
   if (videoElement.value) {
     videoElement.value.currentTime += seconds;
   }
 };
 
-const downloadResult = async (outputPath: string) => {
+const downloadResult = async (historyId: number) => {
   if (!currentVideo.value) return;
   
   try {
     const response = await axiosInstance.get(
-      r(`video-download-processed/${currentVideo.value.id}/`),
-      { 
-        params: { path: outputPath },
+      r(endpoints.media.processedVideoDownload(currentVideo.value.id, historyId)),
+      {
         responseType: 'blob'
       }
     );
@@ -1533,7 +1668,7 @@ const onVideoError = (event: Event) => {
 };
 
 const onVideoLoadStart = () => {
-  console.log('Video loading started for:', getVideoUrl());
+  console.log('Video loading started for:', videoPlaybackSourceUrl.value);
 };
 
 const onVideoCanPlay = () => {
@@ -1601,6 +1736,7 @@ const getSensitivityBadgeClass = (ratio: number | null) => {
 const getOperationText = (operation: string) => {
   const texts: { [key: string]: string } = {
     'analysis': 'Video-Analyse',
+    'anonymization': 'Anonymisierung',
     'masking': 'Maskierung',
     'frame_removal': 'Frame-Entfernung',
     'reprocessing': 'Neuverarbeitung',
@@ -1613,6 +1749,7 @@ const getOperationText = (operation: string) => {
 const getOperationBadgeClass = (operation: string) => {
   const classes: { [key: string]: string } = {
     'analysis': 'bg-info',
+    'anonymization': 'bg-primary',
     'masking': 'bg-warning',
     'frame_removal': 'bg-danger',
     'reprocessing': 'bg-primary',

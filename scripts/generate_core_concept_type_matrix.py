@@ -199,6 +199,11 @@ def _camel_to_snake(name: str) -> str:
 
 
 def _builders() -> dict[str, Callable[[], Any]]:
+    from lx_dtypes.names import (
+        ClassificationChoiceDescriptorTypes,
+        NumericDistributionChoices,
+    )
+
     return {
         "Classification": lambda: Classification(
             name="classification_model",
@@ -213,8 +218,8 @@ def _builders() -> dict[str, Callable[[], Any]]:
         ),
         "ClassificationChoiceDescriptor": lambda: ClassificationChoiceDescriptor(
             name="descriptor_model",
-            classification_choice_descriptor_type="numeric",
-            numeric_distribution="uniform",
+            classification_choice_descriptor_type=ClassificationChoiceDescriptorTypes.NUMERIC,
+            numeric_distribution=NumericDistributionChoices.UNIFORM,
             unit="mm",
             selection_options=["opt_1", "opt_2"],
             tags=["tag_a", "tag_b"],

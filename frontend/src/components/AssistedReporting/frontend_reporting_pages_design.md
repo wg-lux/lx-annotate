@@ -98,7 +98,7 @@ Backend endpoints:
 - `POST /api/lookup/{token}/recompute/`
 - `GET /api/examinations/{examination_id}/findings/`
 - `GET /api/findings/{finding_id}/classifications/`
-- KB template endpoints (non-`endoreg_db`, current frontend uses `/base_api/report-templates/...`)
+- KB template endpoints (non-`endoreg_db`, current frontend uses `/dtypes-api/report-templates/...`)
 - Existing patient-finding endpoints (router + create/update paths used by current components)
 
 Key UI panels:

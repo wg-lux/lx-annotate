@@ -5,6 +5,7 @@ Detailed PyTorch CUDA debugging script
 import os
 import sys
 import subprocess
+from typing import Any, cast
 
 def print_section(title):
     print(f"\n{'=' * 50}")
@@ -57,7 +58,8 @@ try:
     
     # Check CUDA compilation info
     try:
-        cuda_version = torch.version.cuda
+        torch_version = cast(Any, getattr(torch, "version"))
+        cuda_version = torch_version.cuda
         print(f"CUDA compiled version: {cuda_version}")
     except AttributeError:
         print("CUDA compiled version: Not available")

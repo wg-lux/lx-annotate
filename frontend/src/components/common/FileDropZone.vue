@@ -1,6 +1,5 @@
 <template>
   <div
-    ref="dropZone"
     class="file-drop-zone border border-2 border-dashed rounded p-4 text-center position-relative"
     :class="{
       'border-primary bg-light': isDragOver,
@@ -17,44 +16,36 @@
     @dragleave.prevent="handleDragLeave"
     @drop.prevent="handleDrop"
   >
-    <!-- Hidden file input for maximum browser compatibility -->
     <input
       ref="fileInput"
       type="file"
       multiple
       class="d-none"
-      @change="handleFileSelect"
       :accept="acceptedFileTypes"
+      @change="handleFileSelect"
     />
 
-    <!-- Drop zone content -->
     <div class="drop-zone-content">
-      <i 
-        class="fas fa-cloud-upload-alt fa-3x mb-3"
+      <i
+        class="ni ni-cloud-upload-96 ni-3x mb-3"
         :class="isDragOver ? 'text-primary' : 'text-muted'"
       ></i>
-      
-      <div v-if="isDragOver" class="h5 text-primary">
-        Datei hier loslassen...
-      </div>
+      <div v-if="isDragOver" class="h5 text-primary">Datei hier loslassen...</div>
       <div v-else>
-        <div class="h5 mb-2">
-          Dateien hier ablegen oder klicken zum Auswählen
-        </div>
-        <p class="text-muted mb-0">
-          Unterstützte Formate: PDF, MP4, JPG, PNG und weitere
-        </p>
+        <div class="h5 mb-2">Dateien hier ablegen oder klicken zum Auswählen</div>
+        <p class="text-muted mb-0">Unterstützte Formate: PDF, MP4, JPG, PNG und weitere</p>
       </div>
     </div>
 
-    <!-- Validation error message -->
     <div v-if="hasValidationError" class="alert alert-danger mt-3 mb-0">
-      <i class="fas fa-exclamation-triangle me-2"></i>
+      <i class="ni ni-user-run me-2"></i>
       Bitte Datei auswählen oder hierher ziehen.
     </div>
 
-    <!-- Loading indicator -->
-    <div v-if="isUploading" class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75">
+    <div
+      v-if="isUploading"
+      class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75"
+    >
       <div class="text-center">
         <div class="spinner-border text-primary mb-2" role="status">
           <span class="visually-hidden">Wird hochgeladen...</span>
@@ -63,132 +54,86 @@
       </div>
     </div>
 
-    <!-- Accessibility status announcements -->
-    <div 
-      class="visually-hidden" 
-      aria-live="assertive" 
-      aria-atomic="true"
-    >
+    <div class="visually-hidden" aria-live="assertive" aria-atomic="true">
       {{ statusMessage }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue';
+import { computed, ref } from 'vue'
 
-// Props
-interface Props {
-  acceptedFileTypes?: string;
-  isUploading?: boolean;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  acceptedFileTypes: '*',
-  isUploading: false
-});
+const props = withDefaults(
+  defineProps<{
+    acceptedFileTypes?: string
+    isUploading?: boolean
+  }>(),
+  { acceptedFileTypes: '*', isUploading: false }
+)
 
 const emit = defineEmits<{
-  'files-selected': [files: File[]];
-}>();
+  'files-selected': [files: File[]]
+}>()
 
-// Template refs
-const dropZone = ref<HTMLElement>();
-const fileInput = ref<HTMLInputElement>();
+const fileInput = ref<HTMLInputElement>()
+const isDragOver = ref(false)
+const hasValidationError = ref(false)
+const statusMessage = ref('')
+const dragCounter = ref(0)
+const isInteractive = computed(() => !props.isUploading)
 
-// Reactive state
-const isDragOver = ref(false);
-const hasValidationError = ref(false);
-const statusMessage = ref('');
-const dragCounter = ref(0); // Track nested drag events
+function triggerFileInput(): void {
+  if (isInteractive.value) fileInput.value?.click()
+}
 
-// Computed
-const isInteractive = computed(() => !props.isUploading);
-
-// Methods
-const triggerFileInput = () => {
-  if (!isInteractive.value) return;
-  fileInput.value?.click();
-};
-
-const handleFileSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const files = target.files;
-  
-  if (files) {
-    processFiles(Array.from(files));
+function processFiles(files: File[]): void {
+  if (!files.length) {
+    hasValidationError.value = true
+    statusMessage.value = 'Keine Datei ausgewählt. Bitte versuchen Sie es erneut.'
+    return
   }
-};
+  hasValidationError.value = false
+  emit('files-selected', files)
+  if (fileInput.value) fileInput.value.value = ''
+}
 
-const handleDragEnter = (event: DragEvent) => {
-  if (!isInteractive.value) return;
-  
-  dragCounter.value++;
-  event.dataTransfer!.dropEffect = 'copy';
-  
-  if (dragCounter.value === 1) {
-    isDragOver.value = true;
-    statusMessage.value = 'Datei über der Drop-Zone. Loslassen zum Hochladen.';
-  }
-};
+function handleFileSelect(event: Event): void {
+  const files = (event.target as HTMLInputElement).files
+  if (files) processFiles(Array.from(files))
+}
 
-const handleDragOver = (event: DragEvent) => {
-  if (!isInteractive.value) return;
-  event.dataTransfer!.dropEffect = 'copy';
-};
+function handleDragEnter(event: DragEvent): void {
+  if (!isInteractive.value) return
+  dragCounter.value += 1
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  if (dragCounter.value === 1) isDragOver.value = true
+}
 
-const handleDragLeave = (event: DragEvent) => {
-  if (!isInteractive.value) return;
-  
-  dragCounter.value--;
-  
-  if (dragCounter.value === 0) {
-    isDragOver.value = false;
-    statusMessage.value = '';
-  }
-};
+function handleDragOver(event: DragEvent): void {
+  if (!isInteractive.value) return
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+}
 
-const handleDrop = (event: DragEvent) => {
-  if (!isInteractive.value) return;
-  
-  dragCounter.value = 0;
-  isDragOver.value = false;
-  
-  const files = event.dataTransfer?.files;
-  if (files) {
-    processFiles(Array.from(files));
-    statusMessage.value = `${files.length} Datei(en) ausgewählt.`;
-  }
-};
+function handleDragLeave(): void {
+  if (!isInteractive.value) return
+  dragCounter.value = Math.max(0, dragCounter.value - 1)
+  if (dragCounter.value === 0) isDragOver.value = false
+}
 
-const processFiles = (files: File[]) => {
-  // Console check für leere Datei-Arrays
-  if (!(files && files.length)) {
-    console.warn('handleFilesSelected: empty file array');
-    hasValidationError.value = true;
-    statusMessage.value = 'Keine Datei ausgewählt. Bitte versuchen Sie es erneut.';
-    return;
-  }
-  
-  // Clear validation error
-  hasValidationError.value = false;
-  
-  // Emit the files
-  emit('files-selected', files);
-  
-  // Clear file input for next use
-  if (fileInput.value) {
-    fileInput.value.value = '';
-  }
-};
+function handleDrop(event: DragEvent): void {
+  if (!isInteractive.value) return
+  dragCounter.value = 0
+  isDragOver.value = false
+  const files = event.dataTransfer?.files
+  if (files) processFiles(Array.from(files))
+}
 
-// Expose public methods if needed
 defineExpose({
   triggerFileInput,
   clearValidationError: () => {
-    hasValidationError.value = false;
+    hasValidationError.value = false
   }
-});
+})
 </script>
 
 <style scoped>
@@ -210,20 +155,6 @@ defineExpose({
 }
 
 .drop-zone-content {
-  pointer-events: none;
-}
-
-.file-drop-zone.border-danger {
-  background-color: var(--bs-danger-bg-subtle);
-}
-
-.file-drop-zone.border-primary {
-  background-color: var(--bs-primary-bg-subtle);
-}
-
-/* Disable interactions when uploading */
-.file-drop-zone:has(.spinner-border) {
-  cursor: not-allowed;
   pointer-events: none;
 }
 </style>
