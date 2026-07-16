@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { reactive, ref } from 'vue'
 
 import ReportingShell from '../ReportingShell.vue'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
@@ -57,7 +58,8 @@ const hoisted = vi.hoisted(() => ({
     pickPreferredStream: vi.fn((options: Array<{ type: string; url: string }>) => {
       return options.find((option) => option.type === 'processed')?.url ?? null
     })
-  }
+  },
+  useAuthenticatedVideoStream: vi.fn()
 }))
 
 vi.mock('@/stores/reportingFlowStore', () => ({
@@ -103,6 +105,10 @@ vi.mock('@/api/reportDraftApi', () => ({
 vi.mock('@/api/reportingTimelineApi', () => ({
   fetchPatientTimelineLatest: hoisted.timelineApi.fetchPatientTimelineLatest,
   pickPreferredStream: hoisted.timelineApi.pickPreferredStream
+}))
+
+vi.mock('@/composables/useAuthenticatedVideoStream', () => ({
+  useAuthenticatedVideoStream: hoisted.useAuthenticatedVideoStream
 }))
 
 function buildFlowStore() {
@@ -179,11 +185,17 @@ function mountShell() {
 describe('ReportingShell media preload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.useAuthenticatedVideoStream.mockReturnValue({
+      playbackError: ref(null),
+      playbackSourceUrl: ref(''),
+      playbackMode: ref('idle'),
+      isHlsPlayback: ref(false)
+    })
     hoisted.terminologyStore.activeBundle = null
     hoisted.terminologyStore.activeModuleName = 'report_template_examples'
     hoisted.terminologyStore.selectedMedicalField = 'gastroenterology'
     hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined)
-    hoisted.flowRef.current = buildFlowStore()
+    hoisted.flowRef.current = reactive(buildFlowStore())
     hoisted.findingsApi.getExaminationFindings.mockResolvedValue([])
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
       { name: 'default_template', examination: 'colonoscopy' }
@@ -451,7 +463,10 @@ describe('ReportingShell media preload', () => {
 
     const video = wrapper.find('video')
     expect(video.exists()).toBe(true)
-    expect(video.attributes('src')).toBe('/timeline/video/processed')
+    expect(video.attributes('src')).toBeUndefined()
+    const streamOptions = hoisted.useAuthenticatedVideoStream.mock.calls[0][0]
+    expect(streamOptions.videoId.value).toBe(999)
+    expect(streamOptions.artifactKind.value).toBe('processed')
 
     const rawButton = wrapper.findAll('button').find((button) => button.text().trim() === 'raw')
     expect(rawButton).toBeTruthy()
@@ -459,7 +474,7 @@ describe('ReportingShell media preload', () => {
     await rawButton!.trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('video').attributes('src')).toBe('/timeline/video/raw')
+    expect(streamOptions.artifactKind.value).toBe('raw')
   })
 
   it('updates video and frame preview URLs after media refresh', async () => {
@@ -506,7 +521,9 @@ describe('ReportingShell media preload', () => {
     const wrapper = mountShell()
     await flushPromises()
 
-    expect(wrapper.find('video').attributes('src')).toBe('/timeline/video/v1-processed')
+    const streamOptions = hoisted.useAuthenticatedVideoStream.mock.calls[0][0]
+    expect(streamOptions.videoId.value).toBe(100)
+    expect(streamOptions.artifactKind.value).toBe('processed')
     const initialFramePreview = wrapper.find('img[alt="Selected frame stream preview"]')
     expect(initialFramePreview.exists()).toBe(true)
     expect(initialFramePreview.attributes('src')).toBe('/timeline/frame/v1')
@@ -523,7 +540,8 @@ describe('ReportingShell media preload', () => {
       patientId: 42,
       patientExaminationId: 314
     })
-    expect(wrapper.find('video').attributes('src')).toBe('/timeline/video/v2-processed')
+    expect(streamOptions.videoId.value).toBe(101)
+    expect(streamOptions.artifactKind.value).toBe('processed')
     expect(wrapper.find('img[alt="Selected frame stream preview"]').attributes('src')).toBe(
       '/timeline/frame/v2'
     )

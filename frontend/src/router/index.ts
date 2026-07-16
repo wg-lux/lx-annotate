@@ -239,7 +239,10 @@ const router = createRouter({
       path: '/anonymisierung/korrektur/:fileId(\\d+)',
       name: 'Anonymisierung Korrektur',
       component: () => import('@/components/Anonymizer/AnonymizationCorrectionComponent.vue'),
-      props: (route) => ({ fileId: Number(route.params.fileId), mediaType: route.params.mediaType as string })
+      props: (route) => ({
+        fileId: Number(route.params.fileId),
+        mediaType: route.query.mediaType as string
+      })
     },
     {
       path: '/report-generator',

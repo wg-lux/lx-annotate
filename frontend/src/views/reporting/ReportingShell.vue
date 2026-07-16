@@ -4,7 +4,7 @@
       <div class="reporting-command-main">
         <div class="small text-uppercase text-muted fw-semibold tracking-label">Reporting</div>
         <h4 class="mb-3">Bericht erstellen</h4>
-        <div class="context-case-select">
+        <div class="context-case-select w-50">
           <label class="form-label form-label-sm mb-1">Fall</label>
           <div class="d-flex flex-column flex-lg-row gap-2">
             <select
@@ -290,7 +290,8 @@
                         v-for="option in flow.mediaPreload.latestVideo.streamOptions"
                         :key="`video-${option.type}`"
                         class="btn btn-outline-secondary btn-sm"
-                        @click="selectVideoStream(option.url)"
+                        :disabled="!isVideoArtifactKind(option.type)"
+                        @click="selectVideoStream(option.type)"
                       >
                         {{ option.type }}
                       </button>
@@ -298,18 +299,21 @@
                     <div class="mt-2 d-grid gap-2">
                       <button
                         class="btn btn-outline-secondary btn-sm"
-                        :disabled="!preferredVideoStream"
-                        @click="selectVideoStream(preferredVideoStream)"
+                        :disabled="!preferredVideoArtifactKind"
+                        @click="selectVideoStream(preferredVideoArtifactKind)"
                       >
                         Video streamen
                       </button>
                     </div>
                     <video
-                      v-if="selectedVideoStreamUrl"
+                      v-if="reportingVideoId"
+                      ref="reportingVideoElement"
                       class="w-100 mt-2 rounded border"
                       controls
-                      :src="selectedVideoStreamUrl"
                     />
+                    <div v-if="reportingVideoPlaybackError" class="alert alert-warning py-2 mt-2 mb-0">
+                      {{ reportingVideoPlaybackError.message }}
+                    </div>
                   </div>
                   <div v-else class="small text-muted">Kein Video verfügbar.</div>
                 </div>
@@ -499,15 +503,17 @@ import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useTerminologyStore } from '@/stores/terminologyStore'
 import {
   fetchPatientTimelineLatest,
-  pickPreferredReportStream,
-  pickPreferredStream
+  pickPreferredReportStream
 } from '@/api/reportingTimelineApi'
+import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
+import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 
 const route = useRoute()
 const router = useRouter()
 const flow = useReportingFlowStore()
 const terminology = useTerminologyStore()
-const selectedVideoStreamUrl = ref<string | null>(null)
+const reportingVideoElement = ref<HTMLVideoElement | null>(null)
+const selectedVideoArtifactKind = ref<StreamableVideoFileType>('processed')
 const selectedFrameStreamUrl = ref<string | null>(null)
 const isContextPanelOpen = ref(true)
 const terminologyLoadPromise = ref<Promise<void> | null>(null)
@@ -624,9 +630,17 @@ const preferredReportDownload = computed(() =>
     : null
 )
 
-const preferredVideoStream = computed(() =>
-  pickPreferredStream(flow.mediaPreload?.latestVideo?.streamOptions || [])
+const reportingVideoId = computed(() => flow.mediaPreload?.latestVideo?.id ?? null)
+const preferredVideoArtifactKind = computed<StreamableVideoFileType | null>(() =>
+  preferredArtifactKind(flow.mediaPreload?.latestVideo?.streamOptions || [])
 )
+
+const { playbackError: reportingVideoPlaybackError } = useAuthenticatedVideoStream({
+  videoElement: reportingVideoElement,
+  videoId: reportingVideoId,
+  artifactKind: selectedVideoArtifactKind,
+  enabled: computed(() => reportingVideoId.value !== null)
+})
 
 const activeKbModule = computed(() =>
   terminology.activeBundle
@@ -1020,8 +1034,21 @@ function openUrl(url: string | null) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-function selectVideoStream(url: string | null) {
-  selectedVideoStreamUrl.value = url
+function isVideoArtifactKind(value: string | null | undefined): value is StreamableVideoFileType {
+  return value === 'raw' || value === 'processed'
+}
+
+function preferredArtifactKind(
+  options: Array<{ type: string }>
+): StreamableVideoFileType | null {
+  if (options.some((option) => option.type === 'processed')) return 'processed'
+  if (options.some((option) => option.type === 'raw')) return 'raw'
+  return null
+}
+
+function selectVideoStream(artifactKind: string | null) {
+  if (!isVideoArtifactKind(artifactKind)) return
+  selectedVideoArtifactKind.value = artifactKind
 }
 
 function selectFrameStream(url: string | null) {
@@ -1891,7 +1918,8 @@ async function refreshMediaPreload() {
       patientExaminationId
     })
     flow.setMediaPreload(payload)
-    selectedVideoStreamUrl.value = pickPreferredStream(payload.latestVideo?.streamOptions || [])
+    selectedVideoArtifactKind.value =
+      preferredArtifactKind(payload.latestVideo?.streamOptions || []) ?? 'processed'
     selectedFrameStreamUrl.value = payload.latestFrames[0]?.streamUrl || null
   } catch (error: any) {
     const status = error?.response?.status

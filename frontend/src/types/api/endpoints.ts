@@ -151,8 +151,11 @@ export const endpoints = {
     exportAnnotated: 'media/videos/export-annotated/',
 
     videoCorrection: (pk: Id) => `media/videos/video-correction/${pk}`,
+    videoCorrectionAnonymization: (pk: Id) =>
+      `media/videos/video-correction/${pk}/anonymization/`,
     videoMetadata: (pk: Id) => `media/videos/${pk}/metadata/`,
     videoFps: (pk: Id) => `media/videos/${pk}/fps/`,
+    videoSegmentsNormalizeFps: (pk: Id) => `media/videos/${pk}/segments/normalize-fps/`,
     videoApplyMask: (pk: Id) => `media/videos/${pk}/apply-mask/`,
     videoRemoveFrames: (pk: Id) => `media/videos/${pk}/remove-frames/`,
     videoLabelsList: 'media/videos/labels/list/',

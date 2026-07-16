@@ -1,12 +1,18 @@
 import axios from 'axios'
 import Hls from 'hls.js'
-import { computed, onBeforeUnmount, readonly, ref, watch, type ComputedRef, type Ref } from 'vue'
+import {
+  computed,
+  isRef,
+  onBeforeUnmount,
+  readonly,
+  ref,
+  watch,
+  type ComputedRef,
+  type Ref
+} from 'vue'
 
 import axiosInstance, { silentRequestConfig } from '@/api/axiosInstance'
-import {
-  buildVideoPlaybackUrls,
-  type StreamableVideoFileType
-} from '@/utils/mediaUrls'
+import { buildVideoPlaybackUrls, type StreamableVideoFileType } from '@/utils/mediaUrls'
 
 type ReadableRef<T> = Ref<T> | ComputedRef<T>
 
@@ -47,7 +53,7 @@ export class AuthenticatedVideoStreamError extends Error {
 export interface UseAuthenticatedVideoStreamOptions {
   videoElement: Ref<HTMLVideoElement | null>
   videoId: ReadableRef<number | null | undefined>
-  artifactKind?: StreamableVideoFileType
+  artifactKind?: StreamableVideoFileType | ReadableRef<StreamableVideoFileType>
   enabled?: ReadableRef<boolean>
   onFatalError?: (error: AuthenticatedVideoStreamError) => void
 }
@@ -60,6 +66,13 @@ const HLS_PLAYLIST_CONTENT_TYPES = new Set([
 
 function readRef<T>(value: ReadableRef<T>): T {
   return value.value
+}
+
+function readArtifactKind(
+  value: UseAuthenticatedVideoStreamOptions['artifactKind']
+): StreamableVideoFileType {
+  if (!value) return 'processed'
+  return isRef(value) ? value.value : value
 }
 
 function axiosStatus(error: unknown): number | undefined {
@@ -280,7 +293,7 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
       return
     }
 
-    const urls = buildVideoPlaybackUrls(videoId, options.artifactKind ?? 'processed')
+    const urls = buildVideoPlaybackUrls(videoId, readArtifactKind(options.artifactKind))
     let hlsPlaylistUrl: string
     try {
       hlsPlaylistUrl = validateSameOriginMediaUrl(urls.hlsPlaylistUrl)
@@ -333,6 +346,7 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     [
       () => options.videoElement.value,
       () => readRef(options.videoId),
+      () => readArtifactKind(options.artifactKind),
       () => (options.enabled ? readRef(options.enabled) : true)
     ],
     () => {

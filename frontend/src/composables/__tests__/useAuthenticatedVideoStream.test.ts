@@ -67,29 +67,29 @@ vi.mock('@/api/axiosInstance', () => ({
 interface HostVm {
   video: HTMLVideoElement | null
   videoId: number | null
+  artifactKind: 'raw' | 'processed'
   playbackMode: string
   playbackSourceUrl: string
 }
 
-function mountHost(
-  onFatalError = vi.fn(),
-  artifactKind: 'raw' | 'processed' = 'processed'
-) {
+function mountHost(onFatalError = vi.fn(), artifactKind: 'raw' | 'processed' = 'processed') {
   const Host = defineComponent({
     template: '<video ref="video"></video>',
     setup() {
       const video = ref<HTMLVideoElement | null>(null)
       const videoId = ref<number | null>(42)
+      const selectedArtifactKind = ref<'raw' | 'processed'>(artifactKind)
       const stream = useAuthenticatedVideoStream({
         videoElement: video,
         videoId,
-        artifactKind,
+        artifactKind: selectedArtifactKind,
         onFatalError
       })
 
       return {
         video,
         videoId,
+        artifactKind: selectedArtifactKind,
         ...stream
       }
     }
@@ -170,6 +170,24 @@ describe('useAuthenticatedVideoStream', () => {
     )
     expect(instance.loadSource).toHaveBeenCalledWith(urls.hlsPlaylistUrl)
     expect(vm.playbackSourceUrl).toBe(urls.hlsPlaylistUrl)
+  })
+
+  it('reloads HLS when the selected artifact kind changes', async () => {
+    const wrapper = mountHost()
+    await flushPromises()
+
+    const firstInstance = hlsMock.instances[0]
+    ;(wrapper.vm as unknown as HostVm).artifactKind = 'raw'
+    await flushPromises()
+
+    const rawUrls = buildVideoPlaybackUrls(42, 'raw')
+    const secondInstance = hlsMock.instances[1]
+    expect(firstInstance.destroy).toHaveBeenCalled()
+    expect(axiosInstance.get).toHaveBeenLastCalledWith(
+      rawUrls.hlsPlaylistUrl,
+      expect.objectContaining({ withCredentials: true })
+    )
+    expect(secondInstance.loadSource).toHaveBeenCalledWith(rawUrls.hlsPlaylistUrl)
   })
 
   it('uses native HLS with credentialed video requests when the browser supports it', async () => {

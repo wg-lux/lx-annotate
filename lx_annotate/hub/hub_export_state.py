@@ -95,16 +95,22 @@ def is_video_hub_export_eligible(video: VideoFile) -> bool:
     return video_hub_export_blocked_reason(video) == ""
 
 
-def is_report_hub_export_eligible(report: RawPdfFile) -> bool:
+def report_hub_export_blocked_reason(report: RawPdfFile) -> str:
+    if report.center is None:
+        return "source center missing"
     state = report.state
-    if state is None:
-        return False
-    if not state.anonymization_validated:
-        return False
+    if state is None or not state.anonymization_validated:
+        return "not ready for export"
     processed_file_sha256 = getattr(state, "processed_file_sha256", None)
     if processed_file_sha256 is not None and not str(processed_file_sha256).strip():
-        return False
-    return has_usable_processed_artifact(report)
+        return "processed media missing"
+    if not has_usable_processed_artifact(report):
+        return "processed media missing"
+    return ""
+
+
+def is_report_hub_export_eligible(report: RawPdfFile) -> bool:
+    return report_hub_export_blocked_reason(report) == ""
 
 
 def _sync_outbound_jobs(

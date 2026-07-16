@@ -483,6 +483,45 @@
                   
                   <!-- ✅ ENHANCED: Dual Video Viewer for Raw vs Anonymized Comparison -->
                   <div v-else-if="isVideo" class="dual-video-container">
+                    <div
+                      class="alert mb-3"
+                      :class="videoAnonymizationReady ? 'alert-warning' : 'alert-danger'"
+                      role="status"
+                    >
+                      <div v-if="isLoadingVideoAnonymization" class="d-flex align-items-center gap-2">
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                        Release-Artefakt wird geprüft...
+                      </div>
+                      <template v-else-if="videoAnonymizationStatus">
+                        <div class="d-flex flex-wrap justify-content-between gap-2">
+                          <div>
+                            <strong>{{ videoStrategyLabel }}</strong>
+                            <div class="small mt-1">
+                              Modell: {{ videoModelDisplay }}<br>
+                              Verfügbare OCR-Kaskade: {{ videoAnonymizationStatus.ocr_engines?.join(', ') || 'Nicht gemeldet' }}<br>
+                              <span class="text-muted">
+                                {{ videoAnonymizationStatus.selected_strategy === 'detector_assisted'
+                                  ? 'OCR war nicht Bestandteil der All-Frame-Maskierung.'
+                                  : 'OCR war nicht Bestandteil dieses Prozessorregion-Laufs.' }}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="text-end">
+                            <span class="badge" :class="videoAnonymizationStatus.processed_artifact.available ? 'bg-success' : 'bg-danger'">
+                              {{ videoAnonymizationStatus.processed_artifact.available ? 'Anonymisierte Fassung verfügbar' : 'Kein anonymisiertes Artefakt' }}
+                            </span>
+                            <div class="small mt-1">
+                              {{ videoAnonymizationStatus.review_required
+                                ? 'Menschliche Prüfung und Freigabe erforderlich'
+                                : 'Review-Anforderung fehlt' }}
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                      <template v-else>
+                        {{ videoAnonymizationError || 'Anonymisierungsstatus ist nicht verfügbar.' }}
+                      </template>
+                    </div>
                     <div class="row">
                       <!-- Raw Video (Original) -->
                       <div class="col-md-6">
@@ -819,6 +858,7 @@ import { useDebug } from '@/composables/useDebug';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
+import type { VideoAnonymizationStatus } from '@/types/anonymizationPipeline';
 
 
 const toast = useToastStore();
@@ -859,6 +899,28 @@ const sourceFileId = ref<number | null>(Number.isFinite(fileId) ? fileId : null)
 const sourceMediaScope = ref<MediaScope | null>(
   scope === 'video' || scope === 'pdf' ? scope : null
 );
+const videoAnonymizationStatus = ref<VideoAnonymizationStatus | null>(null);
+const isLoadingVideoAnonymization = ref(false);
+const videoAnonymizationError = ref('');
+
+const videoAnonymizationReady = computed(() =>
+  videoAnonymizationStatus.value?.processed_artifact?.available === true &&
+  videoAnonymizationStatus.value?.review_required === true
+);
+
+const videoStrategyLabel = computed(() =>
+  videoAnonymizationStatus.value?.selected_strategy === 'processor_region'
+    ? 'Prozessorregion (Legacy)'
+    : 'PHI-Detektor-gestützte All-Frame-Anonymisierung'
+);
+
+const videoModelDisplay = computed(() => {
+  const model = videoAnonymizationStatus.value?.model;
+  if (!model) return 'Nicht gemeldet';
+  const identity = [model.name, model.version].filter(Boolean).join(' ');
+  const checksum = model.sha256 ? `SHA-256 ${model.sha256.slice(0, 12)}…` : '';
+  return [identity, checksum].filter(Boolean).join(' · ') || 'Nicht gemeldet';
+});
 
 
 console.log("fileid and scope", fileId, scope)
@@ -1211,6 +1273,10 @@ const canApprove = computed(() => {
 
   // Manual patient examination selection must be valid if used
   if (!hasValidPatientExaminationSelection.value) return false;
+
+  // Video approval is fail-closed until the canonical processed artifact is
+  // available and explicitly marked for mandatory human review.
+  if (isVideo.value && !videoAnonymizationReady.value) return false;
   
   // For videos: Check if outside segments need validation
   if (isVideo.value && shouldShowOutsideTimeline.value) {
@@ -1241,6 +1307,22 @@ const approvalBlockReason = computed(() => {
 
   if (!hasValidPatientExaminationSelection.value) {
     return 'Bitte geben Sie eine gültige PatientExamination-ID ein oder wählen Sie "Automatisch bestimmen".';
+  }
+
+  if (isVideo.value && isLoadingVideoAnonymization.value) {
+    return 'Das anonymisierte Release-Artefakt wird noch geprüft.';
+  }
+
+  if (isVideo.value && !videoAnonymizationStatus.value) {
+    return videoAnonymizationError.value || 'Der Anonymisierungsstatus konnte nicht geprüft werden.';
+  }
+
+  if (isVideo.value && !videoAnonymizationStatus.value?.processed_artifact.available) {
+    return 'Es ist noch keine anonymisierte Video-Fassung verfügbar.';
+  }
+
+  if (isVideo.value && !videoAnonymizationStatus.value?.review_required) {
+    return 'Das Artefakt ist nicht als verpflichtend menschlich zu prüfende Fassung gekennzeichnet.';
   }
   
   if (isVideo.value && shouldShowOutsideTimeline.value) {
@@ -1451,6 +1533,33 @@ async function fetchCaseResolution(): Promise<void> {
     caseResolution.value = data;
   } catch (error) {
     console.warn('Case resolution lookup failed; falling back to sensitive metadata payload.', error);
+  }
+}
+
+async function fetchVideoAnonymizationStatus(): Promise<void> {
+  videoAnonymizationStatus.value = null;
+  videoAnonymizationError.value = '';
+  if (!isVideo.value) return;
+
+  const targetFileId = resolveFileIdFromContext();
+  if (targetFileId === null) {
+    videoAnonymizationError.value = 'Video-ID konnte nicht bestimmt werden.';
+    return;
+  }
+
+  isLoadingVideoAnonymization.value = true;
+  try {
+    const { data } = await axiosInstance.get<VideoAnonymizationStatus>(
+      r(endpoints.media.videoCorrectionAnonymization(targetFileId))
+    );
+    videoAnonymizationStatus.value = data;
+  } catch (error: any) {
+    videoAnonymizationError.value =
+      error?.response?.data?.error ||
+      error?.message ||
+      'Release-Artefakt konnte nicht geprüft werden.';
+  } finally {
+    isLoadingVideoAnonymization.value = false;
   }
 }
 
@@ -1943,6 +2052,7 @@ watch(currentItem, async (newItem) => {
   if (!newItem) return;
   loadCurrentItemData(newItem);
   await fetchCaseResolution();
+  await fetchVideoAnonymizationStatus();
   if (isPdf.value) {
     await fetchPatientExaminationOptions();
   }
@@ -2522,7 +2632,11 @@ const navigateToCorrection = async () => {
         toast.error({ text: 'Datei-ID für Korrektur konnte nicht bestimmt werden.' });
         return;
       }
-      router.push({ name: 'Anonymisierung Korrektur', params: { fileId: String(correctionFileId) } });
+      await router.push({
+        name: 'Anonymisierung Korrektur',
+        params: { fileId: String(correctionFileId) },
+        query: { mediaType: sourceMediaScope.value || (isVideo.value ? 'video' : 'pdf') }
+      });
       // approveItem will navigate to next item, so we need to return
       toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
       return;
@@ -2549,6 +2663,7 @@ onMounted(async () => {
   } else if (anonymizationStore.current) {
     loadCurrentItemData(anonymizationStore.current);
     await fetchCaseResolution();
+    await fetchVideoAnonymizationStatus();
   }
 });
 

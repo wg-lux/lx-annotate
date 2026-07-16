@@ -55,6 +55,9 @@ class HubExportApiTests(TestCase):
         verify_hub_report_artifact(self.report)
 
     def test_hub_export_overview_lists_eligible_items(self):
+        empty_center = Center.objects.create(
+            name="Empty Center", center_key="empty-center"
+        )
         response = self.client.get("/api/hub-export/overview/")
 
         self.assertEqual(response.status_code, 200)
@@ -71,6 +74,20 @@ class HubExportApiTests(TestCase):
             payload["privacy_summary"]["smallest_equivalence_class_size"], 1
         )
         self.assertFalse(payload["privacy_summary"]["passes_k_anonymity"])
+        sync_summary = payload["sync_summary"]
+        self.assertEqual(sync_summary["processed_file_count"], 1)
+        self.assertEqual(sync_summary["candidate_count"], 1)
+        self.assertEqual(sync_summary["rejections"], [])
+        self.assertEqual(sync_summary["duplicates"], [])
+        centers_by_key = {
+            center["center_key"]: center for center in sync_summary["centers"]
+        }
+        self.assertIn(empty_center.center_key, centers_by_key)
+        self.assertEqual(centers_by_key[empty_center.center_key]["processed_files"], [])
+        self.assertEqual(
+            centers_by_key[self.center.center_key]["active_node_keys"],
+            ["hub-node", "site-node"],
+        )
 
     def test_mark_and_unmark_report_for_hub_upload(self):
         mark_response = self.client.post(
@@ -89,7 +106,13 @@ class HubExportApiTests(TestCase):
         )
 
         overview_response = self.client.get("/api/hub-export/overview/")
-        self.assertTrue(overview_response.json()["items"][0]["marked_for_upload"])
+        overview_payload = overview_response.json()
+        self.assertTrue(overview_payload["items"][0]["marked_for_upload"])
+        self.assertEqual(len(overview_payload["sync_summary"]["duplicates"]), 1)
+        self.assertEqual(
+            overview_payload["sync_summary"]["duplicates"][0]["reason"],
+            "transfer_already_registered",
+        )
 
         unmark_response = self.client.post(
             "/api/hub-export/unmark/",

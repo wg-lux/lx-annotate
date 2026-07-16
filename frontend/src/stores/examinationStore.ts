@@ -80,11 +80,8 @@ export const useExaminationStore = defineStore('examination', {
 
     /**
      * Load examinations list.
-     * We have 2 viable endpoints in your project:
-     *  - examinations/  (generic list)
-     *  - patient-examinations/examinations_dropdown/ (already tailored for dropdown)
-     *
-     * While patient Examinations will filter the examinations available for the patient, examinations query will return all available examinations.
+     * The patient-examinations dropdown action is the canonical endpoint for
+     * examination choices used while setting up a reporting case.
      */
     async fetchExaminations(): Promise<void> {
       this.loading = true
@@ -95,7 +92,12 @@ export const useExaminationStore = defineStore('examination', {
             .map((entry) => {
               if (!entry || typeof entry !== 'object') return null
               const row = entry as Record<string, unknown>
-              const fallbackName = typeof row.name === 'string' ? row.name : typeof row.name_de === 'string' ? row.name_de : ''
+              const fallbackName =
+                typeof row.name === 'string'
+                  ? row.name
+                  : typeof row.name_de === 'string'
+                    ? row.name_de
+                    : ''
               const name =
                 typeof row.name === 'string'
                   ? row.name
@@ -142,7 +144,7 @@ export const useExaminationStore = defineStore('examination', {
             .filter((entry) => entry && Number.isFinite(entry.id)) as Examination[]
         }
 
-        const dropdownPayload = await axiosInstance.get(r(endpoints.examination.examinationsDropdown))
+        const dropdownPayload = await axiosInstance.get(endpoints.examination.examinationsDropdown)
         const dropdownRows =
           Array.isArray(dropdownPayload.data) ? dropdownPayload.data :
             Array.isArray(dropdownPayload.data?.results)
@@ -151,6 +153,7 @@ export const useExaminationStore = defineStore('examination', {
 
         normalizeRows(dropdownRows)
       } catch (e: any) {
+        this.exams = []
         this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
       } finally {
         this.loading = false

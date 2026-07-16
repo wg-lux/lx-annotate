@@ -49,6 +49,7 @@ vi.mock('@/stores/auth_kc', () => ({
 
 describe('VideoExaminationAnnotation dropdown status display', () => {
   let mediaVideosFactory: () => any[]
+  let fpsNormalizationStateFactory: (videoId: number) => Record<string, unknown>
 
   const baseMediaVideos = () => [
     {
@@ -172,6 +173,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     routerMocks.query = {}
     setActivePinia(createPinia())
     mediaVideosFactory = baseMediaVideos
+    fpsNormalizationStateFactory = () => ({ status: 'ready', fps: 25, maxFps: 50 })
 
     const anonymizationStore = useAnonymizationStore()
 
@@ -289,6 +291,10 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       if (url.includes('/metadata/')) {
         return { data: { duration: 90, fps: 25, frameCount: 2250 } } as any
       }
+      const normalizationMatch = url.match(/media\/videos\/(\d+)\/segments\/normalize-fps\//)
+      if (normalizationMatch) {
+        return { data: fpsNormalizationStateFactory(Number(normalizationMatch[1])) } as any
+      }
       if (url.includes('/fps/')) {
         return { data: { fps: 25 } } as any
       }
@@ -310,6 +316,22 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       }
       return { data: {} } as any
     })
+  })
+
+  it('starts FPS normalization automatically before loading segments', async () => {
+    fpsNormalizationStateFactory = () => ({ status: 'required', fps: 60, maxFps: 50 })
+    vi.mocked(axiosInstance.post).mockResolvedValueOnce({
+      data: { status: 'queued', fps: 60, max_fps: 50 }
+    } as any)
+
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+
+    expect(axiosInstance.post).toHaveBeenCalledWith('media/videos/8/segments/normalize-fps/', {})
+    expect(wrapper.text()).toContain('wird automatisch auf maximal 50 fps normalisiert')
+    expect(wrapper.find('[data-cy="label-select"]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
   })
 
   it('shows explicit readiness text and enlarged status-bar classes in the video dropdown', async () => {

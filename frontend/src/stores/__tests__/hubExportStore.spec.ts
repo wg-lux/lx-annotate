@@ -41,6 +41,13 @@ describe('hubExportStore', () => {
         hubNodes: [],
         configReady: false,
         configError: 'Normal sender mode requires exactly one active central hub node.',
+        syncSummary: {
+          centers: [],
+          rejections: [],
+          duplicates: [],
+          processedFileCount: 0,
+          candidateCount: 0
+        },
         items: []
       }
     })
@@ -51,6 +58,7 @@ describe('hubExportStore', () => {
     expect(store.sourceNodeKey).toBe('site-node')
     expect(store.configReady).toBe(false)
     expect(store.configError).toContain('exactly one active central hub node')
+    expect(store.syncSummary?.processedFileCount).toBe(0)
   })
 
   it('hydrates the hub export privacy summary', async () => {
@@ -58,7 +66,14 @@ describe('hubExportStore', () => {
       data: {
         selectedTargetNodeKey: 'hub-node',
         sourceNodeKey: 'site-node',
-        hubNodes: [{ nodeKey: 'hub-node', displayName: 'Hub', baseUrl: 'https://hub.example', owningCenterKey: 'center-a' }],
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: 'center-a'
+          }
+        ],
         configReady: true,
         configError: '',
         privacySummary: {
@@ -88,7 +103,14 @@ describe('hubExportStore', () => {
       data: {
         selectedTargetNodeKey: 'hub-node',
         sourceNodeKey: 'site-node',
-        hubNodes: [{ nodeKey: 'hub-node', displayName: 'Hub', baseUrl: 'https://hub.example', owningCenterKey: 'center-a' }],
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: 'center-a'
+          }
+        ],
         configReady: true,
         configError: '',
         items: []

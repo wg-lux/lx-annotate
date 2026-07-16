@@ -1074,6 +1074,8 @@ const successMessage = ref<string>('')
 const isFullscreen = ref<boolean>(false)
 const isValidatingSegments = computed(() => validationRequestVideoId.value !== null)
 const outsideBlackeningRequestVideoIds = ref<Set<number>>(new Set())
+const fpsNormalizationVideoId = ref<number | null>(null)
+let fpsNormalizationPollTimer: ReturnType<typeof setTimeout> | null = null
 const isBlackeningOutsideSegments = computed(
   () =>
     selectedVideoId.value !== null &&
@@ -1152,6 +1154,9 @@ async function loadSelectedVideo() {
   clearSuccessMessage()
 
   try {
+    if (!(await ensureSegmentationFpsReady(selectedVideoId.value))) {
+      return
+    }
     await videoStore.loadVideo(selectedVideoId.value)
     await loadVideoDetail(selectedVideoId.value)
     await guarded(loadSavedExaminations())
@@ -1159,6 +1164,107 @@ async function loadSelectedVideo() {
   } catch (err: any) {
     await guarded(Promise.reject(err))
   }
+}
+
+type FpsNormalizationState = {
+  status: string
+  fps: number | null
+  maxFps: number
+  detail: string
+}
+
+const normalizeFpsNormalizationState = (data: any): FpsNormalizationState => ({
+  status: String(data?.status ?? ''),
+  fps: Number.isFinite(Number(data?.fps)) ? Number(data.fps) : null,
+  maxFps: Number(data?.maxFps ?? data?.max_fps ?? 50),
+  detail: String(data?.detail ?? data?.error ?? '')
+})
+
+const clearFpsNormalizationPolling = (): void => {
+  if (fpsNormalizationPollTimer !== null) {
+    clearTimeout(fpsNormalizationPollTimer)
+    fpsNormalizationPollTimer = null
+  }
+  fpsNormalizationVideoId.value = null
+}
+
+const scheduleFpsNormalizationPoll = (videoId: number): void => {
+  clearFpsNormalizationPolling()
+  fpsNormalizationVideoId.value = videoId
+  fpsNormalizationPollTimer = setTimeout(async () => {
+    fpsNormalizationPollTimer = null
+    if (selectedVideoId.value !== videoId) {
+      fpsNormalizationVideoId.value = null
+      return
+    }
+    try {
+      const response = await axiosInstance.get(
+        r(endpoints.media.videoSegmentsNormalizeFps(videoId))
+      )
+      const state = normalizeFpsNormalizationState(response.data)
+      if (state.status === 'ready') {
+        fpsNormalizationVideoId.value = null
+        showSuccessMessage(
+          `Video auf ${state.fps ?? state.maxFps} fps normalisiert. Segmentansicht wird geladen.`
+        )
+        await loadSelectedVideo()
+        await loadVideoSegments()
+        return
+      }
+      if (state.status === 'failed') {
+        showErrorMessage(
+          `Automatische FPS-Normalisierung fehlgeschlagen${state.detail ? `: ${state.detail}` : '.'}`,
+          'danger'
+        )
+        return
+      }
+      scheduleFpsNormalizationPoll(videoId)
+    } catch (error: any) {
+      await guarded(Promise.reject(error))
+    }
+  }, 5000)
+}
+
+const ensureSegmentationFpsReady = async (videoId: number): Promise<boolean> => {
+  fpsNormalizationVideoId.value = videoId
+  const statusResponse = await axiosInstance.get(
+    r(endpoints.media.videoSegmentsNormalizeFps(videoId))
+  )
+  let state = normalizeFpsNormalizationState(statusResponse.data)
+  // Older deployments return the video metadata without a normalization
+  // status. In that case the existing media is already usable and should not
+  // be hidden behind a polling gate.
+  if (!state.status && statusResponse.data && typeof statusResponse.data === 'object') {
+    clearFpsNormalizationPolling()
+    return true
+  }
+  if (state.status === 'ready') {
+    clearFpsNormalizationPolling()
+    return true
+  }
+  if (state.status === 'required') {
+    const dispatchResponse = await axiosInstance.post(
+      r(endpoints.media.videoSegmentsNormalizeFps(videoId)),
+      {}
+    )
+    state = normalizeFpsNormalizationState(dispatchResponse.data)
+  }
+  if (state.status === 'ready') {
+    clearFpsNormalizationPolling()
+    return true
+  }
+  if (state.status === 'failed') {
+    showErrorMessage(
+      `Automatische FPS-Normalisierung fehlgeschlagen${state.detail ? `: ${state.detail}` : '.'}`,
+      'danger'
+    )
+    return false
+  }
+  showSuccessMessage(
+    `Quellvideo mit ${state.fps ?? 'mehr als 50'} fps wird automatisch auf maximal ${state.maxFps} fps normalisiert.`
+  )
+  scheduleFpsNormalizationPoll(videoId)
+  return false
 }
 
 function onVideoChange() {
@@ -1443,6 +1549,7 @@ const hasSegmentEditOverride = computed(
 const canMutateSelectedSegments = computed(
   () =>
     canAnnotateSelectedVideo.value &&
+    fpsNormalizationVideoId.value === null &&
     (selectedVideoId.value === null || !isSegmentCleanupPending(selectedVideoId.value)) &&
     (!isSegmentReadOnlyByValidation.value || hasSegmentEditOverride.value)
 )
@@ -1624,6 +1731,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  clearFpsNormalizationPolling()
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
@@ -1696,6 +1804,9 @@ useAuthenticatedVideoStream({
 })
 
 function getSegmentMutationBlockedMessage(): string {
+  if (fpsNormalizationVideoId.value !== null) {
+    return 'Die FPS-Normalisierung läuft. Die Segmentansicht wird danach automatisch geladen.'
+  }
   if (selectedVideoId.value !== null && !canAnnotateSegments(selectedVideoId.value)) {
     return 'Segmentbearbeitung ist erst nach validierter Anonymisierung möglich.'
   }
@@ -1774,6 +1885,7 @@ const loadVideoMetadata = async (): Promise<void> => {
 async function loadVideoSegments(): Promise<void> {
   if (selectedVideoId.value === null) return
   if (!canViewProcessedVideo(selectedVideoId.value)) return
+  if (fpsNormalizationVideoId.value !== null) return
 
   try {
     await videoStore.fetchAllSegments(selectedVideoId.value, true, {

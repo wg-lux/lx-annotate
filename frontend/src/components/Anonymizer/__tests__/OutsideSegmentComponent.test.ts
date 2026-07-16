@@ -1,12 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, reactive } from 'vue'
+import { nextTick, reactive, ref } from 'vue'
 
 import axiosInstance from '@/api/axiosInstance'
 import OutsideSegmentComponent from '../OutsideSegmentComponent.vue'
 
 const hoisted = vi.hoisted(() => ({
-  videoStoreRef: { current: null as any }
+  videoStoreRef: { current: null as any },
+  useAuthenticatedVideoStream: vi.fn()
 }))
 
 vi.mock('@/api/axiosInstance', () => ({
@@ -39,6 +40,10 @@ vi.mock('@/components/VideoExamination/Timeline.vue', () => ({
   }
 }))
 
+vi.mock('@/composables/useAuthenticatedVideoStream', () => ({
+  useAuthenticatedVideoStream: hoisted.useAuthenticatedVideoStream
+}))
+
 function buildSegment(id: number, label = 'outside') {
   return {
     id,
@@ -53,6 +58,12 @@ function buildSegment(id: number, label = 'outside') {
 describe('OutsideSegmentComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.useAuthenticatedVideoStream.mockReturnValue({
+      playbackError: ref(null),
+      playbackSourceUrl: ref(''),
+      playbackMode: ref('idle'),
+      isHlsPlayback: ref(false)
+    })
 
     hoisted.videoStoreRef.current = reactive({
       allSegments: [buildSegment(11), buildSegment(12), buildSegment(99, 'polyp')],
@@ -65,6 +76,19 @@ describe('OutsideSegmentComponent', () => {
         duration: 12
       }
     } as any)
+  })
+
+  it('uses authenticated processed HLS without a legacy video src', async () => {
+    const wrapper = mount(OutsideSegmentComponent, {
+      props: { videoId: 7 }
+    })
+
+    await flushPromises()
+
+    expect(hoisted.useAuthenticatedVideoStream).toHaveBeenCalledWith(
+      expect.objectContaining({ artifactKind: 'processed' })
+    )
+    expect(wrapper.find('video').attributes('src')).toBeUndefined()
   })
 
   it('validates a single outside segment via the backend endpoint', async () => {

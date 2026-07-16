@@ -40,7 +40,14 @@ describe('HubExportOverviewComponent', () => {
       data: {
         selectedTargetNodeKey: 'hub-node',
         sourceNodeKey: 'site-node',
-        hubNodes: [{ nodeKey: 'hub-node', displayName: 'Hub', baseUrl: 'https://hub.example', owningCenterKey: 'center-a' }],
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: 'center-a'
+          }
+        ],
         configReady: true,
         configError: '',
         items: [
@@ -85,8 +92,18 @@ describe('HubExportOverviewComponent', () => {
           selectedTargetNodeKey: null,
           sourceNodeKey: 'site-node',
           hubNodes: [
-            { nodeKey: 'hub-node-a', displayName: 'Hub A', baseUrl: 'https://hub-a.example', owningCenterKey: 'center-a' },
-            { nodeKey: 'hub-node-b', displayName: 'Hub B', baseUrl: 'https://hub-b.example', owningCenterKey: 'center-a' }
+            {
+              nodeKey: 'hub-node-a',
+              displayName: 'Hub A',
+              baseUrl: 'https://hub-a.example',
+              owningCenterKey: 'center-a'
+            },
+            {
+              nodeKey: 'hub-node-b',
+              displayName: 'Hub B',
+              baseUrl: 'https://hub-b.example',
+              owningCenterKey: 'center-a'
+            }
           ],
           configReady: false,
           configError: 'Normal sender mode requires exactly one active central hub node.',
@@ -114,7 +131,14 @@ describe('HubExportOverviewComponent', () => {
         data: {
           selectedTargetNodeKey: 'hub-node-a',
           sourceNodeKey: 'site-node',
-          hubNodes: [{ nodeKey: 'hub-node-a', displayName: 'Hub A', baseUrl: 'https://hub-a.example', owningCenterKey: 'center-a' }],
+          hubNodes: [
+            {
+              nodeKey: 'hub-node-a',
+              displayName: 'Hub A',
+              baseUrl: 'https://hub-a.example',
+              owningCenterKey: 'center-a'
+            }
+          ],
           configReady: true,
           configError: '',
           items: [
@@ -141,7 +165,14 @@ describe('HubExportOverviewComponent', () => {
         data: {
           selectedTargetNodeKey: 'hub-node-a',
           sourceNodeKey: 'site-node',
-          hubNodes: [{ nodeKey: 'hub-node-a', displayName: 'Hub A', baseUrl: 'https://hub-a.example', owningCenterKey: 'center-a' }],
+          hubNodes: [
+            {
+              nodeKey: 'hub-node-a',
+              displayName: 'Hub A',
+              baseUrl: 'https://hub-a.example',
+              owningCenterKey: 'center-a'
+            }
+          ],
           configReady: true,
           configError: '',
           items: []
@@ -175,7 +206,14 @@ describe('HubExportOverviewComponent', () => {
       data: {
         selectedTargetNodeKey: 'hub-node',
         sourceNodeKey: 'site-node',
-        hubNodes: [{ nodeKey: 'hub-node', displayName: 'Hub', baseUrl: 'https://hub.example', owningCenterKey: 'center-a' }],
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: 'center-a'
+          }
+        ],
         configReady: true,
         configError: '',
         privacySummary: {
@@ -212,7 +250,9 @@ describe('HubExportOverviewComponent', () => {
     const wrapper = mount(HubExportOverviewComponent)
     await flushPromises()
 
-    expect(wrapper.get('[data-test="hub-export-privacy-summary"]').text()).toContain('K-Anonymität k=5')
+    expect(wrapper.get('[data-test="hub-export-privacy-summary"]').text()).toContain(
+      'K-Anonymität k=5'
+    )
     expect(wrapper.get('[data-test="hub-export-privacy-badge"]').text()).toBe('nicht ausreichend')
     expect(wrapper.get('[data-test="hub-export-privacy-smallest-class"]').text()).toBe('3')
     expect(wrapper.get('[data-test="hub-export-privacy-violating-classes"]').text()).toBe('1')
@@ -223,9 +263,57 @@ describe('HubExportOverviewComponent', () => {
       data: {
         selectedTargetNodeKey: 'hub-node',
         sourceNodeKey: 'site-node',
-        hubNodes: [{ nodeKey: 'hub-node', displayName: 'Hub', baseUrl: 'https://hub.example', owningCenterKey: 'center-a' }],
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: 'center-a'
+          }
+        ],
         configReady: true,
         configError: '',
+        syncSummary: {
+          centers: [
+            {
+              centerKey: 'center-a',
+              displayName: 'Center A',
+              activeNodeKeys: ['site-node'],
+              processedFiles: [
+                {
+                  resourceKind: 'video',
+                  resourceId: 31,
+                  filename: 'video-cleanup.mp4',
+                  resourceHash: 'cleanup-hash',
+                  processedFileHash: 'cleanup-processed-hash',
+                  centerKey: 'center-a',
+                  centerName: 'Center A',
+                  eligible: false,
+                  transferRegistered: false,
+                  transferKey: null,
+                  transferStatus: '',
+                  targetNodeKey: null
+                }
+              ],
+              candidateCount: 0,
+              rejectionCount: 1,
+              duplicateCount: 0
+            }
+          ],
+          rejections: [
+            {
+              resourceKind: 'video',
+              resourceId: 31,
+              filename: 'video-cleanup.mp4',
+              centerKey: 'center-a',
+              reason: 'segment_cleanup_pending',
+              detail: 'segment cleanup pending'
+            }
+          ],
+          duplicates: [],
+          processedFileCount: 1,
+          candidateCount: 0
+        },
         items: [
           {
             id: 31,
@@ -253,6 +341,167 @@ describe('HubExportOverviewComponent', () => {
 
     expect(wrapper.text()).toContain('video-cleanup.mp4')
     expect(wrapper.text()).toContain('segment cleanup pending')
-    expect(wrapper.get('[data-test="hub-export-select-video-31"]').attributes('disabled')).toBeDefined()
+    expect(
+      wrapper.get('[data-test="hub-export-select-video-31"]').attributes('disabled')
+    ).toBeDefined()
+  })
+
+  it('summarizes centers, processed files, rejections, and registered transfers', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: null
+          }
+        ],
+        configReady: true,
+        configError: '',
+        syncSummary: {
+          centers: [
+            {
+              centerKey: 'center-a',
+              displayName: 'Center A',
+              activeNodeKeys: ['site-node'],
+              processedFiles: [
+                {
+                  resourceKind: 'video',
+                  resourceId: 41,
+                  filename: 'candidate.mp4',
+                  resourceHash: 'candidate-hash',
+                  processedFileHash: 'candidate-processed-hash',
+                  centerKey: 'center-a',
+                  centerName: 'Center A',
+                  eligible: true,
+                  transferRegistered: false,
+                  transferKey: null,
+                  transferStatus: '',
+                  targetNodeKey: null
+                },
+                {
+                  resourceKind: 'video',
+                  resourceId: 43,
+                  filename: 'registered.mp4',
+                  resourceHash: 'registered-hash',
+                  processedFileHash: 'registered-processed-hash',
+                  centerKey: 'center-a',
+                  centerName: 'Center A',
+                  eligible: true,
+                  transferRegistered: true,
+                  transferKey: 'site-node__video__registered-hash__processed_v1',
+                  transferStatus: 'queued',
+                  targetNodeKey: 'hub-node'
+                }
+              ],
+              candidateCount: 1,
+              rejectionCount: 0,
+              duplicateCount: 1
+            },
+            {
+              centerKey: 'center-b',
+              displayName: 'Center B',
+              activeNodeKeys: [],
+              processedFiles: [],
+              candidateCount: 0,
+              rejectionCount: 1,
+              duplicateCount: 0
+            }
+          ],
+          rejections: [
+            {
+              resourceKind: 'report',
+              resourceId: 42,
+              filename: 'rejected.pdf',
+              centerKey: 'center-b',
+              reason: 'missing_processed_file',
+              detail: 'processed media missing'
+            }
+          ],
+          duplicates: [
+            {
+              resourceKind: 'video',
+              resourceId: 43,
+              filename: 'registered.mp4',
+              centerKey: 'center-a',
+              reason: 'transfer_already_registered',
+              transferKey: 'site-node__video__registered-hash__processed_v1',
+              transferStatus: 'queued',
+              targetNodeKey: 'hub-node'
+            }
+          ],
+          processedFileCount: 2,
+          candidateCount: 1
+        },
+        items: [
+          {
+            id: 41,
+            resourceKind: 'video',
+            filename: 'candidate.mp4',
+            anonymizationStatus: 'validated',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: false,
+            outboundStatus: '',
+            lastError: '',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: true,
+            createdAt: null
+          },
+          {
+            id: 42,
+            resourceKind: 'report',
+            filename: 'rejected.pdf',
+            anonymizationStatus: 'not_started',
+            processedMediaPresent: false,
+            sourceCenterKey: 'center-b',
+            sourceCenterName: 'Center B',
+            markedForUpload: false,
+            outboundStatus: '',
+            lastError: '',
+            blockedReason: 'processed media missing',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: false,
+            createdAt: null
+          },
+          {
+            id: 43,
+            resourceKind: 'video',
+            filename: 'registered.mp4',
+            anonymizationStatus: 'validated',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: true,
+            outboundStatus: 'queued',
+            lastError: '',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: true,
+            createdAt: null
+          }
+        ]
+      }
+    })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="hub-sync-center-count"]').text()).toContain('2')
+    expect(wrapper.get('[data-test="hub-sync-processed-count"]').text()).toContain('2')
+    expect(wrapper.get('[data-test="hub-sync-rejection-count"]').text()).toContain('1')
+    expect(wrapper.get('[data-test="hub-sync-duplicate-count"]').text()).toContain('1')
+    expect(wrapper.get('[data-test="hub-sync-center-center-a"]').text()).toContain('Center A')
+    expect(wrapper.get('[data-test="hub-sync-rejections"]').text()).toContain(
+      'processed media missing'
+    )
+    expect(wrapper.get('[data-test="hub-sync-duplicates"]').text()).toContain('queued')
+    expect(wrapper.text()).toContain('rejected.pdf')
   })
 })

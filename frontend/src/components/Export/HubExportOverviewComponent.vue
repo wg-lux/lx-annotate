@@ -1,7 +1,9 @@
 <template>
   <div class="container-fluid py-4">
     <div class="card">
-      <div class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div
+        class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-3"
+      >
         <div>
           <h4 class="mb-0">Hub-Export</h4>
           <p class="text-sm text-muted mb-0">
@@ -48,13 +50,140 @@
           data-test="hub-export-config-warning"
         >
           <strong>Konfiguration unvollständig.</strong>
-          {{ hubExportStore.configError || 'Es wird ein aktiver Site-Node und genau ein aktiver Central-Hub-Node benötigt.' }}
+          {{
+            hubExportStore.configError ||
+            'Es wird ein aktiver Site-Node und genau ein aktiver Central-Hub-Node benötigt.'
+          }}
         </div>
+
+        <section class="mb-4" aria-labelledby="hub-sync-overview-title">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+              <h5 id="hub-sync-overview-title" class="mb-1">Dateisynchronisation</h5>
+              <p class="text-sm text-muted mb-0">
+                Lokaler Bestand verarbeiteter Dateien und bekannte Transfersituationen.
+              </p>
+            </div>
+            <span class="badge bg-light text-dark" data-test="hub-sync-node-count">
+              {{ hubExportStore.hubNodes.length }} aktive Hub-Ziele
+            </span>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-xl-3">
+              <div class="sync-metric h-100" data-test="hub-sync-center-count">
+                <span class="sync-metric-value">{{ syncCenters.length }}</span>
+                <span class="sync-metric-label">Zentren im Bestand</span>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="sync-metric h-100" data-test="hub-sync-processed-count">
+                <span class="sync-metric-value">{{ syncSummary?.processedFileCount ?? 0 }}</span>
+                <span class="sync-metric-label">Processed Files</span>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="sync-metric h-100" data-test="hub-sync-rejection-count">
+                <span class="sync-metric-value text-danger">{{ syncRejections.length }}</span>
+                <span class="sync-metric-label">Ablehnungen</span>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="sync-metric h-100" data-test="hub-sync-duplicate-count">
+                <span class="sync-metric-value text-primary">{{ syncDuplicates.length }}</span>
+                <span class="sync-metric-label">Bereits registriert</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive sync-center-table mb-3">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Zentrum</th>
+                  <th>Aktive Knoten</th>
+                  <th>Processed Files</th>
+                  <th>Transferkandidaten</th>
+                  <th>Ablehnungen</th>
+                  <th>Registrierte Transfers</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="center in syncCenters"
+                  :key="center.centerKey"
+                  :data-test="`hub-sync-center-${center.centerKey}`"
+                >
+                  <td>
+                    <span class="fw-semibold">{{ center.displayName }}</span>
+                    <span class="d-block text-xs text-muted">
+                      {{ center.centerKey }}
+                    </span>
+                  </td>
+                  <td>{{ center.activeNodeKeys.join(', ') || '-' }}</td>
+                  <td>{{ center.processedFiles.length }}</td>
+                  <td>{{ center.candidateCount }}</td>
+                  <td :class="center.rejectionCount ? 'text-danger fw-semibold' : ''">
+                    {{ center.rejectionCount }}
+                  </td>
+                  <td>{{ center.duplicateCount }}</td>
+                </tr>
+                <tr v-if="!syncCenters.length">
+                  <td colspan="6" class="text-center text-muted py-3">
+                    Keine Zentren im System registriert.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="sync-situation h-100" data-test="hub-sync-rejections">
+                <h6>Ablehnungskriterien</h6>
+                <ul v-if="syncRejections.length" class="list-unstyled mb-0">
+                  <li
+                    v-for="item in syncRejections"
+                    :key="`rejected-${item.resourceKind}-${item.resourceId}`"
+                    class="sync-situation-item"
+                  >
+                    <span class="fw-semibold">{{ item.filename }}</span>
+                    <span class="d-block text-sm text-danger">{{ item.detail }}</span>
+                  </li>
+                </ul>
+                <p v-else class="text-sm text-muted mb-0">Keine Ablehnungen gemeldet.</p>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="sync-situation h-100" data-test="hub-sync-duplicates">
+                <h6>Bereits registrierte Transfers / Duplikate</h6>
+                <ul v-if="syncDuplicates.length" class="list-unstyled mb-0">
+                  <li
+                    v-for="item in syncDuplicates"
+                    :key="item.transferKey"
+                    class="sync-situation-item"
+                  >
+                    <span class="fw-semibold">{{ item.filename }}</span>
+                    <span class="d-block text-sm text-muted">
+                      {{ item.transferStatus || 'Transfer registriert' }} ·
+                      {{ item.targetNodeKey }}
+                    </span>
+                  </li>
+                </ul>
+                <p v-else class="text-sm text-muted mb-0">
+                  Keine bereits registrierten Transfers gemeldet.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
           <div class="text-sm text-muted">
             Source Node:
-            <span class="fw-semibold">{{ hubExportStore.sourceNodeKey || 'nicht konfiguriert' }}</span>
+            <span class="fw-semibold">{{
+              hubExportStore.sourceNodeKey || 'nicht konfiguriert'
+            }}</span>
           </div>
           <div class="d-flex gap-2 flex-wrap">
             <button
@@ -98,19 +227,13 @@
             </span>
             <span>
               kleinste Gruppe:
-              <span
-                class="fw-semibold text-dark"
-                data-test="hub-export-privacy-smallest-class"
-              >
+              <span class="fw-semibold text-dark" data-test="hub-export-privacy-smallest-class">
                 {{ privacyMetricValue(privacySummary.smallestEquivalenceClassSize) }}
               </span>
             </span>
             <span>
               verletzte Gruppen:
-              <span
-                class="fw-semibold text-dark"
-                data-test="hub-export-privacy-violating-classes"
-              >
+              <span class="fw-semibold text-dark" data-test="hub-export-privacy-violating-classes">
                 {{ privacySummary.violatingEquivalenceClassCount }}
               </span>
             </span>
@@ -161,7 +284,10 @@
                 </td>
                 <td>{{ item.filename }}</td>
                 <td>
-                  <span class="badge" :class="item.resourceKind === 'video' ? 'bg-info' : 'bg-secondary'">
+                  <span
+                    class="badge"
+                    :class="item.resourceKind === 'video' ? 'bg-info' : 'bg-secondary'"
+                  >
                     {{ item.resourceKind.toUpperCase() }}
                   </span>
                 </td>
@@ -177,19 +303,22 @@
                 </td>
                 <td>{{ item.sourceCenterKey || item.sourceCenterName || '-' }}</td>
                 <td>
-                  <span class="badge" :class="item.markedForUpload ? 'bg-success' : 'bg-light text-dark'">
+                  <span
+                    class="badge"
+                    :class="item.markedForUpload ? 'bg-success' : 'bg-light text-dark'"
+                  >
                     {{ item.markedForUpload ? 'Ja' : 'Nein' }}
                   </span>
                 </td>
                 <td>
-                  <span class="badge" :class="item.outboundStatus ? 'bg-primary' : 'bg-light text-dark'">
+                  <span
+                    class="badge"
+                    :class="item.outboundStatus ? 'bg-primary' : 'bg-light text-dark'"
+                  >
                     {{ item.outboundStatus || 'nicht markiert' }}
                   </span>
                 </td>
-                <td
-                  class="small"
-                  :class="itemNotice(item) === '-' ? 'text-muted' : 'text-danger'"
-                >
+                <td class="small" :class="itemNotice(item) === '-' ? 'text-muted' : 'text-danger'">
                   {{ itemNotice(item) }}
                 </td>
               </tr>
@@ -217,19 +346,25 @@ const selectionKey = (item: HubExportItem) => `${item.resourceKind}:${item.id}`
 
 const itemNotice = (item: HubExportItem) => item.lastError || item.blockedReason || '-'
 
-const filteredItems = computed(() =>
-  hubExportStore.items.filter((item) => item.eligible || item.markedForUpload || item.blockedReason)
-)
+const filteredItems = computed(() => hubExportStore.items)
+const syncSummary = computed(() => hubExportStore.syncSummary)
+const syncCenters = computed(() => syncSummary.value?.centers ?? [])
+const syncRejections = computed(() => syncSummary.value?.rejections ?? [])
+const syncDuplicates = computed(() => syncSummary.value?.duplicates ?? [])
+
 const privacySummary = computed(() => hubExportStore.privacySummary)
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible))
-const allSelectableChecked = computed(() =>
-  selectableItems.value.length > 0 &&
-  selectableItems.value.every((item) => selectedKeys.value.has(selectionKey(item)))
+const allSelectableChecked = computed(
+  () =>
+    selectableItems.value.length > 0 &&
+    selectableItems.value.every((item) => selectedKeys.value.has(selectionKey(item)))
 )
 
 const selectedEligibleItems = computed(() =>
   filteredItems.value
-    .filter((item) => selectedKeys.value.has(selectionKey(item)) && item.eligible && !item.markedForUpload)
+    .filter(
+      (item) => selectedKeys.value.has(selectionKey(item)) && item.eligible && !item.markedForUpload
+    )
     .map((item) => ({ id: item.id, resourceKind: item.resourceKind }))
 )
 
@@ -342,5 +477,44 @@ onMounted(async () => {
   border: 1px solid #dee2e6;
   border-radius: 8px;
   padding: 0.75rem 1rem;
+}
+
+.sync-metric,
+.sync-situation,
+.sync-center-table {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.sync-metric {
+  display: flex;
+  flex-direction: column;
+  padding: 0.875rem 1rem;
+}
+
+.sync-metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sync-metric-label {
+  color: #6c757d;
+  font-size: 0.8rem;
+}
+
+.sync-center-table {
+  overflow: hidden;
+}
+
+.sync-situation {
+  padding: 1rem;
+}
+
+.sync-situation-item + .sync-situation-item {
+  border-top: 1px solid #eef0f2;
+  margin-top: 0.625rem;
+  padding-top: 0.625rem;
 }
 </style>

@@ -94,7 +94,7 @@ export const useExaminationStore = defineStore('examination', {
                     })
                         .filter((entry) => entry && Number.isFinite(entry.id));
                 };
-                const dropdownPayload = await axiosInstance.get(`/api/${endpoints.examination.examinationsDropdown}`);
+                const dropdownPayload = await axiosInstance.get(endpoints.examination.examinationsDropdown);
                 const dropdownRows = Array.isArray(dropdownPayload.data) ? dropdownPayload.data :
                     Array.isArray(dropdownPayload.data?.results)
                         ? dropdownPayload.data.results
@@ -102,6 +102,7 @@ export const useExaminationStore = defineStore('examination', {
                 normalizeRows(dropdownRows);
             }
             catch (e) {
+                this.exams = [];
                 this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler';
             }
             finally {

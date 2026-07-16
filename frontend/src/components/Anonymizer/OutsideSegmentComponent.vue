@@ -5,7 +5,7 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
-import { buildVideoStreamUrl } from '@/utils/mediaUrls'
+import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 
 /**
  * Props: which video to display
@@ -26,7 +26,6 @@ const emit = defineEmits<{
  * Local state for the player + meta
  */
 const videoEl = ref<HTMLVideoElement | null>(null)
-const videoUrl = ref<string>('')                  // centralized stream URL
 const duration = ref<number>(0)                   // seconds
 const currentTime = ref<number>(0)
 const isPlaying = ref<boolean>(false)
@@ -35,6 +34,12 @@ const isPlaying = ref<boolean>(false)
  * Store with segments
  */
 const videoStore = useVideoStore()
+const streamVideoId = computed(() => props.videoId)
+const { playbackError: videoPlaybackError } = useAuthenticatedVideoStream({
+  videoElement: videoEl,
+  videoId: streamVideoId,
+  artifactKind: 'processed'
+})
 
 /**
  * Validation state
@@ -48,7 +53,6 @@ const validationError = ref<string>('')
  */
 async function loadVideoDetail(videoId: number) {
   const { data } = await axiosInstance.get(`/${r(endpoints.media.videoDetail(videoId))}`)
-  videoUrl.value = buildVideoStreamUrl(videoId, 'processed')
   duration.value = Number(data.duration ?? 0)
 }
 
@@ -238,10 +242,12 @@ function onSegmentDelete() {}
     <!-- Video Player -->
     <video
       ref="videoEl"
-      :src="videoUrl"
       controls
       style="width: 100%; max-height: 480px;"
     />
+    <div v-if="videoPlaybackError" class="alert alert-warning py-2 mt-2">
+      {{ videoPlaybackError.message }}
+    </div>
 
     <!-- Segments Overview -->
     <div v-if="outsideSegments.length > 0" class="segments-overview mb-3">

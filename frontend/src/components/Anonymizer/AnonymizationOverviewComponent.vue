@@ -415,10 +415,11 @@ const correctVideo = async (fileId: number) => {
 
 
   // Navigate directly to the correction component with the video ID
-  router.push({ name: 'Anonymisierung Korrektur',       query: {
-        fileId: String(fileId),       
-        mediaType: file.mediaType      // 'video' | 'pdf'
-     } });
+  router.push({
+    name: 'Anonymisierung Korrektur',
+    params: { fileId: String(fileId) },
+    query: { mediaType: file.mediaType }
+  });
 };
 
 const isReadyForValidation = (fileId: number) => {
