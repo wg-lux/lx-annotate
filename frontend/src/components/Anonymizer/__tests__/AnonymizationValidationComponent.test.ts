@@ -70,7 +70,9 @@ vi.mock('@/types/api/endpoints', () => ({
       patientTimeline: (patientId: number) => `media/patients/${patientId}/timeline/`,
       pdfStream: (fileId: number) => `media/pdfs/${fileId}/stream/`,
       videoStream: (fileId: number) => `media/videos/${fileId}/stream/`,
-      videoHlsPlaylist: (fileId: number) => `media/videos/${fileId}/hls/playlist/`
+      videoHlsPlaylist: (fileId: number) => `media/videos/${fileId}/hls/playlist/`,
+      videoCorrectionAnonymization: (fileId: number) =>
+        `media/videos/video-correction/${fileId}/anonymization/`
     },
     examination: {
       patientExaminationList: 'examination/patient-examinations/'
@@ -162,6 +164,23 @@ describe('AnonymizationValidationComponent', () => {
       }
       if (url === 'examination/patient-examinations/') {
         return { data: [] } as any
+      }
+      if (url === 'media/videos/video-correction/5/anonymization/') {
+        return {
+          data: {
+            strategies: ['detector_assisted', 'processor_region'],
+            defaultStrategy: 'detector_assisted',
+            selectedStrategy: 'detector_assisted',
+            model: { name: 'phi-detector', version: '1.0' },
+            ocrEngines: ['RapidOCR'],
+            reviewRequired: true,
+            processedArtifact: {
+              available: true,
+              streamUrl: '/api/media/videos/5/hls/playlist/?artifact=processed'
+            },
+            latestRun: null
+          }
+        } as any
       }
       return { data: {} } as any
     })
@@ -305,6 +324,19 @@ describe('AnonymizationValidationComponent', () => {
         returnTo: '/anonymisierung/validierung?fileId=5&mediaType=video'
       }
     })
+  })
+
+  it('renders the camel-cased video anonymization status returned by axios', async () => {
+    hoisted.mediaStoreRef.current.isPdf = false
+    hoisted.mediaStoreRef.current.isVideo = true
+
+    const wrapper = mountComponent({ fileId: 5, mediaType: 'video' })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('PHI-Detektor-gestützte All-Frame-Anonymisierung')
+    expect(wrapper.text()).toContain('RapidOCR')
+    expect(wrapper.text()).toContain('Anonymisierte Fassung verfügbar')
+    expect(wrapper.text()).toContain('Menschliche Prüfung und Freigabe erforderlich')
   })
 
   it('uses authenticated raw and processed HLS players without direct src bindings', async () => {

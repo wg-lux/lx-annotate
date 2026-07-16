@@ -498,20 +498,20 @@
                             <strong>{{ videoStrategyLabel }}</strong>
                             <div class="small mt-1">
                               Modell: {{ videoModelDisplay }}<br>
-                              Verfügbare OCR-Kaskade: {{ videoAnonymizationStatus.ocr_engines?.join(', ') || 'Nicht gemeldet' }}<br>
+                              Verfügbare OCR-Kaskade: {{ videoAnonymizationStatus.ocrEngines?.join(', ') || 'Nicht gemeldet' }}<br>
                               <span class="text-muted">
-                                {{ videoAnonymizationStatus.selected_strategy === 'detector_assisted'
+                                {{ videoAnonymizationStatus.selectedStrategy === 'detector_assisted'
                                   ? 'OCR war nicht Bestandteil der All-Frame-Maskierung.'
                                   : 'OCR war nicht Bestandteil dieses Prozessorregion-Laufs.' }}
                               </span>
                             </div>
                           </div>
                           <div class="text-end">
-                            <span class="badge" :class="videoAnonymizationStatus.processed_artifact.available ? 'bg-success' : 'bg-danger'">
-                              {{ videoAnonymizationStatus.processed_artifact.available ? 'Anonymisierte Fassung verfügbar' : 'Kein anonymisiertes Artefakt' }}
+                            <span class="badge" :class="videoAnonymizationStatus.processedArtifact.available ? 'bg-success' : 'bg-danger'">
+                              {{ videoAnonymizationStatus.processedArtifact.available ? 'Anonymisierte Fassung verfügbar' : 'Kein anonymisiertes Artefakt' }}
                             </span>
                             <div class="small mt-1">
-                              {{ videoAnonymizationStatus.review_required
+                              {{ videoAnonymizationStatus.reviewRequired
                                 ? 'Menschliche Prüfung und Freigabe erforderlich'
                                 : 'Review-Anforderung fehlt' }}
                             </div>
@@ -904,12 +904,12 @@ const isLoadingVideoAnonymization = ref(false);
 const videoAnonymizationError = ref('');
 
 const videoAnonymizationReady = computed(() =>
-  videoAnonymizationStatus.value?.processed_artifact?.available === true &&
-  videoAnonymizationStatus.value?.review_required === true
+  videoAnonymizationStatus.value?.processedArtifact?.available === true &&
+  videoAnonymizationStatus.value?.reviewRequired === true
 );
 
 const videoStrategyLabel = computed(() =>
-  videoAnonymizationStatus.value?.selected_strategy === 'processor_region'
+  videoAnonymizationStatus.value?.selectedStrategy === 'processor_region'
     ? 'Prozessorregion (Legacy)'
     : 'PHI-Detektor-gestützte All-Frame-Anonymisierung'
 );
@@ -1317,11 +1317,11 @@ const approvalBlockReason = computed(() => {
     return videoAnonymizationError.value || 'Der Anonymisierungsstatus konnte nicht geprüft werden.';
   }
 
-  if (isVideo.value && !videoAnonymizationStatus.value?.processed_artifact.available) {
+  if (isVideo.value && !videoAnonymizationStatus.value?.processedArtifact?.available) {
     return 'Es ist noch keine anonymisierte Video-Fassung verfügbar.';
   }
 
-  if (isVideo.value && !videoAnonymizationStatus.value?.review_required) {
+  if (isVideo.value && !videoAnonymizationStatus.value?.reviewRequired) {
     return 'Das Artefakt ist nicht als verpflichtend menschlich zu prüfende Fassung gekennzeichnet.';
   }
   

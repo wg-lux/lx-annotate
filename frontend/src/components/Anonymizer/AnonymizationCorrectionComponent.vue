@@ -324,7 +324,7 @@
                         <dd class="col-7">{{ modelDisplay }}</dd>
                         <dt class="col-5">OCR verfügbar</dt>
                         <dd class="col-7">
-                          {{ anonymizationStatus?.ocr_engines?.join(', ') || 'Nicht gemeldet' }}
+                          {{ anonymizationStatus?.ocrEngines?.join(', ') || 'Nicht gemeldet' }}
                           <span class="d-block text-muted">
                             {{ selectedStrategy === 'detector_assisted'
                               ? 'Nicht Teil dieses All-Frame-Maskierungslaufs'
@@ -333,8 +333,8 @@
                         </dd>
                         <dt class="col-5">Prüfung</dt>
                         <dd class="col-7">
-                          <span class="badge" :class="anonymizationStatus?.review_required ? 'bg-warning text-dark' : 'bg-danger'">
-                            {{ anonymizationStatus?.review_required ? 'Menschliche Freigabe erforderlich' : 'Nicht freigabefähig' }}
+                          <span class="badge" :class="anonymizationStatus?.reviewRequired ? 'bg-warning text-dark' : 'bg-danger'">
+                            {{ anonymizationStatus?.reviewRequired ? 'Menschliche Freigabe erforderlich' : 'Nicht freigabefähig' }}
                           </span>
                         </dd>
                       </dl>
@@ -857,7 +857,7 @@ let pdfDocument: any = null;
 // Computed properties
 const canApplyMask = computed(() => {
   return currentVideo.value && !isProcessing.value &&
-    anonymizationStatus.value?.review_required === true &&
+    anonymizationStatus.value?.reviewRequired === true &&
     (selectedStrategy.value !== 'processor_region' ||
      maskConfig.value.type !== 'custom' ||
      (maskConfig.value.endoscopeX >= 0 && maskConfig.value.endoscopeY >= 0 &&
@@ -895,7 +895,7 @@ const canRemoveFrames = computed(() => {
 });
 
 const hasProcessedVersion = computed(() => {
-  return anonymizationStatus.value?.processed_artifact?.available === true ||
+  return anonymizationStatus.value?.processedArtifact?.available === true ||
     processingHistory.value.some(entry =>
     entry.status === 'success' && entry.outputPath
   );
@@ -1031,8 +1031,8 @@ const loadVideoDetails = async (videoId: number) => {
     processingHistory.value = normalizeProcessingHistory(historyResponse.data);
     anonymizationStatus.value = anonymizationResponse.data;
     selectedStrategy.value =
-      anonymizationResponse.data.selected_strategy ||
-      anonymizationResponse.data.default_strategy ||
+      anonymizationResponse.data.selectedStrategy ||
+      anonymizationResponse.data.defaultStrategy ||
       'detector_assisted';
     
     // Update MediaStore with current video for consistent type detection
@@ -1434,7 +1434,7 @@ const applyMasking = async () => {
   try {
     const payload: VideoAnonymizationRequest = {
       strategy: selectedStrategy.value,
-      processing_method: maskConfig.value.processingMethod,
+      processingMethod: maskConfig.value.processingMethod,
       region: maskConfig.value.type === 'custom'
         ? {
             mode: 'custom',
@@ -1447,9 +1447,9 @@ const applyMasking = async () => {
           }
         : {
             mode: 'device',
-            device_name: maskConfig.value.deviceName,
+            deviceName: maskConfig.value.deviceName,
           },
-      human_review_required: true,
+      humanReviewRequired: true,
     };
     
     const response = await axiosInstance.post<VideoAnonymizationStatus>(
@@ -1458,17 +1458,17 @@ const applyMasking = async () => {
     );
 
     anonymizationStatus.value = response.data;
-    selectedStrategy.value = response.data.selected_strategy || selectedStrategy.value;
-    const latestRun = response.data.latest_run;
+    selectedStrategy.value = response.data.selectedStrategy || selectedStrategy.value;
+    const latestRun = response.data.latestRun;
     processingProgress.value = 100;
     processingStatus.value = 'Anonymisierung abgeschlossen';
     processingHistory.value.unshift({
       id: typeof latestRun?.id === 'number' ? latestRun.id : Date.now(),
-      timestamp: latestRun?.completed_at || latestRun?.created_at || new Date().toISOString(),
+      timestamp: latestRun?.completedAt || latestRun?.createdAt || new Date().toISOString(),
       operation: 'anonymization',
       status: latestRun?.status || 'success',
       details: latestRun?.message || latestRun?.details || `${strategyLabel(selectedStrategy.value)} abgeschlossen`,
-      outputPath: response.data.output_file || latestRun?.output_file || undefined,
+      outputPath: response.data.outputFile || latestRun?.outputFile || undefined,
     });
     previewMode.value = 'processed';
     await refreshCurrentVideo();

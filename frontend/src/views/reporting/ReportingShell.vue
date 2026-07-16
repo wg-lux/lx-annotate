@@ -4,9 +4,9 @@
       <div class="reporting-command-main">
         <div class="small text-uppercase text-muted fw-semibold tracking-label">Reporting</div>
         <h4 class="mb-3">Bericht erstellen</h4>
-        <div class="context-case-select w-50">
+        <div class="context-case-select w-100 w-xl-75">
           <label class="form-label form-label-sm mb-1">Fall</label>
-          <div class="d-flex flex-column flex-lg-row gap-2">
+          <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2">
             <select
               class="form-select"
               data-testid="patient-examination-select"

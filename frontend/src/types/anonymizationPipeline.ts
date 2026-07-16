@@ -12,45 +12,45 @@ export interface VideoAnonymizationModel {
   sha256?: string | null
   required?: boolean
   confidence?: number | null
-  input_size?: number | null
+  inputSize?: number | null
 }
 
 export interface VideoAnonymizationArtifact {
   available: boolean
-  stream_url?: string | null
+  streamUrl?: string | null
 }
 
 export interface VideoAnonymizationRunSummary {
   id?: number | string | null
   strategy?: VideoAnonymizationStrategy | null
   status?: string | null
-  completed_at?: string | null
-  created_at?: string | null
-  frames_processed?: number | null
-  redactions_applied?: number | null
-  output_file?: string | null
+  completedAt?: string | null
+  createdAt?: string | null
+  framesProcessed?: number | null
+  redactionsApplied?: number | null
+  outputFile?: string | null
   message?: string | null
   details?: string | null
 }
 
 export interface VideoAnonymizationStatus {
   strategies: Array<VideoAnonymizationStrategy | VideoAnonymizationStrategyOption>
-  default_strategy: VideoAnonymizationStrategy
-  selected_strategy: VideoAnonymizationStrategy | null
+  defaultStrategy: VideoAnonymizationStrategy
+  selectedStrategy: VideoAnonymizationStrategy | null
   model?: VideoAnonymizationModel | null
-  ocr_engines: string[]
-  review_required: boolean
-  processed_artifact: VideoAnonymizationArtifact
-  latest_run?: VideoAnonymizationRunSummary | null
-  output_file?: string | null
+  ocrEngines: string[]
+  reviewRequired: boolean
+  processedArtifact: VideoAnonymizationArtifact
+  latestRun?: VideoAnonymizationRunSummary | null
+  outputFile?: string | null
 }
 
 export interface VideoAnonymizationRequest {
   strategy: VideoAnonymizationStrategy
-  processing_method: 'streaming' | 'direct'
+  processingMethod: 'streaming' | 'direct'
   region: {
     mode: 'device' | 'custom'
-    device_name?: string
+    deviceName?: string
     roi?: {
       x: number
       y: number
@@ -58,5 +58,5 @@ export interface VideoAnonymizationRequest {
       height: number
     }
   }
-  human_review_required: true
+  humanReviewRequired: true
 }
