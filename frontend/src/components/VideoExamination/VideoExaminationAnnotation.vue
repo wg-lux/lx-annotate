@@ -1018,6 +1018,16 @@ function isAnnotationFinished(videoId: number): boolean {
   return getVideoSegmentAnnotationStatus(videoId) === 'validated'
 }
 
+function hasValidatedSegments(videoId: number): boolean {
+  const video = videoList.value.videos.find((item) => item.id === videoId)
+  const status = getVideoSegmentAnnotationStatus(videoId)
+  return (
+    Boolean(video?.segmentAnnotationsValidated) ||
+    status === 'validated' ||
+    status === 'cleanup_failed'
+  )
+}
+
 function getVideoSegmentAnnotationStatus(videoId: number): SegmentAnnotationStatus {
   const video = videoList.value.videos.find((v) => v.id === videoId)
   if (video?.segmentAnnotationStatus) return video.segmentAnnotationStatus
@@ -1449,7 +1459,7 @@ const selectedPostValidationRebuildDetails = computed(() => {
 const canBlackenOutsideSegments = computed(
   () =>
     selectedVideoId.value !== null &&
-    canAnnotateSelectedVideo.value &&
+    hasValidatedSegments(selectedVideoId.value) &&
     !isSegmentCleanupPending(selectedVideoId.value) &&
     !outsideBlackeningRequestVideoIds.value.has(selectedVideoId.value)
 )
@@ -2626,6 +2636,13 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
     return
   }
 
+  if (!hasValidatedSegments(videoId)) {
+    showErrorMessage(
+      'Außerhalb-Segmente können erst nach vollständiger Segmentvalidierung geschwärzt werden.'
+    )
+    return
+  }
+
   if (outsideBlackeningRequestVideoIds.value.has(videoId)) {
     showErrorMessage(`Schwärzung für Video ${videoId} wird bereits gestartet.`)
     return
@@ -2640,7 +2657,7 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
     const response = await axiosInstance.post(
       r(endpoints.media.videoSegmentsBlackenOutside(videoId)),
       {
-        onlyValidated: false
+        onlyValidated: true
       }
     )
     if (

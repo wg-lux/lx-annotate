@@ -365,7 +365,7 @@ describe('VideoExaminationAnnotation functionality', () => {
     expect(testState.axiosPost).toHaveBeenCalledWith(
       '/api/media/videos/2/segments/blacken-outside/',
       {
-        onlyValidated: false
+        onlyValidated: true
       }
     )
     expect(testState.axiosPost).not.toHaveBeenCalledWith(

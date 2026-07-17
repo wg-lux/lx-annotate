@@ -577,7 +577,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       const videos = baseMediaVideos()
       if (mediaVideoRequests <= 1) return videos
       return videos.map((video) =>
-        video.id === 8
+        video.id === 16
           ? {
               ...video,
               segmentAnnotationStatus: 'cleanup_failed',
@@ -602,7 +602,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
     const wrapper = mountComponent()
     await flushPromises()
-    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    await selectVideoFromDropdown(wrapper, 'cleanup-failed.mp4')
 
     const button = wrapper.find('[data-test="blacken-outside-segments-button"]')
     expect(button.attributes('disabled')).toBeUndefined()
@@ -610,8 +610,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(axiosInstance.post).toHaveBeenCalledWith('media/videos/8/segments/blacken-outside/', {
-      onlyValidated: false
+    expect(axiosInstance.post).toHaveBeenCalledWith('media/videos/16/segments/blacken-outside/', {
+      onlyValidated: true
     })
     expect(wrapper.text()).toContain('Segmentvalidierung fehlgeschlagen: async frame failure')
   })
@@ -649,6 +649,10 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
   it('allows another annotator override to edit and validate a segment-validated video', async () => {
     localStorage.setItem(
       `lxAnnotate.annotationPrincipalOverride.v1:${encodeURIComponent('oidc:kc-user-7')}:${encodeURIComponent('video:10')}`,
+      'oidc:reviewer-new'
+    )
+    localStorage.setItem(
+      `lxAnnotate.annotationPrincipalOverride.v1:${encodeURIComponent('annotator')}:${encodeURIComponent('video:10')}`,
       'oidc:reviewer-new'
     )
     const wrapper = mountComponent()
