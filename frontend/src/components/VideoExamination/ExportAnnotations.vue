@@ -151,16 +151,6 @@
           </div>
           <div v-if="transcodeFrames" class="transcode-options row gx-2 mt-2">
             <div class="col-6 col-md-3">
-              <label class="form-label mb-0" for="transcode-fps">FPS</label>
-              <input
-                id="transcode-fps"
-                type="number"
-                min="1"
-                class="form-control form-control-sm"
-                v-model.number="transcodeFps"
-              />
-            </div>
-            <div class="col-6 col-md-3">
               <label class="form-label mb-0" for="transcode-quality">Quality</label>
               <input
                 id="transcode-quality"
@@ -402,9 +392,8 @@ const useExportFlags = ref(true)
 const exportVideos = ref(true)
 const exportFrames = ref(false)
 const transcodeFrames = ref(false)
-const transcodeFps = ref(50)
 const transcodeQuality = ref(23)
-const transcodeExt = ref('mp4')
+const transcodeExt = ref('jpg')
 const useFramePkPaths = ref(false)
 const isExporting = ref(false)
 const exportMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -506,7 +495,6 @@ const startExport = async () => {
 
   if (transcodeFrames.value) {
     payload.transcode_frames = true
-    payload.transcode_fps = transcodeFps.value
     payload.transcode_quality = transcodeQuality.value
     payload.transcode_ext = transcodeExt.value
   }

@@ -155,6 +155,7 @@ export const endpoints = {
       `media/videos/video-correction/${pk}/anonymization/`,
     videoMetadata: (pk: Id) => `media/videos/${pk}/metadata/`,
     videoFps: (pk: Id) => `media/videos/${pk}/fps/`,
+    videoFrameNeighborhood: (pk: Id) => `media/videos/${pk}/timeline/frame-neighborhood/`,
     videoSegmentsNormalizeFps: (pk: Id) => `media/videos/${pk}/segments/normalize-fps/`,
     videoApplyMask: (pk: Id) => `media/videos/${pk}/apply-mask/`,
     videoRemoveFrames: (pk: Id) => `media/videos/${pk}/remove-frames/`,

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi';
 import { endpoints } from '@/types/api/endpoints';
 import { getCoreConceptDisplayName } from '@/types/coreConcepts';
@@ -94,7 +94,7 @@ export const useExaminationStore = defineStore('examination', {
                     })
                         .filter((entry) => entry && Number.isFinite(entry.id));
                 };
-                const dropdownPayload = await axiosInstance.get(endpoints.examination.examinationsDropdown);
+                const dropdownPayload = await axiosInstance.get(r(endpoints.examination.examinationsDropdown));
                 const dropdownRows = Array.isArray(dropdownPayload.data) ? dropdownPayload.data :
                     Array.isArray(dropdownPayload.data?.results)
                         ? dropdownPayload.data.results

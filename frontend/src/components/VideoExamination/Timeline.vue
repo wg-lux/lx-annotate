@@ -12,7 +12,7 @@
         <button
           @click="stepFrame(-1)"
           class="control-btn"
-          :disabled="!video || duration <= 0"
+          :disabled="!canStepFrame"
           title="Ein Frame zurück"
         >
           <i class="ni ni-bold-right icon-reverse"></i>
@@ -20,7 +20,7 @@
         <button
           @click="stepFrame(1)"
           class="control-btn"
-          :disabled="!video || duration <= 0"
+          :disabled="!canStepFrame"
           title="Ein Frame vor"
         >
           <i class="ni ni-bold-right"></i>
@@ -414,7 +414,6 @@ const props = defineProps<{
   activeSegmentId?: number | null
   showWaveform?: boolean
   selectionMode?: boolean
-  fps?: number
 }>()
 
 const emit = defineEmits<{
@@ -487,6 +486,21 @@ const timeEditor = ref<TimeEditorState>({
 
 // Computed properties
 const duration = computed((): number => props.video?.duration || 0)
+const frameStepPending = ref(false)
+const frameNavigationUnavailable = ref(false)
+const frameNavigationVideoId = computed(() => videoStore.currentVideo?.id ?? null)
+const canStepFrame = computed(
+  () =>
+    Boolean(props.video) &&
+    duration.value > 0 &&
+    frameNavigationVideoId.value !== null &&
+    !frameStepPending.value &&
+    !frameNavigationUnavailable.value
+)
+
+watch(frameNavigationVideoId, () => {
+  frameNavigationUnavailable.value = false
+})
 
 // Protected playhead calculation
 const playheadPosition = computed((): number => {
@@ -1066,13 +1080,26 @@ const deleteSelectedSegment = (): void => {
   emit('segment-delete', segmentToDelete)
 }
 
-const stepFrame = (direction: -1 | 1): void => {
-  if (!duration.value) return
-  const fps = props.fps && props.fps > 0 ? props.fps : 50
-  const step = 1 / fps
-  const current = props.currentTime ?? 0
-  const next = Math.max(0, Math.min(duration.value, current + direction * step))
-  emit('seek', next)
+const stepFrame = async (direction: -1 | 1): Promise<void> => {
+  const videoId = frameNavigationVideoId.value
+  if (!canStepFrame.value || videoId === null) return
+  frameStepPending.value = true
+  try {
+    const nextTimestamp = await videoStore.resolveAdjacentFrameTimestamp(
+      videoId,
+      props.currentTime ?? 0,
+      direction
+    )
+    if (nextTimestamp !== null) {
+      emit('seek', nextTimestamp)
+    }
+  } catch (error) {
+    frameNavigationUnavailable.value = true
+    console.error('[Timeline] PTS frame navigation unavailable', error)
+    toast.error({ text: 'Framegenaue Navigation ist für dieses Video nicht verfügbar.' })
+  } finally {
+    frameStepPending.value = false
+  }
 }
 
 const seekBySeconds = (deltaSeconds: number): void => {
@@ -1108,10 +1135,9 @@ const copySelectedSegment = (): boolean => {
   )
   if (!segment) return false
   const range = getSegmentRange(segment)
-  const fps = props.fps && props.fps > 0 ? props.fps : 50
-  const minDuration = 1 / fps
-  const duration = Math.max(minDuration, range.end - range.start)
-  clipboardSegment.value = { label: range.label, duration }
+  const segmentDuration = range.end - range.start
+  if (segmentDuration <= 0) return false
+  clipboardSegment.value = { label: range.label, duration: segmentDuration }
   toast.success({ text: 'Segment kopiert' })
   return true
 }
@@ -1122,9 +1148,7 @@ const pasteSegment = (): boolean => {
     return false
   }
   const start = Math.max(0, props.currentTime ?? 0)
-  const fps = props.fps && props.fps > 0 ? props.fps : 50
-  const minDuration = 1 / fps
-  const targetDuration = Math.max(minDuration, clipboardSegment.value.duration)
+  const targetDuration = clipboardSegment.value.duration
   let end = start + targetDuration
   if (duration.value > 0) {
     end = Math.min(duration.value, end)

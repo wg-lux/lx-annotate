@@ -208,4 +208,31 @@ describe('annotationQueue store', () => {
       })
     )
   })
+
+  it('deduplicates prefetched frames that are already active or queued', async () => {
+    hoisted.get
+      .mockResolvedValueOnce({ data: { tasks: [buildTask(101), buildTask(102)] } })
+      .mockResolvedValueOnce({
+        data: { tasks: [buildTask(101), buildTask(102), buildTask(103)] }
+      })
+
+    const store = useAnnotationQueueStore()
+    store.setSelectedLabelGroupId('3')
+    await store.fetchBatch(2)
+
+    expect(store.popNextTask()?.data.frameId).toBe(101)
+    await waitForGetCall(2)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(store.taskQueue.map((task) => task.data.frameId)).toEqual([102, 103])
+  })
+
+  it('replaces legacy non-interactive information sources with the safe default', () => {
+    localStorage.setItem('annotationQueue.informationSource.v1', 'model_prediction')
+
+    const store = useAnnotationQueueStore()
+
+    expect(store.informationSource).toBe('manual_annotation')
+  })
 })

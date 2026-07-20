@@ -35,6 +35,7 @@ export interface User {
   username: string
   roles: string[]
   sub?: string
+  canOverrideAnnotationPrincipal?: boolean
 }
 
 interface Bootstrap {
@@ -84,10 +85,10 @@ export const useAuthKcStore = defineStore('auth_kc', {
     caps: {} as CapMap,
 
     /** True once we’ve attempted to load bootstrap */
-    loaded: false,
+    loaded: false
   }),
   getters: {
-    isAuthenticated: (s) => !!s.user,
+    isAuthenticated: (s) => !!s.user
   },
   actions: {
     /**
@@ -100,7 +101,9 @@ export const useAuthKcStore = defineStore('auth_kc', {
       try {
         let data: Bootstrap | any
         try {
-          const res = await axios.get<Bootstrap>(r(endpoints.auth.bootstrap), { withCredentials: true })
+          const res = await axios.get<Bootstrap>(r(endpoints.auth.bootstrap), {
+            withCredentials: true
+          })
           data = res.data
         } catch (e) {
           // Fallback for older backend
@@ -109,7 +112,7 @@ export const useAuthKcStore = defineStore('auth_kc', {
         }
 
         // User & roles (support both shapes)
-        const rawUser = (data && 'user' in data) ? (data.user as Bootstrap['user']) : null
+        const rawUser = data && 'user' in data ? (data.user as Bootstrap['user']) : null
         const fallbackSub =
           typeof data?.sub === 'string'
             ? data.sub
@@ -124,17 +127,14 @@ export const useAuthKcStore = defineStore('auth_kc', {
               sub:
                 typeof rawUser.sub === 'string' && rawUser.sub.trim()
                   ? rawUser.sub
-                  : fallbackSub ?? undefined
+                  : (fallbackSub ?? undefined)
             }
           : null
-        const roles = (data?.roles && Array.isArray(data.roles))
-          ? data.roles
-          : (user?.roles ?? [])
+        const roles = data?.roles && Array.isArray(data.roles) ? data.roles : (user?.roles ?? [])
 
         this.user = user
         this.roles = roles
         this.caps = normalizeCaps(data?.capabilities)
-
       } finally {
         // Even on failure we mark loaded so the UI can decide; middleware should redirect unauthenticated anyway
         this.loaded = true
@@ -147,7 +147,10 @@ export const useAuthKcStore = defineStore('auth_kc', {
      * - Then falls back to the plain "<key>"
      * - Missing keys default to false (secure default).
      */
-    can(key: string, method: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE'|'HEAD'|'OPTIONS' = 'GET'): boolean {
+    can(
+      key: string,
+      method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' = 'GET'
+    ): boolean {
       const composite = `${key}:${method.toUpperCase()}`
       if (this.caps.hasOwnProperty(composite)) return !!this.caps[composite]
       if (this.caps.hasOwnProperty(key)) return !!this.caps[key]
@@ -159,10 +162,10 @@ export const useAuthKcStore = defineStore('auth_kc', {
       // Explicit login button (usually not needed because backend redirects,
       // but nice to have)
       const next = encodeURIComponent(
-        window.location.pathname + window.location.search + window.location.hash,
+        window.location.pathname + window.location.search + window.location.hash
       )
       window.location.href = `/oidc/authenticate/?next=${next}`
-     },
+    },
 
     logout() {
       clearReportingSessionArtifacts()
@@ -174,7 +177,6 @@ export const useAuthKcStore = defineStore('auth_kc', {
 
       // Let Django + mozilla_django_oidc handle full logout + Keycloak side
       window.location.href = '/oidc/logout/'
-    },
-
-  },
+    }
+  }
 })

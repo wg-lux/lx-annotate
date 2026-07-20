@@ -49,6 +49,8 @@ const hoisted = vi.hoisted(() => ({
     medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
     bundleKey: vi.fn((bundle: any) => `${bundle.moduleName}@@${bundle.version}`),
     findBundleByKey: vi.fn(),
+    importBundle: vi.fn(),
+    importBundleFolder: vi.fn(),
     loadBundles: vi.fn(),
     selectBundle: vi.fn(),
     setMedicalField: vi.fn()
@@ -567,5 +569,51 @@ describe('ReportingShell media preload', () => {
       patientId: 42,
       patientExaminationId: 314
     })
+  })
+
+  it('shows a clear three-step starting guide', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const guide = wrapper.get('[aria-label="Einstieg in den Reporting-Ablauf"]')
+    expect(guide.text()).toContain('Hier starten')
+    expect(guide.text()).toContain('Fall wählen')
+    expect(guide.text()).toContain('Vorlage festlegen')
+    expect(guide.text()).toContain('Befunde erfassen')
+  })
+
+  it('imports all files selected through the terminology folder picker', async () => {
+    hoisted.terminologyStore.importBundleFolder.mockResolvedValue({ ok: true })
+    const wrapper = mountShell()
+    await flushPromises()
+    const folderInput = wrapper.get('input[webkitdirectory]')
+    const files = [new File(['name: custom\nversion: "1"\n'], 'config.yaml')]
+    Object.defineProperty(folderInput.element, 'files', { value: files, configurable: true })
+
+    await folderInput.trigger('change')
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.importBundleFolder).toHaveBeenCalledWith(files)
+    expect(wrapper.text()).toContain('Terminologieordner importiert und geladen.')
+  })
+
+  it('keeps direct ZIP import available for lx-terminology-editor exports', async () => {
+    hoisted.terminologyStore.importBundle.mockResolvedValue({ ok: true })
+    const wrapper = mountShell()
+    await flushPromises()
+    const zipInput = wrapper.get('input[accept=".zip,application/zip"]')
+    const editorZip = new File(['editor export'], 'custom_terminology.zip', {
+      type: 'application/zip'
+    })
+    Object.defineProperty(zipInput.element, 'files', {
+      value: [editorZip],
+      configurable: true
+    })
+
+    await zipInput.trigger('change')
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.importBundle).toHaveBeenCalledWith(editorZip)
+    expect(wrapper.text()).toContain('Terminologiepaket aus dem Editor importiert und geladen.')
   })
 })

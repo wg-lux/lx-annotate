@@ -104,6 +104,18 @@ describe('VideoStore segment annotation status mapping', () => {
     })
     const store = useVideoStore()
     await store.fetchLabels()
+    store.setVideo({
+      id: 7,
+      isAnnotated: false,
+      errorMessage: '',
+      segments: [],
+      videoUrl: '',
+      status: 'available',
+      assignedUser: null,
+      duration: 10,
+      fps: 50,
+      frameCount: 500
+    })
     store.setSegmentAiDatasetId(300)
 
     vi.mocked(axiosInstance.post).mockResolvedValue({

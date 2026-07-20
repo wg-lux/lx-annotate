@@ -405,7 +405,6 @@
                 :activeSegmentId="selectedSegmentId"
                 :showWaveform="false"
                 :selectionMode="canMutateSelectedSegments"
-                :fps="fps"
                 @seek="handleTimelineSeek"
                 @play-pause="handlePlayPause"
                 @segment-select="handleSegmentSelect"

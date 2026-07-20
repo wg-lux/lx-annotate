@@ -41,7 +41,15 @@
         </div>
 
         <!-- Files Table -->
-        <div v-else class="table-responsive">
+        <div
+          v-else
+          class="table-responsive overview-table-scroll"
+          data-test="overview-table-scroll"
+          tabindex="0"
+          role="region"
+          aria-label="Anonymisierungsdateien, horizontal scrollbar"
+          @wheel="handleTableWheel"
+        >
           <table class="table table-hover overview-files-table">
             <thead class="table-light">
               <tr>
@@ -51,7 +59,7 @@
                 <th>Import</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
-                <th>Validierung</th>
+                <th class="validation-action-column">Validierung</th>
                 <th>Originaldatei gelöscht?</th>
                 <th>Erstellt</th>
               </tr>
@@ -238,7 +246,7 @@
                 </td>
 
                 <!-- Validation Action -->
-                <td>
+                <td class="validation-action-column">
                   <button
                     v-if="file.anonymizationStatus === 'done_processing_anonymization'"
                     @click="validateFile(file.id, file.mediaType)"
@@ -369,6 +377,24 @@ const filteredOutCount = computed(() =>
 );
 
 // Methods
+const handleTableWheel = (event: WheelEvent) => {
+  const container = event.currentTarget;
+  if (!(container instanceof HTMLElement) || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+    return;
+  }
+
+  const maxScrollLeft = container.scrollWidth - container.clientWidth;
+  const nextScrollLeft = Math.min(
+    maxScrollLeft,
+    Math.max(0, container.scrollLeft + event.deltaY)
+  );
+
+  if (maxScrollLeft > 0 && nextScrollLeft !== container.scrollLeft) {
+    event.preventDefault();
+    container.scrollLeft = nextScrollLeft;
+  }
+};
+
 const refreshOverview = async () => {
   isRefreshing.value = true;
   try {
@@ -938,8 +964,27 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
+.overview-files-table th,
+.overview-files-table td {
+  background-color: #fff;
+}
+
+.overview-files-table thead th {
+  background-color: #f8f9fa;
+}
+
+.overview-files-table tbody tr:hover > * {
+  background-color: var(--bs-table-hover-bg, #f8f9fa);
+}
+
 .overview-files-table {
   min-width: 1180px;
+}
+
+.overview-table-scroll {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding-bottom: 0.5rem;
 }
 
 .overview-files-table .sticky-filename-column {
@@ -959,6 +1004,24 @@ onUnmounted(() => {
 }
 
 .overview-files-table tbody tr:hover .sticky-filename-column {
+  background: var(--bs-table-hover-bg, #f8f9fa);
+}
+
+.overview-files-table .validation-action-column {
+  position: sticky;
+  right: 0;
+  min-width: 9rem;
+  background: #fff;
+  box-shadow: -0.25rem 0 0.75rem rgba(0, 0, 0, 0.06);
+  z-index: 2;
+}
+
+.overview-files-table thead .validation-action-column {
+  background: #f8f9fa;
+  z-index: 3;
+}
+
+.overview-files-table tbody tr:hover .validation-action-column {
   background: var(--bs-table-hover-bg, #f8f9fa);
 }
 

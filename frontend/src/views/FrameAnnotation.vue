@@ -137,23 +137,14 @@
       </div>
       <div class="col-12 col-md-6 col-lg-4">
         <label for="information-source" class="form-label">Informationsquelle</label>
-        <input
-          id="information-source"
-          v-model.lazy="informationSource"
-          type="text"
-          class="form-control"
-          placeholder="manual_annotation"
-          list="information-source-options"
-        />
-        <datalist id="information-source-options">
-          <option value="manual_annotation" />
-          <option value="human_annotation" />
-          <option value="frame_annotation_frontend" />
-          <option value="lx_anonymizer_evaluation" />
-          <option value="model_prediction" />
-        </datalist>
+        <select id="information-source" v-model.lazy="informationSource" class="form-control">
+          <option value="manual_annotation">Manuelle Annotation</option>
+          <option value="frame_annotation_frontend">Frame-Annotation Frontend</option>
+          <option value="human_annotation">Menschliche Annotation</option>
+          <option value="lx_anonymizer_evaluation">Anonymisierungsprüfung</option>
+        </select>
       </div>
-      <div class="col-12 col-lg-8">
+      <div v-if="canOverrideAnnotationPrincipal" class="col-12 col-lg-8">
         <label for="frame-annotator-override" class="form-label">Annotator-Scope</label>
         <div class="d-flex flex-wrap gap-2">
           <input
@@ -185,6 +176,10 @@
           </button>
         </div>
         <small class="text-muted d-block mt-1">Aktiver Annotator: {{ activeAnnotatorLabel }}</small>
+      </div>
+      <div v-else class="col-12 col-lg-8" data-test="annotator-identity-readonly">
+        <span class="form-label d-block">Annotator</span>
+        <small class="text-muted">Servergebundene Identität: {{ baseAnnotatorPrincipal }}</small>
       </div>
       <div v-if="taskMode === 'filtered'" class="col-12 col-md-6 col-lg-4">
         <label for="filter-label-name" class="form-label">Nach vorherigem Label filtern</label>
@@ -593,7 +588,7 @@
                   data-test="exclude-dataset-button"
                   @click="skipTask"
                 >
-                  Nicht im Datensatz aufnehmen
+                  Aufgabe überspringen
                 </button>
               </div>
             </template>
@@ -904,6 +899,9 @@ const frameImageStatusMessage = computed(() => {
 const visibleErrorMessage = computed(() => errorMessage.value || queueStore.lastError)
 const baseAnnotatorPrincipal = computed(() =>
   getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
+)
+const canOverrideAnnotationPrincipal = computed(
+  () => authStore.user?.canOverrideAnnotationPrincipal === true
 )
 const annotatorOverrideScope = computed(
   () => `frame:${queueStore.selectedLabelGroupId ?? 'all'}:${informationSource.value}`
@@ -1541,7 +1539,24 @@ async function submitBoxAnnotations(): Promise<void> {
         model_meta_id: null
       }))
     })
-    await loadBoxAnnotationsForTask(task)
+    const completedLabelIds = new Set(selectedLabelIds.value)
+    for (const box of boxAnnotations.value) {
+      completedLabelIds.add(box.labelId)
+    }
+    if (isPhiRegionMode.value && phiRegionBoxLabel.value) {
+      const hasPhiRegion = boxAnnotations.value.some(
+        (box) => box.labelId === phiRegionBoxLabel.value?.id
+      )
+      if (hasPhiRegion) {
+        completedLabelIds.add(phiRegionBoxLabel.value.id)
+      } else {
+        completedLabelIds.delete(phiRegionBoxLabel.value.id)
+      }
+    }
+    await submitLabelsWithSelection([...completedLabelIds])
+    if (currentTask.value?.id === task.id) {
+      await loadBoxAnnotationsForTask(task)
+    }
   } catch (error: any) {
     boxAnnotationError.value =
       error?.response?.data?.detail ||
@@ -1559,6 +1574,12 @@ function formatConfidence(value: number | null | undefined): string {
 }
 
 function syncAnnotatorOverrideFromStorage(): void {
+  if (!canOverrideAnnotationPrincipal.value) {
+    clearAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value)
+    annotatorOverride.value = null
+    annotatorOverrideInput.value = ''
+    return
+  }
   annotatorOverride.value = loadAnnotatorOverride(
     annotatorOverrideScope.value,
     baseAnnotatorPrincipal.value
@@ -1581,6 +1602,7 @@ async function reloadAnnotationQueue(): Promise<void> {
 }
 
 async function restartAnnotationAsOverride(): Promise<void> {
+  if (!canOverrideAnnotationPrincipal.value) return
   const normalized = annotatorOverrideInput.value.trim()
   if (!normalized) return
   saveAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value, normalized)

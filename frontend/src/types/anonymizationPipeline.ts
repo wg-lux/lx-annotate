@@ -22,6 +22,7 @@ export interface VideoAnonymizationArtifact {
 
 export interface VideoAnonymizationRunSummary {
   id?: number | string | null
+  operation?: string | null
   strategy?: VideoAnonymizationStrategy | null
   status?: string | null
   completedAt?: string | null
@@ -31,6 +32,14 @@ export interface VideoAnonymizationRunSummary {
   outputFile?: string | null
   message?: string | null
   details?: string | null
+}
+
+export interface VideoAnonymizationJob {
+  videoId: number
+  status: string
+  queue: string
+  taskId: string
+  historyId: number
 }
 
 export interface VideoAnonymizationStatus {
@@ -43,6 +52,8 @@ export interface VideoAnonymizationStatus {
   processedArtifact: VideoAnonymizationArtifact
   latestRun?: VideoAnonymizationRunSummary | null
   outputFile?: string | null
+  job?: VideoAnonymizationJob | null
+  message?: string | null
 }
 
 export interface VideoAnonymizationRequest {

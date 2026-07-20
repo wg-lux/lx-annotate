@@ -10,7 +10,8 @@ const hoisted = vi.hoisted(() => ({
   queueStore: null as any,
   fetchAiDatasetOptions: vi.fn(),
   createObjectURL: vi.fn(),
-  revokeObjectURL: vi.fn()
+  revokeObjectURL: vi.fn(),
+  canOverrideAnnotationPrincipal: true
 }))
 
 vi.mock('uuid', () => ({
@@ -37,7 +38,8 @@ vi.mock('@/stores/auth_kc', () => ({
   useAuthKcStore: () => ({
     user: {
       sub: 'kc-user-7',
-      username: 'annotator'
+      username: 'annotator',
+      canOverrideAnnotationPrincipal: hoisted.canOverrideAnnotationPrincipal
     }
   })
 }))
@@ -182,7 +184,12 @@ async function expectTextEventually(
 }
 
 function installGetMock(
-  options: { streamStatus?: number; streamBody?: Blob; streamContentType?: string } = {}
+  options: {
+    streamStatus?: number
+    streamBody?: Blob
+    streamContentType?: string
+    boxResults?: Array<Record<string, unknown>>
+  } = {}
 ) {
   const {
     streamStatus = 200,
@@ -202,7 +209,7 @@ function installGetMock(
       })
     }
     if (url === 'media/annotations/frames/boxes/') {
-      return Promise.resolve({ data: { results: [] } })
+      return Promise.resolve({ data: { results: options.boxResults ?? [] } })
     }
     if (url.startsWith('/media/frame-') || url.includes('/decoded-stream/')) {
       return Promise.resolve({
@@ -218,6 +225,7 @@ function installGetMock(
 describe('FrameAnnotation route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.canOverrideAnnotationPrincipal = true
     let objectUrlCounter = 0
     hoisted.createObjectURL.mockImplementation(() => {
       objectUrlCounter += 1
@@ -394,6 +402,19 @@ describe('FrameAnnotation route', () => {
     expect(wrapper.text()).toContain('Aktiver Annotator: oidc:kc-user-7')
   })
 
+  it('keeps the authenticated annotator identity read-only without override privileges', async () => {
+    hoisted.canOverrideAnnotationPrincipal = false
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="annotator-override-input"]').exists()).toBe(false)
+    expect(wrapper.get('[data-test="annotator-identity-readonly"]').text()).toContain(
+      'Servergebundene Identität: oidc:kc-user-7'
+    )
+    expect(hoisted.queueStore.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7')
+  })
+
   it('lets the user switch the active dataset queue on the frame screen', async () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
@@ -552,7 +573,7 @@ describe('FrameAnnotation route', () => {
     })
   })
 
-  it('applies the PHI region route preset and saves empty background frames', async () => {
+  it('applies the PHI region route preset and completes empty background frames', async () => {
     window.history.pushState(
       {},
       '',
@@ -605,5 +626,69 @@ describe('FrameAnnotation route', () => {
       annotator: 'oidc:kc-user-7',
       annotations: []
     })
+    expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', {
+      aiDatasetId: 9,
+      annotations: [
+        {
+          frameId: 202,
+          labelId: 21,
+          value: false,
+          floatValue: null,
+          informationSourceName: 'lx_anonymizer_evaluation',
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'uuid-annotation-1',
+          modelMetaId: null
+        },
+        {
+          frameId: 202,
+          labelId: 22,
+          value: false,
+          floatValue: null,
+          informationSourceName: 'lx_anonymizer_evaluation',
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'uuid-annotation-1',
+          modelMetaId: null
+        }
+      ]
+    })
+    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2)
+  })
+
+  it('completes a box task with a positive classification for the box label', async () => {
+    installGetMock({
+      boxResults: [
+        {
+          id: 41,
+          frameId: 101,
+          labelId: 11,
+          labelName: 'Polyp',
+          value: true,
+          x: 10,
+          y: 12,
+          width: 100,
+          height: 80,
+          imageWidth: 800,
+          imageHeight: 600,
+          annotator: 'oidc:kc-user-7',
+          externalAnnotationId: 'box-41'
+        }
+      ]
+    })
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+
+    await wrapper.get('[data-test="box-save-button"]').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.post).toHaveBeenCalledWith(
+      'media/annotations/frames/bulk-upsert/',
+      expect.objectContaining({
+        annotations: expect.arrayContaining([
+          expect.objectContaining({ labelId: 11, value: true })
+        ])
+      })
+    )
+    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2)
   })
 })

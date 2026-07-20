@@ -26,6 +26,22 @@ const DEFAULT_SAMPLING_STRATEGY = 'balanced'
 export type AnnotationTaskMode = 'random' | 'filtered'
 export type AnnotationSamplingStrategy = 'balanced' | 'segments' | 'annotations' | 'none'
 export type FrameFileType = 'auto' | 'raw' | 'processed'
+export type AnnotationInformationSource =
+  | 'manual_annotation'
+  | 'frame_annotation_frontend'
+  | 'human_annotation'
+  | 'lx_anonymizer_evaluation'
+
+function normalizeInformationSource(value: string | null): AnnotationInformationSource {
+  if (
+    value === 'frame_annotation_frontend' ||
+    value === 'human_annotation' ||
+    value === 'lx_anonymizer_evaluation'
+  ) {
+    return value
+  }
+  return DEFAULT_INFORMATION_SOURCE
+}
 
 function loadStoredGroupId(): string | null {
   try {
@@ -408,8 +424,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const targetLabelName = ref<string>(normalizeLabelName(loadStoredText(TARGET_LABEL_STORAGE_KEY)))
   const filterLabelName = ref<string | null>(loadStoredText(FILTER_LABEL_STORAGE_KEY))
   const allowRandomFallback = ref<boolean>(loadStoredRandomFallback())
-  const informationSource = ref<string>(
-    loadStoredText(INFORMATION_SOURCE_STORAGE_KEY) ?? DEFAULT_INFORMATION_SOURCE
+  const informationSource = ref<AnnotationInformationSource>(
+    normalizeInformationSource(loadStoredText(INFORMATION_SOURCE_STORAGE_KEY))
   )
   const frameFileType = ref<FrameFileType>(
     normalizeFrameFileType(loadStoredText(FRAME_FILE_TYPE_STORAGE_KEY))
@@ -418,6 +434,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const predictionSegmentsOnly = ref<boolean>(loadStoredPredictionSegmentsOnly())
   const annotatorPrincipal = ref<string | null>(null)
   const taskQueue = ref<AnnotationTask[]>([])
+  const reservedFrameIds = new Set<number>()
   let queueGeneration = 0
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
@@ -496,8 +513,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   function setInformationSource(source: string | null): void {
-    const normalized = source?.trim() ?? ''
-    informationSource.value = normalized || DEFAULT_INFORMATION_SOURCE
+    informationSource.value = normalizeInformationSource(source?.trim() ?? null)
   }
 
   function setFrameFileType(fileType: string | null): void {
@@ -597,6 +613,17 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
       .filter((task): task is AnnotationTask => task !== null)
   }
 
+  function enqueueUniqueTasks(tasks: AnnotationTask[]): AnnotationTask[] {
+    const uniqueTasks: AnnotationTask[] = []
+    for (const task of tasks) {
+      if (reservedFrameIds.has(task.data.frameId)) continue
+      reservedFrameIds.add(task.data.frameId)
+      uniqueTasks.push(task)
+    }
+    taskQueue.value.push(...uniqueTasks)
+    return uniqueTasks
+  }
+
   async function fetchBatch(batchSize = 10): Promise<AnnotationTask[]> {
     if (!selectedLabelGroupId.value) {
       if (dummyTaskModeEnabled) {
@@ -627,23 +654,23 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         if (!isCurrentRequest(requestGeneration, requestSignature)) return []
       }
 
-      taskQueue.value.push(...parsed)
-      if (dummyTaskModeEnabled && parsed.length === 0 && taskQueue.value.length === 0) {
+      const queuedTasks = enqueueUniqueTasks(parsed)
+      if (dummyTaskModeEnabled && queuedTasks.length === 0 && taskQueue.value.length === 0) {
         if (!isCurrentRequest(requestGeneration, requestSignature)) return []
         const dummy = createDummyTask(selectedLabelGroupId.value)
-        taskQueue.value.push(dummy)
+        enqueueUniqueTasks([dummy])
         return [dummy]
       }
-      return parsed
+      return queuedTasks
     } catch (error: any) {
       if (!isCurrentRequest(requestGeneration, requestSignature)) return []
       if (taskMode.value === 'filtered' && allowRandomFallback.value) {
         try {
           const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random')
           if (!isCurrentRequest(requestGeneration, requestSignature)) return []
-          taskQueue.value.push(...fallbackParsed)
-          if (fallbackParsed.length > 0) {
-            return fallbackParsed
+          const queuedFallbackTasks = enqueueUniqueTasks(fallbackParsed)
+          if (queuedFallbackTasks.length > 0) {
+            return queuedFallbackTasks
           }
         } catch {
           // Ignore fallback error and expose the primary error below.
@@ -658,7 +685,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
       if (dummyTaskModeEnabled && taskQueue.value.length === 0) {
         if (!isCurrentRequest(requestGeneration, requestSignature)) return []
         const dummy = createDummyTask(selectedLabelGroupId.value)
-        taskQueue.value.push(dummy)
+        enqueueUniqueTasks([dummy])
         return [dummy]
       }
       return []
@@ -686,6 +713,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   function clearQueue(): void {
     queueGeneration += 1
     taskQueue.value = []
+    reservedFrameIds.clear()
   }
 
   async function primeQueue(batchSize = 10): Promise<void> {

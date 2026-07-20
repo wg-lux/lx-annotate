@@ -1,6 +1,8 @@
 const OVERRIDE_STORAGE_PREFIX = 'lxAnnotate.annotationPrincipalOverride.v1'
 
-export function getAnnotatorPrincipalFromAuthUser(user: Record<string, unknown> | null | undefined): string {
+export function getAnnotatorPrincipalFromAuthUser(
+  user: Record<string, unknown> | null | undefined
+): string {
   const sub =
     typeof user?.sub === 'string'
       ? user.sub.trim()
@@ -28,7 +30,11 @@ export function loadAnnotatorOverride(scope: string, basePrincipal: string): str
   }
 }
 
-export function saveAnnotatorOverride(scope: string, basePrincipal: string, overridePrincipal: string): void {
+export function saveAnnotatorOverride(
+  scope: string,
+  basePrincipal: string,
+  overridePrincipal: string
+): void {
   const normalized = overridePrincipal.trim()
   if (!normalized) return
   try {

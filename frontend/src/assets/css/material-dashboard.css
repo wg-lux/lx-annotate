@@ -5799,13 +5799,13 @@ fieldset:disabled .btn {
 }
 
 .alert-secondary {
-  --bs-alert-color: #4a4d5c;
+  --bs-alert-color: #fff;
   --bs-alert-bg: #e5e6eb;
   --bs-alert-border-color: #d7d9e1;
 }
 
 .alert-secondary .alert-link {
-  color: #3b3e4a;
+  color: #fff;
 }
 
 .alert-success {
@@ -20339,7 +20339,7 @@ fieldset:disabled .btn {
 }
 
 .alert-secondary {
-  background-image: linear-gradient(195deg, #747b8a 0%, #495361 100%);
+  background-image: linear-gradient(195deg, #606775 0%, #3f4855 100%);
 }
 
 .alert-success {
@@ -27932,4 +27932,3 @@ pre[class*="language-"] {
     overflow: auto !important;
   }
 }
-

@@ -247,6 +247,22 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.find('tbody .sticky-filename-column').text()).toContain('study-video.mp4')
   })
 
+  it('keeps validation visible and scrolls the wide table with the mouse wheel', async () => {
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    const scrollWrapper = wrapper.find<HTMLElement>('[data-test="overview-table-scroll"]')
+    const element = scrollWrapper.element
+    Object.defineProperty(element, 'clientWidth', { configurable: true, value: 800 })
+    Object.defineProperty(element, 'scrollWidth', { configurable: true, value: 1600 })
+
+    await scrollWrapper.trigger('wheel', { deltaY: 120 })
+
+    expect(element.scrollLeft).toBe(120)
+    expect(wrapper.find('thead .validation-action-column').text()).toBe('Validierung')
+    expect(wrapper.find('tbody .validation-action-column button').text()).toContain('Validieren')
+  })
+
   it('renders a delete button for every overview row regardless of status', async () => {
     hoisted.anonymizationStoreRef.current.overview = [
       buildVideoFile({ id: 17, anonymizationStatus: 'done_processing_anonymization' }),

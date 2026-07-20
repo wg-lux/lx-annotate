@@ -910,7 +910,7 @@ const videoAnonymizationReady = computed(() =>
 
 const videoStrategyLabel = computed(() =>
   videoAnonymizationStatus.value?.selectedStrategy === 'processor_region'
-    ? 'Prozessorregion (Legacy)'
+    ? 'Prozessorregion'
     : 'PHI-Detektor-gestützte All-Frame-Anonymisierung'
 );
 

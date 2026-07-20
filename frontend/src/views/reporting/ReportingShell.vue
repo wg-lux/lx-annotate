@@ -32,6 +32,15 @@
               </option>
             </select>
             <input
+              ref="terminologyFolderInput"
+              class="visually-hidden"
+              type="file"
+              webkitdirectory
+              directory
+              multiple
+              @change="importTerminologyFolder"
+            />
+            <input
               ref="terminologyZipInput"
               class="visually-hidden"
               type="file"
@@ -42,12 +51,23 @@
               class="btn btn-outline-secondary"
               type="button"
               :disabled="terminology.importing"
-              @click="openTerminologyZipPicker"
+              @click="openTerminologyFolderPicker"
             >
               <i class="ni ni-single-copy-04 me-1" aria-hidden="true"></i>
               {{
-                terminology.importing ? 'Terminologie wird importiert…' : 'Terminologie importieren'
+                terminology.importing
+                  ? 'Terminologie wird importiert…'
+                  : 'Terminologieordner auswählen'
               }}
+            </button>
+            <button
+              class="btn btn-outline-secondary"
+              type="button"
+              :disabled="terminology.importing"
+              @click="openTerminologyZipPicker"
+            >
+              <i class="ni ni-archive-2 me-1" aria-hidden="true"></i>
+              Editor-ZIP importieren
             </button>
             <ReportImportPanel @completed="handleReportImportCompleted" />
             <button
@@ -71,6 +91,32 @@
             {{ patientExaminationOptionsError }}
           </div>
         </div>
+      </div>
+      <div class="reporting-start-guide" aria-label="Einstieg in den Reporting-Ablauf">
+        <strong>Hier starten</strong>
+        <ol>
+          <li :class="{ 'is-complete': Boolean(flow.patientExaminationId) }">
+            <span>1</span>
+            <div>
+              <b>Fall wählen</b>
+              <small>Oben eine Patientenuntersuchung auswählen.</small>
+            </div>
+          </li>
+          <li :class="{ 'is-complete': Boolean(flow.selectedTemplateName) }">
+            <span>2</span>
+            <div>
+              <b>Vorlage festlegen</b>
+              <small>Im Fall-Setup Terminologie und Berichtsvorlage prüfen.</small>
+            </div>
+          </li>
+          <li :class="{ 'is-complete': Boolean(flow.currentRuntimeDraft) }">
+            <span>3</span>
+            <div>
+              <b>Befunde erfassen</b>
+              <small>Danach links dem Ablauf bis zum Abschluss folgen.</small>
+            </div>
+          </li>
+        </ol>
       </div>
       <div class="context-summary-grid">
         <div class="context-summary-item is-primary">
@@ -517,6 +563,7 @@ const selectedVideoArtifactKind = ref<StreamableVideoFileType>('processed')
 const selectedFrameStreamUrl = ref<string | null>(null)
 const isContextPanelOpen = ref(true)
 const terminologyLoadPromise = ref<Promise<void> | null>(null)
+const terminologyFolderInput = ref<HTMLInputElement | null>(null)
 const terminologyZipInput = ref<HTMLInputElement | null>(null)
 const terminologyImportMessage = ref('')
 type PatientExaminationOption = {
@@ -1055,9 +1102,34 @@ function selectFrameStream(url: string | null) {
   selectedFrameStreamUrl.value = url
 }
 
+function openTerminologyFolderPicker() {
+  terminologyImportMessage.value = ''
+  terminologyFolderInput.value?.click()
+}
+
 function openTerminologyZipPicker() {
   terminologyImportMessage.value = ''
   terminologyZipInput.value?.click()
+}
+
+async function importTerminologyFolder(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length) return
+
+  terminologyImportMessage.value = ''
+  try {
+    await terminology.importBundleFolder(files)
+    terminologyImportMessage.value = 'Terminologieordner importiert und geladen.'
+  } catch (error: any) {
+    terminologyImportMessage.value =
+      terminology.error ||
+      error?.response?.data?.detail ||
+      error?.message ||
+      'Terminologiepaket konnte nicht importiert werden.'
+  } finally {
+    input.value = ''
+  }
 }
 
 async function importTerminologyZip(event: Event) {
@@ -1068,7 +1140,7 @@ async function importTerminologyZip(event: Event) {
   terminologyImportMessage.value = ''
   try {
     await terminology.importBundle(file)
-    terminologyImportMessage.value = 'Terminologiepaket importiert und geladen.'
+    terminologyImportMessage.value = 'Terminologiepaket aus dem Editor importiert und geladen.'
   } catch (error: any) {
     terminologyImportMessage.value =
       terminology.error ||
@@ -2073,6 +2145,63 @@ onMounted(() => {
   min-width: 0;
 }
 
+.reporting-start-guide {
+  grid-column: 1 / -1;
+  padding: 0.8rem;
+  border: 1px solid #b9cbea;
+  border-radius: 8px;
+  background: #f2f7ff;
+}
+
+.reporting-start-guide > strong {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: #172234;
+}
+
+.reporting-start-guide ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.reporting-start-guide li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  color: #334155;
+}
+
+.reporting-start-guide li > span {
+  display: inline-flex;
+  flex: 0 0 1.6rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #315a94;
+  font-weight: 700;
+}
+
+.reporting-start-guide li.is-complete > span {
+  background: #198754;
+}
+
+.reporting-start-guide b,
+.reporting-start-guide small {
+  display: block;
+}
+
+.reporting-start-guide small {
+  margin-top: 0.15rem;
+  color: #526174;
+}
+
 .tracking-label {
   letter-spacing: 0.08em;
 }
@@ -2508,6 +2637,12 @@ onMounted(() => {
 
   .kb-reference-panel .card-body {
     max-height: none;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .reporting-start-guide ol {
+    grid-template-columns: 1fr;
   }
 }
 

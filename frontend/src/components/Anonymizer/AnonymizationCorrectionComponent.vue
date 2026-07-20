@@ -885,8 +885,8 @@ const modelDisplay = computed(() => {
 
 const strategyLabel = (strategy: VideoAnonymizationStrategy) =>
   strategy === 'detector_assisted'
-    ? 'PHI-Detektor, alle Frames (empfohlen)'
-    : 'Prozessorregion (Legacy)';
+    ? 'Patienten-Detektor, alle Frames'
+    : 'Prozessorregion';
 
 const canRemoveFrames = computed(() => {
   return currentVideo.value && !isProcessing.value &&
@@ -1457,19 +1457,15 @@ const applyMasking = async () => {
       payload
     );
 
-    anonymizationStatus.value = response.data;
-    selectedStrategy.value = response.data.selectedStrategy || selectedStrategy.value;
-    const latestRun = response.data.latestRun;
+    const historyId = response.data.job?.historyId;
+    processingStatus.value = response.data.message || 'Anonymisierung wurde eingereiht...';
+    anonymizationStatus.value = historyId
+      ? await pollAnonymizationCorrection(historyId)
+      : response.data;
+    selectedStrategy.value =
+      anonymizationStatus.value.selectedStrategy || selectedStrategy.value;
     processingProgress.value = 100;
     processingStatus.value = 'Anonymisierung abgeschlossen';
-    processingHistory.value.unshift({
-      id: typeof latestRun?.id === 'number' ? latestRun.id : Date.now(),
-      timestamp: latestRun?.completedAt || latestRun?.createdAt || new Date().toISOString(),
-      operation: 'anonymization',
-      status: latestRun?.status || 'success',
-      details: latestRun?.message || latestRun?.details || `${strategyLabel(selectedStrategy.value)} abgeschlossen`,
-      outputPath: response.data.outputFile || latestRun?.outputFile || undefined,
-    });
     previewMode.value = 'processed';
     await refreshCurrentVideo();
     if (videoElement.value) videoElement.value.load();
@@ -1477,11 +1473,43 @@ const applyMasking = async () => {
     currentOperation.value = '';
     
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Anonymisierung';
+    error.value = err.response?.data?.error || err.message || 'Fehler bei der Anonymisierung';
     console.error('Error applying anonymization:', err);
     isProcessing.value = false;
     currentOperation.value = '';
   }
+};
+
+const pollAnonymizationCorrection = async (
+  historyId: number
+): Promise<VideoAnonymizationStatus> => {
+  if (!currentVideo.value) {
+    throw new Error('Video für die Anonymisierung ist nicht mehr ausgewählt.');
+  }
+
+  const pollInterval = 5000;
+  const maxPolls = 4320;
+  for (let polls = 0; polls < maxPolls && isProcessing.value; polls += 1) {
+    const { data } = await axiosInstance.get<VideoAnonymizationStatus>(
+      r(endpoints.media.videoCorrectionAnonymization(currentVideo.value.id))
+    );
+    const latestRun = data.latestRun;
+    if (String(latestRun?.id ?? '') === String(historyId)) {
+      if (latestRun?.status === 'success') {
+        return data;
+      }
+      if (latestRun?.status === 'failure' || latestRun?.status === 'cancelled') {
+        throw new Error(latestRun.details || 'Anonymisierung ist fehlgeschlagen.');
+      }
+      processingProgress.value = latestRun?.status === 'running' ? 50 : 10;
+      processingStatus.value =
+        latestRun?.status === 'running'
+          ? 'Anonymisierung und HLS-Erzeugung laufen im FFmpeg-Worker...'
+          : 'Anonymisierung wartet auf den FFmpeg-Worker...';
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, pollInterval));
+  }
+  throw new Error('Zeitüberschreitung bei der Anonymisierung.');
 };
 
 const removeFrames = async () => {

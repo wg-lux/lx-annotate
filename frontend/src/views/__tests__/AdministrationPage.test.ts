@@ -37,19 +37,26 @@ const overview = {
   transferMonitoring: {
     total: 2,
     counts: { failed: 1 },
-    recentAttentionJobs: [
+    recentJobs: [
       {
         id: 'job-1',
+        transferKey: 'site-node__video__resource-hash__processed_v1',
         resourceKind: 'video',
         localStatus: 'failed',
+        remoteTransferId: 'remote-job-1',
+        remoteTransferStatus: 'inconsistent',
+        remoteProcessingDecision: 'mark_inconsistent',
         targetNodeKey: 'hub-node',
         sourceCenterKey: 'center-a',
         retryCount: 2,
         lastError: 'TLS failed',
+        localCleanupPolicy: 'retain_processed_media',
+        localCleanupStatus: 'retained',
         lastAttemptAt: null,
         updatedAt: '2026-07-13T10:00:00Z'
       }
-    ]
+    ],
+    recentAttentionJobs: []
   },
   effectivePermissions: {
     username: 'admin',
@@ -98,6 +105,12 @@ describe('AdministrationPage', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-test="transfer-monitoring"]').text()).toContain('TLS failed')
+    expect(wrapper.get('[data-test="transfer-monitoring"]').text()).toContain('job-1')
+    expect(wrapper.get('[data-test="transfer-monitoring"]').text()).toContain(
+      'site-node__video__resource-hash__processed_v1'
+    )
+    expect(wrapper.get('[data-test="transfer-monitoring"]').text()).toContain('remote-job-1')
+    expect(wrapper.get('[data-test="transfer-monitoring"]').text()).toContain('Aufbewahrt')
     expect(wrapper.get('[data-test="effective-permissions"]').text()).toContain(
       'center_scope:admin'
     )

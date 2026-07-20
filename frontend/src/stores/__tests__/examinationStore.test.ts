@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { useExaminationStore } from '@/stores/examinationStore'
 import { endpoints } from '@/types/api/endpoints'
+import { r } from '@/api/axiosInstance'
 
 const hoisted = vi.hoisted(() => ({
   get: vi.fn()
@@ -38,7 +39,7 @@ describe('examinationStore', () => {
     await store.fetchExaminations()
 
     expect(hoisted.get).toHaveBeenCalledOnce()
-    expect(hoisted.get).toHaveBeenCalledWith(endpoints.examination.examinationsDropdown)
+    expect(hoisted.get).toHaveBeenCalledWith(r(endpoints.examination.examinationsDropdown))
     expect(store.examinationsDropdown).toEqual([
       { id: 7, name: 'colonoscopy', displayName: 'Koloskopie' }
     ])

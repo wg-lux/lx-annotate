@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import {
+  createTerminologyBundleArchive,
   fetchTerminologyBundles,
   importTerminologyBundle,
   MEDICAL_FIELD_OPTIONS,
@@ -131,6 +132,11 @@ export const useTerminologyStore = defineStore('terminology', () => {
     }
   }
 
+  async function importBundleFolder(files: File[]) {
+    const archive = await createTerminologyBundleArchive(files)
+    return importBundle(archive)
+  }
+
   function setMedicalField(value: MedicalField) {
     selectedMedicalField.value = value
     try {
@@ -161,6 +167,7 @@ export const useTerminologyStore = defineStore('terminology', () => {
     bundleKey,
     findBundleByKey,
     importBundle,
+    importBundleFolder,
     loadBundles,
     selectBundle,
     setMedicalField

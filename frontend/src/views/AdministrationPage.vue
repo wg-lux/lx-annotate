@@ -89,7 +89,10 @@
         <div class="section-heading">
           <div>
             <h2>Transfer-Monitoring</h2>
-            <p>Aktive und fehlgeschlagene Aufträge; keine Schlüssel oder Rohmediendaten.</p>
+            <p>
+              Letzte Aufträge mit Korrelations- und Cleanup-Status; keine Schlüssel oder
+              Rohmediendaten.
+            </p>
           </div>
         </div>
         <div class="table-responsive">
@@ -97,33 +100,43 @@
             <thead>
               <tr>
                 <th>Status</th>
+                <th>Korrelation</th>
                 <th>Typ</th>
                 <th>Ziel</th>
                 <th>Center</th>
                 <th>Versuche</th>
+                <th>Cleanup</th>
                 <th>Aktualisiert</th>
                 <th>Hinweis</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="job in overview.transferMonitoring.recentAttentionJobs" :key="job.id">
+              <tr v-for="job in overview.transferMonitoring.recentJobs" :key="job.id">
                 <td>
-                  <span
-                    class="badge"
-                    :class="job.localStatus === 'failed' ? 'bg-danger' : 'bg-warning text-dark'"
-                    >{{ statusLabel(job.localStatus) }}</span
-                  >
+                  <span class="badge" :class="statusBadge(job.localStatus)">{{
+                    statusLabel(job.localStatus)
+                  }}</span>
+                </td>
+                <td class="correlation-cell">
+                  <code>{{ job.id }}</code>
+                  <small>Transfer: {{ job.transferKey }}</small>
+                  <small v-if="job.remoteTransferId">Remote: {{ job.remoteTransferId }}</small>
                 </td>
                 <td>{{ job.resourceKind === 'video' ? 'Video' : 'Bericht' }}</td>
                 <td>{{ job.targetNodeKey }}</td>
                 <td>{{ job.sourceCenterKey || '—' }}</td>
                 <td>{{ job.retryCount }}</td>
+                <td>
+                  <span class="badge" :class="cleanupBadge(job.localCleanupStatus)">
+                    {{ cleanupLabel(job.localCleanupStatus) }}
+                  </span>
+                </td>
                 <td>{{ formatDate(job.updatedAt) }}</td>
                 <td class="error-cell">{{ job.lastError || '—' }}</td>
               </tr>
-              <tr v-if="!overview.transferMonitoring.recentAttentionJobs.length">
-                <td colspan="7" class="text-center text-muted py-4">
-                  Keine Aufträge benötigen Aufmerksamkeit.
+              <tr v-if="!overview.transferMonitoring.recentJobs.length">
+                <td colspan="9" class="text-center text-muted py-4">
+                  Noch keine Transferaufträge vorhanden.
                 </td>
               </tr>
             </tbody>
@@ -374,12 +387,29 @@ async function submitChange() {
 
 const statusLabel = (status: string) =>
   ({
+    marked: 'Markiert',
     queued: 'Wartend',
     registering: 'Registrierung',
     awaiting_media: 'Wartet auf Medium',
     uploading: 'Upload',
+    completed: 'Abgeschlossen',
     failed: 'Fehlgeschlagen'
   })[status] || status
+const statusBadge = (status: string) =>
+  status === 'failed' ? 'bg-danger' : status === 'completed' ? 'bg-success' : 'bg-warning text-dark'
+const cleanupLabel = (status: string) =>
+  ({
+    not_applicable: 'Nicht vorgesehen',
+    retained: 'Aufbewahrt',
+    eligible: 'Freigegeben',
+    cleaned: 'Bereinigt'
+  })[status] || status
+const cleanupBadge = (status: string) =>
+  status === 'cleaned'
+    ? 'bg-success'
+    : status === 'eligible'
+      ? 'bg-warning text-dark'
+      : 'bg-secondary'
 const assignmentLabel = (status: CenterAssignmentStatus) =>
   ({ assigned: 'Zugeordnet', unassigned: 'Nicht zugeordnet', incomplete: 'Unvollständig' })[status]
 const assignmentBadge = (status: CenterAssignmentStatus) =>

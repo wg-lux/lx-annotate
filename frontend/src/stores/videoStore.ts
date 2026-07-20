@@ -1,12 +1,21 @@
 import { defineStore } from 'pinia'
 import { ref, computed, reactive, readonly, type Ref, type ComputedRef } from 'vue'
 import axiosInstance, { r } from '../api/axiosInstance'
-import { AxiosError, type AxiosResponse } from 'axios'
+import { AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { buildVideoStreamUrl } from '@/utils/mediaUrls'
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
 import { useAnonymizationStore, type FileItem } from './anonymizationStore'
 import { useToastStore } from './toastStore'
 import { endpoints } from '@/types/api/endpoints'
+import {
+  buildSegmentTimestampPayload,
+  getAdjacentFrameBoundary,
+  parseVideoFrameNeighborhood,
+  type FrameStepDirection,
+  type VideoFrameBoundary,
+  type VideoFrameNeighborhood,
+  requireSegmentTimestampRange
+} from '@/utils/segmentTimeline'
 
 // ===================================================================
 // TYPE DEFINITIONS
@@ -557,8 +566,16 @@ let segmentQueueTimer: ReturnType<typeof setTimeout> | null = null
 
 const defaultSegments: Record<string, Segment[]> = {}
 const DEFAULT_FPS = 50
-const MIN_SEGMENT_DURATION = 1 / DEFAULT_FPS // Mindestlänge: 1 Frame bei 50 FPS
 const FIVE_SECOND_SEGMENT_DURATION = 5 // 5 Sekunden für Shift-Klick
+const FRAME_NEIGHBORHOOD_RADIUS = 12
+
+type FrameNavigationCache = Pick<
+  VideoFrameNeighborhood,
+  'videoId' | 'timelineVersion' | 'timestampMapping' | 'frames'
+> & {
+  activeFrameNumber: number
+  activeTimestamp: number
+}
 
 let nextDraftId = -1
 
@@ -587,6 +604,29 @@ export const useVideoStore = defineStore('video', () => {
   const _fetchToken = ref<number>(0)
   const draftSegment = ref<DraftSegment | null>(null)
   const hasRawVideoFile = ref<boolean | null>(null)
+  let frameNavigationCache: FrameNavigationCache | null = null
+
+  function resetFrameNavigationCache(): void {
+    frameNavigationCache = null
+  }
+
+  function resolveCachedAdjacentFrame(
+    videoId: number,
+    timestamp: number,
+    direction: FrameStepDirection
+  ): VideoFrameBoundary | null {
+    const cache = frameNavigationCache
+    if (!cache || cache.videoId !== videoId || cache.activeTimestamp !== timestamp) {
+      return null
+    }
+    const targetFrameNumber = cache.activeFrameNumber + direction
+    const target = cache.frames.find((frame) => frame.frameNumber === targetFrameNumber) ?? null
+    if (target) {
+      cache.activeFrameNumber = target.frameNumber
+      cache.activeTimestamp = target.timestamp
+    }
+    return target
+  }
 
   function setSegmentAiDatasetId(value: string | number | null | undefined): void {
     const normalized = value == null ? '' : String(value).trim()
@@ -641,55 +681,6 @@ export const useVideoStore = defineStore('video', () => {
     return Number.isFinite(fps) && fps > 0 ? fps : DEFAULT_FPS
   }
   const effectiveFps = computed<number>(() => getEffectiveFps())
-
-  const getEffectiveFrameCount = (): number | null => {
-    const frameCount = videoMeta.value?.frameCount ?? currentVideo.value?.frameCount
-    if (Number.isFinite(frameCount) && (frameCount as number) > 0) {
-      return Math.floor(frameCount as number)
-    }
-
-    const d = duration.value
-    const fps = getEffectiveFps()
-    if (!Number.isFinite(d) || d <= 0 || !Number.isFinite(fps) || fps <= 0) {
-      return null
-    }
-
-    return Math.max(1, Math.floor(d * fps))
-  }
-
-  function toBoundedFrameRange(startTime: number, endTime: number) {
-    const fps = getEffectiveFps()
-    const safeStart = Number.isFinite(startTime) ? Math.max(0, startTime) : 0
-    const safeEnd = Number.isFinite(endTime) ? Math.max(0, endTime) : 0
-
-    let startFrame = Math.floor(safeStart * fps)
-    let endFrame = Math.floor(safeEnd * fps)
-
-    const frameCount = getEffectiveFrameCount()
-    if (frameCount !== null) {
-      const maxStart = Math.max(0, frameCount - 1)
-      startFrame = Math.min(startFrame, maxStart)
-      endFrame = Math.min(endFrame, frameCount)
-    }
-
-    if (endFrame <= startFrame) {
-      if (frameCount !== null) {
-        endFrame = Math.min(frameCount, startFrame + 1)
-        if (endFrame <= startFrame) {
-          startFrame = Math.max(0, endFrame - 1)
-        }
-      } else {
-        endFrame = startFrame + 1
-      }
-    }
-
-    return {
-      startFrame,
-      endFrame,
-      startTime: startFrame / fps,
-      endTime: endFrame / fps
-    }
-  }
 
   const segments = computed<Segment[]>(() => currentVideo.value?.segments || [])
 
@@ -1160,6 +1151,7 @@ export const useVideoStore = defineStore('video', () => {
   // ===================================================================
 
   function clearVideo(): void {
+    resetFrameNavigationCache()
     currentVideo.value = null
     videoMeta.value = null
     resolvedVideoFps.value = null
@@ -1167,10 +1159,12 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   function setVideo(video: VideoAnnotation): void {
+    resetFrameNavigationCache()
     currentVideo.value = video
   }
 
   function setCurrentVideo(videoId: number): VideoAnnotation | null {
+    resetFrameNavigationCache()
     activeVideoId.value = videoId
     resolvedVideoFps.value = null
     const video = videoList.value.videos.find((v) => v.id === videoId) || null
@@ -1249,6 +1243,45 @@ export const useVideoStore = defineStore('video', () => {
       )
       return null
     }
+  }
+
+  async function resolveAdjacentFrameTimestamp(
+    videoId: number,
+    timestamp: number,
+    direction: FrameStepDirection
+  ): Promise<number | null> {
+    if (!Number.isFinite(timestamp) || timestamp < 0) {
+      throw new RangeError('Frame navigation timestamp must be finite and non-negative')
+    }
+    const cachedFrame = resolveCachedAdjacentFrame(videoId, timestamp, direction)
+    if (cachedFrame) {
+      return cachedFrame.timestamp
+    }
+    const response: AxiosResponse<unknown> = await axiosInstance.get(
+      r(endpoints.media.videoFrameNeighborhood(videoId)),
+      {
+        params: { timestamp, radius: FRAME_NEIGHBORHOOD_RADIUS },
+        suppressErrorToast: true
+      } as AxiosRequestConfig & { suppressErrorToast: true }
+    )
+    const neighborhood = parseVideoFrameNeighborhood(response.data)
+    if (neighborhood.videoId !== videoId) {
+      throw new TypeError('Frame neighborhood belongs to a different video')
+    }
+    frameNavigationCache = {
+      videoId: neighborhood.videoId,
+      timelineVersion: neighborhood.timelineVersion,
+      timestampMapping: neighborhood.timestampMapping,
+      frames: neighborhood.frames,
+      activeFrameNumber: neighborhood.current.frameNumber,
+      activeTimestamp: neighborhood.current.timestamp
+    }
+    const adjacentFrame = getAdjacentFrameBoundary(neighborhood, direction)
+    if (adjacentFrame) {
+      frameNavigationCache.activeFrameNumber = adjacentFrame.frameNumber
+      frameNavigationCache.activeTimestamp = adjacentFrame.timestamp
+    }
+    return adjacentFrame?.timestamp ?? null
   }
 
   async function fetchVideoMetadata(videoId?: number): Promise<void> {
@@ -1506,17 +1539,15 @@ export const useVideoStore = defineStore('video', () => {
       }
       const labelId = labelMeta.id
 
-      const bounded = toBoundedFrameRange(startTime, endTime)
+      const timestampRange = requireSegmentTimestampRange(startTime, endTime, duration.value)
       tempSegment = {
         id: nextDraftId--,
         label,
-        startTime: bounded.startTime,
-        endTime: bounded.endTime,
+        startTime: timestampRange.startTime,
+        endTime: timestampRange.endTime,
         avgConfidence: 1,
         videoID: videoId,
         labelID: labelId,
-        startFrameNumber: bounded.startFrame,
-        endFrameNumber: bounded.endFrame,
         exportSegment: false,
         syncState: 'pending_create',
         lastSyncError: null
@@ -1530,8 +1561,11 @@ export const useVideoStore = defineStore('video', () => {
           {
             client_id: tempSegment.id,
             label_id: labelId,
-            start_frame_number: bounded.startFrame,
-            end_frame_number: bounded.endFrame,
+            ...buildSegmentTimestampPayload(
+              timestampRange.startTime,
+              timestampRange.endTime,
+              duration.value
+            ),
             export_segment: false
           }
         ]
@@ -1570,23 +1604,28 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   function createSegmentUpdatePayload(
-    segmentId: number,
     startTime: number,
     endTime: number,
     extra: SegmentUpdatePayload = {}
   ) {
-    const bounded = toBoundedFrameRange(startTime, endTime)
-
-    const { exportSegment, export_segment, ...rest } = extra
+    const {
+      startTime: _startTime,
+      endTime: _endTime,
+      start_time: _start_time,
+      end_time: _end_time,
+      startFrameNumber: _startFrameNumber,
+      endFrameNumber: _endFrameNumber,
+      start_frame_number: _start_frame_number,
+      end_frame_number: _end_frame_number,
+      exportSegment,
+      export_segment,
+      ...rest
+    } = extra
 
     return {
-      // backend expects snake_case:
-      start_time: bounded.startTime,
-      end_time: bounded.endTime,
-      start_frame_number: bounded.startFrame,
-      end_frame_number: bounded.endFrame,
+      ...rest,
       export_segment: export_segment ?? exportSegment,
-      ...rest
+      ...buildSegmentTimestampPayload(startTime, endTime, duration.value)
     }
   }
 
@@ -1603,7 +1642,6 @@ export const useVideoStore = defineStore('video', () => {
     }
 
     return createSegmentUpdatePayload(
-      segmentId,
       updates.startTime ?? updates.start_time ?? fallbackStart,
       updates.endTime ?? updates.end_time ?? fallbackEnd,
       updates
@@ -1885,8 +1923,7 @@ export const useVideoStore = defineStore('video', () => {
       return
     }
 
-    const minEndTime = draftSegment.value.startTime + MIN_SEGMENT_DURATION
-    const clampedEndTime = Math.max(minEndTime, endTime)
+    const clampedEndTime = Math.max(0, endTime)
 
     draftSegment.value.endTime = clampedEndTime
 
@@ -2011,7 +2048,6 @@ export const useVideoStore = defineStore('video', () => {
           extra.label_id = segment.labelID
         }
         const payload = createSegmentUpdatePayload(
-          segment.id,
           segment.startTime,
           segment.endTime,
           extra
@@ -2106,6 +2142,7 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   async function loadVideo(videoId: number): Promise<void> {
+    resetFrameNavigationCache()
     console.log(`[VideoStore] loadVideo called with ID: ${videoId}`)
     activeVideoId.value = Number(videoId)
 
@@ -2249,6 +2286,7 @@ export const useVideoStore = defineStore('video', () => {
     setVideo,
     loadVideo, // Added missing loadVideo export
     fetchVideoFps,
+    resolveAdjacentFrameTimestamp,
     fetchVideoUrl,
     fetchAllSegments,
     fetchAllVideos,

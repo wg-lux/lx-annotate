@@ -134,6 +134,42 @@ describe('VideoStore Performance Optimization', () => {
     })
   })
 
+  it('indexes nested time-segment frames by frame id', () => {
+    const segment = backendSegmentToSegment({
+      id: 702,
+      videoId: 101,
+      labelId: 2,
+      labelName: 'polyp',
+      startTime: 2,
+      endTime: 4,
+      timeSegments: {
+        segmentId: 702,
+        segmentStart: 100,
+        segmentEnd: 200,
+        startTime: 2,
+        endTime: 4,
+        frames: [
+          {
+            frameId: 100,
+            frameFilename: 'frame_0100.jpg',
+            frameFilePath: 'frames/frame_0100.jpg',
+            frameUrl: '/media/frames/frame_0100.jpg',
+            allClassifications: [],
+            predictions: [],
+            manualAnnotations: []
+          }
+        ]
+      }
+    })
+
+    expect(segment.frames).toEqual({
+      '100': expect.objectContaining({
+        frameId: 100,
+        frameFilename: 'frame_0100.jpg'
+      })
+    })
+  })
+
   it('passes source_kind when loading a non-default segment source', async () => {
     const store = useVideoStore()
     const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>

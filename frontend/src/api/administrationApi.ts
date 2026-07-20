@@ -8,6 +8,24 @@ export interface CenterChoice {
   displayName: string
 }
 
+export interface TransferMonitoringJob {
+  id: string
+  transferKey: string
+  resourceKind: 'video' | 'report'
+  localStatus: string
+  remoteTransferId: string
+  remoteTransferStatus: string
+  remoteProcessingDecision: string
+  targetNodeKey: string
+  sourceCenterKey: string | null
+  retryCount: number
+  lastError: string
+  localCleanupPolicy: string
+  localCleanupStatus: string
+  lastAttemptAt: string | null
+  updatedAt: string
+}
+
 export interface AdministrationOverview {
   hubHealth: {
     ready: boolean
@@ -36,17 +54,8 @@ export interface AdministrationOverview {
   transferMonitoring: {
     total: number
     counts: Record<string, number>
-    recentAttentionJobs: Array<{
-      id: string
-      resourceKind: 'video' | 'report'
-      localStatus: string
-      targetNodeKey: string
-      sourceCenterKey: string | null
-      retryCount: number
-      lastError: string
-      lastAttemptAt: string | null
-      updatedAt: string
-    }>
+    recentJobs: TransferMonitoringJob[]
+    recentAttentionJobs: TransferMonitoringJob[]
   }
   effectivePermissions: {
     username: string

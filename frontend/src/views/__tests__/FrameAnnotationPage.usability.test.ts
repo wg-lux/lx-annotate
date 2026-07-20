@@ -34,42 +34,43 @@ vi.mock('@/stores/auth_kc', () => ({
   useAuthKcStore: () => ({
     user: {
       sub: 'kc-user-7',
-      username: 'annotator'
+      username: 'annotator',
+      canOverrideAnnotationPrincipal: true
     }
   })
 }))
 
 interface BaseStore {
-  selectedLabelGroupId: string;
-  taskMode: string;
-  targetLabelName: string;
-  filterLabelName: string | null;
-  allowRandomFallback: boolean;
-  informationSource: string;
-  frameFileType: string;
-  aiDatasetId?: string | null;
-  aiDatasetName?: string | null;
-  aiDatasetType?: string | null;
-  annotatorPrincipal: string | null;
-  taskQueue: any[];
-  taskQuerySignature: string;
-  lastError: string | null;
-  setSelectedLabelGroupId: any;
-  setTaskMode: any;
-  setTargetLabelName: any;
-  setFilterLabelName: any;
-  setAllowRandomFallback: any;
-  setInformationSource: any;
-  setFrameFileType: any;
-  setAiDataset?: any;
-  setAnnotatorPrincipal: any;
-  clearQueue: any;
-  fetchBatch: any;
-  popNextTask: any;
+  selectedLabelGroupId: string
+  taskMode: string
+  targetLabelName: string
+  filterLabelName: string | null
+  allowRandomFallback: boolean
+  informationSource: string
+  frameFileType: string
+  aiDatasetId?: string | null
+  aiDatasetName?: string | null
+  aiDatasetType?: string | null
+  annotatorPrincipal: string | null
+  taskQueue: any[]
+  taskQuerySignature: string
+  lastError: string | null
+  setSelectedLabelGroupId: any
+  setTaskMode: any
+  setTargetLabelName: any
+  setFilterLabelName: any
+  setAllowRandomFallback: any
+  setInformationSource: any
+  setFrameFileType: any
+  setAiDataset?: any
+  setAnnotatorPrincipal: any
+  clearQueue: any
+  fetchBatch: any
+  popNextTask: any
 }
 
 // 2. Use the interface for the overrides
-type QueueStoreOverrides = Partial<BaseStore>;
+type QueueStoreOverrides = Partial<BaseStore>
 
 function buildQueueStore(overrides: QueueStoreOverrides = {}) {
   const baseStore: BaseStore = {
@@ -100,7 +101,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     fetchBatch: vi.fn().mockResolvedValue(undefined),
     popNextTask: vi.fn(() => nextTasks.shift() ?? null)
   }
-    const task = {
+  const task = {
     id: 'task-1',
     data: {
       frameId: 101,
@@ -121,7 +122,9 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
   return { ...baseStore, ...overrides }
 }
 
-function installGetMock(options: { streamStatus?: number; streamBody?: Blob; streamContentType?: string } = {}) {
+function installGetMock(
+  options: { streamStatus?: number; streamBody?: Blob; streamContentType?: string } = {}
+) {
   const {
     streamStatus = 200,
     streamBody = new Blob(['frame'], { type: options.streamContentType ?? 'image/jpeg' }),
@@ -192,7 +195,7 @@ describe('FrameAnnotation usability audit', () => {
     expect(text).toContain('Aufgabenquelle')
     expect(text).toContain('Positives Beispiel')
     expect(text).toContain('Negatives Beispiel')
-    expect(text).toContain('Nicht im Datensatz aufnehmen')
+    expect(text).toContain('Aufgabe überspringen')
   })
 
   it('zeigt waehrend des Bildladens einen sichtbaren Status an', async () => {
@@ -232,22 +235,19 @@ describe('FrameAnnotation usability audit', () => {
     )
   })
 
-  it(
-    'zeigt Backend-Fehler beim Task-Laden sichtbar an',
-    async () => {
-      hoisted.queueStore = buildQueueStore({
-        fetchBatch: vi.fn().mockImplementation(async () => {
-          hoisted.queueStore.lastError = 'Backend nicht erreichbar'
-          return []
-        }),
-        popNextTask: vi.fn(() => null),
-        lastError: null
-      })
+  it('zeigt Backend-Fehler beim Task-Laden sichtbar an', async () => {
+    hoisted.queueStore = buildQueueStore({
+      fetchBatch: vi.fn().mockImplementation(async () => {
+        hoisted.queueStore.lastError = 'Backend nicht erreichbar'
+        return []
+      }),
+      popNextTask: vi.fn(() => null),
+      lastError: null
+    })
 
-      const wrapper = mountFrameAnnotation()
-      await flushPromises()
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
 
-      expect(wrapper.text()).toContain('Backend nicht erreichbar')
-    }
-  )
+    expect(wrapper.text()).toContain('Backend nicht erreichbar')
+  })
 })
