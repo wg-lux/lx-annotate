@@ -6,6 +6,7 @@ from typing import Any, Literal, TypedDict, cast
 from endoreg_db.models import (
     Center,
     ImageClassificationAnnotation,
+    LabelVideoSegment,
     NetworkNode,
     PatientExamination,
     PatientExaminationReport,
@@ -78,6 +79,21 @@ class FrameAnnotationPayload(TypedDict, total=False):
     value: bool
     float_value: float | None
     information_source_name: str
+
+
+class VideoSegmentPayload(TypedDict, total=False):
+    source_node_key: str
+    source_segment_id: int
+    video_hash: str
+    start_frame_number: int
+    end_frame_number_exclusive: int
+    label_name: str
+    source_kind: Literal["manual_annotation", "prediction"]
+    validation_state: Literal["unvalidated", "validated"]
+    export_segment: bool
+    anonymous_provenance: dict[str, str]
+    model_name: str
+    model_version: str
 
 
 class StructuredReportPayload(TypedDict, total=False):
@@ -162,7 +178,7 @@ def _require_value(value: Any, *, field_name: str) -> Any:
     return value
 
 
-def _build_video_rows(video: VideoFile) -> dict[str, Any]:
+def _build_video_rows(video: VideoFile, *, source_node_key: str) -> dict[str, Any]:
     _require_processed_file(video, field_name="processed_file")
     state = video.state
     if state is None:
@@ -218,6 +234,10 @@ def _build_video_rows(video: VideoFile) -> dict[str, Any]:
             "file_hash": processed_video_hash,
             "success": not bool(getattr(state, "processing_error", False)),
         },
+        "video_segments": _build_video_segment_rows(
+            video,
+            source_node_key=source_node_key,
+        ),
         "frame_annotations": _build_frame_annotation_rows(video),
         "reports": _build_structured_report_rows(_resolve_examination(video)),
     }
@@ -326,6 +346,62 @@ def _build_frame_annotation_rows(video: VideoFile) -> list[FrameAnnotationPayloa
     return rows
 
 
+def _build_video_segment_rows(
+    video: VideoFile,
+    *,
+    source_node_key: str,
+) -> list[VideoSegmentPayload]:
+    segments = (
+        LabelVideoSegment.objects.filter(video_file=video)
+        .select_related("label", "source", "state", "prediction_meta__model_meta")
+        .order_by("pk")
+    )
+    rows: list[VideoSegmentPayload] = []
+    for segment in segments:
+        segment_id = segment.pk
+        if segment_id is None:
+            raise ValueError("LabelVideoSegment must be persisted before hub transfer.")
+        if segment.label is None:
+            raise ValueError(
+                f"LabelVideoSegment {segment_id} requires a label for hub transfer."
+            )
+        source_kind: Literal["manual_annotation", "prediction"] = (
+            "prediction"
+            if segment.prediction_meta is not None
+            or (segment.source is not None and segment.source.name == "prediction")
+            else "manual_annotation"
+        )
+        information_source_name = (
+            segment.source.name if segment.source is not None else source_kind
+        )
+        row: VideoSegmentPayload = {
+            "source_node_key": source_node_key,
+            "source_segment_id": int(segment_id),
+            "video_hash": video.video_hash,
+            "start_frame_number": int(segment.start_frame_number),
+            "end_frame_number_exclusive": int(segment.end_frame_number),
+            "label_name": segment.label.name,
+            "source_kind": source_kind,
+            "validation_state": (
+                "validated" if segment.is_validated else "unvalidated"
+            ),
+            "export_segment": bool(segment.export_segment),
+            "anonymous_provenance": {
+                "information_source_name": information_source_name,
+            },
+        }
+        if (
+            source_kind == "prediction"
+            and segment.export_segment
+            and segment.prediction_meta is not None
+        ):
+            model_meta = segment.prediction_meta.model_meta
+            row["model_name"] = model_meta.name
+            row["model_version"] = model_meta.version
+        rows.append(row)
+    return rows
+
+
 def _build_structured_report_rows(
     examination: PatientExamination | None,
 ) -> list[StructuredReportPayload]:
@@ -369,7 +445,10 @@ def build_transfer_payload(
         video = outbound_job.video_file
         if video is None:
             raise ValueError("OutboundHubTransferJob.video_file must be set.")
-        resource_rows = _build_video_rows(video)
+        resource_rows = _build_video_rows(
+            video,
+            source_node_key=source_node.node_key,
+        )
         resource_hash = video.video_hash
     else:
         report = outbound_job.raw_pdf_file
@@ -393,7 +472,7 @@ def build_transfer_payload(
         "processing_policy": "preserve_processing_state",
         "processing_intent": "sender_requests_state_preservation",
         "cleanup_policy": "retain_all",
-        "payload_schema_version": "2.0",
+        "payload_schema_version": "3.0",
         "resource_rows": resource_rows,
         "processing_snapshot": _build_processing_snapshot(),
         "provenance": {
@@ -414,10 +493,10 @@ def validate_transfer_payload(
     *,
     request_user=None,
 ) -> dict[str, Any]:
-    """Validate the sender contract without the unsafe legacy lx-dtypes schema."""
+    """Validate the schema 3.0 sender boundary before network registration."""
     del request_user
-    if payload.get("payload_schema_version") != "2.0":
-        raise ValueError("Outbound hub transfer requires payload_schema_version='2.0'.")
+    if payload.get("payload_schema_version") != "3.0":
+        raise ValueError("Outbound hub transfer requires payload_schema_version='3.0'.")
     if payload.get("transfer_mode") != (
         TransferJob.TransferMode.METADATA_AND_PROCESSED_MEDIA.value
     ):
@@ -470,6 +549,11 @@ def validate_transfer_payload(
     source_center = Center.objects.get(
         center_key=str(payload.get("source_center_key") or "").strip()
     )
+    for segment in resource_rows.get("video_segments", []):
+        if cast(dict[str, Any], segment).get("source_node_key") != source_node.node_key:
+            raise ValueError(
+                "video segment source_node_key must match transfer source_node_key."
+            )
     return {
         **payload,
         "source_node": source_node,
@@ -541,6 +625,7 @@ def _validate_privacy_preserving_resource_rows(
                 "video_state",
                 "sensitive_meta",
                 "processing_history",
+                "video_segments",
                 "frame_annotations",
                 "reports",
             },
@@ -688,6 +773,94 @@ def _validate_privacy_preserving_resource_rows(
         )
         if annotation_payload.get("value") is not True:
             raise ValueError("Only positive frame annotations may be transferred.")
+
+    video_hash = str(
+        cast(dict[str, Any], resource_rows.get("video_file", {})).get("video_hash", "")
+    ).strip()
+    frame_count = cast(dict[str, Any], resource_rows.get("video_file", {})).get(
+        "frame_count"
+    )
+    for segment in resource_rows.get("video_segments", []):
+        if not isinstance(segment, dict):
+            raise ValueError("video_segments entries must be JSON objects.")
+        segment_payload = cast(dict[str, Any], segment)
+        _require_exact_keys(
+            segment_payload,
+            allowed={
+                "source_node_key",
+                "source_segment_id",
+                "video_hash",
+                "start_frame_number",
+                "end_frame_number_exclusive",
+                "label_name",
+                "source_kind",
+                "validation_state",
+                "export_segment",
+                "anonymous_provenance",
+                "model_name",
+                "model_version",
+            },
+            required={
+                "source_node_key",
+                "source_segment_id",
+                "video_hash",
+                "start_frame_number",
+                "end_frame_number_exclusive",
+                "label_name",
+                "source_kind",
+                "validation_state",
+                "export_segment",
+                "anonymous_provenance",
+            },
+            field_name="resource_rows.video_segments",
+        )
+        if segment_payload.get("video_hash") != video_hash:
+            raise ValueError("video segment video_hash must match video_file.")
+        start_frame = segment_payload.get("start_frame_number")
+        end_frame = segment_payload.get("end_frame_number_exclusive")
+        if (
+            isinstance(start_frame, bool)
+            or not isinstance(start_frame, int)
+            or isinstance(end_frame, bool)
+            or not isinstance(end_frame, int)
+            or start_frame < 0
+            or end_frame <= start_frame
+            or not isinstance(frame_count, int)
+            or end_frame > frame_count
+        ):
+            raise ValueError("video segment frame boundaries are invalid.")
+        provenance = segment_payload.get("anonymous_provenance")
+        if not isinstance(provenance, dict):
+            raise ValueError("video segment anonymous_provenance must be an object.")
+        _require_exact_keys(
+            cast(dict[str, Any], provenance),
+            allowed={"information_source_name"},
+            required={"information_source_name"},
+            field_name="resource_rows.video_segments.anonymous_provenance",
+        )
+        has_model_name = "model_name" in segment_payload
+        has_model_version = "model_version" in segment_payload
+        if has_model_name != has_model_version:
+            raise ValueError("video segment model metadata must be supplied together.")
+        if has_model_name and (
+            segment_payload.get("source_kind") != "prediction"
+            or segment_payload.get("export_segment") is not True
+        ):
+            raise ValueError(
+                "video segment model metadata is permitted only for exported predictions."
+            )
+        if segment_payload.get("source_kind") not in {
+            "manual_annotation",
+            "prediction",
+        }:
+            raise ValueError("video segment source_kind is invalid.")
+        if segment_payload.get("validation_state") not in {
+            "unvalidated",
+            "validated",
+        }:
+            raise ValueError("video segment validation_state is invalid.")
+        if not isinstance(segment_payload.get("export_segment"), bool):
+            raise ValueError("video segment export_segment must be boolean.")
 
     for report in resource_rows.get("reports", []):
         if not isinstance(report, dict):

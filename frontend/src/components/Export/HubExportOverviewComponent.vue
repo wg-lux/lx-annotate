@@ -39,8 +39,9 @@
       </div>
 
       <div class="card-body">
-        <div v-if="hubExportStore.error" class="alert alert-danger" role="alert">
-          <strong>Fehler:</strong> {{ hubExportStore.error }}
+        <div v-if="hubExportStore.error" class="alert alert-info" role="status">
+          <strong>Status konnte nicht aktualisiert werden.</strong>
+          {{ hubExportStore.error }}
         </div>
 
         <div
@@ -84,7 +85,7 @@
             </div>
             <div class="col-6 col-xl-3">
               <div class="sync-metric h-100" data-test="hub-sync-rejection-count">
-                <span class="sync-metric-value text-danger">{{ syncRejections.length }}</span>
+                <span class="sync-metric-value text-warning">{{ syncRejections.length }}</span>
                 <span class="sync-metric-label">Ablehnungen</span>
               </div>
             </div>
@@ -123,7 +124,7 @@
                   <td>{{ center.activeNodeKeys.join(', ') || '-' }}</td>
                   <td>{{ center.processedFiles.length }}</td>
                   <td>{{ center.candidateCount }}</td>
-                  <td :class="center.rejectionCount ? 'text-danger fw-semibold' : ''">
+                  <td :class="center.rejectionCount ? 'text-warning fw-semibold' : ''">
                     {{ center.rejectionCount }}
                   </td>
                   <td>{{ center.duplicateCount }}</td>
@@ -148,7 +149,9 @@
                     class="sync-situation-item"
                   >
                     <span class="fw-semibold">{{ item.filename }}</span>
-                    <span class="d-block text-sm text-danger">{{ item.detail }}</span>
+                    <span class="d-block text-sm text-muted">{{
+                      requirementLabel(item.detail)
+                    }}</span>
                   </li>
                 </ul>
                 <p v-else class="text-sm text-muted mb-0">Keine Ablehnungen gemeldet.</p>
@@ -176,6 +179,73 @@
               </div>
             </div>
           </div>
+        </section>
+
+        <section class="transfer-monitor mb-4" aria-labelledby="hub-transfer-monitor-title">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+              <h5 id="hub-transfer-monitor-title" class="mb-1">Transferfortschritt</h5>
+              <p class="text-sm text-muted mb-0">
+                Der Status wird automatisch aktualisiert, solange Übertragungen laufen.
+              </p>
+            </div>
+            <span class="badge bg-light text-dark" data-test="hub-transfer-refresh-state">
+              {{ activeTransferCount ? 'Automatische Aktualisierung aktiv' : 'Aktuell' }}
+            </span>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-xl-3">
+              <div class="sync-metric h-100" data-test="hub-transfer-active-count">
+                <span class="sync-metric-value text-primary">{{ activeTransferCount }}</span>
+                <span class="sync-metric-label">In Übertragung</span>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="sync-metric h-100" data-test="hub-transfer-completed-count">
+                <span class="sync-metric-value text-success">{{ completedTransferCount }}</span>
+                <span class="sync-metric-label">Abgeschlossen</span>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="sync-metric h-100" data-test="hub-transfer-attention-count">
+                <span class="sync-metric-value text-warning">{{ attentionTransferCount }}</span>
+                <span class="sync-metric-label">Wartet auf Wiederaufnahme</span>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="sync-metric h-100" data-test="hub-transfer-prerequisite-count">
+                <span class="sync-metric-value text-secondary">{{ missingPrerequisiteCount }}</span>
+                <span class="sync-metric-label">Voraussetzungen offen</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="transferItems.length"
+            class="overall-progress"
+            data-test="hub-transfer-overall-progress"
+          >
+            <div class="d-flex justify-content-between gap-3 mb-2 text-sm">
+              <span class="fw-semibold">Gesamtfortschritt</span>
+              <span class="text-muted">{{ overallTransferProgress }} %</span>
+            </div>
+            <div
+              class="progress"
+              role="progressbar"
+              :aria-valuenow="overallTransferProgress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <div
+                class="progress-bar bg-primary"
+                :style="{ width: `${overallTransferProgress}%` }"
+              ></div>
+            </div>
+          </div>
+          <p v-else class="text-sm text-muted mb-0" data-test="hub-transfer-empty-monitor">
+            Noch keine Ressourcen für die Übertragung markiert.
+          </p>
         </section>
 
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
@@ -297,7 +367,7 @@
                   </span>
                 </td>
                 <td>
-                  <span :class="item.processedMediaPresent ? 'text-success' : 'text-danger'">
+                  <span :class="item.processedMediaPresent ? 'text-success' : 'text-warning'">
                     {{ item.processedMediaPresent ? 'Ja' : 'Nein' }}
                   </span>
                 </td>
@@ -310,15 +380,30 @@
                     {{ item.markedForUpload ? 'Ja' : 'Nein' }}
                   </span>
                 </td>
-                <td>
-                  <span
-                    class="badge"
-                    :class="item.outboundStatus ? 'bg-primary' : 'bg-light text-dark'"
+                <td class="transfer-progress-cell">
+                  <div
+                    class="d-flex justify-content-between align-items-center gap-2 mb-1"
+                    :data-test="`hub-transfer-progress-${item.resourceKind}-${item.id}`"
                   >
-                    {{ item.outboundStatus || 'nicht markiert' }}
-                  </span>
+                    <span class="text-sm fw-semibold">{{ transferStage(item).label }}</span>
+                    <span class="text-xs text-muted">{{ transferStage(item).progress }} %</span>
+                  </div>
+                  <div
+                    class="progress transfer-progress"
+                    role="progressbar"
+                    :aria-label="`Transferfortschritt für ${item.filename}`"
+                    :aria-valuenow="transferStage(item).progress"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                  >
+                    <div
+                      class="progress-bar"
+                      :class="transferStage(item).barClass"
+                      :style="{ width: `${transferStage(item).progress}%` }"
+                    ></div>
+                  </div>
                 </td>
-                <td class="small" :class="itemNotice(item) === '-' ? 'text-muted' : 'text-danger'">
+                <td class="small text-muted">
                   {{ itemNotice(item) }}
                 </td>
               </tr>
@@ -331,7 +416,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   useHubExportStore,
   type HubExportItem,
@@ -341,16 +426,117 @@ import {
 const hubExportStore = useHubExportStore()
 const selectedKeys = ref<Set<string>>(new Set())
 const selectedTargetNodeKey = ref<string | null>(null)
+const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
+
+const ACTIVE_TRANSFER_STATUSES = new Set([
+  'marked',
+  'queued',
+  'pending',
+  'registering',
+  'awaiting_media',
+  'uploading'
+])
+const COMPLETED_TRANSFER_STATUSES = new Set(['completed', 'applied'])
+const ATTENTION_TRANSFER_STATUSES = new Set(['failed', 'inconsistent'])
+
+interface TransferStage {
+  progress: number
+  label: string
+  barClass: string
+}
+
+const TRANSFER_STAGES: Record<string, TransferStage> = {
+  marked: { progress: 10, label: 'Vorgemerkt', barClass: 'bg-info' },
+  queued: { progress: 25, label: 'Eingeplant', barClass: 'bg-info' },
+  pending: { progress: 35, label: 'Wird vorbereitet', barClass: 'bg-info' },
+  registering: { progress: 45, label: 'Am Hub anmelden', barClass: 'bg-primary' },
+  awaiting_media: { progress: 60, label: 'Hub ist bereit', barClass: 'bg-primary' },
+  uploading: { progress: 80, label: 'Datei wird übertragen', barClass: 'bg-primary' },
+  completed: { progress: 100, label: 'Übertragen', barClass: 'bg-success' },
+  applied: { progress: 100, label: 'Im Hub übernommen', barClass: 'bg-success' },
+  failed: { progress: 20, label: 'Wartet auf erneuten Versuch', barClass: 'bg-warning' },
+  inconsistent: { progress: 20, label: 'Prüfung erforderlich', barClass: 'bg-warning' }
+}
 
 const selectionKey = (item: HubExportItem) => `${item.resourceKind}:${item.id}`
 
-const itemNotice = (item: HubExportItem) => item.lastError || item.blockedReason || '-'
+const requirementLabel = (reason?: string) => {
+  const labels: Record<string, string> = {
+    'source center missing': 'Das Quellzentrum muss noch zugeordnet werden.',
+    'not ready for export': 'Anonymisierung und Annotation müssen zuerst abgeschlossen werden.',
+    'processed media missing': 'Die anonymisierte verarbeitete Datei fehlt noch.',
+    'segment cleanup pending': 'Die Segmentbereinigung läuft noch.',
+    'segment cleanup failed': 'Die Segmentbereinigung wartet auf eine erneute Ausführung.'
+  }
+  const normalized = String(reason || '').trim()
+  return labels[normalized] || normalized
+}
+
+const transferStage = (item: HubExportItem): TransferStage => {
+  const normalizedStatus = String(item.outboundStatus || '')
+    .trim()
+    .toLowerCase()
+  if (normalizedStatus && TRANSFER_STAGES[normalizedStatus]) {
+    return TRANSFER_STAGES[normalizedStatus]
+  }
+  if (!item.eligible) {
+    return { progress: 0, label: 'Voraussetzung offen', barClass: 'bg-secondary' }
+  }
+  return { progress: 0, label: 'Bereit zur Auswahl', barClass: 'bg-secondary' }
+}
+
+const formatTimestamp = (value: string) => {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('de-DE', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(parsed)
+}
+
+const itemNotice = (item: HubExportItem) => {
+  if (item.lastError) {
+    return `Der Transfer wartet auf eine erneute Ausführung. ${item.lastError}`
+  }
+  if (item.blockedReason) return requirementLabel(item.blockedReason)
+  if (COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus)) {
+    return item.lastTransferTimestamp
+      ? `Abgeschlossen am ${formatTimestamp(item.lastTransferTimestamp)}`
+      : 'Sicher am Hub übernommen.'
+  }
+  return transferStage(item).label
+}
 
 const filteredItems = computed(() => hubExportStore.items)
 const syncSummary = computed(() => hubExportStore.syncSummary)
 const syncCenters = computed(() => syncSummary.value?.centers ?? [])
 const syncRejections = computed(() => syncSummary.value?.rejections ?? [])
 const syncDuplicates = computed(() => syncSummary.value?.duplicates ?? [])
+const transferItems = computed(() =>
+  filteredItems.value.filter((item) => Boolean(item.outboundStatus))
+)
+const activeTransferCount = computed(
+  () =>
+    transferItems.value.filter((item) => ACTIVE_TRANSFER_STATUSES.has(item.outboundStatus)).length
+)
+const completedTransferCount = computed(
+  () =>
+    transferItems.value.filter((item) => COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus))
+      .length
+)
+const attentionTransferCount = computed(
+  () =>
+    transferItems.value.filter((item) => ATTENTION_TRANSFER_STATUSES.has(item.outboundStatus))
+      .length
+)
+const missingPrerequisiteCount = computed(
+  () => filteredItems.value.filter((item) => !item.eligible && !item.markedForUpload).length
+)
+const overallTransferProgress = computed(() => {
+  if (!transferItems.value.length) return 0
+  const total = transferItems.value.reduce((sum, item) => sum + transferStage(item).progress, 0)
+  return Math.round(total / transferItems.value.length)
+})
 
 const privacySummary = computed(() => hubExportStore.privacySummary)
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible))
@@ -375,9 +561,13 @@ const selectedMarkedItems = computed(() =>
 )
 
 const refreshOverview = async () => {
-  const queryTarget = hubExportStore.hubNodes.length === 1 ? selectedTargetNodeKey.value : null
-  const data = await hubExportStore.fetchOverview(queryTarget)
-  selectedTargetNodeKey.value = data.selectedTargetNodeKey
+  try {
+    const queryTarget = hubExportStore.hubNodes.length === 1 ? selectedTargetNodeKey.value : null
+    const data = await hubExportStore.fetchOverview(queryTarget)
+    selectedTargetNodeKey.value = data.selectedTargetNodeKey
+  } catch {
+    // The store retains the status message so the page can inform the user.
+  }
 }
 
 const toggleSelected = (item: HubExportItem) => {
@@ -429,7 +619,7 @@ const statusBadgeClass = (status: string) => {
     validated: 'bg-success',
     processing_anonymization: 'bg-warning',
     extracting_frames: 'bg-info',
-    failed: 'bg-danger',
+    failed: 'bg-warning text-dark',
     not_started: 'bg-secondary'
   }
   return classes[status] || 'bg-secondary'
@@ -455,6 +645,20 @@ const privacyBadgeClass = (status: HubExportPrivacyStatus) => {
 
 const privacyMetricValue = (value: number | null) => value ?? 'n/a'
 
+const stopPolling = () => {
+  if (pollingTimer.value !== null) {
+    clearInterval(pollingTimer.value)
+    pollingTimer.value = null
+  }
+}
+
+const startPolling = () => {
+  if (pollingTimer.value !== null) return
+  pollingTimer.value = setInterval(() => {
+    if (!hubExportStore.loading) void refreshOverview()
+  }, 5000)
+}
+
 watch(
   () => hubExportStore.selectedTargetNodeKey,
   (next) => {
@@ -462,9 +666,16 @@ watch(
   }
 )
 
+watch(activeTransferCount, (count) => {
+  if (count > 0) startPolling()
+  else stopPolling()
+})
+
 onMounted(async () => {
   await refreshOverview()
 })
+
+onBeforeUnmount(stopPolling)
 </script>
 
 <style scoped>
@@ -516,5 +727,22 @@ onMounted(async () => {
   border-top: 1px solid #eef0f2;
   margin-top: 0.625rem;
   padding-top: 0.625rem;
+}
+
+.transfer-monitor,
+.overall-progress {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #f8f9fa;
+  padding: 1rem;
+}
+
+.transfer-progress-cell {
+  min-width: 13rem;
+}
+
+.transfer-progress {
+  height: 0.45rem;
+  background: #e9ecef;
 }
 </style>

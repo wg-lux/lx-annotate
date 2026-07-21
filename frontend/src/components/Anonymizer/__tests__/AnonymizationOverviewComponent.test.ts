@@ -83,7 +83,10 @@ function buildQuarantinedVideoFile(overrides: Record<string, unknown> = {}) {
     quarantineId: 'lx_annotate_quarantine:quarantined-video.mov',
     quarantineDirectoryKey: 'lx_annotate_quarantine',
     quarantineDirectoryLabel: 'lx-annotate quarantine',
-    errorDetail: 'moov atom not found',
+    quarantineReviewStatus: 'pending_review',
+    quarantineNextAction: 'review_required',
+    quarantineOrphaned: false,
+    errorDetail: 'Die Datei wurde unter Quarantäne gestellt.',
     uploadJob: {
       id: 'lx_annotate_quarantine:quarantined-video.mov',
       status: 'quarantined',
@@ -91,7 +94,8 @@ function buildQuarantinedVideoFile(overrides: Record<string, unknown> = {}) {
       sourceSystem: 'lx-annotate quarantine',
       sourceFilePersisted: true,
       cleanupStatus: 'skipped',
-      errorDetail: 'moov atom not found'
+      errorCode: 'processing_failed',
+      errorDetail: 'Die Datei wurde unter Quarantäne gestellt.'
     },
     ...overrides
   }
@@ -191,6 +195,7 @@ describe('AnonymizationOverviewComponent', () => {
           id: 'duplicate-import',
           status: 'error',
           ingestMode: 'watcher',
+          errorCode: 'duplicate_content',
           errorDetail: 'duplicate key value violates unique constraint "endoreg_db_videofile_video_hash_key"'
         }
       })
@@ -203,6 +208,7 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.text()).not.toContain('duplicate key')
     expect(wrapper.text()).not.toContain('unique constraint')
     expect(wrapper.text()).not.toContain('endoreg_db_videofile_video_hash_key')
+    expect(wrapper.find('[data-test="delete-file-button"]').exists()).toBe(false)
   })
 
   it('reports whether the original source file has already been deleted', async () => {
@@ -297,5 +303,134 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.text()).toContain('Serverseitige Quarantäne')
     expect(wrapper.text()).not.toContain('moov atom not found')
     expect(wrapper.findAll('[data-test="delete-file-button"]')).toHaveLength(1)
+  })
+
+  it('renders a transient import retry without exposing technical details', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({
+        uploadJob: {
+          id: '2f60692d-680d-44bf-a926-24cb9507bdf4',
+          status: 'retrying',
+          ingestMode: 'watcher',
+          sourceSystem: 'watcher-daemon',
+          sourceFilePersisted: true,
+          cleanupStatus: 'pending',
+          errorCode: 'dispatch_unavailable',
+          errorDetail: 'Import service is temporarily unavailable. An automatic retry is scheduled.',
+          retryable: true,
+          retryCount: 2,
+          maxRetries: 3,
+          nextRetryAt: '2026-05-15T07:25:22Z',
+          updatedAt: '2026-05-15T07:24:22Z'
+        }
+      })
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Import wird erneut versucht')
+    expect(wrapper.text()).toContain('Versuch 2/3')
+    expect(wrapper.text()).toContain('Nächster Versuch')
+    expect(wrapper.text()).not.toContain('broker')
+    expect(wrapper.find('[data-test="delete-file-button"]').exists()).toBe(false)
+  })
+
+  it.each([
+    ['pending', 'Import wartet', false],
+    ['processing', 'Import läuft', false],
+    ['error', 'Importfehler', true],
+    ['lost', 'Importquelle fehlt (LOST)', true]
+  ])('renders upload state %s with the expected server action', async (status, label, deleteAllowed) => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({
+        uploadJob: {
+          id: `job-${status}`,
+          status,
+          ingestMode: 'api',
+          sourceFilePersisted: true,
+          cleanupStatus: 'pending',
+          allowedActions: deleteAllowed ? ['safe_reimport', 'delete'] : [],
+          errorCode: status === 'lost' ? 'source_missing' : status === 'error' ? 'processing_failed' : '',
+          errorDetail: status === 'error' || status === 'lost'
+            ? 'Safe operator message.'
+            : ''
+        }
+      })
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(label)
+    expect(wrapper.find('[data-test="delete-file-button"]').exists()).toBe(deleteAllowed)
+  })
+
+  it('renders raw and processed HTTP Live Streaming materialization independently', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({
+        hlsMaterializations: [
+          {
+            artifactKind: 'raw',
+            status: 'ready',
+            triggeringUploadJobId: '2f60692d-680d-44bf-a926-24cb9507bdf4',
+            sourceGenerationId: '63d82006-b275-4b40-b383-ae41855c1163',
+            targetGenerationId: '3f6ed855-eb27-4386-a08d-fd8e99d89c06',
+            segmentCount: 4,
+            errorCode: '',
+            createdAt: '2026-05-15T07:20:22Z',
+            updatedAt: '2026-05-15T07:21:22Z'
+          },
+          {
+            artifactKind: 'processed',
+            status: 'failed',
+            triggeringUploadJobId: '2f60692d-680d-44bf-a926-24cb9507bdf4',
+            sourceGenerationId: 'd46ee58c-3fa4-4230-a4f7-5315d6aa76d5',
+            targetGenerationId: 'e29a5845-cd33-470c-aab3-80b56a9df5c6',
+            segmentCount: 0,
+            errorCode: 'materialization_failed',
+            createdAt: '2026-05-15T07:20:22Z',
+            updatedAt: '2026-05-15T07:22:22Z'
+          }
+        ]
+      })
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Rohvideo: Bereit')
+    expect(wrapper.text()).toContain('Anonymisiert: Fehlgeschlagen')
+    expect(wrapper.text()).toContain('HLS-Erzeugung fehlgeschlagen')
+    expect(wrapper.text()).not.toContain('materialization_failed')
+  })
+
+  it('shows queued and materializing HTTP Live Streaming as active states', async () => {
+    const materialization = (artifactKind: 'raw' | 'processed', status: 'queued' | 'materializing') => ({
+      artifactKind,
+      status,
+      triggeringUploadJobId: null,
+      sourceGenerationId: '63d82006-b275-4b40-b383-ae41855c1163',
+      targetGenerationId: '3f6ed855-eb27-4386-a08d-fd8e99d89c06',
+      segmentCount: 0,
+      errorCode: '',
+      createdAt: '2026-05-15T07:20:22Z',
+      updatedAt: '2026-05-15T07:21:22Z'
+    })
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({
+        hlsMaterializations: [
+          materialization('raw', 'queued'),
+          materialization('processed', 'materializing')
+        ]
+      })
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Rohvideo: Wartet')
+    expect(wrapper.text()).toContain('Anonymisiert: Wird erzeugt')
+    expect(wrapper.find('[data-test="delete-file-button"]').attributes('disabled')).toBeDefined()
   })
 })

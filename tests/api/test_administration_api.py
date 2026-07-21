@@ -82,7 +82,6 @@ class AdministrationApiTests(TestCase):
         broad_user = User.objects.create_user(username="broad-user")
         broad_user.is_staff = True
         broad_user.save(update_fields=["is_staff"])
-        broad_user.groups.add(Group.objects.create(name="endoregdb_user"))
         broad_user.groups.add(Group.objects.create(name="data:write"))
         cast(Any, self.client).force_authenticate(user=broad_user)
 

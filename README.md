@@ -371,6 +371,28 @@ container, `uv` creates and manages the environment at that path, and the image
 
 See `container/README.md` for development and production Docker usage.
 
+## Import monitoring
+
+The anonymization overview presents import, anonymization, HTTP Live Streaming
+(HLS) materialization, annotation, and source cleanup as separate state axes.
+Import jobs expose stable error codes and safe operator messages. A `retrying`
+job is a transient dispatch failure with a bounded attempt count and next retry
+time; `error` and `lost` are terminal and require operator review or a safe
+reimport. Duplicate imports are identified by `duplicate_content`, never by
+parsing exception text.
+
+Raw and processed HLS are tracked independently as `queued`, `materializing`,
+`ready`, or `failed`, with source and target generation identifiers and the
+triggering upload job when available. Active import or HLS work disables
+competing row actions. Quarantine rows are read-only and show their review
+state and permitted next step without exposing filesystem paths or raw
+technical errors.
+
+The operational state matrix, retry policy, error-code catalog, diagnostics,
+and quarantine workflow are maintained in the endoreg-db
+`docs/hub_ingest_operations.md` runbook. Feature readiness is tracked only in
+`feature-tracking/ImportMonitoring.yml` in endoreg-db.
+
 ## Tests
 
 ```bash

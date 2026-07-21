@@ -288,7 +288,11 @@ def test_blacken_outside_allows_rerun_after_failed_cleanup(
     api_client, center, monkeypatch
 ):
     video = _make_video(center, video_hash="failed-cleanup-rerun")
-    _make_segment(video, label_name="outside")
+    segment = _make_segment(video, label_name="outside")
+    segment.mark_validated(
+        is_validated=True,
+        information_source_name="manual_annotation",
+    )
     old_history = VideoProcessingHistory.objects.create(
         video=video,
         operation=VideoProcessingHistory.OPERATION_REPROCESSING,
@@ -312,7 +316,7 @@ def test_blacken_outside_allows_rerun_after_failed_cleanup(
 
     response = api_client.post(
         f"/api/media/videos/{video.pk}/segments/blacken-outside/",
-        {"only_validated": False},
+        {"only_validated": True},
         format="json",
     )
 
@@ -324,3 +328,4 @@ def test_blacken_outside_allows_rerun_after_failed_cleanup(
     rerun_history = VideoProcessingHistory.objects.get(task_id="rerun-cleanup-task")
     assert rerun_history.status == VideoProcessingHistory.STATUS_PENDING
     assert rerun_history.config["kind"] == OUTSIDE_FRAME_BLACKENING_KIND
+    assert rerun_history.config["only_validated"] is True

@@ -48,9 +48,7 @@ def _source_timeline_meta(
     evidence = VideoSourceTimelineEvidence(
         persisted_at=datetime(2026, 1, 1, tzinfo=UTC),
         source=source,
-        timestamp_mapping=(
-            "ffprobe_pts" if variable_frame_rate else "rational_cfr"
-        ),
+        timestamp_mapping=("ffprobe_pts" if variable_frame_rate else "rational_cfr"),
     )
     return {"source_timeline": evidence.model_dump(mode="json")}
 

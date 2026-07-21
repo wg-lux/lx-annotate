@@ -77,10 +77,10 @@ def test_auth_bootstrap_returns_roles_and_capabilities(api_rf, monkeypatch):
     assert res.data["capabilities"]["page.patients.view"]["write"] is False
 
 
-def test_keycloak_extract_roles_aggregates_claim_sources():
+def test_keycloak_extract_roles_ignores_untrusted_resource_clients():
     import endoreg_db.authz.auth as keycloak_auth_mod
 
-    roles = keycloak_auth_mod.KeycloakJWTAuthentication._extract_roles(
+    roles = keycloak_auth_mod.KeycloakJWTAuthentication.extract_roles(
         {
             "sub": "test-user-id",
             "roles": ["reader"],
@@ -91,7 +91,7 @@ def test_keycloak_extract_roles_aggregates_claim_sources():
             },
         }
     )
-    assert roles == {"reader", "annotator", "manage-account", "writer"}
+    assert roles == {"reader", "annotator"}
 
 
 def test_keycloak_authenticate_returns_none_without_bearer():

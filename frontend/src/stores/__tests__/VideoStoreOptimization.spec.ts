@@ -103,6 +103,20 @@ describe('VideoStore Performance Optimization', () => {
     expect(segment.predictionMetaId).toBe(44)
   })
 
+  it('normalizes prediction corrections as a separate segment origin', () => {
+    const segment = backendSegmentToSegment({
+      id: 702,
+      labelName: 'outside',
+      startTime: 12,
+      endTime: 18,
+      source_name: 'prediction_correction',
+      segment_origin: 'manual'
+    })
+
+    expect(segment.segmentOrigin).toBe('prediction_correction')
+    expect(segment.sourceName).toBe('prediction_correction')
+  })
+
   it('normalizes raw snake_case video segment payloads', () => {
     const segment = backendSegmentToSegment({
       id: 701,
@@ -250,6 +264,9 @@ describe('VideoStore Performance Optimization', () => {
     axiosPost.mockResolvedValueOnce({
       data: {
         success: true,
+        status: 'completed',
+        queued: true,
+        pending: false,
         videoId: 101,
         modelMeta: {
           id: 7,
@@ -264,7 +281,13 @@ describe('VideoStore Performance Optimization', () => {
           isActive: true
         },
         deletedPredictionSegments: 2,
-        predictionSegmentsCount: 1
+        predictionSegmentsCount: 1,
+        job: {
+          taskId: 'completed-task',
+          historyId: 9,
+          mode: 'inline',
+          queue: 'inference'
+        }
       }
     })
     axiosGet.mockResolvedValueOnce({

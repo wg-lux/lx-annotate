@@ -439,6 +439,7 @@
                 >
                   <option value="manual">Segmentannotation von {{ activeAnnotatorLabel }}</option>
                   <option value="prediction">KI-Vorhersagen</option>
+                  <option value="prediction_correction">KI-Korrekturen</option>
                 </select>
 
                 <select
@@ -463,7 +464,7 @@
                 <button
                   class="btn btn-outline-secondary"
                   @click="discardSegmentChanges"
-                  :disabled="segmentSourceMode === 'prediction' || !canMutateSelectedSegments"
+                  :disabled="!canMutateSelectedSegments"
                 >
                   Änderungen verwerfen
                 </button>
@@ -472,7 +473,7 @@
                   class="btn"
                   :class="hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary'"
                   @click="saveSegmentChanges"
-                  :disabled="segmentSourceMode === 'prediction' || !canMutateSelectedSegments"
+                  :disabled="!canMutateSelectedSegments"
                 >
                   Segmentänderungen speichern
                 </button>
@@ -485,7 +486,7 @@
                     isImportingPredictionSegments ||
                     !canMutateSelectedSegments
                   "
-                  @click="importPredictionSegmentsToManual"
+                  @click="importPredictionSegmentsToCorrection"
                 >
                   {{
                     isImportingPredictionSegments
@@ -564,8 +565,9 @@
                   v-if="segmentSourceMode === 'prediction'"
                   class="alert alert-warning py-2 px-3 mb-0"
                 >
-                  KI-Segmente sind zur Referenz einsehbar. Zum Speichern in die manuelle Annotation
-                  den Button "Als manuelle Segmente übernehmen" verwenden.
+                  KI-Segmente können hier korrigiert werden. Beim Speichern werden die Korrekturen
+                  als manuelle Annotation übernommen; die ursprüngliche KI-Vorhersage bleibt
+                  erhalten.
                 </div>
                 <div class="d-flex align-items-center">
                   <label class="form-label mb-0 me-2">Neues Label setzen:</label>
@@ -948,6 +950,11 @@ interface CreateSegmentEvent {
   end: number
 }
 
+interface SegmentValidationSummary {
+  validationComplete: boolean
+  validatedOutsideSegmentCount: number
+}
+
 interface VideoSensitiveMeta {
   patientDob?: string | null
   patient_dob?: string | null
@@ -1017,14 +1024,9 @@ function isAnnotationFinished(videoId: number): boolean {
   return getVideoSegmentAnnotationStatus(videoId) === 'validated'
 }
 
-function hasValidatedSegments(videoId: number): boolean {
-  const video = videoList.value.videos.find((item) => item.id === videoId)
-  const status = getVideoSegmentAnnotationStatus(videoId)
-  return (
-    Boolean(video?.segmentAnnotationsValidated) ||
-    status === 'validated' ||
-    status === 'cleanup_failed'
-  )
+function hasValidatedOutsideSegments(videoId: number): boolean {
+  const summary = segmentValidationSummaryByVideoId.value[videoId]
+  return Boolean(summary?.validationComplete && summary.validatedOutsideSegmentCount > 0)
 }
 
 function getVideoSegmentAnnotationStatus(videoId: number): SegmentAnnotationStatus {
@@ -1083,6 +1085,7 @@ const successMessage = ref<string>('')
 const isFullscreen = ref<boolean>(false)
 const isValidatingSegments = computed(() => validationRequestVideoId.value !== null)
 const outsideBlackeningRequestVideoIds = ref<Set<number>>(new Set())
+const segmentValidationSummaryByVideoId = ref<Record<number, SegmentValidationSummary>>({})
 const fpsNormalizationVideoId = ref<number | null>(null)
 let fpsNormalizationPollTimer: ReturnType<typeof setTimeout> | null = null
 const isBlackeningOutsideSegments = computed(
@@ -1163,6 +1166,7 @@ async function loadSelectedVideo() {
   clearSuccessMessage()
 
   try {
+    await loadSegmentValidationSummary(selectedVideoId.value)
     if (!(await ensureSegmentationFpsReady(selectedVideoId.value))) {
       return
     }
@@ -1458,7 +1462,7 @@ const selectedPostValidationRebuildDetails = computed(() => {
 const canBlackenOutsideSegments = computed(
   () =>
     selectedVideoId.value !== null &&
-    hasValidatedSegments(selectedVideoId.value) &&
+    hasValidatedOutsideSegments(selectedVideoId.value) &&
     !isSegmentCleanupPending(selectedVideoId.value) &&
     !outsideBlackeningRequestVideoIds.value.has(selectedVideoId.value)
 )
@@ -1775,7 +1779,11 @@ async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
       return undefined
     }
     const errorMsg =
-      e?.response?.data?.detail || e?.response?.data?.error || e?.message || String(e)
+      e?.response?.data?.detail ||
+      e?.response?.data?.error ||
+      e?.response?.data?.message ||
+      e?.message ||
+      String(e)
     showErrorMessage(errorMsg)
     return undefined
   }
@@ -1891,15 +1899,44 @@ const loadVideoMetadata = async (): Promise<void> => {
   }
 }
 
+async function loadSegmentValidationSummary(videoId: number): Promise<void> {
+  try {
+    const response = await axiosInstance.get(
+      r(endpoints.media.videoSegmentsValidationStatus(videoId))
+    )
+    const byLabel = response.data?.byLabel ?? response.data?.by_label ?? {}
+    const outside = byLabel.outside ?? {}
+    segmentValidationSummaryByVideoId.value = {
+      ...segmentValidationSummaryByVideoId.value,
+      [videoId]: {
+        validationComplete: Boolean(
+          response.data?.validationComplete ?? response.data?.validation_complete
+        ),
+        validatedOutsideSegmentCount: Number(outside.validated ?? 0)
+      }
+    }
+  } catch {
+    segmentValidationSummaryByVideoId.value = {
+      ...segmentValidationSummaryByVideoId.value,
+      [videoId]: {
+        validationComplete: false,
+        validatedOutsideSegmentCount: 0
+      }
+    }
+  }
+}
+
 async function loadVideoSegments(): Promise<void> {
   if (selectedVideoId.value === null) return
   if (!canViewProcessedVideo(selectedVideoId.value)) return
   if (fpsNormalizationVideoId.value !== null) return
 
   try {
-    await videoStore.fetchAllSegments(selectedVideoId.value, true, {
+    const videoId = selectedVideoId.value
+    await videoStore.fetchAllSegments(videoId, true, {
       sourceKind: segmentSourceMode.value
     })
+    await loadSegmentValidationSummary(videoId)
   } catch {
     showErrorMessage('Fehler beim Laden der Videosegmente.')
   }
@@ -2086,6 +2123,13 @@ const handleCreateSegment = (...args: unknown[]): Promise<void> => {
       }
       if (selectedVideoId.value) {
         await videoStore.createSegment?.(selectedVideoId.value, event.label, event.start, event.end)
+        segmentValidationSummaryByVideoId.value = {
+          ...segmentValidationSummaryByVideoId.value,
+          [selectedVideoId.value]: {
+            validationComplete: false,
+            validatedOutsideSegmentCount: 0
+          }
+        }
         showSuccessMessage(`Segment erstellt: ${getTranslationForLabel(event.label)}`)
       }
       resolve()
@@ -2352,6 +2396,25 @@ const deleteExamination = async (examinationId: number): Promise<void> => {
 
 const sleep = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds))
+
+const pollPredictionRerun = async (videoId: number, historyId: number): Promise<boolean> => {
+  const maxAttempts = 120
+  const intervalMs = 5000
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (selectedVideoId.value !== videoId) return false
+    if (attempt > 0) await sleep(intervalMs)
+
+    const history = await videoStore.fetchPredictionProcessingHistory(videoId, historyId)
+    if (history === null || history.status === 'pending' || history.status === 'running') {
+      continue
+    }
+    if (history.status === 'success') return true
+    if (history.status === 'failure' || history.status === 'cancelled') {
+      throw new Error(history.details || 'Die KI-Segmentberechnung ist fehlgeschlagen.')
+    }
+  }
+  throw new Error('Zeitüberschreitung bei der KI-Segmentberechnung.')
+}
 
 const segmentValidationPollingPromises = new Map<number, Promise<void>>()
 
@@ -2635,9 +2698,9 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
     return
   }
 
-  if (!hasValidatedSegments(videoId)) {
+  if (!hasValidatedOutsideSegments(videoId)) {
     showErrorMessage(
-      'Außerhalb-Segmente können erst nach vollständiger Segmentvalidierung geschwärzt werden.'
+      'Außerhalb-Segmente können erst geschwärzt werden, wenn validierte Outside-Segmente vorliegen und alle Segmente validiert sind.'
     )
     return
   }
@@ -2692,9 +2755,7 @@ const saveSegmentChanges = async (): Promise<void> => {
     return
   }
   if (segmentSourceMode.value === 'prediction') {
-    showErrorMessage(
-      'Änderungen an KI-Vorhersagen werden erst mit "Als manuelle Segmente übernehmen" persistiert.'
-    )
+    await importPredictionSegmentsToCorrection()
     return
   }
   try {
@@ -2721,7 +2782,7 @@ const discardSegmentChanges = (): void => {
   showSuccessMessage('Lokale Änderungen verworfen')
 }
 
-const importPredictionSegmentsToManual = async (): Promise<void> => {
+const importPredictionSegmentsToCorrection = async (): Promise<void> => {
   if (!selectedVideoId.value) return
   if (!canMutateSelectedSegments.value) {
     showErrorMessage(getSegmentMutationBlockedMessage())
@@ -2749,9 +2810,9 @@ const importPredictionSegmentsToManual = async (): Promise<void> => {
       payload
     )
 
-    segmentSourceMode.value = 'manual'
+    segmentSourceMode.value = 'prediction_correction'
     await loadVideoSegments()
-    showSuccessMessage('KI-Vorhersagen wurden als manuelle Segmente übernommen')
+    showSuccessMessage('KI-Vorhersagen wurden als separater Korrektur-Track übernommen')
   } catch (error: any) {
     await guarded(Promise.reject(error))
   } finally {
@@ -2780,10 +2841,29 @@ const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
 
     const response = await videoStore.rerunPredictionSegments(selectedVideoId.value, payload)
     await videoStore.fetchPredictionModels()
+    if (response.status !== 'completed') {
+      if (
+        response.status !== 'queued' &&
+        response.status !== 'already_queued' &&
+        response.status !== 'pending_after_rebuild'
+      ) {
+        throw new Error(response.message || `Unerwarteter KI-Jobstatus: ${response.status}`)
+      }
+      if (response.job.historyId === null) {
+        throw new Error('Der KI-Hintergrundjob enthält keine verfolgbaren Verlaufsdaten.')
+      }
+      showSuccessMessage(
+        response.status === 'pending_after_rebuild'
+          ? 'KI-Berechnung startet nach Abschluss der Videoverarbeitung.'
+          : 'KI-Berechnung wurde gestartet.'
+      )
+      const completed = await pollPredictionRerun(selectedVideoId.value, response.job.historyId)
+      if (!completed) return
+    }
     segmentSourceMode.value = 'prediction'
     await loadVideoSegments()
     showSuccessMessage(
-      `KI-Vorhersagen neu berechnet (${response.predictionSegmentsCount} Segmente)`
+      `KI-Vorhersagen neu berechnet (${timelineSegmentsForSelectedVideo.value.length} Segmente)`
     )
   } catch (error: any) {
     await guarded(Promise.reject(error))

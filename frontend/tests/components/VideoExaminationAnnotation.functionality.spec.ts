@@ -13,7 +13,8 @@ const testState = vi.hoisted(() => ({
     push: vi.fn()
   },
   axiosGet: vi.fn(),
-  axiosPost: vi.fn()
+  axiosPost: vi.fn(),
+  outsideValidatedCount: 1
 }))
 
 vi.mock('@/components/VideoExamination/Timeline.vue', () => ({
@@ -202,6 +203,7 @@ describe('VideoExaminationAnnotation functionality', () => {
     testState.router.push.mockReset()
     testState.axiosGet.mockReset()
     testState.axiosPost.mockReset()
+    testState.outsideValidatedCount = 1
     testState.videoStore = makeVideoStore()
     testState.anonymizationStore = reactive({
       overview: videos.map((video) => ({
@@ -223,6 +225,19 @@ describe('VideoExaminationAnnotation functionality', () => {
       error: vi.fn()
     }
     testState.axiosGet.mockImplementation((url: string) => {
+      if (url.includes('segments/validation-status')) {
+        return Promise.resolve({
+          data: {
+            validationComplete: testState.outsideValidatedCount > 0,
+            byLabel: {
+              outside: {
+                total: testState.outsideValidatedCount,
+                validated: testState.outsideValidatedCount
+              }
+            }
+          }
+        })
+      }
       if (url.includes('sensitive-metadata')) {
         return Promise.resolve({ data: { patient_dob: null, patient_gender_name: null } })
       }
@@ -294,6 +309,93 @@ describe('VideoExaminationAnnotation functionality', () => {
     expect(saveButton?.attributes('disabled')).toBeDefined()
     expect(discardButton?.attributes('disabled')).toBeDefined()
 
+    wrapper.unmount()
+  })
+
+  it('allows placing segments while the selected video is editable', async () => {
+    testState.route.query.video = '1'
+    testState.anonymizationStore.overview[0].anonymizationStatus = 'validated'
+
+    const wrapper = mountComponent()
+    await settle()
+
+    const timeline = wrapper.findComponent({ name: 'Timeline' })
+    expect(timeline.props('selectionMode')).toBe(true)
+
+    timeline.vm.$emit('segment-create', {
+      label: 'outside',
+      start: 10,
+      end: 14
+    })
+    await settle()
+
+    expect(testState.videoStore.createSegment).toHaveBeenCalledWith(1, 'outside', 10, 14)
+    wrapper.unmount()
+  })
+
+  it('saves corrected predictions as manual segments without mutating the prediction track', async () => {
+    testState.route.query.video = '1'
+    testState.anonymizationStore.overview[0].anonymizationStatus = 'validated'
+    testState.videoStore.allSegments = [
+      {
+        ...segments[0],
+        videoID: 1,
+        segmentOrigin: 'prediction'
+      }
+    ]
+    testState.videoStore.patchSegmentLocally.mockImplementation(
+      (segmentId: number, patch: Record<string, unknown>) => {
+        const segment = testState.videoStore.allSegments.find(
+          (candidate: { id: number }) => candidate.id === segmentId
+        )
+        if (segment) Object.assign(segment, patch, { isDirty: true })
+      }
+    )
+    testState.axiosPost.mockResolvedValue({
+      data: { createdCount: 1, replacedExisting: true }
+    })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    await wrapper.get('.source-select').setValue('prediction')
+    await settle()
+
+    wrapper.findComponent({ name: 'Timeline' }).vm.$emit(
+      'segment-resize',
+      11,
+      5,
+      13,
+      'resize',
+      true
+    )
+    await settle()
+
+    const saveButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Segmentänderungen speichern'))
+    expect(saveButton?.attributes('disabled')).toBeUndefined()
+    await saveButton!.trigger('click')
+    await settle()
+
+    expect(testState.axiosPost).toHaveBeenCalledWith(
+      '/api/media/videos/1/segments/import-predictions/',
+      {
+        replace_existing: true,
+        segments: [
+          {
+            label_name: 'outside',
+            start_time: 5,
+            end_time: 13,
+            export_segment: false
+          }
+        ]
+      }
+    )
+    expect(wrapper.get('.source-select').element).toHaveProperty(
+      'value',
+      'prediction_correction'
+    )
     wrapper.unmount()
   })
 
@@ -374,6 +476,19 @@ describe('VideoExaminationAnnotation functionality', () => {
     )
     expect(wrapper.text()).toContain('Schwärzung der Außerhalb-Segmente gestartet')
 
+    wrapper.unmount()
+  })
+
+  it('requires a validated outside segment before enabling blackening', async () => {
+    testState.route.query.video = '2'
+    testState.outsideValidatedCount = 0
+
+    const wrapper = mountComponent()
+    await settle()
+
+    expect(
+      wrapper.get('[data-test="blacken-outside-segments-button"]').attributes('disabled')
+    ).toBeDefined()
     wrapper.unmount()
   })
 

@@ -57,6 +57,7 @@
                 <th>Typ</th>
                 <th>Aktionen</th>
                 <th>Import</th>
+                <th>HLS-Materialisierung</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
                 <th class="validation-action-column">Validierung</th>
@@ -102,11 +103,14 @@
                 <td>
                   <div v-if="file.quarantined" class="small text-warning quarantine-action-note">
                     Serverseitige Quarantäne
+                    <div v-if="getQuarantineReviewLabel(file)" class="text-muted mt-1">
+                      {{ getQuarantineReviewLabel(file) }}
+                    </div>
                   </div>
                   <div v-else class="btn-group btn-group-sm" role="group">
                     <!-- Re-import for videos with missing/incorrect metadata -->
                     <button
-                      v-if="file.mediaType === 'video' && needsReimport(file)"
+                      v-if="file.mediaType === 'video' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
                       @click="reimportVideo(file.id)"
                       class="btn btn-outline-info"
                       :disabled="isProcessing(file.id)"
@@ -118,7 +122,7 @@
 
                     <!-- Re-import for PDFs (using reset-status for now) -->
                     <button
-                      v-if="file.mediaType === 'pdf' && needsReimport(file)"
+                      v-if="file.mediaType === 'pdf' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
                       @click="reimportPdf(file.id)"
                       class="btn btn-outline-info"
                       :disabled="isProcessing(file.id)"
@@ -163,6 +167,7 @@
 
                     <!-- Delete Button - Show for all files -->
                     <button
+                      v-if="canUseImportAction(file, 'delete')"
                       data-test="delete-file-button"
                       @click="deleteFile(file.id)"
                       class="btn btn-outline-danger"
@@ -210,12 +215,47 @@
                     <div v-if="getUploadJobCleanupLabel(file.uploadJob)" class="small text-muted upload-job-text">
                       {{ getUploadJobCleanupLabel(file.uploadJob) }}
                     </div>
+                    <div v-if="file.uploadJob.updatedAt" class="small text-muted upload-job-text">
+                      Aktualisiert: {{ formatDate(file.uploadJob.updatedAt) }}
+                    </div>
                     <div
                       v-if="getUploadJobNotice(file)"
                       class="small mt-1 upload-job-text"
                       :class="getUploadJobNoticeClass(file)"
                     >
                       {{ getUploadJobNotice(file) }}
+                    </div>
+                  </div>
+                  <span v-else class="text-muted">-</span>
+                </td>
+
+                <!-- HTTP Live Streaming Materialization -->
+                <td>
+                  <div
+                    v-if="file.hlsMaterializations?.length"
+                    class="hls-materialization-summary"
+                  >
+                    <div
+                      v-for="materialization in file.hlsMaterializations"
+                      :key="materialization.artifactKind"
+                      class="mb-1"
+                    >
+                      <span
+                        class="badge"
+                        :class="getHlsStatusBadgeClass(materialization.status)"
+                      >
+                        {{ getHlsArtifactKindText(materialization.artifactKind) }}:
+                        {{ getHlsStatusText(materialization.status) }}
+                      </span>
+                      <div class="small text-muted upload-job-text">
+                        Aktualisiert: {{ formatDate(materialization.updatedAt) }}
+                      </div>
+                      <div
+                        v-if="materialization.status === 'failed'"
+                        class="small text-danger upload-job-text"
+                      >
+                        HLS-Erzeugung fehlgeschlagen. Details sind im Server-Log verfügbar.
+                      </div>
                     </div>
                   </div>
                   <span v-else class="text-muted">-</span>
@@ -368,6 +408,8 @@ const mediaManagement = useMediaManagement();
 // Local state
 const isRefreshing = ref(false);
 const processingFiles = ref<Set<number>>(new Set());
+const monitoringRefreshHandle = ref<ReturnType<typeof setTimeout> | null>(null);
+const MONITORING_REFRESH_INTERVAL_MS = 15000;
 
 // Computed properties
 const availableFiles = computed(() => anonymizationStore.overview);
@@ -592,6 +634,7 @@ const isProcessing = (fileId: number) => {
   
   return processingFiles.value.has(fileId) ||
          isUploadJobActive(file) ||
+         isHlsMaterializationActive(file) ||
          anonymizationStore.isVideoReimportQueued(fileId) ||
          !pollingProtection.canProcessMedia.value(fileId, mediaType as 'video' | 'pdf');
 };
@@ -614,7 +657,24 @@ const needsReimport = (file: FileItem) => {
 
 const isUploadJobActive = (file: FileItem) => {
   const status = String(file.uploadJob?.status || '').toLowerCase();
-  return status === 'pending' || status === 'processing';
+  return status === 'pending' || status === 'processing' || status === 'retrying';
+};
+
+const isHlsMaterializationActive = (file: FileItem) =>
+  (file.hlsMaterializations || []).some(materialization =>
+    materialization.status === 'queued' || materialization.status === 'materializing'
+  );
+
+const canUseImportAction = (
+  file: FileItem,
+  action: 'safe_reimport' | 'delete'
+) => {
+  if (!file.uploadJob) return true;
+  if (file.uploadJob.allowedActions) {
+    return file.uploadJob.allowedActions.includes(action);
+  }
+  if (isUploadJobActive(file) || isDuplicateKeyImportError(file)) return false;
+  return action === 'delete' || ['error', 'lost'].includes(file.uploadJob.status);
 };
 
 const getFileIcon = (mediaType: string) => {
@@ -710,6 +770,7 @@ const getUploadJobStatusBadgeClass = (status: string) => {
   const classes: { [key: string]: string } = {
     pending: 'bg-secondary',
     processing: 'bg-warning',
+    retrying: 'bg-info text-dark',
     anonymized: 'bg-success',
     quarantined: 'bg-warning text-dark',
     error: 'bg-danger',
@@ -722,15 +783,15 @@ const getUploadJobStatusText = (status: string) => {
   const texts: { [key: string]: string } = {
     pending: 'Import wartet',
     processing: 'Import läuft',
+    retrying: 'Import wird erneut versucht',
     anonymized: 'Import abgeschlossen',
     quarantined: 'In Quarantäne',
     error: 'Importfehler',
-    lost: 'Import nicht möglich. Bitte Eintrag löschen und erneut importieren!'
+    lost: 'Importquelle fehlt (LOST)'
   };
   return texts[status] || `Unbekannter Importstatus (${status})`;
 };
 
-const DUPLICATE_KEY_IMPORT_ERROR_PATTERN = /\bduplicate key\b|\bunique constraint\b/i;
 const DUPLICATE_IMPORT_NOTICE = 'Duplikat erkannt. Die vorhandene validierte Annotation bleibt erhalten.';
 const IMPORT_ERROR_NOTICE = 'Importfehler. Details sind im Server-Log verfügbar.';
 
@@ -740,21 +801,25 @@ const isUploadJobError = (uploadJob: UploadJobOverview) => {
 };
 
 const isDuplicateKeyImportError = (file: FileItem) => {
-  if (!file.uploadJob || !isUploadJobError(file.uploadJob)) {
-    return false;
-  }
-
-  const errorDetail = file.uploadJob.errorDetail || file.errorDetail || '';
-  return DUPLICATE_KEY_IMPORT_ERROR_PATTERN.test(errorDetail);
+  return file.uploadJob?.errorCode === 'duplicate_content';
 };
 
 const getUploadJobNotice = (file: FileItem) => {
-  if (!file.uploadJob?.errorDetail) {
+  if (!file.uploadJob) {
     return '';
   }
 
   if (isDuplicateKeyImportError(file)) {
     return DUPLICATE_IMPORT_NOTICE;
+  }
+
+  if (file.uploadJob.status === 'retrying') {
+    const retryCount = file.uploadJob.retryCount ?? 0;
+    const maxRetries = file.uploadJob.maxRetries ?? 0;
+    const schedule = file.uploadJob.nextRetryAt
+      ? ` Nächster Versuch: ${formatDate(file.uploadJob.nextRetryAt)}.`
+      : '';
+    return `Vorübergehender Importfehler. Versuch ${retryCount}/${maxRetries}.${schedule}`;
   }
 
   if (isUploadJobError(file.uploadJob)) {
@@ -768,7 +833,45 @@ const getUploadJobNoticeClass = (file: FileItem) => {
   if (isDuplicateKeyImportError(file)) {
     return 'text-muted';
   }
+  if (file.uploadJob?.status === 'retrying') {
+    return 'text-warning';
+  }
   return 'text-danger';
+};
+
+const getHlsStatusBadgeClass = (status: string) => {
+  const classes: Record<string, string> = {
+    queued: 'bg-secondary',
+    materializing: 'bg-warning text-dark',
+    ready: 'bg-success',
+    failed: 'bg-danger'
+  };
+  return classes[status] || 'bg-secondary';
+};
+
+const getHlsStatusText = (status: string) => {
+  const texts: Record<string, string> = {
+    queued: 'Wartet',
+    materializing: 'Wird erzeugt',
+    ready: 'Bereit',
+    failed: 'Fehlgeschlagen'
+  };
+  return texts[status] || `Unbekannter HLS-Status (${status})`;
+};
+
+const getHlsArtifactKindText = (artifactKind: string) =>
+  artifactKind === 'raw' ? 'Rohvideo' : 'Anonymisiert';
+
+const getQuarantineReviewLabel = (file: FileItem) => {
+  if (!file.quarantined) return '';
+  const statusTexts: Record<string, string> = {
+    pending_review: 'Review erforderlich',
+    retained: 'Aufbewahrung beschlossen',
+    approved_for_deletion: 'Löschung freigegeben',
+    failed: 'Bedienereingriff erforderlich',
+    unindexed: 'Ledger-Abgleich erforderlich'
+  };
+  return statusTexts[file.quarantineReviewStatus || ''] || '';
 };
 
 const getUploadJobOriginLabel = (uploadJob: UploadJobOverview) => {
@@ -875,7 +978,7 @@ const getOriginalFileDeletionIcon = (file: FileItem): string => {
 
 const getOriginalFileDeletionHint = (file: FileItem): string => {
   if (file.quarantined) {
-    return 'Import wurde vor der Datenbankanlage gestoppt';
+    return getQuarantineReviewLabel(file) || 'Import wurde vor der Datenbankanlage gestoppt';
   }
   if (file.uploadJob?.cleanupStatus) {
     return getUploadJobCleanupStatusText(file.uploadJob.cleanupStatus);
@@ -897,6 +1000,19 @@ const formatDate = (dateString: string | null) => {
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+const hasActiveMonitoringState = () => availableFiles.value.some(file =>
+  isUploadJobActive(file) || isHlsMaterializationActive(file)
+);
+
+const scheduleMonitoringRefresh = () => {
+  if (!hasActiveMonitoringState() || monitoringRefreshHandle.value) return;
+  monitoringRefreshHandle.value = setTimeout(async () => {
+    monitoringRefreshHandle.value = null;
+    await refreshOverview();
+    scheduleMonitoringRefresh();
+  }, MONITORING_REFRESH_INTERVAL_MS);
 };
 
 const getTotalByStatus = (status: string) => {
@@ -939,10 +1055,16 @@ onMounted(async () => {
     }
   });
 
+  scheduleMonitoringRefresh();
+
 
 });
 
 onUnmounted(() => {
+  if (monitoringRefreshHandle.value) {
+    clearTimeout(monitoringRefreshHandle.value);
+    monitoringRefreshHandle.value = null;
+  }
   // Clean up all polling when component is unmounted
   anonymizationStore.stopAllPolling();
   

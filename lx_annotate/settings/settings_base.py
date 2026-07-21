@@ -354,6 +354,10 @@ CELERY_TASK_ROUTES = {
         "queue": CELERY_MAINTENANCE_QUEUE,
         "routing_key": CELERY_MAINTENANCE_QUEUE,
     },
+    "endoreg_db.retry_due_upload_jobs": {
+        "queue": CELERY_MAINTENANCE_QUEUE,
+        "routing_key": CELERY_MAINTENANCE_QUEUE,
+    },
     "lx_annotate.run_outbound_hub_transfer_job": {
         "queue": CELERY_HUB_TRANSFER_QUEUE,
         "routing_key": CELERY_HUB_TRANSFER_QUEUE,
@@ -366,6 +370,17 @@ CELERY_TASK_ROUTES = {
         "queue": CELERY_HUB_TRANSFER_QUEUE,
         "routing_key": CELERY_HUB_TRANSFER_QUEUE,
     },
+}
+CELERY_BEAT_SCHEDULE = {
+    "retry-due-upload-jobs": {
+        "task": "endoreg_db.retry_due_upload_jobs",
+        "schedule": 60.0,
+        "options": {
+            "queue": CELERY_MAINTENANCE_QUEUE,
+            "routing_key": CELERY_MAINTENANCE_QUEUE,
+            "expires": 55,
+        },
+    }
 }
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_TRACK_STARTED = True

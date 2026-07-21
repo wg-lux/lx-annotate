@@ -298,6 +298,14 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       if (url.includes('/fps/')) {
         return { data: { fps: 25 } } as any
       }
+      if (url.includes('/segments/validation-status/')) {
+        return {
+          data: {
+            validationComplete: true,
+            byLabel: { outside: { total: 1, validated: 1 } }
+          }
+        } as any
+      }
       const segmentMatch = url.match(/media\/videos\/(\d+)\/segments\//)
       if (segmentMatch) {
         return {

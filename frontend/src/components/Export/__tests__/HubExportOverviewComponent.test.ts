@@ -340,7 +340,7 @@ describe('HubExportOverviewComponent', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('video-cleanup.mp4')
-    expect(wrapper.text()).toContain('segment cleanup pending')
+    expect(wrapper.text()).toContain('Die Segmentbereinigung läuft noch.')
     expect(
       wrapper.get('[data-test="hub-export-select-video-31"]').attributes('disabled')
     ).toBeDefined()
@@ -499,9 +499,98 @@ describe('HubExportOverviewComponent', () => {
     expect(wrapper.get('[data-test="hub-sync-duplicate-count"]').text()).toContain('1')
     expect(wrapper.get('[data-test="hub-sync-center-center-a"]').text()).toContain('Center A')
     expect(wrapper.get('[data-test="hub-sync-rejections"]').text()).toContain(
-      'processed media missing'
+      'Die anonymisierte verarbeitete Datei fehlt noch.'
     )
     expect(wrapper.get('[data-test="hub-sync-duplicates"]').text()).toContain('queued')
     expect(wrapper.text()).toContain('rejected.pdf')
+  })
+
+  it('shows progress stages without rendering transfer problems as red errors', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: null
+          }
+        ],
+        configReady: true,
+        configError: '',
+        items: [
+          {
+            id: 51,
+            resourceKind: 'video',
+            filename: 'uploading.mp4',
+            anonymizationStatus: 'validated',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: true,
+            outboundStatus: 'uploading',
+            lastError: '',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: true,
+            createdAt: '2026-04-08T12:00:00Z'
+          },
+          {
+            id: 52,
+            resourceKind: 'report',
+            filename: 'waiting.pdf',
+            anonymizationStatus: 'validated',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: true,
+            outboundStatus: 'failed',
+            lastError: 'Hub temporarily unavailable',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: true,
+            createdAt: '2026-04-08T12:00:00Z'
+          },
+          {
+            id: 53,
+            resourceKind: 'video',
+            filename: 'cleanup.mp4',
+            anonymizationStatus: 'validated',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: false,
+            outboundStatus: '',
+            lastError: '',
+            blockedReason: 'segment cleanup pending',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: false,
+            createdAt: '2026-04-08T12:00:00Z'
+          }
+        ]
+      }
+    })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="hub-transfer-active-count"]').text()).toContain('1')
+    expect(wrapper.get('[data-test="hub-transfer-attention-count"]').text()).toContain('1')
+    expect(wrapper.get('[data-test="hub-transfer-prerequisite-count"]').text()).toContain('1')
+    expect(wrapper.get('[data-test="hub-transfer-overall-progress"]').text()).toContain('50 %')
+    expect(wrapper.get('[data-test="hub-transfer-progress-video-51"]').text()).toContain(
+      'Datei wird übertragen'
+    )
+    expect(wrapper.get('[data-test="hub-transfer-progress-report-52"]').text()).toContain(
+      'Wartet auf erneuten Versuch'
+    )
+    expect(wrapper.text()).toContain('Die Segmentbereinigung läuft noch.')
+    expect(wrapper.find('.alert-danger').exists()).toBe(false)
+    expect(wrapper.find('.bg-danger').exists()).toBe(false)
+
+    wrapper.unmount()
   })
 })

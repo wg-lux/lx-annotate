@@ -16,6 +16,7 @@ from endoreg_db.models import (
     ImageClassificationAnnotation,
     InformationSource,
     Label,
+    LabelVideoSegment,
     NetworkNode,
     PatientExaminationReport,
     RawPdfFile,
@@ -116,7 +117,7 @@ class HubExportPayloadTests(TestCase):
         self.assertNotIn("original_file_name", rows["video_file"])
         self.assertNotIn("meta", rows["video_file"])
         self.assertTrue(rows["video_state"]["anonymization_validated"])
-        self.assertEqual(payload["payload_schema_version"], "2.0")
+        self.assertEqual(payload["payload_schema_version"], "3.0")
 
         validated = self._assert_transfer_payload_persists(payload)
         self.assertEqual(validated["source_node"].node_key, "site-node")
@@ -293,6 +294,34 @@ class HubExportPayloadTests(TestCase):
             float_value=0.95,
             annotator="reviewer@example.org",
         )
+        segment = LabelVideoSegment.objects.create(
+            video_file=video,
+            label=label,
+            source=information_source,
+            start_frame_number=5,
+            end_frame_number=10,
+            export_segment=True,
+        )
+        segment.mark_validated(information_source_name="manual_annotation")
+        state.segment_annotations_created = True
+        state.segment_annotations_validated = True
+        state.outside_segments_removed = True
+        state.ready_for_export = True
+        state.ready_for_export_at = timezone.now()
+        state.ready_for_export_by = "test-suite"
+        state.processed_file_sha256 = processed_hash
+        state.save(
+            update_fields=[
+                "segment_annotations_created",
+                "segment_annotations_validated",
+                "outside_segments_removed",
+                "ready_for_export",
+                "ready_for_export_at",
+                "ready_for_export_by",
+                "processed_file_sha256",
+                "date_modified",
+            ]
+        )
         ImageClassificationAnnotation.objects.create(
             frame=frame,
             label=Label.objects.create(name="negative_label"),
@@ -341,6 +370,25 @@ class HubExportPayloadTests(TestCase):
                     "value": True,
                     "float_value": 0.95,
                     "information_source_name": "manual_annotation",
+                }
+            ],
+        )
+        self.assertEqual(
+            rows["video_segments"],
+            [
+                {
+                    "source_node_key": "site-node",
+                    "source_segment_id": segment.pk,
+                    "video_hash": "video-hash-rows",
+                    "start_frame_number": 5,
+                    "end_frame_number_exclusive": 10,
+                    "label_name": "lesion_visible",
+                    "source_kind": "manual_annotation",
+                    "validation_state": "validated",
+                    "export_segment": True,
+                    "anonymous_provenance": {
+                        "information_source_name": "manual_annotation"
+                    },
                 }
             ],
         )

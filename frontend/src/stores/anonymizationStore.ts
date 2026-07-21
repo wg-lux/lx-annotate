@@ -12,16 +12,35 @@ import { endpoints } from '@/types/api/endpoints'
 // New interface for file overview
 export interface UploadJobOverview {
   id: string
-  status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string
+  status: 'pending' | 'processing' | 'retrying' | 'anonymized' | 'error' | 'lost' | 'quarantined' | string
   ingestMode?: 'api' | 'watcher' | string
   sourceSystem?: string
   sourceCenterKey?: string | null
   originalFilename?: string
   sourceFilePersisted?: boolean
   cleanupStatus?: 'pending' | 'eligible' | 'completed' | 'skipped' | string
+  allowedActions?: Array<'safe_reimport' | 'delete'>
+  errorCode?: string
   errorDetail?: string
+  retryable?: boolean
+  retryCount?: number
+  maxRetries?: number
+  nextRetryAt?: string | null
+  lastAttemptAt?: string | null
   createdAt?: string | null
   updatedAt?: string | null
+}
+
+export interface HlsMaterializationOverview {
+  artifactKind: 'raw' | 'processed'
+  status: 'queued' | 'materializing' | 'ready' | 'failed'
+  triggeringUploadJobId: string | null
+  sourceGenerationId: string
+  targetGenerationId: string
+  segmentCount: number
+  errorCode: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface FileItem {
@@ -49,10 +68,14 @@ export interface FileItem {
   fileSize?: number | undefined // Optional field for file size
   rawFile?: string // New field for raw file path (for videos)
   uploadJob?: UploadJobOverview | null
+  hlsMaterializations?: HlsMaterializationOverview[]
   quarantined?: boolean
   quarantineId?: string
   quarantineDirectoryKey?: string
   quarantineDirectoryLabel?: string
+  quarantineReviewStatus?: string
+  quarantineNextAction?: string
+  quarantineOrphaned?: boolean
   errorDetail?: string
 }
 
@@ -67,6 +90,10 @@ export interface QuarantineFileItem {
   createdAt?: string | null
   modifiedAt?: string | null
   reason?: string
+  reviewStatus?: string
+  nextAction?: string
+  sourceUploadJobId?: string | null
+  orphaned?: boolean
 }
 
 export interface QuarantineOverviewResponse {
@@ -173,6 +200,8 @@ function buildQuarantineOverviewRows(
         sourceSystem: file.directoryLabel,
         sourceFilePersisted: true,
         cleanupStatus: 'skipped',
+        allowedActions: [],
+        errorCode: 'processing_failed',
         errorDetail: reason,
         createdAt: quarantineTimestamp,
         updatedAt: file.modifiedAt || quarantineTimestamp
@@ -181,21 +210,20 @@ function buildQuarantineOverviewRows(
       quarantineId: file.id,
       quarantineDirectoryKey: file.directoryKey,
       quarantineDirectoryLabel: file.directoryLabel,
+      quarantineReviewStatus: file.reviewStatus,
+      quarantineNextAction: file.nextAction,
+      quarantineOrphaned: file.orphaned,
       errorDetail: reason
     }
   })
 }
-
-const DUPLICATE_KEY_ERROR_PATTERN = /\bduplicate key\b|\bunique constraint\b/i
 
 function hasDuplicateKeyUploadError(file: FileItem): boolean {
   const status = String(file.uploadJob?.status || '').toLowerCase()
   if (status !== 'error' && status !== 'lost') {
     return false
   }
-
-  const errorDetail = file.uploadJob?.errorDetail || file.errorDetail || ''
-  return DUPLICATE_KEY_ERROR_PATTERN.test(errorDetail)
+  return file.uploadJob?.errorCode === 'duplicate_content'
 }
 
 function preserveValidatedDuplicateVideoRows(files: FileItem[]): FileItem[] {
@@ -221,7 +249,7 @@ const FINAL_ANONYMIZATION_STATUSES = new Set([
   'validated',
   'failed'
 ])
-const ACTIVE_UPLOAD_JOB_STATUSES = new Set(['pending', 'processing'])
+const ACTIVE_UPLOAD_JOB_STATUSES = new Set(['pending', 'processing', 'retrying'])
 const ACTIVE_ANONYMIZATION_STATUSES = new Set([
   'processing_anonymization',
   'extracting_frames',

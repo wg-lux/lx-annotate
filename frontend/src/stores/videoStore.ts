@@ -121,8 +121,8 @@ export interface BackendSegment {
   export_segment?: boolean
   sourceName?: string | null
   source_name?: string | null
-  segmentOrigin?: 'manual' | 'prediction'
-  segment_origin?: 'manual' | 'prediction'
+  segmentOrigin?: 'manual' | 'prediction' | 'prediction_correction'
+  segment_origin?: 'manual' | 'prediction' | 'prediction_correction'
   predictionMetaId?: number | null
   prediction_meta_id?: number | null
   framePredictions?: BackendFramePrediction[]
@@ -174,7 +174,7 @@ export interface Segment {
   isDirty?: boolean // ⬅ used by persistDirtySegments()
   exportSegment?: boolean
   sourceName?: string | null
-  segmentOrigin?: 'manual' | 'prediction'
+  segmentOrigin?: 'manual' | 'prediction' | 'prediction_correction'
   predictionMetaId?: number | null
   syncState?: SegmentSyncState
   lastSyncError?: string | null
@@ -290,11 +290,32 @@ export interface RerunPredictionSegmentsPayload {
 
 export interface RerunPredictionSegmentsResponse {
   success: boolean
+  status: 'queued' | 'already_queued' | 'pending_after_rebuild' | 'completed' | 'busy' | 'failed'
+  queued: boolean
+  pending: boolean
   videoId: number
   modelMeta: PredictionModelMeta
-  deletedPredictionSegments: number
+  job: {
+    taskId: string
+    historyId: number | null
+    mode: string
+    queue: string
+  }
+  deletedPredictionSegments: number | null
   predictionSegmentsCount: number
+  reason?: string | null
+  message?: string | null
+  blockedByHistoryId?: number | null
   error?: string
+}
+
+export interface PredictionProcessingHistoryEntry {
+  id: number
+  operation: string
+  status: 'pending' | 'running' | 'success' | 'failure' | 'cancelled'
+  details: string
+  taskId?: string
+  config?: Record<string, unknown>
 }
 
 /**
@@ -352,7 +373,7 @@ export interface SegmentUpdatePayload {
 
 export interface CreateSegmentResponse extends BackendSegment {} // reuse same shape
 
-export type SegmentSourceKind = 'all' | 'manual' | 'prediction'
+export type SegmentSourceKind = 'all' | 'manual' | 'prediction' | 'prediction_correction'
 
 type SegmentBulkCreatePayload = {
   client_id?: number
@@ -475,6 +496,7 @@ export function backendSegmentToSegment(backend: BackendSegment): Segment {
   const normalizedSourceName = readStringField(backendRecord, 'sourceName', 'source_name') ?? null
   const predictionMetaId = readNumberField(backendRecord, 'predictionMetaId', 'prediction_meta_id')
   const segmentOrigin =
+    (normalizedSourceName === 'prediction_correction' ? 'prediction_correction' : undefined) ??
     backend.segmentOrigin ??
     backend.segment_origin ??
     (normalizedSourceName === 'prediction' ? 'prediction' : undefined) ??
@@ -1062,8 +1084,24 @@ export const useVideoStore = defineStore('video', () => {
       r(endpoints.media.videoSegmentsRerunPredictions(videoId)),
       payload
     )
-    await fetchAllSegments(videoId, true, { sourceKind: 'prediction' })
+    if (response.data.status === 'completed') {
+      await fetchAllSegments(videoId, true, { sourceKind: 'prediction' })
+    }
     return response.data
+  }
+
+  async function fetchPredictionProcessingHistory(
+    videoId: number,
+    historyId: number
+  ): Promise<PredictionProcessingHistoryEntry | null> {
+    const response: AxiosResponse<PredictionProcessingHistoryEntry[]> = await axiosInstance.get(
+      r(endpoints.media.videoProcessingHistory(videoId))
+    )
+    return (
+      response.data.find(
+        (entry) => entry.id === historyId && entry.operation === 'ai_temporal_inference'
+      ) ?? null
+    )
   }
 
   async function fetchAllVideos(): Promise<VideoList> {
@@ -2047,11 +2085,7 @@ export const useVideoStore = defineStore('video', () => {
         if (segment.labelID != null) {
           extra.label_id = segment.labelID
         }
-        const payload = createSegmentUpdatePayload(
-          segment.startTime,
-          segment.endTime,
-          extra
-        )
+        const payload = createSegmentUpdatePayload(segment.startTime, segment.endTime, extra)
         return {
           id: segment.id,
           ...payload
@@ -2293,6 +2327,7 @@ export const useVideoStore = defineStore('video', () => {
     fetchLabels, // Priority label fetching
     fetchPredictionModels,
     rerunPredictionSegments,
+    fetchPredictionProcessingHistory,
     fetchVideoSegments,
     fetchSegmentsByLabel,
     createSegment,

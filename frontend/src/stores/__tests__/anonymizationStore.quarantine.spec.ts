@@ -53,7 +53,11 @@ describe('anonymizationStore quarantine overview', () => {
                 size: 65011712,
                 quarantinedAt: '2026-05-15T07:20:22Z',
                 modifiedAt: '2026-05-15T07:19:35Z',
-                reason: 'moov atom not found'
+                reason: 'Die Datei wurde unter Quarantäne gestellt.',
+                reviewStatus: 'pending_review',
+                nextAction: 'review_required',
+                sourceUploadJobId: '49b399f7-328e-42e5-927b-d0502d9231ab',
+                orphaned: false
               }
             ]
           }
@@ -72,7 +76,10 @@ describe('anonymizationStore quarantine overview', () => {
       mediaType: 'video',
       anonymizationStatus: 'failed',
       quarantineDirectoryLabel: 'lx-annotate quarantine',
-      errorDetail: 'moov atom not found'
+      quarantineReviewStatus: 'pending_review',
+      quarantineNextAction: 'review_required',
+      quarantineOrphaned: false,
+      errorDetail: 'Die Datei wurde unter Quarantäne gestellt.'
     })
     expect(quarantined?.id).toBeLessThan(0)
     expect(quarantined?.uploadJob?.status).toBe('quarantined')
@@ -95,6 +102,7 @@ describe('anonymizationStore quarantine overview', () => {
                 id: 'duplicate-import',
                 status: 'error',
                 ingestMode: 'watcher',
+                errorCode: 'duplicate_content',
                 errorDetail: 'duplicate key value violates unique constraint "endoreg_db_videofile_video_hash_key"'
               }
             }
