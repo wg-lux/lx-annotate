@@ -151,8 +151,9 @@ const segments = [
 ]
 
 function makeVideoStore() {
-  return reactive({
+  const store = reactive({
     videoList: { videos, labels: [] },
+    currentVideo: null as { id: number; duration: number } | null,
     allSegments: segments,
     videoStreamUrl: '',
     timelineSegments: [],
@@ -162,7 +163,7 @@ function makeVideoStore() {
     fetchAllVideos: vi.fn().mockResolvedValue({ videos, labels: [] }),
     fetchAllSegments: vi.fn().mockResolvedValue(segments),
     fetchVideoSegments: vi.fn().mockResolvedValue(segments),
-    loadVideo: vi.fn().mockResolvedValue(undefined),
+    loadVideo: vi.fn(),
     clearVideo: vi.fn(),
     setCurrentVideo: vi.fn(),
     deleteVideo: vi.fn(),
@@ -174,6 +175,10 @@ function makeVideoStore() {
     commitDraft: vi.fn(),
     persistDirtySegments: vi.fn().mockResolvedValue(undefined)
   })
+  store.loadVideo.mockImplementation(async (videoId: number) => {
+    store.currentVideo = { id: videoId, duration: 120 }
+  })
+  return store
 }
 
 function mountComponent() {
@@ -282,7 +287,7 @@ describe('VideoExaminationAnnotation functionality', () => {
     await settle()
 
     expect(testState.router.replace).toHaveBeenCalledWith({ query: { video: 2 } })
-    expect(testState.videoStore.loadVideo).toHaveBeenCalledWith(2)
+    expect(testState.videoStore.loadVideo).toHaveBeenCalledWith(2, { sourceKind: 'manual' })
     expect(wrapper.text()).not.toContain('ist bereits vollständig annotiert')
 
     wrapper.unmount()

@@ -10,6 +10,7 @@
     "test:unit": "vitest",
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
+    "type-check:component-tests": "vue-tsc --noEmit -p tsconfig.component-tests.json",
     "lint": "eslint . --fix",
     "format": "prettier --write src/"
   },

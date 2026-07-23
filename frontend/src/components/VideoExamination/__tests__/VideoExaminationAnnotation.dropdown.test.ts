@@ -1,10 +1,41 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { AxiosHeaders, type AxiosResponse } from 'axios'
+import type { ComponentPublicInstance } from 'vue'
 
 import axiosInstance from '@/api/axiosInstance'
 import VideoExaminationAnnotation from '../VideoExaminationAnnotation.vue'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
+import { useVideoStore } from '@/stores/videoStore'
+
+interface MediaVideoFixture {
+  id: number
+  original_file_name: string
+  centerName: string
+  segmentAnnotationsValidated: boolean
+  validatedAnnotators?: string[]
+  segmentAnnotationStatus?: string
+  outsideSegmentsRemoved?: boolean
+  postValidationRebuild?: {
+    status: string
+    details: string
+  }
+}
+
+type AnnotationComponentInstance = ComponentPublicInstance & {
+  selectedVideoId: number | null
+}
+
+const apiResponse = <T>(data: T): AxiosResponse<T> => ({
+  data,
+  status: 200,
+  statusText: 'OK',
+  headers: new AxiosHeaders(),
+  config: {
+    headers: new AxiosHeaders()
+  }
+})
 
 const routerMocks = vi.hoisted(() => ({
   query: {} as Record<string, string>,
@@ -48,8 +79,9 @@ vi.mock('@/stores/auth_kc', () => ({
 }))
 
 describe('VideoExaminationAnnotation dropdown status display', () => {
-  let mediaVideosFactory: () => any[]
+  let mediaVideosFactory: () => MediaVideoFixture[]
   let fpsNormalizationStateFactory: (videoId: number) => Record<string, unknown>
+  let videoLabelsFactory: () => Array<{ id: number; name: string; color: string }>
 
   const baseMediaVideos = () => [
     {
@@ -174,6 +206,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     setActivePinia(createPinia())
     mediaVideosFactory = baseMediaVideos
     fpsNormalizationStateFactory = () => ({ status: 'ready', fps: 25, maxFps: 50 })
+    videoLabelsFactory = () => []
 
     const anonymizationStore = useAnonymizationStore()
 
@@ -233,104 +266,94 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
     vi.mocked(axiosInstance.get).mockImplementation(async (url: string) => {
       if (url === 'media/videos/labels/list/') {
-        return { data: [] } as any
+        return apiResponse(videoLabelsFactory())
       }
       if (url === 'media/videos/prediction-models/list/') {
-        return {
-          data: {
-            models: [
-              {
-                id: 7,
-                name: 'segmentation-meta',
-                version: '3',
-                modelName: 'segmentation-model',
-                aiModelId: 5,
-                labelsetName: 'colon-labels',
-                labelsetVersion: 1,
-                labelsetId: 9,
-                weightsAvailable: true,
-                isActive: true
-              }
-            ],
-            defaultHuggingfaceModelId: 'wg-lux/custom-segmentation',
-            defaultModelName: 'segmentation-model',
-            defaultLabelsetName: 'colon-labels',
-            huggingfaceModels: []
-          }
-        } as any
+        return apiResponse({
+          models: [
+            {
+              id: 7,
+              name: 'segmentation-meta',
+              version: '3',
+              modelName: 'segmentation-model',
+              aiModelId: 5,
+              labelsetName: 'colon-labels',
+              labelsetVersion: 1,
+              labelsetId: 9,
+              weightsAvailable: true,
+              isActive: true
+            }
+          ],
+          defaultHuggingfaceModelId: 'wg-lux/custom-segmentation',
+          defaultModelName: 'segmentation-model',
+          defaultLabelsetName: 'colon-labels',
+          huggingfaceModels: []
+        })
       }
       if (url === 'settings/application/dropdowns/ai_datasets/') {
-        return {
-          data: [
-            {
-              id: 300,
-              value: 'segment-study',
-              label: 'segment-study',
-              datasetType: 'video',
-              aiModelType: 'video_segment_classification',
-              isActive: true,
-              nameCount: 1
-            }
-          ]
-        } as any
+        return apiResponse([
+          {
+            id: 300,
+            value: 'segment-study',
+            label: 'segment-study',
+            datasetType: 'video',
+            aiModelType: 'video_segment_classification',
+            isActive: true,
+            nameCount: 1
+          }
+        ])
       }
       if (url === 'media/videos/') {
-        return {
-          data: mediaVideosFactory()
-        } as any
+        return apiResponse(mediaVideosFactory())
       }
       if (url.includes('/sensitive-metadata/')) {
-        return { data: { patient_dob: null, patient_gender_name: null } } as any
+        return apiResponse({ patient_dob: null, patient_gender_name: null })
       }
       if (url.includes('/examinations/')) {
-        return { data: [] } as any
+        return apiResponse([])
       }
       if (url.includes('/details/')) {
-        return { data: { duration: 90 } } as any
+        return apiResponse({ duration: 90 })
       }
       if (url.includes('/metadata/')) {
-        return { data: { duration: 90, fps: 25, frameCount: 2250 } } as any
+        return apiResponse({ duration: 90, fps: 25, frameCount: 2250 })
       }
       const normalizationMatch = url.match(/media\/videos\/(\d+)\/segments\/normalize-fps\//)
       if (normalizationMatch) {
-        return { data: fpsNormalizationStateFactory(Number(normalizationMatch[1])) } as any
+        return apiResponse(fpsNormalizationStateFactory(Number(normalizationMatch[1])))
       }
       if (url.includes('/fps/')) {
-        return { data: { fps: 25 } } as any
+        return apiResponse({ fps: 25 })
       }
       if (url.includes('/segments/validation-status/')) {
-        return {
-          data: {
-            validationComplete: true,
-            byLabel: { outside: { total: 1, validated: 1 } }
-          }
-        } as any
+        return apiResponse({
+          validationComplete: true,
+          byLabel: { outside: { total: 1, validated: 1 } }
+        })
       }
       const segmentMatch = url.match(/media\/videos\/(\d+)\/segments\//)
       if (segmentMatch) {
-        return {
-          data: [
-            {
-              id: Number(segmentMatch[1]) * 100,
-              videoId: Number(segmentMatch[1]),
-              labelName: 'outside',
-              startTime: 1,
-              endTime: 5,
-              startFrameNumber: 25,
-              endFrameNumber: 125
-            }
-          ]
-        } as any
+        return apiResponse([
+          {
+            id: Number(segmentMatch[1]) * 100,
+            videoId: Number(segmentMatch[1]),
+            labelName: 'outside',
+            startTime: 1,
+            endTime: 5,
+            startFrameNumber: 25,
+            endFrameNumber: 125
+          }
+        ])
       }
-      return { data: {} } as any
+      return apiResponse({})
     })
   })
 
   it('starts FPS normalization automatically before loading segments', async () => {
     fpsNormalizationStateFactory = () => ({ status: 'required', fps: 60, maxFps: 50 })
-    vi.mocked(axiosInstance.post).mockResolvedValueOnce({
-      data: { status: 'queued', fps: 60, max_fps: 50 }
-    } as any)
+    vi.mocked(axiosInstance.post).mockResolvedValueOnce(
+      apiResponse({ status: 'queued', fps: 60, max_fps: 50 })
+    )
 
     const wrapper = mountComponent()
     await flushPromises()
@@ -340,6 +363,63 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     expect(wrapper.text()).toContain('wird automatisch auf maximal 50 fps normalisiert')
     expect(wrapper.find('[data-cy="label-select"]').attributes('disabled')).toBeDefined()
     wrapper.unmount()
+  })
+
+  it('reuses normalization FPS while loading metadata and segments once', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    vi.mocked(axiosInstance.get).mockClear()
+
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+
+    const urls = vi.mocked(axiosInstance.get).mock.calls.map(([url]) => String(url))
+    expect(urls.filter((url) => url === 'media/videos/8/metadata/')).toHaveLength(1)
+    expect(urls.filter((url) => url === 'media/videos/8/fps/')).toHaveLength(0)
+    expect(urls.filter((url) => url === 'media/videos/8/segments/')).toHaveLength(1)
+    expect(urls.filter((url) => url === 'media/videos/8/segments/validation-status/')).toHaveLength(
+      1
+    )
+    expect(urls.filter((url) => url.includes('/details/'))).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('shares one cancellable cleanup poll across pending videos', async () => {
+    vi.useFakeTimers()
+    try {
+      mediaVideosFactory = () =>
+        baseMediaVideos().map((video) =>
+          video.id === 16
+            ? {
+                ...video,
+                segmentAnnotationStatus: 'cleanup_running'
+              }
+            : video
+        )
+
+      const wrapper = mountComponent()
+      await flushPromises()
+      const mediaListCalls = () =>
+        vi.mocked(axiosInstance.get).mock.calls.filter(([url]) => url === 'media/videos/').length
+      const labelCalls = () =>
+        vi
+          .mocked(axiosInstance.get)
+          .mock.calls.filter(([url]) => url === 'media/videos/labels/list/').length
+
+      expect(mediaListCalls()).toBe(1)
+      expect(labelCalls()).toBe(1)
+
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+      expect(mediaListCalls()).toBe(2)
+      expect(labelCalls()).toBe(1)
+
+      wrapper.unmount()
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+      expect(mediaListCalls()).toBe(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows explicit readiness text and enlarged status-bar classes in the video dropdown', async () => {
@@ -386,6 +466,10 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       'cleanup-failed.mp4',
       'still-processing.mp4'
     ])
+    const itemTexts = getDropdownItems(wrapper).map((item) => item.text())
+    expect(itemTexts.some((text) => text.includes('Center A'))).toBe(true)
+    expect(itemTexts.some((text) => text.includes('Center B'))).toBe(true)
+    expect(itemTexts.some((text) => text.includes('Center C'))).toBe(true)
     expectDropdownItemState(
       wrapper,
       'needs-validation.mp4',
@@ -535,7 +619,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await filteredItems[0].trigger('click')
     await flushPromises()
 
-    expect((wrapper.vm as any).selectedVideoId).toBe(12)
+    expect((wrapper.vm as unknown as AnnotationComponentInstance).selectedVideoId).toBe(12)
     expect(wrapper.text()).toContain('Dieses Video ist noch nicht für die Segmentansicht nutzbar')
     expect(wrapper.text()).not.toContain('Video löschen?')
   })
@@ -546,7 +630,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
     await selectVideoFromDropdown(wrapper, 'needs-validation.mp4')
 
-    expect((wrapper.vm as any).selectedVideoId).toBe(6)
+    expect((wrapper.vm as unknown as AnnotationComponentInstance).selectedVideoId).toBe(6)
     const player = wrapper.find('[data-cy="video-player"]')
     expect(player.exists()).toBe(true)
     expect(player.attributes('crossorigin')).toBe('use-credentials')
@@ -566,7 +650,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
     await selectVideoFromDropdown(wrapper, 'cleanup-running.mp4')
 
-    expect((wrapper.vm as any).selectedVideoId).toBe(14)
+    expect((wrapper.vm as unknown as AnnotationComponentInstance).selectedVideoId).toBe(14)
     expect(wrapper.text()).toContain('Außerhalb-Frames werden geschwärzt')
     expect(wrapper.find('[data-test="segment-cleanup-processing"]').exists()).toBe(true)
     expect(findButtonByText(wrapper, 'Alle Segmente validieren')).toBeUndefined()
@@ -579,6 +663,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
   })
 
   it('polls queued manual outside blackening and surfaces async failure details', async () => {
+    vi.useFakeTimers()
     let mediaVideoRequests = 0
     mediaVideosFactory = () => {
       mediaVideoRequests += 1
@@ -598,30 +683,36 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       )
     }
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    vi.mocked(axiosInstance.post).mockResolvedValueOnce({
-      data: {
+    vi.mocked(axiosInstance.post).mockResolvedValueOnce(
+      apiResponse({
         status: 'queued',
         outside_segment_count: 1,
         post_processing_job: {
           status: 'queued'
         }
-      }
-    } as any)
+      })
+    )
 
     const wrapper = mountComponent()
-    await flushPromises()
-    await selectVideoFromDropdown(wrapper, 'cleanup-failed.mp4')
+    try {
+      await flushPromises()
+      await selectVideoFromDropdown(wrapper, 'cleanup-failed.mp4')
 
-    const button = wrapper.find('[data-test="blacken-outside-segments-button"]')
-    expect(button.attributes('disabled')).toBeUndefined()
-    await button.trigger('click')
-    await flushPromises()
-    await flushPromises()
+      const button = wrapper.find('[data-test="blacken-outside-segments-button"]')
+      expect(button.attributes('disabled')).toBeUndefined()
+      await button.trigger('click')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
 
-    expect(axiosInstance.post).toHaveBeenCalledWith('media/videos/16/segments/blacken-outside/', {
-      onlyValidated: true
-    })
-    expect(wrapper.text()).toContain('Segmentvalidierung fehlgeschlagen: async frame failure')
+      expect(axiosInstance.post).toHaveBeenCalledWith('media/videos/16/segments/blacken-outside/', {
+        onlyValidated: true
+      })
+      expect(wrapper.text()).toContain('Segmentvalidierung fehlgeschlagen: async frame failure')
+    } finally {
+      wrapper.unmount()
+      vi.useRealTimers()
+    }
   })
 
   it('keeps segment-validated videos read-only until the same-user edit override is active', async () => {
@@ -675,5 +766,88 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     expect(
       findButtonByText(wrapper, 'Annotation validieren')?.attributes('disabled')
     ).toBeUndefined()
+  })
+
+  it('opens and navigates the label overlay with keyboard shortcuts', async () => {
+    videoLabelsFactory = () => [
+      { id: 1, name: 'outside', color: '#111111' },
+      { id: 2, name: 'polyp', color: '#222222' }
+    ]
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', cancelable: true }))
+    await flushPromises()
+
+    expect(wrapper.find('.label-overlay').exists()).toBe(true)
+    expect(wrapper.findAll('.label-overlay-item')).toHaveLength(2)
+    expect(
+      wrapper.findAll('.label-overlay-item').every((item) => !item.classes().includes('active'))
+    ).toBe(true)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }))
+    await flushPromises()
+    expect(wrapper.findAll('.label-overlay-item')[0].classes()).toContain('active')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }))
+    await flushPromises()
+    expect(wrapper.findAll('.label-overlay-item')[1].classes()).toContain('active')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }))
+    await flushPromises()
+    expect(wrapper.find('.label-overlay').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('does not trigger global label shortcuts while typing in the video search', async () => {
+    videoLabelsFactory = () => [{ id: 1, name: 'outside', color: '#111111' }]
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    await openVideoDropdown(wrapper)
+
+    const searchInput = wrapper.find<HTMLInputElement>('.video-dropdown-search-input')
+    await searchInput.trigger('keydown', { key: 'o' })
+    await flushPromises()
+
+    expect(wrapper.find('.label-overlay').exists()).toBe(false)
+    expect(wrapper.find('.video-dropdown-menu').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('starts and cancels a segment draft through the documented keyboard workflow', async () => {
+    videoLabelsFactory = () => [{ id: 1, name: 'outside', color: '#111111' }]
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+
+    const videoStore = useVideoStore()
+    const startDraft = vi.spyOn(videoStore, 'startDraft')
+    const cancelDraft = vi.spyOn(videoStore, 'cancelDraft')
+    await wrapper.find<HTMLSelectElement>('[data-cy="label-select"]').setValue('outside')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '+', cancelable: true }))
+    await flushPromises()
+
+    expect(startDraft).toHaveBeenCalledOnce()
+    expect(startDraft).toHaveBeenCalledWith('outside', 0)
+    expect(videoStore.draftSegment).toMatchObject({
+      label: 'outside',
+      startTime: 0,
+      endTime: null
+    })
+    expect(wrapper.find('[data-cy="finish-label-button"]').exists()).toBe(true)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))
+    await flushPromises()
+
+    expect(cancelDraft).toHaveBeenCalledOnce()
+    expect(videoStore.draftSegment).toBeNull()
+    expect(wrapper.find('[data-cy="start-label-button"]').exists()).toBe(true)
+
+    wrapper.unmount()
   })
 })

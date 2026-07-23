@@ -33,6 +33,8 @@ describe('VideoStore Performance Optimization', () => {
         {
           id: 101,
           original_file_name: 'Video A',
+          center_key: 'north',
+          center_name: 'Center North',
           status: 'available',
           validated_annotators: ['reviewer-one'],
           segments: [
@@ -49,7 +51,8 @@ describe('VideoStore Performance Optimization', () => {
         },
         {
           id: 102,
-          original_file_name: 'Video B',
+          center_key: 'south',
+          center_name: 'Center South',
           status: 'available',
           segments: []
         }
@@ -68,11 +71,16 @@ describe('VideoStore Performance Optimization', () => {
     const videoA = store.videoList.videos.find((video) => video.id === 101)
     expect(videoA).toBeDefined()
     expect(videoA?.validatedAnnotators).toEqual(['reviewer-one'])
+    expect(videoA?.centerKey).toBe('north')
+    expect(videoA?.centerName).toBe('Center North')
     expect(videoA?.segments?.length).toBe(1)
     expect(videoA?.segments?.[0].label).toBe('polyp')
     expect(videoA?.segments?.[0].startTime).toBe(10.5)
 
     const videoB = store.videoList.videos.find((video) => video.id === 102)
+    expect(videoB?.original_file_name).toBe('Video 102')
+    expect(videoB?.centerKey).toBe('south')
+    expect(videoB?.centerName).toBe('Center South')
     expect(videoB?.segments?.length).toBe(0)
 
     expect(axiosGet).toHaveBeenCalledTimes(2)
@@ -83,6 +91,25 @@ describe('VideoStore Performance Optimization', () => {
     const segmentCalls = calls.filter((url) => url.includes('/segments/'))
 
     expect(segmentCalls.length).toBe(0)
+  })
+
+  it('reuses loaded labels when refreshing the video list', async () => {
+    const store = useVideoStore()
+    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
+
+    axiosGet
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] })
+
+    await store.fetchAllVideos()
+    await store.fetchAllVideos()
+
+    expect(axiosGet.mock.calls.map((call) => call[0])).toEqual([
+      'media/videos/labels/list/',
+      'media/videos/',
+      'media/videos/'
+    ])
   })
 
   it('normalizes prediction segment origin metadata from the backend', () => {

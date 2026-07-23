@@ -1088,6 +1088,7 @@ const outsideBlackeningRequestVideoIds = ref<Set<number>>(new Set())
 const segmentValidationSummaryByVideoId = ref<Record<number, SegmentValidationSummary>>({})
 const fpsNormalizationVideoId = ref<number | null>(null)
 let fpsNormalizationPollTimer: ReturnType<typeof setTimeout> | null = null
+let selectedVideoLoadSerial = 0
 const isBlackeningOutsideSegments = computed(
   () =>
     selectedVideoId.value !== null &&
@@ -1137,15 +1138,18 @@ const hasUnsavedChanges = computed(() =>
   )
 )
 
-async function loadSelectedVideo() {
-  if (selectedVideoId.value == null) {
+async function loadSelectedVideo(videoId: number | null = selectedVideoId.value): Promise<void> {
+  const loadSerial = ++selectedVideoLoadSerial
+  clearFpsNormalizationPolling()
+
+  if (videoId == null) {
     videoStore.clearVideo()
     videoDetail.value = null
     videoMeta.value = null
     return
   }
 
-  if (!canViewProcessedVideo(selectedVideoId.value)) {
+  if (!canViewProcessedVideo(videoId)) {
     videoStore.clearVideo()
     videoDetail.value = null
     videoMeta.value = null
@@ -1155,8 +1159,8 @@ async function loadSelectedVideo() {
     currentMarker.value = null
     selectedSegmentId.value = null
     showErrorMessage(
-      `Video ${selectedVideoId.value} kann noch nicht in der Segmentansicht geöffnet werden. Status: ${getStatusText(
-        getVideoAnonymizationStatus(selectedVideoId.value)
+      `Video ${videoId} kann noch nicht in der Segmentansicht geöffnet werden. Status: ${getStatusText(
+        getVideoAnonymizationStatus(videoId)
       )}.`
     )
     return
@@ -1166,14 +1170,23 @@ async function loadSelectedVideo() {
   clearSuccessMessage()
 
   try {
-    await loadSegmentValidationSummary(selectedVideoId.value)
-    if (!(await ensureSegmentationFpsReady(selectedVideoId.value))) {
+    await loadSegmentValidationSummary(videoId)
+    if (loadSerial !== selectedVideoLoadSerial || selectedVideoId.value !== videoId) return
+
+    const fpsReadiness = await ensureSegmentationFpsReady(videoId)
+    if (!fpsReadiness.ready) {
       return
     }
-    await videoStore.loadVideo(selectedVideoId.value)
-    await loadVideoDetail(selectedVideoId.value)
+    if (loadSerial !== selectedVideoLoadSerial || selectedVideoId.value !== videoId) return
+
+    await videoStore.loadVideo(videoId, {
+      sourceKind: segmentSourceMode.value,
+      knownFps: fpsReadiness.fps ?? undefined
+    })
+    if (loadSerial !== selectedVideoLoadSerial || selectedVideoId.value !== videoId) return
+
+    setVideoDetailContext(videoId)
     await guarded(loadSavedExaminations())
-    await guarded(loadVideoMetadata())
   } catch (err: any) {
     await guarded(Promise.reject(err))
   }
@@ -1184,6 +1197,11 @@ type FpsNormalizationState = {
   fps: number | null
   maxFps: number
   detail: string
+}
+
+type SegmentationFpsReadiness = {
+  ready: boolean
+  fps: number | null
 }
 
 const normalizeFpsNormalizationState = (data: any): FpsNormalizationState => ({
@@ -1220,8 +1238,7 @@ const scheduleFpsNormalizationPoll = (videoId: number): void => {
         showSuccessMessage(
           `Video auf ${state.fps ?? state.maxFps} fps normalisiert. Segmentansicht wird geladen.`
         )
-        await loadSelectedVideo()
-        await loadVideoSegments()
+        await loadSelectedVideo(videoId)
         return
       }
       if (state.status === 'failed') {
@@ -1238,7 +1255,9 @@ const scheduleFpsNormalizationPoll = (videoId: number): void => {
   }, 5000)
 }
 
-const ensureSegmentationFpsReady = async (videoId: number): Promise<boolean> => {
+const ensureSegmentationFpsReady = async (
+  videoId: number
+): Promise<SegmentationFpsReadiness> => {
   fpsNormalizationVideoId.value = videoId
   const statusResponse = await axiosInstance.get(
     r(endpoints.media.videoSegmentsNormalizeFps(videoId))
@@ -1249,11 +1268,11 @@ const ensureSegmentationFpsReady = async (videoId: number): Promise<boolean> => 
   // be hidden behind a polling gate.
   if (!state.status && statusResponse.data && typeof statusResponse.data === 'object') {
     clearFpsNormalizationPolling()
-    return true
+    return { ready: true, fps: state.fps }
   }
   if (state.status === 'ready') {
     clearFpsNormalizationPolling()
-    return true
+    return { ready: true, fps: state.fps }
   }
   if (state.status === 'required') {
     const dispatchResponse = await axiosInstance.post(
@@ -1264,20 +1283,20 @@ const ensureSegmentationFpsReady = async (videoId: number): Promise<boolean> => 
   }
   if (state.status === 'ready') {
     clearFpsNormalizationPolling()
-    return true
+    return { ready: true, fps: state.fps }
   }
   if (state.status === 'failed') {
     showErrorMessage(
       `Automatische FPS-Normalisierung fehlgeschlagen${state.detail ? `: ${state.detail}` : '.'}`,
       'danger'
     )
-    return false
+    return { ready: false, fps: null }
   }
   showSuccessMessage(
     `Quellvideo mit ${state.fps ?? 'mehr als 50'} fps wird automatisch auf maximal ${state.maxFps} fps normalisiert.`
   )
   scheduleFpsNormalizationPoll(videoId)
-  return false
+  return { ready: false, fps: null }
 }
 
 function onVideoChange() {
@@ -1707,9 +1726,6 @@ const canStartLabeling = computed(() => {
 onMounted(async () => {
   isInitialLoading.value = true
   try {
-    // Step 1: Load labels with high priority
-    await videoStore.fetchLabels()
-
     try {
       if (typeof videoStore.fetchPredictionModels === 'function') {
         await videoStore.fetchPredictionModels()
@@ -1718,19 +1734,16 @@ onMounted(async () => {
 
     await loadSegmentAiDatasetOptions()
 
-    // Step 2: Load anonymization overview BEFORE videos (needed for filtering)
+    // Load anonymization overview before videos because it controls availability.
     await anonymizationStore.fetchOverview()
 
-    // Step 3: Load videos after labels and anonymization status are available
+    // fetchAllVideos owns the one-time label fetch.
     await videoStore.fetchAllVideos()
     pollExistingSegmentCleanupVideos()
 
     if (selectedVideoId.value !== null) {
       videoStore.setCurrentVideo(selectedVideoId.value)
-      await loadSelectedVideo()
-      if (canViewProcessedVideo(selectedVideoId.value)) {
-        await loadVideoSegments()
-      }
+      await loadSelectedVideo(selectedVideoId.value)
     }
   } catch {
     showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.')
@@ -1744,7 +1757,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  selectedVideoLoadSerial += 1
   clearFpsNormalizationPolling()
+  stopSegmentValidationPolling()
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
@@ -1830,38 +1845,28 @@ function getSegmentMutationBlockedMessage(): string {
   return 'Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.'
 }
 
-// Load video detail from backend like VideoClassificationComponent
-const loadVideoDetail = async (videoId: number): Promise<void> => {
+const setVideoDetailContext = (videoId: number): void => {
   if (!videoId) return
 
-  try {
-    const response = await axiosInstance.get(r(endpoints.media.videoDetail(videoId)))
+  const currentVideo = selectableVideos.value.find((video) => video.id === videoId)
+  const loadedDuration = Number(videoStore.currentVideo?.duration ?? currentVideo?.duration ?? 0)
+  videoDetail.value = {}
+  videoMeta.value = { duration: loadedDuration }
 
-    videoDetail.value = {}
-    videoMeta.value = {
-      duration: Number(response.data.duration ?? 0)
-    }
+  if (currentVideo) {
+    mediaStore.rememberType(videoId, 'video', 'video')
+    mediaStore.setCurrentItem({
+      ...(currentVideo as any),
+      id: videoId,
+      scope: 'video',
+      mediaType: 'video',
+      filename: currentVideo.original_file_name,
+      processedStreamUrl: buildVideoPlaybackUrls(videoId).hlsPlaylistUrl
+    })
+  }
 
-    // Update MediaStore with the current video for consistent URL handling
-    const currentVideo = selectableVideos.value.find((v) => v.id === videoId)
-    if (currentVideo) {
-      mediaStore.rememberType(videoId, 'video', 'video')
-      mediaStore.setCurrentItem({
-        ...(currentVideo as any),
-        id: videoId,
-        scope: 'video',
-        mediaType: 'video',
-        filename: currentVideo.original_file_name,
-        processedStreamUrl: buildVideoPlaybackUrls(videoId).hlsPlaylistUrl
-      })
-    }
-
-    // Update local duration if available
-    if (videoMeta.value.duration > 0) {
-      duration.value = videoMeta.value.duration
-    }
-  } catch (error) {
-    await guarded(Promise.reject(error))
+  if (loadedDuration > 0) {
+    duration.value = loadedDuration
   }
 }
 
@@ -1870,33 +1875,6 @@ const loadSavedExaminations = async (): Promise<void> => {
   // optional legacy UI empty instead of issuing a guaranteed 404 request.
   savedExaminations.value = []
   examinationMarkers.value = []
-}
-
-const loadVideoMetadata = async (): Promise<void> => {
-  if (videoRef.value) {
-    await new Promise<void>((resolve) => {
-      const video = videoRef.value!
-      const updateDurationFromMedia = (): void => {
-        const mediaDuration = video.duration
-        if (Number.isFinite(mediaDuration) && mediaDuration > 0) {
-          duration.value = mediaDuration
-        }
-      }
-      if (video.readyState >= 1) {
-        updateDurationFromMedia()
-        resolve()
-      } else {
-        video.addEventListener(
-          'loadedmetadata',
-          () => {
-            updateDurationFromMedia()
-            resolve()
-          },
-          { once: true }
-        )
-      }
-    })
-  }
 }
 
 async function loadSegmentValidationSummary(videoId: number): Promise<void> {
@@ -2049,12 +2027,16 @@ const handleSegmentResize = (...args: unknown[]): void => {
   }
 
   if (segmentId < 0) {
-    // Draft segment: keep it purely frontend
+    if (videoStore.draftSegment?.id !== segmentId) {
+      return
+    }
     videoStore.patchDraftSegment(segmentId, {
       startTime: newStart,
       endTime: newEnd
     })
-    videoStore.commitDraft()
+    if (_final) {
+      void videoStore.commitDraft()
+    }
   } else {
     // Existing segment: patch locally and mark isDirty
     videoStore.patchSegmentLocally(segmentId, {
@@ -2076,6 +2058,9 @@ const handleSegmentMove = (...args: unknown[]): void => {
   }
 
   if (segmentId < 0) {
+    if (videoStore.draftSegment?.id !== segmentId) {
+      return
+    }
     videoStore.patchDraftSegment(segmentId, {
       startTime: newStart,
       endTime: newEnd
@@ -2416,8 +2401,6 @@ const pollPredictionRerun = async (videoId: number, historyId: number): Promise<
   throw new Error('Zeitüberschreitung bei der KI-Segmentberechnung.')
 }
 
-const segmentValidationPollingPromises = new Map<number, Promise<void>>()
-
 type SegmentValidationResponseState = {
   jobStatus: string
   segmentAnnotationStatus: SegmentAnnotationStatus
@@ -2435,59 +2418,148 @@ const normalizeSegmentValidationResponse = (responseData: any): SegmentValidatio
   }
 }
 
+type SegmentValidationPollOptions = {
+  showTerminalMessages: boolean
+  showValidatedMessage: boolean
+}
+
+type SegmentValidationPollEntry = {
+  attempts: number
+  options: SegmentValidationPollOptions
+  promise: Promise<void>
+  resolve: () => void
+}
+
+const segmentValidationPollEntries = new Map<number, SegmentValidationPollEntry>()
+let segmentValidationPollLoop: Promise<void> | null = null
+let segmentValidationPollTimer: ReturnType<typeof setTimeout> | null = null
+let resolveSegmentValidationPollDelay: (() => void) | null = null
+let segmentValidationPollingStopped = false
+
+const finishSegmentValidationPoll = (videoId: number): void => {
+  const entry = segmentValidationPollEntries.get(videoId)
+  if (!entry) return
+  segmentValidationPollEntries.delete(videoId)
+  entry.resolve()
+}
+
+const waitForSegmentValidationPoll = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => {
+    resolveSegmentValidationPollDelay = resolve
+    segmentValidationPollTimer = setTimeout(() => {
+      segmentValidationPollTimer = null
+      resolveSegmentValidationPollDelay = null
+      resolve()
+    }, milliseconds)
+  })
+
+const stopSegmentValidationPolling = (): void => {
+  segmentValidationPollingStopped = true
+  if (segmentValidationPollTimer !== null) {
+    clearTimeout(segmentValidationPollTimer)
+    segmentValidationPollTimer = null
+  }
+  resolveSegmentValidationPollDelay?.()
+  resolveSegmentValidationPollDelay = null
+  Array.from(segmentValidationPollEntries.keys()).forEach(finishSegmentValidationPoll)
+}
+
+const processSegmentValidationPollResult = (videoId: number): void => {
+  const entry = segmentValidationPollEntries.get(videoId)
+  if (!entry) return
+
+  entry.attempts += 1
+  const status = getVideoSegmentAnnotationStatus(videoId)
+  if (status === 'validated') {
+    videoRef.value?.load()
+    if (entry.options.showTerminalMessages && entry.options.showValidatedMessage) {
+      showSuccessMessage('Segmentvalidierung abgeschlossen.')
+    }
+    finishSegmentValidationPoll(videoId)
+    return
+  }
+  if (status === 'cleanup_failed') {
+    const video = videoList.value.videos.find((item) => item.id === videoId)
+    const details = video?.postValidationRebuild?.details
+    if (entry.options.showTerminalMessages) {
+      showErrorMessage(
+        `Segmentvalidierung fehlgeschlagen${details ? `: ${details}` : '.'}`,
+        'danger'
+      )
+    }
+    finishSegmentValidationPoll(videoId)
+    return
+  }
+  if (status === 'cleanup_required' || status === 'not_started') {
+    if (entry.options.showTerminalMessages) {
+      showErrorMessage('Segmentvalidierung wartet auf die Nachverarbeitung.', 'danger')
+    }
+    finishSegmentValidationPoll(videoId)
+    return
+  }
+  if (entry.attempts >= 120) {
+    if (entry.options.showTerminalMessages) {
+      showSuccessMessage('Segmentvalidierung läuft weiter. Die Videoliste aktualisiert den Status.')
+    }
+    finishSegmentValidationPoll(videoId)
+  }
+}
+
+const runSegmentValidationPollLoop = (): Promise<void> => {
+  if (segmentValidationPollLoop) return segmentValidationPollLoop
+
+  segmentValidationPollLoop = (async () => {
+    while (!segmentValidationPollingStopped && segmentValidationPollEntries.size > 0) {
+      await waitForSegmentValidationPoll(5000)
+      if (segmentValidationPollingStopped || segmentValidationPollEntries.size === 0) {
+        return
+      }
+      try {
+        await videoStore.fetchAllVideos()
+      } catch {
+        Array.from(segmentValidationPollEntries.entries()).forEach(([videoId, entry]) => {
+          if (entry.options.showTerminalMessages) {
+            showErrorMessage('Status der Segmentvalidierung konnte nicht geladen werden.', 'danger')
+          }
+          finishSegmentValidationPoll(videoId)
+        })
+        return
+      }
+
+      Array.from(segmentValidationPollEntries.keys()).forEach(processSegmentValidationPollResult)
+    }
+  })().finally(() => {
+    segmentValidationPollLoop = null
+    if (!segmentValidationPollingStopped && segmentValidationPollEntries.size > 0) {
+      void runSegmentValidationPollLoop()
+    }
+  })
+
+  return segmentValidationPollLoop
+}
+
 const pollSegmentValidationStatus = (
   videoId: number,
   options: { showTerminalMessages?: boolean; showValidatedMessage?: boolean } = {}
 ): Promise<void> => {
-  const existingPromise = segmentValidationPollingPromises.get(videoId)
-  if (existingPromise) return existingPromise
+  const existing = segmentValidationPollEntries.get(videoId)
+  if (existing) return existing.promise
 
-  const showTerminalMessages = options.showTerminalMessages ?? true
-  const showValidatedMessage = options.showValidatedMessage ?? true
-  const maxAttempts = 120
-  const intervalMs = 5000
-
-  const pollingPromise = (async () => {
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      if (attempt > 0) {
-        await sleep(intervalMs)
-      }
-      await videoStore.fetchAllVideos()
-      const status = getVideoSegmentAnnotationStatus(videoId)
-      if (status === 'validated') {
-        videoRef.value?.load()
-        if (showTerminalMessages && showValidatedMessage) {
-          showSuccessMessage('Segmentvalidierung abgeschlossen.')
-        }
-        return
-      }
-      if (status === 'cleanup_failed') {
-        const video = videoList.value.videos.find((v) => v.id === videoId)
-        const details = video?.postValidationRebuild?.details
-        if (showTerminalMessages) {
-          showErrorMessage(
-            `Segmentvalidierung fehlgeschlagen${details ? `: ${details}` : '.'}`,
-            'danger'
-          )
-        }
-        return
-      }
-      if (status === 'cleanup_required' || status === 'not_started') {
-        if (showTerminalMessages) {
-          showErrorMessage('Segmentvalidierung wartet auf die Nachverarbeitung.', 'danger')
-        }
-        return
-      }
-    }
-    if (showTerminalMessages) {
-      showSuccessMessage('Segmentvalidierung läuft weiter. Die Videoliste aktualisiert den Status.')
-    }
-  })().finally(() => {
-    segmentValidationPollingPromises.delete(videoId)
+  let resolvePromise: () => void = () => undefined
+  const promise = new Promise<void>((resolve) => {
+    resolvePromise = resolve
   })
-
-  segmentValidationPollingPromises.set(videoId, pollingPromise)
-  return pollingPromise
+  segmentValidationPollEntries.set(videoId, {
+    attempts: 0,
+    options: {
+      showTerminalMessages: options.showTerminalMessages ?? true,
+      showValidatedMessage: options.showValidatedMessage ?? true
+    },
+    promise,
+    resolve: resolvePromise
+  })
+  void runSegmentValidationPollLoop()
+  return promise
 }
 
 const pollExistingSegmentCleanupVideos = (): void => {
@@ -3030,10 +3102,7 @@ watch(selectedVideoId, async (newId) => {
     return
   }
 
-  await loadSelectedVideo()
-  if (newId !== null && canViewProcessedVideo(newId)) {
-    await loadVideoSegments()
-  }
+  await loadSelectedVideo(newId)
 })
 
 watch(

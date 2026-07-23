@@ -624,6 +624,7 @@ export const useVideoStore = defineStore('video', () => {
   const activeVideoId = ref<number | null>(null)
   const segmentAiDatasetId = ref<string | null>(null)
   const _fetchToken = ref<number>(0)
+  let labelsLoaded = false
   const draftSegment = ref<DraftSegment | null>(null)
   const hasRawVideoFile = ref<boolean | null>(null)
   let frameNavigationCache: FrameNavigationCache | null = null
@@ -1055,10 +1056,12 @@ export const useVideoStore = defineStore('video', () => {
       }))
 
       videoList.value.labels = processedLabels
+      labelsLoaded = true
       console.log(`✅ [VideoStore] Loaded ${processedLabels.length} labels`)
       return processedLabels
     } catch (error) {
       console.error('❌ Error loading labels:', error)
+      labelsLoaded = false
       videoList.value.labels = []
       throw error
     }
@@ -1104,11 +1107,12 @@ export const useVideoStore = defineStore('video', () => {
     )
   }
 
-  async function fetchAllVideos(): Promise<VideoList> {
+  async function fetchAllVideos(options: { refreshLabels?: boolean } = {}): Promise<VideoList> {
     console.log('Fetching all videos...')
     try {
-      // ✅ PRIORITY: Fetch labels first before processing videos
-      await fetchLabels()
+      if (options.refreshLabels || !labelsLoaded) {
+        await fetchLabels()
+      }
 
       const response: AxiosResponse<any> = await axiosInstance.get(r(endpoints.media.videos))
       console.log('API Response:', response.data) //#TODO Add newly created assigned user from keycloak
@@ -1130,7 +1134,9 @@ export const useVideoStore = defineStore('video', () => {
 
         return {
           id: videoId,
-          original_file_name: String(video.originalFileName ?? video.original_file_name ?? ''),
+          original_file_name:
+            String(video.originalFileName ?? video.original_file_name ?? '').trim() ||
+            `Video ${videoId}`,
           status: video.status || 'available',
           assignedUser: video.assignedUser || null,
           anonymized: video.anonymized || false,
@@ -1155,6 +1161,7 @@ export const useVideoStore = defineStore('video', () => {
                 ? Number(video.frame_count)
                 : undefined,
           centerName: video.centerName || video.center_name || 'Unbekannt',
+          centerKey: video.centerKey || video.center_key || undefined,
           processorName: video.processorName || video.processor_name || 'Unbekannt',
           validatedAnnotators: Array.isArray(video.validatedAnnotators)
             ? video.validatedAnnotators
@@ -1179,7 +1186,7 @@ export const useVideoStore = defineStore('video', () => {
       return videoList.value
     } catch (error) {
       console.error('Error loading videos:', error)
-      videoList.value = { videos: [], labels: [] }
+      videoList.value = { videos: [], labels: videoList.value.labels }
       throw error
     }
   }
@@ -1259,6 +1266,9 @@ export const useVideoStore = defineStore('video', () => {
           response.data
         )
         return null
+      }
+      if (activeVideoId.value !== id || currentVideo.value?.id !== id) {
+        return fps
       }
 
       resolvedVideoFps.value = fps
@@ -1362,6 +1372,9 @@ export const useVideoStore = defineStore('video', () => {
           meta.exportSegmentsByVideo ?? meta.export_segments_by_video ?? false
         )
       }
+      if (activeVideoId.value !== id || currentVideo.value?.id !== id) {
+        return
+      }
 
       videoMeta.value = normalizedMeta
       if (resolvedVideoFps.value !== null) {
@@ -1396,25 +1409,9 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   async function fetchVideoUrl(videoId?: number): Promise<void> {
-    try {
-      const id = videoId || currentVideo.value?.id
-      if (!id) return
-
-      videoUrl.value = buildVideoStreamUrl(id, 'processed')
-
-      const response: AxiosResponse = await axiosInstance.get(r(endpoints.media.videoDetail(id)), {
-        headers: { Accept: 'application/json' }
-      })
-
-      if (currentVideo.value) {
-        // Only overwrite duration if metadata didn't provide it
-        if (response.data.duration && !videoMeta.value?.duration) {
-          currentVideo.value.duration = Number(response.data.duration)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading video URL')
-    }
+    const id = videoId || currentVideo.value?.id
+    if (!id) return
+    videoUrl.value = buildVideoStreamUrl(id, 'processed')
   }
 
   const videoStreamUrl = computed(() =>
@@ -2175,7 +2172,10 @@ export const useVideoStore = defineStore('video', () => {
     }
   }
 
-  async function loadVideo(videoId: number): Promise<void> {
+  async function loadVideo(
+    videoId: number,
+    options: { sourceKind?: SegmentSourceKind; knownFps?: number } = {}
+  ): Promise<void> {
     resetFrameNavigationCache()
     console.log(`[VideoStore] loadVideo called with ID: ${videoId}`)
     activeVideoId.value = Number(videoId)
@@ -2210,7 +2210,8 @@ export const useVideoStore = defineStore('video', () => {
     }
 
     try {
-      resolvedVideoFps.value = null
+      const knownFps = normalizeFps(options.knownFps)
+      resolvedVideoFps.value = knownFps
       // 2. Initialize Empty State
       currentVideo.value = {
         id: videoId,
@@ -2221,16 +2222,16 @@ export const useVideoStore = defineStore('video', () => {
         status: 'available',
         assignedUser: null,
         duration: 0,
-        fps: undefined
+        fps: knownFps ?? undefined
       }
 
       // 3. Parallel Fetching (Optimization)
       // We can fetch Metadata, URL, and Segments simultaneously to speed up loading
       await Promise.all([
         fetchVideoMetadata(videoId), // Gets Duration, Status, FrameCount
-        fetchVideoFps(videoId), // Central FPS endpoint
-        fetchVideoUrl(videoId), // Gets Video URL
-        fetchAllSegments(videoId) // Gets Segments
+        knownFps === null ? fetchVideoFps(videoId) : Promise.resolve(knownFps),
+        fetchVideoUrl(videoId), // Builds the authenticated video URL
+        fetchAllSegments(videoId, false, { sourceKind: options.sourceKind }) // Gets Segments
       ])
 
       console.log(

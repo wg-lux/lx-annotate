@@ -61,6 +61,15 @@ let
       ) | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
       '';
   customTasks = {
+    "vue:test".exec = ''
+      set -euo pipefail
+      REPO_ROOT="''${WORKING_DIR:-$(pwd)}"
+      cd "$REPO_ROOT/frontend"
+      npm run type-check
+      npm run type-check:component-tests
+      npm run test:unit -- --run
+    '';
+
     "vue:build".after =
       [ "uv:sync" ];
 
