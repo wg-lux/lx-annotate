@@ -21,6 +21,7 @@ from .settings_base import (
     MEDIA_URL,
     DATABASES,
     BASE_DIR,
+    LX_DTYPES_HOST_MODELS_MODULE,
 )
 
 from pathlib import Path
@@ -42,6 +43,7 @@ MEDIA_URL = cast(str, MEDIA_URL)
 DATABASES = cast(dict[str, Any], DATABASES)
 BASE_DIR = cast(Path, BASE_DIR)
 SECRET_KEY = cast(str, SECRET_KEY)
+LX_DTYPES_HOST_MODELS_MODULE = cast(str, LX_DTYPES_HOST_MODELS_MODULE)
 # -----------------------------------------------------------------------------
 # 1. CORE OVERRIDES
 DEBUG = True

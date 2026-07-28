@@ -21,6 +21,7 @@ from .settings_base import (
     MEDIA_URL,
     BASE_DIR,
     config,
+    LX_DTYPES_HOST_MODELS_MODULE,
 )
 
 import os
@@ -37,6 +38,7 @@ STATIC_URL = cast(str, STATIC_URL)
 STATICFILES_STORAGE = cast(str, STATICFILES_STORAGE)
 MEDIA_ROOT = cast(Path, MEDIA_ROOT)
 MEDIA_URL = cast(str, MEDIA_URL)
+LX_DTYPES_HOST_MODELS_MODULE = cast(str, LX_DTYPES_HOST_MODELS_MODULE)
 config = cast(AppConfig, config)
 
 # -----------------------------------------------------------------------------

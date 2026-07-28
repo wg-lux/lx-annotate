@@ -35,6 +35,8 @@ in
     "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT"
     "NGINX_PROTECTED_MEDIA_URL"
     "SERVE_WITH_NGINX"
+    "LX_DTYPES_HOST_MODELS_MODULE"
+    "LX_DTYPES_TERMINOLOGY_IMPORT_ROOT"
   ];
 
   hostOwnedEnvironmentVariables = [
@@ -134,6 +136,8 @@ in
       MEDIA_URL = mediaUrl;
       NGINX_PROTECTED_MEDIA_URL = protectedMediaUrl;
       SERVE_WITH_NGINX = serveWithNginx;
+      LX_DTYPES_HOST_MODELS_MODULE = "endoreg_db.integrations.lx_dtypes_host_models";
+      LX_DTYPES_TERMINOLOGY_IMPORT_ROOT = "${pathString dataDir}/terminology/packages";
     };
 
   mkHostOwnedEnvironment =
