@@ -461,6 +461,26 @@ matches the upstream transfer serializer.</p>
 </ul>
 <p>The sender must validate the payload locally before any network request is
 issued.</p>
+<p>For processed video media, local validation recalculates the Secure Hash
+Algorithm 256-bit (SHA-256) digest from the actual processed artifact and
+requires it to match both persisted video hash fields. The sender also requires
+the declared source center to match the active source node’s owning center and
+requires the deterministic transfer key to match the source node, resource
+kind, resource hash, and processed-media mode. Any mismatch stops before
+registration, so neither metadata nor media is disclosed to the hub.</p>
+</section>
+<section id="verified-hub-acknowledgement">
+<h2>Verified Hub Acknowledgement<a class="headerlink" href="#verified-hub-acknowledgement" title="Link to this heading">¶</a></h2>
+<p>Registration, status reconciliation, and media upload responses are treated as
+untrusted protocol input even though the channel uses mutual Transport Layer
+Security (mTLS). Every response must identify the same remote transfer, transfer
+key, source node, target node, source center, resource kind, resource hash,
+processed-media hash, transfer mode, and payload schema version.</p>
+<p>The local job reaches <code class="docutils literal notranslate"><span class="pre">completed</span></code>, and local cleanup can become eligible, only
+when the hub returns <code class="docutils literal notranslate"><span class="pre">applied</span></code> with this complete matching identity. A missing
+or different field is a terminal acknowledgement-integrity failure; it is
+persisted as <code class="docutils literal notranslate"><span class="pre">failed</span></code>, is not retried automatically, and does not permit local
+cleanup.</p>
 </section>
 <section id="ui-workflow">
 <h2>UI Workflow<a class="headerlink" href="#ui-workflow" title="Link to this heading">¶</a></h2>
@@ -600,6 +620,7 @@ successful hub outcome.</p>
 <li><a class="reference internal" href="#transfer-mode-policy">Transfer Mode Policy</a></li>
 <li><a class="reference internal" href="#retry-and-reuse-rules">Retry And Reuse Rules</a></li>
 <li><a class="reference internal" href="#sender-payload-responsibilities">Sender Payload Responsibilities</a></li>
+<li><a class="reference internal" href="#verified-hub-acknowledgement">Verified Hub Acknowledgement</a></li>
 <li><a class="reference internal" href="#ui-workflow">UI Workflow</a></li>
 <li><a class="reference internal" href="#operational-requirements">Operational Requirements</a></li>
 <li><a class="reference internal" href="#audit-requirements">Audit Requirements</a></li>
@@ -616,7 +637,7 @@ successful hub outcome.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=62bf297e"></script>
+</div><script src="../_static/documentation_options.js?v=87a11ee3"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

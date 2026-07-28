@@ -205,6 +205,28 @@ For report transfer, the sender must provide:
 The sender must validate the payload locally before any network request is
 issued.
 
+For processed video media, local validation recalculates the Secure Hash
+Algorithm 256-bit (SHA-256) digest from the actual processed artifact and
+requires it to match both persisted video hash fields. The sender also requires
+the declared source center to match the active source node's owning center and
+requires the deterministic transfer key to match the source node, resource
+kind, resource hash, and processed-media mode. Any mismatch stops before
+registration, so neither metadata nor media is disclosed to the hub.
+
+## Verified Hub Acknowledgement
+
+Registration, status reconciliation, and media upload responses are treated as
+untrusted protocol input even though the channel uses mutual Transport Layer
+Security (mTLS). Every response must identify the same remote transfer, transfer
+key, source node, target node, source center, resource kind, resource hash,
+processed-media hash, transfer mode, and payload schema version.
+
+The local job reaches `completed`, and local cleanup can become eligible, only
+when the hub returns `applied` with this complete matching identity. A missing
+or different field is a terminal acknowledgement-integrity failure; it is
+persisted as `failed`, is not retried automatically, and does not permit local
+cleanup.
+
 ## UI Workflow
 
 The operator-facing export workflow should be derived from the anonymization

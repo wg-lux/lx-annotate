@@ -1,6 +1,6 @@
 # Dtypes Findings Migration (Incremental, Endoreg-Safe)
 
-Last updated: 2026-06-03
+Last updated: 2026-07-22
 Owner: reporting/frontend/backend
 
 ## Scope
@@ -16,35 +16,24 @@ legacy frontend call sites still hard-code `/api/**`.
 ## Current-State Inventory
 
 ### Uses dtypes today
-- Frontend `findingsApi` supports backend mode flag `VITE_FINDINGS_BACKEND`
-  (`endoreg`, `dtypes_read`, `dtypes`).
-- In `dtypes_read` and `dtypes` modes, frontend findings reads use
+- Frontend `findingsApi` uses the canonical dtypes API without a runtime mode
+  switch. The former `VITE_FINDINGS_BACKEND` rollback flag was removed because
+  its endoreg targets had already been hard-cut from the backend.
+- Frontend findings reads use
   `/dtypes-api/examinations/{examination_id}/findings/`,
   `/dtypes-api/findings/{finding_id}/classifications/`, and
   `/dtypes-api/classifications/{classification_id}/choices/`.
 - Those `/dtypes-api/**` routes proxy to `lx_dtypes` `/base_api/**` endpoints.
-- In `dtypes` mode, patient finding CRUD uses `/dtypes-api/patient-findings/**`
+- Patient finding CRUD uses `/dtypes-api/patient-findings/**`
   and validates finding/examination compatibility plus classification/choice
   consistency before persistence.
-- The frontend default is now `dtypes` when `VITE_FINDINGS_BACKEND` is unset or
-  invalid, so read and patient-finding write traffic defaults to `/dtypes-api/**`.
+- All finding read and patient-finding write traffic uses `/dtypes-api/**`.
 
 ### Uses endoreg_db today
 - `/api/**` remains the backend endoreg_db route namespace.
 - The current frontend helper default for endoreg routes is `/endoreg-api/**`;
   older stores/components still call `/api/**` directly.
-- Explicit `VITE_FINDINGS_BACKEND=endoreg` remains available as a rollback mode.
-- In explicit `endoreg` mode, findings reads use:
-  `/api/examinations/{examination_id}/findings/` and
-  `/api/findings/{finding_id}/classifications/`.
-- `findingsApi.getClassificationChoices()` still exposes the endoreg
-  `/api/classifications/{classification_id}/choices/` route, but no current
-  frontend source call site invokes it outside the service definition.
 - Patient finding persistence is still on endoreg_db tables (`PatientFinding`, `PatientFindingClassification`) for `/base_api/patient-findings/**`.
-- Patient finding row CRUD uses `/api/patient-findings/**` only in explicit
-  `VITE_FINDINGS_BACKEND=endoreg` or `VITE_FINDINGS_BACKEND=dtypes_read` modes.
-  In `endoreg` mode, classification replacement still goes through
-  `/dtypes-api/patient-findings/{id}/classifications/`.
 - Patient, gender, center, and patient-examination workflows still use
   endoreg_db routes from `patient.py` and `examination.py`.
 - Report save flows still submit to `/api/patient-examination-reports/save-submission/`.
@@ -62,9 +51,9 @@ frontend?
 
 | Backend route | Frontend status | Notes |
 | --- | --- | --- |
-| `/api/examinations/{examination_id}/findings/` | Used only in explicit endoreg mode | `findingsApi.getExaminationFindings()` now defaults to `/dtypes-api/examinations/{id}/findings/`; this route remains the `VITE_FINDINGS_BACKEND=endoreg` rollback path. |
-| `/api/findings/{finding_id}/classifications/` | Used only in explicit endoreg mode | `findingsApi.getFindingClassifications()` now defaults to `/dtypes-api/findings/{id}/classifications/`; this route remains the `VITE_FINDINGS_BACKEND=endoreg` rollback path. |
-| `/api/classifications/{classification_id}/choices/` | Exposed, not actively called | Implemented by `findingsApi.getClassificationChoices()`, but no frontend source call site invokes it today. |
+| `/api/examinations/{examination_id}/findings/` | Not used; hard-cut | `findingsApi.getExaminationFindings()` uses `/dtypes-api/examinations/{id}/findings/`. |
+| `/api/findings/{finding_id}/classifications/` | Not used; hard-cut | `findingsApi.getFindingClassifications()` uses `/dtypes-api/findings/{id}/classifications/`. |
+| `/api/classifications/{classification_id}/choices/` | Not used; hard-cut | `findingsApi.getClassificationChoices()` uses the dtypes route. |
 | `/api/examinations/{exam_id}/indications/` | Not found in current frontend source | Reporting currently derives indication options from patient-examination detail and examination detail payloads instead. |
 | `/api/indications/{indication_id}/choices/` | Not found in current frontend source | No current source call site found. |
 | `/api/patient-examinations/create/` | Used | Used by reporting case setup and case resolution flows when creating a patient examination context. |
@@ -92,7 +81,7 @@ were found.
 | `/api/patients/{id}/check_deletion_safety/` | Used | Router-generated `PatientViewSet` action used by patient edit/detail deletion checks. |
 | `/api/centers/` | Used | Used by patient lookup loading in `patientService`, `patientStore`, and patient forms. |
 | `/api/genders/` | Used | Used by patient lookup loading in `patientService`, `patientStore`, and patient forms. |
-| `/api/patient-findings/`, `/api/patient-findings/{id}/` | Used only in explicit endoreg or dtypes-read modes | Default row CRUD now uses `/dtypes-api/patient-findings/**`; these routes remain available for `VITE_FINDINGS_BACKEND=endoreg` and `VITE_FINDINGS_BACKEND=dtypes_read`. |
+| `/api/patient-findings/`, `/api/patient-findings/{id}/` | Not used; hard-cut | Row CRUD uses `/dtypes-api/patient-findings/**`. |
 | `/api/check_pe_exist/{pk}/` | Used | Called by `patientExaminationStore.doesPatientExaminationExist()`. |
 
 ### Legacy/Residual Notes
@@ -150,7 +139,7 @@ were found.
 
 ### Phase 4: Cutover governance
 - [x] Track migration in this document.
-- [ ] Parity test suite green in CI for all findings endpoints/modes.
+- [x] Canonical dtypes frontend contract tests are green.
 - [ ] Soak window complete (no regressions in configured period).
 - [x] Flip default `VITE_FINDINGS_BACKEND` from `endoreg` to `dtypes` when the
   env var is unset or invalid.
@@ -159,15 +148,12 @@ were found.
 
 | Endpoint / Area | Read/Write Source | Persistence | Rollout Status |
 | --- | --- | --- | --- |
-| `/api/examinations/*/findings/` or `/endoreg-api/examinations/*/findings/` | endoreg_db | endoreg_db | Explicit `endoreg` fallback read path |
-| `/api/findings/*/classifications/` or `/endoreg-api/findings/*/classifications/` | endoreg_db | endoreg_db | Explicit `endoreg` fallback read path |
-| `/api/classifications/*/choices/` or `/endoreg-api/classifications/*/choices/` | endoreg_db | endoreg_db | Exposed by service, no active frontend caller found |
-| `/api/patient-findings/**` or `/endoreg-api/patient-findings/**` | endoreg_db | endoreg_db | Explicit `endoreg`/`dtypes_read` fallback row CRUD path |
+| `/api/**` or `/endoreg-api/**` finding routes | endoreg_db | endoreg_db | Hard-cut; no frontend consumer |
 | `/base_api/examinations/*/findings/` via `/dtypes-api/examinations/*/findings/` | dtypes KB | n/a | Implemented; default active path |
 | `/base_api/findings/*/classifications/` via `/dtypes-api/findings/*/classifications/` | dtypes KB + db mapping | n/a | Implemented; default active path |
 | `/base_api/classifications/*/choices/` via `/dtypes-api/classifications/*/choices/` | dtypes KB + db mapping | n/a | Implemented; no active frontend caller found |
 | `/base_api/patient-findings/**` via `/dtypes-api/patient-findings/**` | dtypes-validated API | endoreg_db tables | Implemented; default active CRUD path |
-| Frontend findings integration | `findingsApi` mode switch | n/a | Implemented (default `dtypes`) |
+| Frontend findings integration | canonical `dtypesApi()` paths | n/a | Implemented |
 
 ## Decision Log
 
@@ -180,6 +166,7 @@ were found.
 | 2026-03-09 | Pin pytest CI settings to a deterministic findings module (`report_template_examples`) when env var is unset. | Avoids environment-dependent `lx_knowledge_base` lookup failures in contract tests. | backend |
 | 2026-06-03 | Document frontend route usage against `examination.py`, `classification.py`, and `patient.py`. | Clarifies which endoreg routes remain part of the active frontend contract during dtypes migration. | frontend/backend |
 | 2026-06-03 | Default unset/invalid `VITE_FINDINGS_BACKEND` to `dtypes`. | Moves active findings read/write traffic to the dtypes API while preserving explicit `endoreg` rollback. | frontend |
+| 2026-07-22 | Remove `VITE_FINDINGS_BACKEND` and the dead endoreg rollback paths. | The referenced endoreg routes were already hard-cut; retaining the flag caused production 404s. | frontend/backend |
 
 ## Progress Log
 
@@ -192,11 +179,11 @@ were found.
 | 2026-03-09 | Frontend validation (`vue-tsc`) + targeted vitest (`findingsApi`, requirement crash guard) | Completed | Type-check and targeted migration tests pass locally. |
 | 2026-06-03 | Frontend route audit against endoreg URL modules | Completed | Confirmed active use of selected `examination.py` and `patient.py` routes; `classification.py` has no active routes. |
 | 2026-06-03 | `frontend/src/api/findingsApi.ts` default backend mode | Completed | Missing or invalid `VITE_FINDINGS_BACKEND` now resolves to `dtypes`; focused routing tests updated. |
+| 2026-07-22 | Canonical findings cutover | Completed | Removed the dead global catalog request and all obsolete backend-mode branches; catalogs are examination-scoped. |
 
 ## Post-Cutover Follow-Up
-Keep the `dtypes` default and consider retiring the explicit `endoreg` fallback
-only when all are true:
+The explicit endoreg fallback is retired. Before removing compatibility aliases:
 - Contract tests pass for `/base_api` read/write findings endpoints.
-- Frontend mode tests pass for `endoreg`, `dtypes_read`, and `dtypes`.
+- Frontend canonical-route tests pass.
 - End-to-end create/update/delete/classification flows pass in staging.
 - No agreed regression during soak period.

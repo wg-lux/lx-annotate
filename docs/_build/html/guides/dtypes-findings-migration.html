@@ -254,7 +254,7 @@
         <article role="main" id="furo-main-content">
           <section id="dtypes-findings-migration-incremental-endoreg-safe">
 <h1>Dtypes Findings Migration (Incremental, Endoreg-Safe)<a class="headerlink" href="#dtypes-findings-migration-incremental-endoreg-safe" title="Link to this heading">¶</a></h1>
-<p>Last updated: 2026-06-03
+<p>Last updated: 2026-07-22
 Owner: reporting/frontend/backend</p>
 <section id="scope">
 <h2>Scope<a class="headerlink" href="#scope" title="Link to this heading">¶</a></h2>
@@ -271,18 +271,18 @@ legacy frontend call sites still hard-code <code class="docutils literal notrans
 <section id="uses-dtypes-today">
 <h3>Uses dtypes today<a class="headerlink" href="#uses-dtypes-today" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p>Frontend <code class="docutils literal notranslate"><span class="pre">findingsApi</span></code> supports backend mode flag <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code>
-(<code class="docutils literal notranslate"><span class="pre">endoreg</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>).</p></li>
-<li><p>In <code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code> and <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> modes, frontend findings reads use
+<li><p>Frontend <code class="docutils literal notranslate"><span class="pre">findingsApi</span></code> uses the canonical dtypes API without a runtime mode
+switch. The former <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> rollback flag was removed because
+its endoreg targets had already been hard-cut from the backend.</p></li>
+<li><p>Frontend findings reads use
 <code class="docutils literal notranslate"><span class="pre">/dtypes-api/examinations/{examination_id}/findings/</span></code>,
 <code class="docutils literal notranslate"><span class="pre">/dtypes-api/findings/{finding_id}/classifications/</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">/dtypes-api/classifications/{classification_id}/choices/</span></code>.</p></li>
 <li><p>Those <code class="docutils literal notranslate"><span class="pre">/dtypes-api/**</span></code> routes proxy to <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code> <code class="docutils literal notranslate"><span class="pre">/base_api/**</span></code> endpoints.</p></li>
-<li><p>In <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> mode, patient finding CRUD uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code>
+<li><p>Patient finding CRUD uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code>
 and validates finding/examination compatibility plus classification/choice
 consistency before persistence.</p></li>
-<li><p>The frontend default is now <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> when <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> is unset or
-invalid, so read and patient-finding write traffic defaults to <code class="docutils literal notranslate"><span class="pre">/dtypes-api/**</span></code>.</p></li>
+<li><p>All finding read and patient-finding write traffic uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/**</span></code>.</p></li>
 </ul>
 </section>
 <section id="uses-endoreg-db-today">
@@ -291,18 +291,7 @@ invalid, so read and patient-finding write traffic defaults to <code class="docu
 <li><p><code class="docutils literal notranslate"><span class="pre">/api/**</span></code> remains the backend endoreg_db route namespace.</p></li>
 <li><p>The current frontend helper default for endoreg routes is <code class="docutils literal notranslate"><span class="pre">/endoreg-api/**</span></code>;
 older stores/components still call <code class="docutils literal notranslate"><span class="pre">/api/**</span></code> directly.</p></li>
-<li><p>Explicit <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> remains available as a rollback mode.</p></li>
-<li><p>In explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> mode, findings reads use:
-<code class="docutils literal notranslate"><span class="pre">/api/examinations/{examination_id}/findings/</span></code> and
-<code class="docutils literal notranslate"><span class="pre">/api/findings/{finding_id}/classifications/</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getClassificationChoices()</span></code> still exposes the endoreg
-<code class="docutils literal notranslate"><span class="pre">/api/classifications/{classification_id}/choices/</span></code> route, but no current
-frontend source call site invokes it outside the service definition.</p></li>
 <li><p>Patient finding persistence is still on endoreg_db tables (<code class="docutils literal notranslate"><span class="pre">PatientFinding</span></code>, <code class="docutils literal notranslate"><span class="pre">PatientFindingClassification</span></code>) for <code class="docutils literal notranslate"><span class="pre">/base_api/patient-findings/**</span></code>.</p></li>
-<li><p>Patient finding row CRUD uses <code class="docutils literal notranslate"><span class="pre">/api/patient-findings/**</span></code> only in explicit
-<code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> or <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=dtypes_read</span></code> modes.
-In <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> mode, classification replacement still goes through
-<code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/{id}/classifications/</span></code>.</p></li>
 <li><p>Patient, gender, center, and patient-examination workflows still use
 endoreg_db routes from <code class="docutils literal notranslate"><span class="pre">patient.py</span></code> and <code class="docutils literal notranslate"><span class="pre">examination.py</span></code>.</p></li>
 <li><p>Report save flows still submit to <code class="docutils literal notranslate"><span class="pre">/api/patient-examination-reports/save-submission/</span></code>.</p></li>
@@ -330,16 +319,16 @@ frontend?</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/examinations/{examination_id}/findings/</span></code></p></td>
-<td><p>Used only in explicit endoreg mode</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getExaminationFindings()</span></code> now defaults to <code class="docutils literal notranslate"><span class="pre">/dtypes-api/examinations/{id}/findings/</span></code>; this route remains the <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> rollback path.</p></td>
+<td><p>Not used; hard-cut</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getExaminationFindings()</span></code> uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/examinations/{id}/findings/</span></code>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/findings/{finding_id}/classifications/</span></code></p></td>
-<td><p>Used only in explicit endoreg mode</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getFindingClassifications()</span></code> now defaults to <code class="docutils literal notranslate"><span class="pre">/dtypes-api/findings/{id}/classifications/</span></code>; this route remains the <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> rollback path.</p></td>
+<td><p>Not used; hard-cut</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getFindingClassifications()</span></code> uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/findings/{id}/classifications/</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/classifications/{classification_id}/choices/</span></code></p></td>
-<td><p>Exposed, not actively called</p></td>
-<td><p>Implemented by <code class="docutils literal notranslate"><span class="pre">findingsApi.getClassificationChoices()</span></code>, but no frontend source call site invokes it today.</p></td>
+<td><p>Not used; hard-cut</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi.getClassificationChoices()</span></code> uses the dtypes route.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/examinations/{exam_id}/indications/</span></code></p></td>
 <td><p>Not found in current frontend source</p></td>
@@ -421,8 +410,8 @@ were found.</p>
 <td><p>Used by patient lookup loading in <code class="docutils literal notranslate"><span class="pre">patientService</span></code>, <code class="docutils literal notranslate"><span class="pre">patientStore</span></code>, and patient forms.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-findings/</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/patient-findings/{id}/</span></code></p></td>
-<td><p>Used only in explicit endoreg or dtypes-read modes</p></td>
-<td><p>Default row CRUD now uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code>; these routes remain available for <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=endoreg</span></code> and <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND=dtypes_read</span></code>.</p></td>
+<td><p>Not used; hard-cut</p></td>
+<td><p>Row CRUD uses <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/check_pe_exist/{pk}/</span></code></p></td>
 <td><p>Used</p></td>
@@ -516,7 +505,7 @@ components and are not reachable from the current router.</p></li>
 <h3>Phase 4: Cutover governance<a class="headerlink" href="#phase-4-cutover-governance" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>[x] Track migration in this document.</p></li>
-<li><p>[ ] Parity test suite green in CI for all findings endpoints/modes.</p></li>
+<li><p>[x] Canonical dtypes frontend contract tests are green.</p></li>
 <li><p>[ ] Soak window complete (no regressions in configured period).</p></li>
 <li><p>[x] Flip default <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> from <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> to <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> when the
 env var is unset or invalid.</p></li>
@@ -535,50 +524,35 @@ env var is unset or invalid.</p></li>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/examinations/*/findings/</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/examinations/*/findings/</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/**</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/**</span></code> finding routes</p></td>
 <td><p>endoreg_db</p></td>
 <td><p>endoreg_db</p></td>
-<td><p>Explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> fallback read path</p></td>
+<td><p>Hard-cut; no frontend consumer</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/findings/*/classifications/</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/findings/*/classifications/</span></code></p></td>
-<td><p>endoreg_db</p></td>
-<td><p>endoreg_db</p></td>
-<td><p>Explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> fallback read path</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/classifications/*/choices/</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/classifications/*/choices/</span></code></p></td>
-<td><p>endoreg_db</p></td>
-<td><p>endoreg_db</p></td>
-<td><p>Exposed by service, no active frontend caller found</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/patient-findings/**</span></code> or <code class="docutils literal notranslate"><span class="pre">/endoreg-api/patient-findings/**</span></code></p></td>
-<td><p>endoreg_db</p></td>
-<td><p>endoreg_db</p></td>
-<td><p>Explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code>/<code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code> fallback row CRUD path</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/examinations/*/findings/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/examinations/*/findings/</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/examinations/*/findings/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/examinations/*/findings/</span></code></p></td>
 <td><p>dtypes KB</p></td>
 <td><p>n/a</p></td>
 <td><p>Implemented; default active path</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/findings/*/classifications/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/findings/*/classifications/</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/findings/*/classifications/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/findings/*/classifications/</span></code></p></td>
 <td><p>dtypes KB + db mapping</p></td>
 <td><p>n/a</p></td>
 <td><p>Implemented; default active path</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/classifications/*/choices/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/classifications/*/choices/</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/classifications/*/choices/</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/classifications/*/choices/</span></code></p></td>
 <td><p>dtypes KB + db mapping</p></td>
 <td><p>n/a</p></td>
 <td><p>Implemented; no active frontend caller found</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/patient-findings/**</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/base_api/patient-findings/**</span></code> via <code class="docutils literal notranslate"><span class="pre">/dtypes-api/patient-findings/**</span></code></p></td>
 <td><p>dtypes-validated API</p></td>
 <td><p>endoreg_db tables</p></td>
 <td><p>Implemented; default active CRUD path</p></td>
 </tr>
-<tr class="row-even"><td><p>Frontend findings integration</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">findingsApi</span></code> mode switch</p></td>
+<tr class="row-odd"><td><p>Frontend findings integration</p></td>
+<td><p>canonical <code class="docutils literal notranslate"><span class="pre">dtypesApi()</span></code> paths</p></td>
 <td><p>n/a</p></td>
-<td><p>Implemented (default <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>)</p></td>
+<td><p>Implemented</p></td>
 </tr>
 </tbody>
 </table>
@@ -631,6 +605,11 @@ env var is unset or invalid.</p></li>
 <td><p>Moves active findings read/write traffic to the dtypes API while preserving explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> rollback.</p></td>
 <td><p>frontend</p></td>
 </tr>
+<tr class="row-odd"><td><p>2026-07-22</p></td>
+<td><p>Remove <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> and the dead endoreg rollback paths.</p></td>
+<td><p>The referenced endoreg routes were already hard-cut; retaining the flag caused production 404s.</p></td>
+<td><p>frontend/backend</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -682,17 +661,21 @@ env var is unset or invalid.</p></li>
 <td><p>Completed</p></td>
 <td><p>Missing or invalid <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> now resolves to <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>; focused routing tests updated.</p></td>
 </tr>
+<tr class="row-odd"><td><p>2026-07-22</p></td>
+<td><p>Canonical findings cutover</p></td>
+<td><p>Completed</p></td>
+<td><p>Removed the dead global catalog request and all obsolete backend-mode branches; catalogs are examination-scoped.</p></td>
+</tr>
 </tbody>
 </table>
 </div>
 </section>
 <section id="post-cutover-follow-up">
 <h2>Post-Cutover Follow-Up<a class="headerlink" href="#post-cutover-follow-up" title="Link to this heading">¶</a></h2>
-<p>Keep the <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> default and consider retiring the explicit <code class="docutils literal notranslate"><span class="pre">endoreg</span></code> fallback
-only when all are true:</p>
+<p>The explicit endoreg fallback is retired. Before removing compatibility aliases:</p>
 <ul class="simple">
 <li><p>Contract tests pass for <code class="docutils literal notranslate"><span class="pre">/base_api</span></code> read/write findings endpoints.</p></li>
-<li><p>Frontend mode tests pass for <code class="docutils literal notranslate"><span class="pre">endoreg</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes_read</span></code>, and <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>.</p></li>
+<li><p>Frontend canonical-route tests pass.</p></li>
 <li><p>End-to-end create/update/delete/classification flows pass in staging.</p></li>
 <li><p>No agreed regression during soak period.</p></li>
 </ul>
@@ -791,7 +774,7 @@ only when all are true:</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=62bf297e"></script>
+</div><script src="../_static/documentation_options.js?v=87a11ee3"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
