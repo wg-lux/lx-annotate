@@ -20,8 +20,10 @@ from lx_annotate.hub.hub_export_jobs import (
 from lx_annotate.models import OutboundHubTransferJob
 from lx_annotate.permissions import (
     CENTER_SCOPE_ADMIN_ROLE,
+    GLOBAL_CENTER_SCOPE_ADMIN_ROLE,
     ExactCenterScopeAdminPermission,
-    user_has_exact_group,
+    user_can_administer_center_scope,
+    user_has_global_center_scope_admin,
 )
 from lx_annotate.services.access_management import (
     AccessManagementConflict,
@@ -32,6 +34,7 @@ from lx_annotate.services.access_management import (
     get_portal_info_for_user,
     list_delegated_users,
     mutate_center_scope,
+    serialize_user_access,
 )
 
 
@@ -113,6 +116,7 @@ def administration_overview(request):
     source_node = get_default_source_node()
     hub_nodes = list(get_active_hub_nodes().select_related("owning_center"))
     roles = sorted(request.user.groups.values_list("name", flat=True))
+    current_access = serialize_user_access(request.user, portal_info)
     transport = _transport_health()
     target_nodes_ready = bool(hub_nodes) and all(
         _hub_node_health(node)["https_configured"] for node in hub_nodes
@@ -167,16 +171,21 @@ def administration_overview(request):
                 "roles": roles,
                 "center_assignment_status": assignment_status(portal_info),
                 "center_key": (
-                    str(portal_info.examiner.center.center_key)
-                    if portal_info
-                    and portal_info.examiner
-                    and portal_info.examiner.center
+                    current_access["center"]["center_key"]
+                    if current_access["center"] is not None
                     else None
                 ),
+                "centers": current_access["centers"],
                 "hub_monitor_read": True,
-                "center_scope_admin": user_has_exact_group(
-                    request.user, CENTER_SCOPE_ADMIN_ROLE
+                "center_scope_admin": user_can_administer_center_scope(request.user),
+                "center_scope_global_admin": user_has_global_center_scope_admin(
+                    request.user
                 ),
+                "center_scope_roles": {
+                    "delegated": CENTER_SCOPE_ADMIN_ROLE,
+                    "global": GLOBAL_CENTER_SCOPE_ADMIN_ROLE,
+                },
+                "membership_authority": "keycloak_groups",
                 "keycloak_role_mutation": False,
             },
         }

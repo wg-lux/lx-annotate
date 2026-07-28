@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 
 CENTER_SCOPE_ADMIN_ROLE = "center_scope:admin"
+GLOBAL_CENTER_SCOPE_ADMIN_ROLE = "center_scope:global_admin"
 
 
 def user_has_exact_group(user: Any, group_name: str) -> bool:
@@ -21,11 +22,24 @@ def user_has_exact_group(user: Any, group_name: str) -> bool:
     return bool(groups.filter(name=group_name).exists())
 
 
-class ExactCenterScopeAdminPermission(BasePermission):
-    """Require the dedicated center-scope role without compatibility overrides."""
+def user_has_global_center_scope_admin(user: Any) -> bool:
+    """Grant global center administration only through explicit trusted facts."""
+    return bool(getattr(user, "is_superuser", False)) or user_has_exact_group(
+        user, GLOBAL_CENTER_SCOPE_ADMIN_ROLE
+    )
 
-    message = "The exact center_scope:admin role is required."
+
+def user_can_administer_center_scope(user: Any) -> bool:
+    return user_has_global_center_scope_admin(user) or user_has_exact_group(
+        user, CENTER_SCOPE_ADMIN_ROLE
+    )
+
+
+class ExactCenterScopeAdminPermission(BasePermission):
+    """Require a superuser or a dedicated Keycloak-synchronized capability."""
+
+    message = "A superuser or an exact center_scope:admin capability is required."
 
     def has_permission(self, request: "Request", view: "APIView") -> bool:
         del view
-        return user_has_exact_group(request.user, CENTER_SCOPE_ADMIN_ROLE)
+        return user_can_administer_center_scope(request.user)

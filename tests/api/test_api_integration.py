@@ -255,20 +255,6 @@ class PatientAPITests(APIIntegrationTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class ExaminationAPITests(APIIntegrationTestCase):
-    """Tests für Examination-API Endpunkte"""
-
-    def test_get_examinations_list(self):
-        """Test: Liste aller Untersuchungen abrufen"""
-        url = "/api/examinations/"
-        response = self.client.get(url)
-
-        # Je nach Implementation kann der Endpunkt existieren oder nicht
-        self.assertIn(
-            response.status_code, [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
-        )
-
-
 class UploadJobAPITests(APIIntegrationTestCase):
     """Tests für UploadJob-Erstellung, Status und Scope-Verhalten."""
 

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import FieldDoesNotExist
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
@@ -89,6 +90,89 @@ class AdministrationApiTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_superuser_does_not_require_a_redundant_center_scope_group(self):
+        superuser = User.objects.create_user(username="plain-superuser")
+        superuser.is_superuser = True
+        superuser.save(update_fields=["is_superuser"])
+        cast(Any, self.client).force_authenticate(user=superuser)
+
+        response = self.client.get("/api/administration/center-scopes/")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["total"], User.objects.count())
+        self.assertEqual(
+            {center["center_key"] for center in response.json()["centers"]},
+            {"center-a", "center-b"},
+        )
+
+    def test_exact_keycloak_global_role_can_manage_all_centers(self):
+        keycloak_admin = User.objects.create_user(username="keycloak-center-admin")
+        keycloak_admin.groups.add(
+            Group.objects.create(name="center_scope:global_admin")
+        )
+        cast(Any, self.client).force_authenticate(user=keycloak_admin)
+
+        response = self.client.post(
+            f"/api/administration/center-scopes/{self.target.pk}/",
+            data={
+                "operation": "assign",
+                "center_key": "center-b",
+                "expected_center_keys": [],
+                "reason": "Approved by global identity administrator",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            {center["center_key"] for center in response.json()["user"]["centers"]},
+            {"center-b"},
+        )
+
+    def test_global_admin_can_add_and_revoke_one_plural_center_membership(self):
+        try:
+            PortalUserInfo._meta.get_field("centers")
+        except FieldDoesNotExist:
+            self.skipTest("Installed endoreg-db predates plural center memberships")
+
+        portal_info = PortalUserInfo.objects.get(user=self.target)
+        cast(Any, portal_info).centers.add(self.center)
+        cast(Any, self.client).force_authenticate(user=self.actor)
+
+        assign = self.client.post(
+            f"/api/administration/center-scopes/{self.target.pk}/",
+            data={
+                "operation": "assign",
+                "center_key": "center-b",
+                "expected_center_keys": ["center-a"],
+                "reason": "Approved secondary center membership",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(assign.status_code, 200, assign.content)
+        self.assertEqual(
+            {center["center_key"] for center in assign.json()["user"]["centers"]},
+            {"center-a", "center-b"},
+        )
+
+        revoke = self.client.post(
+            f"/api/administration/center-scopes/{self.target.pk}/",
+            data={
+                "operation": "revoke",
+                "center_key": "center-a",
+                "expected_center_keys": ["center-a", "center-b"],
+                "reason": "Primary center membership ended",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(revoke.status_code, 200, revoke.content)
+        self.assertEqual(
+            {center["center_key"] for center in revoke.json()["user"]["centers"]},
+            {"center-b"},
+        )
+
     def test_assign_and_revoke_are_conflict_safe_and_durably_audited(self):
         cast(Any, self.client).force_authenticate(user=self.actor)
         assign = self.client.post(
@@ -106,6 +190,10 @@ class AdministrationApiTests(TestCase):
         self.assertEqual(assign.status_code, 200)
         self.target_examiner.refresh_from_db()
         self.assertEqual(cast(Any, self.target_examiner).center_id, self.center.pk)
+        self.assertEqual(
+            {center["center_key"] for center in assign.json()["user"]["centers"]},
+            {"center-a"},
+        )
         audit = AuditLedger.objects.get(
             object_type="PortalUserInfo", action="center_scope_changed"
         )
@@ -138,6 +226,7 @@ class AdministrationApiTests(TestCase):
         self.assertEqual(revoke.status_code, 200)
         self.target_examiner.refresh_from_db()
         self.assertIsNone(cast(Any, self.target_examiner).center_id)
+        self.assertEqual(revoke.json()["user"]["centers"], [])
         self.assertEqual(
             AuditLedger.objects.filter(action="center_scope_changed").count(), 2
         )
@@ -224,6 +313,10 @@ class AdministrationApiTests(TestCase):
         )
         self.assertIsNotNone(portal_info.examiner)
         self.assertEqual(portal_info.examiner.center_id, self.center.pk)
+        self.assertEqual(
+            {center["center_key"] for center in response.json()["user"]["centers"]},
+            {"center-a"},
+        )
         self.assertFalse(portal_info.examiner.is_real_person)
         self.assertEqual(portal_info.examiner.first_name, "Portal")
         audit = AuditLedger.objects.get(
