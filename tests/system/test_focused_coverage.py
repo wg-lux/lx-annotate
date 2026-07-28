@@ -403,6 +403,10 @@ def test_settings_dev_import_uses_static_vite_manifest_and_allow_any(monkeypatch
     assert module.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
         "rest_framework.permissions.AllowAny"
     ]
+    assert (
+        module.LX_DTYPES_HOST_MODELS_MODULE
+        == "endoreg_db.integrations.lx_dtypes_host_models"
+    )
 
 
 def test_settings_prod_import_uses_static_vite_manifest(monkeypatch, tmp_path):
@@ -435,6 +439,10 @@ def test_settings_prod_import_uses_static_vite_manifest(monkeypatch, tmp_path):
         str(tmp_path / "static-root"), ".vite", "manifest.json"
     )
     assert module.CORS_ALLOWED_ORIGINS == ["https://frontend.example.com"]
+    assert (
+        module.LX_DTYPES_HOST_MODELS_MODULE
+        == "endoreg_db.integrations.lx_dtypes_host_models"
+    )
 
 
 def test_settings_prod_import_reads_luxnix_style_service_environment(

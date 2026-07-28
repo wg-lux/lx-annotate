@@ -151,12 +151,19 @@ def test_keycloak_authenticate_returns_user_tuple(monkeypatch):
     monkeypatch.setattr(
         keycloak_auth_mod, "Group", SimpleNamespace(objects=FakeGroupManager())
     )
+    synchronize_centers = Mock(return_value=frozenset())
+    monkeypatch.setattr(
+        keycloak_auth_mod,
+        "synchronize_user_center_groups",
+        synchronize_centers,
+    )
 
     req = SimpleNamespace(META={"HTTP_AUTHORIZATION": "Bearer tok123"})
     user, token = auth.authenticate(req)
     assert token is None
     assert user.username == "tester"
     fake_user.groups.set.assert_called_once()
+    synchronize_centers.assert_called_once_with(user=fake_user, group_paths=())
 
 
 def test_keycloak_authenticate_raises_on_validation_error(monkeypatch):

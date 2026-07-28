@@ -5,6 +5,22 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def backfill_terminal_error_codes(apps, schema_editor) -> None:
+    database_alias = schema_editor.connection.alias
+    upload_job = apps.get_model("endoreg_db", "UploadJob")
+    upload_job.objects.using(database_alias).filter(
+        status="error", error_code=""
+    ).update(error_code="processing_failed")
+    upload_job.objects.using(database_alias).filter(
+        status="lost", error_code=""
+    ).update(error_code="source_missing")
+
+    video_hls_artifact = apps.get_model("endoreg_db", "VideoHlsArtifact")
+    video_hls_artifact.objects.using(database_alias).filter(
+        status="failed", error_code=""
+    ).update(error_code="materialization_failed")
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("endoreg_db", "0030_labelvideosegment_source_identity"),
@@ -116,6 +132,7 @@ class Migration(migrations.Migration):
                 max_length=20,
             ),
         ),
+        migrations.RunPython(backfill_terminal_error_codes, migrations.RunPython.noop),
         migrations.AddIndex(
             model_name="uploadjob",
             index=models.Index(

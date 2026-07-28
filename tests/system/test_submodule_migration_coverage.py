@@ -76,6 +76,152 @@ def test_non_atomic_override_migration_sets_atomic_false(monkeypatch):
     assert migration_cls.atomic is False
 
 
+def test_import_monitoring_migration_backfills_terminal_error_codes():
+    module = importlib.import_module(
+        "lx_annotate.migration_overrides.endoreg_db.0031_uploadjob_error_code_uploadjob_last_attempt_at_and_more"
+    )
+    updates = []
+
+    class RecordingQuerySet:
+        def __init__(self, model_name):
+            self.model_name = model_name
+            self.database_alias = None
+            self.filters = None
+
+        def using(self, database_alias):
+            self.database_alias = database_alias
+            return self
+
+        def filter(self, **filters):
+            self.filters = filters
+            return self
+
+        def update(self, **values):
+            updates.append((self.model_name, self.database_alias, self.filters, values))
+
+    models_by_name = {
+        model_name: SimpleNamespace(objects=RecordingQuerySet(model_name))
+        for model_name in ("UploadJob", "VideoHlsArtifact")
+    }
+    apps = SimpleNamespace(
+        get_model=lambda app_label, model_name: models_by_name[model_name]
+    )
+    schema_editor = SimpleNamespace(connection=SimpleNamespace(alias="deployment"))
+
+    module.backfill_terminal_error_codes(apps, schema_editor)
+
+    assert updates == [
+        (
+            "UploadJob",
+            "deployment",
+            {"status": "error", "error_code": ""},
+            {"error_code": "processing_failed"},
+        ),
+        (
+            "UploadJob",
+            "deployment",
+            {"status": "lost", "error_code": ""},
+            {"error_code": "source_missing"},
+        ),
+        (
+            "VideoHlsArtifact",
+            "deployment",
+            {"status": "failed", "error_code": ""},
+            {"error_code": "materialization_failed"},
+        ),
+    ]
+    run_python_index = next(
+        index
+        for index, operation in enumerate(module.Migration.operations)
+        if isinstance(operation, migrations.RunPython)
+    )
+    constraint_indexes = [
+        index
+        for index, operation in enumerate(module.Migration.operations)
+        if isinstance(operation, migrations.AddConstraint)
+    ]
+    assert all(run_python_index < index for index in constraint_indexes)
+
+
+def test_portal_user_center_migration_preserves_examiner_memberships():
+    module = importlib.import_module(
+        "lx_annotate.migration_overrides.endoreg_db.0033_portaluserinfo_centers"
+    )
+    created_memberships = []
+
+    class Membership:
+        objects = SimpleNamespace(
+            bulk_create=lambda memberships,
+            ignore_conflicts: created_memberships.extend(memberships)
+        )
+
+        def __init__(self, *, portaluserinfo_id, center_id):
+            self.portaluserinfo_id = portaluserinfo_id
+            self.center_id = center_id
+
+    class PortalInfoQuerySet(list):
+        def exclude(self, **_filters):
+            return self
+
+        def select_related(self, *_fields):
+            return self
+
+    portal_infos = PortalInfoQuerySet(
+        [
+            SimpleNamespace(pk=11, examiner=SimpleNamespace(center_id=101)),
+            SimpleNamespace(pk=12, examiner=SimpleNamespace(center_id=102)),
+        ]
+    )
+    portal_user_info = SimpleNamespace(
+        centers=SimpleNamespace(through=Membership),
+        objects=portal_infos,
+    )
+    apps = SimpleNamespace(get_model=lambda app_label, model_name: portal_user_info)
+
+    module.copy_examiner_centers(apps, object())
+
+    assert [
+        (membership.portaluserinfo_id, membership.center_id)
+        for membership in created_memberships
+    ] == [(11, 101), (12, 102)]
+    assert any(
+        isinstance(operation, migrations.RunPython)
+        for operation in module.Migration.operations
+    )
+
+
+def test_release_migration_contains_hls_generation_and_import_lease_contracts():
+    module = importlib.import_module(
+        "lx_annotate.migration_overrides.endoreg_db.0035_reportimportattempt_and_more"
+    )
+
+    assert module.Migration.dependencies[0] == (
+        "endoreg_db",
+        "0034_case_case_id_case_patient_lab_samples_and_more",
+    )
+    assert any(
+        isinstance(operation, migrations.CreateModel)
+        and operation.name == "ReportImportAttempt"
+        for operation in module.Migration.operations
+    )
+    assert any(
+        isinstance(operation, migrations.RemoveConstraint)
+        and operation.name == "unique_video_hls_artifact_kind"
+        for operation in module.Migration.operations
+    )
+    constraint_names = {
+        operation.constraint.name
+        for operation in module.Migration.operations
+        if isinstance(operation, migrations.AddConstraint)
+    }
+    assert {
+        "report_attempt_lease_state_consistent",
+        "unique_active_video_hls_attempt",
+        "unique_ready_video_hls_artifact_kind",
+        "upload_job_lease_state_consistent",
+    }.issubset(constraint_names)
+
+
 def test_add_field_if_missing_skips_existing_column(monkeypatch):
     module = importlib.import_module(
         "lx_annotate.migration_overrides.endoreg_db.0004_videofile_uuid"

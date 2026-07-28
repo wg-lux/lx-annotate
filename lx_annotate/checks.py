@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+from importlib import import_module
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Mapping, Protocol, cast
 
 from django.conf import settings
 from django.core.checks import CRITICAL, CheckMessage, Critical, Warning
@@ -11,12 +12,17 @@ from django.db import DEFAULT_DB_ALIAS, connections
 from django.db.utils import OperationalError, ProgrammingError
 
 from endoreg_db.services.environment_readiness import check_environment_readiness
+from endoreg_db.utils.rust_backend import has_native_capability
 
 
 class DatabaseIntrospectionWithDescriptions(Protocol):
     def table_names(self) -> list[str]: ...
 
     def get_table_description(self, cursor, table_name: str): ...
+
+    def get_constraints(
+        self, cursor, table_name: str
+    ) -> Mapping[str, Mapping[str, object]]: ...
 
 
 # These checks are intentionally not registered with Django's system check
@@ -27,10 +33,29 @@ class DatabaseIntrospectionWithDescriptions(Protocol):
 # the schema.
 _ENDOREG_DB_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     "endoreg_db_sensitivemeta": ("validation_comment",),
+    "endoreg_db_uploadjob": (
+        "error_code",
+        "next_retry_at",
+        "processing_fencing_token",
+        "processing_heartbeat_at",
+        "processing_lease_expires_at",
+        "processing_lease_owner",
+        "retry_count",
+        "retryable",
+        "status",
+    ),
     "endoreg_db_videofile": (
         "storage_mode",
         "processed_streamable_relative_path",
         "raw_streamable_relative_path",
+    ),
+    "endoreg_db_videohlsartifact": ("error_code", "status"),
+    "report_import_attempt": (
+        "fencing_token",
+        "heartbeat_at",
+        "lease_expires_at",
+        "owner_id",
+        "status",
     ),
 }
 
@@ -40,6 +65,55 @@ _ENDOREG_DB_REQUIRED_TABLES: tuple[str, ...] = (
     "endoreg_db_sensitivemeta_tags",
     "endoreg_db_auditledger",
     "endoreg_db_ledgerhead",
+    "endoreg_db_uploadjob",
+    "endoreg_db_videohlsartifact",
+    "report_import_attempt",
+)
+
+_ENDOREG_DB_REQUIRED_CONSTRAINTS: dict[str, tuple[str, ...]] = {
+    "endoreg_db_uploadjob": (
+        "upload_job_lease_state_consistent",
+        "upload_job_retry_state_consistent",
+        "upload_job_terminal_error_coded",
+    ),
+    "endoreg_db_videohlsartifact": (
+        "unique_active_video_hls_attempt",
+        "unique_ready_video_hls_artifact_kind",
+        "video_hls_failure_coded",
+    ),
+    "report_import_attempt": ("report_attempt_lease_state_consistent",),
+}
+
+_ENDOREG_DB_CONSTRAINT_QUERIES: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
+    (
+        "upload_job_retry_state_consistent",
+        "endoreg_db_uploadjob",
+        """
+        (status = %s AND (
+            retryable = FALSE
+            OR next_retry_at IS NULL
+            OR retry_count <= 0
+            OR error_code = %s
+        ))
+        OR (status <> %s AND (retryable = TRUE OR next_retry_at IS NOT NULL))
+        """,
+        ("retrying", "", "retrying"),
+    ),
+    (
+        "upload_job_terminal_error_coded",
+        "endoreg_db_uploadjob",
+        "status IN (%s, %s) AND error_code = %s",
+        ("error", "lost", ""),
+    ),
+    (
+        "video_hls_failure_coded",
+        "endoreg_db_videohlsartifact",
+        """
+        (status = %s AND error_code = %s)
+        OR (status <> %s AND error_code <> %s)
+        """,
+        ("failed", "", "failed", ""),
+    ),
 )
 
 
@@ -123,8 +197,127 @@ def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore
     return messages
 
 
+def _count_constraint_violations(
+    table_name: str,
+    predicate_sql: str,
+    parameters: tuple[str, ...],
+    *,
+    using: str = DEFAULT_DB_ALIAS,
+) -> int | None:
+    connection = connections[using]
+    quoted_table_name = connection.ops.quote_name(table_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT COUNT(*) FROM {quoted_table_name} WHERE {predicate_sql}",
+                parameters,
+            )
+            row = cursor.fetchone()
+    except (OperationalError, ProgrammingError):
+        return None
+    return int(row[0]) if row else 0
+
+
+def _table_constraint_names(
+    table_name: str, *, using: str = DEFAULT_DB_ALIAS
+) -> set[str] | None:
+    connection = connections[using]
+    introspection = cast(
+        DatabaseIntrospectionWithDescriptions,
+        connection.introspection,
+    )
+    try:
+        with connection.cursor() as cursor:
+            constraints = introspection.get_constraints(cursor, table_name)
+    except (OperationalError, ProgrammingError):
+        return None
+    return set(constraints)
+
+
+def lx_annotate_endoreg_db_constraint_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
+    messages: list[CheckMessage] = []
+
+    for table_name, required_constraints in _ENDOREG_DB_REQUIRED_CONSTRAINTS.items():
+        columns = _table_columns(table_name)
+        required_columns = set(_ENDOREG_DB_REQUIRED_COLUMNS[table_name])
+        if columns is None or not required_columns.issubset(columns):
+            continue
+        constraint_names = _table_constraint_names(table_name)
+        if constraint_names is None:
+            messages.append(
+                Critical(
+                    "Unable to inspect endoreg_db database constraints. Verify "
+                    "database connectivity and service-user introspection permissions.",
+                    id="lx_annotate.endoreg_db_constraint_introspection_failed",
+                    obj=table_name,
+                )
+            )
+            continue
+        missing_constraints = [
+            name for name in required_constraints if name not in constraint_names
+        ]
+        if missing_constraints:
+            messages.append(
+                Critical(
+                    "endoreg_db schema is behind the lx_annotate migration override "
+                    f"set. Table '{table_name}' is missing required constraints: "
+                    f"{', '.join(missing_constraints)}.",
+                    id="lx_annotate.endoreg_db_schema_constraint_missing",
+                    obj=table_name,
+                )
+            )
+
+    for (
+        constraint_name,
+        table_name,
+        predicate_sql,
+        parameters,
+    ) in _ENDOREG_DB_CONSTRAINT_QUERIES:
+        columns = _table_columns(table_name)
+        required_columns = set(_ENDOREG_DB_REQUIRED_COLUMNS[table_name])
+        if columns is not None and not required_columns.issubset(columns):
+            # The schema check reports missing tables and columns. Avoid running a
+            # query that is guaranteed to fail before migrations have created them.
+            continue
+
+        violation_count = _count_constraint_violations(
+            table_name,
+            predicate_sql,
+            parameters,
+        )
+        if violation_count is None:
+            messages.append(
+                Critical(
+                    "Unable to inspect endoreg_db constraint data. Verify database "
+                    "connectivity and service-user query permissions.",
+                    id="lx_annotate.endoreg_db_constraint_introspection_failed",
+                    obj=constraint_name,
+                )
+            )
+        elif violation_count:
+            messages.append(
+                Critical(
+                    f"Constraint '{constraint_name}' would be violated by "
+                    f"{violation_count} existing row(s) in '{table_name}'.",
+                    id="lx_annotate.endoreg_db_constraint_violated",
+                    obj=constraint_name,
+                )
+            )
+
+    return messages
+
+
 def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
     messages = []
+
+    if not has_native_capability("hls_state_machine", "hls_state_v1"):
+        messages.append(
+            Critical(
+                "The endoreg_db native Rust extension does not provide the required "
+                "hls_state_machine/hls_state_v1 capability.",
+                id="lx_annotate.hls_native_state_machine_missing",
+            )
+        )
 
     for issue in check_environment_readiness():
         check_cls = Critical if issue.severity == "critical" else Warning
@@ -182,6 +375,29 @@ def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unuse
                 )
             )
 
+    host_models_module = str(
+        getattr(settings, "LX_DTYPES_HOST_MODELS_MODULE", "") or ""
+    ).strip()
+    if not host_models_module:
+        messages.append(
+            Critical(
+                "LX_DTYPES_HOST_MODELS_MODULE must identify the endoreg_db host adapter.",
+                id="lx_annotate.lx_dtypes_host_models_module_missing",
+            )
+        )
+    else:
+        try:
+            import_module(host_models_module)
+        except (ImportError, AttributeError, RuntimeError) as exc:
+            messages.append(
+                Critical(
+                    "LX_DTYPES_HOST_MODELS_MODULE is not importable: "
+                    f"{type(exc).__name__}.",
+                    id="lx_annotate.lx_dtypes_host_models_module_invalid",
+                    obj=host_models_module,
+                )
+            )
+
     return messages
 
 
@@ -190,6 +406,7 @@ def assert_runtime_checks_pass() -> None:
         message
         for check in (
             lx_annotate_endoreg_db_schema_checks,
+            lx_annotate_endoreg_db_constraint_checks,
             lx_annotate_environment_checks,
         )
         for message in check(None)

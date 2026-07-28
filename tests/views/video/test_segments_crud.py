@@ -12,6 +12,7 @@ from endoreg_db.models import (
     InformationSource,
     Label,
     LabelVideoSegment,
+    PortalUserInfo,
     VideoFile,
     VideoProcessingHistory,
     VideoState,
@@ -28,8 +29,10 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def api_client():
+def api_client(center):
     user = User.objects.create_user(username="segment-reviewer")
+    portal_info = PortalUserInfo.objects.create(user=user)
+    portal_info.centers.add(center)
     client = APIClient()
     client.force_authenticate(user=user)
     return client
