@@ -573,10 +573,27 @@ import {
   type ApplicationSettingsDropdowns,
   type ApplicationSettingsRecord
 } from '@/api/applicationSettingsApi'
+import { isAxiosError } from 'axios'
 import type { MedicalField } from '@/api/terminologyApi'
 import { useTerminologyStore } from '@/stores/terminologyStore'
 import { useToastStore } from '@/stores/toastStore'
 import { computed, onMounted, reactive, ref } from 'vue'
+
+interface ApplicationSettingsErrorPayload {
+  detail?: string
+  errors?: {
+    dryRun?: string
+    dry_run?: string
+    limit?: string
+    targetPath?: string
+    aiDatasetName?: string
+    aiDatasetType?: string
+  }
+}
+
+function applicationSettingsErrorPayload(error: unknown): ApplicationSettingsErrorPayload {
+  return isAxiosError<ApplicationSettingsErrorPayload>(error) ? error.response?.data || {} : {}
+}
 
 const EMPTY_OPTION = ''
 const VIDEO_DIMENSION_BACKFILL_POLL_INTERVAL_MS = 1000
@@ -884,12 +901,13 @@ async function runVideoDimensionBackfill() {
     videoDimensionBackfillRun.value = result
     videoDimensionBackfillRun.value = await pollVideoDimensionBackfillRun(result)
     toast.success({ text: 'Video-Dimensionsprüfung gestartet.' })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const payload = applicationSettingsErrorPayload(error)
     videoDimensionBackfillError.value =
-      error?.response?.data?.errors?.dryRun ||
-      error?.response?.data?.errors?.dry_run ||
-      error?.response?.data?.errors?.limit ||
-      error?.response?.data?.detail ||
+      payload.errors?.dryRun ||
+      payload.errors?.dry_run ||
+      payload.errors?.limit ||
+      payload.detail ||
       'Video-Dimensionsprüfung konnte nicht gestartet werden.'
     console.error('Failed to run video dimension backfill:', error)
   } finally {
@@ -929,11 +947,10 @@ async function runBackup() {
     await loadSettings()
     backupResult.value = result
     toast.success({ text: 'Backup erfolgreich erstellt.' })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const payload = applicationSettingsErrorPayload(error)
     backupError.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.errors?.targetPath ||
-      'Backup konnte nicht gestartet werden.'
+      payload.detail || payload.errors?.targetPath || 'Backup konnte nicht gestartet werden.'
     console.error('Failed to run application backup:', error)
   } finally {
     backupInProgress.value = false
@@ -963,11 +980,12 @@ async function runAiDatasetExport() {
     })
     aiDatasetExportResult.value = result
     toast.success({ text: 'KI-Datensatz erfolgreich exportiert.' })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const payload = applicationSettingsErrorPayload(error)
     aiDatasetExportError.value =
-      error?.response?.data?.errors?.aiDatasetName ||
-      error?.response?.data?.errors?.aiDatasetType ||
-      error?.response?.data?.detail ||
+      payload.errors?.aiDatasetName ||
+      payload.errors?.aiDatasetType ||
+      payload.detail ||
       'KI-Datensatz konnte nicht exportiert werden.'
     console.error('Failed to export AI dataset:', error)
   } finally {

@@ -22,8 +22,8 @@ repos:
         pass_filenames: false
 
       - id: runtime-checks
-        name: runtime schema and environment checks
-        entry: devenv shell -- python manage.py shell -c "from lx_annotate.checks import assert_runtime_checks_pass; assert_runtime_checks_pass()"
+        name: runtime schema and environment check contracts
+        entry: devenv shell -- pytest tests/system/test_environment_checks.py
         language: system
         pass_filenames: false
 

@@ -4,7 +4,7 @@
     <div v-if="annotationStatsStore.isLoading && !hasAnyData" class="dashboard-loading-state py-4">
       <div class="skeleton-title mb-3"></div>
       <div class="row g-3 mb-3">
-        <div class="col-md-4" v-for="n in 3" :key="`overview-skeleton-${n}`">
+        <div v-for="n in 3" :key="`overview-skeleton-${n}`" class="col-md-4">
           <div class="skeleton-card"></div>
         </div>
       </div>
@@ -32,8 +32,8 @@
                 <div class="col-4 text-end">
                   <button 
                     class="btn btn-outline-light btn-sm"
-                    @click="refreshStats"
                     :disabled="annotationStatsStore.isLoading"
+                    @click="refreshStats"
                   >
                     <i class="ni ni-bold-right" :class="{ 'ni-spin': annotationStatsStore.isLoading }"></i>
                     Aktualisieren

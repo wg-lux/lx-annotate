@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import json
 import logging
 from datetime import datetime, timezone
@@ -13,6 +14,11 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 
+from endoreg_db.utils.file_operations import (
+    advisory_file_lock,
+    atomic_write_file,
+    ensure_directory,
+)
 from lx_dtypes.django.api.lookup_tracker import consume_runtime_lookup_trackers
 from lx_dtypes.models.interface.KnowledgeBase import KnowledgeBase
 
@@ -99,10 +105,15 @@ def append_summary_to_study_csv(
     request: HttpRequest,
     module_name: str,
 ) -> None:
-    study_dir = Path(settings.BASE_DIR) / _STUDY_DATA_DIR
-    study_dir.mkdir(parents=True, exist_ok=True)
+    configured_study_dir = getattr(settings, "KNOWLEDGE_BASE_LOOKUP_TRACKER_DIR", None)
+    study_dir = (
+        Path(configured_study_dir)
+        if configured_study_dir
+        else Path(settings.BASE_DIR) / _STUDY_DATA_DIR
+    )
+    ensure_directory(study_dir)
     csv_path = study_dir / _CSV_FILE_NAME
-    file_exists = csv_path.exists()
+    lock_path = study_dir / f".{_CSV_FILE_NAME}.lock"
     edge_list = summary.get("edge_counts")
     key_list = summary.get("key_counts")
     row = {
@@ -115,8 +126,17 @@ def append_summary_to_study_csv(
         "key_count": len(key_list) if isinstance(key_list, list) else 0,
         "summary_json": json.dumps(summary, ensure_ascii=False),
     }
-    with csv_path.open("a", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=_CSV_HEADERS)
-        if not file_exists or csv_file.tell() == 0:
+
+    with advisory_file_lock(lock_path=lock_path):
+        existing_content = csv_path.read_bytes() if csv_path.exists() else b""
+        csv_buffer = io.StringIO(newline="")
+        writer = csv.DictWriter(csv_buffer, fieldnames=_CSV_HEADERS)
+        if not existing_content:
             writer.writeheader()
         writer.writerow(row)
+        appended_content = csv_buffer.getvalue().encode("utf-8")
+        atomic_write_file(
+            destination=csv_path,
+            content=(existing_content, appended_content),
+            required_bytes=len(existing_content) + len(appended_content),
+        )

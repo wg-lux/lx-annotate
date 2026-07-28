@@ -333,7 +333,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
 
   // 2) capability-aware guard (ONLY hard-block when meta.hardProtect === true)
   router.beforeEach((to, _from, next) => {
-    const meta: any = to.meta || {}
+    const meta = to.meta
     const cap = meta.cap as string | undefined
     const hardProtect = !!meta.hardProtect // default false
 

@@ -99,8 +99,7 @@ def export_frames(argv: Sequence[str] | None = None) -> int:
             "LX_ANNOTATE_EXPORT_FRAMES_OUTPUT_DIR",
             os.path.join(storage_dir, "export", "frames"),
         )
-        os.makedirs(output_dir, exist_ok=True)
-        args = ["--output-path", output_dir, *args]
+        args = ["--output-dir", output_dir, *args]
     return manage(["export_frame_annot", *args])
 
 

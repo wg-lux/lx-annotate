@@ -1,6 +1,6 @@
 <template>
   <div class="patient-edit-form">
-    <form @submit.prevent="handleSubmit" class="edit-form">
+    <form class="edit-form" @submit.prevent="handleSubmit">
       <!-- Form Grid -->
       <div class="form-grid">
         <!-- Basic Information Section -->
@@ -187,8 +187,8 @@
           <button
             type="button"
             class="btn btn-secondary"
-            @click="$emit('cancel')"
             :disabled="loading"
+            @click="$emit('cancel')"
           >
             <i class="ni ni-settings-gear-65"></i>
             Abbrechen
@@ -210,8 +210,8 @@
           <button
             type="button"
             class="btn btn-outline-danger"
-            @click="showDeleteModal = true"
             :disabled="loading"
+            @click="showDeleteModal = true"
           >
             <i class="ni ni-settings-gear-65"></i>
             Patient löschen
@@ -264,16 +264,16 @@
             <button
               type="button"
               class="btn btn-secondary"
-              @click="showDeleteModal = false"
               :disabled="deleting"
+              @click="showDeleteModal = false"
             >
               Abbrechen
             </button>
             <button
               type="button"
               class="btn btn-danger"
-              @click="confirmDelete"
               :disabled="deleting"
+              @click="confirmDelete"
             >
               <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
               <i v-else class="ni ni-settings-gear-65 me-2"></i>
@@ -288,10 +288,52 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
-import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
+import { isAxiosError } from 'axios'
+import { usePatientStore, type Patient } from '@/stores/patientStore'
 import { patientService, type PatientFormData } from '@/api/patientService'
 import { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
+
+interface PatientDeletionInfo {
+  examinations: number
+  findings: number
+  videos: number
+  reports: number
+}
+
+interface PatientUpdateErrorPayload {
+  detail?: string
+  message?: string
+  firstName?: string | string[]
+  lastName?: string | string[]
+  dob?: string | string[]
+  gender?: string | string[]
+  center?: string | string[]
+  email?: string | string[]
+  phone?: string | string[]
+  patientHash?: string | string[]
+}
+
+function parseDeletionInfo(value: unknown): PatientDeletionInfo | null {
+  if (!value || typeof value !== 'object') return null
+  const relatedObjects = (value as { related_objects?: unknown }).related_objects
+  if (!relatedObjects || typeof relatedObjects !== 'object') return null
+  const candidate = relatedObjects as Partial<PatientDeletionInfo>
+  if (
+    typeof candidate.examinations !== 'number' ||
+    typeof candidate.findings !== 'number' ||
+    typeof candidate.videos !== 'number' ||
+    typeof candidate.reports !== 'number'
+  ) {
+    return null
+  }
+  return {
+    examinations: candidate.examinations,
+    findings: candidate.findings,
+    videos: candidate.videos,
+    reports: candidate.reports
+  }
+}
 
 // Props
 interface Props {
@@ -315,7 +357,7 @@ const loading = ref(false)
 const deleting = ref(false)
 const showDeleteModal = ref(false)
 const generalError = ref('')
-const deletionInfo = ref<any>(null)
+const deletionInfo = ref<PatientDeletionInfo | null>(null)
 
 // Form data
 const form = reactive<PatientFormData>({
@@ -410,24 +452,28 @@ const handleSubmit = async () => {
     const updatedPatient = await patientService.updatePatient(props.patient.id!, patientData)
 
     emit('patient-updated', updatedPatient)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error updating patient:', err)
-    
-    if (err.response?.data) {
+
+    if (isAxiosError<PatientUpdateErrorPayload>(err) && err.response?.data) {
       // Handle validation errors from backend
       const backendErrors = err.response.data
-      if (typeof backendErrors === 'object') {
-        Object.keys(backendErrors).forEach(key => {
-          if (key in errors) {
-            errors[key as keyof typeof errors] = Array.isArray(backendErrors[key]) 
-              ? backendErrors[key][0] 
-              : backendErrors[key]
-          }
-        })
-      }
-      generalError.value = backendErrors.detail || backendErrors.message || 'Fehler beim Aktualisieren des Patienten'
+      ;(Object.keys(errors) as Array<keyof typeof errors>).forEach((key) => {
+        const fieldError = backendErrors[key]
+        if (typeof fieldError === 'string') errors[key] = fieldError
+        else if (Array.isArray(fieldError) && typeof fieldError[0] === 'string') {
+          errors[key] = fieldError[0]
+        }
+      })
+      generalError.value =
+        backendErrors.detail ||
+        backendErrors.message ||
+        'Fehler beim Aktualisieren des Patienten'
     } else {
-      generalError.value = err.message || 'Unbekannter Fehler beim Aktualisieren des Patienten'
+      generalError.value =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Unbekannter Fehler beim Aktualisieren des Patienten'
     }
   } finally {
     loading.value = false
@@ -443,9 +489,10 @@ const confirmDelete = async () => {
     emit('patient-deleted', props.patient.id!)
     showDeleteModal.value = false
     
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error deleting patient:', err)
-    generalError.value = err.message || 'Fehler beim Löschen des Patienten'
+    generalError.value =
+      err instanceof Error && err.message ? err.message : 'Fehler beim Löschen des Patienten'
     showDeleteModal.value = false
   } finally {
     deleting.value = false
@@ -457,8 +504,7 @@ const loadDeletionInfo = async () => {
     // This would call the safety check endpoint to get deletion impact
     const response = await fetch(r(endpoints.patient.patientDeletionSafety(props.patient.id!)))
     if (response.ok) {
-      const data = await response.json()
-      deletionInfo.value = data.related_objects
+      deletionInfo.value = parseDeletionInfo(await response.json())
     }
   } catch (error) {
     console.error('Error loading deletion info:', error)

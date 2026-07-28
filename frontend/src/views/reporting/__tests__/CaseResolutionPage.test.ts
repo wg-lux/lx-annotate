@@ -4,28 +4,44 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import CaseResolutionPage from '../CaseResolutionPage.vue'
 
-const hoisted = vi.hoisted(() => ({
-  routeRef: {
-    current: {
-      query: {}
+const hoisted = vi.hoisted(() => {
+  const createFixtureRef = <T>(name: string) => {
+    let fixture: T | undefined
+    return {
+      get current(): T {
+        if (fixture === undefined) throw new Error(`${name} fixture was not initialized.`)
+        return fixture
+      },
+      set current(value: T) {
+        fixture = value
+      }
     }
-  },
-  flowRef: { current: null as any },
-  patientStoreRef: { current: null as any },
-  examinationStoreRef: { current: null as any },
-  patientExaminationStoreRef: { current: null as any },
-  anonymizationStoreRef: { current: null as any },
-  axiosApi: {
-    get: vi.fn(),
-    post: vi.fn()
   }
-}))
+
+  return {
+    routeRef: {
+      current: {
+        query: {}
+      }
+    },
+    flowRef: createFixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
+    patientStoreRef: createFixtureRef<PatientStoreStub>('patient store'),
+    examinationStoreRef: createFixtureRef<ExaminationStoreStub>('examination store'),
+    patientExaminationStoreRef: createFixtureRef<PatientExaminationStoreStub>(
+      'patient examination store'
+    ),
+    anonymizationStoreRef: createFixtureRef<AnonymizationStoreStub>('anonymization store'),
+    axiosApi: {
+      get: vi.fn(),
+      post: vi.fn()
+    }
+  }
+})
 
 vi.mock('vue-router', () => ({
   RouterLink: {
     props: ['to'],
-    template:
-      '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
+    template: '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
   },
   useRoute: () => hoisted.routeRef.current
 }))
@@ -55,24 +71,74 @@ vi.mock('@/stores/anonymizationStore', () => ({
   useAnonymizationStore: () => hoisted.anonymizationStoreRef.current
 }))
 
+type PatientStoreStub = {
+  loading: boolean
+  centers: Array<{ id: number; centerKey: string; name: string; nameDe: string }>
+  patientsWithDisplayName: Array<{ id: number; displayName: string }>
+  getPatientById: (id: number) => {
+    id: number
+    firstName: string
+    lastName: string
+    dob: string
+    gender: string
+    patientHash: string
+  } | null
+  fetchPatients: ReturnType<typeof vi.fn>
+  fetchCenters: ReturnType<typeof vi.fn>
+  createPatient: ReturnType<typeof vi.fn>
+}
+
+type ExaminationStoreStub = {
+  loading: boolean
+  examinationsDropdown: Array<{ id: number; name: string; displayName: string }>
+  fetchExaminations: ReturnType<typeof vi.fn>
+}
+
+type PatientExaminationStoreStub = {
+  addPatientExamination: ReturnType<typeof vi.fn>
+  setCurrentPatientExaminationId: ReturnType<typeof vi.fn>
+}
+
+type AnonymizationStoreStub = {
+  current: {
+    id: number
+    patientFirstName: string
+    patientLastName: string
+    patientDob: string
+    patientGenderName: string
+    centerName: string
+  } | null
+  overview: Array<{ id: number }>
+  fetchOverview: ReturnType<typeof vi.fn>
+  setCurrentForValidation: ReturnType<typeof vi.fn>
+}
+
 function buildFlowStore() {
-  const flow: any = reactive({
-    selectedPatientId: null,
-    selectedExaminationId: null,
-    patientExaminationId: 314,
-    setCaseSelection: vi.fn((payload: { selectedPatientId?: number | null; selectedExaminationId?: number | null }) => {
-      if (payload.selectedPatientId !== undefined) flow.selectedPatientId = payload.selectedPatientId
-      if (payload.selectedExaminationId !== undefined) flow.selectedExaminationId = payload.selectedExaminationId
-    }),
-    setPatientExaminationContext: vi.fn((payload: {
-      patientExaminationId: number | null
-      selectedPatientId?: number | null
-      selectedExaminationId?: number | null
-    }) => {
-      flow.patientExaminationId = payload.patientExaminationId
-      if (payload.selectedPatientId !== undefined) flow.selectedPatientId = payload.selectedPatientId
-      if (payload.selectedExaminationId !== undefined) flow.selectedExaminationId = payload.selectedExaminationId
-    })
+  const flow = reactive({
+    selectedPatientId: null as number | null,
+    selectedExaminationId: null as number | null,
+    patientExaminationId: 314 as number | null,
+    setCaseSelection: vi.fn(
+      (payload: { selectedPatientId?: number | null; selectedExaminationId?: number | null }) => {
+        if (payload.selectedPatientId !== undefined)
+          flow.selectedPatientId = payload.selectedPatientId
+        if (payload.selectedExaminationId !== undefined)
+          flow.selectedExaminationId = payload.selectedExaminationId
+      }
+    ),
+    setPatientExaminationContext: vi.fn(
+      (payload: {
+        patientExaminationId: number | null
+        selectedPatientId?: number | null
+        selectedExaminationId?: number | null
+      }) => {
+        flow.patientExaminationId = payload.patientExaminationId
+        if (payload.selectedPatientId !== undefined)
+          flow.selectedPatientId = payload.selectedPatientId
+        if (payload.selectedExaminationId !== undefined)
+          flow.selectedExaminationId = payload.selectedExaminationId
+      }
+    )
   })
 
   return flow
@@ -160,7 +226,9 @@ describe('CaseResolutionPage workflow linking', () => {
       .findAll('a')
       .find((link) => link.text().includes('Zurück zur Validierung'))
     expect(backLink).toBeTruthy()
-    expect(backLink!.attributes('data-to')).toBe('/anonymisierung/validierung?fileId=5&mediaType=pdf')
+    expect(backLink!.attributes('data-to')).toBe(
+      '/anonymisierung/validierung?fileId=5&mediaType=pdf'
+    )
 
     const nextLink = wrapper
       .findAll('a')

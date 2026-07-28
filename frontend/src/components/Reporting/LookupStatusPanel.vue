@@ -55,6 +55,11 @@ const props = withDefaults(defineProps<{
   collapsible?: boolean
   initiallyCollapsed?: boolean
 }>(), {
+  patientExaminationId: null,
+  selectedExaminationId: null,
+  lookupToken: null,
+  sessionStatus: '',
+  findingsRevision: undefined,
   title: 'Status',
   collapsible: true,
   initiallyCollapsed: true

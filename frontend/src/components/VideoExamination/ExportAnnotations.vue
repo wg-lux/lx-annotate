@@ -10,9 +10,9 @@
       <label class="form-label">Video auswählen:</label>
       <select
         v-model.number="selectedVideoId"
-        @change="onVideoChange"
         class="form-select"
         :disabled="!hasVideos || isExternalSelection"
+        @change="onVideoChange"
       >
         <option :value="null">
           {{ hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar' }}
@@ -93,9 +93,9 @@
             <div class="form-check form-switch mb-0">
               <input
                 id="use-export-flags"
+                v-model="useExportFlags"
                 class="form-check-input"
                 type="checkbox"
-                v-model="useExportFlags"
               />
               <label class="form-check-label" for="use-export-flags">
                 Export-Flags verwenden
@@ -107,27 +107,27 @@
           <div class="form-check form-switch">
             <input
               id="export-videos"
+              v-model="exportVideos"
               class="form-check-input"
               type="checkbox"
-              v-model="exportVideos"
             />
             <label class="form-check-label" for="export-videos"> Video-Dateien exportieren </label>
           </div>
           <div class="form-check form-switch">
             <input
               id="export-frames"
+              v-model="exportFrames"
               class="form-check-input"
               type="checkbox"
-              v-model="exportFrames"
             />
             <label class="form-check-label" for="export-frames"> Frames exportieren </label>
           </div>
           <div class="form-check form-switch">
             <input
               id="use-frame-pk-paths"
+              v-model="useFramePkPaths"
               class="form-check-input"
               type="checkbox"
-              v-model="useFramePkPaths"
             />
             <label class="form-check-label" for="use-frame-pk-paths">
               use_frame_pk_paths verwenden
@@ -152,20 +152,20 @@
               <label class="form-label mb-0" for="transcode-quality">Quality</label>
               <input
                 id="transcode-quality"
+                v-model.number="transcodeQuality"
                 type="number"
                 min="1"
                 max="51"
                 class="form-control form-control-sm"
-                v-model.number="transcodeQuality"
               />
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label mb-0" for="transcode-ext">Extension</label>
               <input
                 id="transcode-ext"
+                v-model="transcodeExt"
                 type="text"
                 class="form-control form-control-sm"
-                v-model="transcodeExt"
               />
             </div>
           </div>
@@ -441,6 +441,21 @@ const backfillButtonLabel = computed(() =>
   isBackfilling.value ? 'Annotationen werden erzeugt …' : 'Fehlende Annotationen erzeugen'
 )
 
+const getRequestErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error || typeof error !== 'object') return fallback
+  const errorRecord = error as Record<string, unknown>
+  const response =
+    errorRecord.response && typeof errorRecord.response === 'object'
+      ? (errorRecord.response as Record<string, unknown>)
+      : {}
+  const data =
+    response.data && typeof response.data === 'object'
+      ? (response.data as Record<string, unknown>)
+      : {}
+  const message = data.detail ?? data.error ?? errorRecord.message
+  return typeof message === 'string' ? message : fallback
+}
+
 const backfillAnnotations = async () => {
   exportMessage.value = null
   if (!selectedVideoId.value) {
@@ -460,15 +475,11 @@ const backfillAnnotations = async () => {
       type: 'success',
       text: `Backfill abgeschlossen. Neu erzeugte Annotationen: ${created}.`
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Backfill request failed', error)
     exportMessage.value = {
       type: 'error',
-      text:
-        error?.response?.data?.detail ||
-        error?.response?.data?.error ||
-        error?.message ||
-        'Backfill fehlgeschlagen'
+      text: getRequestErrorMessage(error, 'Backfill fehlgeschlagen')
     }
   } finally {
     isBackfilling.value = false
@@ -510,11 +521,11 @@ const startExport = async () => {
       type: 'success',
       text: `Export abgeschlossen: ${result.rowCount} Annotationen, ${result.exportedFrameCount} Frames. Datei: ${result.outputPath}`
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Export request failed', error)
     exportMessage.value = {
       type: 'error',
-      text: error?.response?.data?.detail || error?.message || 'Export fehlgeschlagen'
+      text: getRequestErrorMessage(error, 'Export fehlgeschlagen')
     }
   } finally {
     isExporting.value = false

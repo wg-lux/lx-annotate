@@ -17,7 +17,9 @@ function clearReportingSessionArtifacts() {
       localStorage.removeItem(key)
       sessionStorage.removeItem(key)
     }
-  } catch {}
+  } catch {
+    // Storage cleanup is best-effort during authentication transitions.
+  }
 }
 
 /**
@@ -99,15 +101,17 @@ export const useAuthKcStore = defineStore('auth_kc', {
     async loadBootstrap() {
       if (this.loaded) return
       try {
-        let data: Bootstrap | any
+        let data: Bootstrap
         try {
           const res = await axios.get<Bootstrap>(r(endpoints.auth.bootstrap), {
             withCredentials: true
           })
           data = res.data
-        } catch (e) {
+        } catch {
           // Fallback for older backend
-          const res = await axios.get<any>(r(endpoints.auth.context), { withCredentials: true })
+          const res = await axios.get<Bootstrap>(r(endpoints.auth.context), {
+            withCredentials: true
+          })
           data = res.data
         }
 
@@ -152,8 +156,8 @@ export const useAuthKcStore = defineStore('auth_kc', {
       method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' = 'GET'
     ): boolean {
       const composite = `${key}:${method.toUpperCase()}`
-      if (this.caps.hasOwnProperty(composite)) return !!this.caps[composite]
-      if (this.caps.hasOwnProperty(key)) return !!this.caps[key]
+      if (Object.prototype.hasOwnProperty.call(this.caps, composite)) return !!this.caps[composite]
+      if (Object.prototype.hasOwnProperty.call(this.caps, key)) return !!this.caps[key]
       return false
     },
 

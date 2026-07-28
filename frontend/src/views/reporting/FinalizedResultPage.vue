@@ -93,6 +93,7 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { endpoints } from '@/types/api/endpoints'
 import { buildPdfStreamUrl } from '@/utils/mediaUrls'
+import { reportingApiErrorMessage } from './reportingError'
 
 type ReportListRow = {
   id: number
@@ -229,9 +230,11 @@ async function loadLatestFinalizedState() {
     )
     latestReportDetail.value = (detailRes.data || null) as ReportDetailRow | null
     successMessage.value = `Bericht #${items[0].id} geladen.`
-  } catch (e: any) {
-    errorMessage.value =
-      e?.response?.data?.detail || e?.message || 'Fehler beim Laden der Finalisierungsdaten.'
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(
+      e,
+      'Fehler beim Laden der Finalisierungsdaten.'
+    )
   } finally {
     loading.value = false
   }

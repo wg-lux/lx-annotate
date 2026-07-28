@@ -1,40 +1,35 @@
-from pathlib import Path
-from django.core.management.utils import get_random_secret_key
 import os
+from pathlib import Path
 
-# Assuming you can import APP_DATA_DIR from your settings_base or define it here
-# If defined here, ensure it matches your systemd state directory:
+from django.core.management.utils import get_random_secret_key
+from endoreg_db.utils.file_operations import atomic_write_file
+
 HOME_DIR = Path(os.getenv("HOME_DIR", str(Path.home())))
 
 
-def get_or_create_secret_key() -> str:
+def get_or_create_development_secret_key() -> str:
     """
-    Returns the existing secret key from disk or generates/saves a new one.
-    This is safe to commit to Git because the KEY itself is stored outside the repo.
+    Return a persistent local key for an explicitly configured development setup.
+
+    Production settings never call this helper: their key must be supplied through
+    DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE.
     """
     if os.getenv("DJANGO_SECRET_KEY_FILE"):
         return ""
     secret_file = HOME_DIR / "secret.key"
 
-    try:
-        # 1. Try to read existing key
-        if secret_file.exists():
-            key = secret_file.read_text().strip()
-            if len(key) >= 32:  # Basic validation
-                return key
+    if secret_file.exists():
+        key = secret_file.read_text(encoding="utf-8").strip()
+        if len(key) >= 32:
+            return key
 
-        # 2. If missing or invalid, generate new key
-        HOME_DIR.mkdir(parents=True, exist_ok=True)
-        new_key = get_random_secret_key()
-
-        # 3. Write strictly (readable only by owner)
-        # We create file, set permissions, then write
-        secret_file.touch(mode=0o600)
-        secret_file.write_text(new_key)
-
-        return new_key
-
-    except (PermissionError, OSError) as e:
-        # Fallback for read-only environments (prevents crash, but sessions won't persist restarts)
-        print(f"WARNING: Could not save secret key to {secret_file}: {e}")
-        return get_random_secret_key()
+    new_key = get_random_secret_key()
+    encoded_key = new_key.encode("utf-8")
+    atomic_write_file(
+        destination=secret_file,
+        content=(encoded_key,),
+        required_bytes=len(encoded_key),
+        file_mode=0o600,
+        dir_mode=0o700,
+    )
+    return new_key

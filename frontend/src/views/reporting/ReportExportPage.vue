@@ -123,6 +123,7 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { makeReport, type PersistedReportArtifacts } from '@/api/reportExportApi'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { endpoints } from '@/types/api/endpoints'
+import { reportingApiErrorMessage } from './reportingError'
 
 type ReportListRow = {
   id: number
@@ -207,8 +208,8 @@ async function loadLatestReport() {
     if (!latestReport.value) {
       successMessage.value = 'Kein Bericht für diesen Fall vorhanden.'
     }
-  } catch (e: any) {
-    errorMessage.value = e?.response?.data?.detail || e?.message || 'Bericht konnte nicht geladen werden.'
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(e, 'Bericht konnte nicht geladen werden.')
   } finally {
     loadingReport.value = false
   }
@@ -245,8 +246,8 @@ async function onMakeReport() {
     includedFrameCount.value = data.includedFrameCount || 0
     warnings.value = Array.isArray(data.warnings) ? data.warnings : []
     successMessage.value = `PDF-Bericht #${data.report.id} wurde erstellt.`
-  } catch (e: any) {
-    errorMessage.value = e?.response?.data?.detail || e?.message || 'PDF-Bericht konnte nicht erstellt werden.'
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(e, 'PDF-Bericht konnte nicht erstellt werden.')
   } finally {
     generating.value = false
   }

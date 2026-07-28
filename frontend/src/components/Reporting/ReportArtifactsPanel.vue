@@ -1,5 +1,5 @@
 <template>
-  <div class="card shadow-sm" v-if="artifacts">
+  <div v-if="artifacts" class="card shadow-sm">
     <div class="card-header">
       <h6 class="mb-0">Artefakte</h6>
     </div>

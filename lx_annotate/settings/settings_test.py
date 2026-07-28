@@ -13,6 +13,10 @@ from copy import deepcopy
 from typing import Any, cast
 from pathlib import Path
 
+# The base settings fail closed when no deployment secret is configured.
+# Tests supply their explicitly isolated, non-production key before importing base.
+os.environ.setdefault("DJANGO_SECRET_KEY", "test-insecure-key-do-not-use-00000000")
+
 # Import everything from base
 from .settings_base import *  # noqa: F403
 from . import settings_base as base
@@ -86,6 +90,7 @@ MIGRATION_MODULES = cast(Any, DisableMigrations())
 # Use temp directories for Media/Static so we don't pollute the real user data dir
 MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="lx_test_media_"))
 STATIC_ROOT = str(tempfile.mkdtemp(prefix="lx_test_static_"))
+KNOWLEDGE_BASE_LOOKUP_TRACKER_DIR = MEDIA_ROOT / "lookup-tracker"
 os.environ["LX_ANNOTATE_ENCRYPTED_DATA_DIR"] = str(base.APP_DATA_DIR)
 
 # Test Assets (Videos/JSONs) should live in the CODE repository, not the data dir.

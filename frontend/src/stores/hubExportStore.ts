@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import axios from 'axios'
 import { endpoints } from '@/types/api/endpoints'
 
 export interface HubNodeSummary {
@@ -147,10 +148,13 @@ export const useHubExportStore = defineStore('hubExport', {
         this.privacySummary = data.privacySummary ?? null
         this.syncSummary = data.syncSummary
         return data
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.error =
-          error?.response?.data?.detail ||
-          error?.message ||
+          (axios.isAxiosError<{ detail?: string }>(error)
+            ? error.response?.data?.detail || error.message
+            : error instanceof Error
+              ? error.message
+              : null) ||
           'Fehler beim Laden der Hub-Export-Übersicht.'
         throw error
       } finally {

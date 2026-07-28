@@ -57,8 +57,8 @@
         <div class="col-lg-4">
           <label class="form-label">Bestehenden Patienten wählen</label>
           <select
-            class="form-select"
             v-model="selectedCasePatientId"
+            class="form-select"
             :disabled="isCaseDataLoading"
           >
             <option value="">
@@ -77,8 +77,8 @@
         <div class="col-lg-4">
           <label class="form-label">Bestehende Patientenuntersuchung</label>
           <select
-            class="form-select"
             v-model="selectedExistingPatientExaminationId"
+            class="form-select"
             :disabled="isLoadingCasePatientExaminations"
           >
             <option value="">
@@ -104,8 +104,8 @@
         <div class="col-lg-4">
           <button
             class="btn btn-outline-primary w-100"
-            @click="useSelectedExistingPatientExamination"
             :disabled="!selectedExistingPatientExaminationId"
+            @click="useSelectedExistingPatientExamination"
           >
             Bestehende Untersuchung übernehmen
           </button>
@@ -114,8 +114,8 @@
         <div class="col-lg-4">
           <label class="form-label">Neue Untersuchung anlegen</label>
           <select
-            class="form-select"
             v-model="selectedNewCaseExaminationId"
+            class="form-select"
             :disabled="isCaseDataLoading"
           >
             <option value="">
@@ -139,8 +139,8 @@
         <div class="col-lg-4">
           <button
             class="btn btn-outline-secondary w-100"
-            @click="createPatientFromMetadata"
             :disabled="isCreatingPatientFromMetadata || !patientDraftAvailable"
+            @click="createPatientFromMetadata"
           >
             <span
               v-if="isCreatingPatientFromMetadata"
@@ -155,10 +155,10 @@
         <div class="col-lg-4">
           <button
             class="btn btn-primary w-100"
-            @click="createPatientExaminationFromSelection"
             :disabled="
               isCreatingPatientExamination || !selectedCasePatientId || !selectedNewCaseExaminationId
             "
+            @click="createPatientExaminationFromSelection"
           >
             <span
               v-if="isCreatingPatientExamination"
@@ -222,6 +222,7 @@ import { usePatientStore } from '@/stores/patientStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { endpoints } from '@/types/api/endpoints'
 import { DateConverter } from '@/utils/dateHelpers'
+import { reportingApiErrorMessage } from './reportingError'
 
 type MediaScope = 'pdf' | 'video'
 
@@ -531,13 +532,12 @@ async function fetchCasePatientExaminations(patientId: number): Promise<void> {
       .map((row: unknown) => normalizePatientExaminationOption(row))
       .filter((entry: PatientExaminationOption | null): entry is PatientExaminationOption => entry !== null)
       .sort((a: PatientExaminationOption, b: PatientExaminationOption) => b.id - a.id)
-  } catch (error: any) {
+  } catch (error: unknown) {
     casePatientExaminationOptions.value = []
-    errorMessage.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+    errorMessage.value = reportingApiErrorMessage(
+      error,
       'Patientenuntersuchungen konnten nicht geladen werden.'
+    )
   } finally {
     isLoadingCasePatientExaminations.value = false
   }
@@ -594,13 +594,13 @@ function resolveCenterKeyFromMetadataCenterName(centerName?: string | null): str
   const normalizedCenterName = centerName?.trim()
   if (!normalizedCenterName) return null
 
-  const match = availableCenterOptions.value.find((center: any) => {
+  const match = availableCenterOptions.value.find((center) => {
     const name = typeof center?.name === 'string' ? center.name.trim() : ''
     const displayName =
       typeof center?.nameDe === 'string'
         ? center.nameDe.trim()
-        : typeof center?.displayName === 'string'
-          ? center.displayName.trim()
+        : typeof center?.nameEn === 'string'
+          ? center.nameEn.trim()
           : ''
     return (
       name.localeCompare(normalizedCenterName, undefined, { sensitivity: 'accent' }) === 0 ||
@@ -651,12 +651,8 @@ async function createPatientFromMetadata(): Promise<void> {
     }
     successMessage.value =
       'Ein neuer Patient wurde aus den vorhandenen Metadaten angelegt. Sie können jetzt direkt eine Untersuchung auswählen oder anlegen.'
-  } catch (error: any) {
-    errorMessage.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
-      'Der Patient konnte nicht angelegt werden.'
+  } catch (error: unknown) {
+    errorMessage.value = reportingApiErrorMessage(error, 'Der Patient konnte nicht angelegt werden.')
   } finally {
     isCreatingPatientFromMetadata.value = false
   }
@@ -710,12 +706,11 @@ async function createPatientExaminationFromSelection(): Promise<void> {
     selectedNewCaseExaminationId.value = ''
     successMessage.value =
       'Die neue Patientenuntersuchung wurde angelegt und in den Reporting-Flow übernommen.'
-  } catch (error: any) {
-    errorMessage.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+  } catch (error: unknown) {
+    errorMessage.value = reportingApiErrorMessage(
+      error,
       'Die Patientenuntersuchung konnte nicht angelegt werden.'
+    )
   } finally {
     isCreatingPatientExamination.value = false
   }

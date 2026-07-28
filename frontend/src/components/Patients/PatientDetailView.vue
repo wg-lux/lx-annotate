@@ -20,8 +20,8 @@
       <div class="detail-actions">
         <button 
           class="btn btn-secondary btn-sm"
-          @click="$emit('close')"
           :disabled="loading"
+          @click="$emit('close')"
         >
           <i class="ni ni-settings-gear-65"></i>
           Schließen
@@ -29,8 +29,8 @@
         
         <button 
           class="btn btn-primary btn-sm"
-          @click="showEditForm = true"
           :disabled="loading || showEditForm"
+          @click="showEditForm = true"
         >
           <i class="ni ni-single-copy-04"></i>
           Bearbeiten
@@ -38,8 +38,8 @@
         
         <button 
           class="btn btn-outline-danger btn-sm"
-          @click="checkDeletionSafety"
           :disabled="loading || showEditForm"
+          @click="checkDeletionSafety"
         >
           <i class="ni ni-settings-gear-65"></i>
           Löschen
@@ -106,9 +106,9 @@
                     {{ patient.pseudonymFirstName }} {{ patient.pseudonymLastName }}
                     <button 
                       class="btn btn-outline-secondary btn-sm ms-2"
-                      @click="regeneratePseudonym"
                       :disabled="generatingPseudonym"
                       title="Neue Pseudonamen generieren"
+                      @click="regeneratePseudonym"
                     >
                       <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
                       <i v-else class="ni ni-bold-right"></i>
@@ -118,8 +118,8 @@
                   <button 
                     v-else
                     class="btn btn-outline-primary btn-sm"
-                    @click="generatePseudonym"
                     :disabled="generatingPseudonym"
+                    @click="generatePseudonym"
                   >
                     <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
                     <i v-else class="ni ni-check-bold"></i>
@@ -183,9 +183,9 @@
                     </span>
                     <button 
                       class="btn btn-sm btn-outline-primary"
-                      @click="generatePseudonym"
                       :disabled="generatingPseudonym"
                       title="Pseudonym-Hash generieren"
+                      @click="generatePseudonym"
                     >
                       <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
                       <i v-else class="ni ni-check-bold me-1"></i>
@@ -300,8 +300,8 @@
             <button 
               type="button" 
               class="btn btn-secondary"
-              @click="closeDeletionModal"
               :disabled="deleting"
+              @click="closeDeletionModal"
             >
               Abbrechen
             </button>
@@ -309,8 +309,8 @@
               v-if="deletionCheck?.canDelete"
               type="button" 
               class="btn btn-danger"
-              @click="confirmDeletion"
               :disabled="deleting"
+              @click="confirmDeletion"
             >
               <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
               <i v-else class="ni ni-settings-gear-65 me-2"></i>
@@ -325,11 +325,35 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
+import { isAxiosError } from 'axios'
+import { usePatientStore, type Patient } from '@/stores/patientStore'
 import { patientService, generatePatientPseudonym } from '@/api/patientService'
 import PatientEditForm from './PatientEditForm.vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
+
+interface PatientDeletionCheck {
+  canDelete: boolean
+  warnings?: string[]
+  relatedObjects?: {
+    examinations: number
+    findings: number
+    videos: number
+    reports: number
+  }
+}
+
+interface PatientDetailErrorPayload {
+  detail?: string
+  missingFields?: string[]
+}
+
+function patientDetailErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError<PatientDetailErrorPayload>(error)) {
+    return error.response?.data?.detail || error.message || fallback
+  }
+  return error instanceof Error && error.message ? error.message : fallback
+}
 
 // Props
 interface Props {
@@ -355,7 +379,7 @@ const successMessage = ref('')
 const showEditForm = ref(false)
 const showDeletionModal = ref(false)
 const deleting = ref(false)
-const deletionCheck = ref<any>(null)
+const deletionCheck = ref<PatientDeletionCheck | null>(null)
 const generatingPseudonym = ref<boolean>(false)
 
 // Computed
@@ -377,13 +401,15 @@ const checkDeletionSafety = async () => {
     const patientId = patientStore.resolveCurrentPatientId(currentPatient.id, true)!
     
     // Use axiosInstance instead of fetch
-    const response = await axiosInstance.get(r(endpoints.patient.patientDeletionSafety(patientId)))
+    const response = await axiosInstance.get<PatientDeletionCheck>(
+      r(endpoints.patient.patientDeletionSafety(patientId))
+    )
     
     deletionCheck.value = response.data
     showDeletionModal.value = true
     
-  } catch (err: any) {
-    error.value = err.response?.data?.detail || err.message || 'Fehler beim Prüfen der Löschbarkeit'
+  } catch (err: unknown) {
+    error.value = patientDetailErrorMessage(err, 'Fehler beim Prüfen der Löschbarkeit')
   } finally {
     loading.value = false
   }
@@ -400,8 +426,8 @@ const confirmDeletion = async () => {
     emit('patient-deleted', props.patient.id!)
     closeDeletionModal()
     
-  } catch (err: any) {
-    error.value = err.message || 'Fehler beim Löschen des Patienten'
+  } catch (err: unknown) {
+    error.value = patientDetailErrorMessage(err, 'Fehler beim Löschen des Patienten')
   } finally {
     deleting.value = false
   }
@@ -487,9 +513,11 @@ const generatePseudonym = async (): Promise<void> => {
     successMessage.value = `Pseudonym-Hash erfolgreich generiert: ${short}`
 
     setTimeout(() => { successMessage.value = '' }, 3000)
-  } catch (e: any) {
-    const detail = e?.response?.data?.detail || e?.message || 'Unbekannter Fehler'
-    const missing = e?.response?.data?.missingFields
+  } catch (caughtError: unknown) {
+    const detail = patientDetailErrorMessage(caughtError, 'Unbekannter Fehler')
+    const missing = isAxiosError<PatientDetailErrorPayload>(caughtError)
+      ? caughtError.response?.data?.missingFields
+      : undefined
     error.value = missing?.length
       ? `Fehlende Felder: ${missing.join(', ')}`
       : `Fehler beim Generieren des Pseudonym-Hashes: ${detail}`

@@ -4,10 +4,12 @@ import json
 from argparse import ArgumentParser
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from django.core.management.base import BaseCommand
 from django.urls import URLPattern, URLResolver, get_resolver
+from endoreg_db.utils.file_operations import atomic_write_file
 
 
 @dataclass
@@ -132,7 +134,10 @@ class Command(BaseCommand):
         if output == "-":
             self.stdout.write(text)
             return
-        with open(output, "w", encoding="utf-8") as fh:
-            fh.write(text)
-            fh.write("\n")
+        encoded_manifest = f"{text}\n".encode("utf-8")
+        atomic_write_file(
+            destination=Path(output),
+            content=(encoded_manifest,),
+            required_bytes=len(encoded_manifest),
+        )
         self.stdout.write(f"Wrote {len(filtered)} routes to {output}")

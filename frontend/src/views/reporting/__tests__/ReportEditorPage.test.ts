@@ -1,22 +1,36 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { computed, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ReportEditorPage from '../ReportEditorPage.vue'
+import type { ReportTemplateSectionDraft } from '@/types/reportTemplate'
 
-const hoisted = vi.hoisted(() => ({
-  flowRef: { current: null as any },
-  debugRef: { current: false },
-  axiosApi: {
-    get: vi.fn(),
-    post: vi.fn()
-  },
-  templateControls: {
-    setModuleName: vi.fn(),
-    selectTemplateByName: vi.fn().mockResolvedValue(undefined),
-    fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
+const hoisted = vi.hoisted(() => {
+  let flowFixture: ReturnType<typeof buildFlowStore> | undefined
+  return {
+    flowRef: {
+      get current(): ReturnType<typeof buildFlowStore> {
+        if (flowFixture === undefined) {
+          throw new Error('Reporting flow fixture was not initialized.')
+        }
+        return flowFixture
+      },
+      set current(value: ReturnType<typeof buildFlowStore>) {
+        flowFixture = value
+      }
+    },
+    debugRef: { current: false },
+    axiosApi: {
+      get: vi.fn(),
+      post: vi.fn()
+    },
+    templateControls: {
+      setModuleName: vi.fn(),
+      selectTemplateByName: vi.fn().mockResolvedValue(undefined),
+      fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
+    }
   }
-}))
+})
 
 vi.mock('vue-router', () => ({
   RouterLink: {
@@ -111,21 +125,22 @@ vi.mock('@/composables/reporting/useReportTemplates', () => ({
 }))
 
 function buildFlowStore() {
-  const flow: any = reactive({
+  const templateSectionDrafts: Record<string, ReportTemplateSectionDraft> = {
+    examination_baseline: {
+      note: 'Visible note',
+      includePatientData: false,
+      includeExaminationData: false
+    }
+  }
+  const flow = reactive({
     patientExaminationId: 42,
     selectedPatientId: 7,
     selectedExaminationId: 9,
     selectedKbModule: 'report_template_examples',
     selectedTemplateName: 'star_upper_gi_main',
-    activeReportId: null,
+    activeReportId: null as number | null,
     indications: [{ examinationIndicationId: null, indicationChoiceId: null }],
-    templateSectionDrafts: {
-      examination_baseline: {
-        note: 'Visible note',
-        includePatientData: false,
-        includeExaminationData: false
-      }
-    },
+    templateSectionDrafts,
     currentRuntimeDraft: {
       draftId: 'draft_42',
       patientExaminationId: 42,
@@ -161,20 +176,22 @@ function buildFlowStore() {
         ]
       }
     },
-    draftPersistenceStatus: 'saved',
-    draftPersistenceError: null,
-    lastPersistedDraftAt: '2026-03-19T15:01:00.000Z',
+    draftPersistenceStatus: 'saved' as 'idle' | 'saving' | 'saved' | 'error',
+    draftPersistenceError: null as string | null,
+    lastPersistedDraftAt: '2026-03-19T15:01:00.000Z' as string | null,
     savingFinalReport: false,
-    mediaPreload: null,
+    mediaPreload: null as unknown,
     patchLookupSnapshot: vi.fn(),
     setTemplateSelection: vi.fn(),
     clearTemplateSectionDrafts: vi.fn(),
-    setTemplateSectionDraft: vi.fn((sectionName: string, patch: any) => {
-      flow.templateSectionDrafts[sectionName] = {
-        ...flow.templateSectionDrafts[sectionName],
-        ...patch
+    setTemplateSectionDraft: vi.fn(
+      (sectionName: string, patch: Partial<ReportTemplateSectionDraft>) => {
+        flow.templateSectionDrafts[sectionName] = {
+          ...flow.templateSectionDrafts[sectionName],
+          ...patch
+        }
       }
-    }),
+    ),
     updateIndicationRow: vi.fn(),
     addIndicationRow: vi.fn(),
     removeIndicationRow: vi.fn(),
@@ -253,7 +270,9 @@ describe('ReportEditorPage draft-driven workflow', () => {
     const wrapper = mountPage()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('esophagus_polyp -> size_mm: size_mm (length_mm_descriptor: 12)')
+    expect(wrapper.text()).toContain(
+      'esophagus_polyp -> size_mm: size_mm (length_mm_descriptor: 12)'
+    )
     expect(wrapper.find('textarea').element.value).toBe('Visible note')
     expect(wrapper.text()).toContain('Vollständigkeitsübersicht')
     expect(wrapper.text()).toContain('1 von 1 Abschnitten vollständig')

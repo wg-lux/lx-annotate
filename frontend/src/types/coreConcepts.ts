@@ -116,9 +116,9 @@ export interface FindingCore extends CoreConceptBase {
   interventions: string[]
 }
 
-export interface FindingTypeCoreDto extends CoreConceptTransportBase {}
+export type FindingTypeCoreDto = CoreConceptTransportBase
 
-export interface FindingTypeCore extends CoreConceptBase {}
+export type FindingTypeCore = CoreConceptBase
 
 export interface IndicationCoreDto extends CoreConceptTransportBase {
   indication_types?: string[] | string
@@ -130,9 +130,9 @@ export interface IndicationCore extends CoreConceptBase {
   interventions: string[]
 }
 
-export interface IndicationTypeCoreDto extends CoreConceptTransportBase {}
+export type IndicationTypeCoreDto = CoreConceptTransportBase
 
-export interface IndicationTypeCore extends CoreConceptBase {}
+export type IndicationTypeCore = CoreConceptBase
 
 export interface InterventionCoreDto extends CoreConceptTransportBase {
   intervention_types?: string[] | string
@@ -142,9 +142,9 @@ export interface InterventionCore extends CoreConceptBase {
   interventionTypes: string[]
 }
 
-export interface InterventionTypeCoreDto extends CoreConceptTransportBase {}
+export type InterventionTypeCoreDto = CoreConceptTransportBase
 
-export interface InterventionTypeCore extends CoreConceptBase {}
+export type InterventionTypeCore = CoreConceptBase
 
 export interface UnitCoreDto extends CoreConceptTransportBase {
   abbreviation?: string
@@ -156,9 +156,9 @@ export interface UnitCore extends CoreConceptBase {
   unitTypes: string[]
 }
 
-export interface UnitTypeCoreDto extends CoreConceptTransportBase {}
+export type UnitTypeCoreDto = CoreConceptTransportBase
 
-export interface UnitTypeCore extends CoreConceptBase {}
+export type UnitTypeCore = CoreConceptBase
 
 export interface InformationSourceCoreDto extends CoreConceptTransportBase {
   information_source_types?: string[] | string
@@ -168,9 +168,9 @@ export interface InformationSourceCore extends CoreConceptBase {
   informationSourceTypes: string[]
 }
 
-export interface InformationSourceTypeCoreDto extends CoreConceptTransportBase {}
+export type InformationSourceTypeCoreDto = CoreConceptTransportBase
 
-export interface InformationSourceTypeCore extends CoreConceptBase {}
+export type InformationSourceTypeCore = CoreConceptBase
 
 export interface CitationCoreDto extends CoreConceptTransportBase {
   citation_key: string

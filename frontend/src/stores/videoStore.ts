@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, reactive, readonly, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, reactive, readonly } from 'vue'
 import axiosInstance, { r } from '../api/axiosInstance'
 import { AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { buildVideoStreamUrl } from '@/utils/mediaUrls'
@@ -34,7 +34,8 @@ export interface Video {
   video_url?: string
   exportSegmentsByVideo?: boolean
   frameCount?: number
-  [key: string]: any
+  postValidationRebuild?: PostValidationRebuildSummary | null
+  [key: string]: unknown
 }
 
 export type LabelKey =
@@ -75,10 +76,10 @@ export interface TimeSegmentFrame {
   frameFilename: string
   frameFilePath: string // media-relative path from backend
   frameUrl: string // full URL (what the frontend should use)
-  allClassifications: any[]
-  predictions: BackendFramePrediction[] | any[]
+  allClassifications: unknown[]
+  predictions: BackendFramePrediction[] | unknown[]
   frameId: number
-  manualAnnotations: any[]
+  manualAnnotations: unknown[]
 }
 
 export interface TimeSegments {
@@ -126,7 +127,7 @@ export interface BackendSegment {
   predictionMetaId?: number | null
   prediction_meta_id?: number | null
   framePredictions?: BackendFramePrediction[]
-  manualFrameAnnotations?: any[]
+  manualFrameAnnotations?: unknown[]
   timeSegments?: TimeSegments | null
   time_segments?: TimeSegments | null
 }
@@ -368,10 +369,10 @@ export interface SegmentUpdatePayload {
   end_time?: number
   exportSegment?: boolean
   export_segment?: boolean
-  [key: string]: any
+  [key: string]: unknown
 }
 
-export interface CreateSegmentResponse extends BackendSegment {} // reuse same shape
+export type CreateSegmentResponse = BackendSegment
 
 export type SegmentSourceKind = 'all' | 'manual' | 'prediction' | 'prediction_correction'
 
@@ -451,6 +452,50 @@ function readNumberField(source: Record<string, unknown>, ...keys: string[]): nu
   const value = readField(source, ...keys)
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function numberWhenDefined(value: unknown): number | undefined {
+  return value !== undefined ? Number(value) : undefined
+}
+
+function normalizeValidatedAnnotators(video: Record<string, unknown>): string[] {
+  const annotators = Array.isArray(video.validatedAnnotators)
+    ? video.validatedAnnotators
+    : Array.isArray(video.validated_annotators)
+      ? video.validated_annotators
+      : []
+  return annotators.filter((annotator): annotator is string => typeof annotator === 'string')
+}
+
+function normalizeVideoFrameCount(video: Record<string, unknown>): number | undefined {
+  return video.frameCount !== undefined
+    ? Number(video.frameCount)
+    : numberWhenDefined(video.frame_count)
+}
+
+function normalizeVideoMetadataResponse(meta: Record<string, unknown>, fallbackId: number): VideoMeta {
+  const assignedUser = meta.assignedUser
+  return {
+    id: Number(meta.id ?? fallbackId),
+    original_file_name: String(meta.original_file_name ?? meta.originalFileName ?? ''),
+    status: String(meta.status ?? 'available'),
+    assignedUser:
+      assignedUser === 'BLANK' || assignedUser == null ? null : String(assignedUser),
+    anonymized: Boolean(meta.anonymized ?? false),
+    duration: numberWhenDefined(meta.duration),
+    fps: numberWhenDefined(meta.fps),
+    hasROI: Boolean(meta.hasROI ?? meta.has_roi ?? false),
+    outsideFrameCount: Number(meta.outsideFrameCount ?? meta.outside_frame_count ?? 0),
+    frameCount:
+      meta.frameCount !== undefined
+        ? Number(meta.frameCount)
+        : numberWhenDefined(meta.frame_count),
+    centerName: String(meta.centerName ?? meta.center_name ?? 'Unbekannt'),
+    processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt'),
+    exportSegmentsByVideo: Boolean(
+      meta.exportSegmentsByVideo ?? meta.export_segments_by_video ?? false
+    )
+  }
 }
 
 function formatValidationErrorDetail(detail: unknown): string {
@@ -551,23 +596,6 @@ const videos = ref<Video[]>([])
 
 const getToastStore = () => useToastStore()
 
-const translationMap: Record<LabelKey, string> = {
-  appendix: 'Appendix',
-  blood: 'Blut',
-  diverticule: 'Divertikel',
-  grasper: 'Greifer',
-  ileocaecalvalve: 'Ileozäkalklappe',
-  ileum: 'Ileum',
-  low_quality: 'Niedrige Bildqualität',
-  nbi: 'Narrow Band Imaging',
-  needle: 'Nadel',
-  outside: 'Außerhalb',
-  polyp: 'Polyp',
-  snare: 'Snare',
-  water_jet: 'Wasserstrahl',
-  wound: 'Wunde'
-}
-
 // Cancel in-flight segment fetches to avoid piling up requests on rapid refreshes.
 let fetchSegmentsController: AbortController | null = null
 
@@ -661,7 +689,7 @@ export const useVideoStore = defineStore('video', () => {
     return Number.isFinite(parsed) && parsed > 0 ? { aiDatasetId: parsed } : {}
   }
 
-  function withSelectedAiDataset<T extends Record<string, any>>(
+  function withSelectedAiDataset<T extends Record<string, unknown>>(
     payload: T
   ): T & { aiDatasetId?: number } {
     if ('aiDatasetId' in payload || 'ai_dataset_id' in payload) {
@@ -1045,15 +1073,22 @@ export const useVideoStore = defineStore('video', () => {
     console.log('🏷️ [VideoStore] Fetching labels with high priority...')
     try {
       // 🔹 NEW: use media/labels/ instead of deprecated videos/
-      const response: AxiosResponse<any[]> = await axiosInstance.get(
+      const response: AxiosResponse<unknown[]> = await axiosInstance.get(
         r(endpoints.media.videoLabelsList)
       )
 
-      const processedLabels: LabelMeta[] = response.data.map((label: any) => ({
-        id: Number(label.id),
-        name: String(label.name),
-        color: label.color || getColorForLabel(label.name)
-      }))
+      const processedLabels: LabelMeta[] = response.data.map((rawLabel) => {
+        const label =
+          rawLabel && typeof rawLabel === 'object'
+            ? (rawLabel as Record<string, unknown>)
+            : {}
+        const name = String(label.name ?? '')
+        return {
+          id: Number(label.id),
+          name,
+          color: typeof label.color === 'string' ? label.color : getColorForLabel(name)
+        }
+      })
 
       videoList.value.labels = processedLabels
       labelsLoaded = true
@@ -1107,72 +1142,82 @@ export const useVideoStore = defineStore('video', () => {
     )
   }
 
+  function normalizeVideoListEntry(video: Record<string, unknown>): VideoMeta {
+    const videoId = Number(video.id)
+    const rawSegments: BackendSegment[] = Array.isArray(video.segments) ? video.segments : []
+    const segments = rawSegments.map((backendSegment) =>
+      ensureLabelId(backendSegmentToSegment({ ...backendSegment, videoId }))
+    )
+    const segmentAnnotationsValidated =
+      video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false
+
+    return {
+      id: videoId,
+      original_file_name:
+        String(video.originalFileName ?? video.original_file_name ?? '').trim() ||
+        `Video ${videoId}`,
+      status: typeof video.status === 'string' ? video.status : 'available',
+      assignedUser: typeof video.assignedUser === 'string' ? video.assignedUser : null,
+      anonymized: Boolean(video.anonymized),
+      segmentAnnotationsValidated: Boolean(segmentAnnotationsValidated),
+      segmentAnnotationStatus:
+        (video.segmentAnnotationStatus as SegmentAnnotationStatus | undefined) ??
+        (video.segment_annotation_status as SegmentAnnotationStatus | undefined) ??
+        (segmentAnnotationsValidated ? 'validated' : 'not_started'),
+      outsideSegmentsRemoved: Boolean(
+        video.outsideSegmentsRemoved ?? video.outside_segments_removed
+      ),
+      postValidationRebuild:
+        ((video.postValidationRebuild ??
+          video.post_validation_rebuild) as PostValidationRebuildSummary | null | undefined) ??
+        null,
+      duration: numberWhenDefined(video.duration),
+      fps: numberWhenDefined(video.fps),
+      frameCount: normalizeVideoFrameCount(video),
+      centerName: String(video.centerName || video.center_name || 'Unbekannt'),
+      centerKey:
+        typeof (video.centerKey ?? video.center_key) === 'string'
+          ? String(video.centerKey ?? video.center_key)
+          : undefined,
+      processorName: String(video.processorName || video.processor_name || 'Unbekannt'),
+      validatedAnnotators: normalizeValidatedAnnotators(video),
+      exportSegmentsByVideo: Boolean(
+        video.exportSegmentsByVideo ?? video.export_segments_by_video
+      ),
+      segments
+    }
+  }
+
   async function fetchAllVideos(options: { refreshLabels?: boolean } = {}): Promise<VideoList> {
     console.log('Fetching all videos...')
     try {
-      if (options.refreshLabels || !labelsLoaded) {
-        await fetchLabels()
-      }
-
-      const response: AxiosResponse<any> = await axiosInstance.get(r(endpoints.media.videos))
+      const labelsRequest =
+        options.refreshLabels || !labelsLoaded
+          ? fetchLabels()
+          : Promise.resolve(videoList.value.labels)
+      const videosRequest: Promise<AxiosResponse<unknown>> = axiosInstance.get(
+        r(endpoints.media.videos)
+      )
+      const [, response] = await Promise.all([labelsRequest, videosRequest])
       console.log('API Response:', response.data) //#TODO Add newly created assigned user from keycloak
-      const rawVideos: any[] = Array.isArray(response.data?.results)
-        ? response.data.results
-        : Array.isArray(response.data?.videos)
-          ? response.data.videos
+      const responseRecord =
+        response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+          ? (response.data as Record<string, unknown>)
+          : {}
+      const rawVideos: unknown[] = Array.isArray(responseRecord.results)
+        ? responseRecord.results
+        : Array.isArray(responseRecord.videos)
+          ? responseRecord.videos
           : Array.isArray(response.data)
             ? response.data
             : []
 
-      // Process videos with enhanced metadata
-      const processedVideos: VideoMeta[] = rawVideos.map((video: any) => {
-        const videoId = Number(video.id)
-        const rawSegments: BackendSegment[] = Array.isArray(video.segments) ? video.segments : []
-        const segments: Segment[] = rawSegments.map((backendSeg) =>
-          ensureLabelId(backendSegmentToSegment({ ...backendSeg, videoId }))
+      const processedVideos: VideoMeta[] = rawVideos
+        .filter(
+          (video): video is Record<string, unknown> =>
+            Boolean(video) && typeof video === 'object' && !Array.isArray(video)
         )
-
-        return {
-          id: videoId,
-          original_file_name:
-            String(video.originalFileName ?? video.original_file_name ?? '').trim() ||
-            `Video ${videoId}`,
-          status: video.status || 'available',
-          assignedUser: video.assignedUser || null,
-          anonymized: video.anonymized || false,
-          segmentAnnotationsValidated:
-            video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
-          segmentAnnotationStatus:
-            video.segmentAnnotationStatus ??
-            video.segment_annotation_status ??
-            ((video.segmentAnnotationsValidated ?? video.segment_annotations_validated)
-              ? 'validated'
-              : 'not_started'),
-          outsideSegmentsRemoved:
-            video.outsideSegmentsRemoved ?? video.outside_segments_removed ?? false,
-          postValidationRebuild:
-            video.postValidationRebuild ?? video.post_validation_rebuild ?? null,
-          duration: video.duration !== undefined ? Number(video.duration) : undefined,
-          fps: video.fps !== undefined ? Number(video.fps) : undefined,
-          frameCount:
-            video.frameCount !== undefined
-              ? Number(video.frameCount)
-              : video.frame_count !== undefined
-                ? Number(video.frame_count)
-                : undefined,
-          centerName: video.centerName || video.center_name || 'Unbekannt',
-          centerKey: video.centerKey || video.center_key || undefined,
-          processorName: video.processorName || video.processor_name || 'Unbekannt',
-          validatedAnnotators: Array.isArray(video.validatedAnnotators)
-            ? video.validatedAnnotators
-            : Array.isArray(video.validated_annotators)
-              ? video.validated_annotators
-              : [],
-          exportSegmentsByVideo:
-            video.exportSegmentsByVideo ?? video.export_segments_by_video ?? false,
-          segments
-        }
-      })
+        .map(normalizeVideoListEntry)
 
       // Labels already fetched and stored above
       const processedLabels: LabelMeta[] = videoList.value.labels
@@ -1332,6 +1377,31 @@ export const useVideoStore = defineStore('video', () => {
     return adjacentFrame?.timestamp ?? null
   }
 
+  function applyVideoMetadata(id: number, normalizedMeta: VideoMeta): boolean {
+    if (activeVideoId.value !== id || currentVideo.value?.id !== id) return false
+
+    videoMeta.value = normalizedMeta
+    if (resolvedVideoFps.value !== null) {
+      videoMeta.value.fps = resolvedVideoFps.value
+    }
+    if (currentVideo.value) {
+      if (normalizedMeta.duration !== undefined && normalizedMeta.duration > 0) {
+        currentVideo.value.duration = normalizedMeta.duration
+      }
+      if (
+        resolvedVideoFps.value === null &&
+        normalizedMeta.fps !== undefined &&
+        normalizedMeta.fps > 0
+      ) {
+        currentVideo.value.fps = normalizedMeta.fps
+      }
+      if (normalizedMeta.frameCount !== undefined && normalizedMeta.frameCount > 0) {
+        currentVideo.value.frameCount = normalizedMeta.frameCount
+      }
+    }
+    return true
+  }
+
   async function fetchVideoMetadata(videoId?: number): Promise<void> {
     try {
       const id = videoId || currentVideo.value?.id
@@ -1347,56 +1417,8 @@ export const useVideoStore = defineStore('video', () => {
         }
       )
 
-      const meta = response.data ?? {}
-
-      // Map API response to VideoMeta interface
-      const normalizedMeta: VideoMeta = {
-        id: Number(meta.id ?? id),
-        original_file_name: String(meta.original_file_name ?? meta.originalFileName ?? ''),
-        status: String(meta.status ?? 'available'),
-        assignedUser: meta.assignedUser === 'BLANK' ? null : meta.assignedUser,
-        anonymized: Boolean(meta.anonymized ?? false),
-        duration: meta.duration !== undefined ? Number(meta.duration) : undefined,
-        fps: meta.fps !== undefined ? Number(meta.fps) : undefined,
-        hasROI: Boolean(meta.hasROI ?? meta.has_roi ?? false),
-        outsideFrameCount: Number(meta.outsideFrameCount ?? meta.outside_frame_count ?? 0),
-        frameCount:
-          meta.frameCount !== undefined
-            ? Number(meta.frameCount)
-            : meta.frame_count !== undefined
-              ? Number(meta.frame_count)
-              : undefined,
-        centerName: String(meta.centerName ?? meta.center_name ?? 'Unbekannt'),
-        processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt'),
-        exportSegmentsByVideo: Boolean(
-          meta.exportSegmentsByVideo ?? meta.export_segments_by_video ?? false
-        )
-      }
-      if (activeVideoId.value !== id || currentVideo.value?.id !== id) {
-        return
-      }
-
-      videoMeta.value = normalizedMeta
-      if (resolvedVideoFps.value !== null) {
-        videoMeta.value.fps = resolvedVideoFps.value
-      }
-
-      // Update currentVideo immediately if it exists
-      if (currentVideo.value) {
-        if (normalizedMeta.duration !== undefined && normalizedMeta.duration > 0) {
-          currentVideo.value.duration = normalizedMeta.duration
-        }
-        if (
-          resolvedVideoFps.value === null &&
-          normalizedMeta.fps !== undefined &&
-          normalizedMeta.fps > 0
-        ) {
-          currentVideo.value.fps = normalizedMeta.fps
-        }
-        if (normalizedMeta.frameCount !== undefined && normalizedMeta.frameCount > 0) {
-          currentVideo.value.frameCount = normalizedMeta.frameCount
-        }
-      }
+      const normalizedMeta = normalizeVideoMetadataResponse(response.data ?? {}, id)
+      if (!applyVideoMetadata(id, normalizedMeta)) return
 
       console.log('[VideoStore] Video metadata loaded:', normalizedMeta)
     } catch (error) {
@@ -1696,7 +1718,7 @@ export const useVideoStore = defineStore('video', () => {
     return Math.min(base + jitter, SEGMENT_UPDATE_RETRY_MAX_MS)
   }
 
-  function enqueueSegmentUpdate(job: SegmentUpdateJob): void {
+  function _enqueueSegmentUpdate(job: SegmentUpdateJob): void {
     const existing = segmentUpdateQueue.find(
       (item) => item.videoId === job.videoId && item.segmentId === job.segmentId
     )
@@ -2187,7 +2209,7 @@ export const useVideoStore = defineStore('video', () => {
       console.log('[VideoStore] Anonymization overview empty, fetching...')
       try {
         await anonStore.fetchOverview()
-      } catch (error) {
+      } catch {
         console.warn(
           '[VideoStore] Failed to fetch anonymization overview, proceeding with caution.'
         )

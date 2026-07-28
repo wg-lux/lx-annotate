@@ -1,0 +1,186 @@
+schema_version: '1.0'
+id: luxnix_pressing_issues
+name: LuxNix Pressing Issues
+description: Close the highest-priority host, encrypted-storage, transfer, service-topology, verification,
+  and operational gaps for LX-Annotate deployments.
+owners:
+- LuxNix maintainers
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: LX-Annotate view of the active LuxNix deployment contract and remaining gaps.
+definition_of_done:
+- id: deployment_scope
+  category: requirements
+  title: The canonical LuxNix LX-Annotate topology is explicit
+  acceptance:
+  - Wheel runtime, web, watcher, SAP import, Celery queues, HLS, recovery, backup, and acceptance units
+    have named owners.
+  - Host configuration, reusable Nix module, and application contracts agree on supported production profiles.
+  - Repository paths used as evidence identify the canonical LuxNix checkout or stable repository-relative
+    location.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the active host module, service graph, application deployment guide, and release
+      process together.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: eager_runtime_directory_contract
+  category: functionality
+  title: Clean boot creates every required protected intake directory
+  acceptance:
+  - systemd tmpfiles eagerly creates video_import, report_import, preanonymized_import, sap_import, sap_import_processed,
+    and sap_import_failed beneath the protected runtime root.
+  - Ownership and modes support only the intended watcher, SAP, and file-mover principals.
+  - Runtime helpers do not lazily create infrastructure directories as a prerequisite for successful ingest.
+  required: true
+  verification:
+    kind: manual
+    instructions: Evaluate tmpfiles rules and perform a clean-boot ingest test on an empty protected volume.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: /home/admin/dev/luxnix/modules/nixos/services/lx-annotate-local/config.nix
+    - kind: code
+      reference: /home/admin/dev/luxnix/modules/nixos/services/lx-annotate-local/scripts.nix
+    - kind: document
+      reference: docs/guides/deployment-strategy.md
+    - kind: command
+      reference: cd /home/admin/dev/luxnix && .devenv/state/venv/bin/pytest tests/test_lx_annotate_intake_directory_contract.py
+        tests/test_lx_annotate_nix_eval_contract.py::test_lx_annotate_tmpfiles_rules_evaluate_with_runtime_storage_paths
+        -q (3 passed)
+    - kind: code
+      reference: /home/admin/dev/luxnix/tests/nixtest/lx_annotate_intake_directories_vm_test.nix
+    - kind: command
+      reference: cd /home/admin/dev/luxnix && nix build path:.#nixtests --no-link --json; nix-store --realise
+        /nix/store/z2k3bfb7vrkb2208r8gbwjspifzk7ga8-nixtest-vm-tmpfiles-provisions-protected-intake-tree-on-empty-volume.drv
+    - kind: code
+      reference: lx_annotate/file_watcher.py
+    - kind: command
+      reference: ./scripts/run-backend-checks.sh -q (357 passed, 2 skipped)
+    note: The LuxNix production module contract is Nix-evaluated, a real NixOS VM with an empty tmpfs
+      runtime volume proves boot-time creation of all six directories with owner/group and mode 0770,
+      and LX-Annotate watcher startup now refuses missing/non-directory intake paths instead of creating
+      infrastructure lazily.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T09:47:53.376233Z'
+- id: deployment_contract_tests
+  category: testing
+  title: Nix evaluation and virtual-machine tests enforce the full service contract
+  acceptance:
+  - Tests cover directory ownership, service ordering, queue routing, environment generation, protected
+    mounts, and clean-boot failure modes.
+  - Hub transfer tests prove secure transport and mutual Transport Layer Security cannot be disabled when
+    transfer intake is enabled.
+  - Wheel deployment tests use the same settings and systemd environment as production hosts.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the LuxNix nixtest and target-host evaluation lanes for the supported LX-Annotate
+      profiles.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: key_and_transport_security
+  category: security
+  title: Vault, encrypted storage, and mutual TLS remain fail closed
+  acceptance:
+  - The long-lived master key is delivered only through the local secret-file boundary and is never transmitted.
+  - Vault-managed secrets are hostname scoped, atomically refreshed, permission restricted, and required
+    before service startup.
+  - Transfer intake requires TLS, verified client certificates, a configured client certificate authority,
+    and authenticated node requests.
+  - Shared node secrets are never used for payload encryption.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run negative configuration tests and inspect the generated Nginx, systemd, Vault, and
+      application environments.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: encrypted_storage_and_recovery
+  category: functionality
+  title: Storage startup, backup, restore, and recovery preserve cryptographic integrity
+  acceptance:
+  - Every application service requires the mounted encrypted storage boundary before starting.
+  - Backup and restore never publish partial or unverified artifacts.
+  - Missing keys, wrong devices, unavailable mounts, hash mismatches, and inconsistent state fail loudly
+    and preserve logs.
+  - Recovery marks irrecoverable artifacts LOST and never substitutes unsafe plaintext or an unrelated
+    key.
+  required: true
+  verification:
+    kind: manual
+    instructions: Perform negative mount, key, interrupted-backup, restore, and reconciliation exercises
+      on a disposable production-like host.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: service_and_queue_observability
+  category: operations
+  title: Operators can identify the actual worker and state for every UI-triggered job
+  acceptance:
+  - Monitoring follows Celery queue routing rather than task registration output.
+  - Inference, frame extraction, HLS, maintenance, and default queues have explicit worker ownership and
+    health checks.
+  - Logs correlate application request, task identifier, resource, queue, worker unit, retry, and terminal
+    state.
+  - Runbooks distinguish automatic termination, manual restart, explicit kill, and host shutdown.
+  required: true
+  verification:
+    kind: manual
+    instructions: Trace successful and failed prediction, post-validation rebuild, and HLS jobs using
+      only production telemetry.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: controlled_upgrade_and_acceptance
+  category: operations
+  title: Upgrade and rollback have enforced runtime acceptance gates
+  acceptance:
+  - Migrations, base data, schema readiness, encrypted-storage validation, static manifest verification,
+    and worker readiness execute in the documented order.
+  - A failed gate prevents the new web and worker runtime from receiving production work.
+  - Rollback compatibility and database migration constraints are documented before promotion.
+  - Acceptance runs against the installed wheel and live host configuration rather than the source checkout.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise deploy, failed gate, rollback, and idempotent re-deploy on a production-like
+      host.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: operator_runbook
+  category: documentation
+  title: One English runbook matches the generated LuxNix deployment
+  acceptance:
+  - The runbook covers topology, secrets, certificates, storage roots, queues, upgrades, backup, restore,
+    and incidents.
+  - Commands and paths are derived from current Nix options and generated units.
+  - Deprecated repository-centric and legacy service paths are clearly marked.
+  - The runbook links back to this tracker for readiness state rather than carrying a parallel checklist.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the runbook against evaluated Nix configuration and a deployed host.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+    evidence: []

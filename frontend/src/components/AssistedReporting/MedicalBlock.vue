@@ -29,7 +29,7 @@
           <button 
             class="btn btn-sm bg-gradient-dark mb-0" 
             :disabled="loading || !isComplete"
-            @click="$emit('next')"
+            @click="emit('next')"
           >
             {{ actionLabel }}
           </button>
@@ -42,15 +42,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 
+const emit = defineEmits<{ next: [] }>();
+
 const props = defineProps({
-  title: String,
-  subtitle: String,
-  icon: String,
+  title: { type: String, default: '' },
+  subtitle: { type: String, default: '' },
+  icon: { type: String, default: '' },
   iconBgClass: { type: String, default: 'bg-gradient-info' },
-  store: Object, // The specific Pinia store (patientStore, findingStore, etc.)
+  store: { type: Object, default: () => ({}) }, // The specific Pinia store (patientStore, findingStore, etc.)
   isComplete: Boolean,
   isActive: Boolean,
-  extraParams: Object,
+  extraParams: { type: Object, default: () => ({}) },
   actionLabel: { type: String, default: 'Weiter' },
   showAction: { type: Boolean, default: true },
   loading: Boolean

@@ -1,7 +1,7 @@
 <template>
   <div>
     <h6 class="mb-2">{{ title }}</h6>
-    <p v-if="description" class="text-muted small" v-html="description"></p>
+    <p v-if="description" class="text-muted small">{{ description }}</p>
     <div v-if="optionsError" class="alert alert-warning py-2 d-flex justify-content-between align-items-center">
       <span>{{ optionsError }}</span>
       <button class="btn btn-outline-secondary btn-sm" :disabled="disabled || optionsLoading" @click="$emit('refresh-options')">

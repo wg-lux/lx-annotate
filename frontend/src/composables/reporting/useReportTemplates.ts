@@ -10,6 +10,7 @@ import type {
   ReportTemplateSectionBlock,
   ReportTemplateValidatorDescriptor
 } from '@/types/reportTemplate'
+import { reportingApiErrorMessage } from '@/views/reporting/reportingError'
 
 function normalizeSections(
   sections: ReportTemplatePayload['reportSections'] | undefined
@@ -92,9 +93,11 @@ export function useReportTemplates(params?: {
         selectedTemplateName.value = payload.name
       }
       return payload
-    } catch (e: any) {
-      errorMessage.value =
-        e?.response?.data?.detail || e?.message || 'Fehler beim Laden des Report-Templates.'
+    } catch (error: unknown) {
+      errorMessage.value = reportingApiErrorMessage(
+        error,
+        'Fehler beim Laden des Report-Templates.'
+      )
       return null
     } finally {
       loading.value = false
@@ -127,11 +130,11 @@ export function useReportTemplates(params?: {
       selectedTemplateName.value = preferredTemplate?.name || null
 
       return templates
-    } catch (e: any) {
-      errorMessage.value =
-        e?.response?.data?.detail ||
-        e?.message ||
+    } catch (error: unknown) {
+      errorMessage.value = reportingApiErrorMessage(
+        error,
         'Fehler beim Laden der Report-Templates für die Untersuchung.'
+      )
       templateOptions.value = []
       selectedTemplate.value = null
       return []

@@ -587,6 +587,7 @@ import { useTerminologyStore } from '@/stores/terminologyStore'
 import { fetchPatientTimelineLatest, pickPreferredReportStream } from '@/api/reportingTimelineApi'
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
+import { reportingApiError, reportingApiErrorMessage } from './reportingError'
 
 const route = useRoute()
 const router = useRouter()
@@ -658,7 +659,7 @@ const caseOptionsLoading = ref(false)
 const caseOptionsError = ref<string | null>(null)
 const draftBootstrapInFlight = ref<Promise<void> | null>(null)
 const draftBootstrapError = ref<string | null>(null)
-const patientExaminationDetail = ref<Record<string, any> | null>(null)
+const patientExaminationDetail = ref<Record<string, unknown> | null>(null)
 const templateReference = ref<ReportTemplatePayload | null>(null)
 const templateReferenceLoading = ref(false)
 const templateReferenceError = ref<string | null>(null)
@@ -1163,12 +1164,10 @@ async function importTerminologyFolder(event: Event) {
   try {
     await terminology.importBundleFolder(files)
     terminologyImportMessage.value = 'Terminologieordner importiert und geladen.'
-  } catch (error: any) {
+  } catch (error: unknown) {
     terminologyImportMessage.value =
       terminology.error ||
-      error?.response?.data?.detail ||
-      error?.message ||
-      'Terminologiepaket konnte nicht importiert werden.'
+      reportingApiErrorMessage(error, 'Terminologiepaket konnte nicht importiert werden.')
   } finally {
     input.value = ''
   }
@@ -1183,25 +1182,23 @@ async function importTerminologyZip(event: Event) {
   try {
     await terminology.importBundle(file)
     terminologyImportMessage.value = 'Terminologiepaket aus dem Editor importiert und geladen.'
-  } catch (error: any) {
+  } catch (error: unknown) {
     terminologyImportMessage.value =
       terminology.error ||
-      error?.response?.data?.detail ||
-      error?.message ||
-      'Terminologiepaket konnte nicht importiert werden.'
+      reportingApiErrorMessage(error, 'Terminologiepaket konnte nicht importiert werden.')
   } finally {
     input.value = ''
   }
 }
 
-function readRecord(value: unknown): Record<string, any> {
+function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, any>)
+    ? (value as Record<string, unknown>)
     : {}
 }
 
 function readString(
-  record: Record<string, any> | null | undefined,
+  record: Record<string, unknown> | null | undefined,
   ...keys: string[]
 ): string | null {
   if (!record) return null
@@ -1469,11 +1466,11 @@ async function loadTemplateReferenceForSelection() {
     const payload = await fetchReportTemplateByName(moduleName, templateName)
     if (templateReferenceKey.value !== nextKey) return
     templateReference.value = payload
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (templateReferenceKey.value !== nextKey) return
     templateReference.value = null
     templateReferenceError.value =
-      error?.response?.data?.detail || error?.message || 'KB-Referenz konnte nicht geladen werden.'
+      reportingApiErrorMessage(error, 'KB-Referenz konnte nicht geladen werden.')
   } finally {
     if (templateReferenceKey.value === nextKey) {
       templateReferenceLoading.value = false
@@ -1502,8 +1499,8 @@ function toPositiveInteger(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
-function resolvePatientKey(raw: Record<string, any>, patientExaminationId: number): string {
-  const patient = raw.patient && typeof raw.patient === 'object' ? raw.patient : null
+function resolvePatientKey(raw: Record<string, unknown>, patientExaminationId: number): string {
+  const patient = readRecord(raw.patient)
   const patientHash =
     (typeof patient?.patient_hash === 'string' && patient.patient_hash.trim()) ||
     (typeof patient?.patientHash === 'string' && patient.patientHash.trim()) ||
@@ -1514,62 +1511,66 @@ function resolvePatientKey(raw: Record<string, any>, patientExaminationId: numbe
   return patientId ? `patient_${patientId}` : `patient_examination_${patientExaminationId}`
 }
 
-function extractExaminers(raw: Record<string, any>): string[] {
+function firstTrimmedString(record: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+function normalizeExaminer(entry: unknown): string | null {
+  if (typeof entry === 'string') return entry.trim() || null
+  if (!entry || typeof entry !== 'object') return null
+
+  const row = entry as Record<string, unknown>
+  const examinerKey = firstTrimmedString(row, [
+    'examiner_hash',
+    'examinerHash',
+    'username',
+    'email',
+    'display_name',
+    'displayName',
+    'full_name',
+    'fullName',
+    'name'
+  ])
+  if (examinerKey) return examinerKey
+
+  const firstName = firstTrimmedString(row, ['first_name', 'firstName']) ?? ''
+  const lastName = firstTrimmedString(row, ['last_name', 'lastName']) ?? ''
+  const fullName = `${firstName} ${lastName}`.trim()
+  if (fullName) return fullName
+
+  const examinerId = toPositiveInteger(row.id)
+  return examinerId ? `examiner_${examinerId}` : null
+}
+
+function extractExaminers(raw: Record<string, unknown>): string[] {
+  const examination = readRecord(raw.examination)
   const candidates = [
     raw.examiners,
     raw.examiner_names,
     raw.examinerNames,
-    raw.examination?.examiners,
-    raw.examination?.examiner_names,
-    raw.examination?.examinerNames
+    examination.examiners,
+    examination.examiner_names,
+    examination.examinerNames
   ]
 
   const values = candidates.flatMap((candidate) => {
     if (!Array.isArray(candidate)) return []
     return candidate
-      .map((entry) => {
-        if (typeof entry === 'string') {
-          const normalized = entry.trim()
-          return normalized || null
-        }
-
-        if (!entry || typeof entry !== 'object') return null
-        const row = entry as Record<string, unknown>
-        const examinerKey =
-          (typeof row.examiner_hash === 'string' && row.examiner_hash.trim()) ||
-          (typeof row.examinerHash === 'string' && row.examinerHash.trim()) ||
-          (typeof row.username === 'string' && row.username.trim()) ||
-          (typeof row.email === 'string' && row.email.trim()) ||
-          (typeof row.display_name === 'string' && row.display_name.trim()) ||
-          (typeof row.displayName === 'string' && row.displayName.trim()) ||
-          (typeof row.full_name === 'string' && row.full_name.trim()) ||
-          (typeof row.fullName === 'string' && row.fullName.trim()) ||
-          (typeof row.name === 'string' && row.name.trim())
-        if (examinerKey) return examinerKey
-
-        const firstName =
-          (typeof row.first_name === 'string' && row.first_name.trim()) ||
-          (typeof row.firstName === 'string' && row.firstName.trim()) ||
-          ''
-        const lastName =
-          (typeof row.last_name === 'string' && row.last_name.trim()) ||
-          (typeof row.lastName === 'string' && row.lastName.trim()) ||
-          ''
-        const fullName = `${firstName} ${lastName}`.trim()
-        if (fullName) return fullName
-
-        const examinerId = toPositiveInteger(row.id)
-        return examinerId ? `examiner_${examinerId}` : null
-      })
+      .map(normalizeExaminer)
       .filter((value): value is string => Boolean(value))
   })
 
   return Array.from(new Set(values))
 }
 
-function extractExaminationName(raw: Record<string, any>): string {
+function extractExaminationName(raw: Record<string, unknown>): string {
+  const examination = readRecord(raw.examination)
   return (
-    (typeof raw.examination?.name === 'string' && raw.examination.name.trim()) ||
+    (typeof examination.name === 'string' && examination.name.trim()) ||
     (typeof raw.examination_name === 'string' && raw.examination_name.trim()) ||
     (typeof raw.examination === 'string' && raw.examination.trim()) ||
     ''
@@ -1614,15 +1615,15 @@ function isPatientExaminationAllowedForMedicalField(option: PatientExaminationOp
   return isGastroenterologyExaminationName(option.examinationName)
 }
 
-function extractPatientId(raw: Record<string, any>): number | null {
-  return toPositiveInteger(raw.patient?.id ?? raw.patient_id ?? raw.patientId)
+function extractPatientId(raw: Record<string, unknown>): number | null {
+  return toPositiveInteger(readRecord(raw.patient).id ?? raw.patient_id ?? raw.patientId)
 }
 
-function extractExaminationId(raw: Record<string, any>): number | null {
-  return toPositiveInteger(raw.examination?.id ?? raw.examination_id ?? raw.examinationId)
+function extractExaminationId(raw: Record<string, unknown>): number | null {
+  return toPositiveInteger(readRecord(raw.examination).id ?? raw.examination_id ?? raw.examinationId)
 }
 
-function extractDraftDate(raw: Record<string, any>): string | null {
+function extractDraftDate(raw: Record<string, unknown>): string | null {
   const value =
     (typeof raw.date_start === 'string' && raw.date_start) ||
     (typeof raw.dateStart === 'string' && raw.dateStart) ||
@@ -1633,7 +1634,7 @@ function extractDraftDate(raw: Record<string, any>): string | null {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
 }
 
-function extractIndicationRows(raw: Record<string, any>) {
+function extractIndicationRows(raw: Record<string, unknown>) {
   const nestedExamination =
     raw.examination && typeof raw.examination === 'object'
       ? (raw.examination as Record<string, unknown>)
@@ -1714,12 +1715,16 @@ function stringField(record: Record<string, unknown>, ...keys: string[]): string
 
 function normalizePatientExaminationOption(raw: unknown) {
   if (!raw || typeof raw !== 'object') return null
-  const row = raw as Record<string, any>
+  const row = raw as Record<string, unknown>
+  const examination = readRecord(row.examination)
+  const patient = readRecord(row.patient)
+  const patientData = readRecord(row.patient_data)
+  const camelPatientData = readRecord(row.patientData)
   const id = toPositiveInteger(row.id)
   if (id === null) return null
   const examinationName =
     (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
-    (typeof row.examination?.name === 'string' && row.examination.name.trim()) ||
+    (typeof examination.name === 'string' && examination.name.trim()) ||
     (typeof row.examination === 'string' && row.examination.trim()) ||
     'Untersuchung'
   const dateStartRaw =
@@ -1734,13 +1739,13 @@ function normalizePatientExaminationOption(raw: unknown) {
     label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
     examinationName,
     patientId: toPositiveInteger(
-      row.patient?.id ??
-        row.patient_data?.id ??
-        row.patientData?.id ??
+      patient.id ??
+        patientData.id ??
+        camelPatientData.id ??
         row.patient_id ??
         row.patientId
     ),
-    examinationId: toPositiveInteger(row.examination?.id ?? row.examination_id ?? row.examinationId)
+    examinationId: toPositiveInteger(examination.id ?? row.examination_id ?? row.examinationId)
   }
 }
 
@@ -1784,10 +1789,10 @@ async function fetchCaseOptions(patientId: number): Promise<void> {
     caseOptions.value = await fetchPatientCases({ patientId })
     const activeCase = caseOptions.value.find((row) => row.caseId === flow.caseId)
     if (activeCase) activateCase(activeCase)
-  } catch (error: any) {
+  } catch (error: unknown) {
     caseOptions.value = []
     caseOptionsError.value =
-      error?.response?.data?.detail || error?.message || 'Fälle konnten nicht geladen werden.'
+      reportingApiErrorMessage(error, 'Fälle konnten nicht geladen werden.')
   } finally {
     caseOptionsLoading.value = false
   }
@@ -1808,12 +1813,10 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
     }
     caseOptionsError.value = null
     activateCase(patientCase)
-  } catch (error: any) {
+  } catch (error: unknown) {
     flow.setCaseContext({ caseId: null })
     caseOptionsError.value =
-      error?.response?.data?.detail ||
-      error?.message ||
-      'Die Fallzuordnung konnte nicht geladen werden.'
+      reportingApiErrorMessage(error, 'Die Fallzuordnung konnte nicht geladen werden.')
   }
 }
 
@@ -1876,12 +1879,10 @@ async function fetchPatientExaminationOptions(patientId: number) {
       )
       .filter(isPatientExaminationAllowedForMedicalField)
       .sort((left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id)
-  } catch (error: any) {
+  } catch (error: unknown) {
     patientExaminationOptions.value = []
     patientExaminationOptionsError.value =
-      error?.response?.data?.detail ||
-      error?.message ||
-      'Patientenuntersuchungen konnten nicht geladen werden.'
+      reportingApiErrorMessage(error, 'Patientenuntersuchungen konnten nicht geladen werden.')
   } finally {
     patientExaminationOptionsLoading.value = false
   }
@@ -1895,7 +1896,7 @@ async function ensureCurrentPatientExaminationOption(patientExaminationId: numbe
       r(endpoints.examination.patientExaminationDetail(patientExaminationId))
     )
     if (response.data && typeof response.data === 'object') {
-      patientExaminationDetail.value = response.data as Record<string, any>
+      patientExaminationDetail.value = response.data as Record<string, unknown>
     }
     const option = normalizePatientExaminationOption(response.data)
     if (option) upsertPatientExaminationOption(option)
@@ -1937,7 +1938,7 @@ async function bootstrapRuntimeDraft(
   )
   const detail =
     detailResponse.data && typeof detailResponse.data === 'object'
-      ? (detailResponse.data as Record<string, any>)
+      ? (detailResponse.data as Record<string, unknown>)
       : {}
   patientExaminationDetail.value = detail
 
@@ -2034,7 +2035,7 @@ async function ensureRuntimeDraft(patientExaminationId: number) {
       )
       const detail =
         detailResponse.data && typeof detailResponse.data === 'object'
-          ? (detailResponse.data as Record<string, any>)
+          ? (detailResponse.data as Record<string, unknown>)
           : {}
       patientExaminationDetail.value = detail
       flow.setCaseSelection({
@@ -2063,7 +2064,7 @@ async function ensureRuntimeDraft(patientExaminationId: number) {
       )
       const detail =
         detailResponse.data && typeof detailResponse.data === 'object'
-          ? (detailResponse.data as Record<string, any>)
+          ? (detailResponse.data as Record<string, unknown>)
           : {}
       patientExaminationDetail.value = detail
       flow.setCaseSelection({
@@ -2112,11 +2113,11 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
     try {
       await ensureTerminologyBundlesLoaded()
       await ensureRuntimeDraft(patientExaminationId)
-    } catch (error: any) {
-      draftBootstrapError.value =
-        error?.response?.data?.detail ||
-        error?.message ||
+    } catch (error: unknown) {
+      draftBootstrapError.value = reportingApiErrorMessage(
+        error,
         'Der lokale Reporting-Entwurf konnte nicht initialisiert werden.'
+      )
     } finally {
       draftBootstrapInFlight.value = null
     }
@@ -2142,9 +2143,10 @@ async function refreshMediaPreload() {
     selectedVideoArtifactKind.value =
       preferredArtifactKind(payload.latestVideo?.streamOptions || []) ?? 'processed'
     selectedFrameStreamUrl.value = payload.latestFrames[0]?.streamUrl || null
-  } catch (error: any) {
-    const status = error?.response?.status
-    const detail = error?.response?.data?.detail || error?.message
+  } catch (error: unknown) {
+    const candidate = reportingApiError(error)
+    const status = candidate.response?.status
+    const detail = reportingApiErrorMessage(error, 'unbekannt')
     const message =
       status === 404
         ? 'Patient wurde nicht gefunden (404). Bitte Fall-Setup prüfen.'

@@ -30,10 +30,10 @@ describe('v-can directive', () => {
 
   it('shows button when capability is true', () => {
     const store = useAuthKcStore()
-    store.user = { username: 'editor', roles: ['data:read'] } as any
+    store.user = { username: 'editor', roles: ['data:read'] }
     store.caps = {
       'page.patients.view:GET': true,
-    } as any
+    }
     store.loaded = true
 
     const wrapper = mount(TestComponent, {
@@ -51,10 +51,10 @@ describe('v-can directive', () => {
 
   it('hides button when capability is false', () => {
     const store = useAuthKcStore()
-    store.user = { username: 'basic', roles: [] } as any
+    store.user = { username: 'basic', roles: [] }
     store.caps = {
       'page.patients.view:GET': false,
-    } as any
+    }
     store.loaded = true
 
     const wrapper = mount(TestComponent, {

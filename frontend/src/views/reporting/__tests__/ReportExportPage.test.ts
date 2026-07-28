@@ -45,7 +45,7 @@ describe('ReportExportPage', () => {
     vi.clearAllMocks()
     vi.mocked(axiosInstance.get).mockResolvedValue({
       data: [{ id: 88, status: 'draft', version: 3 }]
-    } as any)
+    })
     vi.mocked(makeReport).mockResolvedValue({
       report: { id: 88, status: 'final', version: 3 },
       warnings: [],

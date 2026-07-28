@@ -9,8 +9,8 @@
       <div class="header-actions">
         <button 
           class="btn btn-primary" 
-          @click="showCreateForm = true"
           :disabled="loading"
+          @click="showCreateForm = true"
         >
           <i class="ni ni-fat-add"></i>
           Neuer Patient
@@ -79,8 +79,8 @@
             v-for="patient in filteredPatients" 
             :key="patient.id"
             class="patient-card"
-            @click="selectPatient(patient)"
             :class="{ 'selected': selectedPatient?.id === patient.id }"
+            @click="selectPatient(patient)"
           >
             <div class="patient-card-header">
               <h5 class="patient-name">
@@ -95,15 +95,15 @@
                   <span>{{ formatDate(patient.dob) }}</span>
                   <small v-if="patient.age">({{ patient.age }} Jahre)</small>
                 </div>
-                <div class="info-item" v-if="patient.gender">
+                <div v-if="patient.gender" class="info-item">
                   <i class="ni ni-circle-08"></i>
                   <span>{{ getGenderName(patient.gender) }}</span>
                 </div>
-                <div class="info-item" v-if="patient.center">
+                <div v-if="patient.center" class="info-item">
                   <i class="ni ni-collection"></i>
                   <span>{{ getCenterName(patient.center) }}</span>
                 </div>
-                <div class="info-item" v-if="patient.email">
+                <div v-if="patient.email" class="info-item">
                   <i class="ni ni-single-copy-04"></i>
                   <span>{{ patient.email }}</span>
                 </div>
@@ -150,7 +150,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
+import { usePatientStore, type Patient } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
 import PatientCreateForm from './PatientCreateForm.vue'
 import PatientDetailView from './PatientDetailView.vue'
@@ -194,8 +194,9 @@ const loadData = async () => {
       loadLookupData()
     ])
     
-  } catch (err: any) {
-    error.value = err.message || 'Fehler beim Laden der Daten'
+  } catch (err: unknown) {
+    error.value =
+      err instanceof Error && err.message ? err.message : 'Fehler beim Laden der Daten'
     console.error('Error loading dashboard data:', err)
   } finally {
     loading.value = false

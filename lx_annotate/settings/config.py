@@ -9,8 +9,6 @@ import shlex
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-from .secret_key import get_or_create_secret_key
-
 
 def _read_secret_file(path: Path, label: str) -> str:
     try:
@@ -222,7 +220,7 @@ class AppConfig(BaseSettings):
     )
 
     # Core
-    secret_key: str = Field(min_length=32, default_factory=get_or_create_secret_key)
+    secret_key: str = ""
     secret_key_file: Path | None = None
     debug: bool = False
 
@@ -284,6 +282,13 @@ class AppConfig(BaseSettings):
             return None
         if isinstance(value, str) and not value.strip():
             return None
+        return value
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_configured_secret_key(cls, value: str) -> str:
+        if value and len(value) < 32:
+            raise ValueError("DJANGO_SECRET_KEY must contain at least 32 characters")
         return value
 
     @field_validator(
@@ -378,6 +383,11 @@ class AppConfig(BaseSettings):
             secret_value = _read_keycloak_secret_file(file_path)
         else:
             secret_value = _read_secret_file(file_path, field_name)
+        if field_name == "secret_key" and len(secret_value) < 32:
+            raise ValueError(
+                f"Secret file {file_path} for secret_key must contain at least "
+                "32 characters"
+            )
         setattr(self, field_name, secret_value)
 
 

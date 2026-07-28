@@ -1,0 +1,231 @@
+schema_version: '1.0'
+id: lx_annotate_pressing_issues
+name: LX-Annotate Pressing Issues
+description: Resolve the highest-priority security, maintainability, CI, dependency, and repository-hygiene
+  gaps before production approval.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: README.md
+  disposition: reference
+  note: Application, security, development, and deployment contract.
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Cross-repository runtime and LuxNix deployment contract.
+definition_of_done:
+- id: pressing_scope
+  category: requirements
+  title: Pressing issues have owners, severity, and bounded acceptance criteria
+  acceptance:
+  - Each production blocker names its owning repository and responsible maintainer group.
+  - Cross-repository dependencies distinguish application, endoreg_db package, database schema, and LuxNix
+    host responsibilities.
+  - New issues are added here before implementation rather than tracked in parallel status documents.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the issue set with application, security, and operations owners.
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: production_secret_contract
+  category: security
+  title: Production Django secrets are explicitly injected and fail closed
+  acceptance:
+  - Production startup rejects a missing Django secret instead of generating or persisting one.
+  - A read-only or unavailable secret location cannot trigger an ephemeral production secret fallback.
+  - Development-only secret generation is explicitly separated from production configuration.
+  - Secret values never appear in application configuration, logs, or version control.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ./scripts/run-backend-checks.sh
+    - tests/system/test_settings.py
+    - tests/system/test_environment_checks.py
+    - -q
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: lx_annotate/settings/secret_key.py
+    - kind: code
+      reference: lx_annotate/settings/settings_prod.py
+    - kind: command
+      reference: ./scripts/run-backend-checks.sh -q (339 passed, 2 skipped)
+    - kind: review
+      reference: lx_annotate/settings/config.py; lx_annotate/settings/secret_key.py; lx_annotate/settings/settings_test.py
+    note: Production now rejects a missing or short configured secret, never invokes secret generation,
+      and the explicit development helper uses the audited atomic wrapper with strict permissions and
+      propagates write failures.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T09:17:36.469567Z'
+- id: filesystem_integrity
+  category: functionality
+  title: Application-owned filesystem mutations use the canonical typed boundary
+  acceptance:
+  - Production mutations use endoreg_db.utils.file_operations or its canonical successor.
+  - Writes are atomic and every mutation emits structured JSON logs.
+  - Secret, static-root, migration, and maintenance paths have explicit negative tests for partial writes
+    and unsafe targets.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inventory application filesystem mutations and verify wrapper, atomicity, and logging
+      behavior.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: lx_annotate/settings/secret_key.py
+    - kind: code
+      reference: lx_annotate/settings/settings_base.py
+    - kind: code
+      reference: lx_annotate/file_watcher.py
+    - kind: code
+      reference: lx_annotate/middleware/lookup_tracker.py
+    - kind: code
+      reference: lx_annotate/management/commands/run_filewatcher.py
+    - kind: code
+      reference: lx_annotate/management/commands/export_route_manifest.py
+    - kind: command
+      reference: ./scripts/run-backend-checks.sh -q (357 passed, 2 skipped)
+    - kind: review
+      reference: Production mutation inventory on 2026-07-28; raw mutation scan clean outside test-only
+        settings
+    note: Production directory creation, source cleanup, CSV publication, route-manifest writes, secret
+      persistence, and settings-owned directories now use endoreg_db.utils.file_operations. Intake infrastructure
+      is validated fail-closed rather than lazily created. Atomic-write and cleanup negative tests preserve
+      prior complete artifacts and propagate unsafe states.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T09:47:52.651070Z'
+- id: automated_quality_gates
+  category: testing
+  title: CI enforces tests, types, lint, formatting, and measurable coverage
+  acceptance:
+  - Backend and frontend tests and type checks run from a clean checkout.
+  - Ruff, MyPy or Pyright, ESLint, and formatting checks run without modifying the checkout.
+  - Coverage thresholds protect critical security, storage, ingestion, annotation, and reporting boundaries.
+  - Expensive and video-dependent suites have a scheduled or release lane with visible results.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect CI jobs and execute the clean-checkout quality workflow.
+    timeout_seconds: 1200
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: .github/workflows/ci-cd.yml
+    - kind: code
+      reference: frontend/package.json
+    note: Tests and frontend type checking are enforced, but lint, formatting, static Python typing, coverage
+      thresholds, and a non-mutating frontend lint command are absent from the main CI workflow.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:00:00+02:00'
+- id: frontend_ownership_boundaries
+  category: operations
+  title: Large frontend workflows have bounded components and stores
+  acceptance:
+  - Video examination, anonymization, reporting, and frame annotation split orchestration from presentation
+    and API state.
+  - Extracted modules have named ownership, typed interfaces, and focused tests.
+  - Refactoring preserves anonymization and segment-validation as separate workflow gates.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review component and store boundaries, line-count trend, public interfaces, and regression
+      tests.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue
+    - kind: code
+      reference: frontend/src/components/Anonymizer/AnonymizationValidationComponent.vue
+    - kind: code
+      reference: frontend/src/stores/videoStore.ts
+    note: Several central workflow files exceed two thousand lines and combine orchestration, state, API,
+      and presentation concerns.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:00:00+02:00'
+- id: least_privilege_delivery
+  category: security
+  title: CI and promotion use least privilege and explicit release intent
+  acceptance:
+  - Repository write permission is scoped only to the job that requires it.
+  - Pull-request and ordinary branch validation run with read-only permissions.
+  - Promotion to prototype is limited to an explicitly documented source branch or approved release action.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review GitHub Actions permissions, triggers, environments, and branch-protection behavior.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: .github/workflows/ci-cd.yml
+    note: The workflow grants contents write globally and promotes every successful non-prototype branch
+      push to prototype.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:00:00+02:00'
+- id: dependency_and_tooling_contract
+  category: operations
+  title: Runtime dependencies, versions, and test configuration are unambiguous
+  acceptance:
+  - Runtime dependencies exclude build, formatting, type-checking, and test-only packages.
+  - Duplicate or compatibility dependency names are removed or documented.
+  - Python, root package, and frontend version identifiers follow one release policy.
+  - Exactly one authoritative pytest configuration is loaded without warnings.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ./scripts/run-backend-checks.sh
+    - -q
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: pyproject.toml
+    - kind: code
+      reference: pytest.ini
+    - kind: code
+      reference: frontend/package.json
+    note: Development tools are included in runtime dependencies, two similarly named Django REST Framework
+      packages are declared, versions diverge, and pytest reports that pyproject configuration is ignored.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:00:00+02:00'
+- id: repository_hygiene
+  category: documentation
+  title: Generated artifacts and static assets have one canonical ownership path
+  acceptance:
+  - Generated documentation and frontend build output are not tracked in redundant locations.
+  - Large static assets have one canonical source and a reproducible packaging path.
+  - Cleanup preserves wheel, Nix, and deployed static-file contracts.
+  - Repository maintenance instructions explain regeneration and release packaging.
+  required: true
+  verification:
+    kind: manual
+    instructions: Compare tracked artifacts, package manifests, build outputs, and clean-checkout package
+      results.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: review
+      reference: Repository inventory on 2026-07-28
+      note: Approximately 110 MiB is tracked, generated documentation is committed, and large static assets
+        occur in several paths.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:00:00+02:00'

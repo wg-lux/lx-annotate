@@ -15,8 +15,8 @@
       <button
         type="button"
         class="btn-close"
-        @click="clearErrorMessage"
         aria-label="Close"
+        @click="clearErrorMessage"
       ></button>
     </div>
 
@@ -27,8 +27,8 @@
       <button
         type="button"
         class="btn-close"
-        @click="clearSuccessMessage"
         aria-label="Close"
+        @click="clearSuccessMessage"
       ></button>
     </div>
 
@@ -57,17 +57,77 @@
                 <button
                   type="button"
                   class="video-dropdown-trigger"
-                  :disabled="!hasVideos"
+                  :disabled="isVideoDropdownLoading || !!videoDropdownLoadError || !hasVideos"
+                  :aria-busy="isVideoDropdownLoading ? 'true' : 'false'"
                   :aria-expanded="isVideoDropdownOpen ? 'true' : 'false'"
                   aria-haspopup="listbox"
                   @click="toggleVideoDropdown"
                 >
-                  <span class="video-dropdown-trigger-text">{{ selectedVideoLabel }}</span>
+                  <span class="video-dropdown-trigger-content">
+                    <span
+                      v-if="isVideoDropdownLoading"
+                      class="spinner-border spinner-border-sm"
+                      aria-hidden="true"
+                    ></span>
+                    <span class="video-dropdown-trigger-text">{{ selectedVideoLabel }}</span>
+                  </span>
                   <i
                     class="ni"
                     :class="isVideoDropdownOpen ? 'ni-bold-right' : 'ni-bold-right'"
                   ></i>
                 </button>
+                <div
+                  v-if="isVideoDropdownLoading"
+                  class="video-dropdown-loading-panel"
+                  data-test="video-dropdown-loading"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div class="video-dropdown-loading-heading">
+                    {{ videoDropdownLoadingMessage }}
+                  </div>
+                  <div class="video-dropdown-loading-stages">
+                    <span
+                      class="video-dropdown-loading-stage"
+                      :class="{ complete: !isLoadingVideoOverview }"
+                    >
+                      <span
+                        v-if="isLoadingVideoOverview"
+                        class="spinner-border spinner-border-sm"
+                        aria-hidden="true"
+                      ></span>
+                      <i v-else class="ni ni-check-bold" aria-hidden="true"></i>
+                      Freigabestatus
+                    </span>
+                    <span
+                      class="video-dropdown-loading-stage"
+                      :class="{ complete: !isLoadingVideoList }"
+                    >
+                      <span
+                        v-if="isLoadingVideoList"
+                        class="spinner-border spinner-border-sm"
+                        aria-hidden="true"
+                      ></span>
+                      <i v-else class="ni ni-check-bold" aria-hidden="true"></i>
+                      Videos und Labels
+                    </span>
+                  </div>
+                </div>
+                <div
+                  v-else-if="videoDropdownLoadError"
+                  class="video-dropdown-load-error"
+                  data-test="video-dropdown-load-error"
+                  role="alert"
+                >
+                  <span>{{ videoDropdownLoadError }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm mb-0"
+                    @click="retryVideoDropdownLoad"
+                  >
+                    Erneut laden
+                  </button>
+                </div>
                 <div
                   v-if="isVideoDropdownOpen && hasVideos"
                   class="video-dropdown-menu"
@@ -141,7 +201,10 @@
                   </div>
                 </div>
               </div>
-              <small v-if="!hasVideos" class="text-muted">
+              <small
+                v-if="!hasVideos && !isVideoDropdownLoading && !videoDropdownLoadError"
+                class="text-muted"
+              >
                 {{ noVideosMessage }}
               </small>
 
@@ -268,7 +331,10 @@
             </div>
 
             <!-- No Videos Available State -->
-            <div v-if="!hasVideos" class="text-center text-muted py-5">
+            <div
+              v-if="!hasVideos && !isVideoDropdownLoading && !videoDropdownLoadError"
+              class="text-center text-muted py-5"
+            >
               <i class="ni ni-collection ni-3x"></i>
               <p class="mt-2">{{ noVideosMessage }}</p>
               <small
@@ -282,8 +348,8 @@
               <button
                 type="button"
                 class="fullscreen-toggle"
-                @click="toggleFullscreen"
                 :title="isFullscreen ? 'Vollbild verlassen' : 'Vollbild'"
+                @click="toggleFullscreen"
               >
                 <i class="ni" :class="isFullscreen ? 'ni-settings-gear-65' : 'ni-tv-2'"></i>
               </button>
@@ -296,15 +362,15 @@
                 controlslist="nodownload noremoteplayback"
                 disablepictureinpicture
                 disableremoteplayback
+                controls
+                class="w-100"
+                style="max-height: 400px"
                 @timeupdate="handleTimeUpdate"
                 @loadedmetadata="onVideoLoaded"
                 @play="onVideoPlay"
                 @pause="onVideoPause"
                 @ended="onVideoEnded"
                 @error="onVideoError"
-                controls
-                class="w-100"
-                style="max-height: 400px"
               >
                 Ihr Browser unterstützt das Video-Element nicht.
               </video>
@@ -400,11 +466,11 @@
                 :video="{ duration }"
                 :segments="timelineSegmentsForSelectedVideo"
                 :labels="timelineLabels"
-                :currentTime="currentTime"
-                :isPlaying="isPlaying"
-                :activeSegmentId="selectedSegmentId"
-                :showWaveform="false"
-                :selectionMode="canMutateSelectedSegments"
+                :current-time="currentTime"
+                :is-playing="isPlaying"
+                :active-segment-id="selectedSegmentId"
+                :show-waveform="false"
+                :selection-mode="canMutateSelectedSegments"
                 @seek="handleTimelineSeek"
                 @play-pause="handlePlayPause"
                 @segment-select="handleSegmentSelect"
@@ -463,8 +529,8 @@
 
                 <button
                   class="btn btn-outline-secondary"
-                  @click="discardSegmentChanges"
                   :disabled="!canMutateSelectedSegments"
+                  @click="discardSegmentChanges"
                 >
                   Änderungen verwerfen
                 </button>
@@ -472,8 +538,8 @@
                 <button
                   class="btn"
                   :class="hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary'"
-                  @click="saveSegmentChanges"
                   :disabled="!canMutateSelectedSegments"
+                  @click="saveSegmentChanges"
                 >
                   Segmentänderungen speichern
                 </button>
@@ -539,9 +605,9 @@
 
               <!-- Simple progress bar as fallback -->
               <div
+                ref="timelineRef"
                 class="simple-timeline-track mt-2"
                 @click="handleTimelineClick"
-                ref="timelineRef"
               >
                 <div
                   class="progress-bar"
@@ -574,12 +640,12 @@
                   <select
                     ref="labelSelectRef"
                     v-model="selectedLabelType"
-                    @change="onLabelSelect"
-                    @focus="isLabelSelectActive = true"
-                    @blur="isLabelSelectActive = false"
                     class="form-select form-select-sm control-select"
                     data-cy="label-select"
                     :disabled="!canMutateSelectedSegments"
+                    @change="onLabelSelect"
+                    @focus="isLabelSelectActive = true"
+                    @blur="isLabelSelectActive = false"
                   >
                     <option value="">Label auswählen...</option>
                     <option v-for="label in timelineLabels" :key="label.id" :value="label.name">
@@ -591,10 +657,10 @@
                 <div class="d-flex align-items-center gap-2">
                   <button
                     v-if="!isMarkingLabel"
-                    @click="startLabelMarking"
                     class="btn btn-success btn-sm control-button"
                     :disabled="!canStartLabeling"
                     data-cy="start-label-button"
+                    @click="startLabelMarking"
                   >
                     <i class="ni ni-single-copy-04"></i>
                     Label-Start setzen
@@ -602,9 +668,9 @@
 
                   <button
                     v-if="isMarkingLabel"
-                    @click="finishLabelMarking"
                     class="btn btn-warning btn-sm control-button"
                     data-cy="finish-label-button"
+                    @click="finishLabelMarking"
                   >
                     <i class="ni ni-button-play"></i>
                     Label-Ende setzen
@@ -612,8 +678,8 @@
 
                   <button
                     v-if="isMarkingLabel"
-                    @click="cancelLabelMarking"
                     class="btn btn-outline-secondary btn-sm control-button"
+                    @click="cancelLabelMarking"
                   >
                     Abbrechen
                   </button>
@@ -748,20 +814,37 @@
               !isSegmentCleanupPending(selectedVideoId) &&
               !isAnnotationFinished(selectedVideoId)
             "
-            class="d-flex justify-content-center"
+            class="d-flex flex-column align-items-center"
           >
+            <div
+              v-if="selectedVideoId === validationRequestVideoId"
+              id="segment-validation-waiting-message"
+              class="alert alert-info validation-submitted-alert"
+              data-test="segment-validation-waiting"
+              role="status"
+              aria-live="assertive"
+            >
+              <strong>Validierung wurde gestartet.</strong>
+              Die Segmentprüfung und das Schwärzen der Outside-Frames laufen. Bitte warten Sie und
+              drücken Sie den Button nicht erneut. Der Status wird automatisch aktualisiert.
+            </div>
             <button
               class="btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2"
               :class="{
-                'validation-action-button-clicked': selectedVideoId === validationRequestVideoId
+                'validation-action-button-pending': selectedVideoId === validationRequestVideoId
               }"
-              @click="handleValidateAndMark(selectedVideoId)"
               :disabled="
                 segmentSourceMode === 'prediction' ||
                 isValidatingSegments ||
                 isSegmentCleanupPending(selectedVideoId)
               "
               :aria-busy="isValidatingSegments ? 'true' : 'false'"
+              :aria-describedby="
+                selectedVideoId === validationRequestVideoId
+                  ? 'segment-validation-waiting-message'
+                  : undefined
+              "
+              @click="handleValidateAndMark(selectedVideoId)"
             >
               <!-- Remove mark validated when keeping outside segments for training -->
               <i
@@ -771,7 +854,9 @@
               <span>
                 {{
                   isValidatingSegments
-                    ? 'Validierung läuft...'
+                    ? selectedVideoId === validationRequestVideoId
+                      ? 'Übermittelt – bitte warten'
+                      : `Validierung für Video ${validationRequestVideoId} läuft`
                     : selectedVideoId !== null && isSegmentCleanupFailed(selectedVideoId)
                       ? `Validierung erneut starten (${timelineSegmentsForSelectedVideo.length})`
                       : `Alle Segmente validieren (${timelineSegmentsForSelectedVideo.length})`
@@ -823,10 +908,10 @@
               <i class="ni ni-single-copy-04 me-2"></i>
               Klinische Befundung
             </h5>
-            <small class="text-muted" v-if="currentMarker">
+            <small v-if="currentMarker" class="text-muted">
               Zeitpunkt: {{ formatTime(currentMarker.timestamp) }}
             </small>
-            <div class="mt-2" v-if="selectedVideoId && canAnnotateSelectedVideo">
+            <div v-if="selectedVideoId && canAnnotateSelectedVideo" class="mt-2">
               <div class="alert alert-info alert-sm mb-0">
                 <i class="ni ni-user-run me-1"></i>
                 <strong>Video {{ selectedVideoId }}:</strong>
@@ -853,7 +938,7 @@
         </div>
 
         <!-- Saved Examinations List -->
-        <div class="card mt-3" v-if="savedExaminations.length > 0">
+        <div v-if="savedExaminations.length > 0" class="card mt-3">
           <div class="card-header pb-0">
             <h6 class="mb-0">Gespeicherte Untersuchungen</h6>
           </div>
@@ -870,12 +955,12 @@
                 </div>
                 <div>
                   <button
-                    @click="jumpToExamination(exam)"
                     class="btn btn-sm btn-outline-primary me-2"
+                    @click="jumpToExamination(exam)"
                   >
                     <i class="ni ni-button-play"></i>
                   </button>
-                  <button @click="deleteExamination(exam.id)" class="btn btn-sm btn-outline-danger">
+                  <button class="btn btn-sm btn-outline-danger" @click="deleteExamination(exam.id)">
                     <i class="ni ni-settings-gear-65"></i>
                   </button>
                 </div>
@@ -905,8 +990,7 @@ import { endpoints } from '@/types/api/endpoints'
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
 import { storeToRefs } from 'pinia'
-import { useToastStore } from '@/stores/toastStore'
-import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
+import { formatTime, getTranslationForLabel } from '@/utils/videoUtils'
 import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import { useRoute, useRouter } from 'vue-router'
@@ -928,20 +1012,14 @@ const initialVideoId = Number(route.query.video ?? '') || null
 interface ExaminationMarker {
   id: string
   timestamp: number
-  examination_data?: any
+  examination_data?: unknown
 }
 
 interface SavedExamination {
   id: number
   timestamp: number
   examination_type?: string
-  data?: any
-}
-
-interface SegmentResizeEvent {
-  segmentId: number
-  newStart: number
-  newEnd: number
+  data?: unknown
 }
 
 interface CreateSegmentEvent {
@@ -972,13 +1050,30 @@ type VideoDropdownStatus =
   | 'annotation_validated'
 type VideoDropdownFilter = 'all' | 'usable' | VideoDropdownStatus
 
+type UnknownRecord = Record<string, unknown>
+
+const asRecord = (value: unknown): UnknownRecord =>
+  value !== null && typeof value === 'object' ? (value as UnknownRecord) : {}
+
+const getRequestErrorData = (error: unknown): UnknownRecord => {
+  const response = asRecord(asRecord(error).response)
+  return asRecord(response.data)
+}
+
+const getRequestErrorMessage = (error: unknown, fallback = 'Unbekannter Fehler'): string => {
+  const errorRecord = asRecord(error)
+  const data = getRequestErrorData(error)
+  const message = data.detail ?? data.error ?? data.message ?? errorRecord.message
+  return typeof message === 'string' ? message : fallback
+}
+
 // Store setup
 const videoStore = useVideoStore()
 const mediaStore = useMediaTypeStore()
 const authStore = useAuthKcStore()
 const videoStoreRefs = storeToRefs(videoStore)
 
-const { videoList, timelineSegments } = videoStoreRefs
+const { videoList } = videoStoreRefs
 const predictionModels = videoStoreRefs.predictionModels ?? ref<PredictionModelMeta[]>([])
 const defaultHuggingfaceModelId = videoStoreRefs.defaultHuggingfaceModelId ?? ref('')
 const defaultPredictionLabelsetName = videoStoreRefs.defaultPredictionLabelsetName ?? ref('')
@@ -1049,7 +1144,6 @@ function isSegmentCleanupFailed(videoId: number): boolean {
 const selectedVideoId = ref<number | null>(initialVideoId)
 const currentTime = ref<number>(0)
 const duration = ref<number>(0)
-const fps = computed<number>(() => videoStore.effectiveFps)
 const isPlaying = ref<boolean>(false) // ✅ NEW: Track video playing state
 const examinationMarkers = ref<ExaminationMarker[]>([])
 const savedExaminations = ref<SavedExamination[]>([])
@@ -1060,6 +1154,9 @@ const isMarkingLabel = ref<boolean>(false)
 const labelMarkingStart = ref<number>(0)
 const selectedSegmentId = ref<number | null>(null)
 const isInitialLoading = ref<boolean>(true)
+const isLoadingVideoOverview = ref<boolean>(true)
+const isLoadingVideoList = ref<boolean>(true)
+const videoDropdownLoadError = ref<string>('')
 const lastValidationClickedVideoId = ref<number | null>(null)
 const validationRequestVideoId = ref<number | null>(null)
 const segmentSourceMode = ref<SegmentSourceKind>('manual')
@@ -1187,7 +1284,7 @@ async function loadSelectedVideo(videoId: number | null = selectedVideoId.value)
 
     setVideoDetailContext(videoId)
     await guarded(loadSavedExaminations())
-  } catch (err: any) {
+  } catch (err: unknown) {
     await guarded(Promise.reject(err))
   }
 }
@@ -1204,12 +1301,15 @@ type SegmentationFpsReadiness = {
   fps: number | null
 }
 
-const normalizeFpsNormalizationState = (data: any): FpsNormalizationState => ({
-  status: String(data?.status ?? ''),
-  fps: Number.isFinite(Number(data?.fps)) ? Number(data.fps) : null,
-  maxFps: Number(data?.maxFps ?? data?.max_fps ?? 50),
-  detail: String(data?.detail ?? data?.error ?? '')
-})
+const normalizeFpsNormalizationState = (value: unknown): FpsNormalizationState => {
+  const data = asRecord(value)
+  return {
+    status: String(data.status ?? ''),
+    fps: Number.isFinite(Number(data.fps)) ? Number(data.fps) : null,
+    maxFps: Number(data.maxFps ?? data.max_fps ?? 50),
+    detail: String(data.detail ?? data.error ?? '')
+  }
+}
 
 const clearFpsNormalizationPolling = (): void => {
   if (fpsNormalizationPollTimer !== null) {
@@ -1249,7 +1349,7 @@ const scheduleFpsNormalizationPoll = (videoId: number): void => {
         return
       }
       scheduleFpsNormalizationPoll(videoId)
-    } catch (error: any) {
+    } catch (error: unknown) {
       await guarded(Promise.reject(error))
     }
   }, 5000)
@@ -1452,10 +1552,6 @@ const filteredSelectableVideos = computed(() => {
   })
 })
 
-const annotatableVideos = computed(() =>
-  usableVideos.value.filter((v) => !isAnnotationFinished(v.id))
-)
-
 const pendingValidationVideos = computed(() =>
   usableVideos.value.filter((v) => !v.segmentAnnotationsValidated)
 )
@@ -1619,21 +1715,13 @@ function formatPredictionModelOption(model: ReadonlyPredictionModelMeta): string
 }
 
 const selectedVideoLabel = computed(() => {
+  if (isVideoDropdownLoading.value) return 'Videos werden geladen...'
   if (!selectableVideos.value.length) return 'Keine Videos verfügbar'
   if (selectedVideoId.value == null) return 'Bitte Video auswählen...'
   const video = selectableVideos.value.find((v) => v.id === selectedVideoId.value)
   if (!video) return `Video ${selectedVideoId.value}`
   return video.original_file_name || `Video Nr. ${video.id}`
 })
-
-watch(
-  videos,
-  (videos) => {
-    if (!videos.length) return
-    loadSensitiveMetaForVideos(videos.map((v) => v.id))
-  },
-  { immediate: true }
-)
 
 watch(
   predictionModelOptions,
@@ -1698,6 +1786,18 @@ const hasVideos = computed(() => {
   return videos.value.length > 0
 })
 
+const isVideoDropdownLoading = computed(
+  () => isLoadingVideoOverview.value || isLoadingVideoList.value
+)
+
+const videoDropdownLoadingMessage = computed(() => {
+  if (isLoadingVideoOverview.value && isLoadingVideoList.value) {
+    return 'Videoliste und Freigabestatus werden geladen...'
+  }
+  if (isLoadingVideoOverview.value) return 'Freigabestatus wird geladen...'
+  return 'Videos und Labels werden geladen...'
+})
+
 const noVideosMessage = computed(() => {
   if (videos.value.length === 0) {
     return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.'
@@ -1722,38 +1822,79 @@ const canStartLabeling = computed(() => {
   )
 })
 
-// ✅ PRIORITY: Load labels first, then videos, then anonymization status
+async function loadVideoDropdownData(): Promise<boolean> {
+  isLoadingVideoOverview.value = true
+  isLoadingVideoList.value = true
+  videoDropdownLoadError.value = ''
+
+  const [overviewResult, videoListResult] = await Promise.allSettled([
+    (async () => {
+      try {
+        await anonymizationStore.fetchOverview()
+      } finally {
+        isLoadingVideoOverview.value = false
+      }
+    })(),
+    (async () => {
+      try {
+        await videoStore.fetchAllVideos()
+      } finally {
+        isLoadingVideoList.value = false
+      }
+    })()
+  ])
+
+  const overviewFailed =
+    overviewResult.status === 'rejected' || Boolean(anonymizationStore.error)
+  const videoListFailed = videoListResult.status === 'rejected'
+  if (!overviewFailed && !videoListFailed) return true
+
+  videoDropdownLoadError.value =
+    overviewFailed && videoListFailed
+      ? 'Videoliste und Freigabestatus konnten nicht geladen werden.'
+      : overviewFailed
+        ? 'Der Freigabestatus der Videos konnte nicht geladen werden.'
+        : 'Die Videoliste konnte nicht geladen werden.'
+  return false
+}
+
+async function retryVideoDropdownLoad(): Promise<void> {
+  const loaded = await loadVideoDropdownData()
+  if (!loaded) return
+  pollExistingSegmentCleanupVideos()
+}
+
 onMounted(async () => {
+  document.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('click', handleDocumentClick)
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
   isInitialLoading.value = true
-  try {
+  void (async () => {
     try {
       if (typeof videoStore.fetchPredictionModels === 'function') {
         await videoStore.fetchPredictionModels()
       }
-    } catch {}
+    } catch {
+      // Prediction models are optional; the local segment workflow remains available.
+    }
+  })()
+  void loadSegmentAiDatasetOptions()
 
-    await loadSegmentAiDatasetOptions()
+  try {
+    const dropdownLoaded = await loadVideoDropdownData()
+    if (dropdownLoaded) {
+      pollExistingSegmentCleanupVideos()
 
-    // Load anonymization overview before videos because it controls availability.
-    await anonymizationStore.fetchOverview()
-
-    // fetchAllVideos owns the one-time label fetch.
-    await videoStore.fetchAllVideos()
-    pollExistingSegmentCleanupVideos()
-
-    if (selectedVideoId.value !== null) {
-      videoStore.setCurrentVideo(selectedVideoId.value)
-      await loadSelectedVideo(selectedVideoId.value)
+      if (selectedVideoId.value !== null) {
+        videoStore.setCurrentVideo(selectedVideoId.value)
+        await loadSelectedVideo(selectedVideoId.value)
+      }
     }
   } catch {
     showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.')
   } finally {
     isInitialLoading.value = false
   }
-
-  document.addEventListener('keydown', handleKeyDown)
-  document.addEventListener('click', handleDocumentClick)
-  document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
 
 onUnmounted(() => {
@@ -1766,18 +1907,20 @@ onUnmounted(() => {
 })
 
 // Guarded function for error handling like VideoClassificationComponent
-function isAbortLikeError(error: any): boolean {
+function isAbortLikeError(error: unknown): boolean {
+  const errorRecord = asRecord(error)
+  const targetError = asRecord(asRecord(errorRecord.target).error)
   const message = String(
-    error?.message || error?.target?.error?.message || error || ''
+    errorRecord.message || targetError.message || error || ''
   ).toLowerCase()
-  const code = error?.code || error?.target?.error?.code
+  const code = errorRecord.code || targetError.code
   const mediaAbortCode = typeof MediaError !== 'undefined' ? MediaError.MEDIA_ERR_ABORTED : 1
 
   return (
     code === 20 ||
     code === mediaAbortCode ||
-    error?.name === 'AbortError' ||
-    error?.code === 'ERR_CANCELED' ||
+    errorRecord.name === 'AbortError' ||
+    errorRecord.code === 'ERR_CANCELED' ||
     message.includes('ns_binding_aborted') ||
     message.includes('binding aborted') ||
     message.includes('aborted') ||
@@ -1789,17 +1932,11 @@ function isAbortLikeError(error: any): boolean {
 async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
   try {
     return await p
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (isAbortLikeError(e)) {
       return undefined
     }
-    const errorMsg =
-      e?.response?.data?.detail ||
-      e?.response?.data?.error ||
-      e?.response?.data?.message ||
-      e?.message ||
-      String(e)
-    showErrorMessage(errorMsg)
+    showErrorMessage(getRequestErrorMessage(e, String(e)))
     return undefined
   }
 }
@@ -1856,7 +1993,7 @@ const setVideoDetailContext = (videoId: number): void => {
   if (currentVideo) {
     mediaStore.rememberType(videoId, 'video', 'video')
     mediaStore.setCurrentItem({
-      ...(currentVideo as any),
+      ...currentVideo,
       id: videoId,
       scope: 'video',
       mediaType: 'video',
@@ -1973,7 +2110,7 @@ const handleTimelineSeek = (...args: unknown[]): void => {
 }
 
 // Play/pause handler for Timeline
-const handlePlayPause = (...args: unknown[]): void => {
+const handlePlayPause = (..._args: unknown[]): void => {
   if (!videoRef.value) return
 
   if (videoRef.value.paused) {
@@ -2090,82 +2227,68 @@ const handleTimeSelection = (...args: unknown[]): void => {
   }
 }
 
-const handleCreateSegment = (...args: unknown[]): Promise<void> => {
+const handleCreateSegment = async (...args: unknown[]): Promise<void> => {
   const [event] = args as [CreateSegmentEvent]
-  return new Promise<void>(async (resolve, reject) => {
-    try {
-      if (!canMutateSelectedSegments.value) {
-        showErrorMessage(getSegmentMutationBlockedMessage())
-        resolve()
-        return
-      }
-      if (segmentSourceMode.value === 'prediction') {
-        showErrorMessage(
-          'Neue Segmente bitte erst nach dem Übernehmen in die manuellen Annotationen anlegen.'
-        )
-        resolve()
-        return
-      }
-      if (selectedVideoId.value) {
-        await videoStore.createSegment?.(selectedVideoId.value, event.label, event.start, event.end)
-        segmentValidationSummaryByVideoId.value = {
-          ...segmentValidationSummaryByVideoId.value,
-          [selectedVideoId.value]: {
-            validationComplete: false,
-            validatedOutsideSegmentCount: 0
-          }
-        }
-        showSuccessMessage(`Segment erstellt: ${getTranslationForLabel(event.label)}`)
-      }
-      resolve()
-    } catch (error: any) {
-      await guarded(Promise.reject(error))
-      reject(error)
-    }
-  })
-}
-
-const handleSegmentDelete = (...args: unknown[]): Promise<void> => {
-  const [segment] = args as [Segment]
-  return new Promise<void>(async (resolve, reject) => {
+  try {
     if (!canMutateSelectedSegments.value) {
       showErrorMessage(getSegmentMutationBlockedMessage())
-      resolve()
+      return
+    }
+    if (segmentSourceMode.value === 'prediction') {
+      showErrorMessage(
+        'Neue Segmente bitte erst nach dem Übernehmen in die manuellen Annotationen anlegen.'
+      )
+      return
+    }
+    if (selectedVideoId.value) {
+      await videoStore.createSegment?.(selectedVideoId.value, event.label, event.start, event.end)
+      segmentValidationSummaryByVideoId.value = {
+        ...segmentValidationSummaryByVideoId.value,
+        [selectedVideoId.value]: {
+          validationComplete: false,
+          validatedOutsideSegmentCount: 0
+        }
+      }
+      showSuccessMessage(`Segment erstellt: ${getTranslationForLabel(event.label)}`)
+    }
+  } catch (error: unknown) {
+    await guarded(Promise.reject(error))
+    throw error
+  }
+}
+
+const handleSegmentDelete = async (...args: unknown[]): Promise<void> => {
+  const [segment] = args as [Segment]
+  if (!canMutateSelectedSegments.value) {
+    showErrorMessage(getSegmentMutationBlockedMessage())
+    return
+  }
+
+  if (!segment.id || typeof segment.id !== 'number') {
+    return
+  }
+
+  try {
+    if (segmentSourceMode.value === 'prediction') {
+      videoStore.removeSegment(segment.id)
+      showSuccessMessage(`KI-Segment lokal entfernt: ${getTranslationForLabel(segment.label)}`)
       return
     }
 
-    if (!segment.id || typeof segment.id !== 'number') {
-      resolve()
+    const deleted = await videoStore.deleteSegment(segment.id)
+    if (!deleted) {
+      showErrorMessage(
+        videoStore.errorMessage || 'Segment konnte nicht gelöscht werden.',
+        'danger'
+      )
       return
     }
 
-    try {
-      if (segmentSourceMode.value === 'prediction') {
-        videoStore.removeSegment(segment.id)
-        showSuccessMessage(`KI-Segment lokal entfernt: ${getTranslationForLabel(segment.label)}`)
-        resolve()
-        return
-      }
-
-      const deleted = await videoStore.deleteSegment(segment.id)
-      if (!deleted) {
-        showErrorMessage(
-          videoStore.errorMessage || 'Segment konnte nicht gelöscht werden.',
-          'danger'
-        )
-        resolve()
-        return
-      }
-
-      showSuccessMessage(`Segment gelöscht: ${getTranslationForLabel(segment.label)}`)
-      resolve()
-    } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.detail || err?.response?.data?.error || err?.message || String(err)
-      showErrorMessage(errorMsg, 'danger')
-      reject(err)
-    }
-  })
+    showSuccessMessage(`Segment gelöscht: ${getTranslationForLabel(segment.label)}`)
+  } catch (error: unknown) {
+    showErrorMessage(getRequestErrorMessage(error, String(error)), 'danger')
+    throw error
+  }
 }
 
 const seekToTime = (time: number): void => {
@@ -2175,7 +2298,9 @@ const seekToTime = (time: number): void => {
   }
 }
 
-const onLabelSelect = (): void => {}
+const onLabelSelect = (): void => {
+  // The select is bound with v-model; this handler exists for template event compatibility.
+}
 
 const handleFullscreenChange = (): void => {
   isFullscreen.value = document.fullscreenElement === videoContainerRef.value
@@ -2191,7 +2316,9 @@ const toggleFullscreen = async (): Promise<void> => {
     } else {
       await container.requestFullscreen()
     }
-  } catch {}
+  } catch {
+    // Fullscreen requests may be rejected by the browser without requiring user feedback.
+  }
 }
 
 const closeLabelOverlay = (): void => {
@@ -2211,12 +2338,49 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 
+const isUnmodifiedKey = (event: KeyboardEvent, key: string): boolean =>
+  !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === key
+
+const handleLabelOverlayKey = (event: KeyboardEvent): boolean => {
+  if (!isLabelSelectActive.value) return false
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+    event.preventDefault()
+    event.stopPropagation()
+    const labels = timelineLabels.value
+    if (labels.length === 0) return true
+    const currentIndex = labels.findIndex((label) => label.name === selectedLabelType.value)
+    const delta = event.key === 'ArrowUp' ? -1 : 1
+    const startIndex = currentIndex === -1 ? (delta > 0 ? -1 : 0) : currentIndex
+    const nextIndex = (startIndex + delta + labels.length) % labels.length
+    selectedLabelType.value = labels[nextIndex].name
+    return true
+  }
+  if (event.key !== 'Enter') return false
+  event.preventDefault()
+  event.stopPropagation()
+  closeLabelOverlay()
+  return true
+}
+
+const handleEscapeKey = (event: KeyboardEvent): boolean => {
+  if (event.key !== 'Escape') return false
+  if (isLabelSelectActive.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    closeLabelOverlay()
+    return true
+  }
+  if (isMarkingLabel.value) {
+    event.preventDefault()
+    cancelLabelMarking()
+  }
+  return true
+}
+
 const handleKeyDown = (event: KeyboardEvent): void => {
   if (isEditableTarget(event.target)) return
 
-  const key = event.key.toLowerCase()
-
-  if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'o') {
+  if (isUnmodifiedKey(event, 'o')) {
     event.preventDefault()
     event.stopPropagation()
     preselectLabelForOverlay()
@@ -2224,47 +2388,14 @@ const handleKeyDown = (event: KeyboardEvent): void => {
     return
   }
 
-  if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'f') {
+  if (isUnmodifiedKey(event, 'f')) {
     event.preventDefault()
     event.stopPropagation()
     toggleFullscreen()
     return
   }
 
-  if (isLabelSelectActive.value) {
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      event.preventDefault()
-      event.stopPropagation()
-      const labels = timelineLabels.value
-      if (labels.length === 0) return
-      const currentIndex = labels.findIndex((l) => l.name === selectedLabelType.value)
-      const delta = event.key === 'ArrowUp' ? -1 : 1
-      const startIndex = currentIndex === -1 ? (delta > 0 ? -1 : 0) : currentIndex
-      const nextIndex = (startIndex + delta + labels.length) % labels.length
-      selectedLabelType.value = labels[nextIndex].name
-      return
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      event.stopPropagation()
-      closeLabelOverlay()
-      return
-    }
-  }
-
-  if (event.key === 'Escape') {
-    if (isLabelSelectActive.value) {
-      event.preventDefault()
-      event.stopPropagation()
-      closeLabelOverlay()
-      return
-    }
-    if (isMarkingLabel.value) {
-      event.preventDefault()
-      cancelLabelMarking()
-    }
-    return
-  }
+  if (handleLabelOverlayKey(event) || handleEscapeKey(event)) return
 
   const isPlus =
     event.key === '+' || event.code === 'NumpadAdd' || (event.code === 'Equal' && event.shiftKey)
@@ -2369,13 +2500,8 @@ const deleteExamination = async (examinationId: number): Promise<void> => {
     }
 
     showSuccessMessage(`Untersuchung ${examinationId} gelöscht`)
-  } catch (error: any) {
-    const errorMsg =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
-      String(error)
-    showErrorMessage(errorMsg, 'danger')
+  } catch (error: unknown) {
+    showErrorMessage(getRequestErrorMessage(error, String(error)), 'danger')
   }
 }
 
@@ -2407,14 +2533,17 @@ type SegmentValidationResponseState = {
   message: string
 }
 
-const normalizeSegmentValidationResponse = (responseData: any): SegmentValidationResponseState => {
-  const postProcessingJob = responseData?.postProcessingJob ?? responseData?.post_processing_job
+const normalizeSegmentValidationResponse = (value: unknown): SegmentValidationResponseState => {
+  const responseData = asRecord(value)
+  const postProcessingJob = asRecord(
+    responseData.postProcessingJob ?? responseData.post_processing_job
+  )
   const segmentAnnotationStatus =
-    responseData?.segmentAnnotationStatus ?? responseData?.segment_annotation_status
+    responseData.segmentAnnotationStatus ?? responseData.segment_annotation_status
   return {
-    jobStatus: String(postProcessingJob?.status ?? responseData?.status ?? ''),
+    jobStatus: String(postProcessingJob.status ?? responseData.status ?? ''),
     segmentAnnotationStatus: (segmentAnnotationStatus ?? 'not_started') as SegmentAnnotationStatus,
-    message: String(responseData?.error ?? responseData?.message ?? '')
+    message: String(responseData.error ?? responseData.message ?? '')
   }
 }
 
@@ -2661,9 +2790,8 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
 
     // Reload segments to reflect validation status + updated times
     await loadVideoSegments()
-  } catch (error: any) {
-    const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler'
-    showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`)
+  } catch (error: unknown) {
+    showErrorMessage(`Validierung fehlgeschlagen: ${getRequestErrorMessage(error)}`)
   } finally {
     if (validationRequestVideoId.value === videoId) {
       validationRequestVideoId.value = null
@@ -2696,14 +2824,17 @@ const setOutsideBlackeningRequestState = (videoId: number, isPending: boolean): 
   outsideBlackeningRequestVideoIds.value = nextRequestVideoIds
 }
 
-const normalizeOutsideBlackeningResponse = (responseData: any): OutsideBlackeningResponseState => {
-  const postProcessingJob = responseData?.postProcessingJob ?? responseData?.post_processing_job
+const normalizeOutsideBlackeningResponse = (value: unknown): OutsideBlackeningResponseState => {
+  const responseData = asRecord(value)
+  const postProcessingJob = asRecord(
+    responseData.postProcessingJob ?? responseData.post_processing_job
+  )
   return {
     outsideSegmentCount: Number(
-      responseData?.outsideSegmentCount ?? responseData?.outside_segment_count ?? 0
+      responseData.outsideSegmentCount ?? responseData.outside_segment_count ?? 0
     ),
-    jobStatus: String(postProcessingJob?.status ?? responseData?.status ?? ''),
-    message: String(responseData?.error ?? responseData?.message ?? '')
+    jobStatus: String(postProcessingJob.status ?? responseData.status ?? ''),
+    message: String(responseData.error ?? responseData.message ?? '')
   }
 }
 
@@ -2804,10 +2935,10 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
     }
 
     showErrorMessage('Unerwarteter Status beim Schwärzen der Außerhalb-Segmente.', 'danger')
-  } catch (error: any) {
-    const responseData = error?.response?.data
+  } catch (error: unknown) {
+    const responseData = getRequestErrorData(error)
     if (
-      responseData &&
+      Object.keys(responseData).length > 0 &&
       handleOutsideBlackeningResponseState(
         normalizeOutsideBlackeningResponse(responseData),
         videoId
@@ -2833,7 +2964,7 @@ const saveSegmentChanges = async (): Promise<void> => {
   try {
     await videoStore.persistDirtySegments()
     showSuccessMessage('Segment-Änderungen gespeichert')
-  } catch (error: any) {
+  } catch (error: unknown) {
     await guarded(Promise.reject(error))
   }
 }
@@ -2885,7 +3016,7 @@ const importPredictionSegmentsToCorrection = async (): Promise<void> => {
     segmentSourceMode.value = 'prediction_correction'
     await loadVideoSegments()
     showSuccessMessage('KI-Vorhersagen wurden als separater Korrektur-Track übernommen')
-  } catch (error: any) {
+  } catch (error: unknown) {
     await guarded(Promise.reject(error))
   } finally {
     isImportingPredictionSegments.value = false
@@ -2937,7 +3068,7 @@ const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
     showSuccessMessage(
       `KI-Vorhersagen neu berechnet (${timelineSegmentsForSelectedVideo.value.length} Segmente)`
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     await guarded(Promise.reject(error))
   } finally {
     isRerunningPredictionSegments.value = false
@@ -3263,6 +3394,69 @@ watch(
   white-space: nowrap;
 }
 
+.video-dropdown-trigger-content {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.video-dropdown-loading-panel,
+.video-dropdown-load-error {
+  margin-top: 0.5rem;
+  border: 1px solid #cfe2ff;
+  border-radius: 0.5rem;
+  background: #f5f9ff;
+  color: #334155;
+  padding: 0.7rem 0.8rem;
+}
+
+.video-dropdown-loading-heading {
+  margin-bottom: 0.5rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.video-dropdown-loading-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.video-dropdown-loading-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  background: #e7f1ff;
+  color: #0a58ca;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.25rem 0.55rem;
+}
+
+.video-dropdown-loading-stage.complete {
+  background: #d1e7dd;
+  color: #146c43;
+}
+
+.video-dropdown-loading-stage .spinner-border {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-width: 0.12em;
+}
+
+.video-dropdown-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-color: #f1aeb5;
+  background: #fff5f5;
+  color: #842029;
+  font-size: 0.84rem;
+}
+
 .video-dropdown-menu {
   position: absolute;
   top: calc(100% + 0.25rem);
@@ -3488,10 +3682,24 @@ watch(
   box-shadow: 0 0 0 0.2rem rgba(35, 146, 69, 0.3);
 }
 
-.validation-action-button-clicked {
-  border-color: #0f5a2b;
-  background: linear-gradient(135deg, #248649 0%, #176b37 100%);
-  box-shadow: 0 0 0 0.2rem rgba(36, 134, 73, 0.28);
+.validation-action-button-pending,
+.validation-action-button-pending:hover,
+.validation-action-button-pending:disabled {
+  border-color: #0aa2c0;
+  background: #cff4fc;
+  color: #055160;
+  box-shadow: none;
+  cursor: wait;
+  opacity: 1;
+}
+
+.validation-submitted-alert {
+  width: min(100%, 760px);
+  margin-bottom: 0.75rem;
+  border-left: 4px solid #0dcaf0;
+  color: #055160;
+  font-size: 0.9rem;
+  text-align: left;
 }
 
 .validation-action-icon {

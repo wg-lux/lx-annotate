@@ -1,13 +1,47 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { reactive } from 'vue'
 
+import type {
+  AnnotationInformationSource,
+  AnnotationTask,
+  AnnotationTaskMode,
+  FrameFileType
+} from '@/stores/annotationQueue'
 import FrameAnnotation from '../FrameAnnotation.vue'
+
+interface QueueStore {
+  selectedLabelGroupId: string | null
+  taskMode: AnnotationTaskMode
+  targetLabelName: string
+  filterLabelName: string | null
+  allowRandomFallback: boolean
+  informationSource: AnnotationInformationSource
+  frameFileType: FrameFileType
+  aiDatasetId: string | null
+  aiDatasetName: string | null
+  aiDatasetType: string | null
+  annotatorPrincipal: string | null
+  taskQueue: AnnotationTask[]
+  taskQuerySignature: string
+  setSelectedLabelGroupId: Mock
+  setTaskMode: Mock
+  setTargetLabelName: Mock
+  setFilterLabelName: Mock
+  setAllowRandomFallback: Mock
+  setInformationSource: Mock
+  setFrameFileType: Mock
+  setAiDataset: Mock
+  setAnnotatorPrincipal: Mock
+  clearQueue: Mock
+  fetchBatch: Mock
+  popNextTask: Mock
+}
 
 const hoisted = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
-  queueStore: null as any,
+  queueStore: {} as QueueStore,
   fetchAiDatasetOptions: vi.fn(),
   createObjectURL: vi.fn(),
   revokeObjectURL: vi.fn(),
@@ -44,8 +78,8 @@ vi.mock('@/stores/auth_kc', () => ({
   })
 }))
 
-function buildQueueStore(overrides: Record<string, any> = {}) {
-  const nextTasks = [
+function buildQueueStore(overrides: Partial<QueueStore> = {}) {
+  const nextTasks: Array<AnnotationTask | null> = [
     {
       id: 'task-1',
       data: {
@@ -87,7 +121,7 @@ function buildQueueStore(overrides: Record<string, any> = {}) {
     null
   ]
 
-  const store = reactive({
+  const store = reactive<QueueStore>({
     selectedLabelGroupId: '3',
     taskMode: 'random',
     targetLabelName: 'Polyp',
@@ -99,7 +133,7 @@ function buildQueueStore(overrides: Record<string, any> = {}) {
     aiDatasetName: null,
     aiDatasetType: null,
     annotatorPrincipal: null,
-    taskQueue: [] as any[],
+    taskQueue: [],
     taskQuerySignature: 'random|Polyp||frame_annotation_frontend|auto|1',
     setSelectedLabelGroupId: vi.fn(),
     setTaskMode: vi.fn(),
@@ -114,7 +148,7 @@ function buildQueueStore(overrides: Record<string, any> = {}) {
     fetchBatch: vi.fn().mockResolvedValue(undefined),
     popNextTask: vi.fn(() => nextTasks.shift() ?? null),
     ...overrides
-  } as Record<string, any>)
+  })
 
   store.setSelectedLabelGroupId = vi.fn((groupId: string | null) => {
     store.selectedLabelGroupId = groupId && groupId.trim() ? groupId : null
@@ -132,7 +166,13 @@ function buildQueueStore(overrides: Record<string, any> = {}) {
     store.allowRandomFallback = !!enabled
   })
   store.setInformationSource = vi.fn((source: string | null) => {
-    store.informationSource = source?.trim() || 'manual_annotation'
+    const normalizedSource = source?.trim()
+    store.informationSource =
+      normalizedSource === 'frame_annotation_frontend' ||
+      normalizedSource === 'human_annotation' ||
+      normalizedSource === 'lx_anonymizer_evaluation'
+        ? normalizedSource
+        : 'manual_annotation'
   })
   store.setFrameFileType = vi.fn((fileType: string | null) => {
     store.frameFileType = fileType === 'raw' || fileType === 'processed' ? fileType : 'auto'
@@ -273,7 +313,7 @@ describe('FrameAnnotation route', () => {
 
     expect(hoisted.get).toHaveBeenCalledWith('media/videos/label-sets/list/')
     expect(hoisted.fetchAiDatasetOptions).toHaveBeenCalledTimes(1)
-    expect(hoisted.queueStore.fetchBatch).toHaveBeenCalledWith(10)
+    expect(hoisted.queueStore!.fetchBatch).toHaveBeenCalledWith(10)
     expect(wrapper.get('[data-test="frame-number-badge"]').text()).toContain('Frame 5000')
     expect(wrapper.get('[data-test="frame-id-badge"]').text()).toContain('Frame-ID 101')
     expect(wrapper.get('[data-test="video-id-badge"]').text()).toContain('Video-ID 55')
@@ -310,7 +350,7 @@ describe('FrameAnnotation route', () => {
         }
       ]
     })
-    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2)
+    expect(hoisted.queueStore!.popNextTask).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Keine Annotationsaufgaben verfügbar.')
   })
 
@@ -355,9 +395,9 @@ describe('FrameAnnotation route', () => {
     mountFrameAnnotation()
     await flushPromises()
 
-    expect(hoisted.queueStore.setSelectedLabelGroupId).toHaveBeenCalledWith('4')
-    expect(hoisted.queueStore.fetchBatch).toHaveBeenCalledTimes(1)
-    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(1)
+    expect(hoisted.queueStore!.setSelectedLabelGroupId).toHaveBeenCalledWith('4')
+    expect(hoisted.queueStore!.fetchBatch).toHaveBeenCalledTimes(1)
+    expect(hoisted.queueStore!.popNextTask).toHaveBeenCalledTimes(1)
   })
 
   it('includes the selected ai dataset id when saving frame labels', async () => {
@@ -404,21 +444,21 @@ describe('FrameAnnotation route', () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
 
-    expect(hoisted.queueStore.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7')
+    expect(hoisted.queueStore!.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7')
 
     await wrapper.get('[data-test="annotator-override-input"]').setValue('reviewer-two')
     await wrapper.get('[data-test="annotator-override-apply"]').trigger('click')
     await flushPromises()
 
-    expect(hoisted.queueStore.setAnnotatorPrincipal).toHaveBeenLastCalledWith('reviewer-two')
-    expect(hoisted.queueStore.clearQueue).toHaveBeenCalled()
-    expect(hoisted.queueStore.fetchBatch).toHaveBeenCalledTimes(2)
+    expect(hoisted.queueStore!.setAnnotatorPrincipal).toHaveBeenLastCalledWith('reviewer-two')
+    expect(hoisted.queueStore!.clearQueue).toHaveBeenCalled()
+    expect(hoisted.queueStore!.fetchBatch).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Aktiver Annotator: reviewer-two (Override)')
 
     await wrapper.get('[data-test="annotator-override-revert"]').trigger('click')
     await flushPromises()
 
-    expect(hoisted.queueStore.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7')
+    expect(hoisted.queueStore!.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7')
     expect(wrapper.text()).toContain('Aktiver Annotator: oidc:kc-user-7')
   })
 
@@ -432,7 +472,7 @@ describe('FrameAnnotation route', () => {
     expect(wrapper.get('[data-test="annotator-identity-readonly"]').text()).toContain(
       'Servergebundene Identität: oidc:kc-user-7'
     )
-    expect(hoisted.queueStore.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7')
+    expect(hoisted.queueStore!.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7')
   })
 
   it('lets the user switch the active dataset queue on the frame screen', async () => {
@@ -444,7 +484,7 @@ describe('FrameAnnotation route', () => {
     await wrapper.get('[data-test="frame-ai-dataset-select"]').setValue('9')
     await flushPromises()
 
-    expect(hoisted.queueStore.setAiDataset).toHaveBeenCalledWith('PHI Dataset', 'image', 9)
+    expect(hoisted.queueStore!.setAiDataset).toHaveBeenCalledWith('PHI Dataset', 'image', 9)
     expect(wrapper.text()).toContain('Aktive KI-Datensatz-Warteschlange: PHI Dataset (image)')
     expect(wrapper.text()).toContain('ID 9')
     expect(wrapper.text()).toContain(
@@ -461,8 +501,8 @@ describe('FrameAnnotation route', () => {
     await wrapper.get('#frame-file-type').setValue('processed')
     await flushPromises()
 
-    expect(hoisted.queueStore.setFrameFileType).toHaveBeenCalledWith('processed')
-    expect(hoisted.queueStore.clearQueue).toHaveBeenCalled()
+    expect(hoisted.queueStore!.setFrameFileType).toHaveBeenCalledWith('processed')
+    expect(hoisted.queueStore!.clearQueue).toHaveBeenCalled()
   })
 
   it('shows a visible extraction status while the backend reports pending frame extraction', async () => {
@@ -641,9 +681,9 @@ describe('FrameAnnotation route', () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
 
-    expect(hoisted.queueStore.setTaskMode).toHaveBeenCalledWith('random')
-    expect(hoisted.queueStore.setTargetLabelName).toHaveBeenCalledWith('sensitive_region')
-    expect(hoisted.queueStore.setInformationSource).toHaveBeenCalledWith('lx_anonymizer_evaluation')
+    expect(hoisted.queueStore!.setTaskMode).toHaveBeenCalledWith('random')
+    expect(hoisted.queueStore!.setTargetLabelName).toHaveBeenCalledWith('sensitive_region')
+    expect(hoisted.queueStore!.setInformationSource).toHaveBeenCalledWith('lx_anonymizer_evaluation')
     expect(wrapper.get('[data-test="box-label-select"]').element).toHaveProperty('disabled', true)
     expect(wrapper.text()).toContain('Boxen werden als sensitive_region gespeichert.')
 
@@ -682,7 +722,7 @@ describe('FrameAnnotation route', () => {
         }
       ]
     })
-    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2)
+    expect(hoisted.queueStore!.popNextTask).toHaveBeenCalledTimes(2)
   })
 
   it('completes a box task with a positive classification for the box label', async () => {
@@ -718,6 +758,6 @@ describe('FrameAnnotation route', () => {
         annotations: expect.arrayContaining([expect.objectContaining({ labelId: 11, value: true })])
       })
     )
-    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2)
+    expect(hoisted.queueStore!.popNextTask).toHaveBeenCalledTimes(2)
   })
 })

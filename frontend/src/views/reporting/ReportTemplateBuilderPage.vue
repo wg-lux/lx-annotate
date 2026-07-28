@@ -670,6 +670,7 @@ import type {
   ReportTemplateRuntimePayload,
   ReportTemplateRuntimeValidationResult
 } from '@/types/reportTemplate'
+import { reportingApiErrorMessage } from './reportingError'
 
 type CoreConceptPayload = {
   examination?: Array<{ name?: string }>
@@ -1035,8 +1036,8 @@ async function loadCoreConcepts() {
     if (!examination.value && examinationOptions.value.length) {
       examination.value = examinationOptions.value[0]
     }
-  } catch (error: any) {
-    setError(error?.response?.data?.detail || error?.message || 'Core concepts konnten nicht geladen werden.')
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Core concepts konnten nicht geladen werden.'))
   } finally {
     catalogLoading.value = false
   }
@@ -1055,8 +1056,8 @@ async function refreshTemplateOptions() {
     if (!templateName.value && templateOptions.value.length) {
       templateName.value = templateOptions.value[0].name
     }
-  } catch (error: any) {
-    setError(error?.response?.data?.detail || error?.message || 'Templates konnten nicht geladen werden.')
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Templates konnten nicht geladen werden.'))
   } finally {
     templatesLoading.value = false
   }
@@ -1074,8 +1075,8 @@ async function loadSelectedTemplate() {
     examination.value = template.examination || examination.value
     runtimeValidationResult.value = null
     definitionValidationResult.value = null
-  } catch (error: any) {
-    setError(error?.response?.data?.detail || error?.message || 'Vorlage konnte nicht geladen werden.')
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht geladen werden.'))
   } finally {
     templateLoading.value = false
   }
@@ -1087,8 +1088,8 @@ async function runDefinitionValidation() {
   try {
     definitionValidationResult.value = await validateReportTemplateDefinition(moduleName.value, templateName.value)
     successMessage.value = `Strukturprüfung für "${templateName.value}" abgeschlossen.`
-  } catch (error: any) {
-    setError(error?.response?.data?.detail || error?.message || 'Strukturprüfung fehlgeschlagen.')
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Strukturprüfung fehlgeschlagen.'))
   } finally {
     definitionLoading.value = false
   }
@@ -1108,8 +1109,8 @@ async function runRuntimeValidation() {
       runtimePayload.value
     )
     successMessage.value = `Eingabeprüfung für "${selectedTemplate.value.name}" abgeschlossen.`
-  } catch (error: any) {
-    setError(error?.response?.data?.detail || error?.message || 'Eingabeprüfung fehlgeschlagen.')
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Eingabeprüfung fehlgeschlagen.'))
   } finally {
     runtimeLoading.value = false
   }
@@ -1141,8 +1142,8 @@ async function saveTemplate() {
     showSavePrompt.value = false
     await refreshTemplateOptions()
     await loadSelectedTemplate()
-  } catch (error: any) {
-    setError(error?.response?.data?.detail || error?.message || 'Vorlage konnte nicht gespeichert werden.')
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht gespeichert werden.'))
   } finally {
     saving.value = false
   }

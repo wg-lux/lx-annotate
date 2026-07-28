@@ -2,12 +2,19 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import axios from 'axios'
 import { endpoints } from '@/types/api/endpoints'
 
 // Re-export types for easier access
 export type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
 
 export const usePatientStore = defineStore('patient', () => {
+    const apiErrorDetail = (caught: unknown): string | null =>
+        axios.isAxiosError<{ detail?: string }>(caught)
+            ? caught.response?.data?.detail || caught.message
+            : caught instanceof Error
+              ? caught.message
+              : null
     // State
     const patients = ref<Patient[]>([])
     const currentPatient = ref<Patient | null>(null)
@@ -41,8 +48,8 @@ export const usePatientStore = defineStore('patient', () => {
             error.value = null
             const response = await axiosInstance.get(r(endpoints.patient.patients))
             patients.value = response.data.results || response.data
-        } catch (err: any) {
-            error.value = 'Fehler beim Laden der Patienten: ' + (err.response?.data?.detail || err.message)
+        } catch (err: unknown) {
+            error.value = 'Fehler beim Laden der Patienten: ' + (apiErrorDetail(err) || 'Unbekannter Fehler')
             console.error('Fetch patients error:', err)
         } finally {
             loading.value = false
@@ -53,7 +60,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             const response = await axiosInstance.get(r(endpoints.patient.genders))
             genders.value = response.data.results || response.data
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Fetch genders error:', err)
             error.value = 'Fehler beim Laden der Geschlechter'
         }
@@ -63,7 +70,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             const response = await axiosInstance.get(r(endpoints.patient.centers))
             centers.value = response.data.results || response.data
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Fetch centers error:', err)
             error.value = 'Fehler beim Laden der Zentren'
         }
@@ -84,8 +91,8 @@ export const usePatientStore = defineStore('patient', () => {
             const newPatient = response.data
             patients.value.push(newPatient)
             return newPatient
-        } catch (err: any) {
-            error.value = err.response?.data?.detail || 'Fehler beim Erstellen des Patienten'
+        } catch (err: unknown) {
+            error.value = apiErrorDetail(err) || 'Fehler beim Erstellen des Patienten'
             throw err
         } finally {
             loading.value = false
@@ -103,8 +110,8 @@ export const usePatientStore = defineStore('patient', () => {
                 patients.value[index] = updatedPatient
             }
             return updatedPatient
-        } catch (err: any) {
-            error.value = err.response?.data?.detail || 'Fehler beim Aktualisieren des Patienten'
+        } catch (err: unknown) {
+            error.value = apiErrorDetail(err) || 'Fehler beim Aktualisieren des Patienten'
             throw err
         } finally {
             loading.value = false
@@ -117,8 +124,8 @@ export const usePatientStore = defineStore('patient', () => {
             error.value = null
             await axiosInstance.delete(r(endpoints.patient.patientById(id)))
             patients.value = patients.value.filter(p => p.id !== id)
-        } catch (err: any) {
-            error.value = err.response?.data?.detail || 'Fehler beim Löschen des Patienten'
+        } catch (err: unknown) {
+            error.value = apiErrorDetail(err) || 'Fehler beim Löschen des Patienten'
             throw err
         } finally {
             loading.value = false

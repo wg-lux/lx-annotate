@@ -55,7 +55,7 @@
               <span class="nav-link-text ms-1">Administration</span>
             </router-link>
           </li>
-          <li class="nav-item" v-can="'page.patients.view:GET'">
+          <li v-can="'page.patients.view:GET'" class="nav-item">
             <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                <i class="ni ni-circle-08 opacity-10"></i>
@@ -181,7 +181,7 @@
                 <span class="nav-link-text ms-1">Registerstudien</span>
               </router-link>
             </li>
-                        <li class="nav-item" v-can="'page.anonymization.metrics:GET'">
+                        <li v-can="'page.anonymization.metrics:GET'" class="nav-item">
               <router-link
                 to="/anonymisierung/metriken"
                 class="nav-link"
@@ -348,6 +348,22 @@ export default {
       return '/anonymisierung/validierung'
     }
   },
+  mounted() {
+    document.addEventListener('toggleSidebar', this.handleToggleSidebarEvent);
+    window.addEventListener('resize', this.handleWindowResize);
+    this.refreshWorkflowCounts();
+    this.workflowCountsInterval = window.setInterval(() => {
+      this.refreshWorkflowCounts();
+    }, 30000);
+  },
+  beforeUnmount() {
+    document.removeEventListener('toggleSidebar', this.handleToggleSidebarEvent);
+    window.removeEventListener('resize', this.handleWindowResize);
+    if (this.workflowCountsInterval) {
+      window.clearInterval(this.workflowCountsInterval);
+      this.workflowCountsInterval = null;
+    }
+  },
   methods: {
     toggleSidebar() {
       this.isSidebarOpen = !this.isSidebarOpen;
@@ -392,22 +408,6 @@ export default {
       if (window.innerWidth >= 1200) {
         this.isSidebarOpen = false;
       }
-    }
-  },
-  mounted() {
-    document.addEventListener('toggleSidebar', this.handleToggleSidebarEvent);
-    window.addEventListener('resize', this.handleWindowResize);
-    this.refreshWorkflowCounts();
-    this.workflowCountsInterval = window.setInterval(() => {
-      this.refreshWorkflowCounts();
-    }, 30000);
-  },
-  beforeUnmount() {
-    document.removeEventListener('toggleSidebar', this.handleToggleSidebarEvent);
-    window.removeEventListener('resize', this.handleWindowResize);
-    if (this.workflowCountsInterval) {
-      window.clearInterval(this.workflowCountsInterval);
-      this.workflowCountsInterval = null;
     }
   }
 }

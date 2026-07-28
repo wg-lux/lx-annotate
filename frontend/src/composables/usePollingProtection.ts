@@ -1,7 +1,11 @@
 // frontend/src/composables/usePollingProtection.ts
 
 import { ref, computed } from 'vue'
-import { useMediaManagement } from '@/api/mediaManagement'
+import {
+  useMediaManagement,
+  type AnonymizationStatusResponse,
+  type ProcessingResponse
+} from '@/api/mediaManagement'
 
 export type ProtectedMediaType = 'video' | 'pdf'
 
@@ -81,11 +85,11 @@ export function usePollingProtection() {
   const getStatusSafeWithProtection = async (
     fileId: number,
     mediaType: ProtectedMediaType
-  ): Promise<any> => {
+  ): Promise<AnonymizationStatusResponse | null> => {
     try {
       const result = await getStatusSafe(fileId, mediaType)
       return result
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Status check failed for ${mediaType}:${fileId}:`, error)
       throw error
     }
@@ -97,16 +101,13 @@ export function usePollingProtection() {
   const startAnonymizationSafeWithProtection = async (
     fileId: number,
     mediaType: ProtectedMediaType
-  ): Promise<any> => {
+  ): Promise<ProcessingResponse | null> => {
     const acquired = acquireProcessingLock(fileId, mediaType)
     if (!acquired) {
       throw new Error('Datei wird bereits verarbeitet')
     }
     try {
-      const result = await startAnonymizationSafe(fileId)
-      return result
-    } catch (error) {
-      throw error
+      return await startAnonymizationSafe(fileId)
     } finally {
       // Lock immer freigeben, damit UI nicht gebremst wird
       releaseProcessingLock(fileId, mediaType)
@@ -119,7 +120,7 @@ export function usePollingProtection() {
   const validateAnonymizationSafeWithProtection = async (
     fileId: number,
     mediaType: ProtectedMediaType
-  ): Promise<any> => {
+  ): Promise<ProcessingResponse | null> => {
     const acquired = acquireProcessingLock(fileId, mediaType)
     if (!acquired) {
       // Falls parallel etwas läuft, trotzdem versuchen (Validation ist idempotent)
@@ -128,7 +129,7 @@ export function usePollingProtection() {
     try {
       const result = await validateAnonymizationSafe(fileId)
       return result
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Validation failed for ${mediaType}:${fileId}:`, error)
       throw error
     } finally {

@@ -28,6 +28,12 @@ function buildTask(frameId: number) {
   }
 }
 
+type TaskBatchResponse = {
+  data: {
+    tasks: ReturnType<typeof buildTask>[]
+  }
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason?: unknown) => void
@@ -55,7 +61,7 @@ describe('annotationQueue store', () => {
   })
 
   it('discards stale batch results after clearQueue invalidates the queue generation', async () => {
-    const staleRequest = deferred<any>()
+    const staleRequest = deferred<TaskBatchResponse>()
     hoisted.get
       .mockReturnValueOnce(staleRequest.promise)
       .mockResolvedValueOnce({ data: { tasks: [buildTask(202)] } })
@@ -80,7 +86,7 @@ describe('annotationQueue store', () => {
   })
 
   it('discards stale batch results when the task query signature changes', async () => {
-    const staleRequest = deferred<any>()
+    const staleRequest = deferred<TaskBatchResponse>()
     hoisted.get
       .mockReturnValueOnce(staleRequest.promise)
       .mockResolvedValueOnce({ data: { tasks: [buildTask(303)] } })
@@ -107,7 +113,7 @@ describe('annotationQueue store', () => {
   })
 
   it('does not expose stale errors after the task query signature changes', async () => {
-    const staleRequest = deferred<any>()
+    const staleRequest = deferred<TaskBatchResponse>()
     hoisted.get.mockReturnValueOnce(staleRequest.promise)
 
     const store = useAnnotationQueueStore()

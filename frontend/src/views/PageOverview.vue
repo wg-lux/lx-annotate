@@ -10,15 +10,11 @@
 </template>
 
 <script>
-import NavbarComponent from '../components/Menus/NavbarComponent.vue';
-import SidebarComponent from '../components/Menus/SidebarComponent.vue';
 import DashboardComponent from '../components/Dashboard/DashboardComponent.vue';
 
 export default {
 name: 'Dashboard',
 components: {
-NavbarComponent,
-SidebarComponent,
 DashboardComponent
 },
 };

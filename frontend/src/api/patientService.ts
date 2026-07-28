@@ -1,5 +1,5 @@
 import axiosInstance, { r } from './axiosInstance';
-import type { AxiosResponse } from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 import { endpoints } from '@/types/api/endpoints'
 
 // Shape returned by backend (snake_case); we'll map in the component
@@ -124,20 +124,20 @@ export const patientService = {
       const response: AxiosResponse<Patient> = await axiosInstance.post(r(endpoints.patient.patients), patientData);
       console.log('PatientService: Erfolgreiche Antwort erhalten:', response.data);
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('PatientService: Fehler beim Hinzufügen des Patienten:', error);
       
       // Detaillierte Fehleranalyse
-      if (error.response) {
+      if (axios.isAxiosError(error) && error.response) {
         console.error('Response Error:', {
           status: error.response.status,
           statusText: error.response.statusText,
           data: error.response.data
         });
-      } else if (error.request) {
+      } else if (axios.isAxiosError(error) && error.request) {
         console.error('Request Error:', error.request);
       } else {
-        console.error('General Error:', error.message);
+        console.error('General Error:', error instanceof Error ? error.message : String(error));
       }
       
       throw error;
@@ -167,20 +167,7 @@ export const patientService = {
   async getGenders(): Promise<Gender[]> {
     try {
       // Verwende den korrekten Gender-Endpunkt
-      const response: AxiosResponse<Gender[]> = await axiosInstance.get(r(endpoints.patient.genders)).catch(async () => {
-        // Fallback: Standard Gender-Optionen
-        return { 
-          data: [
-            { id: 1, name: 'female', nameDe: 'Weiblich' },
-            { id: 2, name: 'male', nameDe: 'Männlich' },
-            { id: 3, name: 'diverse', nameDe: 'Divers' }
-          ] as Gender[],
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: {} as any
-        } as AxiosResponse<Gender[]>;
-      });
+      const response: AxiosResponse<Gender[]> = await axiosInstance.get(r(endpoints.patient.genders));
       return response.data;
     } catch (error) {
       console.error('Error getting genders:', error);
@@ -196,18 +183,7 @@ export const patientService = {
   async getCenters(): Promise<Center[]> {
     try {
       // Versuche Centers über verschiedene mögliche Endpunkte zu laden
-      const response: AxiosResponse<Center[]> = await axiosInstance.get(r(endpoints.patient.centers)).catch(async () => {
-        // Fallback über andere verfügbare Endpunkte
-        return { 
-          data: [
-            { id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }
-          ] as Center[],
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: {} as any
-        } as AxiosResponse<Center[]>;
-      });
+      const response: AxiosResponse<Center[]> = await axiosInstance.get(r(endpoints.patient.centers));
       return response.data;
     } catch (error) {
       console.error('Error getting centers:', error);
@@ -233,19 +209,18 @@ export const patientService = {
       isRealPerson: patientForm.isRealPerson ?? true
     };
 
-    // Entferne leere Strings
-    Object.keys(formattedData).forEach(key => {
-      const value = (formattedData as any)[key];
-      if (value === '') {
-        delete (formattedData as any)[key];
-      }
-    });
+    if (formattedData.email === '') delete formattedData.email;
+    if (formattedData.phone === '') delete formattedData.phone;
+    if (formattedData.gender === '') delete formattedData.gender;
+    if (formattedData.patientHash === '') delete formattedData.patientHash;
+    if (formattedData.center === '') delete formattedData.center;
+    if (formattedData.centerKey === '') delete formattedData.centerKey;
 
     if (formattedData.center === null && !formattedData.centerKey) {
-      delete (formattedData as any).center;
+      delete formattedData.center;
     }
     if (formattedData.centerKey === null) {
-      delete (formattedData as any).centerKey;
+      delete formattedData.centerKey;
     }
 
     return formattedData;

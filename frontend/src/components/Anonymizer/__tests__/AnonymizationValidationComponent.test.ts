@@ -6,9 +6,36 @@ import axiosInstance from '@/api/axiosInstance'
 import AnonymizationValidationComponent from '../AnonymizationValidationComponent.vue'
 
 const hoisted = vi.hoisted(() => ({
-  anonymizationStoreRef: { current: null as any },
-  mediaStoreRef: { current: null as any },
-  toastStoreRef: { current: null as any },
+  anonymizationStoreRef: {
+    current: {} as {
+      loading: boolean
+      error: string | null
+      current: Record<string, unknown>
+      overview: Array<Record<string, unknown>>
+      isAnyFileProcessing: boolean
+      processingFiles: unknown[]
+      fetchOverview: ReturnType<typeof vi.fn>
+      setCurrentForValidation: ReturnType<typeof vi.fn>
+      fetchNext: ReturnType<typeof vi.fn>
+    }
+  },
+  mediaStoreRef: {
+    current: {} as {
+      isPdf: boolean
+      isVideo: boolean
+      setCurrentByKey: ReturnType<typeof vi.fn>
+      rememberType: ReturnType<typeof vi.fn>
+      detectMediaType: ReturnType<typeof vi.fn>
+    }
+  },
+  toastStoreRef: {
+    current: {} as {
+      success: ReturnType<typeof vi.fn>
+      error: ReturnType<typeof vi.fn>
+      info: ReturnType<typeof vi.fn>
+      warning: ReturnType<typeof vi.fn>
+    }
+  },
   routerPush: vi.fn(),
   useAuthenticatedVideoStream: vi.fn()
 }))
@@ -154,16 +181,16 @@ describe('AnonymizationValidationComponent', () => {
       if (url === 'anonymization/document-types/') {
         return {
           data: [{ value: 'report_final', label: 'report_final' }]
-        } as any
+        } as never
       }
       if (url === 'media/pdfs/5/case-resolution/') {
-        return { data: {} } as any
+        return { data: {} } as never
       }
       if (url === 'media/pdfs/5/') {
-        return { data: {} } as any
+        return { data: {} } as never
       }
       if (url === 'examination/patient-examinations/') {
-        return { data: [] } as any
+        return { data: [] } as never
       }
       if (url === 'media/videos/video-correction/5/anonymization/') {
         return {
@@ -180,9 +207,9 @@ describe('AnonymizationValidationComponent', () => {
             },
             latestRun: null
           }
-        } as any
+        } as never
       }
-      return { data: {} } as any
+      return { data: {} } as never
     })
   })
 
@@ -237,7 +264,7 @@ describe('AnonymizationValidationComponent', () => {
           patient_examination_id: 42
         }
       }
-    } as any)
+    } as never)
 
     const wrapper = mountComponent()
     await flushPromises()
@@ -273,7 +300,7 @@ describe('AnonymizationValidationComponent', () => {
           patient_examination_id: 42
         }
       }
-    } as any)
+    } as never)
 
     const wrapper = mountComponent()
     await flushPromises()

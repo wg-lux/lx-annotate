@@ -2,16 +2,17 @@
 Base Django settings.
 """
 
-from typing import Any, cast
 import os
 from importlib.util import find_spec
+from logging import getLogger
 from pathlib import Path
+from typing import Any, cast
 
 from django.db import models
+from endoreg_db.utils.file_operations import ensure_directory
 from kombu import Exchange, Queue
 
 from lx_annotate.settings.config import load_config
-from logging import getLogger
 
 logger = getLogger(__name__)
 # -----------------------------------------------------------------------------
@@ -37,9 +38,9 @@ def _resolve_runtime_data_dir() -> Path:
 # XDG Data Logic -> Root Data Directory support
 XDG_DATA_HOME = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 APP_DATA_DIR = _resolve_runtime_data_dir()
-APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
+ensure_directory(APP_DATA_DIR)
 APP_STORAGE_DIR = APP_DATA_DIR / "storage"
-APP_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+ensure_directory(APP_STORAGE_DIR)
 
 PROTECTED_MEDIA_URL = (
     str(os.getenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/") or "").strip()
@@ -60,7 +61,7 @@ except ValueError:
         APP_STORAGE_DIR,
     )
     PROTECTED_MEDIA_ROOT = APP_STORAGE_DIR.resolve()
-PROTECTED_MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+ensure_directory(PROTECTED_MEDIA_ROOT)
 
 STREAMABLE_VIDEO_ROOT = (
     Path(
@@ -97,7 +98,7 @@ for _path in (
     STREAMABLE_RAW_VIDEO_ROOT,
     STREAMABLE_PROCESSED_VIDEO_ROOT,
 ):
-    _path.mkdir(parents=True, exist_ok=True)
+    ensure_directory(_path)
 
 # Defaults for safe dev settings and fallback in case of non expected service deployment
 os.environ.setdefault("LX_ANNOTATE_DATA_DIR", str(APP_DATA_DIR))
@@ -558,12 +559,10 @@ STATIC_URL = "/static/"
 # DESTINATION: Where 'collectstatic' copies files TO (Production serving folder)
 # Keep as string because Django settings expect STATIC_ROOT to be a string.
 STATIC_ROOT = str(REPO_ROOT / "staticfiles")
-# Create the directory if it doesn't exist (using Path for the operation)
-Path(STATIC_ROOT).mkdir(parents=True, exist_ok=True)
 # SOURCES: Where Django looks for files to collect
 STATICFILES_DIRS = [
     # Root source directory so /static/* and /static/assets/* resolve correctly.
-    REPO_ROOT / "static",
+    (REPO_ROOT / "static"),
 ]
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -580,7 +579,6 @@ else:
     MEDIA_URL = _configured_media_url
 os.environ["MEDIA_URL"] = MEDIA_URL
 MEDIA_ROOT = PROTECTED_MEDIA_ROOT
-MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 DEFAULT_STORAGE_BACKEND = "lx_annotate.storage.encrypted.EncryptedStorage"
 
 STORAGES = {

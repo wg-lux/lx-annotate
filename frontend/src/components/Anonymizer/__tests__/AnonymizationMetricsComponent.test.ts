@@ -5,7 +5,7 @@ import { reactive } from 'vue'
 import AnonymizationMetricsComponent from '../AnonymizationMetricsComponent.vue'
 
 const hoisted = vi.hoisted(() => ({
-  storeRef: { current: null as any }
+  storeRef: { current: {} as ReturnType<typeof buildStore> }
 }))
 
 vi.mock('@/stores/anonymizationMetricsStore', () => ({

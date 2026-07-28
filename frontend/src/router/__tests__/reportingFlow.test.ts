@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory } from 'vue-router'
 
@@ -33,10 +33,16 @@ function createDirtyDraft(patientExaminationId: number) {
 
 describe('reporting routes', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     setActivePinia(createPinia())
     vi.mocked(savePatientExaminationDraft).mockResolvedValue({
       updatedAt: '2026-07-20T00:00:01.000Z'
     } as Awaited<ReturnType<typeof savePatientExaminationDraft>>)
+  })
+
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
   })
 
   it.each([
@@ -84,6 +90,7 @@ describe('reporting routes', () => {
     await router.push('/reporting/123/report-editor')
 
     await router.push('/reporting/123/finalized')
+    await vi.advanceTimersByTimeAsync(1500)
 
     expect(savePatientExaminationDraft).not.toHaveBeenCalled()
     expect(router.currentRoute.value.path).toBe('/reporting/123/finalized')

@@ -88,7 +88,7 @@
             </div>
 
             <div class="col-lg-8">
-              <div class="card border h-100" v-if="selectedSegment">
+              <div v-if="selectedSegment" class="card border h-100">
                 <div class="card-header d-flex justify-content-between align-items-center bg-light">
                   <div>
                     <h6 class="mb-0">
@@ -232,6 +232,7 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors'
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { reportingApiErrorMessage } from './reportingError'
 import { endpoints } from '@/types/api/endpoints'
 
 type SegmentFrameItem = {
@@ -360,9 +361,11 @@ async function loadFrameSelectorState() {
     }
     syncSelectionDefaults()
     successMessage.value = 'Segment-Frame-Status geladen.'
-  } catch (e: any) {
-    errorMessage.value =
-      e?.response?.data?.detail || e?.message || 'Fehler beim Laden der Segment-Frame-Auswahl.'
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(
+      e,
+      'Fehler beim Laden der Segment-Frame-Auswahl.'
+    )
   } finally {
     loading.value = false
   }
@@ -404,9 +407,8 @@ async function patchSegmentAction(action: 'random' | 'step' | 'clear', step?: nu
     }
     syncSelectionDefaults()
     successMessage.value = 'Segment aktualisiert.'
-  } catch (e: any) {
-    errorMessage.value =
-      e?.response?.data?.detail || e?.message || 'Fehler beim Aktualisieren des Segments.'
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Aktualisieren des Segments.')
   } finally {
     loading.value = false
   }
@@ -439,8 +441,8 @@ async function setFrameManual() {
     }
     syncSelectionDefaults()
     successMessage.value = 'Frame manuell gesetzt.'
-  } catch (e: any) {
-    errorMessage.value = e?.response?.data?.detail || e?.message || 'Fehler beim Setzen des Frames.'
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Setzen des Frames.')
   } finally {
     loading.value = false
   }

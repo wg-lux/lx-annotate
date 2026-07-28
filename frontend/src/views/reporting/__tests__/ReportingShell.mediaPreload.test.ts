@@ -4,65 +4,84 @@ import { reactive, ref } from 'vue'
 
 import ReportingShell from '../ReportingShell.vue'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
+import type { TerminologyBundleVersion } from '@/api/terminologyApi'
+import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
+import type { ReportingRuntimeDraft } from '@/stores/reportingFlowStore'
 
-const hoisted = vi.hoisted(() => ({
-  flowRef: { current: null as any },
-  routeRef: {
-    current: {
-      path: '/reporting/314/findings',
-      params: { patient_examination_id: '314' }
-    }
-  },
-  routerRef: {
-    current: {
-      push: vi.fn()
-    }
-  },
-  axiosApi: {
-    get: vi.fn()
-  },
-  findingsApi: {
-    getExaminationFindings: vi.fn()
-  },
-  reportTemplatesApi: {
-    fetchReportTemplatesByExamination: vi.fn(),
-    fetchReportTemplateByName: vi.fn(),
-    buildReportTemplateRuntimePayload: vi.fn()
-  },
-  reportDraftApi: {
-    fetchPatientExaminationDraft: vi.fn()
-  },
-  terminologyStore: {
-    bundles: [],
-    activeBundle: null as any,
-    registryPath: '',
-    loading: false,
-    selecting: false,
-    error: null as string | null,
-    selectedMedicalField: 'gastroenterology',
-    lastSelectionCounts: null as Record<string, number> | null,
-    activeModuleName: 'report_template_examples',
-    activeBundleKey: '',
-    activeBundleLabel: 'Standard-Terminologie',
-    filteredBundles: [],
-    medicalFieldLabel: 'Gastroenterologie',
-    medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
-    bundleKey: vi.fn((bundle: any) => `${bundle.moduleName}@@${bundle.version}`),
-    findBundleByKey: vi.fn(),
-    importBundle: vi.fn(),
-    importBundleFolder: vi.fn(),
-    loadBundles: vi.fn(),
-    selectBundle: vi.fn(),
-    setMedicalField: vi.fn()
-  },
-  timelineApi: {
-    fetchPatientTimelineLatest: vi.fn(),
-    pickPreferredStream: vi.fn((options: Array<{ type: string; url: string }>) => {
-      return options.find((option) => option.type === 'processed')?.url ?? null
-    })
-  },
-  useAuthenticatedVideoStream: vi.fn()
-}))
+const hoisted = vi.hoisted(() => {
+  let flowFixture: ReturnType<typeof buildFlowStore> | undefined
+  return {
+    flowRef: {
+      get current(): ReturnType<typeof buildFlowStore> {
+        if (flowFixture === undefined) {
+          throw new Error('Reporting flow fixture was not initialized.')
+        }
+        return flowFixture
+      },
+      set current(value: ReturnType<typeof buildFlowStore>) {
+        flowFixture = value
+      }
+    },
+    routeRef: {
+      current: {
+        path: '/reporting/314/findings',
+        params: { patient_examination_id: '314' }
+      }
+    },
+    routerRef: {
+      current: {
+        push: vi.fn()
+      }
+    },
+    axiosApi: {
+      get: vi.fn()
+    },
+    findingsApi: {
+      getExaminationFindings: vi.fn()
+    },
+    reportTemplatesApi: {
+      fetchReportTemplatesByExamination: vi.fn(),
+      fetchReportTemplateByName: vi.fn(),
+      buildReportTemplateRuntimePayload: vi.fn()
+    },
+    reportDraftApi: {
+      fetchPatientExaminationDraft: vi.fn()
+    },
+    terminologyStore: {
+      bundles: [],
+      activeBundle: null as TerminologyBundleVersion | null,
+      registryPath: '',
+      loading: false,
+      selecting: false,
+      error: null as string | null,
+      selectedMedicalField: 'gastroenterology',
+      lastSelectionCounts: null as Record<string, number> | null,
+      activeModuleName: 'report_template_examples',
+      activeBundleKey: '',
+      activeBundleLabel: 'Standard-Terminologie',
+      filteredBundles: [],
+      medicalFieldLabel: 'Gastroenterologie',
+      medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
+      bundleKey: vi.fn(
+        (bundle: Pick<TerminologyBundleVersion, 'moduleName' | 'version'>) =>
+          `${bundle.moduleName}@@${bundle.version}`
+      ),
+      findBundleByKey: vi.fn(),
+      importBundle: vi.fn(),
+      importBundleFolder: vi.fn(),
+      loadBundles: vi.fn(),
+      selectBundle: vi.fn(),
+      setMedicalField: vi.fn()
+    },
+    timelineApi: {
+      fetchPatientTimelineLatest: vi.fn(),
+      pickPreferredStream: vi.fn((options: Array<{ type: string; url: string }>) => {
+        return options.find((option) => option.type === 'processed')?.url ?? null
+      })
+    },
+    useAuthenticatedVideoStream: vi.fn()
+  }
+})
 
 vi.mock('@/stores/reportingFlowStore', () => ({
   useReportingFlowStore: () => hoisted.flowRef.current
@@ -73,7 +92,7 @@ vi.mock('@/stores/terminologyStore', () => ({
 }))
 
 vi.mock('vue-router', async () => {
-  const actual = await vi.importActual<any>('vue-router')
+  const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
   return {
     ...actual,
     useRoute: () => hoisted.routeRef.current,
@@ -114,69 +133,85 @@ vi.mock('@/composables/useAuthenticatedVideoStream', () => ({
 }))
 
 function buildFlowStore() {
-  return {
+  type CaseContext = {
+    caseId: string | null
+    selectedPatientId?: number | null
+  }
+  type PatientExaminationContext = {
+    patientExaminationId: number | null
+    selectedPatientId?: number | null
+    selectedExaminationId?: number | null
+  }
+  type TemplateSelection = {
+    moduleName?: string
+    templateName?: string | null
+  }
+
+  const flow = reactive({
     sessionStatus: 'active',
     lookupToken: 'tok',
-    caseId: 'case-uuid-314',
-    patientExaminationId: 314,
-    selectedPatientId: 42,
-    selectedExaminationId: 9,
+    caseId: 'case-uuid-314' as string | null,
+    patientExaminationId: 314 as number | null,
+    selectedPatientId: 42 as number | null,
+    selectedExaminationId: 9 as number | null,
     selectedKbModule: 'report_template_examples',
-    selectedTemplateName: null,
-    currentRuntimeDraft: null,
-    runtimeDraftsByPatientExaminationId: {},
-    mediaPreload: null as any,
-    mediaPreloadStatus: 'idle',
+    selectedTemplateName: null as string | null,
+    currentRuntimeDraft: null as ReportingRuntimeDraft | null,
+    runtimeDraftsByPatientExaminationId: {} as Record<string, ReportingRuntimeDraft>,
+    mediaPreload: null as TimelineLatestPayload | null,
+    mediaPreloadStatus: 'idle' as 'idle' | 'loading' | 'ready' | 'error',
     mediaPreloadError: null as string | null,
-    draftPersistenceStatus: 'idle',
+    draftPersistenceStatus: 'idle' as 'idle' | 'saving' | 'saved' | 'error',
     draftPersistenceError: null as string | null,
     lastPersistedDraftAt: null as string | null,
     setCaseSelection: vi.fn(),
-    setCaseContext: vi.fn(function (this: any, payload: any) {
-      this.caseId = payload.caseId
+    setCaseContext: vi.fn((payload: CaseContext) => {
+      flow.caseId = payload.caseId
       if (payload.selectedPatientId !== undefined)
-        this.selectedPatientId = payload.selectedPatientId
+        flow.selectedPatientId = payload.selectedPatientId
     }),
-    setPatientExaminationContext: vi.fn(function (this: any, payload: any) {
-      this.patientExaminationId = payload.patientExaminationId
+    setPatientExaminationContext: vi.fn((payload: PatientExaminationContext) => {
+      flow.patientExaminationId = payload.patientExaminationId
       if (payload.selectedPatientId !== undefined)
-        this.selectedPatientId = payload.selectedPatientId
+        flow.selectedPatientId = payload.selectedPatientId
       if (payload.selectedExaminationId !== undefined)
-        this.selectedExaminationId = payload.selectedExaminationId
+        flow.selectedExaminationId = payload.selectedExaminationId
     }),
-    setTemplateSelection: vi.fn(function (this: any, payload: any) {
-      if (payload.moduleName !== undefined) this.selectedKbModule = payload.moduleName
-      if (payload.templateName !== undefined) this.selectedTemplateName = payload.templateName
+    setTemplateSelection: vi.fn((payload: TemplateSelection) => {
+      if (payload.moduleName !== undefined) flow.selectedKbModule = payload.moduleName
+      if (payload.templateName !== undefined) flow.selectedTemplateName = payload.templateName
     }),
     setIndications: vi.fn(),
-    setRuntimeDraft: vi.fn(function (this: any, payload: any) {
-      this.currentRuntimeDraft = payload
-      this.runtimeDraftsByPatientExaminationId[String(payload.patientExaminationId)] = payload
+    setRuntimeDraft: vi.fn((payload: ReportingRuntimeDraft) => {
+      flow.currentRuntimeDraft = payload
+      flow.runtimeDraftsByPatientExaminationId[String(payload.patientExaminationId)] = payload
     }),
-    markDraftPersistenceHydrated: vi.fn(function (this: any, updatedAt: string | null) {
-      this.lastPersistedDraftAt = updatedAt
-      this.draftPersistenceStatus = updatedAt ? 'saved' : 'idle'
-      this.draftPersistenceError = null
+    markDraftPersistenceHydrated: vi.fn((updatedAt: string | null) => {
+      flow.lastPersistedDraftAt = updatedAt
+      flow.draftPersistenceStatus = updatedAt ? 'saved' : 'idle'
+      flow.draftPersistenceError = null
     }),
-    setMediaPreloadLoading: vi.fn(function (this: any) {
-      this.mediaPreloadStatus = 'loading'
-      this.mediaPreloadError = null
+    setMediaPreloadLoading: vi.fn(() => {
+      flow.mediaPreloadStatus = 'loading'
+      flow.mediaPreloadError = null
     }),
-    setMediaPreload: vi.fn(function (this: any, payload: any) {
-      this.mediaPreload = payload
-      this.mediaPreloadStatus = 'ready'
-      this.mediaPreloadError = null
+    setMediaPreload: vi.fn((payload: TimelineLatestPayload | null) => {
+      flow.mediaPreload = payload
+      flow.mediaPreloadStatus = 'ready'
+      flow.mediaPreloadError = null
     }),
-    setMediaPreloadError: vi.fn(function (this: any, message: string) {
-      this.mediaPreloadStatus = 'error'
-      this.mediaPreloadError = message
+    setMediaPreloadError: vi.fn((message: string) => {
+      flow.mediaPreloadStatus = 'error'
+      flow.mediaPreloadError = message
     }),
-    clearMediaPreload: vi.fn(function (this: any) {
-      this.mediaPreload = null
-      this.mediaPreloadStatus = 'idle'
-      this.mediaPreloadError = null
+    clearMediaPreload: vi.fn(() => {
+      flow.mediaPreload = null
+      flow.mediaPreloadStatus = 'idle'
+      flow.mediaPreloadError = null
     })
-  }
+  })
+
+  return flow
 }
 
 function mountShell() {

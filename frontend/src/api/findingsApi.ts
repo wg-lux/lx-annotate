@@ -54,108 +54,106 @@ const DTYPES_PATHS = {
     dtypesApi(`patient-findings/${patientFindingId}/classifications/`)
 }
 
-function parseMessages(data: any): string[] {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function parseMessages(data: unknown): string[] {
   if (!data) return []
   if (typeof data === 'string') return data.trim() ? [data] : []
-  if (typeof data?.message === 'string' && data.message.trim()) return [data.message]
-  if (typeof data?.detail === 'string' && data.detail.trim()) return [data.detail]
+  if (!isRecord(data)) return []
+  if (typeof data.message === 'string' && data.message.trim()) return [data.message]
+  if (typeof data.detail === 'string' && data.detail.trim()) return [data.detail]
 
   const messages: string[] = []
-  if (typeof data === 'object' && !Array.isArray(data)) {
-    for (const [key, value] of Object.entries(data)) {
-      if (Array.isArray(value) && value.length) {
-        messages.push(`${key}: ${value.join(', ')}`)
-      } else if (typeof value === 'string' && value.trim()) {
-        messages.push(`${key}: ${value}`)
-      }
+  for (const [key, value] of Object.entries(data)) {
+    if (Array.isArray(value) && value.length) {
+      messages.push(`${key}: ${value.join(', ')}`)
+    } else if (typeof value === 'string' && value.trim()) {
+      messages.push(`${key}: ${value}`)
     }
   }
   return messages
 }
 
-export function parseFindingsApiError(error: any): FindingsApiError {
-  const status = Number(error?.response?.status || 0) || undefined
-  const data = error?.response?.data
-  const explicitCode = String(data?.code || '').trim() as FindingsApiErrorCode
+type FindingsApiErrorContext = {
+  data: unknown
+  messages: string[]
+  status: number | undefined
+}
+
+function buildFindingsApiError(
+  code: FindingsApiErrorCode,
+  fallbackMessage: string,
+  context: FindingsApiErrorContext
+): FindingsApiError {
+  return {
+    code,
+    message: context.messages[0] || fallbackMessage,
+    status: context.status,
+    details: context.data
+  }
+}
+
+function classifyBadRequest(
+  lowerMessage: string,
+  context: FindingsApiErrorContext
+): FindingsApiError {
+  if (
+    lowerMessage.includes('required finding') ||
+    lowerMessage.includes('erforderliche finding')
+  ) {
+    return buildFindingsApiError('required-finding', 'Erforderlicher Befund fehlt.', context)
+  }
+  if (
+    lowerMessage.includes('duplicate') ||
+    lowerMessage.includes('already') ||
+    lowerMessage.includes('unique_active_finding')
+  ) {
+    return buildFindingsApiError('duplicate-finding', 'Befund ist bereits vorhanden.', context)
+  }
+  if (
+    lowerMessage.includes('choice') ||
+    lowerMessage.includes('classification_choice') ||
+    lowerMessage.includes('klassifikation')
+  ) {
+    return buildFindingsApiError('invalid-choice', 'Ungültige Klassifikationsauswahl.', context)
+  }
+  if (lowerMessage.includes('finding')) {
+    return buildFindingsApiError('invalid-finding', 'Ungültiger Befund.', context)
+  }
+  return buildFindingsApiError('bad-request', 'Ungültige Anfrage.', context)
+}
+
+export function parseFindingsApiError(error: unknown): FindingsApiError {
+  const errorRecord = isRecord(error) ? error : {}
+  const response = isRecord(errorRecord.response) ? errorRecord.response : {}
+  const data = response.data
+  const dataRecord = isRecord(data) ? data : {}
+  const status = Number(response.status || 0) || undefined
+  const explicitCode = String(dataRecord.code || '').trim() as FindingsApiErrorCode
+  const errorMessage =
+    typeof errorRecord.message === 'string' ? errorRecord.message : 'Unbekannter Fehler'
   const messages = parseMessages(data)
-  const lowerMessage = messages.join(' | ').toLowerCase()
+  const context: FindingsApiErrorContext = { data, messages, status }
 
   if (explicitCode) {
-    return {
-      code: explicitCode,
-      message: messages[0] || error?.message || 'Unbekannter Fehler',
-      status,
-      details: data
-    }
+    return buildFindingsApiError(
+      explicitCode,
+      errorMessage,
+      context
+    )
   }
 
   if (status === 404) {
-    return {
-      code: 'not-found',
-      message: messages[0] || 'Ressource nicht gefunden.',
-      status,
-      details: data
-    }
+    return buildFindingsApiError('not-found', 'Ressource nicht gefunden.', context)
   }
 
   if (status === 400) {
-    if (
-      lowerMessage.includes('required finding') ||
-      lowerMessage.includes('erforderliche finding')
-    ) {
-      return {
-        code: 'required-finding',
-        message: messages[0] || 'Erforderlicher Befund fehlt.',
-        status,
-        details: data
-      }
-    }
-    if (
-      lowerMessage.includes('duplicate') ||
-      lowerMessage.includes('already') ||
-      lowerMessage.includes('unique_active_finding')
-    ) {
-      return {
-        code: 'duplicate-finding',
-        message: messages[0] || 'Befund ist bereits vorhanden.',
-        status,
-        details: data
-      }
-    }
-    if (
-      lowerMessage.includes('choice') ||
-      lowerMessage.includes('classification_choice') ||
-      lowerMessage.includes('klassifikation')
-    ) {
-      return {
-        code: 'invalid-choice',
-        message: messages[0] || 'Ungültige Klassifikationsauswahl.',
-        status,
-        details: data
-      }
-    }
-    if (lowerMessage.includes('finding')) {
-      return {
-        code: 'invalid-finding',
-        message: messages[0] || 'Ungültiger Befund.',
-        status,
-        details: data
-      }
-    }
-    return {
-      code: 'bad-request',
-      message: messages[0] || 'Ungültige Anfrage.',
-      status,
-      details: data
-    }
+    return classifyBadRequest(messages.join(' | ').toLowerCase(), context)
   }
 
-  return {
-    code: 'unknown',
-    message: messages[0] || error?.message || 'Unbekannter Fehler',
-    status,
-    details: data
-  }
+  return buildFindingsApiError('unknown', errorMessage, context)
 }
 
 export const findingsApi = {

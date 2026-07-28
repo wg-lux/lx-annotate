@@ -176,26 +176,53 @@ def _create_portal_examiner(*, target_user: Any, center: Center) -> Examiner:
     )
 
 
-def list_delegated_users(*, actor: Any, page: int, page_size: int) -> dict[str, Any]:
-    is_global_admin = user_has_global_center_scope_admin(actor)
-    delegated_center = None if is_global_admin else delegated_center_for_actor(actor)
+def _delegated_user_queryset(delegated_center: Center | None):
     queryset = User.objects.all()
     if delegated_center is not None:
         center_filter = models.Q(portaluserinfo__examiner__center=delegated_center)
         if _has_plural_center_scope():
             center_filter |= models.Q(portaluserinfo__centers=delegated_center)
         queryset = queryset.filter(center_filter)
-    queryset = queryset.distinct().prefetch_related("groups").order_by("username", "pk")
+    return queryset.distinct().prefetch_related("groups").order_by("username", "pk")
+
+
+def _portal_infos_by_user(users: list[Any]) -> dict[int, PortalUserInfo]:
+    queryset = PortalUserInfo.objects.select_related("examiner__center")
+    if _has_plural_center_scope():
+        queryset = queryset.prefetch_related("centers")
+    return {
+        int(getattr(info, "user_id")): info
+        for info in queryset.filter(user_id__in=[user.pk for user in users])
+    }
+
+
+def _available_centers(
+    *,
+    is_global_admin: bool,
+    delegated_center: Center | None,
+) -> list[dict[str, str]]:
+    centers = (
+        Center.objects.order_by("display_name", "name", "pk")
+        if is_global_admin
+        else [cast(Center, delegated_center)]
+    )
+    return [
+        {
+            "center_key": str(center.center_key),
+            "display_name": str(center.display_name or center.name),
+        }
+        for center in centers
+    ]
+
+
+def list_delegated_users(*, actor: Any, page: int, page_size: int) -> dict[str, Any]:
+    is_global_admin = user_has_global_center_scope_admin(actor)
+    delegated_center = None if is_global_admin else delegated_center_for_actor(actor)
+    queryset = _delegated_user_queryset(delegated_center)
     total = queryset.count()
     start = (page - 1) * page_size
     users = list(queryset[start : start + page_size])
-    portal_info_queryset = PortalUserInfo.objects.select_related("examiner__center")
-    if _has_plural_center_scope():
-        portal_info_queryset = portal_info_queryset.prefetch_related("centers")
-    portal_infos = {
-        int(getattr(info, "user_id")): info
-        for info in portal_info_queryset.filter(user_id__in=[user.pk for user in users])
-    }
+    portal_infos = _portal_infos_by_user(users)
     return {
         "page": page,
         "page_size": page_size,
@@ -208,18 +235,262 @@ def list_delegated_users(*, actor: Any, page: int, page_size: int) -> dict[str, 
             )
             for user in users
         ],
-        "centers": [
-            {
-                "center_key": str(center.center_key),
-                "display_name": str(center.display_name or center.name),
-            }
-            for center in (
-                Center.objects.order_by("display_name", "name", "pk")
-                if is_global_admin
-                else [cast(Center, delegated_center)]
-            )
-        ],
+        "centers": _available_centers(
+            is_global_admin=is_global_admin,
+            delegated_center=delegated_center,
+        ),
     }
+
+
+def _locked_target_user(target_user_id: int) -> Any:
+    target_user = (
+        User.objects.select_for_update()
+        .prefetch_related("groups")
+        .filter(pk=target_user_id)
+        .first()
+    )
+    if target_user is None:
+        raise AccessManagementError("Target user was not found.")
+    return target_user
+
+
+def _locked_portal_info(target_user: Any) -> PortalUserInfo | None:
+    queryset = PortalUserInfo.objects.select_for_update()
+    if _has_plural_center_scope():
+        queryset = queryset.prefetch_related("centers")
+    return queryset.filter(user_id=target_user.pk).first()
+
+
+def _locked_examiner(portal_info: PortalUserInfo | None) -> Examiner | None:
+    relation = (
+        getattr(portal_info, "examiner", None) if portal_info is not None else None
+    )
+    examiner_pk = getattr(relation, "pk", None)
+    if examiner_pk is None:
+        return None
+    examiner = (
+        Examiner.objects.select_for_update()
+        .select_related("center")
+        .filter(pk=examiner_pk)
+        .first()
+    )
+    if portal_info is not None and examiner is not None:
+        portal_info.examiner = examiner
+    return examiner
+
+
+def _expected_center_keys(mutation: CenterScopeMutation) -> tuple[str, ...]:
+    if mutation.expected_center_keys is not None:
+        return tuple(sorted(mutation.expected_center_keys))
+    if mutation.expected_center_key is not None:
+        return (mutation.expected_center_key,)
+    return ()
+
+
+def _validate_mutation_scope(
+    *,
+    previous_center_keys: tuple[str, ...],
+    expected_center_keys: tuple[str, ...],
+    delegated_center_key: str | None,
+) -> None:
+    if previous_center_keys != expected_center_keys:
+        raise AccessManagementConflict(
+            "Center assignment changed since it was loaded. Refresh and try again."
+        )
+    if (
+        delegated_center_key is not None
+        and delegated_center_key not in previous_center_keys
+    ):
+        raise AccessManagementForbidden(
+            "Target user is outside the administrator's delegated center."
+        )
+
+
+def _prepare_assign_operation(
+    *,
+    target_user: Any,
+    portal_info: PortalUserInfo | None,
+    selected_center_key: str | None,
+    delegated_center_key: str | None,
+    is_global_admin: bool,
+) -> tuple[PortalUserInfo, str, bool]:
+    if not selected_center_key:
+        raise AccessManagementError("center_key is required for assignment.")
+    if delegated_center_key is not None and selected_center_key != delegated_center_key:
+        raise AccessManagementForbidden(
+            "Requested center is outside the administrator's delegated center."
+        )
+    if portal_info is None:
+        if not is_global_admin:
+            raise AccessManagementForbidden(
+                "Only a global administrator may provision an incomplete "
+                "PortalUserInfo relationship."
+            )
+        return (
+            PortalUserInfo.objects.create(user=target_user),
+            selected_center_key,
+            True,
+        )
+    return portal_info, selected_center_key, False
+
+
+def _prepare_revoke_operation(
+    *,
+    portal_info: PortalUserInfo | None,
+    selected_center_key: str | None,
+    previous_center_keys: tuple[str, ...],
+) -> tuple[PortalUserInfo, str, bool]:
+    if portal_info is None or not previous_center_keys:
+        raise AccessManagementError("Target user has no center assignment to revoke.")
+    if selected_center_key is None:
+        if len(previous_center_keys) != 1:
+            raise AccessManagementError(
+                "center_key is required when revoking one of multiple centers."
+            )
+        selected_center_key = previous_center_keys[0]
+    return portal_info, selected_center_key, False
+
+
+def _prepare_assignment(
+    *,
+    target_user: Any,
+    portal_info: PortalUserInfo | None,
+    mutation: CenterScopeMutation,
+    previous_center_keys: tuple[str, ...],
+    delegated_center_key: str | None,
+    is_global_admin: bool,
+) -> tuple[PortalUserInfo, str, bool]:
+    if mutation.operation == "assign":
+        return _prepare_assign_operation(
+            target_user=target_user,
+            portal_info=portal_info,
+            selected_center_key=mutation.center_key,
+            delegated_center_key=delegated_center_key,
+            is_global_admin=is_global_admin,
+        )
+    return _prepare_revoke_operation(
+        portal_info=portal_info,
+        selected_center_key=mutation.center_key,
+        previous_center_keys=previous_center_keys,
+    )
+
+
+def _locked_center(center_key: str) -> Center:
+    center = Center.objects.select_for_update().filter(center_key=center_key).first()
+    if center is None:
+        raise AccessManagementError("Center was not found.")
+    return center
+
+
+def _ensure_portal_examiner(
+    *,
+    target_user: Any,
+    portal_info: PortalUserInfo,
+    examiner: Examiner | None,
+    selected_center: Center,
+    portal_user_info_created: bool,
+    is_global_admin: bool,
+    operation: Literal["assign", "revoke"],
+) -> tuple[Examiner | None, bool]:
+    should_create = (
+        operation == "assign"
+        and examiner is None
+        and (portal_user_info_created or not _has_plural_center_scope())
+        and is_global_admin
+    )
+    if not should_create:
+        return examiner, False
+    examiner = _create_portal_examiner(
+        target_user=target_user,
+        center=selected_center,
+    )
+    portal_info.examiner = examiner
+    portal_info.save(update_fields=["examiner"])
+    return examiner, True
+
+
+def _desired_center_keys(
+    *,
+    previous_center_keys: tuple[str, ...],
+    selected_center: Center,
+    operation: Literal["assign", "revoke"],
+) -> tuple[str, ...]:
+    desired_center_keys = set(previous_center_keys)
+    selected_center_key = str(selected_center.center_key)
+    if operation == "assign":
+        if _has_plural_center_scope():
+            desired_center_keys.add(selected_center_key)
+        else:
+            desired_center_keys = {selected_center_key}
+    else:
+        desired_center_keys.discard(selected_center_key)
+    return tuple(sorted(desired_center_keys))
+
+
+def _apply_center_scope(
+    *,
+    portal_info: PortalUserInfo,
+    examiner: Examiner | None,
+    new_center_keys: tuple[str, ...],
+) -> None:
+    desired_centers = list(
+        Center.objects.filter(center_key__in=new_center_keys).order_by("pk")
+    )
+    if len(desired_centers) != len(new_center_keys):
+        raise RuntimeError("A center disappeared during the locked mutation.")
+    if _has_plural_center_scope():
+        cast(Any, portal_info).centers.set(desired_centers)
+    if examiner is None:
+        return
+
+    legacy_center = getattr(examiner, "center", None)
+    legacy_center_key = (
+        str(legacy_center.center_key) if legacy_center is not None else None
+    )
+    if legacy_center_key not in new_center_keys:
+        cast(Any, examiner).center_id = (
+            int(desired_centers[0].pk) if desired_centers else None
+        )
+        examiner.save(update_fields=["center"])
+
+
+def _write_center_scope_audit(
+    *,
+    actor: Any,
+    target_user: Any,
+    portal_info: PortalUserInfo,
+    mutation: CenterScopeMutation,
+    correlation_id: str | None,
+    previous_center_keys: tuple[str, ...],
+    new_center_keys: tuple[str, ...],
+    portal_user_info_created: bool,
+    examiner_created: bool,
+) -> None:
+    audit_payload = AccessManagementAuditPayload(
+        actor_user_id=int(actor.pk),
+        actor_username=_username(actor),
+        target_user_id=int(target_user.pk),
+        target_username=_username(target_user),
+        previous_center_key=(
+            previous_center_keys[0] if len(previous_center_keys) == 1 else None
+        ),
+        new_center_key=new_center_keys[0] if len(new_center_keys) == 1 else None,
+        previous_center_keys=previous_center_keys,
+        new_center_keys=new_center_keys,
+        portal_user_info_created=portal_user_info_created,
+        examiner_created=examiner_created,
+        reason=mutation.reason.strip(),
+        correlation_id=(correlation_id or str(uuid.uuid4())).strip(),
+    )
+    entry = AuditLedger.objects.create(
+        user=actor,
+        object_type="PortalUserInfo",
+        object_pk=str(portal_info.pk),
+        action="center_scope_changed",
+        data=audit_payload.model_dump(mode="json"),
+    )
+    if entry.pk is None or not AuditLedger.objects.filter(pk=entry.pk).exists():
+        raise RuntimeError("Durable audit ledger write failed; center update aborted.")
 
 
 def mutate_center_scope(
@@ -237,174 +508,61 @@ def mutate_center_scope(
     is_global_admin = user_has_global_center_scope_admin(actor)
     delegated_center = None if is_global_admin else delegated_center_for_actor(actor)
     with transaction.atomic():
-        target_user = (
-            User.objects.select_for_update()
-            .prefetch_related("groups")
-            .filter(pk=target_user_id)
-            .first()
-        )
-        if target_user is None:
-            raise AccessManagementError("Target user was not found.")
-
-        portal_info_queryset = PortalUserInfo.objects.select_for_update()
-        if _has_plural_center_scope():
-            portal_info_queryset = portal_info_queryset.prefetch_related("centers")
-        portal_info = portal_info_queryset.filter(user_id=target_user.pk).first()
-        portal_user_info_created = False
-        examiner_created = False
-        examiner_relation = (
-            getattr(portal_info, "examiner", None) if portal_info is not None else None
-        )
-        examiner_pk = getattr(examiner_relation, "pk", None)
-        examiner = (
-            Examiner.objects.select_for_update()
-            .select_related("center")
-            .filter(pk=examiner_pk)
-            .first()
-            if examiner_pk is not None
-            else None
-        )
-        if portal_info is not None and examiner is not None:
-            portal_info.examiner = examiner
+        target_user = _locked_target_user(target_user_id)
+        portal_info = _locked_portal_info(target_user)
+        examiner = _locked_examiner(portal_info)
         previous_center_keys = _center_keys(portal_info)
-        expected_center_keys = (
-            tuple(sorted(mutation.expected_center_keys))
-            if mutation.expected_center_keys is not None
-            else (
-                (mutation.expected_center_key,)
-                if mutation.expected_center_key is not None
-                else ()
-            )
-        )
-        if previous_center_keys != expected_center_keys:
-            raise AccessManagementConflict(
-                "Center assignment changed since it was loaded. Refresh and try again."
-            )
         delegated_center_key = (
             str(delegated_center.center_key) if delegated_center is not None else None
         )
-        if (
-            delegated_center_key is not None
-            and delegated_center_key not in previous_center_keys
-        ):
-            raise AccessManagementForbidden(
-                "Target user is outside the administrator's delegated center."
-            )
-
-        selected_center_key = mutation.center_key
-        if mutation.operation == "assign":
-            if not selected_center_key:
-                raise AccessManagementError("center_key is required for assignment.")
-            if (
-                delegated_center_key is not None
-                and selected_center_key != delegated_center_key
-            ):
-                raise AccessManagementForbidden(
-                    "Requested center is outside the administrator's delegated center."
-                )
-            if portal_info is None:
-                if not is_global_admin:
-                    raise AccessManagementForbidden(
-                        "Only a global administrator may provision an incomplete "
-                        "PortalUserInfo relationship."
-                    )
-                portal_info = PortalUserInfo.objects.create(user=target_user)
-                portal_user_info_created = True
-        else:
-            if portal_info is None or not previous_center_keys:
-                raise AccessManagementError(
-                    "Target user has no center assignment to revoke."
-                )
-            if selected_center_key is None:
-                if len(previous_center_keys) != 1:
-                    raise AccessManagementError(
-                        "center_key is required when revoking one of multiple centers."
-                    )
-                selected_center_key = previous_center_keys[0]
-
-        selected_center = (
-            Center.objects.select_for_update()
-            .filter(center_key=selected_center_key)
-            .first()
+        _validate_mutation_scope(
+            previous_center_keys=previous_center_keys,
+            expected_center_keys=_expected_center_keys(mutation),
+            delegated_center_key=delegated_center_key,
         )
-        if selected_center is None:
-            raise AccessManagementError("Center was not found.")
-        if (
-            mutation.operation == "assign"
-            and examiner is None
-            and (portal_user_info_created or not _has_plural_center_scope())
-            and is_global_admin
-        ):
-            examiner = _create_portal_examiner(
+        portal_info, selected_center_key, portal_user_info_created = (
+            _prepare_assignment(
                 target_user=target_user,
-                center=selected_center,
+                portal_info=portal_info,
+                mutation=mutation,
+                previous_center_keys=previous_center_keys,
+                delegated_center_key=delegated_center_key,
+                is_global_admin=is_global_admin,
             )
-            examiner_created = True
-            portal_info.examiner = examiner
-            portal_info.save(update_fields=["examiner"])
-        desired_center_keys = set(previous_center_keys)
-        if mutation.operation == "assign":
-            if _has_plural_center_scope():
-                desired_center_keys.add(str(selected_center.center_key))
-            else:
-                desired_center_keys = {str(selected_center.center_key)}
-        else:
-            desired_center_keys.discard(str(selected_center.center_key))
-        new_center_keys = tuple(sorted(desired_center_keys))
+        )
+        selected_center = _locked_center(selected_center_key)
+        examiner, examiner_created = _ensure_portal_examiner(
+            target_user=target_user,
+            portal_info=portal_info,
+            examiner=examiner,
+            selected_center=selected_center,
+            portal_user_info_created=portal_user_info_created,
+            is_global_admin=is_global_admin,
+            operation=mutation.operation,
+        )
+        new_center_keys = _desired_center_keys(
+            previous_center_keys=previous_center_keys,
+            selected_center=selected_center,
+            operation=mutation.operation,
+        )
         changed = previous_center_keys != new_center_keys
-        if portal_info is None:
-            raise RuntimeError(
-                "Center assignment relationship was not established transactionally."
-            )
         if changed:
-            desired_centers = list(
-                Center.objects.filter(center_key__in=new_center_keys).order_by("pk")
+            _apply_center_scope(
+                portal_info=portal_info,
+                examiner=examiner,
+                new_center_keys=new_center_keys,
             )
-            if len(desired_centers) != len(new_center_keys):
-                raise RuntimeError("A center disappeared during the locked mutation.")
-            if _has_plural_center_scope():
-                cast(Any, portal_info).centers.set(desired_centers)
-            if examiner is not None:
-                legacy_center = getattr(examiner, "center", None)
-                legacy_center_key = (
-                    str(legacy_center.center_key) if legacy_center is not None else None
-                )
-                if legacy_center_key not in desired_center_keys:
-                    cast(Any, examiner).center_id = (
-                        int(desired_centers[0].pk) if desired_centers else None
-                    )
-                    examiner.save(update_fields=["center"])
-
-            previous_center_key = (
-                previous_center_keys[0] if len(previous_center_keys) == 1 else None
-            )
-            new_center_key = new_center_keys[0] if len(new_center_keys) == 1 else None
-
-            audit_payload = AccessManagementAuditPayload(
-                actor_user_id=int(actor.pk),
-                actor_username=_username(actor),
-                target_user_id=int(target_user.pk),
-                target_username=_username(target_user),
-                previous_center_key=previous_center_key,
-                new_center_key=new_center_key,
+            _write_center_scope_audit(
+                actor=actor,
+                target_user=target_user,
+                portal_info=portal_info,
+                mutation=mutation,
+                correlation_id=correlation_id,
                 previous_center_keys=previous_center_keys,
                 new_center_keys=new_center_keys,
                 portal_user_info_created=portal_user_info_created,
                 examiner_created=examiner_created,
-                reason=mutation.reason.strip(),
-                correlation_id=(correlation_id or str(uuid.uuid4())).strip(),
             )
-            entry = AuditLedger.objects.create(
-                user=actor,
-                object_type="PortalUserInfo",
-                object_pk=str(portal_info.pk),
-                action="center_scope_changed",
-                data=audit_payload.model_dump(mode="json"),
-            )
-            if entry.pk is None or not AuditLedger.objects.filter(pk=entry.pk).exists():
-                raise RuntimeError(
-                    "Durable audit ledger write failed; center update aborted."
-                )
 
         portal_info = get_portal_info_for_user(target_user)
         return {

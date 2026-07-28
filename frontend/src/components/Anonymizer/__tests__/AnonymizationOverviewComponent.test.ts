@@ -5,9 +5,37 @@ import { reactive } from 'vue'
 import AnonymizationOverviewComponent from '../AnonymizationOverviewComponent.vue'
 
 const hoisted = vi.hoisted(() => ({
-  anonymizationStoreRef: { current: null as any },
-  mediaStoreRef: { current: null as any },
-  pollingProtectionRef: { current: null as any },
+  anonymizationStoreRef: {
+    current: {} as {
+      error: string | null
+      loading: boolean
+      overview: Array<Record<string, unknown>>
+      fetchOverview: ReturnType<typeof vi.fn>
+      retryUploadJob: ReturnType<typeof vi.fn>
+      setCurrentForValidation: ReturnType<typeof vi.fn>
+      isVideoReimportQueued: ReturnType<typeof vi.fn>
+      startPolling: ReturnType<typeof vi.fn>
+      stopAllPolling: ReturnType<typeof vi.fn>
+    }
+  },
+  mediaStoreRef: {
+    current: {} as {
+      getMediaTypeIcon: ReturnType<typeof vi.fn>
+      getMediaTypeBadgeClass: ReturnType<typeof vi.fn>
+      detectMediaType: ReturnType<typeof vi.fn>
+      seedTypesFromOverview: ReturnType<typeof vi.fn>
+      setCurrentItem: ReturnType<typeof vi.fn>
+      rememberType: ReturnType<typeof vi.fn>
+      getType: ReturnType<typeof vi.fn>
+    }
+  },
+  pollingProtectionRef: {
+    current: {} as {
+      canProcessMedia: { value: ReturnType<typeof vi.fn> }
+      startAnonymizationSafeWithProtection: ReturnType<typeof vi.fn>
+      clearAllLocalLocks: ReturnType<typeof vi.fn>
+    }
+  },
   routerPush: vi.fn()
 }))
 

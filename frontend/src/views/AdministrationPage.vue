@@ -315,6 +315,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { isAxiosError } from 'axios'
 import {
   fetchAdministrationOverview,
   fetchCenterScopeUsers,
@@ -324,6 +325,17 @@ import {
   type CenterChoice,
   type CenterScopeUser
 } from '@/api/administrationApi'
+
+interface AdministrationErrorPayload {
+  detail?: string
+}
+
+function administrationErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError<AdministrationErrorPayload>(error)) {
+    return error.response?.data?.detail || error.message || fallback
+  }
+  return error instanceof Error && error.message ? error.message : fallback
+}
 
 const overview = ref<AdministrationOverview | null>(null)
 const accessUsers = ref<CenterScopeUser[]>([])
@@ -345,11 +357,11 @@ async function loadAll() {
   try {
     overview.value = await fetchAdministrationOverview()
     if (overview.value.effectivePermissions.centerScopeAdmin) await loadAccessUsers()
-  } catch (error: any) {
-    errorMessage.value =
-      error?.response?.data?.detail ||
-      error?.message ||
+  } catch (error: unknown) {
+    errorMessage.value = administrationErrorMessage(
+      error,
       'Administration konnte nicht geladen werden.'
+    )
   } finally {
     loading.value = false
   }
@@ -363,9 +375,11 @@ async function loadAccessUsers(page = accessPage.value) {
     centerChoices.value = data.centers
     accessPage.value = data.page
     accessTotal.value = data.total
-  } catch (error: any) {
-    accessError.value =
-      error?.response?.data?.detail || 'Center-Zugriffe konnten nicht geladen werden.'
+  } catch (error: unknown) {
+    accessError.value = administrationErrorMessage(
+      error,
+      'Center-Zugriffe konnten nicht geladen werden.'
+    )
   }
 }
 
@@ -411,9 +425,11 @@ async function submitChange() {
     cancelChange()
     await loadAccessUsers()
     overview.value = await fetchAdministrationOverview()
-  } catch (error: any) {
-    accessError.value =
-      error?.response?.data?.detail || 'Center-Zuordnung konnte nicht geändert werden.'
+  } catch (error: unknown) {
+    accessError.value = administrationErrorMessage(
+      error,
+      'Center-Zuordnung konnte nicht geändert werden.'
+    )
   } finally {
     saving.value = false
   }

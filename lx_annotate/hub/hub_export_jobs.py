@@ -194,6 +194,63 @@ def _privacy_equivalence_key(
     )
 
 
+def _accumulate_privacy_record(
+    record: HubExportPrivacyRecord,
+    *,
+    case_ids: set[str],
+    equivalence_classes: dict[tuple[str, str, str, str, str], set[str]],
+) -> tuple[int, int]:
+    eligible = bool(record.get("eligible"))
+    marked_for_upload = bool(record.get("marked_for_upload"))
+    if eligible or marked_for_upload:
+        case_identity = _privacy_case_identity(record)
+        case_ids.add(case_identity)
+        equivalence_key = _privacy_equivalence_key(record)
+        equivalence_classes.setdefault(equivalence_key, set()).add(case_identity)
+    return int(eligible), int(marked_for_upload)
+
+
+def _unavailable_privacy_summary(
+    *,
+    min_k: int,
+    eligible_resource_count: int,
+    marked_resource_count: int,
+) -> HubExportPrivacySummary:
+    return {
+        "min_k": min_k,
+        "eligible_resource_count": eligible_resource_count,
+        "eligible_case_count": 0,
+        "marked_resource_count": marked_resource_count,
+        "smallest_equivalence_class_size": None,
+        "violating_equivalence_class_count": 0,
+        "passes_k_anonymity": False,
+        "status": "unavailable",
+    }
+
+
+def _available_privacy_summary(
+    *,
+    min_k: int,
+    eligible_resource_count: int,
+    marked_resource_count: int,
+    case_ids: set[str],
+    equivalence_classes: dict[tuple[str, str, str, str, str], set[str]],
+) -> HubExportPrivacySummary:
+    class_sizes = [len(case_id_set) for case_id_set in equivalence_classes.values()]
+    violating_class_count = sum(1 for class_size in class_sizes if class_size < min_k)
+    passes_k_anonymity = violating_class_count == 0
+    return {
+        "min_k": min_k,
+        "eligible_resource_count": eligible_resource_count,
+        "eligible_case_count": len(case_ids),
+        "marked_resource_count": marked_resource_count,
+        "smallest_equivalence_class_size": min(class_sizes),
+        "violating_equivalence_class_count": violating_class_count,
+        "passes_k_anonymity": passes_k_anonymity,
+        "status": "pass" if passes_k_anonymity else "warning",
+    }
+
+
 def build_hub_export_privacy_summary(
     privacy_records: Iterable[HubExportPrivacyRecord],
     *,
@@ -205,46 +262,27 @@ def build_hub_export_privacy_summary(
     equivalence_classes: dict[tuple[str, str, str, str, str], set[str]] = {}
 
     for record in privacy_records:
-        eligible = bool(record.get("eligible"))
-        marked_for_upload = bool(record.get("marked_for_upload"))
-        if eligible:
-            eligible_resource_count += 1
-        if marked_for_upload:
-            marked_resource_count += 1
-        if not eligible and not marked_for_upload:
-            continue
-
-        case_identity = _privacy_case_identity(record)
-        case_ids.add(case_identity)
-        equivalence_key = _privacy_equivalence_key(record)
-        equivalence_classes.setdefault(equivalence_key, set()).add(case_identity)
+        eligible_increment, marked_increment = _accumulate_privacy_record(
+            record,
+            case_ids=case_ids,
+            equivalence_classes=equivalence_classes,
+        )
+        eligible_resource_count += eligible_increment
+        marked_resource_count += marked_increment
 
     if not equivalence_classes:
-        return {
-            "min_k": min_k,
-            "eligible_resource_count": eligible_resource_count,
-            "eligible_case_count": 0,
-            "marked_resource_count": marked_resource_count,
-            "smallest_equivalence_class_size": None,
-            "violating_equivalence_class_count": 0,
-            "passes_k_anonymity": False,
-            "status": "unavailable",
-        }
-
-    class_sizes = [len(case_id_set) for case_id_set in equivalence_classes.values()]
-    smallest_class_size = min(class_sizes)
-    violating_class_count = sum(1 for class_size in class_sizes if class_size < min_k)
-    passes_k_anonymity = violating_class_count == 0
-    return {
-        "min_k": min_k,
-        "eligible_resource_count": eligible_resource_count,
-        "eligible_case_count": len(case_ids),
-        "marked_resource_count": marked_resource_count,
-        "smallest_equivalence_class_size": smallest_class_size,
-        "violating_equivalence_class_count": violating_class_count,
-        "passes_k_anonymity": passes_k_anonymity,
-        "status": "pass" if passes_k_anonymity else "warning",
-    }
+        return _unavailable_privacy_summary(
+            min_k=min_k,
+            eligible_resource_count=eligible_resource_count,
+            marked_resource_count=marked_resource_count,
+        )
+    return _available_privacy_summary(
+        min_k=min_k,
+        eligible_resource_count=eligible_resource_count,
+        marked_resource_count=marked_resource_count,
+        case_ids=case_ids,
+        equivalence_classes=equivalence_classes,
+    )
 
 
 def _sync_rejection_reason(blocked_reason: str) -> HubExportRejectionReason:
@@ -268,39 +306,228 @@ def _processed_filename(resource: RawPdfFile | VideoFile) -> str:
     return stored_name.rsplit("/", 1)[-1]
 
 
-def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, Any]:
-    source_node = get_default_source_node()
-    hub_nodes = list(get_active_hub_nodes().select_related("owning_center"))
-    selected_target = target_node
-    config_error = ""
-    if selected_target is None and len(hub_nodes) == 1:
-        selected_target = hub_nodes[0]
-    elif selected_target is None and not hub_nodes:
-        config_error = "No active central hub node is configured."
-    elif selected_target is None and len(hub_nodes) > 1:
-        config_error = (
-            "Normal sender mode requires exactly one active central hub node."
-        )
+def _resolve_overview_target(
+    target_node: NetworkNode | None,
+    hub_nodes: list[NetworkNode],
+) -> tuple[NetworkNode | None, str]:
+    if target_node is not None:
+        return target_node, ""
+    if len(hub_nodes) == 1:
+        return hub_nodes[0], ""
+    if not hub_nodes:
+        return None, "No active central hub node is configured."
+    return None, "Normal sender mode requires exactly one active central hub node."
+
+
+def _jobs_by_resource(
+    selected_target: NetworkNode | None,
+) -> dict[tuple[str, int], OutboundHubTransferJob]:
+    if selected_target is None:
+        return {}
 
     jobs_by_key: dict[tuple[str, int], OutboundHubTransferJob] = {}
-    if selected_target is not None:
-        for job in OutboundHubTransferJob.objects.select_related(
-            "target_node",
-            "source_center",
-        ).filter(target_node=selected_target):
-            if job.video_file_id is not None:
-                jobs_by_key[("video", int(job.video_file_id))] = job
-            if job.raw_pdf_file_id is not None:
-                jobs_by_key[("report", int(job.raw_pdf_file_id))] = job
+    jobs = OutboundHubTransferJob.objects.select_related(
+        "target_node",
+        "source_center",
+    ).filter(target_node=selected_target)
+    for job in jobs:
+        if job.video_file_id is not None:
+            jobs_by_key[("video", int(job.video_file_id))] = job
+        if job.raw_pdf_file_id is not None:
+            jobs_by_key[("report", int(job.raw_pdf_file_id))] = job
+    return jobs_by_key
 
-    items: list[dict[str, Any]] = []
-    privacy_records: list[HubExportPrivacyRecord] = []
-    processed_files_by_center: dict[str, list[HubProcessedFile]] = {
-        center.center_key: [] for center in Center.objects.order_by("center_key", "pk")
+
+def _job_overview_fields(
+    job: OutboundHubTransferJob | None,
+    *,
+    selected_target: NetworkNode | None,
+) -> dict[str, Any]:
+    return {
+        "marked_for_upload": job is not None,
+        "outbound_status": job.local_status if job is not None else "",
+        "last_error": job.last_error if job is not None else "",
+        "last_transfer_timestamp": (
+            job.completed_at.isoformat() if job and job.completed_at else None
+        ),
+        "target_node_key": (
+            job.target_node.node_key
+            if job is not None
+            else selected_target.node_key
+            if selected_target is not None
+            else None
+        ),
     }
-    rejections: list[HubSyncRejection] = []
-    duplicates: list[HubSyncDuplicate] = []
 
+
+def _append_sync_outcomes(
+    *,
+    resource_kind: HubExportResourceKind,
+    resource_id: int,
+    filename: str,
+    source_center_key: str | None,
+    eligible: bool,
+    blocked_reason: str,
+    job: OutboundHubTransferJob | None,
+    rejections: list[HubSyncRejection],
+    duplicates: list[HubSyncDuplicate],
+) -> None:
+    if not eligible:
+        rejections.append(
+            HubSyncRejection(
+                resource_kind=resource_kind,
+                resource_id=resource_id,
+                filename=filename,
+                center_key=source_center_key,
+                reason=_sync_rejection_reason(blocked_reason),
+                detail=blocked_reason,
+            )
+        )
+    if job is not None:
+        duplicates.append(
+            HubSyncDuplicate(
+                resource_kind=resource_kind,
+                resource_id=resource_id,
+                filename=filename,
+                center_key=source_center_key,
+                reason=HubExportDuplicateReason.TRANSFER_ALREADY_REGISTERED,
+                transfer_key=job.transfer_key,
+                transfer_status=job.local_status,
+                target_node_key=job.target_node.node_key,
+            )
+        )
+
+
+def _anonymization_status(resource: RawPdfFile | VideoFile) -> str:
+    state = resource.state
+    return state.anonymization_status.value if state is not None else "not_started"
+
+
+def _created_at(resource: RawPdfFile | VideoFile) -> str | None:
+    return resource.date_created.isoformat() if resource.date_created else None
+
+
+def _append_privacy_record(
+    privacy_records: list[HubExportPrivacyRecord],
+    *,
+    resource_kind: str,
+    resource_id: int,
+    source_center_key: str | None,
+    eligible: bool,
+    marked_for_upload: bool,
+    sensitive_meta: Any,
+) -> None:
+    privacy_records.append(
+        {
+            "resource_kind": resource_kind,
+            "resource_id": resource_id,
+            "source_center_key": source_center_key,
+            "eligible": eligible,
+            "marked_for_upload": marked_for_upload,
+            "sensitive_meta": sensitive_meta,
+        }
+    )
+
+
+def _resource_overview_item(
+    *,
+    resource: RawPdfFile | VideoFile,
+    resource_kind: str,
+    resource_id: int,
+    filename: str,
+    processed_media_present: bool,
+    source_center_key: str | None,
+    source_center_name: str | None,
+    job: OutboundHubTransferJob | None,
+    selected_target: NetworkNode | None,
+    eligible: bool,
+    blocked_reason: str,
+) -> dict[str, Any]:
+    return {
+        "id": resource_id,
+        "resource_kind": resource_kind,
+        "filename": filename,
+        "anonymization_status": _anonymization_status(resource),
+        "processed_media_present": processed_media_present,
+        "source_center_key": source_center_key,
+        "source_center_name": source_center_name,
+        **_job_overview_fields(job, selected_target=selected_target),
+        "eligible": eligible,
+        "blocked_reason": blocked_reason,
+        "created_at": _created_at(resource),
+    }
+
+
+def _video_processed_file(
+    video: VideoFile,
+    *,
+    processed_media_present: bool,
+    eligible: bool,
+    job: OutboundHubTransferJob | None,
+) -> HubProcessedFile | None:
+    if not processed_media_present or video.center is None:
+        return None
+    processed_file_hash = (
+        str(video.processed_video_hash).strip() if video.processed_video_hash else None
+    )
+    return HubProcessedFile(
+        resource_kind=HubExportResourceKind.VIDEO,
+        resource_id=int(video.pk),
+        filename=_processed_filename(video),
+        resource_hash=video.video_hash,
+        processed_file_hash=processed_file_hash,
+        center_key=video.center.center_key,
+        center_name=video.center.name,
+        eligible=eligible,
+        transfer_registered=job is not None,
+        transfer_key=job.transfer_key if job else None,
+        transfer_status=job.local_status if job else "",
+        target_node_key=job.target_node.node_key if job else None,
+    )
+
+
+def _report_filename(report: RawPdfFile) -> str:
+    if report.file and report.file.name:
+        return (report.file.name or "").rsplit("/", 1)[-1]
+    return report.pdf_hash
+
+
+def _report_processed_file(
+    report: RawPdfFile,
+    *,
+    processed_media_present: bool,
+    eligible: bool,
+    job: OutboundHubTransferJob | None,
+) -> HubProcessedFile | None:
+    if not processed_media_present or report.center is None:
+        return None
+    state_hash = str(getattr(report.state, "processed_file_sha256", "") or "").strip()
+    return HubProcessedFile(
+        resource_kind=HubExportResourceKind.REPORT,
+        resource_id=int(report.pk),
+        filename=_processed_filename(report),
+        resource_hash=report.pdf_hash,
+        processed_file_hash=state_hash or None,
+        center_key=report.center.center_key,
+        center_name=report.center.name,
+        eligible=eligible,
+        transfer_registered=job is not None,
+        transfer_key=job.transfer_key if job else None,
+        transfer_status=job.local_status if job else "",
+        target_node_key=job.target_node.node_key if job else None,
+    )
+
+
+def _collect_video_overview(
+    *,
+    selected_target: NetworkNode | None,
+    jobs_by_key: dict[tuple[str, int], OutboundHubTransferJob],
+    processed_files_by_center: dict[str, list[HubProcessedFile]],
+    items: list[dict[str, Any]],
+    privacy_records: list[HubExportPrivacyRecord],
+    rejections: list[HubSyncRejection],
+    duplicates: list[HubSyncDuplicate],
+) -> None:
     videos = VideoFile.objects.select_related(
         "state",
         "center",
@@ -310,10 +537,6 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
     ).order_by("-date_created")
     for video in videos:
         video_id = int(video.pk)
-        state = video.state
-        anonymization_status = (
-            state.anonymization_status.value if state is not None else "not_started"
-        )
         eligible = is_video_hub_export_eligible(video)
         blocked_reason = "" if eligible else video_hub_export_blocked_reason(video)
         video_job = jobs_by_key.get(("video", video_id))
@@ -321,99 +544,61 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
         source_center_key = video.center.center_key if video.center else None
         filename = video.original_file_name or video.video_hash
         processed_media_present = has_usable_processed_artifact(video)
-        privacy_records.append(
-            {
-                "resource_kind": "video",
-                "resource_id": video_id,
-                "source_center_key": source_center_key,
-                "eligible": eligible,
-                "marked_for_upload": marked_for_upload,
-                "sensitive_meta": video.sensitive_meta,
-            }
+        _append_privacy_record(
+            privacy_records,
+            resource_kind="video",
+            resource_id=video_id,
+            source_center_key=source_center_key,
+            eligible=eligible,
+            marked_for_upload=marked_for_upload,
+            sensitive_meta=video.sensitive_meta,
         )
         items.append(
-            {
-                "id": video_id,
-                "resource_kind": "video",
-                "filename": filename,
-                "anonymization_status": anonymization_status,
-                "processed_media_present": processed_media_present,
-                "source_center_key": source_center_key,
-                "source_center_name": video.center.name if video.center else None,
-                "marked_for_upload": marked_for_upload,
-                "outbound_status": video_job.local_status
-                if video_job is not None
-                else "",
-                "last_error": video_job.last_error if video_job is not None else "",
-                "last_transfer_timestamp": (
-                    video_job.completed_at.isoformat()
-                    if video_job and video_job.completed_at
-                    else None
-                ),
-                "target_node_key": (
-                    video_job.target_node.node_key
-                    if video_job is not None
-                    else (
-                        selected_target.node_key
-                        if selected_target is not None
-                        else None
-                    )
-                ),
-                "eligible": eligible,
-                "blocked_reason": blocked_reason,
-                "created_at": video.date_created.isoformat()
-                if video.date_created
-                else None,
-            }
+            _resource_overview_item(
+                resource=video,
+                resource_kind="video",
+                resource_id=video_id,
+                filename=filename,
+                processed_media_present=processed_media_present,
+                source_center_key=source_center_key,
+                source_center_name=video.center.name if video.center else None,
+                job=video_job,
+                selected_target=selected_target,
+                eligible=eligible,
+                blocked_reason=blocked_reason,
+            )
         )
-        if processed_media_present and source_center_key is not None:
-            processed_files_by_center[source_center_key].append(
-                HubProcessedFile(
-                    resource_kind=HubExportResourceKind.VIDEO,
-                    resource_id=video_id,
-                    filename=_processed_filename(video),
-                    resource_hash=video.video_hash,
-                    processed_file_hash=(
-                        str(video.processed_video_hash).strip()
-                        if video.processed_video_hash
-                        else None
-                    ),
-                    center_key=source_center_key,
-                    center_name=video.center.name,
-                    eligible=eligible,
-                    transfer_registered=marked_for_upload,
-                    transfer_key=(video_job.transfer_key if video_job else None),
-                    transfer_status=(video_job.local_status if video_job else ""),
-                    target_node_key=(
-                        video_job.target_node.node_key if video_job else None
-                    ),
-                )
-            )
-        if not eligible:
-            rejections.append(
-                HubSyncRejection(
-                    resource_kind=HubExportResourceKind.VIDEO,
-                    resource_id=video_id,
-                    filename=filename,
-                    center_key=source_center_key,
-                    reason=_sync_rejection_reason(blocked_reason),
-                    detail=blocked_reason,
-                )
-            )
-        if video_job is not None:
-            duplicates.append(
-                HubSyncDuplicate(
-                    resource_kind=HubExportResourceKind.VIDEO,
-                    resource_id=video_id,
-                    filename=filename,
-                    center_key=source_center_key,
-                    reason=HubExportDuplicateReason.TRANSFER_ALREADY_REGISTERED,
-                    transfer_key=video_job.transfer_key,
-                    transfer_status=video_job.local_status,
-                    target_node_key=video_job.target_node.node_key,
-                )
-            )
+        processed_file = _video_processed_file(
+            video,
+            processed_media_present=processed_media_present,
+            eligible=eligible,
+            job=video_job,
+        )
+        if processed_file is not None:
+            processed_files_by_center[processed_file.center_key].append(processed_file)
+        _append_sync_outcomes(
+            resource_kind=HubExportResourceKind.VIDEO,
+            resource_id=video_id,
+            filename=filename,
+            source_center_key=source_center_key,
+            eligible=eligible,
+            blocked_reason=blocked_reason,
+            job=video_job,
+            rejections=rejections,
+            duplicates=duplicates,
+        )
 
+
+def _collect_report_overview(
+    *,
+    selected_target: NetworkNode | None,
+    jobs_by_key: dict[tuple[str, int], OutboundHubTransferJob],
+    processed_files_by_center: dict[str, list[HubProcessedFile]],
+    items: list[dict[str, Any]],
+    privacy_records: list[HubExportPrivacyRecord],
+    rejections: list[HubSyncRejection],
+    duplicates: list[HubSyncDuplicate],
+) -> None:
     reports = RawPdfFile.objects.select_related(
         "state",
         "center",
@@ -423,154 +608,121 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
     ).order_by("-date_created")
     for report in reports:
         report_id = int(report.pk)
-        state = report.state
-        anonymization_status = (
-            state.anonymization_status.value if state is not None else "not_started"
-        )
         report_job = jobs_by_key.get(("report", report_id))
         blocked_reason = report_hub_export_blocked_reason(report)
         eligible = blocked_reason == ""
         marked_for_upload = report_job is not None
         report_center = report.center
         source_center_key = report_center.center_key if report_center else None
-        filename = (
-            (report.file.name or "").rsplit("/", 1)[-1]
-            if report.file and report.file.name
-            else report.pdf_hash
-        )
+        filename = _report_filename(report)
         processed_media_present = has_usable_processed_artifact(report)
-        privacy_records.append(
-            {
-                "resource_kind": "report",
-                "resource_id": report_id,
-                "source_center_key": source_center_key,
-                "eligible": eligible,
-                "marked_for_upload": marked_for_upload,
-                "sensitive_meta": report.sensitive_meta,
-            }
+        _append_privacy_record(
+            privacy_records,
+            resource_kind="report",
+            resource_id=report_id,
+            source_center_key=source_center_key,
+            eligible=eligible,
+            marked_for_upload=marked_for_upload,
+            sensitive_meta=report.sensitive_meta,
         )
         items.append(
-            {
-                "id": report_id,
-                "resource_kind": "report",
-                "filename": filename,
-                "anonymization_status": anonymization_status,
-                "processed_media_present": processed_media_present,
-                "source_center_key": source_center_key,
-                "source_center_name": report.center.name if report.center else None,
-                "marked_for_upload": marked_for_upload,
-                "outbound_status": report_job.local_status
-                if report_job is not None
-                else "",
-                "last_error": report_job.last_error if report_job is not None else "",
-                "last_transfer_timestamp": (
-                    report_job.completed_at.isoformat()
-                    if report_job and report_job.completed_at
-                    else None
-                ),
-                "target_node_key": (
-                    report_job.target_node.node_key
-                    if report_job is not None
-                    else (
-                        selected_target.node_key
-                        if selected_target is not None
-                        else None
-                    )
-                ),
-                "eligible": eligible,
-                "blocked_reason": blocked_reason,
-                "created_at": report.date_created.isoformat()
-                if report.date_created
-                else None,
-            }
+            _resource_overview_item(
+                resource=report,
+                resource_kind="report",
+                resource_id=report_id,
+                filename=filename,
+                processed_media_present=processed_media_present,
+                source_center_key=source_center_key,
+                source_center_name=report.center.name if report.center else None,
+                job=report_job,
+                selected_target=selected_target,
+                eligible=eligible,
+                blocked_reason=blocked_reason,
+            )
         )
-        if (
-            processed_media_present
-            and source_center_key is not None
-            and report_center is not None
-        ):
-            processed_files_by_center[source_center_key].append(
-                HubProcessedFile(
-                    resource_kind=HubExportResourceKind.REPORT,
-                    resource_id=report_id,
-                    filename=_processed_filename(report),
-                    resource_hash=report.pdf_hash,
-                    processed_file_hash=(
-                        str(getattr(state, "processed_file_sha256", "") or "").strip()
-                        or None
-                    ),
-                    center_key=source_center_key,
-                    center_name=report_center.name,
-                    eligible=eligible,
-                    transfer_registered=marked_for_upload,
-                    transfer_key=(report_job.transfer_key if report_job else None),
-                    transfer_status=(report_job.local_status if report_job else ""),
-                    target_node_key=(
-                        report_job.target_node.node_key if report_job else None
-                    ),
-                )
-            )
-        if not eligible:
-            rejections.append(
-                HubSyncRejection(
-                    resource_kind=HubExportResourceKind.REPORT,
-                    resource_id=report_id,
-                    filename=filename,
-                    center_key=source_center_key,
-                    reason=_sync_rejection_reason(blocked_reason),
-                    detail=blocked_reason,
-                )
-            )
-        if report_job is not None:
-            duplicates.append(
-                HubSyncDuplicate(
-                    resource_kind=HubExportResourceKind.REPORT,
-                    resource_id=report_id,
-                    filename=filename,
-                    center_key=source_center_key,
-                    reason=HubExportDuplicateReason.TRANSFER_ALREADY_REGISTERED,
-                    transfer_key=report_job.transfer_key,
-                    transfer_status=report_job.local_status,
-                    target_node_key=report_job.target_node.node_key,
-                )
-            )
+        processed_file = _report_processed_file(
+            report,
+            processed_media_present=processed_media_present,
+            eligible=eligible,
+            job=report_job,
+        )
+        if processed_file is not None:
+            processed_files_by_center[processed_file.center_key].append(processed_file)
+        _append_sync_outcomes(
+            resource_kind=HubExportResourceKind.REPORT,
+            resource_id=report_id,
+            filename=filename,
+            source_center_key=source_center_key,
+            eligible=eligible,
+            blocked_reason=blocked_reason,
+            job=report_job,
+            rejections=rejections,
+            duplicates=duplicates,
+        )
 
-    items.sort(key=lambda item: (not bool(item["eligible"]), item["filename"]))
+
+def _active_node_keys_by_center() -> dict[str, list[str]]:
     active_nodes_by_center: dict[str, list[str]] = {}
-    for node in (
+    nodes = (
         NetworkNode.objects.filter(
             is_active=True,
             owning_center__isnull=False,
         )
         .select_related("owning_center")
         .order_by("node_key", "pk")
-    ):
+    )
+    for node in nodes:
         if node.owning_center is not None:
             active_nodes_by_center.setdefault(node.owning_center.center_key, []).append(
                 node.node_key
             )
+    return active_nodes_by_center
 
-    centers = list(Center.objects.order_by("center_key", "pk"))
+
+def _center_sync_state(
+    center: Center,
+    *,
+    active_nodes_by_center: dict[str, list[str]],
+    processed_files_by_center: dict[str, list[HubProcessedFile]],
+    rejections: list[HubSyncRejection],
+    duplicates: list[HubSyncDuplicate],
+) -> HubCenterSyncState:
+    processed_files = processed_files_by_center[center.center_key]
+    return HubCenterSyncState(
+        center_key=center.center_key,
+        display_name=center.display_name or center.name,
+        active_node_keys=active_nodes_by_center.get(center.center_key, []),
+        processed_files=processed_files,
+        candidate_count=sum(
+            file.eligible and not file.transfer_registered for file in processed_files
+        ),
+        rejection_count=sum(
+            rejection.center_key == center.center_key for rejection in rejections
+        ),
+        duplicate_count=sum(
+            duplicate.center_key == center.center_key for duplicate in duplicates
+        ),
+    )
+
+
+def _build_center_sync_summary(
+    *,
+    processed_files_by_center: dict[str, list[HubProcessedFile]],
+    rejections: list[HubSyncRejection],
+    duplicates: list[HubSyncDuplicate],
+) -> HubFileSyncSummary:
+    active_nodes_by_center = _active_node_keys_by_center()
     center_states = [
-        HubCenterSyncState(
-            center_key=center.center_key,
-            display_name=center.display_name or center.name,
-            active_node_keys=active_nodes_by_center.get(center.center_key, []),
-            processed_files=processed_files_by_center[center.center_key],
-            candidate_count=sum(
-                file.eligible and not file.transfer_registered
-                for file in processed_files_by_center[center.center_key]
-            ),
-            rejection_count=sum(
-                rejection.center_key == center.center_key for rejection in rejections
-            ),
-            duplicate_count=sum(
-                duplicate.center_key == center.center_key for duplicate in duplicates
-            ),
+        _center_sync_state(
+            center,
+            active_nodes_by_center=active_nodes_by_center,
+            processed_files_by_center=processed_files_by_center,
+            rejections=rejections,
+            duplicates=duplicates,
         )
-        for center in centers
+        for center in Center.objects.order_by("center_key", "pk")
     ]
-    sync_summary = HubFileSyncSummary(
+    return HubFileSyncSummary(
         centers=center_states,
         rejections=rejections,
         duplicates=duplicates,
@@ -578,6 +730,47 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
             len(center.processed_files) for center in center_states
         ),
         candidate_count=sum(center.candidate_count for center in center_states),
+    )
+
+
+def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, Any]:
+    source_node = get_default_source_node()
+    hub_nodes = list(get_active_hub_nodes().select_related("owning_center"))
+    selected_target, config_error = _resolve_overview_target(target_node, hub_nodes)
+    jobs_by_key = _jobs_by_resource(selected_target)
+
+    items: list[dict[str, Any]] = []
+    privacy_records: list[HubExportPrivacyRecord] = []
+    processed_files_by_center: dict[str, list[HubProcessedFile]] = {
+        center.center_key: [] for center in Center.objects.order_by("center_key", "pk")
+    }
+    rejections: list[HubSyncRejection] = []
+    duplicates: list[HubSyncDuplicate] = []
+
+    _collect_video_overview(
+        selected_target=selected_target,
+        jobs_by_key=jobs_by_key,
+        processed_files_by_center=processed_files_by_center,
+        items=items,
+        privacy_records=privacy_records,
+        rejections=rejections,
+        duplicates=duplicates,
+    )
+    _collect_report_overview(
+        selected_target=selected_target,
+        jobs_by_key=jobs_by_key,
+        processed_files_by_center=processed_files_by_center,
+        items=items,
+        privacy_records=privacy_records,
+        rejections=rejections,
+        duplicates=duplicates,
+    )
+
+    items.sort(key=lambda item: (not bool(item["eligible"]), item["filename"]))
+    sync_summary = _build_center_sync_summary(
+        processed_files_by_center=processed_files_by_center,
+        rejections=rejections,
+        duplicates=duplicates,
     )
     payload = {
         "selected_target_node_key": (
@@ -629,82 +822,108 @@ def mark_resources_for_hub_upload(
         resource_id = _resource_ref_id(ref)
 
         if resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO:
-            video = VideoFile.objects.select_related("center").get(pk=resource_id)
-            if not is_video_hub_export_eligible(video):
-                raise ValueError(f"Video {resource_id} is not eligible for hub export.")
-            job, created = OutboundHubTransferJob.objects.get_or_create(
-                video_file=video,
+            job, created = _mark_video_for_hub_upload(
+                resource_id=resource_id,
                 target_node=target_node,
-                transfer_mode=OutboundHubTransferJob.TransferMode.METADATA_AND_PROCESSED_MEDIA,
-                defaults={
-                    "resource_kind": OutboundHubTransferJob.ResourceKind.VIDEO,
-                    "source_center": video.center,
-                    "local_cleanup_policy": configured_local_cleanup_policy(),
-                    "marked_by": (
-                        marked_by
-                        if getattr(marked_by, "is_authenticated", False)
-                        else None
-                    ),
-                    "transfer_key": build_transfer_key(
-                        source_node_key=source_node.node_key,
-                        resource_kind="video",
-                        resource_hash=video.video_hash,
-                    ),
-                },
+                source_node=source_node,
+                marked_by=marked_by,
             )
-            emit_hub_export_audit_event(
-                "hub_export.marked",
-                outbound_job=job,
-                request_user=marked_by,
-                source_node_key=source_node.node_key,
-                created=created,
-            )
-            if hub_export_auto_queue_enabled():
-                queue_outbound_job(job)
-            created_or_existing.append(job)
-            continue
-
-        if resource_kind == OutboundHubTransferJob.ResourceKind.REPORT:
-            report = RawPdfFile.objects.select_related("center").get(pk=resource_id)
-            if not is_report_hub_export_eligible(report):
-                raise ValueError(
-                    f"Report {resource_id} is not eligible for hub export."
-                )
-            job, created = OutboundHubTransferJob.objects.get_or_create(
-                raw_pdf_file=report,
+        elif resource_kind == OutboundHubTransferJob.ResourceKind.REPORT:
+            job, created = _mark_report_for_hub_upload(
+                resource_id=resource_id,
                 target_node=target_node,
-                transfer_mode=OutboundHubTransferJob.TransferMode.METADATA_AND_PROCESSED_MEDIA,
-                defaults={
-                    "resource_kind": OutboundHubTransferJob.ResourceKind.REPORT,
-                    "source_center": report.center,
-                    "local_cleanup_policy": configured_local_cleanup_policy(),
-                    "marked_by": (
-                        marked_by
-                        if getattr(marked_by, "is_authenticated", False)
-                        else None
-                    ),
-                    "transfer_key": build_transfer_key(
-                        source_node_key=source_node.node_key,
-                        resource_kind="report",
-                        resource_hash=report.pdf_hash,
-                    ),
-                },
+                source_node=source_node,
+                marked_by=marked_by,
             )
-            emit_hub_export_audit_event(
-                "hub_export.marked",
-                outbound_job=job,
-                request_user=marked_by,
-                source_node_key=source_node.node_key,
-                created=created,
-            )
-            if hub_export_auto_queue_enabled():
-                queue_outbound_job(job)
-            created_or_existing.append(job)
-            continue
-
-        raise ValueError(f"Unsupported resource_kind={resource_kind!r}")
+        else:
+            raise ValueError(f"Unsupported resource_kind={resource_kind!r}")
+        _finalize_marked_job(
+            job,
+            source_node=source_node,
+            marked_by=marked_by,
+            created=created,
+        )
+        created_or_existing.append(job)
 
     return created_or_existing
+
+
+def _authenticated_marker(marked_by: Any) -> Any | None:
+    return marked_by if getattr(marked_by, "is_authenticated", False) else None
+
+
+def _mark_video_for_hub_upload(
+    *,
+    resource_id: int,
+    target_node: NetworkNode,
+    source_node: NetworkNode,
+    marked_by: Any,
+) -> tuple[OutboundHubTransferJob, bool]:
+    video = VideoFile.objects.select_related("center").get(pk=resource_id)
+    if not is_video_hub_export_eligible(video):
+        raise ValueError(f"Video {resource_id} is not eligible for hub export.")
+    return OutboundHubTransferJob.objects.get_or_create(
+        video_file=video,
+        target_node=target_node,
+        transfer_mode=OutboundHubTransferJob.TransferMode.METADATA_AND_PROCESSED_MEDIA,
+        defaults={
+            "resource_kind": OutboundHubTransferJob.ResourceKind.VIDEO,
+            "source_center": video.center,
+            "local_cleanup_policy": configured_local_cleanup_policy(),
+            "marked_by": _authenticated_marker(marked_by),
+            "transfer_key": build_transfer_key(
+                source_node_key=source_node.node_key,
+                resource_kind="video",
+                resource_hash=video.video_hash,
+            ),
+        },
+    )
+
+
+def _mark_report_for_hub_upload(
+    *,
+    resource_id: int,
+    target_node: NetworkNode,
+    source_node: NetworkNode,
+    marked_by: Any,
+) -> tuple[OutboundHubTransferJob, bool]:
+    report = RawPdfFile.objects.select_related("center").get(pk=resource_id)
+    if not is_report_hub_export_eligible(report):
+        raise ValueError(f"Report {resource_id} is not eligible for hub export.")
+    return OutboundHubTransferJob.objects.get_or_create(
+        raw_pdf_file=report,
+        target_node=target_node,
+        transfer_mode=OutboundHubTransferJob.TransferMode.METADATA_AND_PROCESSED_MEDIA,
+        defaults={
+            "resource_kind": OutboundHubTransferJob.ResourceKind.REPORT,
+            "source_center": report.center,
+            "local_cleanup_policy": configured_local_cleanup_policy(),
+            "marked_by": _authenticated_marker(marked_by),
+            "transfer_key": build_transfer_key(
+                source_node_key=source_node.node_key,
+                resource_kind="report",
+                resource_hash=report.pdf_hash,
+            ),
+        },
+    )
+
+
+def _finalize_marked_job(
+    job: OutboundHubTransferJob,
+    *,
+    source_node: NetworkNode,
+    marked_by: Any,
+    created: bool,
+) -> None:
+    emit_hub_export_audit_event(
+        "hub_export.marked",
+        outbound_job=job,
+        request_user=marked_by,
+        source_node_key=source_node.node_key,
+        created=created,
+    )
+    if hub_export_auto_queue_enabled():
+        queue_outbound_job(job)
 
 
 def unmark_resources_for_hub_upload(

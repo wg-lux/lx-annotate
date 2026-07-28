@@ -20,7 +20,7 @@
         <div v-else-if="!currentItem" class="alert alert-info" role="alert" @loadstart="anonymizationStore.fetchNext()">
           Alle Anonymisierungen wurden bearbeitet.
         </div>
-          
+
           <!-- Processing Status Alert -->
           <div v-if="anonymizationStore.isAnyFileProcessing" class="alert alert-warning mt-3">
             <i class="ni ni-user-run me-2"></i>
@@ -43,7 +43,7 @@
                 <div>
                   <i class="ni ni-user-run me-2"></i>
                   <span>
-                    <strong>Validierung:</strong> 
+                    <strong>Validierung:</strong>
                     {{ isPdf ? 'PDF-Dokument' : isVideo ? 'Video-Datei' : 'Unbekanntes Format' }}
                     {{ currentItem?.centerName ? `- ${currentItem.centerName}` : '' }}
                     <span
@@ -100,7 +100,7 @@
                     {{ error }}
                   </li>
                 </ul>
-                <button type="button" class="btn-close" @click="clearValidationErrors" aria-label="Schließen"></button>
+                <button type="button" class="btn-close" aria-label="Schließen" @click="clearValidationErrors"></button>
               </div>
             </div>
           </div>
@@ -113,31 +113,31 @@
                   <h5 class="card-title">Patienteninformationen</h5>
                   <div class="mb-3">
                     <label class="form-label">Vorname:</label>
-                    <input 
-                      type="text" 
-                      class="form-control" 
+                    <input
                       v-model="editedPatient.patientFirstName"
+                      type="text"
+                      class="form-control"
                       :class="{ 'is-invalid': !firstNameOk }"
                     >
-                    <div class="invalid-feedback" v-if="!firstNameOk">
+                    <div v-if="!firstNameOk" class="invalid-feedback">
                       Vorname ist erforderlich.
                     </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Nachname:</label>
-                    <input 
-                      type="text" 
-                      class="form-control" 
+                    <input
                       v-model="editedPatient.patientLastName"
+                      type="text"
+                      class="form-control"
                       :class="{ 'is-invalid': !lastNameOk }"
                     >
-                    <div class="invalid-feedback" v-if="!lastNameOk">
+                    <div v-if="!lastNameOk" class="invalid-feedback">
                       Nachname ist erforderlich.
                     </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Geschlecht:</label>
-                    <select class="form-select" v-model="editedPatient.patientGenderName">
+                    <select v-model="editedPatient.patientGenderName" class="form-select">
                       <option value="male">Männlich</option>
                       <option value="female">Weiblich</option>
                       <option value="unknown">Divers</option>
@@ -145,10 +145,10 @@
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Geburtsdatum:</label>
-                    <input 
-                      type="text"
-                      class="form-control" 
+                    <input
                       v-model="editedPatient.patientDob"
+                      type="text"
+                      class="form-control"
                       :class="{ 'is-invalid': !isDobValid }"
                       placeholder="TT.MM.JJJJ"
                       inputmode="numeric"
@@ -161,24 +161,24 @@
                         {{ dobDisplayFormat }}
                       </span>
                     </small>
-                    <div class="invalid-feedback" v-if="!isDobValid">
+                    <div v-if="!isDobValid" class="invalid-feedback">
                       {{ dobErrorMessage || 'Gültiges Geburtsdatum ist erforderlich.' }}
                     </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Fallnummer:</label>
-                    <input 
-                      type="text" 
-                      class="form-control" 
+                    <input
                       v-model="editedPatient.casenumber"
+                      type="text"
+                      class="form-control"
                     >
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Untersuchungsdatum:</label>
-                    <input 
-                      type="text"
-                      class="form-control" 
+                    <input
                       v-model="examinationDate"
+                      type="text"
+                      class="form-control"
                       :class="{ 'is-invalid': !isExaminationDateValid }"
                       placeholder="TT.MM.JJJJ"
                       inputmode="numeric"
@@ -191,15 +191,15 @@
                         {{ examDateDisplayFormat }}
                       </span>
                     </small>
-                    <div class="invalid-feedback" v-if="!isExaminationDateValid">
+                    <div v-if="!isExaminationDateValid" class="invalid-feedback">
                       {{ examDateErrorMessage || 'Das Untersuchungsdatum darf nicht vor dem Geburtsdatum liegen.' }}
                     </div>
                   </div>
                   <div v-if="isPdf" class="mb-3">
                     <label class="form-label">Dokumenttyp:</label>
                     <select
-                      class="form-select"
                       v-model="selectedDocumentType"
+                      class="form-select"
                       :class="{ 'is-invalid': documentTypeTouched && !hasValidDocumentType }"
                     >
                       <option value="" disabled>Bitte Dokumenttyp wählen</option>
@@ -211,19 +211,19 @@
                         {{ option.label }}
                       </option>
                     </select>
-                    <small class="form-text text-muted" v-if="isLoadingDocumentTypes">
+                    <small v-if="isLoadingDocumentTypes" class="form-text text-muted">
                       Dokumenttypen werden geladen...
                     </small>
-                    <small class="form-text text-danger" v-else-if="documentTypeLoadError">
+                    <small v-else-if="documentTypeLoadError" class="form-text text-danger">
                       {{ documentTypeLoadError }}
                     </small>
-                    <div class="invalid-feedback" v-if="documentTypeTouched && !hasValidDocumentType">
+                    <div v-if="documentTypeTouched && !hasValidDocumentType" class="invalid-feedback">
                       Dokumenttyp ist für die PDF-Validierung erforderlich.
                     </div>
                   </div>
                   <div v-if="isPdf" class="mb-3">
                     <label class="form-label">Befund-Fall (PatientExamination):</label>
-                    <select class="form-select" v-model="selectedPatientExaminationOption">
+                    <select v-model="selectedPatientExaminationOption" class="form-select">
                       <option value="">Über Reporting-Fallauflösung bestimmen</option>
                       <option
                         v-for="option in patientExaminationOptions"
@@ -236,17 +236,17 @@
                     </select>
                     <input
                       v-if="selectedPatientExaminationOption === '__manual__'"
+                      v-model="manualPatientExaminationId"
                       type="number"
                       min="1"
                       step="1"
                       class="form-control mt-2"
                       placeholder="PatientExamination-ID eingeben"
-                      v-model="manualPatientExaminationId"
                     >
-                    <small class="form-text text-muted" v-if="isLoadingPatientExaminations">
+                    <small v-if="isLoadingPatientExaminations" class="form-text text-muted">
                       Untersuchungen werden geladen...
                     </small>
-                    <small class="form-text text-danger" v-else-if="patientExaminationLoadError">
+                    <small v-else-if="patientExaminationLoadError" class="form-text text-danger">
                       {{ patientExaminationLoadError }}
                     </small>
                     <small class="form-text text-muted d-block mt-1">
@@ -255,38 +255,39 @@
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Anonymisierter Text:</label>
-                    <textarea class="form-control"
-                      rows="6"
-                      v-model="editedAnonymizedText"></textarea>
+                    <textarea
+v-model="editedAnonymizedText"
+                      class="form-control"
+                      rows="6"></textarea>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Externe ID:</label>
                       <textarea
-                        class="form-control"
                         v-model="editedPatient.externalId"
+                        class="form-control"
                       ></textarea>
                   </div>
-                  
+
                   <div class="mb-3">
                     <label class="form-label">Untersucher:</label>
-                      <textarea 
-                        class="form-control"
+                      <textarea
                         v-model="editedPatient.examinersDisplay"
+                        class="form-control"
                       ></textarea>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Quelle der Daten:</label>
                       <textarea
-                      class="form-control"
                       v-model="editedPatient.externalIdOrigin"
+                      class="form-control"
                     >
                     </textarea>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Zentrum:</label>
                       <textarea
-                      class="form-control"
                       v-model="editedPatient.centerName"
+                      class="form-control"
                     >
                     </textarea>
                   </div>
@@ -339,9 +340,9 @@
                   <div class="mb-3">
                     <label class="form-label">Validierungsnotiz:</label>
                     <textarea
+                      v-model="validationComment"
                       class="form-control"
                       rows="3"
-                      v-model="validationComment"
                       placeholder="Freitext für Hinweise wie Nachkontrolle oder Ausschluss"
                     ></textarea>
                 </div>
@@ -353,7 +354,8 @@
                 <div class="card-body">
                   <h5 class="card-title">Annotationen</h5>
                   <div v-if="processedUrl" class="mt-3">
-                    <img :src="showOriginal ? originalUrl : processedUrl"
+                    <img
+:src="showOriginal ? originalUrl : processedUrl"
                          class="img-fluid" alt="Uploaded Image">
                     <button class="btn btn-info btn-sm mt-2" @click="toggleImage">
                       {{ showOriginal ? 'Bearbeitetes Bild anzeigen' : 'Original anzeigen' }}
@@ -375,7 +377,7 @@
                   <!-- Clear Data Format Message -->
                   <div class="alert alert-info mt-2 mb-0">
                     <i class="ni ni-user-run me-2"></i>
-                    <strong>Datenformat:</strong> 
+                    <strong>Datenformat:</strong>
                     <span v-if="isPdf">
                       PDF-Dokument ({{ Math.round((anonymizedPdfSrc?.length || 0) / 1024) || 'Nicht Verfügbar' }} KB)
                     </span>
@@ -425,7 +427,7 @@
                           </div>
                         </div>
                       </div>
-                      
+
                       <!-- Anonymized PDF (Processed) -->
                       <div class="col-md-6">
                         <div class="pdf-section anonymized-pdf">
@@ -461,17 +463,17 @@
                         </div>
                       </div>
                     </div>
-                    
+
                     <!-- PDF Controls -->
                     <div class="pdf-controls mt-3 text-center">
-                      <button 
+                      <button
                         class="btn btn-outline-primary btn-sm me-2"
                         @click="downloadRawPdf"
                       >
                         <i class="ni ni-cloud-upload-96 me-1"></i>
                         Original herunterladen
                       </button>
-                      <button 
+                      <button
                         class="btn btn-outline-success btn-sm"
                         @click="downloadAnonymizedPdf"
                       >
@@ -480,7 +482,7 @@
                       </button>
                     </div>
                   </div>
-                  
+
                   <!-- ✅ ENHANCED: Dual Video Viewer for Raw vs Anonymized Comparison -->
                   <div v-else-if="isVideo" class="dual-video-container">
                     <div
@@ -538,7 +540,7 @@
                             @error="onRawVideoError"
                             @loadstart="onRawVideoLoadStart"
                             @canplay="onRawVideoCanPlay"
-                            @timeupdate="(event) => syncVideoTime('raw', event)"
+                            @timeupdate="syncVideoTime('raw')"
                           >
                             Ihr Browser unterstützt dieses Video-Format nicht.
                           </video>
@@ -556,7 +558,7 @@
                           </div>
                         </div>
                       </div>
-                      
+
                       <!-- Anonymized Video (Processed) -->
                       <div class="col-md-6">
                         <div class="video-section anonymized-video">
@@ -572,7 +574,7 @@
                             @error="onAnonymizedVideoError"
                             @loadstart="onAnonymizedVideoLoadStart"
                             @canplay="onAnonymizedVideoCanPlay"
-                            @timeupdate="(event) => syncVideoTime('anonymized', event)"
+                            @timeupdate="syncVideoTime('anonymized')"
                           >
                             Ihr Browser unterstützt dieses Video-Format nicht.
                           </video>
@@ -591,27 +593,27 @@
                         </div>
                       </div>
                     </div>
-                    
+
                     <!-- Video Sync Controls -->
                     <div class="video-controls mt-3 text-center">
-                      <button 
+                      <button
                         class="btn btn-outline-primary btn-sm me-2"
                         @click="syncVideos"
                       >
                         <i class="ni ni-bold-right me-1"></i>
                         Videos synchronisieren
                       </button>
-                      <button 
+                      <button
                         class="btn btn-outline-secondary btn-sm"
                         @click="pauseAllVideos"
                       >
                         <i class="ni ni-button-play me-1"></i>
                         Alle pausieren
                       </button>
-                      <button 
+                      <button
                         class="btn btn-outline-info btn-sm ms-2"
-                        @click="validateVideoForSegmentAnnotation"
                         :disabled="isValidatingVideo"
+                        @click="validateVideoForSegmentAnnotation"
                       >
                         <span v-if="isValidatingVideo" class="spinner-border spinner-border-sm me-1" role="status"></span>
                         <i v-else class="ni ni-check-bold me-1"></i>
@@ -625,7 +627,7 @@
                         Patienteninformationen-Boxen annotieren
                       </RouterLink>
                     </div>
-                    
+
                     <!-- Outside Timeline Component for Segment Validation -->
                     <div v-if="shouldShowOutsideTimeline && currentItem" class="outside-timeline-container mt-4">
                       <div class="card border-warning">
@@ -646,12 +648,12 @@
                                 {{ outsideSegmentsValidated }} / {{ totalOutsideSegments }}
                               </div>
                               <div class="progress mt-2" style="width: 200px; height: 8px;">
-                                <div 
-                                  class="progress-bar bg-success" 
-                                  role="progressbar" 
+                                <div
+                                  class="progress-bar bg-success"
+                                  role="progressbar"
                                   :style="{ width: validationProgressPercent + '%' }"
-                                  :aria-valuenow="outsideSegmentsValidated" 
-                                  :aria-valuemin="0" 
+                                  :aria-valuenow="outsideSegmentsValidated"
+                                  :aria-valuemin="0"
                                   :aria-valuemax="totalOutsideSegments"
                                 ></div>
                               </div>
@@ -660,15 +662,15 @@
                           </div>
                         </div>
                         <div class="card-body">
-                          <OutsideTimelineComponent 
-                            :videoId="currentItem.id"
+                          <OutsideTimelineComponent
+                            :video-id="currentItem.id"
                             @segment-validated="onSegmentValidated"
                             @validation-complete="onOutsideValidationComplete"
                           />
                         </div>
                       </div>
                     </div>
-                    
+
                     <!-- Video Validation Status -->
                     <div v-if="videoValidationStatus" class="alert mt-3" :class="videoValidationStatus.class">
                       <i :class="videoValidationStatus.icon" class="me-2"></i>
@@ -679,7 +681,7 @@
                       </div>
                     </div>
                   </div>
-                  
+
                   <!-- Debug Information - only when neither PDF nor video -->
                   <div v-else class="alert alert-warning">
                     <h6>Debug-Informationen:</h6>
@@ -687,7 +689,7 @@
                       <li><strong>Current Item ID:</strong> {{ currentItem?.id || 'Nicht verfügbar' }}</li>
                       <li><strong>Is PDF:</strong> {{ isPdf }}</li>
                       <li><strong>Is Video:</strong> {{ isVideo }}</li>
-                      <li><strong>Detected Media Type:</strong> {{ currentItem ? mediaStore.detectMediaType(currentItem as any) : 'N/A' }}</li>
+                      <li><strong>Detected Media Type:</strong> {{ detectCurrentItemMediaType() }}</li>
                     </ul>
                   </div>
                 </div>
@@ -703,18 +705,18 @@
               </button>
               <div class="d-flex gap-2">
                 <!-- Correction Button - for videos and PDFs -->
-                <button 
+                <button
                   v-if="currentItem && (isVideo || isPdf)"
-                  class="btn btn-warning position-relative" 
-                  @click="navigateToCorrection"
+                  class="btn btn-warning position-relative"
                   :disabled="isApproving"
                   :title="isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'"
+                  @click="navigateToCorrection"
                 >
                   <i class="ni ni-single-copy-04 me-1"></i>
                   {{ isVideo ? 'Video-Korrektur' : 'PDF-Korrektur' }}
                   <!-- Unsaved changes indicator -->
-                  <span 
-                    v-if="dirty" 
+                  <span
+                    v-if="dirty"
                     class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
                     style="font-size: 0.6em;"
                     title="Ungespeicherte Änderungen"
@@ -722,26 +724,30 @@
                     !
                   </span>
                 </button>
-                
+
                 <button class="btn btn-danger me-2" @click="rejectItem">
                   Ablehnen
                 </button>
-                
-                <button 
-                  class="btn btn-success" 
-                  @click="approveItem"
+
+                <button
+                  class="btn btn-success"
                   :disabled="isApproving || !canApprove"
                   :title="approvalBlockReason"
+                  @click="approveItem"
                 >
                   <span v-if="isApproving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   {{ isApproving ? 'Wird bestätigt...' : 'Bestätigen' }}
                 </button>
-                <div class="alert alert-warning mt-2 mb-0" v-if="mediaUnknown">
+                <div v-if="mediaUnknown" class="alert alert-warning mt-2 mb-0">
                 <strong>
                     Bitte hier den Medientyp eingeben - Der mediaStore hat einen Fehler
                 </strong>
                 <select v-model="mediaInferral">
-                  <option v-for="mediaOption in mediaOptions" :value="mediaOption.value">
+                  <option
+                    v-for="mediaOption in mediaOptions"
+                    :key="mediaOption.value"
+                    :value="mediaOption.value"
+                  >
                     {{ mediaOption.text }}
                   </option>
                 </select>
@@ -855,8 +861,8 @@ import { buildPdfStreamUrl, buildVideoHlsPlaylistUrl } from '@/utils/mediaUrls';
 import {useRoute} from 'vue-router';
 import { useDebug } from '@/composables/useDebug';
 
-// @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { isAxiosError } from 'axios';
 import { endpoints } from '@/types/api/endpoints';
 import type { VideoAnonymizationStatus } from '@/types/anonymizationPipeline';
 
@@ -952,6 +958,18 @@ const mediaUnknown = computed(
   () => !isPdf.value && !isVideo.value
 );
 
+function detectCurrentItemMediaType(): string {
+  const item = currentItem.value;
+  if (!item) return 'N/A';
+  return mediaStore.detectMediaType({
+    id: item.id,
+    scope: sourceMediaScope.value ?? undefined,
+    mediaType: sourceMediaScope.value === 'pdf' || sourceMediaScope.value === 'video'
+      ? sourceMediaScope.value
+      : undefined,
+  });
+}
+
 watch(mediaInferral, (val) => {
   if (!val || !currentItem.value) return;
 
@@ -1004,6 +1022,27 @@ type CaseResolutionPayload = {
 };
 
 type NoMoreNamesConfirmation = 'unknown' | 'confirmed' | 'not_confirmed';
+
+type ApiErrorPayload = {
+  detail?: string;
+  error?: string;
+  allowedDocumentTypes?: unknown;
+  allowed_document_types?: unknown;
+};
+
+function getApiErrorPayload(error: unknown): ApiErrorPayload | undefined {
+  if (isAxiosError<ApiErrorPayload>(error)) return error.response?.data;
+  if (!error || typeof error !== 'object') return undefined;
+  const response = (error as Record<string, unknown>).response;
+  if (!response || typeof response !== 'object') return undefined;
+  const data = (response as Record<string, unknown>).data;
+  return data && typeof data === 'object' ? data as ApiErrorPayload : undefined;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  const payload = getApiErrorPayload(error);
+  return payload?.detail || payload?.error || (error instanceof Error ? error.message : fallback);
+}
 
 interface AnonymizationValidationPayload {
   patient_first_name?: string | null;
@@ -1093,7 +1132,7 @@ type Editable = {
   patientFirstName: string;
   patientLastName: string;
   patientGenderName: string;
-  patientDob: string; 
+  patientDob: string;
   casenumber: string;
   externalId?: string;
   externalIdOrigin?: string;
@@ -1277,13 +1316,13 @@ const canApprove = computed(() => {
   // Video approval is fail-closed until the canonical processed artifact is
   // available and explicitly marked for mandatory human review.
   if (isVideo.value && !videoAnonymizationReady.value) return false;
-  
+
   // For videos: Check if outside segments need validation
   if (isVideo.value && shouldShowOutsideTimeline.value) {
     // Block approval until all outside segments are validated
     return false;
   }
-  
+
   // All checks passed
   return true;
 });
@@ -1324,12 +1363,12 @@ const approvalBlockReason = computed(() => {
   if (isVideo.value && !videoAnonymizationStatus.value?.reviewRequired) {
     return 'Das Artefakt ist nicht als verpflichtend menschlich zu prüfende Fassung gekennzeichnet.';
   }
-  
+
   if (isVideo.value && shouldShowOutsideTimeline.value) {
     const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value;
     return `Bitte validieren Sie zuerst alle Outside-Segmente (${remaining} verbleibend)`;
   }
-  
+
   return '';
 });
 
@@ -1553,11 +1592,11 @@ async function fetchVideoAnonymizationStatus(): Promise<void> {
       r(endpoints.media.videoCorrectionAnonymization(targetFileId))
     );
     videoAnonymizationStatus.value = data;
-  } catch (error: any) {
-    videoAnonymizationError.value =
-      error?.response?.data?.error ||
-      error?.message ||
-      'Release-Artefakt konnte nicht geprüft werden.';
+  } catch (error: unknown) {
+    videoAnonymizationError.value = getErrorMessage(
+      error,
+      'Release-Artefakt konnte nicht geprüft werden.'
+    );
   } finally {
     isLoadingVideoAnonymization.value = false;
   }
@@ -1674,12 +1713,12 @@ const onAnonymizedVideoCanPlay = () => {
 };
 
 // ✅ NEW: Video synchronization functions
-const syncVideoTime = (source: 'raw' | 'anonymized', event: Event) => {
+const syncVideoTime = (source: 'raw' | 'anonymized') => {
   if (!rawVideoElement.value || !anonymizedVideoElement.value) return;
-  
+
   const sourceElement = source === 'raw' ? rawVideoElement.value : anonymizedVideoElement.value;
   const targetElement = source === 'raw' ? anonymizedVideoElement.value : rawVideoElement.value;
-  
+
   // Sync time only if there's a significant difference (avoid infinite loops)
   const timeDiff = Math.abs(sourceElement.currentTime - targetElement.currentTime);
   if (timeDiff > 0.5) { // 0.5 second tolerance
@@ -1689,12 +1728,12 @@ const syncVideoTime = (source: 'raw' | 'anonymized', event: Event) => {
 
 const syncVideos = () => {
   if (!rawVideoElement.value || !anonymizedVideoElement.value) return;
-  
+
   // Sync to the average time of both videos
   const avgTime = (rawVideoElement.value.currentTime + anonymizedVideoElement.value.currentTime) / 2;
   rawVideoElement.value.currentTime = avgTime;
   anonymizedVideoElement.value.currentTime = avgTime;
-  
+
   console.log('Videos synchronized to time:', avgTime);
 };
 
@@ -1766,14 +1805,14 @@ const validateVideoForSegmentAnnotation = async () => {
     }
 
     toast.info({ text: `Video ${currentItem.value.id} validiert` });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error validating video for segment annotation:', error);
     videoValidationStatus.value = {
       class: 'alert-danger',
       icon: 'ni ni-settings-gear-65',
       title: 'Validierung fehlgeschlagen',
       message: 'Video konnte nicht für Segment-Annotation validiert werden.',
-      details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
+      details: getErrorMessage(error, 'Unbekannter Fehler')
     };
   } finally {
     isValidatingVideo.value = false;
@@ -1783,10 +1822,10 @@ const validateVideoForSegmentAnnotation = async () => {
 const onSegmentValidated = (segmentId: string | number) => {
   outsideSegmentsValidated.value++;
   console.log(`✅ Segment ${segmentId} validated. Progress: ${outsideSegmentsValidated.value}/${totalOutsideSegments.value}`);
-  
+
   // Update validation status
   if (videoValidationStatus.value) {
-    videoValidationStatus.value.message = 
+    videoValidationStatus.value.message =
       `Fortschritt: ${outsideSegmentsValidated.value}/${totalOutsideSegments.value} Outside-Segmente validiert.`;
   }
 };
@@ -1794,7 +1833,7 @@ const onSegmentValidated = (segmentId: string | number) => {
 const onOutsideValidationComplete = () => {
   console.log('🎉 All outside segments validated!');
   shouldShowOutsideTimeline.value = false;
-  
+
   videoValidationStatus.value = {
     class: 'alert-success',
     icon: 'ni ni-check-bold',
@@ -1802,7 +1841,7 @@ const onOutsideValidationComplete = () => {
     message: 'Alle Outside-Segmente wurden erfolgreich validiert.',
     details: `Video ${currentItem.value?.id} ist jetzt bereit für die vollständige Segment-Annotation.`
   };
-  
+
   toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
 };
 
@@ -1855,13 +1894,13 @@ async function fetchDocumentTypeOptions(): Promise<void> {
     if (!options.some((option) => option.value === selectedDocumentType.value)) {
       selectedDocumentType.value = '';
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error loading document type options:', error);
     documentTypeOptions.value = [];
-    documentTypeLoadError.value =
-      error?.response?.data?.error ||
-      error?.message ||
-      'Dokumenttypen konnten nicht geladen werden.';
+    documentTypeLoadError.value = getErrorMessage(
+      error,
+      'Dokumenttypen konnten nicht geladen werden.'
+    );
   } finally {
     isLoadingDocumentTypes.value = false;
   }
@@ -1958,14 +1997,13 @@ async function fetchPatientExaminationOptions(): Promise<void> {
     }
 
     patientExaminationOptions.value = options.sort((a, b) => b.id - a.id);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error loading patient examinations for validation:', error);
     patientExaminationOptions.value = options;
-    patientExaminationLoadError.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
-      'Untersuchungen konnten nicht geladen werden.';
+    patientExaminationLoadError.value = getErrorMessage(
+      error,
+      'Untersuchungen konnten nicht geladen werden.'
+    );
   } finally {
     isLoadingPatientExaminations.value = false;
   }
@@ -2115,12 +2153,12 @@ const toggleImage = () => {
  */
 function validateAllDates() {
   const validator = new DateValidator();
-  
+
   // Clear previous errors
   validationErrors.value = [];
   dobErrorMessage.value = '';
   examDateErrorMessage.value = '';
-  
+
   // Validate DOB
   if (editedPatient.value.patientDob) {
     const dobValue = editedPatient.value.patientDob;
@@ -2135,7 +2173,7 @@ function validateAllDates() {
   } else {
     dobDisplayFormat.value = '';
   }
-  
+
   // Validate Exam Date
   if (examinationDate.value) {
     const examValue = examinationDate.value;
@@ -2150,7 +2188,7 @@ function validateAllDates() {
   } else {
     examDateDisplayFormat.value = '';
   }
-  
+
   // Validate DOB < ExamDate constraint
   if (dobISO.value && examISO.value) {
     validator.addConstraint(
@@ -2159,11 +2197,11 @@ function validateAllDates() {
       'Geburtsdatum muss vor oder am selben Tag wie das Untersuchungsdatum liegen'
     );
   }
-  
+
   // Update validation errors
   if (validator.hasErrors()) {
     validationErrors.value = validator.getErrors();
-    
+
     // Set specific error messages
     const errors = validator.getErrors();
     errors.forEach(error => {
@@ -2183,14 +2221,14 @@ function validateAllDates() {
 function onDobBlur() {
   const value = editedPatient.value.patientDob;
   if (!value) return;
-  
+
   // Normalize to German for consistent UI entry format
   const germanDate = normalizeDateInputToGerman(value);
   if (germanDate) {
     editedPatient.value.patientDob = germanDate;
     dobDisplayFormat.value = 'Deutsch (TT.MM.JJJJ)';
   }
-  
+
   // Validate all dates
   validateAllDates();
 }
@@ -2201,14 +2239,14 @@ function onDobBlur() {
 function onExamDateBlur() {
   const value = examinationDate.value;
   if (!value) return;
-  
+
   // Normalize to German for consistent UI entry format
   const germanDate = normalizeDateInputToGerman(value);
   if (germanDate) {
     examinationDate.value = germanDate;
     examDateDisplayFormat.value = 'Deutsch (TT.MM.JJJJ)';
   }
-  
+
   // Validate all dates
   validateAllDates();
 }
@@ -2244,13 +2282,13 @@ const navigateToSegmentation = () => {
     toast.error({ text: 'Video-Datei-ID konnte nicht bestimmt werden.' });
     return;
   }
-  
+
   // Navigate with video ID as query parameter to ensure correct video selection
-  router.push({ 
-    name: 'Video-Untersuchung', 
+  router.push({
+    name: 'Video-Untersuchung',
     query: { video: String(videoFileId) }
   });
-  
+
   console.log(`🎯 Navigating to Video-Untersuchung with video ID: ${videoFileId}`);
 };
 
@@ -2450,15 +2488,78 @@ const navigateAfterApproval = async (
 };
 
 
+type ApprovalMediaKind = 'pdf' | 'video' | 'unknown';
+
+function resolveApprovalMediaKind(): ApprovalMediaKind {
+  if (sourceMediaScope.value === 'pdf' || sourceMediaScope.value === 'video') {
+    return sourceMediaScope.value;
+  }
+  if (isPdf.value) return 'pdf';
+  if (isVideo.value) return 'video';
+  return 'unknown';
+}
+
+function buildApprovalValidationPayload(
+  mediaKind: Exclude<ApprovalMediaKind, 'unknown'>
+): AnonymizationValidationPayload {
+  const payload: AnonymizationValidationPayload = {
+    patient_first_name: editedPatient.value.patientFirstName,
+    patient_last_name: editedPatient.value.patientLastName,
+    patient_gender: editedPatient.value.patientGenderName,
+    patient_dob: DateConverter.toGerman(dobISO.value || '') || '',
+    examination_date: DateConverter.toGerman(examISO.value || '') || '',
+    casenumber: editedPatient.value.casenumber || '',
+    anonymized_text: editedAnonymizedText.value || undefined,
+    text: editedPatient.value.text || undefined,
+    is_verified: 'true',
+    file_type: mediaKind,
+    center_name: editedPatient.value.centerName || '',
+    external_id: editedPatient.value.externalId || '',
+    external_id_origin: editedPatient.value.externalIdOrigin || '',
+    tags: selectedTags.value,
+    validation_comment: validationComment.value || '',
+  };
+  if (isPdf.value) payload.document_type = selectedDocumentType.value;
+  if (noMoreNamesConfirmation.value !== 'unknown') {
+    payload.no_more_names_confirmed = noMoreNamesConfirmation.value === 'confirmed';
+  }
+  return payload;
+}
+
+function persistApprovedReportFileId(responseData: unknown): void {
+  if (!responseData || typeof responseData !== 'object') return;
+  const responseRecord = responseData as Record<string, unknown>;
+  const reportFileCandidate = responseRecord.reportFile ?? responseRecord.report_file;
+  if (!reportFileCandidate || typeof reportFileCandidate !== 'object') return;
+  const reportFileId = (reportFileCandidate as Record<string, unknown>).id;
+  if (typeof reportFileId === 'number') {
+    sessionStorage.setItem('last:reportFileId', String(reportFileId));
+  }
+}
+
+function applyApprovalErrorDetails(error: unknown): void {
+  const payload = getApiErrorPayload(error);
+  const allowedTypes = normalizeDocumentTypeOptions(
+    payload?.allowedDocumentTypes ?? payload?.allowed_document_types
+  );
+  if (allowedTypes.length > 0) documentTypeOptions.value = allowedTypes;
+  const backendMessage = payload?.error;
+  toast.error({
+    text: backendMessage
+      ? `Fehler beim Bestätigen: ${backendMessage}`
+      : 'Fehler beim Bestätigen des Elements',
+  });
+}
+
 const approveItem = async () => {
   if (!currentItem.value || !canSave.value || isApproving.value) return;
   documentTypeTouched.value = true;
   editedPatient.value.anonymizedText = editedAnonymizedText.value;
-  
+
   // ============================================================================
   // Phase 3.1: Segment Validation Enforcement
   // ============================================================================
-  
+
   // Additional safety check: Prevent approval if outside segments not validated
   if (!canApprove.value) {
     const reason = approvalBlockReason.value;
@@ -2466,60 +2567,28 @@ const approveItem = async () => {
     toast.warning({ text: reason });
     return;
   }
-  
+
   // For videos with outside segments: Ensure validation was completed
   if (isVideo.value && shouldShowOutsideTimeline.value) {
     console.warn('❌ Outside segments still pending validation');
-    toast.error({ 
-      text: 'Bitte validieren Sie zuerst alle Outside-Segmente, bevor Sie das Video bestätigen.' 
+    toast.error({
+      text: 'Bitte validieren Sie zuerst alle Outside-Segmente, bevor Sie das Video bestätigen.'
     });
     return;
   }
-  
+
   // ============================================================================
   // End Phase 3.1
   // ============================================================================
-  
-  const mediaKind: 'pdf' | 'video' | 'unknown' =
-    sourceMediaScope.value === 'pdf' || sourceMediaScope.value === 'video'
-      ? sourceMediaScope.value
-      : isPdf.value
-        ? 'pdf'
-        : isVideo.value
-          ? 'video'
-          : 'unknown';
+
+  const mediaKind = resolveApprovalMediaKind();
 
   if (mediaKind === 'unknown') {
     toast.error({ text: 'Bitte Medientyp auswählen, bevor bestätigt wird.' });
     return;
   }
 
-  const validationPayload: AnonymizationValidationPayload = {
-    patient_first_name: editedPatient.value.patientFirstName,
-    patient_last_name:  editedPatient.value.patientLastName,
-    patient_gender:     editedPatient.value.patientGenderName,
-    patient_dob:        DateConverter.toGerman(dobISO.value || '') || '',
-    examination_date:   DateConverter.toGerman(examISO.value || '') || '',
-    casenumber:         editedPatient.value.casenumber || '',
-    anonymized_text:    editedAnonymizedText.value || undefined,
-    text:               editedPatient.value.text || undefined,
-    is_verified:        'true',
-    file_type:          mediaKind,
-    center_name:        editedPatient.value.centerName || '',
-    external_id:        editedPatient.value.externalId || '',
-    external_id_origin: editedPatient.value.externalIdOrigin || '',
-    tags:               selectedTags.value,
-    validation_comment: validationComment.value || '',
-  };
-
-  if (isPdf.value) {
-    validationPayload.document_type = selectedDocumentType.value;
-  }
-
-  if (noMoreNamesConfirmation.value !== 'unknown') {
-    validationPayload.no_more_names_confirmed = noMoreNamesConfirmation.value === 'confirmed';
-  }
-
+  const validationPayload = buildApprovalValidationPayload(mediaKind);
   const validationFileId = resolveFileIdFromContext();
   if (validationFileId === null) {
     toast.error({ text: 'Datei-ID konnte nicht bestimmt werden. Bitte Datei aus der Übersicht erneut öffnen.' });
@@ -2532,39 +2601,25 @@ const approveItem = async () => {
       r(endpoints.anonymization.validate(validationFileId)),
       validationPayload
     );
-    const reportFileId = response?.data?.reportFile?.id ?? response?.data?.report_file?.id;
-    if (typeof reportFileId === 'number') {
-      sessionStorage.setItem('last:reportFileId', String(reportFileId));
-    }
+    persistApprovedReportFileId(response?.data);
 
     console.log(`Anonymization validated successfully for file ${validationFileId}`);
     toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
 
     await navigateAfterApproval(mediaKind, response?.data);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error approving item:', error);
-    const allowedTypes = normalizeDocumentTypeOptions(
-      error?.response?.data?.allowedDocumentTypes ?? error?.response?.data?.allowed_document_types
-    );
-    if (allowedTypes.length > 0) {
-      documentTypeOptions.value = allowedTypes;
-    }
-    const backendMessage = error?.response?.data?.error;
-    toast.error({
-      text: backendMessage
-        ? `Fehler beim Bestätigen: ${backendMessage}`
-        : 'Fehler beim Bestätigen des Elements',
-    });
+    applyApprovalErrorDetails(error);
   } finally {
     isApproving.value = false;
   }
 };
 
 
-const saveAnnotation = async () => {
+const _saveAnnotation = async () => {
 
-  
+
   if (!canSubmit.value) {
     // Provide more specific error messages
     if (!processedUrl.value || !originalUrl.value) {
@@ -2576,12 +2631,12 @@ const saveAnnotation = async () => {
       if (!lastNameOk.value) errors.push('Nachname');
       if (!isDobValid.value) errors.push('gültiges Geburtsdatum');
       if (!isExaminationDateValid.value) errors.push('gültiges Untersuchungsdatum (darf nicht vor Geburtsdatum liegen)');
-      
+
       toast.error({ text: `Bitte korrigieren Sie: ${errors.join(', ')}` });
     }
     return;
   }
-  
+
   try {
     const annotationData = {
       processed_image_url: processedUrl.value,
@@ -2640,7 +2695,7 @@ const navigateToCorrection = async () => {
       // approveItem will navigate to next item, so we need to return
       toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
       return;
-    } catch (error) {
+    } catch (_error) {
       toast.error({ text: 'Fehler beim Speichern. Korrektur-Navigation abgebrochen.' });
       return;
     }

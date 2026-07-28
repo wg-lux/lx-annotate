@@ -112,6 +112,29 @@ describe('VideoStore Performance Optimization', () => {
     ])
   })
 
+  it('starts the video-list request without waiting for labels to finish', async () => {
+    const store = useVideoStore()
+    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
+    let resolveLabels!: (value: { data: unknown[] }) => void
+    const labelsResponse = new Promise<{ data: unknown[] }>((resolve) => {
+      resolveLabels = resolve
+    })
+    axiosGet.mockImplementation((url: string) => {
+      if (url === 'media/videos/labels/list/') return labelsResponse
+      if (url === 'media/videos/') return Promise.resolve({ data: { results: [] } })
+      return Promise.reject(new Error(`Unexpected request: ${url}`))
+    })
+
+    const request = store.fetchAllVideos()
+    await Promise.resolve()
+
+    expect(axiosGet).toHaveBeenCalledWith('media/videos/labels/list/')
+    expect(axiosGet).toHaveBeenCalledWith('media/videos/')
+
+    resolveLabels({ data: [] })
+    await request
+  })
+
   it('normalizes prediction segment origin metadata from the backend', () => {
     const segment = backendSegmentToSegment({
       id: 700,

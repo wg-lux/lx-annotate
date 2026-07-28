@@ -4,10 +4,10 @@
       <div class="card-header pb-0 d-flex justify-content-between align-items-center">
         <h4 class="mb-0">Anonymisierungs-Übersicht</h4>
         <div class="d-flex gap-2">
-          <button 
+          <button
             class="btn btn-outline-primary btn-sm"
-            @click="refreshOverview"
             :disabled="isRefreshing"
+            @click="refreshOverview"
           >
             <i class="ni ni-bold-right" :class="{ 'ni-spin': isRefreshing }"></i>
             Aktualisieren
@@ -81,8 +81,8 @@
                 <!-- Filename -->
                 <td class="sticky-filename-column">
                   <div class="d-flex align-items-start filename-cell-content">
-                    <i 
-                      :class="getFileIcon(file.mediaType)" 
+                    <i
+                      :class="getFileIcon(file.mediaType)"
                       class="me-2 flex-shrink-0"
                     ></i>
                     <div class="filename-details">
@@ -99,7 +99,7 @@
 
                 <!-- Media Type -->
                 <td>
-                  <span 
+                  <span
                     :class="getMediaTypeBadgeClass(file.mediaType)"
                     class="badge"
                   >
@@ -118,10 +118,10 @@
                     <button
                       v-if="file.importOnly && file.uploadJob && (file.uploadJob.retryable || canUseImportAction(file, 'safe_reimport'))"
                       data-test="retry-upload-job-button"
-                      @click="retryUploadJob(file)"
                       class="btn btn-outline-warning"
                       :disabled="processingFiles.has(file.id)"
                       title="Gespeicherte Importquelle erneut verarbeiten"
+                      @click="retryUploadJob(file)"
                     >
                       <i class="ni ni-bold-right"></i>
                       Jetzt erneut versuchen
@@ -130,10 +130,10 @@
                     <!-- Re-import for videos with missing/incorrect metadata -->
                     <button
                       v-if="!file.importOnly && file.mediaType === 'video' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
-                      @click="reimportVideo(file.id)"
                       class="btn btn-outline-info"
                       :disabled="isProcessing(file.id)"
                       title="Video erneut importieren und Metadaten aktualisieren"
+                      @click="reimportVideo(file.id)"
                     >
                       <i class="ni ni-bold-right"></i>
                       Erneut importieren
@@ -142,10 +142,10 @@
                     <!-- Re-import for PDFs (using reset-status for now) -->
                     <button
                       v-if="!file.importOnly && file.mediaType === 'pdf' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
-                      @click="reimportPdf(file.id)"
                       class="btn btn-outline-info"
                       :disabled="isProcessing(file.id)"
                       title="PDF erneut importieren und verarbeiten"
+                      @click="reimportPdf(file.id)"
                     >
                       <i class="ni ni-bold-right"></i>
                       Erneut importieren
@@ -154,9 +154,9 @@
                     <!-- Start Anonymization -->
                     <button
                       v-if="!file.importOnly && file.anonymizationStatus === 'not_started'"
-                      @click="startAnonymization(file.id)"
                       class="btn btn-outline-primary"
                       :disabled="isProcessing(file.id)"
+                      @click="startAnonymization(file.id)"
                     >
                       <i class="ni ni-button-play"></i>
                       Starten
@@ -165,9 +165,9 @@
                     <!-- Restart Anonymization -->
                     <button
                       v-if="!file.importOnly && file.anonymizationStatus === 'failed'"
-                      @click="startAnonymization(file.id)"
                       class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
+                      @click="startAnonymization(file.id)"
                     >
                       <i class="ni ni-bold-right"></i>
                       Erneut versuchen
@@ -176,9 +176,9 @@
                     <!-- Video Correction -->
                     <button
                       v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')"
-                      @click="correctVideo(file.id)"
                       class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
+                      @click="correctVideo(file.id)"
                     >
                       <i class="ni ni-single-copy-04"></i>
                       Korrektur
@@ -188,11 +188,11 @@
                     <button
                       v-if="!file.importOnly && canUseImportAction(file, 'delete')"
                       data-test="delete-file-button"
-                      @click="deleteFile(file.id)"
                       class="btn btn-outline-danger"
                       :disabled="isProcessing(file.id)"
                       :aria-label="`Datei ${file.id} löschen`"
                       title="Datei permanent löschen"
+                      @click="deleteFile(file.id)"
                     >
                       <i class="ni ni-settings-gear-65"></i>
                       Löschen
@@ -288,7 +288,7 @@
                     :class="getStatusBadgeClass(file.anonymizationStatus)"
                     class="badge"
                   >
-                    <i 
+                    <i
                       v-if="file.anonymizationStatus === 'processing_anonymization'"
                       class="ni ni-settings-gear-65 ni-spin me-1"
                     ></i>
@@ -312,9 +312,9 @@
                 <td class="validation-action-column">
                   <button
                     v-if="file.anonymizationStatus === 'done_processing_anonymization'"
-                    @click="validateFile(file.id, file.mediaType)"
                     class="btn btn-success btn-sm"
                     :disabled="!isReadyForValidation(file.id)"
+                    @click="validateFile(file.id, file.mediaType)"
                   >
                     <i class="ni ni-user-run me-1"></i>
                     Validieren
@@ -364,7 +364,7 @@
         </div>
 
         <!-- Status Summary -->
-        <div class="row mt-4" v-if="availableFiles.length">
+        <div v-if="availableFiles.length" class="row mt-4">
           <div class="col-md-12">
             <div class="card bg-light">
               <div class="card-body">
@@ -384,7 +384,7 @@
                         {{ getTotalByStatus('processing') }}
                       </span>
                     </div>
-                  
+
                     <small class="text-muted">In Bearbeitung</small>
                   </div>
                   <div class="col-md-3">
@@ -431,7 +431,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type FileItem, type UploadJobOverview } from '@/stores/anonymizationStore';
-import { useMediaTypeStore } from '@/stores/mediaTypeStore';
+import { useMediaTypeStore, type MediaItem } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 import { useMediaManagement } from '@/api/mediaManagement';
 import { type MediaType } from '../../stores/mediaTypeStore';
@@ -442,6 +442,16 @@ const anonymizationStore = useAnonymizationStore();
 const mediaStore = useMediaTypeStore();
 const pollingProtection = usePollingProtection();
 const mediaManagement = useMediaManagement();
+
+const toMediaItem = (file: FileItem): MediaItem => ({
+  id: file.id,
+  mediaType: file.mediaType,
+  scope: file.mediaType,
+  filename: file.filename,
+});
+
+const normalizeMediaType = (mediaType: string): MediaType =>
+  mediaType === 'pdf' || mediaType === 'video' ? mediaType : 'unknown';
 
 // Local state
 const isRefreshing = ref(false);
@@ -458,7 +468,7 @@ const MONITORING_REFRESH_INTERVAL_MS = 15000;
 // Computed properties
 const availableFiles = computed(() => anonymizationStore.overview);
 
-const filteredOutCount = computed(() => 
+const filteredOutCount = computed(() =>
   anonymizationStore.overview.length - availableFiles.value.length
 );
 
@@ -509,11 +519,11 @@ const startAnonymization = async (fileId: number) => {
   }
 
   const mediaType = file.mediaType === 'video' ? 'video' : 'pdf';
-  
+
   // Use polling protection for start anonymization
   const result = await pollingProtection.startAnonymizationSafeWithProtection(fileId, mediaType);
-  
-  if (result?.success) {
+
+  if (result) {
     // Refresh overview to get updated status
     await refreshOverview();
     console.log('Anonymization started successfully for file', fileId);
@@ -526,7 +536,7 @@ const correctVideo = async (fileId: number) => {
   // Find the file to set it in MediaStore for consistency
   const file = availableFiles.value.find(f => f.id === fileId);
   if (file) {
-    mediaStore.setCurrentItem(file as any);
+    mediaStore.setCurrentItem(toMediaItem(file));
   }
   else {
     console.warn('File not found for correction:', fileId);
@@ -571,7 +581,7 @@ const validateFile = async (fileId: number, mediaType: string) => {
         console.warn('File not found for validation with given mediaType:', { fileId, mediaType });
         return;
       }
-      mediaStore.setCurrentItem(file as any);
+      mediaStore.setCurrentItem(toMediaItem(file));
       const kind = file.mediaType as MediaType;
 
       try {
@@ -611,7 +621,7 @@ const reimportVideo = async (fileId: number) => {
     if (success) {
       // Refresh overview to get updated status
       await refreshOverview();
-            
+
       console.log('Video re-imported successfully:', fileId);
     } else {
       console.warn('Re-import failed - staying on current page');
@@ -688,13 +698,13 @@ const isProcessing = (fileId: number) => {
   if (!file) return false;
 
   const mediaType = mediaStore.detectMediaType(file);
-  
+
   // Check both local processing and polling protection
   // Handle unknown media type by falling back to local processing check only
   if (mediaType === 'unknown') {
     return processingFiles.value.has(fileId);
   }
-  
+
   return processingFiles.value.has(fileId) ||
          isUploadJobActive(file) ||
          isHlsMaterializationActive(file) ||
@@ -709,12 +719,12 @@ const needsReimport = (file: FileItem) => {
   if (file.mediaType === 'video') {
     return metadataMissing;
   }
-  
+
   // PDF files might need re-import if anonymization failed or no text extracted
   if (file.mediaType === 'pdf') {
     return metadataMissing || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
   }
-  
+
   return false;
 };
 
@@ -741,11 +751,11 @@ const canUseImportAction = (
 };
 
 const getFileIcon = (mediaType: string) => {
-  return mediaStore.getMediaTypeIcon(mediaType as any);
+  return mediaStore.getMediaTypeIcon(normalizeMediaType(mediaType));
 };
 
 const getMediaTypeBadgeClass = (mediaType: string) => {
-  return mediaStore.getMediaTypeBadgeClass(mediaType as any);
+  return mediaStore.getMediaTypeBadgeClass(normalizeMediaType(mediaType));
 };
 
 const documentTypeLabels: Record<string, string> = {
@@ -1057,7 +1067,7 @@ const getOriginalFileDeletionHint = (file: FileItem): string => {
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '-';
-  
+
   const date = new Date(dateString);
   return date.toLocaleDateString('de-DE', {
     year: 'numeric',
@@ -1088,9 +1098,9 @@ const getTotalByStatus = (status: string) => {
     'done_processing_anonymization': ['done_processing_anonymization', 'validated'],
     'failed': ['failed']
   };
-  
+
   const relevantStatuses = statusMap[status] || [status];
-  return availableFiles.value.filter(file => 
+  return availableFiles.value.filter(file =>
     relevantStatuses.includes(file.anonymizationStatus)
   ).length;
 };
@@ -1122,7 +1132,7 @@ onMounted(async () => {
 
   // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
   const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
-  
+
   anonymizationStore.overview.forEach((file: FileItem) => {
     if (processingStatuses.includes(file.anonymizationStatus)) {
       console.log(`Starting polling for processing file ${file.id} (status: ${file.anonymizationStatus})`);
@@ -1146,7 +1156,7 @@ onUnmounted(() => {
   }
   // Clean up all polling when component is unmounted
   anonymizationStore.stopAllPolling();
-  
+
   // Clear any remaining processing locks
   pollingProtection.clearAllLocalLocks();
 });
@@ -1185,19 +1195,44 @@ onUnmounted(() => {
 .overview-table-scroll {
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  padding-bottom: 0.5rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.overview-table-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .overview-sticky-scrollbar {
   position: sticky;
   bottom: 0;
   z-index: 4;
-  height: 1rem;
+  height: 14px;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
   background-color: #fff;
   border-top: 1px solid #dee2e6;
+  scrollbar-color: #5e72e4 #e9ecef;
+  scrollbar-width: auto;
+}
+
+.overview-sticky-scrollbar::-webkit-scrollbar {
+  height: 12px;
+}
+
+.overview-sticky-scrollbar::-webkit-scrollbar-track {
+  background: #e9ecef;
+  border-radius: 6px;
+}
+
+.overview-sticky-scrollbar::-webkit-scrollbar-thumb {
+  background: #5e72e4;
+  border-radius: 6px;
+}
+
+.overview-sticky-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #344767;
 }
 
 .overview-sticky-scrollbar-spacer {
@@ -1293,7 +1328,7 @@ onUnmounted(() => {
   .table-responsive {
     font-size: 0.875rem;
   }
-  
+
   .btn-group-sm .btn {
     padding: 0.125rem 0.25rem;
     font-size: 0.7rem;

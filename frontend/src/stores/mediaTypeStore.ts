@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { computed, ref, type ComputedRef } from 'vue'
-import { useAnonymizationStore } from '@/stores/anonymizationStore'
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -71,7 +70,11 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
     if (toStore === 'unknown') return
 
     typeByKey.value.set(key, toStore)
-    try { sessionStorage.setItem(`mediaType:${key}`, toStore) } catch {}
+    try {
+      sessionStorage.setItem(`mediaType:${key}`, toStore)
+    } catch {
+      // Session persistence is optional; the in-memory registry remains authoritative.
+    }
   }
 
 
@@ -87,7 +90,9 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
           typeByKey.value.set(key, fromSession)
           return fromSession
         }
-      } catch {}
+      } catch {
+        // Missing or inaccessible session storage falls back to an unknown media type.
+      }
       return 'unknown'
     }
     else {

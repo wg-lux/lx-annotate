@@ -46,7 +46,8 @@ describe('ReportImportPanel', () => {
       uploadId: 'upload-1',
       statusUrl: '/endoreg-api/upload/upload-1/status/'
     })
-    hoisted.pollUploadStatus.mockImplementation(async (_url: string, options: any) => {
+    hoisted.pollUploadStatus.mockImplementation(
+      async (_url: string, options: { onProgress?: (status: { status: string }) => void }) => {
       options.onProgress?.({ status: 'processing' })
       return {
         status: 'anonymized',
@@ -56,7 +57,8 @@ describe('ReportImportPanel', () => {
           result: { pdfId: 73 }
         }
       }
-    })
+      }
+    )
     hoisted.resolveUploadedReportId.mockReturnValue(73)
   })
 

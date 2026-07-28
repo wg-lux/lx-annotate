@@ -3,33 +3,33 @@
     <div class="timeline-header">
       <div class="timeline-controls">
         <button 
-          @click="playPause" 
           class="play-btn"
           :disabled="!video"
+          @click="playPause"
         >
           <i :class="isPlaying ? 'ni ni-button-play' : 'ni ni-button-play'"></i>
         </button>
         <button
-          @click="stepFrame(-1)"
           class="control-btn"
           :disabled="!canStepFrame"
           title="Ein Frame zurück"
+          @click="stepFrame(-1)"
         >
           <i class="ni ni-bold-right icon-reverse"></i>
         </button>
         <button
-          @click="stepFrame(1)"
           class="control-btn"
           :disabled="!canStepFrame"
           title="Ein Frame vor"
+          @click="stepFrame(1)"
         >
           <i class="ni ni-bold-right"></i>
         </button>
         <button
-          @click="deleteSelectedSegment"
           class="control-btn danger"
           :disabled="activeSegmentId == null"
           title="Ausgewähltes Segment löschen (Entf)"
+          @click="deleteSelectedSegment"
         >
           <i class="ni ni-basket"></i>
         </button>
@@ -38,11 +38,11 @@
         </span>
       </div>
       <div class="zoom-controls">
-        <button @click="zoomOut" :disabled="zoomLevel <= 1">
+        <button :disabled="zoomLevel <= 1" @click="zoomOut">
           <i class="ni ni-tv-2"></i>
         </button>
         <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
-        <button @click="zoomIn" :disabled="zoomLevel >= 5">
+        <button :disabled="zoomLevel >= 5" @click="zoomIn">
           <i class="ni ni-tv-2"></i>
         </button>
       </div>
@@ -50,11 +50,11 @@
 
     <div class="timeline-wrapper" :style="{ height: timelineHeight + 'px' }">
       <div
-        class="timeline"
         ref="timeline"
+        class="timeline"
+        :style="{ height: timelineHeight + 'px' }"
         @mousedown="onTimelineMouseDown"
         @scroll.passive="handleTimelineScroll"
-        :style="{ height: timelineHeight + 'px' }"
       >
         <!-- Time markers -->
         <div
@@ -144,8 +144,8 @@
               <div
                 v-if="getSegmentWidth(segment.start, segment.end) >= 8"
                 class="segment-delete-btn"
-                @click.stop="deleteSegment(segment)"
                 :title="'Segment löschen'"
+                @click.stop="deleteSegment(segment)"
               >
                 X
               </div>
@@ -929,7 +929,7 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     }
 
     if (mode === 'drag') {
-      let left = Math.min(
+      const left = Math.min(
         Math.max(0, startLeft + dx),
         opt.trackPx() - startWidth
       )
@@ -939,8 +939,8 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     }
 
     if (mode === 'start') {
-      let left = Math.min(startLeft + dx, startLeft + startWidth - 10)
-      let width = startWidth + (startLeft - left)
+      const left = Math.min(startLeft + dx, startLeft + startWidth - 10)
+      const width = startWidth + (startLeft - left)
       el.style.left = left + 'px'
       el.style.width = width + 'px'
       draftStart = left
@@ -948,7 +948,7 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     }
 
     if (mode === 'end') {
-      let width = Math.max(10, startWidth + dx)
+      const width = Math.max(10, startWidth + dx)
       el.style.width = width + 'px'
       el.style.left = startLeft + 'px'
       draftStart = startLeft
@@ -1170,6 +1170,44 @@ const undoDelete = (): boolean => {
   return true
 }
 
+const handleClipboardShortcut = (event: KeyboardEvent): boolean => {
+  if (!event.ctrlKey && !event.metaKey) return false
+  const key = event.key.toLowerCase()
+  const action =
+    key === 'z'
+      ? undoDelete
+      : key === 'c'
+        ? copySelectedSegment
+        : key === 'v'
+          ? pasteSegment
+          : null
+  if (!action) return false
+  if (action()) event.preventDefault()
+  return true
+}
+
+const handleNavigationShortcut = (event: KeyboardEvent): boolean => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return false
+  const navigationActions: Record<string, () => void> = {
+    ArrowLeft: () => seekBySeconds(-2),
+    ArrowRight: () => seekBySeconds(2),
+    ',': () => stepFrame(-1),
+    Comma: () => stepFrame(-1),
+    '.': () => stepFrame(1),
+    Period: () => stepFrame(1),
+    k: () => seekBySeconds(-2),
+    l: () => seekBySeconds(2)
+  }
+  const action =
+    navigationActions[event.key] ??
+    navigationActions[event.code] ??
+    navigationActions[event.key.toLowerCase()]
+  if (!action) return false
+  event.preventDefault()
+  action()
+  return true
+}
+
 const handleKeyDown = (event: KeyboardEvent): void => {
   if (event.key === 'Escape' && timeEditor.value.visible) {
     hideTimeEditor()
@@ -1177,69 +1215,7 @@ const handleKeyDown = (event: KeyboardEvent): void => {
     return
   }
   if (isEditableTarget(event.target)) return
-  const isMeta = event.ctrlKey || event.metaKey
-
-  if (isMeta && event.key.toLowerCase() === 'z') {
-    if (undoDelete()) {
-      event.preventDefault()
-    }
-    return
-  }
-
-  if (isMeta && event.key.toLowerCase() === 'c') {
-    if (copySelectedSegment()) {
-      event.preventDefault()
-    }
-    return
-  }
-
-  if (isMeta && event.key.toLowerCase() === 'v') {
-    if (pasteSegment()) {
-      event.preventDefault()
-    }
-    return
-  }
-
-  if (!isMeta && !event.altKey) {
-    const isComma = event.key === ',' || event.code === 'Comma'
-    const isPeriod = event.key === '.' || event.code === 'Period'
-    const isK = event.key.toLowerCase() === 'k'
-    const isL = event.key.toLowerCase() === 'l'
-    const isArrowLeft = event.key === 'ArrowLeft'
-    const isArrowRight = event.key === 'ArrowRight'
-
-    if (isArrowLeft) {
-      event.preventDefault()
-      seekBySeconds(-2)
-      return
-    }
-
-    if (isArrowRight) {
-      event.preventDefault()
-      seekBySeconds(2)
-      return
-    }
-    if (isComma) {
-      event.preventDefault()
-      stepFrame(-1)
-      return
-    }
-    if (isPeriod) {
-      event.preventDefault()
-      stepFrame(1)
-      return
-    }
-    if (isK) {
-      event.preventDefault()
-      seekBySeconds(-2)
-      return
-    }
-    if (isL) {
-      event.preventDefault()
-      seekBySeconds(2)
-      return
-    }
-  }
+  if (handleClipboardShortcut(event) || handleNavigationShortcut(event)) return
   if (event.key === 'Delete' || event.key === 'Backspace') {
     if (props.activeSegmentId == null) return
     event.preventDefault()
@@ -1248,12 +1224,6 @@ const handleKeyDown = (event: KeyboardEvent): void => {
 }
 
 // Context actions
-const editSegment = (segment: Segment | null): void => {
-  if (!segment) return
-  hideContextMenu()
-  emit('segment-edit', segment)
-}
-
 const deleteSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
@@ -1531,7 +1501,7 @@ const onSelectionMouseMove = (event: MouseEvent): void => {
   selectionEnd.value = Math.max(0, Math.min(100, (currentX / rect.width) * 100))
 }
 
-const onSelectionMouseUp = (event: MouseEvent): void => {
+const onSelectionMouseUp = (_event: MouseEvent): void => {
   if (!isSelecting.value || !timeline.value) return
 
   const startPercent = Math.min(selectionStart.value, selectionEnd.value)

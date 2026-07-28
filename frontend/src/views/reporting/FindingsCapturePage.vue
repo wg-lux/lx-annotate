@@ -139,8 +139,8 @@
             <div class="card-body d-flex flex-column gap-3">
               <div
                 v-for="templateFinding in section.findings"
-                :key="`${section.name}:${templateFinding.finding}`"
                 :id="findingAnchorId(templateFinding.finding)"
+                :key="`${section.name}:${templateFinding.finding}`"
                 class="border rounded p-3"
               >
                 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -324,7 +324,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  getClassificationDisplayName,
   getFindingDisplayName,
   mergeFindingClassifications,
   type Finding,
@@ -345,14 +344,14 @@ import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
 import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { reportingApiErrorMessage } from './reportingError'
 
 const flow = useReportingFlowStore()
 const examinationStore = useExaminationStore()
 const {
   catalogFindings,
   loading: findingSelectorsLoading,
-  ensureCatalogLoaded,
-  getFindingById
+  ensureCatalogLoaded
 } = useFindingSelectors()
 
 const errorMessage = ref<string | null>(null)
@@ -446,10 +445,6 @@ function findingAnchorId(findingName: string): string {
 function clearMessages() {
   errorMessage.value = null
   successMessage.value = null
-}
-
-function formatApiError(e: any, fallback: string): string {
-  return e?.response?.data?.detail || e?.response?.data?.error || e?.message || fallback
 }
 
 function formatFindingsEvent(event: NonNullable<typeof flow.lastFindingsEvent>) {
@@ -832,19 +827,19 @@ async function runRuntimeValidation(forceFeedback = false) {
       draft.payload
     )
     flow.setLastTemplateValidation(result)
-  } catch (e: any) {
+  } catch (e: unknown) {
     validationFailed = true
     flow.setLastTemplateValidation(null)
-    templateValidationError.value = formatApiError(
+    templateValidationError.value = reportingApiErrorMessage(
       e,
       'Template-Validierung konnte nicht ausgefuehrt werden.'
     )
   } finally {
     try {
       await flow.persistCurrentRuntimeDraft()
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (!validationFailed) {
-        templateValidationError.value = formatApiError(
+        templateValidationError.value = reportingApiErrorMessage(
           e,
           'Der Reporting-Entwurf konnte nach der Validierung nicht gespeichert werden.'
         )

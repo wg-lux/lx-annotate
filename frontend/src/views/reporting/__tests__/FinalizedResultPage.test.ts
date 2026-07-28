@@ -43,7 +43,7 @@ describe('FinalizedResultPage', () => {
     vi.mocked(axiosInstance.get)
       .mockResolvedValueOnce({
         data: [{ id: 88, status: 'final', version: 4, updatedAt: '2026-02-27T08:00:00Z' }]
-      } as any)
+      })
       .mockResolvedValueOnce({
         data: {
           id: 88,
@@ -53,7 +53,7 @@ describe('FinalizedResultPage', () => {
             patientTimelineUrl
           }
         }
-      } as any)
+      })
 
     const wrapper = mount(FinalizedResultPage)
     await flushPromises()
@@ -71,7 +71,7 @@ describe('FinalizedResultPage', () => {
     vi.mocked(axiosInstance.get)
       .mockResolvedValueOnce({
         data: [{ id: 88, status: 'final', version: 4, updatedAt: '2026-02-27T08:00:00Z' }]
-      } as any)
+      })
       .mockResolvedValueOnce({
         data: {
           id: 88,
@@ -80,7 +80,7 @@ describe('FinalizedResultPage', () => {
             pdfDownloadUrl
           }
         }
-      } as any)
+      })
 
     const wrapper = mount(FinalizedResultPage)
     await flushPromises()

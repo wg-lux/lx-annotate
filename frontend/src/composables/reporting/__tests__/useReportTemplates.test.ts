@@ -26,7 +26,7 @@ describe('useReportTemplates', () => {
           validators: { examinationValidators: [], findingsValidators: [] }
         }
       ]
-    } as any)
+    })
 
     const catalog = useReportTemplates({
       initialModuleName: 'report_template_examples',
@@ -49,7 +49,7 @@ describe('useReportTemplates', () => {
         reportSections: [],
         validators: { examinationValidators: [], findingsValidators: [] }
       }
-    } as any)
+    })
 
     const catalog = useReportTemplates({
       initialModuleName: 'report_template_examples',
@@ -80,7 +80,7 @@ describe('useReportTemplates', () => {
           validators: null
         }
       ]
-    } as any)
+    })
 
     const catalog = useReportTemplates({
       initialModuleName: 'report_template_examples',
@@ -140,7 +140,7 @@ describe('useReportTemplates', () => {
           ]
         }
       }
-    } as any)
+    })
 
     const catalog = useReportTemplates({
       initialModuleName: 'report_template_examples',

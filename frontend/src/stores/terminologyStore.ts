@@ -9,15 +9,25 @@ import {
   type MedicalField,
   type TerminologyBundleVersion
 } from '@/api/terminologyApi'
+import axios from 'axios'
 
 const MEDICAL_FIELD_STORAGE_KEY = 'terminologyMedicalField.v1'
 const DEFAULT_KB_MODULE = 'report_template_examples'
+
+function terminologyErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError<{ detail?: string }>(error)) {
+    return error.response?.data?.detail || error.message || fallback
+  }
+  return error instanceof Error ? error.message : fallback
+}
 
 function loadPersistedMedicalField(): MedicalField {
   try {
     const value = localStorage.getItem(MEDICAL_FIELD_STORAGE_KEY)
     if (value === 'gastroenterology') return value
-  } catch {}
+  } catch {
+    // Use the default medical field when browser storage is unavailable.
+  }
   return 'gastroenterology'
 }
 
@@ -62,11 +72,11 @@ export const useTerminologyStore = defineStore('terminology', () => {
       activeBundle.value = response.active
       registryPath.value = response.registryPath
       lastSelectionCounts.value = null
-    } catch (caught: any) {
-      error.value =
-        caught?.response?.data?.detail ||
-        caught?.message ||
+    } catch (caught: unknown) {
+      error.value = terminologyErrorMessage(
+        caught,
         'Terminologiepakete konnten nicht geladen werden.'
+      )
       throw caught
     } finally {
       loading.value = false
@@ -90,11 +100,11 @@ export const useTerminologyStore = defineStore('terminology', () => {
           candidate.version === response.active.version
       }))
       return response
-    } catch (caught: any) {
-      error.value =
-        caught?.response?.data?.detail ||
-        caught?.message ||
+    } catch (caught: unknown) {
+      error.value = terminologyErrorMessage(
+        caught,
         'Terminologiepaket konnte nicht aktiviert werden.'
+      )
       throw caught
     } finally {
       selecting.value = false
@@ -121,11 +131,11 @@ export const useTerminologyStore = defineStore('terminology', () => {
         `${left.moduleName}@@${left.version}`.localeCompare(`${right.moduleName}@@${right.version}`)
       )
       return response
-    } catch (caught: any) {
-      error.value =
-        caught?.response?.data?.detail ||
-        caught?.message ||
+    } catch (caught: unknown) {
+      error.value = terminologyErrorMessage(
+        caught,
         'Terminologiepaket konnte nicht importiert werden.'
+      )
       throw caught
     } finally {
       importing.value = false
@@ -141,7 +151,9 @@ export const useTerminologyStore = defineStore('terminology', () => {
     selectedMedicalField.value = value
     try {
       localStorage.setItem(MEDICAL_FIELD_STORAGE_KEY, value)
-    } catch {}
+    } catch {
+      // The reactive selection remains valid when persistence is unavailable.
+    }
   }
 
   function findBundleByKey(key: string): TerminologyBundleVersion | null {

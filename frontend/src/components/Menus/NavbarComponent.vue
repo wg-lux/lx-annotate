@@ -1,14 +1,14 @@
 <template>
-  <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl position-sticky top-1" id="navbarBlur" navbar-scroll="true">
+  <nav id="navbarBlur" class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl position-sticky top-1" navbar-scroll="true">
     <div class="container-fluid py-1 px-3">
       <!-- Mobile sidebar toggle button -->
       <button 
         class="navbar-toggler d-lg-none" 
         type="button" 
-        @click="toggleSidebar"
         aria-controls="sidebar"
         aria-expanded="false"
         aria-label="Toggle navigation"
+        @click="toggleSidebar"
       >
         <span class="navbar-toggler-icon">
           <span class="navbar-toggler-bar"></span>
@@ -17,7 +17,7 @@
         </span>
       </button>
       
-      <div class="collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4" id="navbar">
+      <div id="navbar" class="collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4">
         <div class="ms-md-auto pe-md-3 d-flex align-items-center">
           <nav aria-label="breadcrumb">
             <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
@@ -55,19 +55,19 @@
               </span>
             </router-link>
           </li>
-          <li class="nav-item d-flex align-items-center" v-if="isAuthenticated">
+          <li v-if="isAuthenticated" class="nav-item d-flex align-items-center">
             <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogout">
               <i class="ni ni-circle-08 me-sm-1"></i>
               <span class="d-sm-inline d-none">Logout</span>
             </a>
           </li>
-          <li class="nav-item d-flex align-items-center" v-else>
+          <li v-else class="nav-item d-flex align-items-center">
             <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogin">
               <i class="ni ni-circle-08 me-sm-1"></i>
               <span class="d-sm-inline d-none">Login</span>
             </a>
           </li>
-          <li class="nav-item d-flex align-items-center ms-3" v-if="isAuthenticated">
+          <li v-if="isAuthenticated" class="nav-item d-flex align-items-center ms-3">
             <span class="nav-link text-body font-weight-bold px-0">
               <i class="ni ni-check-bold text-success me-sm-1"></i>
               <span class="d-sm-inline d-none">{{ username }}</span>

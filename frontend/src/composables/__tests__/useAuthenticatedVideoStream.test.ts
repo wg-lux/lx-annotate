@@ -74,7 +74,6 @@ interface HostVm {
 
 function mountHost(onFatalError = vi.fn(), artifactKind: 'raw' | 'processed' = 'processed') {
   const Host = defineComponent({
-    template: '<video ref="video"></video>',
     setup() {
       const video = ref<HTMLVideoElement | null>(null)
       const videoId = ref<number | null>(42)
@@ -92,7 +91,8 @@ function mountHost(onFatalError = vi.fn(), artifactKind: 'raw' | 'processed' = '
         artifactKind: selectedArtifactKind,
         ...stream
       }
-    }
+    },
+    template: '<video ref="video"></video>'
   })
 
   return mount(Host)

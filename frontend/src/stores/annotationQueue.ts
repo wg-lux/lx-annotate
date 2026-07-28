@@ -219,156 +219,113 @@ function optionalTrimmedString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-function coerceTask(raw: RawTask): AnnotationTask | null {
-  const frameIdRaw = rawField(raw, 'frameId', 'frame_id')
-  const videoId = optionalFiniteNumber(rawField(raw, 'videoId', 'video_id'))
-  const frameNumber = optionalFiniteNumber(rawField(raw, 'frameNumber', 'frame_number'))
-  const relativePath = optionalTrimmedString(rawField(raw, 'relativePath', 'relative_path'))
-  const datasetSelectionLabelId = optionalFiniteNumber(
-    rawField(raw, 'datasetSelectionLabelId', 'dataset_selection_label_id')
-  )
-  const datasetSelectionLabelName = optionalTrimmedString(
-    rawField(raw, 'datasetSelectionLabelName', 'dataset_selection_label_name')
-  )
-  const datasetSelectionSource = optionalTrimmedString(
-    rawField(raw, 'datasetSelectionSource', 'dataset_selection_source')
-  )
-  const datasetBucket = optionalTrimmedString(rawField(raw, 'datasetBucket', 'dataset_bucket'))
-  const imageUrlRaw =
-    raw.decodedFrameStreamPath ??
-    raw.decoded_frame_stream_path ??
-    (raw.data as Record<string, unknown> | undefined)?.decodedFrameStreamPath ??
-    (raw.data as Record<string, unknown> | undefined)?.decoded_frame_stream_path ??
-    raw.imageUrl ??
-    raw.image_url ??
-    raw.frameStreamPath ??
-    raw.frame_stream_path ??
-    (raw.data as Record<string, unknown> | undefined)?.imageUrl ??
-    (raw.data as Record<string, unknown> | undefined)?.image_url ??
-    (raw.data as Record<string, unknown> | undefined)?.frameStreamPath ??
-    (raw.data as Record<string, unknown> | undefined)?.frame_stream_path
-  const frameFileTypeRaw =
-    raw.frameFileType ??
-    raw.frame_file_type ??
-    (raw.data as Record<string, unknown> | undefined)?.frameFileType ??
-    (raw.data as Record<string, unknown> | undefined)?.frame_file_type
-  const existingExternalIdRaw =
-    raw.existingExternalId ??
-    raw.existing_external_id ??
-    (raw.data as Record<string, unknown> | undefined)?.existingExternalId ??
-    (raw.data as Record<string, unknown> | undefined)?.existing_external_id
-  const idRaw = raw.id ?? raw.taskId ?? raw.task_id
-  const labelOptionsRaw =
-    raw.labelOptions ??
-    raw.label_options ??
-    (raw.data as Record<string, unknown> | undefined)?.labelOptions ??
-    (raw.data as Record<string, unknown> | undefined)?.label_options
-  const manualAnnotationsRaw =
-    raw.manualAnnotations ??
-    raw.manual_annotations ??
-    (raw.data as Record<string, unknown> | undefined)?.manualAnnotations ??
-    (raw.data as Record<string, unknown> | undefined)?.manual_annotations
-  const predictionAnnotationsRaw =
-    raw.predictionAnnotations ??
-    raw.prediction_annotations ??
-    (raw.data as Record<string, unknown> | undefined)?.predictionAnnotations ??
-    (raw.data as Record<string, unknown> | undefined)?.prediction_annotations
-  const suggestedLabelIdsRaw =
-    raw.suggestedLabelIds ??
-    raw.suggested_label_ids ??
-    (raw.data as Record<string, unknown> | undefined)?.suggestedLabelIds ??
-    (raw.data as Record<string, unknown> | undefined)?.suggested_label_ids
-  const annotationModeRaw =
-    raw.annotationMode ??
-    raw.annotation_mode ??
-    (raw.data as Record<string, unknown> | undefined)?.annotationMode ??
-    (raw.data as Record<string, unknown> | undefined)?.annotation_mode
+function optionalNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined
+}
 
-  const frameId = Number(frameIdRaw)
+function firstDefined(values: unknown[]): unknown {
+  for (const value of values) {
+    if (value !== null && value !== undefined) return value
+  }
+  return undefined
+}
+
+function normalizeLabelOptions(value: unknown): Array<{ id: number; name: string }> {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      const row = item as Record<string, unknown>
+      const id = Number(row.id)
+      const name = typeof row.name === 'string' ? row.name.trim() : ''
+      return Number.isFinite(id) && name ? { id, name } : null
+    })
+    .filter((item): item is { id: number; name: string } => item !== null)
+}
+
+function normalizeAnnotationId(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  const parsedId = Number(value)
+  return Number.isFinite(parsedId) ? parsedId : undefined
+}
+
+function normalizeAnnotation(item: unknown): NormalizedAnnotation | null {
+  if (!item || typeof item !== 'object') return null
+  const row = item as Record<string, unknown>
+  const labelId = Number(firstDefined([row.labelId, row.label_id]))
+  const labelNameRaw = firstDefined([row.labelName, row.label_name])
+  const labelName = typeof labelNameRaw === 'string' ? labelNameRaw.trim() : ''
+  if (!Number.isFinite(labelId) || !labelName) return null
+
+  const normalized: NormalizedAnnotation = {
+    labelId,
+    labelName,
+    value: !!row.value,
+    floatValue:
+      typeof row.floatValue === 'number'
+        ? row.floatValue
+        : typeof row.float_value === 'number'
+          ? row.float_value
+          : null,
+    externalAnnotationId:
+      typeof row.externalAnnotationId === 'string'
+        ? row.externalAnnotationId
+        : typeof row.external_annotation_id === 'string'
+          ? row.external_annotation_id
+          : null,
+    modelMetaId:
+      typeof row.modelMetaId === 'number'
+        ? row.modelMetaId
+        : typeof row.model_meta_id === 'number'
+          ? row.model_meta_id
+          : null
+  }
+  const id = normalizeAnnotationId(row.id)
+  if (id !== undefined) normalized.id = id
+  return normalized
+}
+
+function normalizeAnnotationList(value: unknown): NormalizedAnnotation[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map(normalizeAnnotation)
+    .filter((item): item is NormalizedAnnotation => item !== null)
+}
+
+function normalizeSuggestedLabelIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  return value.map(Number).filter(Number.isFinite)
+}
+
+function resolveTaskImageUrl(raw: RawTask, nestedData: Record<string, unknown>): unknown {
+  return firstDefined([
+    raw.decodedFrameStreamPath,
+    raw.decoded_frame_stream_path,
+    nestedData.decodedFrameStreamPath,
+    nestedData.decoded_frame_stream_path,
+    raw.imageUrl,
+    raw.image_url,
+    raw.frameStreamPath,
+    raw.frame_stream_path,
+    nestedData.imageUrl,
+    nestedData.image_url,
+    nestedData.frameStreamPath,
+    nestedData.frame_stream_path
+  ])
+}
+
+function coerceTask(raw: RawTask): AnnotationTask | null {
+  const nestedData =
+    raw.data && typeof raw.data === 'object' ? (raw.data as Record<string, unknown>) : {}
+  const frameId = Number(rawField(raw, 'frameId', 'frame_id'))
+  const imageUrlRaw = resolveTaskImageUrl(raw, nestedData)
   const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw : null
   if (!Number.isFinite(frameId) || !imageUrl) return null
-  const frameFileType =
-    typeof frameFileTypeRaw === 'string' ? normalizeFrameFileType(frameFileTypeRaw) : undefined
 
-  const existingExternalId =
-    typeof existingExternalIdRaw === 'string' && existingExternalIdRaw.trim()
-      ? existingExternalIdRaw
-      : undefined
-  const labelOptions = Array.isArray(labelOptionsRaw)
-    ? labelOptionsRaw
-        .map((item) => {
-          if (!item || typeof item !== 'object') return null
-          const row = item as Record<string, unknown>
-          const id = Number(row.id)
-          const name = typeof row.name === 'string' ? row.name.trim() : ''
-          if (!Number.isFinite(id) || !name) return null
-          return { id, name }
-        })
-        .filter((item): item is { id: number; name: string } => item !== null)
-    : []
-  const normalizeAnnotationList = (value: unknown): NormalizedAnnotation[] => {
-    if (!Array.isArray(value)) return []
-
-    const isNonNull = <T>(item: T | null): item is T => item !== null
-
-    return value
-      .map((item) => {
-        if (!item || typeof item !== 'object') return null
-        const row = item as Record<string, unknown>
-        const labelId = Number(row.labelId ?? row.label_id)
-        const labelName =
-          typeof (row.labelName ?? row.label_name) === 'string'
-            ? String(row.labelName ?? row.label_name).trim()
-            : ''
-        if (!Number.isFinite(labelId) || !labelName) return null
-        const normalized: NormalizedAnnotation = {
-          labelId,
-          labelName,
-          value: !!row.value
-        }
-
-        if (typeof row.id === 'number' && Number.isFinite(row.id)) {
-          normalized.id = row.id
-        } else if (typeof row.id === 'string' && row.id.trim()) {
-          const parsedId = Number(row.id)
-          if (Number.isFinite(parsedId)) {
-            normalized.id = parsedId
-          }
-        }
-
-        if (typeof row.floatValue === 'number') {
-          normalized.floatValue = row.floatValue
-        } else if (typeof row.float_value === 'number') {
-          normalized.floatValue = row.float_value
-        } else {
-          normalized.floatValue = null
-        }
-
-        if (typeof row.externalAnnotationId === 'string') {
-          normalized.externalAnnotationId = row.externalAnnotationId
-        } else if (typeof row.external_annotation_id === 'string') {
-          normalized.externalAnnotationId = row.external_annotation_id
-        } else {
-          normalized.externalAnnotationId = null
-        }
-
-        if (typeof row.modelMetaId === 'number') {
-          normalized.modelMetaId = row.modelMetaId
-        } else if (typeof row.model_meta_id === 'number') {
-          normalized.modelMetaId = row.model_meta_id
-        } else {
-          normalized.modelMetaId = null
-        }
-
-        return normalized
-      })
-      .filter(isNonNull)
-  }
-  const suggestedLabelIds = Array.isArray(suggestedLabelIdsRaw)
-    ? suggestedLabelIdsRaw
-        .map((item) => Number(item))
-        .filter((item) => Number.isFinite(item))
-    : []
+  const idRaw = firstDefined([raw.id, raw.taskId, raw.task_id])
+  const frameFileTypeRaw = rawField(raw, 'frameFileType', 'frame_file_type')
+  const annotationModeRaw = rawField(raw, 'annotationMode', 'annotation_mode')
 
   return {
     id:
@@ -377,21 +334,36 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
         : globalThis.crypto?.randomUUID?.() ?? `frame-task-${frameId}`,
     data: {
       frameId,
-      videoId,
-      frameNumber,
-      relativePath,
+      videoId: optionalFiniteNumber(rawField(raw, 'videoId', 'video_id')),
+      frameNumber: optionalFiniteNumber(rawField(raw, 'frameNumber', 'frame_number')),
+      relativePath: optionalTrimmedString(rawField(raw, 'relativePath', 'relative_path')),
       imageUrl,
-      frameFileType,
-      existingExternalId,
+      frameFileType:
+        typeof frameFileTypeRaw === 'string' ? normalizeFrameFileType(frameFileTypeRaw) : undefined,
+      existingExternalId: optionalNonEmptyString(
+        rawField(raw, 'existingExternalId', 'existing_external_id')
+      ),
       annotationMode: typeof annotationModeRaw === 'string' ? annotationModeRaw : undefined,
-      datasetSelectionLabelId,
-      datasetSelectionLabelName,
-      datasetSelectionSource,
-      datasetBucket,
-      labelOptions,
-      manualAnnotations: normalizeAnnotationList(manualAnnotationsRaw),
-      predictionAnnotations: normalizeAnnotationList(predictionAnnotationsRaw),
-      suggestedLabelIds
+      datasetSelectionLabelId: optionalFiniteNumber(
+        rawField(raw, 'datasetSelectionLabelId', 'dataset_selection_label_id')
+      ),
+      datasetSelectionLabelName: optionalTrimmedString(
+        rawField(raw, 'datasetSelectionLabelName', 'dataset_selection_label_name')
+      ),
+      datasetSelectionSource: optionalTrimmedString(
+        rawField(raw, 'datasetSelectionSource', 'dataset_selection_source')
+      ),
+      datasetBucket: optionalTrimmedString(rawField(raw, 'datasetBucket', 'dataset_bucket')),
+      labelOptions: normalizeLabelOptions(rawField(raw, 'labelOptions', 'label_options')),
+      manualAnnotations: normalizeAnnotationList(
+        rawField(raw, 'manualAnnotations', 'manual_annotations')
+      ),
+      predictionAnnotations: normalizeAnnotationList(
+        rawField(raw, 'predictionAnnotations', 'prediction_annotations')
+      ),
+      suggestedLabelIds: normalizeSuggestedLabelIds(
+        rawField(raw, 'suggestedLabelIds', 'suggested_label_ids')
+      )
     }
   }
 }
@@ -624,18 +596,61 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     return uniqueTasks
   }
 
+  function currentTaskRequestSignature(): string {
+    return `${selectedLabelGroupId.value ?? ''}|${taskQuerySignature.value}`
+  }
+
+  function isCurrentRequest(generation: number, signature: string): boolean {
+    return generation === queueGeneration && signature === currentTaskRequestSignature()
+  }
+
+  function enqueueDummyTaskWhenQueueEmpty(
+    generation: number,
+    signature: string
+  ): AnnotationTask[] {
+    if (!dummyTaskModeEnabled || taskQueue.value.length > 0) return []
+    if (!isCurrentRequest(generation, signature)) return []
+    const dummy = createDummyTask(selectedLabelGroupId.value)
+    enqueueUniqueTasks([dummy])
+    return [dummy]
+  }
+
+  async function fetchRandomFallback(
+    batchSize: number,
+    generation: number,
+    signature: string
+  ): Promise<{ current: boolean; tasks: AnnotationTask[] }> {
+    try {
+      const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random')
+      if (!isCurrentRequest(generation, signature)) return { current: false, tasks: [] }
+      return { current: true, tasks: enqueueUniqueTasks(fallbackParsed) }
+    } catch {
+      return { current: true, tasks: [] }
+    }
+  }
+
+  function getTaskBatchErrorMessage(error: unknown): string {
+    const failure = error as {
+      response?: { data?: { detail?: unknown; error?: unknown } }
+      message?: unknown
+    }
+    const candidates = [
+      failure?.response?.data?.detail,
+      failure?.response?.data?.error,
+      failure?.message
+    ]
+    const message = candidates.find(
+      (candidate): candidate is string => typeof candidate === 'string' && Boolean(candidate)
+    )
+    return message ?? 'Failed to fetch annotation tasks.'
+  }
+
   async function fetchBatch(batchSize = 10): Promise<AnnotationTask[]> {
-    if (!selectedLabelGroupId.value) {
-      if (dummyTaskModeEnabled) {
-        selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID
-      }
+    if (!selectedLabelGroupId.value && dummyTaskModeEnabled) {
+      selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID
     }
 
     lastError.value = null
-    const currentTaskRequestSignature = () =>
-      `${selectedLabelGroupId.value ?? ''}|${taskQuerySignature.value}`
-    const isCurrentRequest = (generation: number, signature: string) =>
-      generation === queueGeneration && signature === currentTaskRequestSignature()
     let requestGeneration = queueGeneration
     let requestSignature = currentTaskRequestSignature()
     try {
@@ -655,40 +670,23 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
       }
 
       const queuedTasks = enqueueUniqueTasks(parsed)
-      if (dummyTaskModeEnabled && queuedTasks.length === 0 && taskQueue.value.length === 0) {
-        if (!isCurrentRequest(requestGeneration, requestSignature)) return []
-        const dummy = createDummyTask(selectedLabelGroupId.value)
-        enqueueUniqueTasks([dummy])
-        return [dummy]
-      }
-      return queuedTasks
-    } catch (error: any) {
+      return queuedTasks.length > 0
+        ? queuedTasks
+        : enqueueDummyTaskWhenQueueEmpty(requestGeneration, requestSignature)
+    } catch (error: unknown) {
       if (!isCurrentRequest(requestGeneration, requestSignature)) return []
       if (taskMode.value === 'filtered' && allowRandomFallback.value) {
-        try {
-          const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random')
-          if (!isCurrentRequest(requestGeneration, requestSignature)) return []
-          const queuedFallbackTasks = enqueueUniqueTasks(fallbackParsed)
-          if (queuedFallbackTasks.length > 0) {
-            return queuedFallbackTasks
-          }
-        } catch {
-          // Ignore fallback error and expose the primary error below.
-        }
+        const fallback = await fetchRandomFallback(
+          batchSize,
+          requestGeneration,
+          requestSignature
+        )
+        if (!fallback.current) return []
+        if (fallback.tasks.length > 0) return fallback.tasks
       }
 
-      lastError.value =
-        error?.response?.data?.detail ||
-        error?.response?.data?.error ||
-        error?.message ||
-        'Failed to fetch annotation tasks.'
-      if (dummyTaskModeEnabled && taskQueue.value.length === 0) {
-        if (!isCurrentRequest(requestGeneration, requestSignature)) return []
-        const dummy = createDummyTask(selectedLabelGroupId.value)
-        enqueueUniqueTasks([dummy])
-        return [dummy]
-      }
-      return []
+      lastError.value = getTaskBatchErrorMessage(error)
+      return enqueueDummyTaskWhenQueueEmpty(requestGeneration, requestSignature)
     }
   }
 

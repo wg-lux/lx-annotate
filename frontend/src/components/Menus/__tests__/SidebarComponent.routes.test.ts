@@ -39,7 +39,7 @@ async function getRouteImportError(path: string): Promise<string | null> {
 
     if (typeof defaultComponent === 'function') {
       try {
-        const moduleOrComponent = await (defaultComponent as () => Promise<any>)()
+        const moduleOrComponent = await (defaultComponent as () => Promise<unknown>)()
         if (moduleOrComponent && typeof moduleOrComponent === 'object' && 'default' in moduleOrComponent) {
           if (!(moduleOrComponent as { default?: unknown }).default) {
             return `Route "${path}" lädt ein Modul ohne Default-Export (record: "${record.path}").`
@@ -49,8 +49,8 @@ async function getRouteImportError(path: string): Promise<string | null> {
             return `Route "${path}" liefert leere Komponente (record: "${record.path}").`
           }
         }
-      } catch (error: any) {
-        const message = error?.message || String(error)
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
         return (
           `Route "${path}" konnte nicht geladen werden (record: "${record.path}"): ${message}`
         )

@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import axiosInstance, { r, silentRequestConfig } from '@/api/axiosInstance'
 import axios from 'axios'
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { endpoints } from '@/types/api/endpoints'
 
 /* ------------------------------------------------------------------ */
@@ -154,6 +154,25 @@ export interface SensitiveMeta {
   pseudoExaminationId?: number | null
   patientExaminationId?: number | null
   patientId?: number | null
+}
+
+function unknownErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
+function isFileAnonymizationStatus(value: unknown): value is FileItem['anonymizationStatus'] {
+  return (
+    typeof value === 'string' &&
+    [
+      'not_started',
+      'processing_anonymization',
+      'done_processing_anonymization',
+      'failed',
+      'validated',
+      'predicting_segments',
+      'extracting_frames'
+    ].includes(value)
+  )
 }
 
 function syntheticQuarantineId(quarantineId: string, usedIds: Set<number>): number {
@@ -356,7 +375,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
   actions: {
     /** Gets the next anonymization file + its metadata */
-    async fetchNext(lastId?: number): Promise<any> {
+    async fetchNext(lastId?: number): Promise<SensitiveMeta | null | undefined> {
       this.loading = true
       this.error = null
 
@@ -383,13 +402,13 @@ export const useAnonymizationStore = defineStore('anonymization', {
             }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error in fetchNext:', err)
         if (axios.isAxiosError(err)) {
           console.error('Axios error details:', err.response?.status, err.response?.data)
           this.error = `Fehler beim Laden der Metadaten (${err.response?.status}): ${err.message}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim Laden.'
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim Laden.')
         }
         this.$patch({ current: null })
         return null
@@ -402,7 +421,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
     /* Update-Methoden                                                  */
     /* ---------------------------------------------------------------- */
 
-    async patchPdf(payload: { id: number; [key: string]: any }): Promise<any> {
+    async patchPdf(payload: { id: number; [key: string]: unknown }) {
       if (!payload.id) {
         throw new Error('patchPdf: PDF ID fehlt im Payload.')
       }
@@ -415,7 +434,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
       return axiosInstance.patch(r(endpoints.media.pdfSensitiveMetadata(id)), updateData)
     },
 
-    async patchVideo(payload: { id: number; [key: string]: any }): Promise<any> {
+    async patchVideo(payload: { id: number; [key: string]: unknown }) {
       if (!payload.id) {
         throw new Error('patchVideo: Video ID fehlt im Payload.')
       }
@@ -452,8 +471,11 @@ export const useAnonymizationStore = defineStore('anonymization', {
             quarantineResponse.data.files || [],
             new Set(data.map((file) => file.id))
           )
-        } catch (quarantineError: any) {
-          console.warn('Could not load quarantine overview:', quarantineError?.message || quarantineError)
+        } catch (quarantineError: unknown) {
+          console.warn(
+            'Could not load quarantine overview:',
+            unknownErrorMessage(quarantineError, String(quarantineError))
+          )
         }
 
         const overviewData = preserveValidatedDuplicateVideoRows([...data, ...quarantineRows])
@@ -496,12 +518,12 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
         this.hasAvailableFiles = overviewData.length > 0
         return overviewData
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching overview:', err)
         if (axios.isAxiosError(err)) {
           this.error = `Fehler beim Laden der Übersicht (${err.response?.status}): ${err.message}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim Laden der Übersicht.'
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim Laden der Übersicht.')
         }
         return []
       } finally {
@@ -514,12 +536,15 @@ export const useAnonymizationStore = defineStore('anonymization', {
         await axiosInstance.post(r(endpoints.anonymization.retryUploadJob(jobId)))
         await this.fetchOverview()
         return true
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`Error retrying upload job ${jobId}:`, err)
         if (axios.isAxiosError(err)) {
           this.error = `Fehler beim erneuten Starten des Imports (${err.response?.status}): ${err.message}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Starten des Imports.'
+          this.error = unknownErrorMessage(
+            err,
+            'Unbekannter Fehler beim erneuten Starten des Imports.'
+          )
         }
         return false
       }
@@ -549,7 +574,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         this.startPolling(id)
 
         return true
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`Error starting anonymization for file ${id}:`, err)
 
         // Revert optimistic update
@@ -558,7 +583,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
         if (axios.isAxiosError(err)) {
           this.error = `Fehler beim Starten der Anonymisierung (${err.response?.status}): ${err.message}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim Starten der Anonymisierung.'
+          this.error = unknownErrorMessage(
+            err,
+            'Unbekannter Fehler beim Starten der Anonymisierung.'
+          )
         }
         return false
       }
@@ -604,11 +632,11 @@ export const useAnonymizationStore = defineStore('anonymization', {
           // Refresh file reference in case overview changed
           const currentFile = this.overview.find((f) => f.id === id)
 
-          if (currentFile && data.anonymizationStatus) {
+          if (currentFile && isFileAnonymizationStatus(data.anonymizationStatus)) {
             const statusFromBackend = data.anonymizationStatus
 
             console.log(`Status update for file ${id}: ${statusFromBackend}`)
-            currentFile.anonymizationStatus = statusFromBackend as any
+            currentFile.anonymizationStatus = statusFromBackend
 
             if (FINAL_ANONYMIZATION_STATUSES.has(statusFromBackend)) {
               console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`)
@@ -700,12 +728,15 @@ export const useAnonymizationStore = defineStore('anonymization', {
           this.current = sensitiveMeta
           return sensitiveMeta
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`Error setting current for validation (ID: ${id}):`, err)
         if (axios.isAxiosError(err)) {
           this.error = `Fehler beim Laden der Validierungsdaten (${err.response?.status}): ${err.message}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim Laden der Validierungsdaten.'
+          this.error = unknownErrorMessage(
+            err,
+            'Unbekannter Fehler beim Laden der Validierungsdaten.'
+          )
         }
         return null
       }
@@ -768,7 +799,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         }
 
         return true
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`Error re-importing video ${fileId}:`, err)
 
         // Revert optimistic update
@@ -780,7 +811,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
           const errorMessage = err.response?.data?.error || err.message
           this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${errorMessage}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Importieren.'
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim erneuten Importieren.')
         }
         return false
       }
@@ -824,7 +855,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         }
 
         return true
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`Error re-importing PDF ${fileId}:`, err)
 
         // Revert optimistic update
@@ -835,7 +866,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
           const errorMessage = err.response?.data?.error || err.message
           this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${errorMessage}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Importieren.'
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim erneuten Importieren.')
         }
         return false
       }

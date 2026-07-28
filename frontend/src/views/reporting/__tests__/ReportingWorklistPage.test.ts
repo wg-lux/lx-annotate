@@ -22,7 +22,7 @@ describe('ReportingWorklistPage', () => {
         { id: 101, status: 'final', version: 3, patientExaminationId: 44 },
         { id: 102, status: 'draft', version: 1, patientExaminationId: 45 }
       ]
-    } as any)
+    })
 
     const wrapper = mount(ReportingWorklistPage, {
       global: {

@@ -1,6 +1,7 @@
 // frontend/src/api/mediaManagement.ts
 
 import axiosInstance, { endoregApi } from '@/api/axiosInstance'
+import axios from 'axios'
 import { ref, readonly } from 'vue'
 import { endpoints } from '@/types/api/endpoints'
 
@@ -161,7 +162,7 @@ export class MediaManagementAPI {
    */
   static async getAnonymizationStatusSafe(
     fileId: number,
-    fileType?: 'video' | 'pdf'
+    _fileType?: 'video' | 'pdf'
   ): Promise<AnonymizationStatusResponse> {
     const response = await api.get(endoregApi(endpoints.anonymization.status(fileId)))
     return response.data
@@ -237,14 +238,17 @@ export function useMediaManagement() {
     try {
       const result = await apiCall()
       return result
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Media Management API Error:', err)
 
-      if (err.response?.status === 429) {
+      if (axios.isAxiosError<{ detail?: string }>(err) && err.response?.status === 429) {
         error.value = 'Zu viele Anfragen. Bitte warten Sie einen Moment.'
-      } else if (err.response?.status === 409) {
+      } else if (axios.isAxiosError(err) && err.response?.status === 409) {
         error.value = 'Datei wird bereits verarbeitet.'
-      } else if (err.response?.data?.detail) {
+      } else if (
+        axios.isAxiosError<{ detail?: string }>(err) &&
+        typeof err.response?.data?.detail === 'string'
+      ) {
         error.value = err.response.data.detail
       } else {
         error.value = 'Ein unerwarteter Fehler ist aufgetreten.'

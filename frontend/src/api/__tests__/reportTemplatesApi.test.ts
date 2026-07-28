@@ -227,31 +227,35 @@ describe('reportTemplatesApi', () => {
           }
         ]
       }
-    } as any)
-
-    const result = await validateReportTemplateRuntime('report_template_examples', 'star_upper_gi_main', {
-      patient: 'test_patient',
-      examiners: [],
-      examination: 'star_upper_gi_endoscopy',
-      knowledgeBaseModule: 'report_template_examples',
-      patientFindings: [
-        {
-          finding: 'esophagus_polyp',
-          classificationChoices: [
-            {
-              classification: 'size_mm',
-              classificationChoice: 'size_mm',
-              descriptors: [
-                {
-                  classificationChoiceDescriptor: 'length_mm_descriptor',
-                  descriptorValue: 12
-                }
-              ]
-            }
-          ]
-        }
-      ]
     })
+
+    const result = await validateReportTemplateRuntime(
+      'report_template_examples',
+      'star_upper_gi_main',
+      {
+        patient: 'test_patient',
+        examiners: [],
+        examination: 'star_upper_gi_endoscopy',
+        knowledgeBaseModule: 'report_template_examples',
+        patientFindings: [
+          {
+            finding: 'esophagus_polyp',
+            classificationChoices: [
+              {
+                classification: 'size_mm',
+                classificationChoice: 'size_mm',
+                descriptors: [
+                  {
+                    classificationChoiceDescriptor: 'length_mm_descriptor',
+                    descriptorValue: 12
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    )
 
     expect(axiosInstance.post).toHaveBeenCalledWith(
       '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate',
@@ -330,7 +334,7 @@ describe('reportTemplatesApi', () => {
         examinationValidators: [],
         issues: []
       }
-    } as any)
+    })
 
     const result = await validateReportTemplateRuntimeFromLedger(
       'report_template_examples',
@@ -350,7 +354,7 @@ describe('reportTemplatesApi', () => {
       data: {
         ok: true
       }
-    } as any)
+    })
 
     await expect(
       validateReportTemplateRuntime('report_template_examples', 'star_upper_gi_main', {
@@ -372,22 +376,33 @@ describe('reportTemplatesApi', () => {
         isActive: true,
         classifications: [
           {
+            id: 501,
             classification: 101,
             classificationChoice: 1001,
             classificationName: 'size_mm',
             classificationChoiceName: 'size_mm',
+            subcategories: {},
             numericalDescriptors: {},
             isActive: true
           }
         ]
-      } as any
+      }
     ])
     vi.spyOn(findingsApi, 'getFindingClassifications').mockResolvedValue([
       {
         id: 101,
         name: 'size_mm',
-        choices: [{ id: 1001, name: 'size_mm' }]
-      } as any
+        required: false,
+        classificationTypes: [],
+        choices: [
+          {
+            id: 1001,
+            name: 'size_mm',
+            subcategories: {},
+            numericalDescriptors: {}
+          }
+        ]
+      }
     ])
 
     vi.mocked(axiosInstance.post)
@@ -396,7 +411,7 @@ describe('reportTemplatesApi', () => {
           status: 404,
           data: { detail: 'Not Found' }
         }
-      } as any)
+      })
       .mockResolvedValueOnce({
         data: {
           templateName: 'star_upper_gi_main',
@@ -406,23 +421,30 @@ describe('reportTemplatesApi', () => {
           examinationValidators: [],
           issues: []
         }
-      } as any)
+      })
     vi.mocked(axiosInstance.get).mockResolvedValueOnce({
       data: {
         name: 'star_upper_gi_main',
         examination: 'star_upper_gi_endoscopy'
       }
-    } as any)
+    })
 
     const result = await validatePatientFindingsAgainstTemplate({
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       patientExaminationId: 42,
-      getFindingById: () =>
-        ({
-          id: 11,
-          name: 'esophagus_polyp'
-        } as any)
+      getFindingById: () => ({
+        id: 11,
+        name: 'esophagus_polyp',
+        description: '',
+        examinations: [],
+        classifications: [],
+        locationClassifications: [],
+        morphologyClassifications: [],
+        FindingClassifications: [],
+        findingTypes: [],
+        findingInterventions: []
+      })
     })
 
     expect(axiosInstance.post).toHaveBeenNthCalledWith(
@@ -446,7 +468,7 @@ describe('reportTemplatesApi', () => {
         status: 404,
         data: { detail: 'Template not found for module' }
       }
-    } as any)
+    })
 
     await expect(
       validatePatientFindingsAgainstTemplate({
@@ -464,7 +486,7 @@ describe('reportTemplatesApi', () => {
   it('fetchReportTemplatesByExamination returns empty array for non-array payloads', async () => {
     vi.mocked(axiosInstance.get).mockResolvedValue({
       data: { results: [] }
-    } as any)
+    })
 
     const result = await fetchReportTemplatesByExamination(
       'report_template_examples',

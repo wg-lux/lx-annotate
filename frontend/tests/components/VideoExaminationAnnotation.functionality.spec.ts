@@ -3,10 +3,10 @@ import { reactive, nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const testState = vi.hoisted(() => ({
-  videoStore: undefined as any,
-  anonymizationStore: undefined as any,
-  mediaStore: undefined as any,
-  toastStore: undefined as any,
+  videoStore: undefined as Record<string, unknown> | undefined,
+  anonymizationStore: undefined as Record<string, unknown> | undefined,
+  mediaStore: undefined as Record<string, unknown> | undefined,
+  toastStore: undefined as Record<string, unknown> | undefined,
   route: { query: { video: null as string | null } },
   router: {
     replace: vi.fn(),
@@ -199,6 +199,16 @@ async function settle() {
   await nextTick()
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 describe('VideoExaminationAnnotation functionality', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -254,6 +264,71 @@ describe('VideoExaminationAnnotation functionality', () => {
     testState.axiosPost.mockResolvedValue({ data: {} })
   })
 
+  it('communicates each dropdown loading stage without showing a false empty state', async () => {
+    const overviewRequest = deferred<void>()
+    const videoListRequest = deferred<{ videos: typeof videos; labels: never[] }>()
+    const videoStore = testState.videoStore as ReturnType<typeof makeVideoStore>
+    const anonymizationStore = testState.anonymizationStore as {
+      fetchOverview: ReturnType<typeof vi.fn>
+    }
+    videoStore.videoList = { videos: [], labels: [] }
+    anonymizationStore.fetchOverview.mockReturnValueOnce(overviewRequest.promise)
+    videoStore.fetchAllVideos.mockReturnValueOnce(videoListRequest.promise)
+
+    const wrapper = mountComponent()
+    await nextTick()
+
+    const trigger = wrapper.find('.video-dropdown-trigger')
+    expect(trigger.attributes('disabled')).toBeDefined()
+    expect(trigger.attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('[data-test="video-dropdown-loading"]').text()).toContain(
+      'Videoliste und Freigabestatus werden geladen'
+    )
+    expect(wrapper.text()).not.toContain('Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.')
+
+    overviewRequest.resolve()
+    await settle()
+
+    expect(wrapper.get('[data-test="video-dropdown-loading"]').text()).toContain(
+      'Videos und Labels werden geladen'
+    )
+
+    videoStore.videoList = { videos, labels: [] }
+    videoListRequest.resolve({ videos, labels: [] })
+    await settle()
+
+    expect(wrapper.find('[data-test="video-dropdown-loading"]').exists()).toBe(false)
+    expect(trigger.attributes('disabled')).toBeUndefined()
+    expect(trigger.attributes('aria-busy')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('shows a focused dropdown error and recovers through its retry action', async () => {
+    const videoStore = testState.videoStore as ReturnType<typeof makeVideoStore>
+    videoStore.videoList = { videos: [], labels: [] }
+    videoStore.fetchAllVideos
+      .mockRejectedValueOnce(new Error('video list unavailable'))
+      .mockImplementationOnce(async () => {
+        videoStore.videoList = { videos, labels: [] }
+        return videoStore.videoList
+      })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    expect(wrapper.get('[data-test="video-dropdown-load-error"]').text()).toContain(
+      'Die Videoliste konnte nicht geladen werden'
+    )
+    expect(wrapper.find('.video-dropdown-trigger').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('[data-test="video-dropdown-load-error"] button').trigger('click')
+    await settle()
+
+    expect(wrapper.find('[data-test="video-dropdown-load-error"]').exists()).toBe(false)
+    expect(wrapper.find('.video-dropdown-trigger').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('uses the sidebar Nucleo icon package in the visible module UI', async () => {
     const wrapper = mountComponent()
     await settle()
@@ -290,6 +365,48 @@ describe('VideoExaminationAnnotation functionality', () => {
     expect(testState.videoStore.loadVideo).toHaveBeenCalledWith(2, { sourceKind: 'manual' })
     expect(wrapper.text()).not.toContain('ist bereits vollständig annotiert')
 
+    wrapper.unmount()
+  })
+
+  it('shows a disabled non-green waiting state after validation is submitted', async () => {
+    const validationRequest = deferred<never>()
+    const videoStore = testState.videoStore as ReturnType<typeof makeVideoStore>
+    videoStore.videoList = {
+      videos: videos.map((video) =>
+        video.id === 2 ? { ...video, segmentAnnotationsValidated: false } : video
+      ),
+      labels: []
+    }
+    const anonymizationStore = testState.anonymizationStore as {
+      overview: Array<{ id: number; anonymizationStatus: string }>
+    }
+    const selectedOverview = anonymizationStore.overview.find((item) => item.id === 2)
+    if (selectedOverview) selectedOverview.anonymizationStatus = 'validated'
+    testState.route.query.video = '2'
+    testState.axiosPost.mockReturnValueOnce(validationRequest.promise)
+
+    const wrapper = mountComponent()
+    await settle()
+
+    const validateButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Alle Segmente validieren'))
+    expect(validateButton).toBeTruthy()
+
+    await validateButton!.trigger('click')
+    await nextTick()
+
+    const waitingMessage = wrapper.get('[data-test="segment-validation-waiting"]')
+    expect(waitingMessage.text()).toContain('Validierung wurde gestartet')
+    expect(waitingMessage.text()).toContain('drücken Sie den Button nicht erneut')
+    expect(waitingMessage.text()).toContain('Status wird automatisch aktualisiert')
+    expect(validateButton!.text()).toContain('Übermittelt – bitte warten')
+    expect(validateButton!.classes()).toContain('validation-action-button-pending')
+    expect(validateButton!.attributes('disabled')).toBeDefined()
+    expect(validateButton!.attributes('aria-busy')).toBe('true')
+
+    await validateButton!.trigger('click')
+    expect(testState.axiosPost).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 

@@ -23,8 +23,8 @@
             <div class="header-actions">
               <button 
                 class="btn btn-outline-primary btn-sm me-2" 
-                @click="refreshSegments"
                 :disabled="loadingSegments"
+                @click="refreshSegments"
               >
                 <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingSegments }"></i>
                 Aktualisieren
@@ -68,7 +68,7 @@
                       Keine Video-Segmente verfügbar
                     </td>
                   </tr>
-                  <tr v-else v-for="segment in segments" :key="segment.id">
+                  <tr v-for="segment in segments" v-else :key="segment.id">
                     <td><code>{{ segment.videoId }}</code></td>
                     <td>{{ segment.startTime }}s - {{ segment.endTime }}s</td>
                     <td>
@@ -89,16 +89,16 @@
                       <div class="btn-group btn-group-sm">
                         <button 
                           class="btn btn-outline-primary" 
-                          @click="editSegment(segment)"
                           :title="'Segment bearbeiten'"
+                          @click="editSegment(segment)"
                         >
                           <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
-                          @click="markSegmentComplete(segment)"
                           :disabled="segment.status === 'completed'"
                           :title="'Als abgeschlossen markieren'"
+                          @click="markSegmentComplete(segment)"
                         >
                           <i class="ni ni-check-bold"></i>
                         </button>
@@ -123,8 +123,8 @@
             <div class="header-actions">
               <button 
                 class="btn btn-outline-primary btn-sm me-2" 
-                @click="refreshExaminations"
                 :disabled="loadingExaminations"
+                @click="refreshExaminations"
               >
                 <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingExaminations }"></i>
                 Aktualisieren
@@ -168,14 +168,14 @@
                       Keine Untersuchungen verfügbar
                     </td>
                   </tr>
-                  <tr v-else v-for="examination in examinations" :key="examination.id">
+                  <tr v-for="examination in examinations" v-else :key="examination.id">
                     <td><code>{{ examination.id }}</code></td>
                     <td>
                       {{ examination.patient?.first_name }} {{ examination.patient?.last_name }}
                     </td>
                     <td>{{ formatDate(examination.examination_date) }}</td>
                     <td>
-                      <span class="badge bg-secondary me-1" v-for="finding in examination.findings?.slice(0, 2)" :key="finding.id">
+                      <span v-for="finding in examination.findings?.slice(0, 2)" :key="finding.id" class="badge bg-secondary me-1">
                         {{ finding.name }}
                       </span>
                       <span v-if="examination.findings?.length > 2" class="badge bg-light text-dark">
@@ -194,16 +194,16 @@
                       <div class="btn-group btn-group-sm">
                         <button 
                           class="btn btn-outline-primary" 
-                          @click="editExamination(examination)"
                           :title="'Untersuchung bearbeiten'"
+                          @click="editExamination(examination)"
                         >
                           <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
-                          @click="markExaminationComplete(examination)"
                           :disabled="examination.status === 'completed'"
                           :title="'Als abgeschlossen markieren'"
+                          @click="markExaminationComplete(examination)"
                         >
                           <i class="ni ni-check-bold"></i>
                         </button>
@@ -228,8 +228,8 @@
             <div class="header-actions">
               <button 
                 class="btn btn-outline-primary btn-sm me-2" 
-                @click="refreshSensitiveMeta"
                 :disabled="loadingSensitiveMeta"
+                @click="refreshSensitiveMeta"
               >
                 <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingSensitiveMeta }"></i>
                 Aktualisieren
@@ -273,7 +273,7 @@
                       Keine Patientendaten zur Validierung verfügbar
                     </td>
                   </tr>
-                  <tr v-else v-for="meta in sensitiveMetaData" :key="meta.id">
+                  <tr v-for="meta in sensitiveMetaData" v-else :key="meta.id">
                     <td><code>{{ meta.id }}</code></td>
                     <td>
                       <span class="badge" :class="meta.content_type === 'video' ? 'bg-primary' : 'bg-danger'">
@@ -300,16 +300,16 @@
                       <div class="btn-group btn-group-sm">
                         <button 
                           class="btn btn-outline-primary" 
-                          @click="validateSensitiveMeta(meta)"
                           :title="'Patientendaten validieren'"
+                          @click="validateSensitiveMeta(meta)"
                         >
                           <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
-                          @click="markSensitiveMetaComplete(meta)"
                           :disabled="!meta.requires_validation"
                           :title="'Als validiert markieren'"
+                          @click="markSensitiveMetaComplete(meta)"
                         >
                           <i class="ni ni-check-bold"></i>
                         </button>
@@ -394,7 +394,7 @@ const refreshSegments = async () => {
     );
 
     segments.value = segmentLists.flat().slice(0, MAX_SEGMENTS_IN_OVERVIEW);
-  } catch (error) {
+  } catch {
     showError('Fehler beim Laden der Video-Segmente');
     segments.value = [];
   } finally {
@@ -407,7 +407,7 @@ const refreshExaminations = async () => {
   try {
     const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList));
     examinations.value = response.data.results || response.data || [];
-  } catch (error) {
+  } catch {
     console.error('Fehler beim Laden der Untersuchungen:', error);
     examinations.value = [];
   } finally {
@@ -596,7 +596,7 @@ const formatDate = (dateString) => {
   if (!dateString) return 'Nicht verfügbar';
   try {
     return new Date(dateString).toLocaleDateString('de-DE');
-  } catch (error) {
+  } catch {
     return 'Ungültiges Datum';
   }
 };

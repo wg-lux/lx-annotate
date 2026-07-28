@@ -1,12 +1,18 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
+import type {
+  AnnotationInformationSource,
+  AnnotationTask,
+  AnnotationTaskMode,
+  FrameFileType
+} from '@/stores/annotationQueue'
 import FrameAnnotation from '../FrameAnnotation.vue'
 
 const hoisted = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
-  queueStore: null as any,
+  queueStore: {} as BaseStore,
   fetchAiDatasetOptions: vi.fn()
 }))
 
@@ -41,32 +47,32 @@ vi.mock('@/stores/auth_kc', () => ({
 }))
 
 interface BaseStore {
-  selectedLabelGroupId: string
-  taskMode: string
+  selectedLabelGroupId: string | null
+  taskMode: AnnotationTaskMode
   targetLabelName: string
   filterLabelName: string | null
   allowRandomFallback: boolean
-  informationSource: string
-  frameFileType: string
+  informationSource: AnnotationInformationSource
+  frameFileType: FrameFileType
   aiDatasetId?: string | null
   aiDatasetName?: string | null
   aiDatasetType?: string | null
   annotatorPrincipal: string | null
-  taskQueue: any[]
+  taskQueue: AnnotationTask[]
   taskQuerySignature: string
   lastError: string | null
-  setSelectedLabelGroupId: any
-  setTaskMode: any
-  setTargetLabelName: any
-  setFilterLabelName: any
-  setAllowRandomFallback: any
-  setInformationSource: any
-  setFrameFileType: any
-  setAiDataset?: any
-  setAnnotatorPrincipal: any
-  clearQueue: any
-  fetchBatch: any
-  popNextTask: any
+  setSelectedLabelGroupId: Mock
+  setTaskMode: Mock
+  setTargetLabelName: Mock
+  setFilterLabelName: Mock
+  setAllowRandomFallback: Mock
+  setInformationSource: Mock
+  setFrameFileType: Mock
+  setAiDataset?: Mock
+  setAnnotatorPrincipal: Mock
+  clearQueue: Mock
+  fetchBatch: Mock
+  popNextTask: Mock
 }
 
 // 2. Use the interface for the overrides
@@ -85,7 +91,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     aiDatasetName: null,
     aiDatasetType: null,
     annotatorPrincipal: null,
-    taskQueue: [] as any[],
+    taskQueue: [],
     taskQuerySignature: 'random|Polyp||frame_annotation_frontend|auto|1',
     lastError: null as string | null,
     setSelectedLabelGroupId: vi.fn(),
@@ -238,7 +244,7 @@ describe('FrameAnnotation usability audit', () => {
   it('zeigt Backend-Fehler beim Task-Laden sichtbar an', async () => {
     hoisted.queueStore = buildQueueStore({
       fetchBatch: vi.fn().mockImplementation(async () => {
-        hoisted.queueStore.lastError = 'Backend nicht erreichbar'
+        hoisted.queueStore!.lastError = 'Backend nicht erreichbar'
         return []
       }),
       popNextTask: vi.fn(() => null),

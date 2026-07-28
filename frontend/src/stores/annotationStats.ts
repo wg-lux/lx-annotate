@@ -51,6 +51,22 @@ interface VideoSegmentStatsResponse {
   status: string
 }
 
+type SensitiveMetadataVerification = {
+  dob_verified?: boolean
+  names_verified?: boolean
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== 'object') return fallback
+  const candidate = error as {
+    message?: unknown
+    response?: { data?: { error?: unknown } }
+  }
+  const responseError = candidate.response?.data?.error
+  if (typeof responseError === 'string' && responseError) return responseError
+  return typeof candidate.message === 'string' && candidate.message ? candidate.message : fallback
+}
+
 export const useAnnotationStatsStore = defineStore('annotationStats', {
   state: () => ({
     stats: {
@@ -188,10 +204,9 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         this.calculateTotals()
 
         this.lastUpdated = new Date()
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching unified annotation statistics:', error)
-        this.error =
-          error.response?.data?.error || error.message || 'Failed to fetch annotation statistics'
+        this.error = errorMessage(error, 'Failed to fetch annotation statistics')
 
         // Set fallback values on error
         this.resetStats()
@@ -262,8 +277,12 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
 
         // Calculate stats from metadata list (no dedicated stats endpoint exists yet)
         const total = data.results?.length || data.length || 0
-        const verified =
-          data.results?.filter((m: any) => m.dob_verified && m.names_verified).length || 0
+        const metadataRows: SensitiveMetadataVerification[] = Array.isArray(data.results)
+          ? data.results
+          : []
+        const verified = metadataRows.filter((metadata) =>
+          Boolean(metadata.dob_verified && metadata.names_verified)
+        ).length
 
         this.stats.sensitiveMetaPending = total - verified
         this.stats.sensitiveMetaInProgress = 0

@@ -81,6 +81,65 @@ function requireFrameBoundary(value: unknown, field: string): VideoFrameBoundary
   return { frameNumber, timestamp }
 }
 
+function requireTimelineVersion(value: unknown): VideoFrameNeighborhood['timelineVersion'] {
+  if (value !== 'pts_v1' && value !== 'legacy_cfr_v1') {
+    throw new TypeError('Frame neighborhood timeline version is unsupported')
+  }
+  return value
+}
+
+function requireTimestampMapping(value: unknown): VideoFrameNeighborhood['timestampMapping'] {
+  if (value !== 'ffprobe_pts' && value !== 'rational_cfr') {
+    throw new TypeError('Frame neighborhood timestamp mapping is unsupported')
+  }
+  return value
+}
+
+function requireFrameWindow(value: unknown): VideoFrameBoundary[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new TypeError('Frame neighborhood window is missing')
+  }
+  const frames = value.map((frame, index) => requireFrameBoundary(frame, `Window ${index}`))
+  for (let index = 1; index < frames.length; index += 1) {
+    const previous = frames[index - 1]
+    const current = frames[index]
+    if (
+      current.frameNumber !== previous.frameNumber + 1 ||
+      current.timestamp <= previous.timestamp
+    ) {
+      throw new TypeError('Frame neighborhood window is inconsistent')
+    }
+  }
+  return frames
+}
+
+function requireCurrentInWindow(
+  current: VideoFrameBoundary,
+  frames: VideoFrameBoundary[]
+): void {
+  const windowCurrent = frames.find((frame) => frame.frameNumber === current.frameNumber)
+  if (!windowCurrent || windowCurrent.timestamp !== current.timestamp) {
+    throw new TypeError('Current frame is not part of the neighborhood window')
+  }
+}
+
+function requireAdjacentBoundary(
+  adjacent: VideoFrameBoundary | null,
+  current: VideoFrameBoundary,
+  direction: FrameStepDirection
+): void {
+  if (!adjacent) return
+  const expectedFrameNumber = current.frameNumber + direction
+  const hasInvalidTimestamp =
+    direction === -1
+      ? adjacent.timestamp >= current.timestamp
+      : adjacent.timestamp <= current.timestamp
+  if (adjacent.frameNumber !== expectedFrameNumber || hasInvalidTimestamp) {
+    const label = direction === -1 ? 'Previous' : 'Next'
+    throw new TypeError(`${label} frame boundary is inconsistent`)
+  }
+}
+
 /** Validate the backend-owned PTS neighborhood before using it for navigation. */
 export function parseVideoFrameNeighborhood(value: unknown): VideoFrameNeighborhood {
   if (!value || typeof value !== 'object') {
@@ -89,55 +148,23 @@ export function parseVideoFrameNeighborhood(value: unknown): VideoFrameNeighborh
   const record = value as Record<string, unknown>
   const videoId = Number(record.videoId)
   const requestedTimestamp = Number(record.requestedTimestamp)
-  const timelineVersion = record.timelineVersion
-  const timestampMapping = record.timestampMapping
   if (!Number.isInteger(videoId) || videoId <= 0) {
     throw new TypeError('Frame neighborhood video ID is invalid')
   }
   if (!Number.isFinite(requestedTimestamp) || requestedTimestamp < 0) {
     throw new TypeError('Requested frame timestamp is invalid')
   }
-  if (timelineVersion !== 'pts_v1' && timelineVersion !== 'legacy_cfr_v1') {
-    throw new TypeError('Frame neighborhood timeline version is unsupported')
-  }
-  if (timestampMapping !== 'ffprobe_pts' && timestampMapping !== 'rational_cfr') {
-    throw new TypeError('Frame neighborhood timestamp mapping is unsupported')
-  }
 
+  const timelineVersion = requireTimelineVersion(record.timelineVersion)
+  const timestampMapping = requireTimestampMapping(record.timestampMapping)
   const current = requireFrameBoundary(record.current, 'Current')
   const previous =
     record.previous == null ? null : requireFrameBoundary(record.previous, 'Previous')
   const next = record.next == null ? null : requireFrameBoundary(record.next, 'Next')
-  if (!Array.isArray(record.frames) || record.frames.length === 0) {
-    throw new TypeError('Frame neighborhood window is missing')
-  }
-  const frames = record.frames.map((frame, index) =>
-    requireFrameBoundary(frame, `Window ${index}`)
-  )
-  for (let index = 1; index < frames.length; index += 1) {
-    if (
-      frames[index].frameNumber !== frames[index - 1].frameNumber + 1 ||
-      frames[index].timestamp <= frames[index - 1].timestamp
-    ) {
-      throw new TypeError('Frame neighborhood window is inconsistent')
-    }
-  }
-  const windowCurrent = frames.find((frame) => frame.frameNumber === current.frameNumber)
-  if (!windowCurrent || windowCurrent.timestamp !== current.timestamp) {
-    throw new TypeError('Current frame is not part of the neighborhood window')
-  }
-  if (
-    previous &&
-    (previous.frameNumber !== current.frameNumber - 1 || previous.timestamp >= current.timestamp)
-  ) {
-    throw new TypeError('Previous frame boundary is inconsistent')
-  }
-  if (
-    next &&
-    (next.frameNumber !== current.frameNumber + 1 || next.timestamp <= current.timestamp)
-  ) {
-    throw new TypeError('Next frame boundary is inconsistent')
-  }
+  const frames = requireFrameWindow(record.frames)
+  requireCurrentInWindow(current, frames)
+  requireAdjacentBoundary(previous, current, -1)
+  requireAdjacentBoundary(next, current, 1)
 
   return {
     videoId,

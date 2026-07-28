@@ -4,17 +4,17 @@
       <div class="card-header pb-0 d-flex justify-content-between align-items-center">
         <h4 class="mb-0">Anonymisierungskorrektur</h4>
         <div class="d-flex gap-2">
-          <button 
+          <button
             class="btn btn-outline-secondary btn-sm"
             @click="goBack"
           >
             <i class="ni ni-bold-right me-1 icon-reverse"></i>
             Zurück zur Übersicht
           </button>
-          <button 
+          <button
             class="btn btn-outline-primary btn-sm"
-            @click="refreshCurrentVideo"
             :disabled="isRefreshing"
+            @click="refreshCurrentVideo"
           >
             <i class="ni ni-bold-right" :class="{ 'ni-spin': isRefreshing }"></i>
             Aktualisieren
@@ -65,32 +65,32 @@
                         <div class="d-flex flex-column gap-2">
                           <button
                             class="btn btn-outline-primary btn-sm"
-                            @click="reloadPdfDocument"
                             :disabled="isRenderingPdf"
+                            @click="reloadPdfDocument"
                           >
                             <i class="ni ni-single-copy-04 me-1"></i>
                             PDF neu laden
                           </button>
                           <button
                             class="btn btn-success btn-sm"
-                            @click="generateRedactedPdf"
                             :disabled="isRenderingPdf || totalPdfBoxCount === 0"
+                            @click="generateRedactedPdf"
                           >
                             <i class="ni ni-check-bold me-1"></i>
                             Anonymisierte PDF erzeugen
                           </button>
                           <button
                             class="btn btn-outline-success btn-sm"
-                            @click="downloadRedactedPdf"
                             :disabled="!redactedPdfUrl"
+                            @click="downloadRedactedPdf"
                           >
                             <i class="ni ni-cloud-upload-96 me-1"></i>
                             PDF herunterladen
                           </button>
                           <button
                             class="btn btn-outline-info btn-sm"
-                            @click="uploadRedactedPdf"
                             :disabled="!redactedPdfBytes || isProcessing"
+                            @click="uploadRedactedPdf"
                           >
                             <i class="ni ni-cloud-upload-96 me-1"></i>
                             Als neue Datei hochladen
@@ -112,16 +112,16 @@
                     <div class="d-flex align-items-center gap-2">
                       <button
                         class="btn btn-outline-secondary btn-sm"
-                        @click="previousPdfPage"
                         :disabled="activePdfPage <= 1 || isRenderingPdf"
+                        @click="previousPdfPage"
                       >
                         <i class="ni ni-bold-right icon-reverse"></i>
                       </button>
                       <span class="small text-muted">Seite {{ activePdfPage }} / {{ pdfPageCount || 1 }}</span>
                       <button
                         class="btn btn-outline-secondary btn-sm"
-                        @click="nextPdfPage"
                         :disabled="activePdfPage >= pdfPageCount || isRenderingPdf"
+                        @click="nextPdfPage"
                       >
                         <i class="ni ni-bold-right"></i>
                       </button>
@@ -131,11 +131,11 @@
                     <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
                       <label class="form-label mb-0">Zoom:</label>
                       <input
+                        v-model.number="pdfScale"
                         type="range"
                         min="0.75"
                         max="2.5"
                         step="0.25"
-                        v-model.number="pdfScale"
                         class="form-range pdf-zoom-range"
                       >
                       <span class="small text-muted">{{ Math.round(pdfScale * 100) }}%</span>
@@ -179,24 +179,24 @@
                     </div>
                     <button
                       class="btn btn-outline-secondary btn-sm"
-                      @click="undoLastPdfBox"
                       :disabled="getCurrentPageBoxCount() === 0"
+                      @click="undoLastPdfBox"
                     >
                       <i class="ni ni-bold-right me-1"></i>
                       Letzte Box entfernen
                     </button>
                     <button
                       class="btn btn-outline-warning btn-sm"
-                      @click="clearCurrentPdfPageBoxes"
                       :disabled="getCurrentPageBoxCount() === 0"
+                      @click="clearCurrentPdfPageBoxes"
                     >
                       <i class="ni ni-settings-gear-65 me-1"></i>
                       Seite leeren
                     </button>
                     <button
                       class="btn btn-outline-danger btn-sm"
-                      @click="clearAllPdfBoxes"
                       :disabled="totalPdfBoxCount === 0"
+                      @click="clearAllPdfBoxes"
                     >
                       <i class="ni ni-settings-gear-65 me-1"></i>
                       Alle Boxen löschen
@@ -239,7 +239,7 @@
                       <h5 class="card-title">{{ currentVideo.filename }}</h5>
                       <div class="row">
                         <div class="col-sm-6">
-                          <p class="mb-1"><strong>Status:</strong> 
+                          <p class="mb-1"><strong>Status:</strong>
                             <span :class="getStatusBadgeClass(currentVideo.anonymizationStatus)" class="badge ms-1">
                               {{ getStatusText(currentVideo.anonymizationStatus) }}
                             </span>
@@ -250,7 +250,7 @@
                         <div class="col-sm-6">
                           <p class="mb-1"><strong>Sensitive Frames:</strong> {{ videoMetadata.sensitiveFrameCount || 'Unbekannt' }}</p>
                           <p class="mb-1"><strong>Gesamte Frames:</strong> {{ videoMetadata.totalFrames || 'Unbekannt' }}</p>
-                          <p class="mb-1"><strong>Sensitive Ratio:</strong> 
+                          <p class="mb-1"><strong>Sensitive Ratio:</strong>
                             <span :class="getSensitivityBadgeClass(videoMetadata.sensitiveRatio)">
                               {{ formatPercentage(videoMetadata.sensitiveRatio) }}
                             </span>
@@ -260,18 +260,18 @@
                     </div>
                     <div class="col-md-4 text-end">
                       <div class="d-flex flex-column gap-2">
-                        <button 
+                        <button
                           class="btn btn-outline-info btn-sm"
-                          @click="analyzeVideo"
                           :disabled="isProcessing"
+                          @click="analyzeVideo"
                         >
                           <i class="ni ni-tv-2 me-1"></i>
                           Video analysieren
                         </button>
-                        <button 
+                        <button
                           class="btn btn-outline-warning btn-sm"
-                          @click="reprocessVideo"
                           :disabled="isProcessing"
+                          @click="reprocessVideo"
                         >
                           <i class="ni ni-bold-right me-1"></i>
                           Erneut verarbeiten
@@ -362,7 +362,7 @@
                       ? 'Empfohlen: PHI-Modell-gestützte Schwärzung in jedem Frame.'
                       : 'Legacy-Verfahren: dauerhafte statische Maskierung der gewählten Prozessorregion.' }}
                   </p>
-                  
+
                   <!-- Mask Configuration -->
                   <div v-if="selectedStrategy === 'processor_region'" class="mb-3">
                     <label class="form-label">Maskierungstyp:</label>
@@ -386,21 +386,21 @@
                     <div class="row">
                       <div class="col-6">
                         <label class="form-label">Endoskop X:</label>
-                        <input type="number" v-model.number="maskConfig.endoscopeX" class="form-control" min="0">
+                        <input v-model.number="maskConfig.endoscopeX" type="number" class="form-control" min="0">
                       </div>
                       <div class="col-6">
                         <label class="form-label">Endoskop Y:</label>
-                        <input type="number" v-model.number="maskConfig.endoscopeY" class="form-control" min="0">
+                        <input v-model.number="maskConfig.endoscopeY" type="number" class="form-control" min="0">
                       </div>
                     </div>
                     <div class="row mt-2">
                       <div class="col-6">
                         <label class="form-label">Breite:</label>
-                        <input type="number" v-model.number="maskConfig.endoscopeWidth" class="form-control" min="1">
+                        <input v-model.number="maskConfig.endoscopeWidth" type="number" class="form-control" min="1">
                       </div>
                       <div class="col-6">
                         <label class="form-label">Höhe:</label>
-                        <input type="number" v-model.number="maskConfig.endoscopeHeight" class="form-control" min="1">
+                        <input v-model.number="maskConfig.endoscopeHeight" type="number" class="form-control" min="1">
                       </div>
                     </div>
                   </div>
@@ -409,24 +409,24 @@
                   <div class="mb-3">
                     <label class="form-label">Verarbeitungsmethode:</label>
                     <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="maskConfig.processingMethod" 
-                        value="streaming"
+                      <input
                         id="maskStreaming"
+                        v-model="maskConfig.processingMethod"
+                        class="form-check-input"
+                        type="radio"
+                        value="streaming"
                       >
                       <label class="form-check-label" for="maskStreaming">
                         <strong>Streaming (Empfohlen)</strong> - Schnelle Verarbeitung mit Named Pipes
                       </label>
                     </div>
                     <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="maskConfig.processingMethod" 
-                        value="direct"
+                      <input
                         id="maskDirect"
+                        v-model="maskConfig.processingMethod"
+                        class="form-check-input"
+                        type="radio"
+                        value="direct"
                       >
                       <label class="form-check-label" for="maskDirect">
                         Direkte Verarbeitung - Für spezielle Anforderungen
@@ -434,10 +434,10 @@
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     class="btn btn-warning w-100"
-                    @click="applyMasking"
                     :disabled="isProcessing || !canApplyMask"
+                    @click="applyMasking"
                   >
                     <i class="ni ni-check-bold me-2"></i>
                     <span v-if="isProcessing && currentOperation === 'masking'">
@@ -465,29 +465,29 @@
                   <p class="text-muted mb-3">
                     Empfohlen bei niedriger Sensitivität (≤10%). Entfernt einzelne sensible Frames.
                   </p>
-                  
+
                   <!-- Frame Selection Method -->
                   <div class="mb-3">
                     <label class="form-label">Frame-Auswahl:</label>
                     <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="frameConfig.selectionMethod" 
-                        value="automatic"
+                      <input
                         id="frameAutomatic"
+                        v-model="frameConfig.selectionMethod"
+                        class="form-check-input"
+                        type="radio"
+                        value="automatic"
                       >
                       <label class="form-check-label" for="frameAutomatic">
                         <strong>Automatisch</strong> - KI-basierte Erkennung sensibler Frames
                       </label>
                     </div>
                     <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="frameConfig.selectionMethod" 
-                        value="manual"
+                      <input
                         id="frameManual"
+                        v-model="frameConfig.selectionMethod"
+                        class="form-check-input"
+                        type="radio"
+                        value="manual"
                       >
                       <label class="form-check-label" for="frameManual">
                         Manuell - Eigene Frame-Liste eingeben
@@ -497,9 +497,9 @@
 
                   <div v-if="frameConfig.selectionMethod === 'manual'" class="mb-3">
                     <label class="form-label">Frame-Nummern (kommagetrennt):</label>
-                    <textarea 
-                      v-model="frameConfig.manualFrames" 
-                      class="form-control" 
+                    <textarea
+                      v-model="frameConfig.manualFrames"
+                      class="form-control"
                       rows="3"
                       placeholder="z.B. 10,25,30-35,100"
                     ></textarea>
@@ -522,24 +522,24 @@
                   <div class="mb-3">
                     <label class="form-label">Verarbeitungsmethode:</label>
                     <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="frameConfig.processingMethod" 
-                        value="streaming"
+                      <input
                         id="frameStreaming"
+                        v-model="frameConfig.processingMethod"
+                        class="form-check-input"
+                        type="radio"
+                        value="streaming"
                       >
                       <label class="form-check-label" for="frameStreaming">
                         <strong>Streaming (Empfohlen)</strong> - Bis zu 10x schneller
                       </label>
                     </div>
                     <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="frameConfig.processingMethod" 
-                        value="traditional"
+                      <input
                         id="frameTraditional"
+                        v-model="frameConfig.processingMethod"
+                        class="form-check-input"
+                        type="radio"
+                        value="traditional"
                       >
                       <label class="form-check-label" for="frameTraditional">
                         Traditionell - Für Kompatibilität
@@ -547,10 +547,10 @@
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     class="btn btn-danger w-100"
-                    @click="removeFrames"
                     :disabled="isProcessing || !canRemoveFrames"
+                    @click="removeFrames"
                   >
                     <i class="ni ni-single-copy-04 me-2"></i>
                     <span v-if="isProcessing && currentOperation === 'frame_removal'">
@@ -578,14 +578,14 @@
                     <div class="flex-grow-1">
                       <h6 class="mb-1">{{ getOperationText(currentOperation) }}</h6>
                       <div class="progress" style="height: 8px;">
-                        <div 
-                          class="progress-bar progress-bar-striped progress-bar-animated" 
+                        <div
+                          class="progress-bar progress-bar-striped progress-bar-animated"
                           :style="{ width: processingProgress + '%' }"
                         ></div>
                       </div>
                       <small class="text-muted mt-1">{{ processingStatus }}</small>
                     </div>
-                    <button 
+                    <button
                       class="btn btn-outline-danger btn-sm"
                       @click="cancelProcessing"
                     >
@@ -605,18 +605,18 @@
                 <div class="card-header">
                   <h5 class="mb-0">Video-Vorschau</h5>
                   <div class="d-flex gap-2 mt-2">
-                    <button 
+                    <button
                       class="btn btn-sm"
                       :class="previewMode === 'original' ? 'btn-primary' : 'btn-outline-primary'"
                       @click="previewMode = 'original'"
                     >
                       Original
                     </button>
-                    <button 
+                    <button
                       class="btn btn-sm"
                       :class="previewMode === 'processed' ? 'btn-primary' : 'btn-outline-primary'"
-                      @click="previewMode = 'processed'"
                       :disabled="!hasProcessedVersion"
+                      @click="previewMode = 'processed'"
                     >
                       Verarbeitet
                     </button>
@@ -639,7 +639,7 @@
                       {{ videoPlaybackError.message }}
                     </div>
                   </div>
-                  
+
                   <!-- Video Controls -->
                   <div class="mt-3 d-flex justify-content-between align-items-center">
                     <div class="d-flex gap-2">
@@ -662,7 +662,7 @@
           </div>
 
           <!-- Processing History -->
-          <div class="row mt-4" v-if="processingHistory.length">
+          <div v-if="processingHistory.length" class="row mt-4">
             <div class="col-12">
               <div class="card">
                 <div class="card-header">
@@ -697,7 +697,7 @@
                             <small class="text-muted">{{ entry.details }}</small>
                           </td>
                           <td>
-                            <button 
+                            <button
                               v-if="entry.status === 'success' && entry.outputPath"
                               class="btn btn-outline-primary btn-sm"
                               @click="downloadResult(entry.id)"
@@ -723,9 +723,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
+import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { isAxiosError } from 'axios';
 import { endpoints } from '@/types/api/endpoints';
 import { buildPdfStreamUrl, type StreamableVideoFileType } from '@/utils/mediaUrls';
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream';
@@ -734,6 +735,7 @@ import type {
   VideoAnonymizationStatus,
   VideoAnonymizationStrategy,
 } from '@/types/anonymizationPipeline';
+import type { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 
 // Composables
 const router = useRouter();
@@ -753,8 +755,25 @@ const previewMode = ref<'original' | 'processed'>('original');
 const videoElement = ref<HTMLVideoElement | null>(null);
 
 // Video data from anonymization store
-const currentVideo = ref<any | null>(null);
-const videoDetailData = ref<any | null>(null);
+type CorrectionMedia = {
+  id: number;
+  filename: string;
+  mediaType: 'pdf' | 'video' | 'unknown';
+  anonymizationStatus: string;
+  fileSize: number | null;
+  createdAt: string | null;
+};
+
+type ApiErrorPayload = { error?: string };
+
+const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (isAxiosError<ApiErrorPayload>(error)) {
+    return error.response?.data?.error || error.message || fallback;
+  }
+  return error instanceof Error ? error.message : fallback;
+};
+
+const currentVideo = ref<CorrectionMedia | null>(null);
 const videoMetadata = ref({
   sensitiveFrameCount: null as number | null,
   totalFrames: null as number | null,
@@ -766,27 +785,6 @@ const anonymizationStatus = ref<VideoAnonymizationStatus | null>(null);
 const selectedStrategy = ref<VideoAnonymizationStrategy>('detector_assisted');
 
 // Patient data for correction
-const editedPatient = ref({
-  patientFirstName: '',
-  patientLastName: '',
-  patientGender: '',
-  patientDob: '',
-  casenumber: '',
-  examiner: '',
-  centerName: '',
-  endoscopeType: '',
-  endoscopeSn: ''
-});
-
-const examinationDate = ref('');
-const usesPseudonyms = ref(false);
-const pseudonymMapping = ref({
-  firstNamePseudonym: '',
-  lastNamePseudonym: '',
-  originalFirstName: '',
-  originalLastName: ''
-});
-
 // Configuration for masking
 const maskConfig = ref({
   type: 'device_default' as 'device_default' | 'custom',
@@ -818,14 +816,18 @@ const processingHistory = ref<Array<{
 
 const normalizeProcessingHistory = (raw: unknown) => {
   if (!Array.isArray(raw)) return [];
-  return raw.map((entry: any) => ({
-    id: Number(entry.id),
-    timestamp: String(entry.timestamp || entry.created_at || entry.completed_at || ''),
-    operation: String(entry.operation || 'anonymization'),
-    status: String(entry.status || ''),
-    details: String(entry.details || entry.message || ''),
-    outputPath: entry.outputPath || entry.output_path || entry.output_file || undefined,
-  }));
+  return raw
+    .filter((entry): entry is Record<string, unknown> =>
+      !!entry && typeof entry === 'object'
+    )
+    .map((entry) => ({
+      id: Number(entry.id),
+      timestamp: String(entry.timestamp || entry.created_at || entry.completed_at || ''),
+      operation: String(entry.operation || 'anonymization'),
+      status: String(entry.status || ''),
+      details: String(entry.details || entry.message || ''),
+      outputPath: String(entry.outputPath || entry.output_path || entry.output_file || '') || undefined,
+    }));
 };
 
 type CorrectionMediaType = 'video' | 'pdf';
@@ -851,8 +853,8 @@ const isDrawingPdfBox = ref(false);
 const drawStart = ref<{ x: number; y: number } | null>(null);
 const drawCurrent = ref<{ x: number; y: number } | null>(null);
 
-let pdfJsLib: any = null;
-let pdfDocument: any = null;
+let pdfJsLib: typeof import('pdfjs-dist/legacy/build/pdf.mjs') | null = null;
+let pdfDocument: PDFDocumentProxy | null = null;
 
 // Computed properties
 const canApplyMask = computed(() => {
@@ -890,7 +892,7 @@ const strategyLabel = (strategy: VideoAnonymizationStrategy) =>
 
 const canRemoveFrames = computed(() => {
   return currentVideo.value && !isProcessing.value &&
-    (frameConfig.value.selectionMethod !== 'manual' || 
+    (frameConfig.value.selectionMethod !== 'manual' ||
      frameConfig.value.manualFrames.trim().length > 0);
 });
 
@@ -952,15 +954,22 @@ const goBack = () => {
 
 const refreshCurrentVideo = async () => {
   if (!currentVideo.value) {
-    currentVideo.value = { id: props.fileId } as FileItem;
+    currentVideo.value = {
+      id: props.fileId,
+      filename: '',
+      mediaType: 'unknown',
+      anonymizationStatus: 'not_started',
+      fileSize: null,
+      createdAt: null,
+    };
   } else {
     currentVideo.value.id = props.fileId;
   }
-  
+
   isRefreshing.value = true;
   try {
-    await loadCurrentItemDetails(currentVideo.value.id);
-  } 
+    await loadCurrentItemDetails(props.fileId);
+  }
   finally {
     isRefreshing.value = false;
   }
@@ -1003,8 +1012,8 @@ const loadPdfDetails = async (pdfId: number) => {
 
     mediaStore.setCurrentByKey('pdf', pdfId);
     await loadPdfDocument(pdfId);
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler beim Laden der PDF-Details';
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler beim Laden der PDF-Details');
     console.error('Error loading pdf details:', err);
   } finally {
     loading.value = false;
@@ -1014,7 +1023,7 @@ const loadPdfDetails = async (pdfId: number) => {
 const loadVideoDetails = async (videoId: number) => {
   loading.value = true;
   error.value = '';
-  
+
   try {
     // Load video metadata and processing history
     const [videoResponse, metadataResponse, historyResponse, anonymizationResponse] = await Promise.all([
@@ -1025,7 +1034,7 @@ const loadVideoDetails = async (videoId: number) => {
         r(endpoints.media.videoCorrectionAnonymization(videoId))
       )
     ]);
-    
+
     currentVideo.value = videoResponse.data;
     videoMetadata.value = metadataResponse.data;
     processingHistory.value = normalizeProcessingHistory(historyResponse.data);
@@ -1034,14 +1043,19 @@ const loadVideoDetails = async (videoId: number) => {
       anonymizationResponse.data.selectedStrategy ||
       anonymizationResponse.data.defaultStrategy ||
       'detector_assisted';
-    
+
     // Update MediaStore with current video for consistent type detection
     if (currentVideo.value) {
-      mediaStore.setCurrentItem(currentVideo.value as any);
+      mediaStore.setCurrentItem({
+        id: currentVideo.value.id,
+        filename: currentVideo.value.filename,
+        mediaType: currentVideo.value.mediaType,
+        scope: currentVideo.value.mediaType,
+      });
     }
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler beim Laden der Video-Details';
+
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler beim Laden der Video-Details');
     console.error('Error loading video details:', err);
   } finally {
     loading.value = false;
@@ -1069,12 +1083,13 @@ const loadPdfDocument = async (pdfId: number) => {
 
     const source = new Uint8Array(response.data);
     pdfSourceBytes.value = source;
+    if (!pdfJsLib) throw new Error('PDF.js konnte nicht initialisiert werden.');
     const loadingTask = pdfJsLib.getDocument({ data: source });
     pdfDocument = await loadingTask.promise;
     pdfPageCount.value = pdfDocument.numPages;
     activePdfPage.value = 1;
     await renderCurrentPdfPage();
-  } catch (err: any) {
+  } catch (err: unknown) {
     pdfRenderError.value = 'PDF konnte nicht geladen werden.';
     console.error('Error loading PDF document:', err);
   } finally {
@@ -1163,7 +1178,7 @@ const renderCurrentPdfPage = async () => {
     overlay.style.width = canvas.style.width;
     overlay.style.height = canvas.style.height;
     drawPdfOverlay();
-  } catch (err: any) {
+  } catch (err: unknown) {
     pdfRenderError.value = 'PDF-Seite konnte nicht gerendert werden.';
     console.error('Error rendering PDF page:', err);
   } finally {
@@ -1320,7 +1335,7 @@ const generateRedactedPdf = async () => {
       status: 'success',
       details: `${totalPdfBoxCount.value} Box(en) angewendet`,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     error.value = 'Fehler beim Erzeugen der anonymisierten PDF';
     console.error('Error generating redacted PDF:', err);
   } finally {
@@ -1377,8 +1392,8 @@ const uploadRedactedPdf = async () => {
       status: 'success',
       details: `Upload-ID: ${response.data.uploadId ?? response.data.upload_id ?? 'n/a'}`,
     });
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler beim Upload der anonymisierten PDF';
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler beim Upload der anonymisierten PDF');
     console.error('Error uploading redacted PDF:', err);
   } finally {
     isProcessing.value = false;
@@ -1388,23 +1403,23 @@ const uploadRedactedPdf = async () => {
 
 const analyzeVideo = async () => {
   if (!currentVideo.value) return;
-  
+
   isProcessing.value = true;
   currentOperation.value = 'analysis';
   processingProgress.value = 0;
   processingStatus.value = 'Video wird analysiert...';
-  
+
   try {
     const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/analyze/`), {
       use_minicpm: frameConfig.value.detectionEngine !== 'traditional',
       detailed_analysis: true
     });
-    
+
     // Update metadata with analysis results
     videoMetadata.value = { ...videoMetadata.value, ...response.data };
     processingProgress.value = 100;
     processingStatus.value = 'Analyse abgeschlossen';
-    
+
     // Add to history
     processingHistory.value.unshift({
       id: Date.now(),
@@ -1413,9 +1428,9 @@ const analyzeVideo = async () => {
       status: 'success',
       details: `${response.data.sensitiveFrameCount || 0} sensible Frames gefunden`
     });
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Video-Analyse';
+
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler bei der Video-Analyse');
     console.error('Error analyzing video:', err);
   } finally {
     isProcessing.value = false;
@@ -1425,12 +1440,12 @@ const analyzeVideo = async () => {
 
 const applyMasking = async () => {
   if (!currentVideo.value) return;
-  
+
   isProcessing.value = true;
   currentOperation.value = 'masking';
   processingProgress.value = 0;
   processingStatus.value = 'Maskierung wird vorbereitet...';
-  
+
   try {
     const payload: VideoAnonymizationRequest = {
       strategy: selectedStrategy.value,
@@ -1451,7 +1466,7 @@ const applyMasking = async () => {
           },
       humanReviewRequired: true,
     };
-    
+
     const response = await axiosInstance.post<VideoAnonymizationStatus>(
       r(endpoints.media.videoCorrectionAnonymization(currentVideo.value.id)),
       payload
@@ -1471,9 +1486,9 @@ const applyMasking = async () => {
     if (videoElement.value) videoElement.value.load();
     isProcessing.value = false;
     currentOperation.value = '';
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || err.message || 'Fehler bei der Anonymisierung';
+
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler bei der Anonymisierung');
     console.error('Error applying anonymization:', err);
     isProcessing.value = false;
     currentOperation.value = '';
@@ -1514,28 +1529,28 @@ const pollAnonymizationCorrection = async (
 
 const removeFrames = async () => {
   if (!currentVideo.value) return;
-  
+
   isProcessing.value = true;
   currentOperation.value = 'frame_removal';
   processingProgress.value = 0;
   processingStatus.value = 'Frame-Entfernung wird vorbereitet...';
-  
+
   try {
     const payload = {
       selection_method: frameConfig.value.selectionMethod,
       detection_engine: frameConfig.value.detectionEngine,
       use_streaming: frameConfig.value.processingMethod === 'streaming',
-      manual_frames: frameConfig.value.selectionMethod === 'manual' 
+      manual_frames: frameConfig.value.selectionMethod === 'manual'
         ? parseManualFrames(frameConfig.value.manualFrames)
         : undefined
     };
-    
+
     // Start frame removal operation
     const response = await axiosInstance.post(
-      r(`media/videos/${currentVideo.value.id}/remove-frames/`), 
+      r(`media/videos/${currentVideo.value.id}/remove-frames/`),
       payload
     );
-    
+
     const taskId = response.data.taskId ?? response.data.task_id;
     if (taskId) {
       await pollTaskProgress(taskId, 'frame_removal');
@@ -1545,9 +1560,9 @@ const removeFrames = async () => {
         summary: response.data.message || 'Frame-Entfernung erfolgreich abgeschlossen'
       });
     }
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Frame-Entfernung';
+
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler bei der Frame-Entfernung');
     console.error('Error removing frames:', err);
     isProcessing.value = false;
     currentOperation.value = '';
@@ -1557,7 +1572,7 @@ const removeFrames = async () => {
 const parseManualFrames = (frameString: string): number[] => {
   const frames: number[] = [];
   const parts = frameString.split(',');
-  
+
   for (const part of parts) {
     const trimmed = part.trim();
     if (trimmed.includes('-')) {
@@ -1576,7 +1591,7 @@ const parseManualFrames = (frameString: string): number[] => {
       }
     }
   }
-  
+
   return [...new Set(frames)].sort((a, b) => a - b);
 };
 
@@ -1640,12 +1655,12 @@ const cancelProcessing = async () => {
 
 const reprocessVideo = async () => {
   if (!currentVideo.value) return;
-  
+
   try {
     await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/reprocess/`));
     await refreshCurrentVideo();
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Neuverarbeitung';
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler bei der Neuverarbeitung');
     console.error('Error reprocessing video:', err);
   }
 };
@@ -1658,7 +1673,7 @@ const seekVideo = (seconds: number) => {
 
 const downloadResult = async (historyId: number) => {
   if (!currentVideo.value) return;
-  
+
   try {
     const response = await axiosInstance.get(
       r(endpoints.media.processedVideoDownload(currentVideo.value.id, historyId)),
@@ -1666,7 +1681,7 @@ const downloadResult = async (historyId: number) => {
         responseType: 'blob'
       }
     );
-    
+
     // Create download link
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
@@ -1676,9 +1691,9 @@ const downloadResult = async (historyId: number) => {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler beim Download';
+
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler beim Download');
     console.error('Error downloading result:', err);
   }
 };
@@ -1755,7 +1770,7 @@ const getStatusText = (status: string) => {
 
 const getSensitivityBadgeClass = (ratio: number | null) => {
   if (ratio === null || ratio === undefined) return 'badge bg-secondary';
-  
+
   if (ratio > 0.1) return 'badge bg-danger';
   if (ratio > 0.05) return 'badge bg-warning';
   return 'badge bg-success';
@@ -1906,7 +1921,7 @@ onUnmounted(() => {
   .pdf-preview-frame {
     min-height: 420px;
   }
-  
+
   .card-body {
     padding: 1rem 0.75rem;
   }

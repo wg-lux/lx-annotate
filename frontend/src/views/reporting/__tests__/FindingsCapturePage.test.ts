@@ -3,17 +3,39 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, reactive, ref } from 'vue'
 
 import FindingsCapturePage from '../FindingsCapturePage.vue'
+import type {
+  ReportTemplateRuntimeClassificationChoiceInput,
+  ReportTemplateRuntimeDescriptorInput,
+  ReportTemplateRuntimePatientFindingInput,
+  ReportTemplateRuntimeValidationResult
+} from '@/types/reportTemplate'
 
-const hoisted = vi.hoisted(() => ({
-  flowRef: { current: null as any },
-  findingSelectorsRef: { current: null as any },
-  validateRuntime: vi.fn(),
-  templateControls: {
-    setModuleName: vi.fn(),
-    selectTemplateByName: vi.fn().mockResolvedValue(undefined),
-    fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
+const hoisted = vi.hoisted(() => {
+  const createFixtureRef = <T>(name: string) => {
+    let fixture: T | undefined
+    return {
+      get current(): T {
+        if (fixture === undefined) throw new Error(`${name} fixture was not initialized.`)
+        return fixture
+      },
+      set current(value: T) {
+        fixture = value
+      }
+    }
   }
-}))
+
+  return {
+    flowRef: createFixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
+    findingSelectorsRef:
+      createFixtureRef<ReturnType<typeof buildFindingSelectors>>('finding selectors'),
+    validateRuntime: vi.fn(),
+    templateControls: {
+      setModuleName: vi.fn(),
+      selectTemplateByName: vi.fn().mockResolvedValue(undefined),
+      fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
+    }
+  }
+})
 
 vi.mock('@/stores/reportingFlowStore', () => ({
   useReportingFlowStore: () => hoisted.flowRef.current
@@ -78,14 +100,34 @@ vi.mock('@/stores/examinationStore', () => ({
 }))
 
 function buildFlowStore() {
-  const flow: any = reactive({
+  type FindingsEvent =
+    | {
+        type: 'finding_added'
+        at: string
+        findingId: number
+      }
+    | {
+        type: 'classification_updated'
+        at: string
+        findingId: number
+        classificationId: number
+        choiceId: number | null
+      }
+  type UpdateClassificationParams = {
+    findingLocalId: string
+    classificationName: string
+    classificationChoice?: string
+    descriptors?: ReportTemplateRuntimeDescriptorInput[]
+  }
+
+  const flow = reactive({
     patientExaminationId: 42,
     selectedExaminationId: 7,
     selectedKbModule: 'report_template_examples',
-    selectedTemplateName: 'star_upper_gi_main',
+    selectedTemplateName: 'star_upper_gi_main' as string | null,
     findingsRevision: 0,
-    lastFindingsEvent: null as any,
-    lastTemplateValidation: null as any,
+    lastFindingsEvent: null as FindingsEvent | null,
+    lastTemplateValidation: null as ReportTemplateRuntimeValidationResult | null,
     currentRuntimeDraft: {
       draftId: 'draft_42',
       patientExaminationId: 42,
@@ -99,14 +141,15 @@ function buildFlowStore() {
         examination: 'gastroscopy',
         knowledgeBaseModule: 'report_template_examples',
         knowledgeBaseVersion: null,
-        patientFindings: [] as any[]
+        patientFindings: [] as ReportTemplateRuntimePatientFindingInput[]
       }
     },
     setTemplateSelection: vi.fn((params: { moduleName?: string; templateName?: string | null }) => {
-      if (params.moduleName !== undefined) flow.selectedKbModule = params.moduleName || 'report_template_examples'
+      if (params.moduleName !== undefined)
+        flow.selectedKbModule = params.moduleName || 'report_template_examples'
       if (params.templateName !== undefined) flow.selectedTemplateName = params.templateName || null
     }),
-    setLastTemplateValidation: vi.fn((result: any) => {
+    setLastTemplateValidation: vi.fn((result: ReportTemplateRuntimeValidationResult | null) => {
       flow.lastTemplateValidation = result
     }),
     persistCurrentRuntimeDraft: vi.fn().mockResolvedValue(undefined),
@@ -122,16 +165,17 @@ function buildFlowStore() {
     removeFinding: vi.fn((findingLocalId: string) => {
       flow.currentRuntimeDraft.payload.patientFindings =
         flow.currentRuntimeDraft.payload.patientFindings.filter(
-          (finding: any) => finding.localId !== findingLocalId
+          (finding: ReportTemplateRuntimePatientFindingInput) => finding.localId !== findingLocalId
         )
     }),
-    updateClassificationValue: vi.fn((params: any) => {
+    updateClassificationValue: vi.fn((params: UpdateClassificationParams) => {
       const finding = flow.currentRuntimeDraft.payload.patientFindings.find(
-        (entry: any) => entry.localId === params.findingLocalId
+        (entry: ReportTemplateRuntimePatientFindingInput) => entry.localId === params.findingLocalId
       )
       if (!finding) return
       finding.classificationChoices = finding.classificationChoices.filter(
-        (entry: any) => entry.classification !== params.classificationName
+        (entry: ReportTemplateRuntimeClassificationChoiceInput) =>
+          entry.classification !== params.classificationName
       )
       if (params.classificationChoice) {
         finding.classificationChoices.push({
@@ -150,19 +194,85 @@ function buildFlowStore() {
         findingId
       }
     }),
-    noteClassificationUpdated: vi.fn((findingId: number, classificationId: number, choiceId: number | null) => {
-      flow.findingsRevision += 1
-      flow.lastFindingsEvent = {
-        type: 'classification_updated',
-        at: '2026-03-19T12:01:00.000Z',
-        findingId,
-        classificationId,
-        choiceId
+    noteClassificationUpdated: vi.fn(
+      (findingId: number, classificationId: number, choiceId: number | null) => {
+        flow.findingsRevision += 1
+        flow.lastFindingsEvent = {
+          type: 'classification_updated',
+          at: '2026-03-19T12:01:00.000Z',
+          findingId,
+          classificationId,
+          choiceId
+        }
       }
-    })
+    )
   })
 
   return flow
+}
+
+function buildFindingSelectors() {
+  return {
+    catalogFindings: computed(() => [
+      {
+        id: 11,
+        name: 'esophagus_polyp',
+        displayName: 'Oesophagus Polyp',
+        descriptions: '',
+        examinations: ['gastroscopy'],
+        classifications: [
+          {
+            id: 101,
+            name: 'size_mm',
+            displayName: 'Size (mm)',
+            required: true,
+            classificationTypes: [],
+            choices: [
+              {
+                id: 1001,
+                name: 'size_mm',
+                displayName: 'Size (mm)',
+                subcategories: {},
+                numericalDescriptors: { length_mm_descriptor: 0 }
+              }
+            ]
+          },
+          {
+            id: 102,
+            name: 'lst',
+            displayName: 'LST',
+            required: false,
+            classificationTypes: [],
+            choices: [
+              {
+                id: 1002,
+                name: 'granular',
+                displayName: 'Granular',
+                subcategories: {},
+                numericalDescriptors: {}
+              }
+            ]
+          }
+        ],
+        locationClassifications: [],
+        morphologyClassifications: [],
+        FindingClassifications: [],
+        findingTypes: [],
+        findingInterventions: []
+      }
+    ]),
+    loading: false,
+    ensureCatalogLoaded: vi.fn().mockResolvedValue([]),
+    getFindingById: vi.fn().mockImplementation((id: number) =>
+      id === 11
+        ? {
+            id: 11,
+            name: 'esophagus_polyp',
+            displayName: 'Oesophagus Polyp'
+          }
+        : null
+    )
+  }
 }
 
 function mountPage() {
@@ -174,7 +284,8 @@ function mountPage() {
         },
         ReportTemplateValidationPanel: {
           props: ['findingAnchors', 'result'],
-          template: '<div data-testid="validation-panel-stub">{{ findingAnchors.esophagus_polyp }}</div>'
+          template:
+            '<div data-testid="validation-panel-stub">{{ findingAnchors.esophagus_polyp }}</div>'
         },
         ReportingMediaPreviewCards: true
       }
@@ -189,67 +300,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
     hoisted.templateControls.fetchTemplatesByExamination.mockResolvedValue([])
     hoisted.templateControls.selectTemplateByName.mockResolvedValue(undefined)
     hoisted.flowRef.current = buildFlowStore()
-    hoisted.findingSelectorsRef.current = {
-      catalogFindings: computed(() => [
-        {
-          id: 11,
-          name: 'esophagus_polyp',
-          displayName: 'Oesophagus Polyp',
-          descriptions: '',
-          examinations: ['gastroscopy'],
-          classifications: [
-            {
-              id: 101,
-              name: 'size_mm',
-              displayName: 'Size (mm)',
-              required: true,
-              classificationTypes: [],
-              choices: [
-                {
-                  id: 1001,
-                  name: 'size_mm',
-                  displayName: 'Size (mm)',
-                  subcategories: {},
-                  numericalDescriptors: { length_mm_descriptor: 0 }
-                }
-              ]
-            },
-            {
-              id: 102,
-              name: 'lst',
-              displayName: 'LST',
-              required: false,
-              classificationTypes: [],
-              choices: [
-                {
-                  id: 1002,
-                  name: 'granular',
-                  displayName: 'Granular',
-                  subcategories: {},
-                  numericalDescriptors: {}
-                }
-              ]
-            }
-          ],
-          locationClassifications: [],
-          morphologyClassifications: [],
-          FindingClassifications: [],
-          findingTypes: [],
-          findingInterventions: []
-        }
-      ]),
-      loading: false,
-      ensureCatalogLoaded: vi.fn().mockResolvedValue([]),
-      getFindingById: vi.fn().mockImplementation((id: number) =>
-        id === 11
-          ? {
-              id: 11,
-              name: 'esophagus_polyp',
-              displayName: 'Oesophagus Polyp'
-            }
-          : null
-      )
-    }
+    hoisted.findingSelectorsRef.current = buildFindingSelectors()
     hoisted.validateRuntime.mockResolvedValue({
       templateName: 'star_upper_gi_main',
       ok: true,
@@ -274,7 +325,9 @@ describe('FindingsCapturePage runtime draft flow', () => {
       'finding-esophagus_polyp'
     )
 
-    const addButton = wrapper.findAll('button').find((button) => button.text().includes('Befund hinzufügen'))
+    const addButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Befund hinzufügen'))
     expect(addButton).toBeTruthy()
 
     await addButton!.trigger('click')

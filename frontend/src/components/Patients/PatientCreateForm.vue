@@ -13,9 +13,9 @@
             <div class="form-group">
               <label for="firstName" class="required">Vorname</label>
               <input 
+                id="firstName"
                 v-model="form.firstName"
                 type="text"
-                id="firstName"
                 class="form-control"
                 :class="{ 'is-invalid': errors.firstName }"
                 required
@@ -31,9 +31,9 @@
             <div class="form-group">
               <label for="lastName" class="required">Nachname</label>
               <input 
+                id="lastName"
                 v-model="form.lastName"
                 type="text"
-                id="lastName"
                 class="form-control"
                 :class="{ 'is-invalid': errors.lastName }"
                 required
@@ -51,9 +51,9 @@
             <div class="form-group">
               <label for="dob">Geburtsdatum</label>
               <input 
+                id="dob"
                 v-model="form.dob"
                 type="date"
-                id="dob"
                 class="form-control"
                 :class="{ 'is-invalid': errors.dob }"
               />
@@ -70,8 +70,8 @@
             <div class="form-group">
               <label for="gender">Geschlecht</label>
               <select 
-                v-model="form.gender"
                 id="gender"
+                v-model="form.gender"
                 class="form-control"
                 :class="{ 'is-invalid': errors.gender }"
               >
@@ -104,9 +104,9 @@
             <div class="form-group">
               <label for="email">E-Mail</label>
               <input 
+                id="email"
                 v-model="form.email"
                 type="email"
-                id="email"
                 class="form-control"
                 :class="{ 'is-invalid': errors.email }"
                 placeholder="email@beispiel.de"
@@ -121,9 +121,9 @@
             <div class="form-group">
               <label for="phone">Telefon</label>
               <input 
+                id="phone"
                 v-model="form.phone"
                 type="tel"
-                id="phone"
                 class="form-control"
                 :class="{ 'is-invalid': errors.phone }"
                 placeholder="+49 123 456789"
@@ -148,8 +148,8 @@
             <div class="form-group">
               <label for="center">Zentrum</label>
               <select 
-                v-model="form.centerKey"
                 id="center"
+                v-model="form.centerKey"
                 class="form-control"
                 :class="{ 'is-invalid': errors.center }"
               >
@@ -206,8 +206,8 @@
         <button 
           type="button" 
           class="btn btn-secondary ms-2"
-          @click="$emit('cancel')"
           :disabled="loading"
+          @click="$emit('cancel')"
         >
           <i class="ni ni-settings-gear-65 me-2"></i>
           Abbrechen
@@ -219,7 +219,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { usePatientStore, type Patient, type PatientFormData, type Gender, type Center } from '@/stores/patientStore'
+import { usePatientStore, type Patient, type PatientFormData } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
 import { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
@@ -325,7 +325,7 @@ const handleSubmit = async () => {
     return
   }
   
-  let formattedData: any = null
+  let formattedData: PatientFormData | null = null
   
   try {
     loading.value = true
@@ -367,26 +367,28 @@ const handleSubmit = async () => {
     console.log('📤 Event patient-created ausgelöst mit:', newPatient)
     console.log('=== FORM SUBMIT SUCCESS ===')
     
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const caughtError =
+      error instanceof Error ? error : new Error('Unbekannter Fehler beim Erstellen des Patienten')
     console.log('=== FORM SUBMIT ERROR ===')
     console.error('❌ KOMPLETTES ERROR-OBJEKT:', error)
-    console.error('❌ ERROR STACK:', error.stack)
-    console.error('❌ ERROR NAME:', error.name)
-    console.error('❌ ERROR MESSAGE:', error.message)
+    console.error('❌ ERROR STACK:', caughtError.stack)
+    console.error('❌ ERROR NAME:', caughtError.name)
+    console.error('❌ ERROR MESSAGE:', caughtError.message)
     
     // Handle different error types
-    if (error.message && error.message.includes('HTTP error!')) {
+    if (caughtError.message.includes('HTTP error!')) {
       // This is from our fetch-based patientStore
       errors.value.general = 'Server-Fehler beim Erstellen des Patienten. Prüfen Sie Ihre Verbindung.'
     } else {
-      errors.value.general = error.message || 'Unbekannter Fehler beim Erstellen des Patienten'
+      errors.value.general = caughtError.message
     }
     
     // Zusätzliche Debugging-Informationen
     console.error('🔍 Zusätzliche Debug-Infos:', {
-      errorName: error.name,
-      errorMessage: error.message,
-      errorStack: error.stack,
+      errorName: caughtError.name,
+      errorMessage: caughtError.message,
+      errorStack: caughtError.stack,
       formattedData: formattedData,
       timestamp: new Date().toISOString()
     })

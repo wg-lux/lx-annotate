@@ -7,6 +7,7 @@ from tempfile import NamedTemporaryFile
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand, CommandError
+from endoreg_db.utils.file_operations import safe_unlink_file
 
 
 def process_intake_file(
@@ -31,7 +32,7 @@ def process_intake_file(
     with intake_path.open("rb") as handle:
         saved_name = storage.save(destination_name, File(handle, name=destination_name))
 
-    intake_path.unlink(missing_ok=False)
+    safe_unlink_file(intake_path, missing_ok=False)
     return saved_name
 
 
@@ -80,7 +81,7 @@ def extract_frames_with_ffmpeg(
                 command.extend(ffmpeg_args)
             subprocess.run(command, check=True)
         finally:
-            tmp_path.unlink(missing_ok=True)
+            safe_unlink_file(tmp_path, missing_ok=True)
 
 
 class Command(BaseCommand):

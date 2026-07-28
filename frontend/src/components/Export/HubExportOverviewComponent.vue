@@ -15,9 +15,9 @@
           <select
             v-model="selectedTargetNodeKey"
             class="form-select form-select-sm hub-target-select"
-            @change="refreshOverview"
             :disabled="hubExportStore.hubNodes.length !== 1"
             data-test="hub-export-target-select"
+            @change="refreshOverview"
           >
             <option
               v-for="node in hubExportStore.hubNodes"
@@ -30,8 +30,8 @@
           <button
             class="btn btn-outline-primary btn-sm"
             :disabled="hubExportStore.loading"
-            @click="refreshOverview"
             data-test="hub-export-refresh"
+            @click="refreshOverview"
           >
             Aktualisieren
           </button>
@@ -265,16 +265,16 @@
             <button
               class="btn btn-outline-success btn-sm"
               :disabled="!selectedEligibleItems.length || !hubExportStore.configReady"
-              @click="markSelected"
               data-test="hub-export-mark-selected"
+              @click="markSelected"
             >
               Für Hub markieren
             </button>
             <button
               class="btn btn-outline-secondary btn-sm"
               :disabled="!selectedMarkedItems.length || !hubExportStore.configReady"
-              @click="unmarkSelected"
               data-test="hub-export-unmark-selected"
+              @click="unmarkSelected"
             >
               Markierung entfernen
             </button>
@@ -368,8 +368,8 @@
                     type="checkbox"
                     class="form-check-input"
                     :checked="allSelectableChecked"
-                    @change="toggleSelectAll"
                     data-test="hub-export-select-all"
+                    @change="toggleSelectAll"
                   />
                 </th>
                 <th>Datei</th>
@@ -390,8 +390,8 @@
                     class="form-check-input"
                     :disabled="!item.eligible"
                     :checked="selectedKeys.has(selectionKey(item))"
-                    @change="toggleSelected(item)"
                     :data-test="`hub-export-select-${item.resourceKind}-${item.id}`"
+                    @change="toggleSelected(item)"
                   />
                 </td>
                 <td>{{ item.filename }}</td>

@@ -4,20 +4,37 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import CaseSetupPage from '../CaseSetupPage.vue'
 
-const hoisted = vi.hoisted(() => ({
-  routeRef: {
-    current: {
-      query: {}
+const hoisted = vi.hoisted(() => {
+  const createFixtureRef = <T>(name: string) => {
+    let fixture: T | undefined
+    return {
+      get current(): T {
+        if (fixture === undefined) throw new Error(`${name} fixture was not initialized.`)
+        return fixture
+      },
+      set current(value: T) {
+        fixture = value
+      }
     }
-  },
-  flowRef: { current: null as any },
-  patientStoreRef: { current: null as any },
-  examinationStoreRef: { current: null as any },
-  patientExaminationStoreRef: { current: null as any },
-  axiosApi: {
-    post: vi.fn()
   }
-}))
+
+  return {
+    routeRef: {
+      current: {
+        query: {}
+      }
+    },
+    flowRef: createFixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
+    patientStoreRef: createFixtureRef<PatientStoreStub>('patient store'),
+    examinationStoreRef: createFixtureRef<ExaminationStoreStub>('examination store'),
+    patientExaminationStoreRef: createFixtureRef<PatientExaminationStoreStub>(
+      'patient examination store'
+    ),
+    axiosApi: {
+      post: vi.fn()
+    }
+  }
+})
 
 vi.mock('vue-router', () => ({
   RouterLink: {
@@ -48,6 +65,40 @@ vi.mock('@/stores/patientExaminationStore', () => ({
   usePatientExaminationStore: () => hoisted.patientExaminationStoreRef.current
 }))
 
+type PatientStoreStub = {
+  loading: boolean
+  patientsWithDisplayName: Array<{ id: number; displayName: string }>
+  getPatientById: (id: number) => {
+    id: number
+    patientHash: string
+    dob: string
+    gender: string
+  } | null
+  fetchPatients: ReturnType<typeof vi.fn>
+}
+
+type ExaminationStoreStub = {
+  loading: boolean
+  examinationsDropdown: Array<{ id: number; name: string; displayName: string }>
+  fetchExaminations: ReturnType<typeof vi.fn>
+}
+
+type PatientExaminationStoreStub = {
+  addPatientExamination: ReturnType<typeof vi.fn>
+  setCurrentPatientExaminationId: ReturnType<typeof vi.fn>
+}
+
+type PatientExaminationContext = {
+  patientExaminationId: number | null
+  selectedPatientId: number | null
+  selectedExaminationId: number | null
+}
+
+type CaseContext = {
+  caseId: string | null
+  selectedPatientId?: number | null
+}
+
 function buildFlowStore(
   overrides: Partial<{
     selectedPatientId: number | null
@@ -56,12 +107,12 @@ function buildFlowStore(
     caseId: string | null
   }> = {}
 ) {
-  const flow: any = reactive({
-    selectedPatientId: 7,
-    selectedExaminationId: 9,
-    patientExaminationId: null,
-    caseId: null,
-    lookupToken: null,
+  const flow = reactive({
+    selectedPatientId: 7 as number | null,
+    selectedExaminationId: 9 as number | null,
+    patientExaminationId: null as number | null,
+    caseId: null as string | null,
+    lookupToken: null as string | null,
     currentRuntimeDraft: null,
     sessionStatus: 'idle',
     setCaseSelection: vi.fn(
@@ -72,14 +123,16 @@ function buildFlowStore(
           flow.selectedExaminationId = payload.selectedExaminationId
       }
     ),
-    setPatientExaminationContext: vi.fn(function (this: any, payload: any) {
-      this.patientExaminationId = payload.patientExaminationId
-      this.selectedPatientId = payload.selectedPatientId
-      this.selectedExaminationId = payload.selectedExaminationId
+    setPatientExaminationContext: vi.fn((payload: PatientExaminationContext) => {
+      flow.patientExaminationId = payload.patientExaminationId
+      flow.selectedPatientId = payload.selectedPatientId
+      flow.selectedExaminationId = payload.selectedExaminationId
     }),
-    setCaseContext: vi.fn(function (this: any, payload: any) {
-      this.caseId = payload.caseId
-      this.selectedPatientId = payload.selectedPatientId
+    setCaseContext: vi.fn((payload: CaseContext) => {
+      flow.caseId = payload.caseId
+      if (payload.selectedPatientId !== undefined) {
+        flow.selectedPatientId = payload.selectedPatientId
+      }
     }),
     resetForPatientSwitch: vi.fn(),
     clearAll: vi.fn()

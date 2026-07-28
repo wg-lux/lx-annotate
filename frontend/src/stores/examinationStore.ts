@@ -154,9 +154,10 @@ export const useExaminationStore = defineStore('examination', {
               : []
 
         normalizeRows(dropdownRows)
-      } catch (e: any) {
+      } catch (e: unknown) {
         this.exams = []
-        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
+        const candidate = e as { response?: { data?: { detail?: string } }; message?: string }
+        this.error = candidate?.response?.data?.detail ?? candidate?.message ?? 'Unbekannter Fehler'
       } finally {
         this.loading = false
       }
@@ -174,7 +175,7 @@ export const useExaminationStore = defineStore('examination', {
         const findings = await findingsApi.getExaminationFindings(examId)
         this.findingsByExam.set(examId, findings)
         return findings
-      } catch (e: any) {
+      } catch (e: unknown) {
         const parsed = parseFindingsApiError(e)
         this.error = parsed.message
         return []
@@ -208,7 +209,7 @@ export const useExaminationStore = defineStore('examination', {
         }
         this.classificationsByFinding.set(findingId, payload)
         return payload
-      } catch (e: any) {
+      } catch (e: unknown) {
         const parsed = parseFindingsApiError(e)
         this.error = parsed.message
         return { locationClassifications: [], morphologyClassifications: [] }

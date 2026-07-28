@@ -347,7 +347,32 @@ import {
   type AiDatasetTrainingManifestConfig,
   type AiDatasetTrainingManifestPreview
 } from '@/api/aiDatasetApi'
+import { isAxiosError } from 'axios'
 import { computed, onMounted, reactive, ref } from 'vue'
+
+interface AiDatasetValidationErrors {
+  name?: string
+  datasetType?: string
+  aiModelType?: string
+  includeAllAnnotations?: string
+  include_all_annotations?: string
+  includeFrameAnnotations?: string
+  include_frame_annotations?: string
+  includeVideoAnnotations?: string
+  include_video_annotations?: string
+  manifest?: string
+  labelSetId?: string
+  preprocessingStrategy?: string
+  recommendedModelInputStrategy?: string
+}
+
+interface AiDatasetErrorPayload {
+  errors?: AiDatasetValidationErrors
+}
+
+function aiDatasetValidationErrors(error: unknown): AiDatasetValidationErrors {
+  return isAxiosError<AiDatasetErrorPayload>(error) ? error.response?.data?.errors || {} : {}
+}
 
 const datasetOptions = ref<AiDatasetOption[]>([])
 const labelSetOptions = ref<AiDatasetLabelSetOption[]>([])
@@ -512,9 +537,9 @@ async function createDataset(): Promise<void> {
     createDatasetForm.name = ''
     createdDatasetMessage.value = `Datensatz "${createdDataset.label}" wurde erstellt und ausgewählt.`
     resetManifest()
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to create AI dataset:', error)
-    const errors = error?.response?.data?.errors
+    const errors = aiDatasetValidationErrors(error)
     if (errors?.name) {
       errorMessage.value = 'Bitte geben Sie einen gültigen Namen für den Datensatz ein.'
     } else if (errors?.datasetType) {
@@ -547,9 +572,9 @@ async function attachExistingAnnotations(): Promise<void> {
     attachmentMessage.value =
       `Datensatz enthält ${attachmentResult.value.frameAnnotationCount} Frame-Annotationen ` +
       `und ${attachmentResult.value.videoAnnotationCount} Video-Segmente.`
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to attach existing AI dataset annotations:', error)
-    const errors = error?.response?.data?.errors
+    const errors = aiDatasetValidationErrors(error)
     errorMessage.value =
       errors?.includeAllAnnotations ||
       errors?.include_all_annotations ||
@@ -577,9 +602,9 @@ async function buildManifest(): Promise<void> {
       labelSetId: form.labelSetId || null,
       informationSourceNames: normalizedInformationSourceNames()
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to build AI dataset training manifest:', error)
-    const errors = error?.response?.data?.errors
+    const errors = aiDatasetValidationErrors(error)
     errorMessage.value =
       errors?.manifest ||
       errors?.labelSetId ||

@@ -176,4 +176,36 @@ describe('reportingFlowStore template draft state', () => {
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledTimes(1)
     expect(flow.hasUnpersistedDraftChanges).toBe(false)
   })
+
+  it('suspends draft autosave during final persistence and resumes when still dirty', async () => {
+    const flow = useReportingFlowStore()
+    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setRuntimeDraft({
+      draftId: 'draft_42',
+      patientExaminationId: 42,
+      moduleName: 'report_template_examples',
+      templateName: 'star_upper_gi_main',
+      payload: {
+        patient: 'patient_7',
+        examiners: [],
+        examination: 'colonoscopy',
+        patientFindings: []
+      },
+      hydratedFrom: 'backend_context',
+      updatedAt: '2026-03-19T13:55:00.000Z'
+    })
+
+    flow.setSavingFinalReport(true)
+    await vi.advanceTimersByTimeAsync(1500)
+    await flow.flushDraftAutosave()
+
+    expect(hoisted.reportDraftApi.savePatientExaminationDraft).not.toHaveBeenCalled()
+    expect(flow.hasUnpersistedDraftChanges).toBe(true)
+
+    flow.setSavingFinalReport(false)
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledTimes(1)
+    expect(flow.hasUnpersistedDraftChanges).toBe(false)
+  })
 })

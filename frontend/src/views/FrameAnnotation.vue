@@ -621,6 +621,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { v7 as uuidv7 } from 'uuid'
+import { isAxiosError } from 'axios'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import { endpoints } from '@/types/api/endpoints'
@@ -677,6 +678,18 @@ interface ImagePoint {
   y: number
   imageWidth: number
   imageHeight: number
+}
+
+interface FrameAnnotationApiError {
+  detail?: string
+  error?: string
+}
+
+function frameAnnotationErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError<FrameAnnotationApiError>(error)) {
+    return error.response?.data?.detail || error.response?.data?.error || error.message || fallback
+  }
+  return error instanceof Error && error.message ? error.message : fallback
 }
 
 type FrameImageLoadState = 'idle' | 'probing' | 'loading' | 'pending' | 'loaded' | 'failed'
@@ -1531,13 +1544,12 @@ async function loadBoxAnnotationsForTask(task: typeof currentTask.value): Promis
       .filter((box): box is FrameBoxAnnotationDraft => box !== null)
     activeBoxClientId.value = boxAnnotations.value[0]?.clientId ?? null
     ensureSelectedBoxLabel()
-  } catch (error: any) {
+  } catch (error: unknown) {
     boxAnnotations.value = []
-    boxAnnotationError.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+    boxAnnotationError.value = frameAnnotationErrorMessage(
+      error,
       'Box-Annotationen konnten nicht geladen werden.'
+    )
   } finally {
     isLoadingBoxAnnotations.value = false
   }
@@ -1590,12 +1602,11 @@ async function submitBoxAnnotations(): Promise<void> {
     if (currentTask.value?.id === task.id) {
       await loadBoxAnnotationsForTask(task)
     }
-  } catch (error: any) {
-    boxAnnotationError.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+  } catch (error: unknown) {
+    boxAnnotationError.value = frameAnnotationErrorMessage(
+      error,
       'Box-Annotationen konnten nicht gespeichert werden.'
+    )
   } finally {
     isSavingBoxAnnotations.value = false
   }
@@ -1695,6 +1706,13 @@ function parseOptionalNumber(value: unknown): number | null {
   return null
 }
 
+function firstDefinedValue(values: unknown[]): unknown {
+  for (const value of values) {
+    if (value !== null && value !== undefined) return value
+  }
+  return undefined
+}
+
 function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null {
   const nestedLabelGroup =
     raw.labelGroup && typeof raw.labelGroup === 'object'
@@ -1703,13 +1721,14 @@ function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null
         ? (raw.label_group as Record<string, unknown>)
         : null
 
-  const groupIdRaw =
-    raw.labelGroupId ??
-    raw.label_group_id ??
-    raw.groupId ??
-    raw.group_id ??
-    nestedLabelGroup?.id ??
+  const groupIdRaw = firstDefinedValue([
+    raw.labelGroupId,
+    raw.label_group_id,
+    raw.groupId,
+    raw.group_id,
+    nestedLabelGroup?.id,
     raw.id
+  ])
   if (
     groupIdRaw === null ||
     groupIdRaw === undefined ||
@@ -1721,20 +1740,23 @@ function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null
   const id = String(groupIdRaw).trim()
   if (!id) return null
 
-  const nameRaw =
-    raw.labelGroupName ??
-    raw.label_group_name ??
-    raw.groupName ??
-    raw.group_name ??
-    nestedLabelGroup?.name ??
+  const nameRaw = firstDefinedValue([
+    raw.labelGroupName,
+    raw.label_group_name,
+    raw.groupName,
+    raw.group_name,
+    nestedLabelGroup?.name,
     raw.name
+  ])
   const name = typeof nameRaw === 'string' && nameRaw.trim() ? nameRaw.trim() : `Group ${id}`
-  const version = parseOptionalNumber(raw.version ?? nestedLabelGroup?.version)
+  const version = parseOptionalNumber(firstDefinedValue([raw.version, nestedLabelGroup?.version]))
   const labelCount = parseOptionalNumber(
-    raw.labelCount ??
-      raw.label_count ??
-      nestedLabelGroup?.labelCount ??
+    firstDefinedValue([
+      raw.labelCount,
+      raw.label_count,
+      nestedLabelGroup?.labelCount,
       nestedLabelGroup?.label_count
+    ])
   )
   const displayParts = [name]
   if (version !== null) displayParts.push(`v${version}`)
@@ -1762,13 +1784,12 @@ async function loadLabelGroups(): Promise<void> {
     if (!selectedLabelGroupId.value && labelGroupOptions.value.length > 0) {
       selectedLabelGroupId.value = labelGroupOptions.value[0].id
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     labelGroupOptions.value = []
-    labelGroupLoadError.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+    labelGroupLoadError.value = frameAnnotationErrorMessage(
+      error,
       'Label-Gruppen konnten nicht geladen werden.'
+    )
   } finally {
     isLoadingLabelGroups.value = false
   }
@@ -1779,13 +1800,12 @@ async function loadAiDatasets(): Promise<void> {
   aiDatasetLoadError.value = null
   try {
     aiDatasetOptions.value = await fetchAiDatasetOptions()
-  } catch (error: any) {
+  } catch (error: unknown) {
     aiDatasetOptions.value = []
-    aiDatasetLoadError.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+    aiDatasetLoadError.value = frameAnnotationErrorMessage(
+      error,
       'KI-Datensätze konnten nicht geladen werden.'
+    )
   } finally {
     isLoadingAiDatasets.value = false
   }
@@ -1806,13 +1826,12 @@ async function loadNextTask(): Promise<void> {
     if (!currentTask.value && queueStore.lastError) {
       errorMessage.value = queueStore.lastError
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     currentTask.value = null
-    errorMessage.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+    errorMessage.value = frameAnnotationErrorMessage(
+      error,
       'Aufgabe konnte nicht geladen werden.'
+    )
   } finally {
     isLoadingTask.value = false
   }
@@ -1875,12 +1894,11 @@ async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
     }
     await axiosInstance.post(r(endpoints.annotation.bulkUpsert), payload)
     await loadNextTask()
-  } catch (error: any) {
-    errorMessage.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+  } catch (error: unknown) {
+    errorMessage.value = frameAnnotationErrorMessage(
+      error,
       'Annotation konnte nicht gespeichert werden.'
+    )
   } finally {
     isSubmitting.value = false
   }
@@ -1931,12 +1949,11 @@ async function skipTask(): Promise<void> {
       informationSourceName: informationSource.value
     })
     await loadNextTask()
-  } catch (error: any) {
-    errorMessage.value =
-      error?.response?.data?.detail ||
-      error?.response?.data?.error ||
-      error?.message ||
+  } catch (error: unknown) {
+    errorMessage.value = frameAnnotationErrorMessage(
+      error,
       'Aufgabe konnte nicht übersprungen werden.'
+    )
   } finally {
     isSubmitting.value = false
   }

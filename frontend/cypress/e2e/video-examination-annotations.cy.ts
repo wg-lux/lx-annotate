@@ -108,7 +108,15 @@ describe('VideoExaminationAnnotation - Segment Annotations Integration', () => {
   it('should sync annotations from videoStore on page load', () => {
     // Mock annotation store methods
     cy.window().then((win) => {
-      const annotationStore = (win as any).useAnnotationStore()
+      const annotationStore = (
+        win as typeof win & {
+          useAnnotationStore: () => {
+            setCurrentVideoId: (videoId: string) => void
+            syncSegmentsFromVideoStore: (videoId: string) => void
+            loadAnnotations: (videoId: string) => void
+          }
+        }
+      ).useAnnotationStore()
       cy.stub(annotationStore, 'setCurrentVideoId').as('setCurrentVideoId')
       cy.stub(annotationStore, 'syncSegmentsFromVideoStore').as('syncSegments')
       cy.stub(annotationStore, 'loadAnnotations').as('loadAnnotations')
@@ -127,7 +135,13 @@ describe('VideoExaminationAnnotation - Segment Annotations Integration', () => {
   it('should handle auth store initialization', () => {
     // Verify mock user is initialized
     cy.window().then((win) => {
-      const authStore = (win as any).useAuthStore()
+      const authStore = (
+        win as typeof win & {
+          useAuthStore: () => {
+            user: { id: string; username: string; email: string }
+          }
+        }
+      ).useAuthStore()
       expect(authStore.user).to.deep.include({
         id: 'user-1',
         username: 'doctor',

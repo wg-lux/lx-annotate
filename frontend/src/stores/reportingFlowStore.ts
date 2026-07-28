@@ -109,7 +109,9 @@ function clearPersistedState() {
   try {
     sessionStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(LEGACY_STORAGE_KEY)
-  } catch {}
+  } catch {
+    // Persisted reporting state cleanup is best-effort.
+  }
 }
 
 function normalizePersistedState(
@@ -469,7 +471,14 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     return currentSignature !== draftAutosaveSignature.value
   })
 
+  function cancelDraftAutosave() {
+    if (!draftAutosaveTimer.value) return
+    clearTimeout(draftAutosaveTimer.value)
+    draftAutosaveTimer.value = null
+  }
+
   async function persistCurrentRuntimeDraft() {
+    if (savingFinalReport.value) return
     const draft = currentRuntimeDraft.value
     if (!draft?.patientExaminationId) return
     if (draftPersistencePromise.value) {
@@ -489,11 +498,21 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         draftPersistenceStatus.value = 'saved'
         lastPersistedDraftAt.value = response.updatedAt ?? response.updated_at ?? null
         draftAutosaveSignature.value = signatureToPersist
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorRecord =
+          error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+        const response =
+          errorRecord.response && typeof errorRecord.response === 'object'
+            ? (errorRecord.response as Record<string, unknown>)
+            : {}
+        const data =
+          response.data && typeof response.data === 'object'
+            ? (response.data as Record<string, unknown>)
+            : {}
         draftPersistenceStatus.value = 'error'
         draftPersistenceError.value =
-          error?.response?.data?.detail ||
-          error?.message ||
+          (typeof data.detail === 'string' ? data.detail : null) ||
+          (typeof errorRecord.message === 'string' ? errorRecord.message : null) ||
           'Der Reporting-Entwurf konnte nicht gespeichert werden.'
         throw error
       } finally {
@@ -505,20 +524,18 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function scheduleDraftAutosave() {
-    if (draftAutosaveTimer.value) {
-      clearTimeout(draftAutosaveTimer.value)
-    }
+    cancelDraftAutosave()
+    if (savingFinalReport.value) return
     draftAutosaveTimer.value = setTimeout(() => {
       draftAutosaveTimer.value = null
+      if (savingFinalReport.value) return
       void persistCurrentRuntimeDraft()
     }, DRAFT_AUTOSAVE_DEBOUNCE_MS)
   }
 
   async function flushDraftAutosave() {
-    if (draftAutosaveTimer.value) {
-      clearTimeout(draftAutosaveTimer.value)
-      draftAutosaveTimer.value = null
-    }
+    cancelDraftAutosave()
+    if (savingFinalReport.value) return
     if (!currentRuntimeDraft.value) return
     if (!hasUnpersistedDraftChanges.value && !draftPersistencePromise.value) return
     await persistCurrentRuntimeDraft()
@@ -526,6 +543,13 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   function setSavingFinalReport(value: boolean) {
     savingFinalReport.value = value
+    if (value) {
+      cancelDraftAutosave()
+      return
+    }
+    if (hasUnpersistedDraftChanges.value && !draftPersistencePromise.value) {
+      scheduleDraftAutosave()
+    }
   }
 
   function setCaseSelection(params: {

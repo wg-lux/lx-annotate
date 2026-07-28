@@ -329,7 +329,7 @@
       </div>
     </section>
 
-    <div class="card shadow-sm" v-if="saveWarnings.length">
+    <div v-if="saveWarnings.length" class="card shadow-sm">
       <div class="card-header">
         <h6 class="mb-0">Warnungen (advisory)</h6>
       </div>
@@ -422,6 +422,7 @@ import type {
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateSectionDraft
 } from '@/types/reportTemplate'
+import { reportingApiError, reportingApiErrorMessage } from './reportingError'
 
 type PatientExaminationReportListItem = {
   id: number
@@ -465,7 +466,6 @@ const {
   moduleName: selectedKbModule,
   selectedTemplateName,
   templateOptions,
-  selectedTemplate,
   sectionBlocks,
   loading: templateLoading,
   errorMessage: templateErrorMessage,
@@ -822,6 +822,66 @@ function upsertIndicationOption(
   existing.choices = Array.from(choiceById.values())
 }
 
+function appendChoice(
+  optionsById: Map<number, IndicationOption>,
+  indicationId: number,
+  choice: IndicationChoiceOption
+): void {
+  const option = optionsById.get(indicationId)
+  if (!option) return
+  if (!option.choices.some((existingChoice) => existingChoice.id === choice.id)) {
+    option.choices.push(choice)
+  }
+}
+
+function extractChoiceRow(
+  row: unknown
+): { indicationId: number; choice: IndicationChoiceOption } | null {
+  if (!row || typeof row !== 'object') return null
+  const value = row as Record<string, unknown>
+  const indicationId = normalizePositiveId(
+    value.examinationIndicationId ??
+      value.examination_indication_id ??
+      value.indicationId ??
+      value.indication_id
+  )
+  const choiceId = normalizePositiveId(
+    value.id ??
+      value.choiceId ??
+      value.choice_id ??
+      value.indicationChoiceId ??
+      value.indication_choice_id
+  )
+  if (indicationId == null || choiceId == null) return null
+  const label =
+    normalizeDisplayLabel(
+      value.label ?? value.name ?? value.displayName ?? value.name_de ?? value.nameDe
+    ) || `Auswahl #${choiceId}`
+  return { indicationId, choice: { id: choiceId, label } }
+}
+
+function appendChoiceCandidate(
+  candidate: unknown,
+  optionsById: Map<number, IndicationOption>
+): void {
+  if (Array.isArray(candidate)) {
+    for (const row of candidate) {
+      const normalized = extractChoiceRow(row)
+      if (normalized) appendChoice(optionsById, normalized.indicationId, normalized.choice)
+    }
+    return
+  }
+  if (!candidate || typeof candidate !== 'object') return
+
+  for (const [key, choices] of Object.entries(candidate as Record<string, unknown>)) {
+    const indicationId = normalizePositiveId(key)
+    if (indicationId == null) continue
+    for (const choice of normalizeChoiceOptions(choices)) {
+      appendChoice(optionsById, indicationId, choice)
+    }
+  }
+}
+
 function extractOptionsFromPayload(payload: unknown, optionsById: Map<number, IndicationOption>) {
   if (!payload || typeof payload !== 'object') return
   const data = payload as Record<string, unknown>
@@ -855,50 +915,7 @@ function extractOptionsFromPayload(payload: unknown, optionsById: Map<number, In
   ]
 
   for (const candidate of topLevelChoiceCandidates) {
-    if (Array.isArray(candidate)) {
-      for (const row of candidate) {
-        if (!row || typeof row !== 'object') continue
-        const value = row as Record<string, unknown>
-        const indicationId = normalizePositiveId(
-          value.examinationIndicationId ??
-            value.examination_indication_id ??
-            value.indicationId ??
-            value.indication_id
-        )
-        const choiceId = normalizePositiveId(
-          value.id ??
-            value.choiceId ??
-            value.choice_id ??
-            value.indicationChoiceId ??
-            value.indication_choice_id
-        )
-        if (indicationId == null || choiceId == null) continue
-        const label =
-          normalizeDisplayLabel(
-            value.label ?? value.name ?? value.displayName ?? value.name_de ?? value.nameDe
-          ) || `Auswahl #${choiceId}`
-        const option = optionsById.get(indicationId)
-        if (!option) continue
-        if (!option.choices.some((choice) => choice.id === choiceId)) {
-          option.choices.push({ id: choiceId, label })
-        }
-      }
-      continue
-    }
-
-    if (!candidate || typeof candidate !== 'object') continue
-    for (const [key, choices] of Object.entries(candidate as Record<string, unknown>)) {
-      const indicationId = normalizePositiveId(key)
-      if (indicationId == null) continue
-      const option = optionsById.get(indicationId)
-      if (!option) continue
-      const normalizedChoices = normalizeChoiceOptions(choices)
-      for (const choice of normalizedChoices) {
-        if (!option.choices.some((existingChoice) => existingChoice.id === choice.id)) {
-          option.choices.push(choice)
-        }
-      }
-    }
+    appendChoiceCandidate(candidate, optionsById)
   }
 }
 
@@ -1020,7 +1037,8 @@ function buildPatientDataPayload(): SaveReportSubmissionRequest['patientData'] {
     patientGender: patient.gender || null,
     firstName: patient.firstName || null,
     lastName: patient.lastName || null,
-    center: (patient as any).center || null
+    center:
+      'center' in patient && typeof patient.center === 'string' ? patient.center || null : null
   }
 }
 
@@ -1203,9 +1221,8 @@ async function loadLatestReportMeta() {
       await selectTemplateByName(latest.templateName)
     }
     successMessage.value = `Bericht #${latest.id} (Version ${latest.version}) geladen.`
-  } catch (e: any) {
-    errorMessage.value =
-      e?.response?.data?.detail || e?.message || 'Fehler beim Laden bestehender Berichte.'
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden bestehender Berichte.')
   } finally {
     loading.value = false
   }
@@ -1259,13 +1276,12 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
     successMessage.value = data.created
       ? `Bericht wurde erstellt (ID ${data.report.id}, Version ${data.report.version}).`
       : `Bericht wurde aktualisiert (ID ${data.report.id}, Version ${data.report.version}).`
-  } catch (e: any) {
-    const versionConflict = e?.response?.data?.expectedVersion
+  } catch (e: unknown) {
+    const versionConflict = reportingApiError(e).response?.data?.expectedVersion
     if (typeof versionConflict === 'string') {
       errorMessage.value = `Versionskonflikt: ${versionConflict}`
     } else {
-      errorMessage.value =
-        e?.response?.data?.detail || e?.message || 'Fehler beim Speichern des Berichts.'
+      errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Speichern des Berichts.')
     }
   } finally {
     flow.setSavingFinalReport(false)

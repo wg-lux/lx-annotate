@@ -92,10 +92,10 @@ const allSegmentsValidated = computed<boolean>(() => {
  */
 async function validateSegment(segment: Segment) {
   if (validatedSegments.value.has(segment.id) || isValidating.value) return
-  
+
   isValidating.value = true
   validationError.value = ''
-  
+
   try {
     await axiosInstance.post(
       r(endpoints.media.videoSegmentValidate(props.videoId, segment.id)),
@@ -208,8 +208,8 @@ function onSegmentDelete() {}
       <div class="row align-items-center">
         <div class="col-md-8">
           <div class="progress">
-            <div 
-              class="progress-bar" 
+            <div
+              class="progress-bar"
               :class="allSegmentsValidated ? 'bg-success' : 'bg-warning'"
               :style="`width: ${(validatedSegments.size / outsideSegments.length) * 100}%`"
             >
@@ -218,19 +218,19 @@ function onSegmentDelete() {}
           </div>
         </div>
         <div class="col-md-4 text-end">
-          <button 
+          <button
             class="btn btn-sm btn-success me-2"
-            @click="validateAllSegments"
             :disabled="isValidating || allSegmentsValidated"
+            @click="validateAllSegments"
           >
             <span v-if="isValidating" class="spinner-border spinner-border-sm me-1"></span>
             <i v-else class="ni ni-check-bold me-1"></i>
             Alle validieren
           </button>
-          <button 
+          <button
             class="btn btn-sm btn-outline-secondary"
-            @click="resetValidation"
             :disabled="isValidating || validatedSegments.size === 0"
+            @click="resetValidation"
           >
             <i class="ni ni-bold-right me-1"></i>
             Zurücksetzen
@@ -253,8 +253,8 @@ function onSegmentDelete() {}
     <div v-if="outsideSegments.length > 0" class="segments-overview mb-3">
       <h6>Outside-Segmente ({{ outsideSegments.length }})</h6>
       <div class="segments-list">
-        <div 
-          v-for="segment in outsideSegments" 
+        <div
+          v-for="segment in outsideSegments"
           :key="segment.id"
           class="segment-item d-flex justify-content-between align-items-center mb-2 p-2 border rounded"
           :class="{
@@ -270,11 +270,11 @@ function onSegmentDelete() {}
             <span class="ms-2 badge bg-secondary">{{ segment.label }}</span>
           </div>
           <div>
-            <button 
+            <button
               v-if="!validatedSegments.has(segment.id)"
               class="btn btn-sm btn-outline-success"
-              @click="validateSegment(segment)"
               :disabled="isValidating"
+              @click="validateSegment(segment)"
             >
               <i class="ni ni-check-bold me-1"></i>
               Validieren
@@ -301,7 +301,7 @@ function onSegmentDelete() {}
       :segments="outsideSegments"
       :current-time="currentTime"
       :is-playing="isPlaying"
-      :selection-mode="false"   
+      :selection-mode="false"
       @seek="onSeek"
       @play-pause="onPlayPause"
       @segment-create="onSegmentCreate"

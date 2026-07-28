@@ -83,6 +83,7 @@
 import { computed, onMounted, ref } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
+import { reportingApiErrorMessage } from './reportingError'
 
 type ReportListRow = {
   id: number
@@ -137,8 +138,8 @@ async function loadReports() {
     const res = await axiosInstance.get(r(endpoints.report.patientExaminationReports))
     const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as ReportListRow[]
     items.value = Array.isArray(rows) ? rows : []
-  } catch (e: any) {
-    errorMessage.value = e?.response?.data?.detail || e?.message || 'Fehler beim Laden der Arbeitsliste.'
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden der Arbeitsliste.')
   } finally {
     loading.value = false
   }

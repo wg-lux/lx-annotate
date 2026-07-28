@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { reactive, ref, computed, readonly } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import type { Patient } from '@/stores/patientStore'
@@ -12,6 +11,19 @@ export interface PatientExamination {
   examination: Examination
   video: Video | null
   id: number
+}
+
+function requestErrorMessage(error: unknown): string {
+  if (!error || typeof error !== 'object') return 'Unbekannter Fehler'
+  const candidate = error as {
+    message?: unknown
+    response?: { data?: { detail?: unknown } }
+  }
+  const detail = candidate.response?.data?.detail
+  if (typeof detail === 'string' && detail) return detail
+  return typeof candidate.message === 'string' && candidate.message
+    ? candidate.message
+    : 'Unbekannter Fehler'
 }
 
 export const usePatientExaminationStore = defineStore('patientExamination', {
@@ -42,10 +54,10 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
         }
 
         return true
-      } catch (err: any) {
+      } catch (err: unknown) {
         this.error =
           'Fehler beim Überprüfen der Patientenuntersuchung: ' +
-          (err.response?.data?.detail || err.message)
+          requestErrorMessage(err)
         console.error('Check patient examination existence error:', err)
         return false
       } finally {
@@ -65,10 +77,10 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
           { params: { patient_id: patientId } }
         )
         this.patientExaminations = response.data.results || response.data
-      } catch (err: any) {
+      } catch (err: unknown) {
         this.error =
           'Fehler beim Laden der Patientenuntersuchungen: ' +
-          (err.response?.data?.detail || err.message)
+          requestErrorMessage(err)
         console.error('Fetch patient examinations error:', err)
       } finally {
         this.loading = false
@@ -89,10 +101,10 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
             this.patientExaminations.push(pe)
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         this.error =
           'Fehler beim Laden der Patientenuntersuchung: ' +
-          (err.response?.data?.detail || err.message)
+          requestErrorMessage(err)
         console.error('Fetch patient examination by ID error:', err)
       } finally {
         this.loading = false

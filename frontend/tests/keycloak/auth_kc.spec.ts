@@ -50,7 +50,7 @@ describe('auth_kc store', () => {
     expect(store.can('page.patients.view', 'GET')).toBe(true)
 
     // And the normalized caps map should contain method-specific key
-    expect((store.caps as any)['page.patients.view:GET']).toBe(true)
+    expect(store.caps['page.patients.view:GET']).toBe(true)
   })
 
   it('denies patient page when capability is false (basic user)', async () => {
@@ -70,6 +70,6 @@ describe('auth_kc store', () => {
     // User has no roles, and cannot access patients page
     expect(store.user?.username).toBe('basic')
     expect(store.can('page.patients.view', 'GET')).toBe(false)
-    expect((store.caps as any)['page.patients.view:GET']).toBe(false)
+    expect(store.caps['page.patients.view:GET']).toBe(false)
   })
 })

@@ -37,12 +37,20 @@ export function buildDefaultAnonymizationMetricsFilters(
   }
 }
 
-function errorToMessage(error: any): string {
+function errorToMessage(error: unknown): string {
+  const failure = error as {
+    response?: { data?: { detail?: unknown; error?: unknown } }
+    message?: unknown
+  }
+  const candidates = [
+    failure?.response?.data?.detail,
+    failure?.response?.data?.error,
+    failure?.message
+  ]
   return (
-    error?.response?.data?.detail ||
-    error?.response?.data?.error ||
-    error?.message ||
-    'Anonymisierungsmetriken konnten nicht geladen werden.'
+    candidates.find(
+      (candidate): candidate is string => typeof candidate === 'string' && Boolean(candidate)
+    ) ?? 'Anonymisierungsmetriken konnten nicht geladen werden.'
   )
 }
 
@@ -72,7 +80,7 @@ export const useAnonymizationMetricsStore = defineStore('anonymizationMetrics', 
         this.data = data
         this.lastUpdated = new Date()
         return data
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.data = null
         this.error = errorToMessage(error)
         return null

@@ -5,6 +5,7 @@ import io
 import json
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -16,6 +17,7 @@ from django.test import Client
 from django.urls import Resolver404, resolve
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIRequestFactory, force_authenticate
+from endoreg_db.utils.file_operations import atomic_write_file
 
 from lx_annotate.apps import LxAnnotateConfig
 from lx_annotate.management.commands import export_route_manifest as route_cmd
@@ -359,6 +361,47 @@ def test_export_route_manifest_command_filters_and_writes_file(tmp_path, monkeyp
     assert "admin/login/" not in paths
     assert "oidc/callback/" not in paths
     assert all("<format>" not in p for p in paths)
+
+
+def test_export_route_manifest_preserves_existing_file_when_atomic_write_fails(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(route_cmd, "_walk", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        route_cmd, "get_resolver", lambda: SimpleNamespace(url_patterns=[])
+    )
+    out = tmp_path / "routes.json"
+    original = b'{"previous": true}\n'
+    out.write_bytes(original)
+
+    def fail_after_partial_write(**kwargs):
+        def failing_content():
+            yield b'{"partial":'
+            raise OSError("simulated manifest write failure")
+
+        return atomic_write_file(
+            destination=kwargs["destination"],
+            content=failing_content(),
+        )
+
+    monkeypatch.setattr(route_cmd, "atomic_write_file", fail_after_partial_write)
+
+    with pytest.raises(OSError, match="simulated manifest write failure"):
+        call_command("export_route_manifest", "--output", str(out))
+
+    assert out.read_bytes() == original
+    assert list(tmp_path.glob("routes.json.tmp.*")) == []
+
+
+def test_management_commands_have_no_raw_filesystem_mutations():
+    commands_dir = Path(__file__).parents[2] / "lx_annotate" / "management" / "commands"
+    watcher_source = (commands_dir / "run_filewatcher.py").read_text(encoding="utf-8")
+    manifest_source = (commands_dir / "export_route_manifest.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert ".unlink(" not in watcher_source
+    assert "with open(" not in manifest_source
 
 
 def test_export_route_manifest_command_stdout_with_include_flags(monkeypatch):

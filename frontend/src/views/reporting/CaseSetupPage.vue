@@ -126,6 +126,7 @@ import { usePatientStore } from '@/stores/patientStore'
 import { useExaminationStore } from '@/stores/examinationStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
 import type { PatientExamination } from '@/stores/patientExaminationStore'
+import { reportingApiErrorMessage } from './reportingError'
 
 const flow = useReportingFlowStore()
 const patientStore = usePatientStore()
@@ -258,12 +259,11 @@ async function createPatientExaminationContext() {
     successMessage.value = returnToPath.value
       ? 'Die Patientenuntersuchung wurde angelegt. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
       : 'Die Patientenuntersuchung wurde erfolgreich angelegt.'
-  } catch (e: any) {
-    errorMessage.value =
-      e?.response?.data?.detail ||
-      e?.response?.data?.error ||
-      e?.message ||
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(
+      e,
       'Fall und Patientenuntersuchung konnten nicht vollständig erstellt werden.'
+    )
   } finally {
     loading.value = false
   }

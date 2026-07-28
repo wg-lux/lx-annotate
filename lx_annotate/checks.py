@@ -234,38 +234,82 @@ def _table_constraint_names(
     return set(constraints)
 
 
+def _required_constraint_messages(
+    table_name: str,
+    required_constraints: tuple[str, ...],
+) -> list[CheckMessage]:
+    columns = _table_columns(table_name)
+    required_columns = set(_ENDOREG_DB_REQUIRED_COLUMNS[table_name])
+    if columns is None or not required_columns.issubset(columns):
+        return []
+
+    constraint_names = _table_constraint_names(table_name)
+    if constraint_names is None:
+        return [
+            Critical(
+                "Unable to inspect endoreg_db database constraints. Verify "
+                "database connectivity and service-user introspection permissions.",
+                id="lx_annotate.endoreg_db_constraint_introspection_failed",
+                obj=table_name,
+            )
+        ]
+
+    missing_constraints = [
+        name for name in required_constraints if name not in constraint_names
+    ]
+    if not missing_constraints:
+        return []
+    return [
+        Critical(
+            "endoreg_db schema is behind the lx_annotate migration override "
+            f"set. Table '{table_name}' is missing required constraints: "
+            f"{', '.join(missing_constraints)}.",
+            id="lx_annotate.endoreg_db_schema_constraint_missing",
+            obj=table_name,
+        )
+    ]
+
+
+def _constraint_violation_message(
+    constraint_name: str,
+    table_name: str,
+    predicate_sql: str,
+    parameters: tuple[str, ...],
+) -> CheckMessage | None:
+    columns = _table_columns(table_name)
+    required_columns = set(_ENDOREG_DB_REQUIRED_COLUMNS[table_name])
+    if columns is not None and not required_columns.issubset(columns):
+        # The schema check reports missing tables and columns. Avoid running a
+        # query that is guaranteed to fail before migrations have created them.
+        return None
+
+    violation_count = _count_constraint_violations(
+        table_name,
+        predicate_sql,
+        parameters,
+    )
+    if violation_count is None:
+        return Critical(
+            "Unable to inspect endoreg_db constraint data. Verify database "
+            "connectivity and service-user query permissions.",
+            id="lx_annotate.endoreg_db_constraint_introspection_failed",
+            obj=constraint_name,
+        )
+    if not violation_count:
+        return None
+    return Critical(
+        f"Constraint '{constraint_name}' would be violated by "
+        f"{violation_count} existing row(s) in '{table_name}'.",
+        id="lx_annotate.endoreg_db_constraint_violated",
+        obj=constraint_name,
+    )
+
+
 def lx_annotate_endoreg_db_constraint_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
     messages: list[CheckMessage] = []
 
     for table_name, required_constraints in _ENDOREG_DB_REQUIRED_CONSTRAINTS.items():
-        columns = _table_columns(table_name)
-        required_columns = set(_ENDOREG_DB_REQUIRED_COLUMNS[table_name])
-        if columns is None or not required_columns.issubset(columns):
-            continue
-        constraint_names = _table_constraint_names(table_name)
-        if constraint_names is None:
-            messages.append(
-                Critical(
-                    "Unable to inspect endoreg_db database constraints. Verify "
-                    "database connectivity and service-user introspection permissions.",
-                    id="lx_annotate.endoreg_db_constraint_introspection_failed",
-                    obj=table_name,
-                )
-            )
-            continue
-        missing_constraints = [
-            name for name in required_constraints if name not in constraint_names
-        ]
-        if missing_constraints:
-            messages.append(
-                Critical(
-                    "endoreg_db schema is behind the lx_annotate migration override "
-                    f"set. Table '{table_name}' is missing required constraints: "
-                    f"{', '.join(missing_constraints)}.",
-                    id="lx_annotate.endoreg_db_schema_constraint_missing",
-                    obj=table_name,
-                )
-            )
+        messages.extend(_required_constraint_messages(table_name, required_constraints))
 
     for (
         constraint_name,
@@ -273,52 +317,32 @@ def lx_annotate_endoreg_db_constraint_checks(app_configs, **kwargs):  # type: ig
         predicate_sql,
         parameters,
     ) in _ENDOREG_DB_CONSTRAINT_QUERIES:
-        columns = _table_columns(table_name)
-        required_columns = set(_ENDOREG_DB_REQUIRED_COLUMNS[table_name])
-        if columns is not None and not required_columns.issubset(columns):
-            # The schema check reports missing tables and columns. Avoid running a
-            # query that is guaranteed to fail before migrations have created them.
-            continue
-
-        violation_count = _count_constraint_violations(
+        message = _constraint_violation_message(
+            constraint_name,
             table_name,
             predicate_sql,
             parameters,
         )
-        if violation_count is None:
-            messages.append(
-                Critical(
-                    "Unable to inspect endoreg_db constraint data. Verify database "
-                    "connectivity and service-user query permissions.",
-                    id="lx_annotate.endoreg_db_constraint_introspection_failed",
-                    obj=constraint_name,
-                )
-            )
-        elif violation_count:
-            messages.append(
-                Critical(
-                    f"Constraint '{constraint_name}' would be violated by "
-                    f"{violation_count} existing row(s) in '{table_name}'.",
-                    id="lx_annotate.endoreg_db_constraint_violated",
-                    obj=constraint_name,
-                )
-            )
+        if message is not None:
+            messages.append(message)
 
     return messages
 
 
-def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
-    messages = []
-
+def _native_capability_messages() -> list[CheckMessage]:
     if not has_native_capability("hls_state_machine", "hls_state_v1"):
-        messages.append(
+        return [
             Critical(
                 "The endoreg_db native Rust extension does not provide the required "
                 "hls_state_machine/hls_state_v1 capability.",
                 id="lx_annotate.hls_native_state_machine_missing",
             )
-        )
+        ]
+    return []
 
+
+def _environment_readiness_messages() -> list[CheckMessage]:
+    messages: list[CheckMessage] = []
     for issue in check_environment_readiness():
         check_cls = Critical if issue.severity == "critical" else Warning
         messages.append(
@@ -328,75 +352,93 @@ def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unuse
                 obj=issue.path,
             )
         )
+    return messages
 
+
+def _protected_media_url_messages() -> list[CheckMessage]:
     protected_url = str(os.environ.get("NGINX_PROTECTED_MEDIA_URL", "") or "").strip()
     if not protected_url:
-        messages.append(
+        return [
             Critical(
                 "NGINX_PROTECTED_MEDIA_URL must be set for protected media handoff.",
                 id="lx_annotate.nginx_protected_media_url_missing",
             )
-        )
-    elif not protected_url.startswith("/"):
-        messages.append(
+        ]
+    if not protected_url.startswith("/"):
+        return [
             Critical(
                 "NGINX_PROTECTED_MEDIA_URL must start with '/'.",
                 id="lx_annotate.nginx_protected_media_url_invalid",
                 obj=protected_url,
             )
-        )
+        ]
+    return []
 
+
+def _protected_media_root_messages() -> list[CheckMessage]:
     protected_root = str(os.environ.get("PROTECTED_MEDIA_ROOT", "") or "").strip()
     if not protected_root:
-        messages.append(
+        return [
             Critical(
                 "PROTECTED_MEDIA_ROOT must be set for Nginx protected media routing.",
                 id="lx_annotate.protected_media_root_missing",
             )
-        )
-    else:
-        protected_root_path = Path(protected_root).expanduser().resolve()
-        expected_media_root = Path(settings.MEDIA_ROOT).expanduser().resolve()
-        if not protected_root_path.exists():
-            messages.append(
-                Critical(
-                    f"PROTECTED_MEDIA_ROOT does not exist: {protected_root_path}",
-                    id="lx_annotate.protected_media_root_not_found",
-                    obj=str(protected_root_path),
-                )
-            )
-        elif protected_root_path != expected_media_root:
-            messages.append(
-                Warning(
-                    "PROTECTED_MEDIA_ROOT does not match Django MEDIA_ROOT. "
-                    "Verify Nginx alias and X-Accel-Redirect expectations.",
-                    id="lx_annotate.protected_media_root_mismatch",
-                    obj=f"{protected_root_path} != {expected_media_root}",
-                )
-            )
+        ]
 
+    protected_root_path = Path(protected_root).expanduser().resolve()
+    expected_media_root = Path(settings.MEDIA_ROOT).expanduser().resolve()
+    if not protected_root_path.exists():
+        return [
+            Critical(
+                f"PROTECTED_MEDIA_ROOT does not exist: {protected_root_path}",
+                id="lx_annotate.protected_media_root_not_found",
+                obj=str(protected_root_path),
+            )
+        ]
+    if protected_root_path != expected_media_root:
+        return [
+            Warning(
+                "PROTECTED_MEDIA_ROOT does not match Django MEDIA_ROOT. "
+                "Verify Nginx alias and X-Accel-Redirect expectations.",
+                id="lx_annotate.protected_media_root_mismatch",
+                obj=f"{protected_root_path} != {expected_media_root}",
+            )
+        ]
+    return []
+
+
+def _host_models_module_messages() -> list[CheckMessage]:
     host_models_module = str(
         getattr(settings, "LX_DTYPES_HOST_MODELS_MODULE", "") or ""
     ).strip()
     if not host_models_module:
-        messages.append(
+        return [
             Critical(
                 "LX_DTYPES_HOST_MODELS_MODULE must identify the endoreg_db host adapter.",
                 id="lx_annotate.lx_dtypes_host_models_module_missing",
             )
-        )
-    else:
-        try:
-            import_module(host_models_module)
-        except (ImportError, AttributeError, RuntimeError) as exc:
-            messages.append(
-                Critical(
-                    "LX_DTYPES_HOST_MODELS_MODULE is not importable: "
-                    f"{type(exc).__name__}.",
-                    id="lx_annotate.lx_dtypes_host_models_module_invalid",
-                    obj=host_models_module,
-                )
+        ]
+    try:
+        import_module(host_models_module)
+    except (ImportError, AttributeError, RuntimeError) as exc:
+        return [
+            Critical(
+                "LX_DTYPES_HOST_MODELS_MODULE is not importable: "
+                f"{type(exc).__name__}.",
+                id="lx_annotate.lx_dtypes_host_models_module_invalid",
+                obj=host_models_module,
             )
+        ]
+    return []
+
+
+def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
+    messages: list[CheckMessage] = []
+    messages.extend(_native_capability_messages())
+    messages.extend(_environment_readiness_messages())
+    messages.extend(_protected_media_url_messages())
+    messages.extend(_protected_media_root_messages())
+    messages.extend(_host_models_module_messages())
 
     return messages
 

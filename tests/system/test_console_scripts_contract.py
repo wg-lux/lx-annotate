@@ -3,6 +3,8 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -37,3 +39,60 @@ def test_cli_entrypoints_keep_luxnix_compatibility_aliases():
         "--log-level",
         "INFO",
     ]
+
+
+def test_export_frames_delegates_default_output_directory_to_command(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    from lx_annotate import cli
+
+    output_dir = tmp_path / "export" / "frames"
+    monkeypatch.setenv("LX_ANNOTATE_EXPORT_FRAMES_OUTPUT_DIR", str(output_dir))
+    manage_calls: list[list[str]] = []
+    monkeypatch.setattr(
+        cli,
+        "manage",
+        lambda args: manage_calls.append(list(args)) or 0,
+    )
+
+    assert cli.export_frames(["--limit", "1"]) == 0
+
+    assert manage_calls == [
+        [
+            "export_frame_annot",
+            "--output-dir",
+            str(output_dir),
+            "--limit",
+            "1",
+        ]
+    ]
+    assert not output_dir.exists()
+
+
+def test_export_frames_preserves_explicit_output_path(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from lx_annotate import cli
+
+    manage_calls: list[list[str]] = []
+    monkeypatch.setattr(
+        cli,
+        "manage",
+        lambda args: manage_calls.append(list(args)) or 0,
+    )
+
+    assert cli.export_frames(["--output-path=annotations.json"]) == 0
+    assert manage_calls == [["export_frame_annot", "--output-path=annotations.json"]]
+
+
+def test_application_filesystem_mutations_do_not_bypass_canonical_boundary():
+    production_sources = (
+        REPO_ROOT / "lx_annotate" / "cli.py",
+        REPO_ROOT / "lx_annotate" / "settings" / "settings_base.py",
+    )
+
+    for source_path in production_sources:
+        source = source_path.read_text(encoding="utf-8")
+        assert "os.makedirs(" not in source
+        assert ".mkdir(" not in source

@@ -2,16 +2,16 @@
   <div class="g-sidenav-show">
     
     <template v-if="!isMenuOpen">
-      <aside class="sidenav navbar navbar-vertical navbar-expand-xs ms-3 sidebar-shell sidebar-shell--collapsed" id="sidenav-main">
+      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs ms-3 sidebar-shell sidebar-shell--collapsed">
         <div class="g-sidenav-hidden">
           <div class="sidenav m-1">
             <button
               type="button"
-              @click="toggleMenu"
               class="btn btn-outline-primary border-0 my-3 mb-0 me-3 sidebar-toggle-button sidebar-toggle-button--closed"
               aria-label="Sidebar öffnen"
               :aria-expanded="String(isMenuOpen)"
               title="Sidebar öffnen"
+              @click="toggleMenu"
             >
               <span class="sidebar-toggle-icon sidebar-toggle-icon--menu" aria-hidden="true">
                 <span></span>
@@ -25,14 +25,14 @@
     </template>
 
     <template v-if="isMenuOpen">
-      <aside class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark sidebar-shell sidebar-shell--open" id="sidenav-main">
+      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark sidebar-shell sidebar-shell--open">
         <button
           type="button"
-          @click="toggleMenu"
           class="btn btn-outline-info mb-0 me-3 bg-gradient-dark sidebar-toggle-button sidebar-toggle-button--open"
           aria-label="Sidebar schließen"
           :aria-expanded="String(isMenuOpen)"
           title="Sidebar schließen"
+          @click="toggleMenu"
         >
           <i class="ni ni-fat-remove" aria-hidden="true"></i>
         </button>

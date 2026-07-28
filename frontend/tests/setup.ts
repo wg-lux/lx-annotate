@@ -10,7 +10,7 @@ if (!globalThis.ResizeObserver) {
     unobserve() {}
     disconnect() {}
   }
-  ;(globalThis as any).ResizeObserver = ResizeObserverMock
+  globalThis.ResizeObserver = ResizeObserverMock
 }
 
 if (!window.matchMedia) {

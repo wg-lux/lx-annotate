@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ApplicationSettingsPage from '../ApplicationSettingsPage.vue'
 
+interface TerminologyBundle {
+  moduleName: string
+  version: string
+}
+
 const hoisted = vi.hoisted(() => ({
   fetchApplicationSettings: vi.fn(),
   fetchApplicationSettingsDropdowns: vi.fn(),
@@ -48,7 +53,9 @@ const hoisted = vi.hoisted(() => ({
     ],
     medicalFieldLabel: 'Gastroenterologie',
     medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
-    bundleKey: vi.fn((bundle: any) => `${bundle.moduleName}@@${bundle.version}`),
+    bundleKey: vi.fn(
+      (bundle: TerminologyBundle) => `${bundle.moduleName}@@${bundle.version}`
+    ),
     findBundleByKey: vi.fn((key: string) =>
       key === 'editor_bundle@@2026.04.30'
         ? {
@@ -248,21 +255,21 @@ describe('ApplicationSettingsPage', () => {
 
     expect(hoisted.fetchApplicationSettings).toHaveBeenCalledTimes(1)
     expect(hoisted.fetchApplicationSettingsDropdowns).toHaveBeenCalledTimes(1)
-    expect(wrapper.get('[data-test=\"summary-center\"]').text()).toContain('Center Alpha')
-    expect(wrapper.get('[data-test=\"summary-processor\"]').text()).toContain('Processor One')
-    expect(wrapper.get('[data-test=\"summary-annotator\"]').text()).toContain(
+    expect(wrapper.get('[data-test="summary-center"]').text()).toContain('Center Alpha')
+    expect(wrapper.get('[data-test="summary-processor"]').text()).toContain('Processor One')
+    expect(wrapper.get('[data-test="summary-annotator"]').text()).toContain(
       'Kein Standard-Annotator'
     )
-    expect(wrapper.get('[data-test=\"summary-report-template\"]').text()).toContain('Template A')
-    expect(wrapper.get('[data-test=\"summary-ai-dataset\"]').text()).toContain('dataset_alpha')
-    expect(wrapper.get('[data-test=\"summary-ai-dataset-type\"]').text()).toContain('Image')
+    expect(wrapper.get('[data-test="summary-report-template"]').text()).toContain('Template A')
+    expect(wrapper.get('[data-test="summary-ai-dataset"]').text()).toContain('dataset_alpha')
+    expect(wrapper.get('[data-test="summary-ai-dataset-type"]').text()).toContain('Image')
 
-    await wrapper.get('[data-test=\"center-select\"]').setValue('2')
-    await wrapper.get('[data-test=\"processor-select\"]').setValue('11')
-    await wrapper.get('[data-test=\"annotator-select\"]').setValue('annotator_b')
-    await wrapper.get('[data-test=\"report-template-select\"]').setValue('template_b')
-    await wrapper.get('[data-test=\"ai-dataset-select\"]').setValue('101')
-    await wrapper.get('[data-test=\"save-settings\"]').trigger('click')
+    await wrapper.get('[data-test="center-select"]').setValue('2')
+    await wrapper.get('[data-test="processor-select"]').setValue('11')
+    await wrapper.get('[data-test="annotator-select"]').setValue('annotator_b')
+    await wrapper.get('[data-test="report-template-select"]').setValue('template_b')
+    await wrapper.get('[data-test="ai-dataset-select"]').setValue('101')
+    await wrapper.get('[data-test="save-settings"]').trigger('click')
     await flushPromises()
 
     expect(hoisted.updateApplicationSettings).toHaveBeenCalledWith({
@@ -277,20 +284,20 @@ describe('ApplicationSettingsPage', () => {
     expect(hoisted.toastSuccess).toHaveBeenCalledWith({
       text: 'Anwendungseinstellungen gespeichert.'
     })
-    expect(wrapper.get('[data-test=\"summary-center\"]').text()).toContain('Center Beta')
-    expect(wrapper.get('[data-test=\"summary-processor\"]').text()).toContain('Processor Two')
-    expect(wrapper.get('[data-test=\"summary-annotator\"]').text()).toContain('annotator_b')
-    expect(wrapper.get('[data-test=\"summary-report-template\"]').text()).toContain('Template B')
-    expect(wrapper.get('[data-test=\"summary-ai-dataset\"]').text()).toContain('dataset_beta')
-    expect(wrapper.get('[data-test=\"summary-ai-dataset-type\"]').text()).toContain('Video')
+    expect(wrapper.get('[data-test="summary-center"]').text()).toContain('Center Beta')
+    expect(wrapper.get('[data-test="summary-processor"]').text()).toContain('Processor Two')
+    expect(wrapper.get('[data-test="summary-annotator"]').text()).toContain('annotator_b')
+    expect(wrapper.get('[data-test="summary-report-template"]').text()).toContain('Template B')
+    expect(wrapper.get('[data-test="summary-ai-dataset"]').text()).toContain('dataset_beta')
+    expect(wrapper.get('[data-test="summary-ai-dataset-type"]').text()).toContain('Video')
   })
 
   it('runs a backup when the data paths are complete', async () => {
     const wrapper = mount(ApplicationSettingsPage)
     await flushPromises()
 
-    await wrapper.get('[data-test=\"backup-target-path\"]').setValue('/mnt/usb')
-    await wrapper.get('[data-test=\"run-backup\"]').trigger('click')
+    await wrapper.get('[data-test="backup-target-path"]').setValue('/mnt/usb')
+    await wrapper.get('[data-test="run-backup"]').trigger('click')
     await flushPromises()
 
     expect(hoisted.triggerApplicationBackup).toHaveBeenCalledWith({
@@ -305,7 +312,7 @@ describe('ApplicationSettingsPage', () => {
     const wrapper = mount(ApplicationSettingsPage)
     await flushPromises()
 
-    await wrapper.get('[data-test=\"run-ai-dataset-export\"]').trigger('click')
+    await wrapper.get('[data-test="run-ai-dataset-export"]').trigger('click')
     await flushPromises()
 
     expect(hoisted.triggerApplicationAiDatasetExport).toHaveBeenCalledWith({
@@ -314,8 +321,8 @@ describe('ApplicationSettingsPage', () => {
       centerKey: 'center-alpha',
       onlyValidated: true
     })
-    expect(wrapper.get('[data-test=\"ai-dataset-export-result\"]').text()).toContain('2.0 KB')
-    expect(wrapper.get('[data-test=\"download-ai-dataset-export\"]').attributes('href')).toBe(
+    expect(wrapper.get('[data-test="ai-dataset-export-result"]').text()).toContain('2.0 KB')
+    expect(wrapper.get('[data-test="download-ai-dataset-export"]').attributes('href')).toBe(
       '/api/settings/application/ai_dataset_export/artifact-100/download/'
     )
     expect(hoisted.toastSuccess).toHaveBeenCalledWith({
@@ -327,8 +334,8 @@ describe('ApplicationSettingsPage', () => {
     const wrapper = mount(ApplicationSettingsPage)
     await flushPromises()
 
-    await wrapper.get('[data-test=\"ai-dataset-export-scope\"]').setValue('all')
-    await wrapper.get('[data-test=\"run-ai-dataset-export\"]').trigger('click')
+    await wrapper.get('[data-test="ai-dataset-export-scope"]').setValue('all')
+    await wrapper.get('[data-test="run-ai-dataset-export"]').trigger('click')
     await flushPromises()
 
     expect(hoisted.triggerApplicationAiDatasetExport).toHaveBeenCalledWith({
@@ -343,8 +350,8 @@ describe('ApplicationSettingsPage', () => {
     const wrapper = mount(ApplicationSettingsPage)
     await flushPromises()
 
-    await wrapper.get('[data-test=\"video-dimension-backfill-limit\"]').setValue('5')
-    await wrapper.get('[data-test=\"run-video-dimension-backfill\"]').trigger('click')
+    await wrapper.get('[data-test="video-dimension-backfill-limit"]').setValue('5')
+    await wrapper.get('[data-test="run-video-dimension-backfill"]').trigger('click')
     await flushPromises()
 
     expect(hoisted.triggerApplicationVideoDimensionBackfill).toHaveBeenCalledWith({
@@ -392,7 +399,7 @@ describe('ApplicationSettingsPage', () => {
       const wrapper = mount(ApplicationSettingsPage)
       await flushPromises()
 
-      await wrapper.get('[data-test=\"run-video-dimension-backfill\"]').trigger('click')
+      await wrapper.get('[data-test="run-video-dimension-backfill"]').trigger('click')
       await flushPromises()
 
       expect(wrapper.text()).toContain('Lauf gestartet: queued')

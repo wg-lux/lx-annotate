@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import Cookies from 'js-cookie'
 import camelcaseKeys from 'camelcase-keys'
 import { useToastStore } from '@/stores/toastStore'
@@ -27,46 +27,62 @@ const axiosInstance = axios.create({
   withCredentials: true
 })
 
+function shouldSuppressErrorToast(url: string, explicitlySuppressed: boolean): boolean {
+  if (explicitlySuppressed) return true
+  return (
+    url.includes('/dtypes-api/') ||
+    url.startsWith('dtypes-api/') ||
+    url.includes('/base_api/') ||
+    url.startsWith('base_api/')
+  )
+}
+
+type ApiErrorPayload = {
+  detail?: string
+  error?: string
+}
+
+function getResponseErrorMessage(err: AxiosError<ApiErrorPayload>): string {
+  return (
+    err?.response?.data?.detail ||
+    err?.response?.data?.error ||
+    err?.message ||
+    'Unbekannter Netzwerk- oder Serverfehler'
+  )
+}
+
+function handleResponseError(error: unknown): Promise<never> {
+  const err: AxiosError<ApiErrorPayload> = axios.isAxiosError<ApiErrorPayload>(error)
+    ? error
+    : new AxiosError<ApiErrorPayload>(error instanceof Error ? error.message : undefined)
+  const toast = useToastStore()
+  const auth = useAuthKcStore()
+  const status = err?.response?.status
+  const config = err.config as
+    | (NonNullable<typeof err.config> & { suppressErrorToast?: boolean })
+    | undefined
+  const url = config?.url || ''
+  const suppressErrorToast = shouldSuppressErrorToast(
+    url,
+    config?.suppressErrorToast === true
+  )
+  const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/')
+
+  if (status === 401) {
+    auth.login()
+    return Promise.reject(err)
+  }
+
+  if (!isPollingRequest && !suppressErrorToast) {
+    toast.error({ text: getResponseErrorMessage(err) })
+  }
+
+  return Promise.reject(err)
+}
+
 // Error toast - Skip toast messages for polling requests
 // Error handling: Keycloak login on 401 + toast for other errors
-axiosInstance.interceptors.response.use(
-  (r) => r,
-  (err) => {
-    const toast = useToastStore()
-    const auth = useAuthKcStore()
-    const status = err?.response?.status
-    const url = err?.config?.url || ''
-    const suppressErrorToast =
-      err?.config?.suppressErrorToast === true ||
-      url.includes('/dtypes-api/') ||
-      url.startsWith('dtypes-api/') ||
-      url.includes('/base_api/') ||
-      url.startsWith('base_api/')
-
-    // Skip spam for polling/status requests
-    const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/')
-
-    // 🔒 If backend says "unauthenticated", send user to Keycloak login
-    if (status === 401) {
-      // Optional: clear any local state here if you keep some user info in Pinia
-      auth.login() // 👈 IMPORTANT: this must call Keycloak, not a Vue /login page
-      return Promise.reject(err)
-    }
-
-    // All other errors → show toast (except polling)
-    if (!isPollingRequest && !suppressErrorToast) {
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.error ||
-        err?.message ||
-        'Unbekannter Netzwerk- oder Serverfehler'
-
-      toast.error({ text: msg })
-    }
-
-    return Promise.reject(err) // keep the rejection chain intact
-  }
-)
+axiosInstance.interceptors.response.use((r) => r, handleResponseError)
 
 // Helper for endoreg_db plus lx-annotate local API routes.
 export function endoregApi(path: string): string {
@@ -115,8 +131,8 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
-function localSnakecaseKeys(obj: any, options: { deep?: boolean } = {}): any {
-  const isPlainObject = (v: unknown): v is Record<string, any> => {
+function localSnakecaseKeys(obj: unknown, options: { deep?: boolean } = {}): unknown {
+  const isPlainObject = (v: unknown): v is Record<string, unknown> => {
     if (!v || typeof v !== 'object') return false
     if (Object.prototype.toString.call(v) !== '[object Object]') return false
     const proto = Object.getPrototypeOf(v)
@@ -143,7 +159,7 @@ function localSnakecaseKeys(obj: any, options: { deep?: boolean } = {}): any {
           : value
       return acc
     },
-    {} as Record<string, any>
+    {} as Record<string, unknown>
   )
 }
 

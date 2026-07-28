@@ -49,7 +49,7 @@ describe('anonymizationMetricsApi', () => {
         mediaType: 'all',
         centerId: '',
         documentType: undefined,
-        sourceSystem: null as any
+        sourceSystem: undefined
       })
     ).toEqual({})
   })
@@ -124,7 +124,7 @@ describe('anonymizationMetricsApi', () => {
       meanSimilarity: 0.9,
       missingAfterValidationCount: 0
     })
-    expect((result as any).rawText).toBeUndefined()
-    expect((result.fieldQuality[0] as any).rawText).toBeUndefined()
+    expect(result).not.toHaveProperty('rawText')
+    expect(result.fieldQuality[0]).not.toHaveProperty('rawText')
   })
 })

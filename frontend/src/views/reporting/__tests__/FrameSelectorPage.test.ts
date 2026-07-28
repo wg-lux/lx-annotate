@@ -5,12 +5,25 @@ import { endpoints } from '@/types/api/endpoints'
 
 import FrameSelectorPage from '../FrameSelectorPage.vue'
 
-const hoisted = vi.hoisted(() => ({
-  flowRef: { current: null as any },
-  get: vi.fn(),
-  patch: vi.fn(),
-  ensureCatalogLoaded: vi.fn()
-}))
+const hoisted = vi.hoisted(() => {
+  let flowFixture: ReturnType<typeof buildFlowStore> | undefined
+  return {
+    flowRef: {
+      get current(): ReturnType<typeof buildFlowStore> {
+        if (flowFixture === undefined) {
+          throw new Error('Reporting flow fixture was not initialized.')
+        }
+        return flowFixture
+      },
+      set current(value: ReturnType<typeof buildFlowStore>) {
+        flowFixture = value
+      }
+    },
+    get: vi.fn(),
+    patch: vi.fn(),
+    ensureCatalogLoaded: vi.fn()
+  }
+})
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {

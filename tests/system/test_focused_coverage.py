@@ -104,6 +104,24 @@ def test_app_config_treats_blank_secret_file_path_as_none():
     assert cfg.secret_key_file is None
 
 
+def test_app_config_rejects_short_secret_from_file(monkeypatch, tmp_path):
+    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+    secret_key_file = tmp_path / "secret.key"
+    secret_key_file.write_text("too-short", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must contain at least 32 characters"):
+        AppConfig(secret_key_file=secret_key_file)
+
+
+def test_app_config_does_not_generate_missing_secret_key(monkeypatch):
+    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+    monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
+
+    cfg = AppConfig()
+
+    assert cfg.secret_key == ""
+
+
 def test_load_config_reads_values_from_explicit_env_file(tmp_path, monkeypatch):
     for key in (
         "DJANGO_SECRET_KEY",
@@ -239,6 +257,17 @@ def test_settings_base_enables_encrypted_storage_backend(monkeypatch):
     )
 
 
+def test_settings_base_rejects_missing_secret_in_production(monkeypatch, tmp_path):
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+    monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
+    sys.modules.pop("lx_annotate.settings.settings_base", None)
+
+    with pytest.raises(RuntimeError, match=r"DJANGO_SECRET_KEY is missing"):
+        importlib.import_module("lx_annotate.settings.settings_base")
+
+
 def test_settings_base_requires_explicit_runtime_contract_in_central_hub_mode(
     monkeypatch,
 ):
@@ -310,51 +339,71 @@ def test_settings_base_requires_central_hub_for_enabled_transfer_api(monkeypatch
         importlib.import_module("lx_annotate.settings.settings_base")
 
 
-def test_get_or_create_secret_key_returns_empty_when_secret_file_env_is_set(
+def test_development_secret_key_returns_empty_when_secret_file_env_is_set(
     monkeypatch,
 ):
     monkeypatch.setenv("DJANGO_SECRET_KEY_FILE", "/tmp/django.key")
-    assert secret_key_mod.get_or_create_secret_key() == ""
+    assert secret_key_mod.get_or_create_development_secret_key() == ""
 
 
-def test_get_or_create_secret_key_reads_existing_key(monkeypatch, tmp_path):
+def test_development_secret_key_reads_existing_key(monkeypatch, tmp_path):
     monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
     monkeypatch.setattr(secret_key_mod, "HOME_DIR", tmp_path)
     existing = tmp_path / "secret.key"
     existing.write_text("m" * 64, encoding="utf-8")
 
-    assert secret_key_mod.get_or_create_secret_key() == "m" * 64
+    assert secret_key_mod.get_or_create_development_secret_key() == "m" * 64
 
 
-def test_get_or_create_secret_key_generates_and_persists_key(monkeypatch, tmp_path):
+def test_development_secret_key_generates_with_audited_atomic_write(
+    monkeypatch, tmp_path
+):
     monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
     monkeypatch.setattr(secret_key_mod, "HOME_DIR", tmp_path)
     monkeypatch.setattr(
         secret_key_mod, "get_random_secret_key", lambda: "new-secret-key"
     )
+    calls = []
 
-    key = secret_key_mod.get_or_create_secret_key()
+    def _atomic_write_file(**kwargs):
+        calls.append(kwargs)
+        kwargs["destination"].parent.mkdir(parents=True, exist_ok=True)
+        kwargs["destination"].write_bytes(b"".join(kwargs["content"]))
+        return kwargs["destination"]
+
+    monkeypatch.setattr(secret_key_mod, "atomic_write_file", _atomic_write_file)
+
+    key = secret_key_mod.get_or_create_development_secret_key()
 
     assert key == "new-secret-key"
     assert (tmp_path / "secret.key").read_text(encoding="utf-8") == "new-secret-key"
+    assert calls == [
+        {
+            "destination": tmp_path / "secret.key",
+            "content": (b"new-secret-key",),
+            "required_bytes": 14,
+            "file_mode": 0o600,
+            "dir_mode": 0o700,
+        }
+    ]
 
 
-def test_get_or_create_secret_key_falls_back_when_write_fails(
-    monkeypatch, tmp_path, capsys
+def test_development_secret_key_fails_loudly_when_atomic_write_fails(
+    monkeypatch, tmp_path
 ):
     monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
     monkeypatch.setattr(secret_key_mod, "HOME_DIR", tmp_path)
+    monkeypatch.setattr(
+        secret_key_mod, "get_random_secret_key", lambda: "generated-key"
+    )
 
-    values = iter(["generated-key", "fallback-key"])
-    monkeypatch.setattr(secret_key_mod, "get_random_secret_key", lambda: next(values))
-
-    def _raise_oserror(self, mode=0o666, exist_ok=True):  # noqa: ARG001
+    def _raise_oserror(**kwargs):  # noqa: ARG001
         raise OSError("read-only fs")
 
-    monkeypatch.setattr(Path, "touch", _raise_oserror)
+    monkeypatch.setattr(secret_key_mod, "atomic_write_file", _raise_oserror)
 
-    assert secret_key_mod.get_or_create_secret_key() == "fallback-key"
-    assert "WARNING: Could not save secret key" in capsys.readouterr().out
+    with pytest.raises(OSError, match="read-only fs"):
+        secret_key_mod.get_or_create_development_secret_key()
 
 
 def test_route_manifest_helper_functions_cover_key_paths():

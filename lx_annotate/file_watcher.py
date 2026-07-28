@@ -27,7 +27,13 @@ from watchdog.events import (  # type: ignore[import-not-found]
 from watchdog.observers import Observer  # type: ignore[import-not-found]
 from django.db.models import Q
 from django.db.models.fields.files import FieldFile
-from endoreg_db.models import Center, EndoscopyProcessor, LabelVideoSegment, VideoFile
+from endoreg_db.models import (
+    Center,
+    EndoscopyProcessor,
+    LabelVideoSegment,
+    UploadJob,
+    VideoFile,
+)
 from endoreg_db.services.environment_readiness import assert_environment_readiness
 from endoreg_db.services.hub.ingest import (
     process_preanonymized_watcher_file,
@@ -38,6 +44,7 @@ from endoreg_db.services.hub.watcher_handoff import (
     WatcherFileNotReadyError,
     is_in_progress_handoff_path,
 )
+from endoreg_db.utils.file_operations import ensure_directory, safe_unlink_file
 import endoreg_db.utils.paths as path_utils
 from endoreg_db.utils.storage import ensure_local_file
 from endoreg_db.exceptions import InsufficientStorageError
@@ -46,7 +53,7 @@ from endoreg_db.services.video_files._imports import (
 )
 
 LOG_DIR = path_utils.LOG_DIR
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+ensure_directory(LOG_DIR)
 MANAGED_VAULT_ROOT = path_utils.STORAGE_DIR.resolve()
 
 INTAKE_VIDEO_DIR = path_utils.WATCHER_VIDEO_DROP_DIR
@@ -157,6 +164,14 @@ def is_managed_vault_path(path: str | Path) -> bool:
     if is_intake_path(candidate):
         return False
     return _is_relative_to(candidate, MANAGED_VAULT_ROOT)
+
+
+def _require_intake_directory(path: Path, *, label: str) -> Path:
+    if not path.exists():
+        raise FileNotFoundError(f"{label} intake directory is not provisioned: {path}")
+    if not path.is_dir():
+        raise NotADirectoryError(f"{label} intake path is not a directory: {path}")
+    return path
 
 
 def iter_storage_chunks(
@@ -587,6 +602,210 @@ class AutoProcessingHandler(FileSystemEventHandler):
         logger.warning("Timed out waiting for stable file: %s", path)
         return False
 
+    def _check_video_storage_capacity(self, video_path: Path) -> bool:
+        try:
+            check_storage_capacity(video_path, Path(storage_root_global))
+        except InsufficientStorageError as storage_error:
+            logger.error(
+                "Insufficient storage space for %s: %s",
+                video_path,
+                storage_error,
+            )
+            self._unmark_processed(str(video_path))
+            return False
+        except Exception as storage_error:
+            logger.warning("Storage check failed, proceeding anyway: %s", storage_error)
+        return True
+
+    @staticmethod
+    def _video_hash_from_upload_job(upload_job: UploadJob) -> str:
+        video_hash = str(getattr(upload_job, "content_hash", "") or "").strip()
+        if video_hash:
+            return video_hash
+        provenance: UploadProvenance = (
+            getattr(upload_job, "processing_provenance", None) or {}
+        )
+        return str(provenance.get("content_hash", "")).strip()
+
+    @staticmethod
+    def _resolve_uploaded_video(
+        upload_job: UploadJob,
+        video_path: Path,
+    ) -> VideoFile | None:
+        video_hash = AutoProcessingHandler._video_hash_from_upload_job(upload_job)
+        video_file = (
+            VideoFile.objects.filter(video_hash=video_hash).first()
+            if video_hash
+            else None
+        )
+        if video_file is None:
+            logger.warning(
+                "Watcher upload job completed but no VideoFile could be resolved for %s",
+                video_path,
+            )
+        return video_file
+
+    @staticmethod
+    def _log_missing_sensitive_meta(
+        upload_job: UploadJob,
+        video_file: VideoFile,
+    ) -> None:
+        if _video_has_sensitive_meta(video_file):
+            return
+        if getattr(upload_job, "sensitive_meta_id", None) is not None:
+            logger.warning(
+                "SensitiveMeta was created for upload job %s but is not "
+                "linked to VideoFile %s",
+                upload_job.id,
+                video_file.video_hash,
+            )
+            return
+        logger.warning(
+            "Video imported but no SensitiveMeta created: %s",
+            video_file.video_hash,
+        )
+
+    def _import_video(self, video_path: Path) -> VideoFile | None:
+        try:
+            source_center = self._resolve_default_center()
+            upload_job = process_watcher_file(
+                file_path=video_path,
+                file_type="video",
+                center=source_center,
+                processor_name=self.default_processor,
+                prediction_model_name=self.default_model,
+                source_system="watcher",
+            )
+            upload_job.refresh_from_db(
+                fields=[
+                    "status",
+                    "sensitive_meta",
+                    "content_hash",
+                    "processing_provenance",
+                    "error_detail",
+                ]
+            )
+            if not upload_job.is_complete:
+                logger.info(
+                    "Watcher upload job handed off for async ingest: %s status=%s",
+                    upload_job.id,
+                    upload_job.status,
+                )
+                return None
+            if not upload_job.is_successful:
+                logger.warning(
+                    "Watcher upload job did not complete successfully for %s: "
+                    "job=%s status=%s error=%s",
+                    video_path,
+                    upload_job.id,
+                    upload_job.status,
+                    upload_job.error_detail,
+                )
+                return None
+
+            video_file = self._resolve_uploaded_video(upload_job, video_path)
+            if video_file is None:
+                return None
+            self._log_missing_sensitive_meta(upload_job, video_file)
+            logger.info(
+                "Video imported through shared hub ingest: %s",
+                video_file.video_hash,
+            )
+            return video_file
+        except WatcherFileNotReadyError as not_ready_error:
+            logger.info(
+                "Video watcher source is not ready yet, deferring: %s (%s)",
+                video_path,
+                not_ready_error,
+            )
+            self._unmark_processed(str(video_path))
+        except Exception as import_error:
+            error_msg = str(import_error)
+            if (
+                "Insufficient storage" in error_msg
+                or "No space left on device" in error_msg
+            ):
+                logger.error(
+                    "Storage error during import for %s: %s",
+                    video_path,
+                    import_error,
+                )
+            else:
+                logger.error("Import failed for %s: %s", video_path, import_error)
+            self._unmark_processed(str(video_path))
+        return None
+
+    def _queue_video_segmentation(
+        self,
+        *,
+        video_file: VideoFile,
+        video_hash: str,
+        video_path: Path,
+    ) -> bool:
+        if not getattr(video_file, "pk", None):
+            return True
+        if not video_path.exists():
+            if _prediction_pipeline_complete(video_file):
+                logger.info(
+                    "Video %s already has completed prediction segments. "
+                    "Bypassing AI pipeline.",
+                    video_hash,
+                )
+                return False
+            logger.info(
+                "Watcher source for video %s was cleaned up after ingest; "
+                "queuing AI pipeline.",
+                video_hash,
+            )
+        try:
+            from endoreg_db.models import AiModel
+            from endoreg_db.services.video_temporal_inference import (
+                dispatch_video_temporal_inference,
+            )
+
+            ai_model = AiModel.objects.get(name=self.default_model)
+            model_meta = ai_model.get_latest_version()
+            dispatch_result = dispatch_video_temporal_inference(
+                video_id=video_file.pk,
+                model_meta_id=model_meta.pk,
+                replace_prediction_segments=True,
+                delete_frames_after=True,
+            )
+            logger.info(
+                "Video segmentation queued for %s on %s queue: "
+                "task=%s history=%s status=%s",
+                video_file.video_hash,
+                dispatch_result.queue,
+                dispatch_result.task_id,
+                dispatch_result.history_id,
+                dispatch_result.status,
+            )
+        except Exception as exc:
+            logger.error("Error queuing video segmentation: %s", exc, exc_info=True)
+        return True
+
+    def _handle_video_processing_error(
+        self, video_path: Path, processing_error: Exception
+    ) -> None:
+        error_msg = str(processing_error)
+        logger.error(
+            "Error processing video %s: %s",
+            video_path,
+            error_msg,
+            exc_info=True,
+        )
+        if any(
+            phrase in error_msg.lower()
+            for phrase in ["insufficient storage", "no space left", "disk full"]
+        ):
+            logger.warning(
+                "Storage error for %s, will retry when space is available",
+                video_path,
+            )
+        else:
+            logger.warning("Removing %s from processed set due to error", video_path)
+        self._unmark_processed(str(video_path))
+
     def _process_video(self, video_path: Path) -> None:
         try:
             logger.info("Starting video processing: %s", video_path)
@@ -595,180 +814,26 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 raise ValueError(
                     f"Video path is outside plaintext intake zone: {video_path}"
                 )
-
-            try:
-                check_storage_capacity(video_path, Path(storage_root_global))
-            except InsufficientStorageError as storage_error:
-                logger.error(
-                    "Insufficient storage space for %s: %s",
-                    video_path,
-                    storage_error,
-                )
-                self._unmark_processed(str(video_path))
+            if not self._check_video_storage_capacity(video_path):
                 return
-            except Exception as storage_error:
-                logger.warning(
-                    "Storage check failed, proceeding anyway: %s", storage_error
-                )
 
-            try:
-                source_center = self._resolve_default_center()
-                upload_job = process_watcher_file(
-                    file_path=video_path,
-                    file_type="video",
-                    center=source_center,
-                    processor_name=self.default_processor,
-                    prediction_model_name=self.default_model,
-                    source_system="watcher",
-                )
-                upload_job.refresh_from_db(
-                    fields=[
-                        "status",
-                        "sensitive_meta",
-                        "content_hash",
-                        "processing_provenance",
-                        "error_detail",
-                    ]
-                )
-                if not upload_job.is_complete:
-                    logger.info(
-                        "Watcher upload job handed off for async ingest: %s status=%s",
-                        upload_job.id,
-                        upload_job.status,
-                    )
-                    return
-                if not upload_job.is_successful:
-                    logger.warning(
-                        "Watcher upload job did not complete successfully for %s: "
-                        "job=%s status=%s error=%s",
-                        video_path,
-                        upload_job.id,
-                        upload_job.status,
-                        upload_job.error_detail,
-                    )
-                    return
-
-                video_hash = str(getattr(upload_job, "content_hash", "") or "").strip()
-                if not video_hash:
-                    provenance: UploadProvenance = (
-                        getattr(upload_job, "processing_provenance", None) or {}
-                    )
-                    video_hash = str(provenance.get("content_hash", "")).strip()
-                video_file = (
-                    VideoFile.objects.filter(video_hash=video_hash).first()
-                    if video_hash
-                    else None
-                )
-                if video_file is None:
-                    logger.warning(
-                        "Watcher upload job completed but no VideoFile could be resolved for %s",
-                        video_path,
-                    )
-                    return
-                if not _video_has_sensitive_meta(video_file):
-                    if getattr(upload_job, "sensitive_meta_id", None) is not None:
-                        logger.warning(
-                            "SensitiveMeta was created for upload job %s but is not "
-                            "linked to VideoFile %s",
-                            upload_job.id,
-                            video_file.video_hash,
-                        )
-                    else:
-                        logger.warning(
-                            "Video imported but no SensitiveMeta created: %s",
-                            video_file.video_hash,
-                        )
-                logger.info(
-                    "Video imported through shared hub ingest: %s",
-                    video_file.video_hash,
-                )
-            except WatcherFileNotReadyError as not_ready_error:
-                logger.info(
-                    "Video watcher source is not ready yet, deferring: %s (%s)",
-                    video_path,
-                    not_ready_error,
-                )
-                self._unmark_processed(str(video_path))
+            video_file = self._import_video(video_path)
+            if video_file is None:
                 return
-            except Exception as import_error:
-                error_msg = str(import_error)
-                if (
-                    "Insufficient storage" in error_msg
-                    or "No space left on device" in error_msg
-                ):
-                    logger.error(
-                        "Storage error during import for %s: %s",
-                        video_path,
-                        import_error,
-                    )
-                    self._unmark_processed(str(video_path))
-                    return
-                logger.error("Import failed for %s: %s", video_path, import_error)
-                self._unmark_processed(str(video_path))
+            video_hash = video_file.video_hash
+            if not self._queue_video_segmentation(
+                video_file=video_file,
+                video_hash=video_hash,
+                video_path=video_path,
+            ):
                 return
-            if video_file and getattr(video_file, "pk", None):
-                if not video_path.exists():
-                    if _prediction_pipeline_complete(video_file):
-                        logger.info(
-                            "Video %s already has completed prediction segments. "
-                            "Bypassing AI pipeline.",
-                            video_hash,
-                        )
-                        return
-                    logger.info(
-                        "Watcher source for video %s was cleaned up after ingest; "
-                        "queuing AI pipeline.",
-                        video_hash,
-                    )
-                try:
-                    from endoreg_db.models import AiModel
-                    from endoreg_db.services.video_temporal_inference import (
-                        dispatch_video_temporal_inference,
-                    )
-
-                    ai_model = AiModel.objects.get(name=self.default_model)
-                    model_meta = ai_model.get_latest_version()
-                    dispatch_result = dispatch_video_temporal_inference(
-                        video_id=video_file.pk,
-                        model_meta_id=model_meta.pk,
-                        replace_prediction_segments=True,
-                        delete_frames_after=True,
-                    )
-                    logger.info(
-                        "Video segmentation queued for %s on %s queue: "
-                        "task=%s history=%s status=%s",
-                        video_file.video_hash,
-                        dispatch_result.queue,
-                        dispatch_result.task_id,
-                        dispatch_result.history_id,
-                        dispatch_result.status,
-                    )
-                except Exception as exc:
-                    logger.error(
-                        "Error queuing video segmentation: %s", exc, exc_info=True
-                    )
 
             logger.info("Video processing completed: %s", video_path)
             if video_path.exists():
                 logger.info("Source video still exists: %s", video_path)
-                video_path.unlink()
+                safe_unlink_file(video_path)
         except Exception as exc:
-            error_msg = str(exc)
-            logger.error(
-                "Error processing video %s: %s", video_path, error_msg, exc_info=True
-            )
-            if any(
-                phrase in error_msg.lower()
-                for phrase in ["insufficient storage", "no space left", "disk full"]
-            ):
-                logger.warning(
-                    "Storage error for %s, will retry when space is available",
-                    video_path,
-                )
-                self._unmark_processed(str(video_path))
-                return
-            logger.warning("Removing %s from processed set due to error", video_path)
-            self._unmark_processed(str(video_path))
+            self._handle_video_processing_error(video_path, exc)
 
     def _process_report(self, report_path: Path) -> None:
         try:
@@ -781,7 +846,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
             try:
                 storage_root_path = storage_root_report_sensitive
-                storage_root_path.mkdir(parents=True, exist_ok=True)
+                ensure_directory(storage_root_path)
                 if not storage_root_path.exists():
                     raise InsufficientStorageError(
                         f"Storage root does not exist: {storage_root_path}"
@@ -801,7 +866,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     )
                     try:
                         if report_path.exists():
-                            report_path.unlink()
+                            safe_unlink_file(report_path)
                     except Exception as exc:
                         logger.error(
                             "Error removing report file %s: %s", report_path, exc
@@ -877,9 +942,9 @@ class FileWatcherService:
         self.report_dir = INTAKE_REPORT_DIR
         self.pseudonymized_dir = self.handler.pseudonymized_dir
 
-        self.video_dir.mkdir(parents=True, exist_ok=True)
-        self.report_dir.mkdir(parents=True, exist_ok=True)
-        self.pseudonymized_dir.mkdir(parents=True, exist_ok=True)
+        _require_intake_directory(self.video_dir, label="Video")
+        _require_intake_directory(self.report_dir, label="Report")
+        _require_intake_directory(self.pseudonymized_dir, label="Pseudonymized")
 
         logger.info("Video directory: %s", self.video_dir)
         logger.info("report directory: %s", self.report_dir)
@@ -949,78 +1014,46 @@ class FileWatcherService:
         EndoscopyProcessor.objects.first()
         logger.info("Django setup validation successful")
 
+    def _iter_unprocessed_files(
+        self,
+        directory: Path,
+        extensions: Set[str],
+    ) -> Iterator[Path]:
+        for candidate in directory.glob("*"):
+            if (
+                candidate.is_file()
+                and candidate.suffix.lower() in extensions
+                and not should_ignore_file(candidate)
+            ):
+                path_str = str(candidate)
+                if (
+                    path_str in self.handler.processed_files
+                    or path_str in self.handler.in_flight_files
+                ):
+                    continue
+                yield candidate
+
     def _process_existing_files(self) -> int:
-        # Only log if we actually find files we haven't seen yet
-        new_files_found = False
         submitted_count = 0
+        intake_groups = (
+            (self.video_dir, self.handler.video_extensions, "video"),
+            (self.report_dir, self.handler.report_extensions, "report"),
+            (
+                self.pseudonymized_dir,
+                self.handler.pseudonymized_extensions,
+                "pseudonymized file",
+            ),
+        )
 
-        for video_file in self.video_dir.glob("*"):
-            if (
-                video_file.is_file()
-                and video_file.suffix.lower() in self.handler.video_extensions
-                and not should_ignore_file(video_file)
-            ):
-                path_str = str(video_file)
-                if (
-                    path_str in self.handler.processed_files
-                    or path_str in self.handler.in_flight_files
-                ):
-                    continue
-
-                if not new_files_found:
+        for directory, extensions, file_kind in intake_groups:
+            for candidate in self._iter_unprocessed_files(directory, extensions):
+                if submitted_count == 0:
                     logger.info("Processing existing files...")
-                    new_files_found = True
-
-                logger.info("Processing existing video: %s", video_file)
-                self.handler._submit_file(path_str)
+                logger.info("Processing existing %s: %s", file_kind, candidate)
+                self.handler._submit_file(str(candidate))
                 submitted_count += 1
 
-        for report_file in self.report_dir.glob("*"):
-            if (
-                report_file.is_file()
-                and report_file.suffix.lower() in self.handler.report_extensions
-                and not should_ignore_file(report_file)
-            ):
-                path_str = str(report_file)
-                if (
-                    path_str in self.handler.processed_files
-                    or path_str in self.handler.in_flight_files
-                ):
-                    continue
-
-                if not new_files_found:
-                    logger.info("Processing existing files...")
-                    new_files_found = True
-
-                logger.info("Processing existing report: %s", report_file)
-                self.handler._submit_file(path_str)
-                submitted_count += 1
-
-        for pseudonymized_file in self.pseudonymized_dir.glob("*"):
-            if (
-                pseudonymized_file.is_file()
-                and pseudonymized_file.suffix.lower()
-                in self.handler.pseudonymized_extensions
-                and not should_ignore_file(pseudonymized_file)
-            ):
-                path_str = str(pseudonymized_file)
-                if (
-                    path_str in self.handler.processed_files
-                    or path_str in self.handler.in_flight_files
-                ):
-                    continue
-
-                if not new_files_found:
-                    logger.info("Processing existing files...")
-                    new_files_found = True
-
-                logger.info(
-                    "Processing existing pseudonymized file: %s", pseudonymized_file
-                )
-                self.handler._submit_file(path_str)
-                submitted_count += 1
-
-        if new_files_found:
+        if submitted_count:
             logger.info("Existing files processing completed")
 
         return submitted_count

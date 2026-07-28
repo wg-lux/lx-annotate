@@ -14,12 +14,10 @@ import type {
   ReportTemplateFinding,
   ReportTemplateFindingValidator,
   ReportTemplatePayload,
-  ReportTemplateRuntimeValidationClassificationInput,
   ReportTemplateRuntimeClassificationChoiceInput,
   ReportTemplateRuntimeDescriptorInput,
   ReportTemplateRuntimePayload,
   ReportTemplateRuntimePatientFindingInput,
-  ReportTemplateRuntimeValidationFindingInput,
   ReportTemplateRuntimeValidationResult,
   ClassificationValidatorExecution,
   ReportTemplateGraphEdge,
@@ -952,9 +950,19 @@ export async function validatePatientFindingsAgainstTemplate(params: {
       params.templateName,
       params.patientExaminationId
     )
-  } catch (error: any) {
-    const status = Number(error?.response?.status || 0)
-    const detail = String(error?.response?.data?.detail || '')
+  } catch (error: unknown) {
+    const errorRecord =
+      error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+    const response =
+      errorRecord.response && typeof errorRecord.response === 'object'
+        ? (errorRecord.response as Record<string, unknown>)
+        : {}
+    const data =
+      response.data && typeof response.data === 'object'
+        ? (response.data as Record<string, unknown>)
+        : {}
+    const status = Number(response.status || 0)
+    const detail = String(data.detail || '')
       .trim()
       .toLowerCase()
     const isGenericNotFound = status === 404 && (!detail || detail === 'not found' || detail === 'not found.')
