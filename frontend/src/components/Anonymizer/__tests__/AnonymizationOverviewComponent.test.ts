@@ -110,6 +110,7 @@ describe('AnonymizationOverviewComponent', () => {
       loading: false,
       overview: [buildVideoFile()],
       fetchOverview: vi.fn().mockResolvedValue(undefined),
+      retryUploadJob: vi.fn().mockResolvedValue(true),
       setCurrentForValidation: vi.fn().mockResolvedValue(true),
       isVideoReimportQueued: vi.fn().mockReturnValue(false),
       startPolling: vi.fn(),
@@ -141,6 +142,18 @@ describe('AnonymizationOverviewComponent', () => {
 
     expect(wrapper.text()).toContain('study-video.mp4')
     expect(wrapper.text()).toContain('Video-ID: 17')
+  })
+
+  it('shows authorization errors without the misleading empty-state message', async () => {
+    hoisted.anonymizationStoreRef.current.error =
+      'Fehler beim Laden der Übersicht (403): Keine Center-Zuordnung'
+    hoisted.anonymizationStoreRef.current.overview = []
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Keine Center-Zuordnung')
+    expect(wrapper.text()).not.toContain('Keine Dateien vorhanden')
   })
 
   it('uses safe patient and document type metadata instead of the PDF hash filename', async () => {
@@ -253,7 +266,7 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.find('tbody .sticky-filename-column').text()).toContain('study-video.mp4')
   })
 
-  it('keeps validation visible and scrolls the wide table with the mouse wheel', async () => {
+  it('keeps validation visible and synchronizes the sticky horizontal scrollbar', async () => {
     const wrapper = mount(AnonymizationOverviewComponent)
     await flushPromises()
 
@@ -262,9 +275,21 @@ describe('AnonymizationOverviewComponent', () => {
     Object.defineProperty(element, 'clientWidth', { configurable: true, value: 800 })
     Object.defineProperty(element, 'scrollWidth', { configurable: true, value: 1600 })
 
-    await scrollWrapper.trigger('wheel', { deltaY: 120 })
+    await scrollWrapper.trigger('scroll')
+
+    const stickyScrollbar = wrapper.find<HTMLElement>('[data-test="overview-sticky-scrollbar"]')
+    expect(stickyScrollbar.isVisible()).toBe(true)
+    expect(stickyScrollbar.find('div').attributes('style')).toContain('width: 1600px')
+
+    stickyScrollbar.element.scrollLeft = 120
+    await stickyScrollbar.trigger('scroll')
 
     expect(element.scrollLeft).toBe(120)
+
+    element.scrollLeft = 240
+    await scrollWrapper.trigger('scroll')
+
+    expect(stickyScrollbar.element.scrollLeft).toBe(240)
     expect(wrapper.find('thead .validation-action-column').text()).toBe('Validierung')
     expect(wrapper.find('tbody .validation-action-column button').text()).toContain('Validieren')
   })
@@ -334,6 +359,47 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.text()).toContain('Nächster Versuch')
     expect(wrapper.text()).not.toContain('broker')
     expect(wrapper.find('[data-test="delete-file-button"]').exists()).toBe(false)
+  })
+
+  it('shows an unattached storage failure and retries it by upload-job id', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({
+        id: -123,
+        filename: 'storage-blocked.mp4',
+        importOnly: true,
+        anonymizationStatus: 'failed',
+        annotationStatus: '',
+        uploadJob: {
+          id: 'db0a99ff-0129-4c13-b5c9-f584bf21d1b2',
+          status: 'error',
+          ingestMode: 'watcher',
+          sourceFilePersisted: true,
+          cleanupStatus: 'pending',
+          allowedActions: ['safe_reimport', 'delete'],
+          errorCode: 'processing_failed',
+          errorDetail: 'Import processing failed. Technical details are available in protected logs.'
+        }
+      })
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('storage-blocked.mp4')
+    expect(wrapper.text()).toContain(
+      'Import-ID: db0a99ff-0129-4c13-b5c9-f584bf21d1b2'
+    )
+    expect(wrapper.text()).not.toContain('Video-ID: -123')
+    const retryButton = wrapper.find('[data-test="retry-upload-job-button"]')
+    expect(retryButton.text()).toContain('Jetzt erneut versuchen')
+    expect(wrapper.find('[data-test="delete-file-button"]').exists()).toBe(false)
+
+    await retryButton.trigger('click')
+    await flushPromises()
+
+    expect(
+      hoisted.anonymizationStoreRef.current.retryUploadJob
+    ).toHaveBeenCalledWith('db0a99ff-0129-4c13-b5c9-f584bf21d1b2')
   })
 
   it.each([

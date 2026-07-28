@@ -249,11 +249,17 @@
         </section>
 
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-          <div class="text-sm text-muted">
-            Source Node:
-            <span class="fw-semibold">{{
-              hubExportStore.sourceNodeKey || 'nicht konfiguriert'
-            }}</span>
+          <div class="text-sm text-muted d-flex gap-3 flex-wrap">
+            <span>
+              Source Node:
+              <span class="fw-semibold">{{
+                hubExportStore.sourceNodeKey || 'nicht konfiguriert'
+              }}</span>
+            </span>
+            <span data-test="hub-export-current-user">
+              Angemeldeter Benutzer:
+              <span class="fw-semibold">{{ currentUsername }}</span>
+            </span>
           </div>
           <div class="d-flex gap-2 flex-wrap">
             <button
@@ -272,6 +278,42 @@
             >
               Markierung entfernen
             </button>
+          </div>
+        </div>
+
+        <div
+          class="verification-summary mb-3"
+          data-test="hub-export-verification-summary"
+          aria-labelledby="hub-export-verification-title"
+        >
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div>
+              <h6 id="hub-export-verification-title" class="mb-1">Freigabeprüfung</h6>
+              <p class="text-sm text-muted mb-0">
+                Die Markierung wird serverseitig dem angemeldeten Benutzer zugeordnet.
+              </p>
+            </div>
+            <span class="badge" :class="verificationBadgeClass">
+              {{ verificationLabel }}
+            </span>
+          </div>
+          <div class="row g-3 text-sm">
+            <div class="col-sm-6 col-xl-3">
+              <span class="d-block text-muted">Benutzer</span>
+              <span class="fw-semibold">{{ currentUsername }}</span>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <span class="d-block text-muted">Zielknoten</span>
+              <span class="fw-semibold">{{ selectedTargetNodeKey || 'nicht konfiguriert' }}</span>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <span class="d-block text-muted">Auswahl</span>
+              <span class="fw-semibold">{{ selectedKeys.size }} Ressourcen</span>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <span class="d-block text-muted">Datenschutzprüfung</span>
+              <span class="fw-semibold">{{ privacyVerificationLabel }}</span>
+            </div>
           </div>
         </div>
 
@@ -422,8 +464,10 @@ import {
   type HubExportItem,
   type HubExportPrivacyStatus
 } from '@/stores/hubExportStore'
+import { useAuthKcStore } from '@/stores/auth_kc'
 
 const hubExportStore = useHubExportStore()
+const authStore = useAuthKcStore()
 const selectedKeys = ref<Set<string>>(new Set())
 const selectedTargetNodeKey = ref<string | null>(null)
 const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
@@ -539,6 +583,24 @@ const overallTransferProgress = computed(() => {
 })
 
 const privacySummary = computed(() => hubExportStore.privacySummary)
+const currentUsername = computed(() => authStore.user?.username?.trim() || 'nicht verfügbar')
+const privacyVerificationLabel = computed(() => {
+  if (!privacySummary.value) return 'nicht verfügbar'
+  return privacyStatusLabel(privacySummary.value.status)
+})
+const verificationReady = computed(
+  () =>
+    authStore.isAuthenticated &&
+    hubExportStore.configReady &&
+    Boolean(selectedTargetNodeKey.value) &&
+    privacySummary.value?.status === 'pass'
+)
+const verificationLabel = computed(() =>
+  verificationReady.value ? 'Voraussetzungen erfüllt' : 'Prüfung erforderlich'
+)
+const verificationBadgeClass = computed(() =>
+  verificationReady.value ? 'bg-success' : 'bg-warning text-dark'
+)
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible))
 const allSelectableChecked = computed(
   () =>
@@ -688,6 +750,14 @@ onBeforeUnmount(stopPolling)
   border: 1px solid #dee2e6;
   border-radius: 8px;
   padding: 0.75rem 1rem;
+}
+
+.verification-summary {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-left: 4px solid #0d6efd;
+  border-radius: 8px;
+  padding: 1rem;
 }
 
 .sync-metric,

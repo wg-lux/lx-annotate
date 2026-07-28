@@ -62,8 +62,15 @@ export interface AdministrationOverview {
     roles: string[]
     centerAssignmentStatus: CenterAssignmentStatus
     centerKey: string | null
+    centers: CenterChoice[]
     hubMonitorRead: boolean
     centerScopeAdmin: boolean
+    centerScopeGlobalAdmin: boolean
+    centerScopeRoles: {
+      delegated: string
+      global: string
+    }
+    membershipAuthority: 'keycloak_groups'
     keycloakRoleMutation: false
   }
 }
@@ -75,6 +82,7 @@ export interface CenterScopeUser {
   roles: string[]
   canMutate: boolean
   assignmentStatus: CenterAssignmentStatus
+  centers: CenterChoice[]
   center: CenterChoice | null
 }
 
@@ -105,8 +113,8 @@ export async function updateCenterScope(
   userId: number,
   payload: {
     operation: 'assign' | 'revoke'
-    centerKey?: string
-    expectedCenterKey: string | null
+    centerKey: string
+    expectedCenterKeys: string[]
     reason: string
   }
 ): Promise<{ changed: boolean; user: CenterScopeUser }> {

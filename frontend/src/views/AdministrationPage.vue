@@ -55,14 +55,20 @@
         <div class="section-heading">
           <div>
             <h2>Effektive Berechtigungen</h2>
-            <p>Nur-Lese-Ansicht der synchronisierten Rollen und lokalen Center-Zuordnung.</p>
+            <p>Nur-Lese-Ansicht der synchronisierten Rollen und lokalen Center-Zuordnungen.</p>
           </div>
           <span class="badge bg-secondary">{{ overview.effectivePermissions.username }}</span>
         </div>
         <dl class="permission-grid">
           <div>
             <dt>Center</dt>
-            <dd>{{ overview.effectivePermissions.centerKey || 'nicht zugeordnet' }}</dd>
+            <dd>
+              {{
+                overview.effectivePermissions.centers
+                  .map((center) => center.displayName)
+                  .join(', ') || 'nicht zugeordnet'
+              }}
+            </dd>
           </div>
           <div>
             <dt>Center-Administration</dt>
@@ -82,6 +88,13 @@
           <span v-if="!overview.effectivePermissions.roles.length" class="text-muted"
             >Keine Rollen synchronisiert</span
           >
+        </div>
+        <div class="alert alert-info mt-3 mb-0" role="status">
+          Keycloak-Gruppen sind die maßgebliche Quelle. Lokale Änderungen gelten sofort, können aber
+          bei der nächsten Anmeldung durch <code>/centers/&lt;center_key&gt;</code>-Gruppen ersetzt
+          werden. Globale Keycloak-Administration erfordert
+          <code>{{ overview.effectivePermissions.centerScopeRoles.global }}</code
+          >.
         </div>
       </section>
 
@@ -111,7 +124,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="job in overview.transferMonitoring.recentJobs" :key="job.id">
+              <tr v-for="job in overview.transferMonitoring.recentAttentionJobs" :key="job.id">
                 <td>
                   <span class="badge" :class="statusBadge(job.localStatus)">{{
                     statusLabel(job.localStatus)
@@ -134,7 +147,7 @@
                 <td>{{ formatDate(job.updatedAt) }}</td>
                 <td class="error-cell">{{ job.lastError || '—' }}</td>
               </tr>
-              <tr v-if="!overview.transferMonitoring.recentJobs.length">
+              <tr v-if="!overview.transferMonitoring.recentAttentionJobs.length">
                 <td colspan="9" class="text-center text-muted py-4">
                   Noch keine Transferaufträge vorhanden.
                 </td>
@@ -177,7 +190,16 @@
                     assignmentLabel(user.assignmentStatus)
                   }}</span>
                 </td>
-                <td>{{ user.center?.displayName || '—' }}</td>
+                <td>
+                  <span
+                    v-for="center in user.centers"
+                    :key="center.centerKey"
+                    class="role-chip role-chip-small"
+                  >
+                    {{ center.displayName }}
+                  </span>
+                  <span v-if="!user.centers.length">—</span>
+                </td>
                 <td>
                   <span v-for="role in user.roles" :key="role" class="role-chip role-chip-small">{{
                     role
@@ -185,22 +207,25 @@
                 </td>
                 <td>
                   <span v-if="!user.canMutate" class="text-muted small">Eigenes Konto</span>
-                  <button
-                    v-else-if="user.assignmentStatus !== 'assigned'"
-                    class="btn btn-sm btn-outline-primary mb-0"
-                    type="button"
-                    @click="beginChange(user, 'assign')"
-                  >
-                    Zuordnen
-                  </button>
-                  <button
-                    v-else-if="user.assignmentStatus === 'assigned'"
-                    class="btn btn-sm btn-outline-danger mb-0"
-                    type="button"
-                    @click="beginChange(user, 'revoke')"
-                  >
-                    Entziehen
-                  </button>
+                  <template v-else>
+                    <button
+                      v-if="assignableCenters(user).length"
+                      class="btn btn-sm btn-outline-primary mb-0"
+                      type="button"
+                      @click="beginChange(user, 'assign')"
+                    >
+                      Zuordnen
+                    </button>
+                    <button
+                      v-for="center in user.centers"
+                      :key="`revoke-${center.centerKey}`"
+                      class="btn btn-sm btn-outline-danger mb-0"
+                      type="button"
+                      @click="beginChange(user, 'revoke', center.centerKey)"
+                    >
+                      {{ center.displayName }} entziehen
+                    </button>
+                  </template>
                 </td>
               </tr>
             </tbody>
@@ -236,6 +261,9 @@
           </h3>
           <p>
             Benutzer: <strong>{{ pendingChange.user.username }}</strong>
+          </p>
+          <p v-if="pendingChange.operation === 'revoke'">
+            Center: <strong>{{ selectedCenterKey }}</strong>
           </p>
           <label v-if="pendingChange.operation === 'assign'" class="form-label">
             Center
@@ -345,9 +373,15 @@ async function changeAccessPage(page: number) {
   await loadAccessUsers(page)
 }
 
-function beginChange(user: CenterScopeUser, operation: 'assign' | 'revoke') {
+function assignableCenters(user: CenterScopeUser): CenterChoice[] {
+  const assigned = new Set(user.centers.map((center) => center.centerKey))
+  return centerChoices.value.filter((center) => !assigned.has(center.centerKey))
+}
+
+function beginChange(user: CenterScopeUser, operation: 'assign' | 'revoke', centerKey = '') {
   pendingChange.value = { user, operation }
-  selectedCenterKey.value = operation === 'assign' ? centerChoices.value[0]?.centerKey || '' : ''
+  selectedCenterKey.value =
+    operation === 'assign' ? assignableCenters(user)[0]?.centerKey || '' : centerKey
   reason.value = ''
 }
 
@@ -370,8 +404,8 @@ async function submitChange() {
   try {
     await updateCenterScope(change.user.id, {
       operation: change.operation,
-      ...(change.operation === 'assign' ? { centerKey: selectedCenterKey.value } : {}),
-      expectedCenterKey: change.user.center?.centerKey ?? null,
+      centerKey: selectedCenterKey.value,
+      expectedCenterKeys: change.user.centers.map((center) => center.centerKey).sort(),
       reason: reason.value
     })
     cancelChange()

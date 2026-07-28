@@ -77,6 +77,7 @@ export interface FileItem {
   quarantineNextAction?: string
   quarantineOrphaned?: boolean
   errorDetail?: string
+  importOnly?: boolean
 }
 
 export interface QuarantineFileItem {
@@ -505,6 +506,22 @@ export const useAnonymizationStore = defineStore('anonymization', {
         return []
       } finally {
         this.loading = false
+      }
+    },
+
+    async retryUploadJob(jobId: string): Promise<boolean> {
+      try {
+        await axiosInstance.post(r(endpoints.anonymization.retryUploadJob(jobId)))
+        await this.fetchOverview()
+        return true
+      } catch (err: any) {
+        console.error(`Error retrying upload job ${jobId}:`, err)
+        if (axios.isAxiosError(err)) {
+          this.error = `Fehler beim erneuten Starten des Imports (${err.response?.status}): ${err.message}`
+        } else {
+          this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Starten des Imports.'
+        }
+        return false
       }
     },
 

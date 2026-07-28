@@ -34,7 +34,7 @@
           <template v-if="queueStore.aiDatasetId"> · ID {{ queueStore.aiDatasetId }}</template>
         </p>
       </div>
-      <div class="col-12 col-md-6 col-lg-4">
+      <div v-if="advancedQueueSettingsOpen" class="col-12 col-md-6 col-lg-4">
         <label for="ai-dataset-id" class="form-label">Datensatz</label>
         <select
           id="ai-dataset-id"
@@ -104,7 +104,7 @@
           {{ labelGroupLoadError }}
         </small>
       </div>
-      <div class="col-12 col-md-6 col-lg-4">
+      <div v-if="advancedQueueSettingsOpen" class="col-12 col-md-6 col-lg-4">
         <label for="task-mode" class="form-label">Aufgabenquelle</label>
         <select id="task-mode" v-model="taskMode" class="form-select">
           <option value="random">Zufällige Frames</option>
@@ -114,7 +114,7 @@
           Zufallsmodus ist aktiv.
         </small>
       </div>
-      <div class="col-12 col-md-6 col-lg-4">
+      <div v-if="advancedQueueSettingsOpen" class="col-12 col-md-6 col-lg-4">
         <label for="frame-file-type" class="form-label">Frame-Quelle</label>
         <select id="frame-file-type" v-model="frameFileType" class="form-select">
           <option value="auto">Automatisch</option>
@@ -135,7 +135,7 @@
           placeholder="Optional, z. B. polyp"
         />
       </div>
-      <div class="col-12 col-md-6 col-lg-4">
+      <div v-if="advancedQueueSettingsOpen" class="col-12 col-md-6 col-lg-4">
         <label for="information-source" class="form-label">Informationsquelle</label>
         <select id="information-source" v-model.lazy="informationSource" class="form-control">
           <option value="manual_annotation">Manuelle Annotation</option>
@@ -143,6 +143,20 @@
           <option value="human_annotation">Menschliche Annotation</option>
           <option value="lx_anonymizer_evaluation">Anonymisierungsprüfung</option>
         </select>
+      </div>
+      <div class="col-12">
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm mb-2"
+          data-test="advanced-queue-settings-toggle"
+          :aria-expanded="advancedQueueSettingsOpen"
+          @click="advancedQueueSettingsOpen = !advancedQueueSettingsOpen"
+        >
+          {{ advancedQueueSettingsOpen ? 'Weniger Einstellungen' : 'Erweiterte Einstellungen' }}
+        </button>
+        <small class="text-muted ms-2">
+          Datensatz, Aufgabenquelle, Frame-Quelle und Informationsquelle
+        </small>
       </div>
       <div v-if="canOverrideAnnotationPrincipal" class="col-12 col-lg-8">
         <label for="frame-annotator-override" class="form-label">Annotator-Scope</label>
@@ -753,6 +767,7 @@ const labelGroupLoadError = ref<string | null>(null)
 const labelGroupOptions = ref<LabelGroupOption[]>([])
 const aiDatasetOptions = ref<AiDatasetOption[]>([])
 const isLoadingAiDatasets = ref(false)
+const advancedQueueSettingsOpen = ref(false)
 const aiDatasetLoadError = ref<string | null>(null)
 const annotatorOverride = ref<string | null>(null)
 const annotatorOverrideInput = ref('')
@@ -1260,6 +1275,17 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
 
     const contentType = String(response.headers?.['content-type'] ?? '').toLowerCase()
     if (response.status === 200 && contentType.startsWith('image/')) {
+      if (!(response.data instanceof Blob)) {
+        errorMessage.value =
+          'Frame-Antwort war als Bild gekennzeichnet, enthielt aber keine binären Bilddaten.'
+        frameImageLoadState.value = 'failed'
+        return
+      }
+      if (response.data.size === 0) {
+        errorMessage.value = 'Frame-Antwort enthielt ein leeres Bild.'
+        frameImageLoadState.value = 'failed'
+        return
+      }
       setFrameImageBlobUrl(response.data, task.data.imageUrl)
       frameImageLoadState.value = 'loading'
       return
@@ -1275,13 +1301,20 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
       return
     }
     if (response.status === 409) {
-      errorMessage.value = (await extractPendingMessage(response.data)) ?? errorMessage.value
+      errorMessage.value =
+        (response.data instanceof Blob ? await extractPendingMessage(response.data) : null) ??
+        `Frame-Anfrage fehlgeschlagen (HTTP ${response.status}).`
       frameImageLoadState.value = 'failed'
       return
     }
+    errorMessage.value =
+      (response.data instanceof Blob ? await extractPendingMessage(response.data) : null) ??
+      `Frame-Anfrage fehlgeschlagen (HTTP ${response.status}).`
     frameImageLoadState.value = 'failed'
-  } catch {
+  } catch (error: unknown) {
     if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
+    const detail = error instanceof Error && error.message.trim() ? ` ${error.message.trim()}` : ''
+    errorMessage.value = `Frame-Anfrage wurde im Browser abgebrochen oder ist fehlgeschlagen.${detail}`
     frameImageLoadState.value = 'failed'
   }
 }

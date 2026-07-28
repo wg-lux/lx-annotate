@@ -203,9 +203,11 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
     async fetchVideoSegmentStats() {
       try {
         // ✅ Modern media framework endpoint
-        const response = await axios.get<VideoSegmentStatsResponse>(r(endpoints.media.segmentsStats))
+        const response = await axios.get<VideoSegmentStatsResponse>(
+          r(endpoints.media.segmentsStats)
+        )
         const data = response.data
-        
+
         this.stats.segmentPending = data.total_segments
         this.stats.segmentInProgress = 0
         this.stats.segmentCompleted = 0
@@ -220,21 +222,15 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
 
     async fetchExaminationStats() {
       try {
-        const response = await axios.get(
-          `/api/${endpoints.examination.patientExaminationList}`
-        )
+        const response = await axios.get(r(endpoints.examination.patientExaminationList))
         const data = response.data
-        const items = Array.isArray(data?.results)
-          ? data.results
-          : Array.isArray(data)
-          ? data
-          : []
+        const items = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []
 
         const counts = {
           pending: 0,
           in_progress: 0,
           completed: 0,
-          draft: 0,
+          draft: 0
         }
 
         for (const item of items) {

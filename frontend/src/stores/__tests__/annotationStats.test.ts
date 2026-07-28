@@ -68,6 +68,7 @@ describe('annotationStatsStore', () => {
     expect(store.completionPercentage).toBe(17)
     expect(store.loading).toBe(false)
     expect(store.lastUpdated).toBeInstanceOf(Date)
+    expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(3)
   })
 
   it('moves counts between statuses without allowing negative values', () => {

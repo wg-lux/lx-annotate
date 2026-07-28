@@ -323,10 +323,30 @@ describe('FrameAnnotation route', () => {
 
     expect(hoisted.createObjectURL).toHaveBeenCalledWith(frameBlob)
     expect(wrapper.get('[data-test="frame-box-stage"] img').attributes('src')).toBe('blob:frame-1')
+    expect(hoisted.get.mock.calls.filter(([url]) => url === '/media/frame-101.jpg')).toHaveLength(1)
 
     wrapper.unmount()
 
     expect(hoisted.revokeObjectURL).toHaveBeenCalledWith('blob:frame-1')
+  })
+
+  it('keeps secondary queue selectors collapsed by default', async () => {
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="frame-ai-dataset-select"]').exists()).toBe(false)
+    expect(wrapper.find('#task-mode').exists()).toBe(false)
+    expect(wrapper.find('#frame-file-type').exists()).toBe(false)
+    expect(wrapper.find('#information-source').exists()).toBe(false)
+    expect(wrapper.find('#label-group-id').exists()).toBe(true)
+    expect(wrapper.find('#target-label-name').exists()).toBe(true)
+
+    await wrapper.get('[data-test="advanced-queue-settings-toggle"]').trigger('click')
+
+    expect(wrapper.find('[data-test="frame-ai-dataset-select"]').exists()).toBe(true)
+    expect(wrapper.find('#task-mode').exists()).toBe(true)
+    expect(wrapper.find('#frame-file-type').exists()).toBe(true)
+    expect(wrapper.find('#information-source').exists()).toBe(true)
   })
 
   it('loads one initial task when the first label group is auto-selected', async () => {
@@ -419,6 +439,8 @@ describe('FrameAnnotation route', () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
 
+    await wrapper.get('[data-test="advanced-queue-settings-toggle"]').trigger('click')
+
     await wrapper.get('[data-test="frame-ai-dataset-select"]').setValue('9')
     await flushPromises()
 
@@ -433,6 +455,8 @@ describe('FrameAnnotation route', () => {
   it('lets the user switch the decoded frame source', async () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+
+    await wrapper.get('[data-test="advanced-queue-settings-toggle"]').trigger('click')
 
     await wrapper.get('#frame-file-type').setValue('processed')
     await flushPromises()
@@ -483,11 +507,7 @@ describe('FrameAnnotation route', () => {
     })
 
     const wrapper = mountFrameAnnotation()
-    await flushPromises()
-
-    expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain(
-      'Frame konnte nicht geladen werden'
-    )
+    await expectTextEventually(wrapper, 'Frame-Anfrage fehlgeschlagen (HTTP 500).')
     const streamCallsBeforeRetry = hoisted.get.mock.calls.filter(
       ([url]) => url === '/media/frame-101.jpg'
     ).length
@@ -499,6 +519,17 @@ describe('FrameAnnotation route', () => {
       ([url]) => url === '/media/frame-101.jpg'
     ).length
     expect(streamCallsAfterRetry).toBe(streamCallsBeforeRetry + 1)
+  })
+
+  it('shows the HTTP status for an unexpected frame response', async () => {
+    installGetMock({
+      streamStatus: 502,
+      streamBody: new Blob(['proxy failure'], { type: 'text/plain' }),
+      streamContentType: 'text/plain'
+    })
+
+    const wrapper = mountFrameAnnotation()
+    await expectTextEventually(wrapper, 'Frame-Anfrage fehlgeschlagen (HTTP 502).')
   })
 
   it('supports negative quick example action for the target label', async () => {
@@ -684,9 +715,7 @@ describe('FrameAnnotation route', () => {
     expect(hoisted.post).toHaveBeenCalledWith(
       'media/annotations/frames/bulk-upsert/',
       expect.objectContaining({
-        annotations: expect.arrayContaining([
-          expect.objectContaining({ labelId: 11, value: true })
-        ])
+        annotations: expect.arrayContaining([expect.objectContaining({ labelId: 11, value: true })])
       })
     )
     expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2)

@@ -30,7 +30,10 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!availableFiles.length" class="text-center py-5">
+        <div
+          v-else-if="!anonymizationStore.error && !availableFiles.length"
+          class="text-center py-5"
+        >
           <div class="mb-4">
             <i class="ni ni-collection ni-3x text-muted"></i>
           </div>
@@ -43,14 +46,18 @@
         <!-- Files Table -->
         <div
           v-else
+          ref="tableScrollElement"
           class="table-responsive overview-table-scroll"
           data-test="overview-table-scroll"
           tabindex="0"
           role="region"
           aria-label="Anonymisierungsdateien, horizontal scrollbar"
-          @wheel="handleTableWheel"
+          @scroll="syncStickyScrollbar"
         >
-          <table class="table table-hover overview-files-table">
+          <table
+            ref="overviewTableElement"
+            class="table table-hover overview-files-table"
+          >
             <thead class="table-light">
               <tr>
                 <th class="sticky-filename-column">Dateiname</th>
@@ -108,9 +115,21 @@
                     </div>
                   </div>
                   <div v-else class="btn-group btn-group-sm" role="group">
+                    <button
+                      v-if="file.importOnly && file.uploadJob && (file.uploadJob.retryable || canUseImportAction(file, 'safe_reimport'))"
+                      data-test="retry-upload-job-button"
+                      @click="retryUploadJob(file)"
+                      class="btn btn-outline-warning"
+                      :disabled="processingFiles.has(file.id)"
+                      title="Gespeicherte Importquelle erneut verarbeiten"
+                    >
+                      <i class="ni ni-bold-right"></i>
+                      Jetzt erneut versuchen
+                    </button>
+
                     <!-- Re-import for videos with missing/incorrect metadata -->
                     <button
-                      v-if="file.mediaType === 'video' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
+                      v-if="!file.importOnly && file.mediaType === 'video' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
                       @click="reimportVideo(file.id)"
                       class="btn btn-outline-info"
                       :disabled="isProcessing(file.id)"
@@ -122,7 +141,7 @@
 
                     <!-- Re-import for PDFs (using reset-status for now) -->
                     <button
-                      v-if="file.mediaType === 'pdf' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
+                      v-if="!file.importOnly && file.mediaType === 'pdf' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
                       @click="reimportPdf(file.id)"
                       class="btn btn-outline-info"
                       :disabled="isProcessing(file.id)"
@@ -134,7 +153,7 @@
 
                     <!-- Start Anonymization -->
                     <button
-                      v-if="file.anonymizationStatus === 'not_started'"
+                      v-if="!file.importOnly && file.anonymizationStatus === 'not_started'"
                       @click="startAnonymization(file.id)"
                       class="btn btn-outline-primary"
                       :disabled="isProcessing(file.id)"
@@ -145,7 +164,7 @@
 
                     <!-- Restart Anonymization -->
                     <button
-                      v-if="file.anonymizationStatus === 'failed'"
+                      v-if="!file.importOnly && file.anonymizationStatus === 'failed'"
                       @click="startAnonymization(file.id)"
                       class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
@@ -167,7 +186,7 @@
 
                     <!-- Delete Button - Show for all files -->
                     <button
-                      v-if="canUseImportAction(file, 'delete')"
+                      v-if="!file.importOnly && canUseImportAction(file, 'delete')"
                       data-test="delete-file-button"
                       @click="deleteFile(file.id)"
                       class="btn btn-outline-danger"
@@ -263,7 +282,9 @@
 
                 <!-- Anonymization Status -->
                 <td>
-                  <span 
+                  <span v-if="file.importOnly" class="text-muted">-</span>
+                  <span
+                    v-else
                     :class="getStatusBadgeClass(file.anonymizationStatus)"
                     class="badge"
                   >
@@ -277,7 +298,9 @@
 
                 <!-- Annotation Status -->
                 <td>
-                  <span 
+                  <span v-if="file.importOnly" class="text-muted">-</span>
+                  <span
+                    v-else
                     :class="getStatusBadgeClass(file.annotationStatus)"
                     class="badge"
                   >
@@ -323,6 +346,21 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <div
+          v-show="hasHorizontalOverflow"
+          ref="stickyScrollbarElement"
+          class="overview-sticky-scrollbar"
+          data-test="overview-sticky-scrollbar"
+          tabindex="0"
+          role="region"
+          aria-label="Fixierte horizontale Scrollleiste für die Anonymisierungsdateien"
+          @scroll="syncTableScroll"
+        >
+          <div
+            class="overview-sticky-scrollbar-spacer"
+            :style="{ width: `${tableScrollWidth}px` }"
+          ></div>
         </div>
 
         <!-- Status Summary -->
@@ -390,7 +428,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type FileItem, type UploadJobOverview } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
@@ -409,6 +447,12 @@ const mediaManagement = useMediaManagement();
 const isRefreshing = ref(false);
 const processingFiles = ref<Set<number>>(new Set());
 const monitoringRefreshHandle = ref<ReturnType<typeof setTimeout> | null>(null);
+const tableScrollElement = ref<HTMLElement | null>(null);
+const overviewTableElement = ref<HTMLTableElement | null>(null);
+const stickyScrollbarElement = ref<HTMLElement | null>(null);
+const tableScrollWidth = ref(0);
+const hasHorizontalOverflow = ref(false);
+let tableResizeObserver: ResizeObserver | null = null;
 const MONITORING_REFRESH_INTERVAL_MS = 15000;
 
 // Computed properties
@@ -418,22 +462,29 @@ const filteredOutCount = computed(() =>
   anonymizationStore.overview.length - availableFiles.value.length
 );
 
-// Methods
-const handleTableWheel = (event: WheelEvent) => {
-  const container = event.currentTarget;
-  if (!(container instanceof HTMLElement) || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
-    return;
+
+
+const updateStickyScrollbar = () => {
+  const container = tableScrollElement.value;
+  if (!container) return;
+
+  tableScrollWidth.value = container.scrollWidth;
+  hasHorizontalOverflow.value = container.scrollWidth > container.clientWidth;
+
+  if (stickyScrollbarElement.value) {
+    stickyScrollbarElement.value.scrollLeft = container.scrollLeft;
   }
+};
 
-  const maxScrollLeft = container.scrollWidth - container.clientWidth;
-  const nextScrollLeft = Math.min(
-    maxScrollLeft,
-    Math.max(0, container.scrollLeft + event.deltaY)
-  );
+const syncStickyScrollbar = () => {
+  updateStickyScrollbar();
+};
 
-  if (maxScrollLeft > 0 && nextScrollLeft !== container.scrollLeft) {
-    event.preventDefault();
-    container.scrollLeft = nextScrollLeft;
+const syncTableScroll = () => {
+  const container = tableScrollElement.value;
+  const stickyScrollbar = stickyScrollbarElement.value;
+  if (container && stickyScrollbar && container.scrollLeft !== stickyScrollbar.scrollLeft) {
+    container.scrollLeft = stickyScrollbar.scrollLeft;
   }
 };
 
@@ -442,6 +493,8 @@ const refreshOverview = async () => {
   try {
     await anonymizationStore.fetchOverview();
     mediaStore.seedTypesFromOverview(anonymizationStore.overview);
+    await nextTick();
+    updateStickyScrollbar();
   } finally {
     isRefreshing.value = false;
   }
@@ -584,6 +637,16 @@ const reimportPdf = async (fileId: number) => {
     console.error('PDF re-import failed:', error);
   } finally {
     processingFiles.value.delete(fileId);
+  }
+};
+
+const retryUploadJob = async (file: FileItem) => {
+  if (!file.uploadJob) return;
+  processingFiles.value.add(file.id);
+  try {
+    await anonymizationStore.retryUploadJob(file.uploadJob.id);
+  } finally {
+    processingFiles.value.delete(file.id);
   }
 };
 
@@ -733,6 +796,9 @@ const getFileDisplayName = (file: FileItem) => {
 const getFileIdLabel = (file: FileItem) => {
   if (file.quarantined) {
     return `Quarantäne: ${file.quarantineDirectoryLabel || file.quarantineDirectoryKey || 'lx-annotate'}`;
+  }
+  if (file.importOnly && file.uploadJob) {
+    return `Import-ID: ${file.uploadJob.id}`;
   }
   return file.mediaType === 'video'
     ? `Video-ID: ${file.id}`
@@ -1035,6 +1101,17 @@ onMounted(async () => {
   // Fetch overview data
   await anonymizationStore.fetchOverview();
   mediaStore.seedTypesFromOverview(anonymizationStore.overview);
+  await nextTick();
+  updateStickyScrollbar();
+  if (typeof ResizeObserver !== 'undefined') {
+    tableResizeObserver = new ResizeObserver(updateStickyScrollbar);
+    if (tableScrollElement.value) {
+      tableResizeObserver.observe(tableScrollElement.value);
+    }
+    if (overviewTableElement.value) {
+      tableResizeObserver.observe(overviewTableElement.value);
+    }
+  }
     console.table(
       anonymizationStore.overview.map(f => ({
         id: f.id,
@@ -1061,6 +1138,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  tableResizeObserver?.disconnect();
+  tableResizeObserver = null;
   if (monitoringRefreshHandle.value) {
     clearTimeout(monitoringRefreshHandle.value);
     monitoringRefreshHandle.value = null;
@@ -1107,6 +1186,22 @@ onUnmounted(() => {
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   padding-bottom: 0.5rem;
+}
+
+.overview-sticky-scrollbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  height: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  background-color: #fff;
+  border-top: 1px solid #dee2e6;
+}
+
+.overview-sticky-scrollbar-spacer {
+  height: 1px;
 }
 
 .overview-files-table .sticky-filename-column {

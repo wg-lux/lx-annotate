@@ -2,28 +2,31 @@
   <div class="card export-annotations">
     <div class="card-header pb-0">
       <h5 class="mb-0">Export-Auswahl</h5>
-      <p class="text-muted mb-0">
-        Wähle, welche Segmente für den Export markiert werden sollen.
-      </p>
+      <p class="text-muted mb-0">Wähle Segmente für einen PTS-sicheren Trainingsdatenexport aus.</p>
     </div>
     <div class="card-body">
-      <div v-if="!selectedVideoId" class="text-muted">
-        Bitte zuerst ein Video auswählen.
-      </div>
+      <div v-if="!selectedVideoId" class="text-muted">Bitte zuerst ein Video auswählen.</div>
 
       <label class="form-label">Video auswählen:</label>
-        <select v-model.number="selectedVideoId" @change="onVideoChange" class="form-select" :disabled="!hasVideos || isExternalSelection">
-          <option :value="null">{{ hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar' }}</option>
-          <option v-for="video in annotatableVideos" :key="video.id" :value="video.id">
-            📹 {{video.original_file_name || 'Video Nr. '+ video.id }} 
-            {{ getVideoStatusIndicator(video.id) }}
-            | Center: {{ video.centerName || 'Unbekannt' }} 
-            | Processor: {{ video.processorName || 'Unbekannt' }}
-          </option>
-        </select>
-        <small v-if="!hasVideos" class="text-muted">
-          {{ noVideosMessage }}
-        </small>
+      <select
+        v-model.number="selectedVideoId"
+        @change="onVideoChange"
+        class="form-select"
+        :disabled="!hasVideos || isExternalSelection"
+      >
+        <option :value="null">
+          {{ hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar' }}
+        </option>
+        <option v-for="video in annotatableVideos" :key="video.id" :value="video.id">
+          📹 {{ video.original_file_name || 'Video Nr. ' + video.id }}
+          {{ getVideoStatusIndicator(video.id) }}
+          | Center: {{ video.centerName || 'Unbekannt' }} | Processor:
+          {{ video.processorName || 'Unbekannt' }}
+        </option>
+      </select>
+      <small v-if="!hasVideos" class="text-muted">
+        {{ noVideosMessage }}
+      </small>
 
       <template v-else>
         <div class="export-toggle">
@@ -51,11 +54,7 @@
             Keine Segmente vorhanden.
           </div>
 
-          <div
-            v-for="segment in sortedSegments"
-            :key="segment.id"
-            class="export-segment"
-          >
+          <div v-for="segment in sortedSegments" :key="segment.id" class="export-segment">
             <div class="export-segment-info">
               <span class="segment-label">
                 {{ getTranslationForLabel(segment.label) }}
@@ -78,7 +77,9 @@
       </template>
 
       <div v-if="selectedVideoId" class="export-controls mt-4">
-        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
+        <div
+          class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3"
+        >
           <div>
             <small class="text-muted">Ausgabe-Verzeichnis</small>
             <div class="export-dir text-break">{{ exportOutputDir }}</div>
@@ -110,9 +111,7 @@
               type="checkbox"
               v-model="exportVideos"
             />
-            <label class="form-check-label" for="export-videos">
-              Video-Dateien exportieren
-            </label>
+            <label class="form-check-label" for="export-videos"> Video-Dateien exportieren </label>
           </div>
           <div class="form-check form-switch">
             <input
@@ -121,9 +120,7 @@
               type="checkbox"
               v-model="exportFrames"
             />
-            <label class="form-check-label" for="export-frames">
-              Frames exportieren
-            </label>
+            <label class="form-check-label" for="export-frames"> Frames exportieren </label>
           </div>
           <div class="form-check form-switch">
             <input
@@ -134,7 +131,7 @@
             />
             <label class="form-check-label" for="use-frame-pk-paths">
               use_frame_pk_paths verwenden
-</label>
+            </label>
           </div>
         </div>
         <div class="export-extra mt-3">
@@ -143,13 +140,14 @@
               id="transcode-frames"
               class="form-check-input"
               type="checkbox"
-              v-model="transcodeFrames"
+              :checked="true"
+              disabled
             />
             <label class="form-check-label" for="transcode-frames">
-              Frames transkodieren
+              PTS-genau aus verarbeitetem Video extrahieren
             </label>
           </div>
-          <div v-if="transcodeFrames" class="transcode-options row gx-2 mt-2">
+          <div class="transcode-options row gx-2 mt-2">
             <div class="col-6 col-md-3">
               <label class="form-label mb-0" for="transcode-quality">Quality</label>
               <input
@@ -190,7 +188,11 @@
         </button>
         <div
           v-if="exportMessage"
-          :class="['alert', exportMessage.type === 'success' ? 'alert-success' : 'alert-danger', 'mt-3']"
+          :class="[
+            'alert',
+            exportMessage.type === 'success' ? 'alert-success' : 'alert-danger',
+            'mt-3'
+          ]"
           role="alert"
         >
           {{ exportMessage.text }}
@@ -208,14 +210,18 @@ import { formatTime as formatTimeHelper } from '@/utils/timeHelpers'
 import { useToastStore } from '@/stores/toastStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { storeToRefs } from 'pinia'
+import { buildAnnotationExportRequest, type AnnotationExportResponse } from './annotationExport'
 
-const props = withDefaults(defineProps<{
-  videoId?: number | null
-  segments?: Segment[]
-}>(), {
-  videoId: null,
-  segments: () => []
-})
+const props = withDefaults(
+  defineProps<{
+    videoId?: number | null
+    segments?: Segment[]
+  }>(),
+  {
+    videoId: null,
+    segments: () => []
+  }
+)
 
 const videoStore = useVideoStore()
 const toast = useToastStore()
@@ -386,12 +392,11 @@ onMounted(async () => {
   }
 
   await autoSelectInitialVideo()
-}) 
+})
 const selectedFormat = ref<'csv' | 'json'>('csv')
 const useExportFlags = ref(true)
-const exportVideos = ref(true)
-const exportFrames = ref(false)
-const transcodeFrames = ref(false)
+const exportVideos = ref(false)
+const exportFrames = ref(true)
 const transcodeQuality = ref(23)
 const transcodeExt = ref('jpg')
 const useFramePkPaths = ref(false)
@@ -416,7 +421,9 @@ const exportOutputDir = computed(() => {
 })
 
 const exportSegmentIds = computed(() =>
-  sortedSegments.value.filter((segment) => segment.exportSegment === true).map((segment) => segment.id)
+  sortedSegments.value
+    .filter((segment) => segment.exportSegment === true)
+    .map((segment) => segment.id)
 )
 
 const getExportGuardError = (): string | null => {
@@ -476,35 +483,32 @@ const startExport = async () => {
     return
   }
 
-  const payload: Record<string, any> = {
-    output_dir: exportOutputDir.value,
-    output_format: selectedFormat.value,
-    use_export_flags: useExportFlags.value,
-    export_videos: exportVideos.value,
-    export_frames: exportFrames.value,
-    use_frame_pk_paths: useFramePkPaths.value
-  }
-
-  if (selectedVideoId.value) payload.video_id = selectedVideoId.value
-  if (exportSegmentIds.value.length > 0) {
-    payload.segmentIds = exportSegmentIds.value
-  }
-  if (!useExportFlags.value && exportSegmentIds.value.length > 0) {
-    payload.segment_ids = exportSegmentIds.value
-  }
-
-  if (transcodeFrames.value) {
-    payload.transcode_frames = true
-    payload.transcode_quality = transcodeQuality.value
-    payload.transcode_ext = transcodeExt.value
-  }
+  const videoId = selectedVideoId.value
+  if (videoId === null) return
+  const payload = buildAnnotationExportRequest({
+    outputDir: exportOutputDir.value,
+    outputFormat: selectedFormat.value,
+    videoId,
+    segmentIds: exportSegmentIds.value,
+    useExportFlags: useExportFlags.value,
+    exportVideos: exportVideos.value,
+    exportFrames: exportFrames.value,
+    useFramePkPaths: useFramePkPaths.value,
+    transcodeFrames: true,
+    transcodeQuality: transcodeQuality.value,
+    transcodeExt: transcodeExt.value
+  })
 
   isExporting.value = true
   try {
-    await axiosInstance.post(r('media/videos/export-annotated/'), payload)
+    const response = await axiosInstance.post<AnnotationExportResponse>(
+      r('media/videos/export-annotated/'),
+      payload
+    )
+    const result = response.data
     exportMessage.value = {
       type: 'success',
-      text: 'Exportauftrag erfolgreich gestartet. Überprüfen Sie die Logs für den Fortschritt.'
+      text: `Export abgeschlossen: ${result.rowCount} Annotationen, ${result.exportedFrameCount} Frames. Datei: ${result.outputPath}`
     }
   } catch (error: any) {
     console.error('Export request failed', error)
