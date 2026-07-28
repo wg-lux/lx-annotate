@@ -20,6 +20,7 @@ from lx_annotate.hub.hub_export_worker import run_outbound_transfer_job
 from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
+    hub_transfer_status_payload,
     verify_hub_report_artifact,
 )
 
@@ -76,25 +77,27 @@ class HubExportEndToEndTests(TestCase):
         self.assertEqual(mark_response.status_code, 200)
 
         register_response = MagicMock()
-        register_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "awaiting_media",
-            "processing_decision": "wait_for_missing_media",
-            "status_detail": "",
-        }
+        job = OutboundHubTransferJob.objects.get(raw_pdf_file=report)
+        register_response.json.return_value = hub_transfer_status_payload(
+            job=job,
+            source_node_key=self.site_node.node_key,
+            remote_transfer_id="remote-transfer-1",
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "applied",
-            "processing_decision": "skip_processing_preserved_state",
-            "status_detail": "",
-        }
+        upload_response.json.return_value = hub_transfer_status_payload(
+            job=job,
+            source_node_key=self.site_node.node_key,
+            remote_transfer_id="remote-transfer-1",
+            transfer_status="applied",
+            processing_decision="skip_processing_preserved_state",
+        )
         upload_response.raise_for_status.return_value = None
         post_mock.side_effect = [register_response, upload_response]
 
-        job = OutboundHubTransferJob.objects.get(raw_pdf_file=report)
         result = run_outbound_transfer_job(
             outbound_job_id=str(job.id),
             source_node_key=self.site_node.node_key,
@@ -150,25 +153,27 @@ class HubExportEndToEndTests(TestCase):
         self.assertEqual(mark_response.status_code, 200)
 
         register_response = MagicMock()
-        register_response.json.return_value = {
-            "id": "remote-transfer-2",
-            "transfer_status": "awaiting_media",
-            "processing_decision": "wait_for_missing_media",
-            "status_detail": "",
-        }
+        job = OutboundHubTransferJob.objects.get(video_file=video)
+        register_response.json.return_value = hub_transfer_status_payload(
+            job=job,
+            source_node_key=self.site_node.node_key,
+            remote_transfer_id="remote-transfer-2",
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = {
-            "id": "remote-transfer-2",
-            "transfer_status": "applied",
-            "processing_decision": "skip_processing_preserved_state",
-            "status_detail": "",
-        }
+        upload_response.json.return_value = hub_transfer_status_payload(
+            job=job,
+            source_node_key=self.site_node.node_key,
+            remote_transfer_id="remote-transfer-2",
+            transfer_status="applied",
+            processing_decision="skip_processing_preserved_state",
+        )
         upload_response.raise_for_status.return_value = None
         post_mock.side_effect = [register_response, upload_response]
 
-        job = OutboundHubTransferJob.objects.get(video_file=video)
         result = run_outbound_transfer_job(
             outbound_job_id=str(job.id),
             source_node_key=self.site_node.node_key,

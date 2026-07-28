@@ -14,6 +14,10 @@ from lx_annotate.hub.hub_export_reconciliation import (
     recover_stale_outbound_transfer_jobs,
 )
 from lx_annotate.models import OutboundHubTransferJob
+from tests.hub_payload_helpers import (
+    hub_transfer_status_payload,
+    verify_hub_report_artifact,
+)
 
 import base64
 import os
@@ -58,6 +62,7 @@ class HubExportReconciliationTests(TestCase):
                 name="report-1-processed.pdf",
             ),
         )
+        verify_hub_report_artifact(self.report)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.get")
     def test_reconcile_outbound_transfer_job_applies_remote_status(
@@ -73,12 +78,13 @@ class HubExportReconciliationTests(TestCase):
             local_status=OutboundHubTransferJob.LocalStatus.REGISTERING,
         )
         response = MagicMock()
-        response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "awaiting_media",
-            "processing_decision": "wait_for_missing_media",
-            "status_detail": "",
-        }
+        response.json.return_value = hub_transfer_status_payload(
+            job=job,
+            source_node_key=self.site_node.node_key,
+            remote_transfer_id="remote-transfer-1",
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
         response.raise_for_status.return_value = None
         get_mock.return_value = response
 

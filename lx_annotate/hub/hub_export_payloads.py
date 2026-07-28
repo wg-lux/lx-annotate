@@ -17,6 +17,10 @@ from endoreg_db.models import (
 )
 from endoreg_db.models.state.anonymization import AnonymizationState
 from endoreg_db.utils.file_operations import sha256_file
+from lx_dtypes.models.contracts import (
+    validate_hub_transfer_report_payload,
+    validate_hub_transfer_video_payload,
+)
 
 from .hub_export_state import (
     has_usable_processed_artifact,
@@ -198,6 +202,12 @@ def _build_video_rows(video: VideoFile, *, source_node_key: str) -> dict[str, An
     if processed_video_hash != state_processed_hash:
         raise ValueError(
             "Processed video hash metadata is inconsistent; refusing outbound transfer."
+        )
+    actual_processed_hash = sha256_file(video.processed_file)
+    if actual_processed_hash != processed_video_hash:
+        raise ValueError(
+            "Processed video file hash does not match persisted hash metadata; "
+            "refusing outbound transfer."
         )
 
     video_file_payload: VideoFilePayload = {
@@ -503,6 +513,12 @@ def validate_transfer_payload(
         raise ValueError("Outbound hub transfer requires processed-media mode.")
 
     resource_kind = str(payload.get("resource_kind") or "")
+    if resource_kind == TransferJob.ResourceKind.VIDEO.value:
+        canonical_payload = validate_hub_transfer_video_payload(payload)
+    elif resource_kind == TransferJob.ResourceKind.REPORT.value:
+        canonical_payload = validate_hub_transfer_report_payload(payload)
+    else:
+        raise ValueError(f"Unsupported outbound resource_kind: {resource_kind!r}.")
     resource_rows_value = payload.get("resource_rows", {})
     if not isinstance(resource_rows_value, dict):
         raise ValueError("resource_rows must be a JSON object.")
@@ -549,13 +565,28 @@ def validate_transfer_payload(
     source_center = Center.objects.get(
         center_key=str(payload.get("source_center_key") or "").strip()
     )
+    owning_center_id = cast(int | None, getattr(source_node, "owning_center_id", None))
+    if owning_center_id is None:
+        raise ValueError("source_node must have an owning center for sender export.")
+    if owning_center_id != source_center.pk:
+        raise ValueError(
+            "source_center_key must match the source node owning center before transfer."
+        )
+    expected_transfer_key = (
+        f"{source_node.node_key}__{resource_kind}__{resource_hash}__processed_v1"
+    )
+    if str(payload.get("transfer_key") or "") != expected_transfer_key:
+        raise ValueError(
+            "transfer_key must match the immutable source node, resource kind, "
+            "resource hash, and processed-media transfer identity."
+        )
     for segment in resource_rows.get("video_segments", []):
         if cast(dict[str, Any], segment).get("source_node_key") != source_node.node_key:
             raise ValueError(
                 "video segment source_node_key must match transfer source_node_key."
             )
     return {
-        **payload,
+        **canonical_payload,
         "source_node": source_node,
         "target_node": target_node,
         "source_center": source_center,

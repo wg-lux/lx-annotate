@@ -165,6 +165,85 @@ class HubExportPayloadTests(TestCase):
         with self.assertRaisesMessage(ValueError, "hash metadata is inconsistent"):
             build_transfer_payload(outbound_job=job, source_node=self.site_node)
 
+    def test_rejects_processed_video_file_hash_mismatch(self):
+        persisted_hash = "a" * 64
+        state = VideoState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            anonymization_validated=True,
+            processing_started=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=True,
+            ready_for_export_at=timezone.now(),
+            ready_for_export_by="test-suite",
+            processed_file_sha256=persisted_hash,
+        )
+        video = VideoFile.objects.create(
+            center=self.center,
+            state=state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
+            video_hash="video-hash-file-mismatch",
+            processed_video_hash=persisted_hash,
+            original_file_name="video-file-mismatch.mp4",
+            suffix=".mp4",
+            fps=25.0,
+            duration=1.0,
+            frame_count=25,
+            width=320,
+            height=240,
+            processed_file=ContentFile(
+                b"different-processed-video",
+                name="video-file-mismatch-processed.mp4",
+            ),
+        )
+        job = OutboundHubTransferJob.objects.create(
+            resource_kind=OutboundHubTransferJob.ResourceKind.VIDEO,
+            video_file=video,
+            source_center=self.center,
+            target_node=self.hub_node,
+            transfer_key=("site-node__video__video-hash-file-mismatch__processed_v1"),
+        )
+
+        with self.assertRaisesMessage(ValueError, "file hash does not match"):
+            build_transfer_payload(outbound_job=job, source_node=self.site_node)
+
+    def test_rejects_source_center_outside_source_node_ownership(self):
+        other_center = Center.objects.create(
+            name="Other Center", center_key="other-center"
+        )
+        state = RawPdfState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            processing_started=True,
+            anonymization_validated=True,
+        )
+        report = RawPdfFile.objects.create(
+            center=other_center,
+            state=state,
+            sensitive_meta=create_hub_sensitive_meta(center=other_center),
+            pdf_hash="report-hash-other-center",
+            anonymized_text="Anonymized report text",
+            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="other-center.pdf"),
+            processed_file=ContentFile(
+                b"%PDF-1.4\nprocessed\n%%EOF\n",
+                name="other-center-processed.pdf",
+            ),
+        )
+        verify_hub_report_artifact(report)
+        job = OutboundHubTransferJob.objects.create(
+            resource_kind=OutboundHubTransferJob.ResourceKind.REPORT,
+            raw_pdf_file=report,
+            source_center=other_center,
+            target_node=self.hub_node,
+            transfer_key=("site-node__report__report-hash-other-center__processed_v1"),
+        )
+        payload = build_transfer_payload(outbound_job=job, source_node=self.site_node)
+
+        with self.assertRaisesMessage(ValueError, "owning center"):
+            validate_transfer_payload(payload)
+
     def test_builds_and_validates_report_transfer_payload(self):
         state = RawPdfState.objects.create(
             anonymized=True,

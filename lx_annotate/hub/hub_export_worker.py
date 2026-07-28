@@ -47,9 +47,22 @@ class HubTransportConfig:
 
 class RemoteTransferStatusPayload(TypedDict, total=False):
     id: str
+    transfer_key: str
+    source_node_key: str
+    target_node_key: str
+    source_center_key: str
+    resource_kind: str
+    resource_hash: str
+    processed_media_hash: str
+    transfer_mode: str
     transfer_status: str
     processing_decision: str
+    payload_schema_version: str
     status_detail: str
+
+
+class RemoteTransferIntegrityError(ValueError):
+    """The hub acknowledgement does not match the outbound transfer identity."""
 
 
 def _normalize_env_suffix(node_key: str) -> str:
@@ -272,7 +285,14 @@ def _localized_processed_media_path(
 def apply_remote_status(
     outbound_job: OutboundHubTransferJob,
     response_data: RemoteTransferStatusPayload,
+    *,
+    expected_source_node_key: str,
 ) -> OutboundHubTransferJob:
+    _validate_remote_transfer_status(
+        outbound_job,
+        response_data,
+        expected_source_node_key=expected_source_node_key,
+    )
     previous_status = outbound_job.local_status
     remote_transfer_id = str(response_data.get("id", "") or "")
     remote_transfer_status = str(response_data.get("transfer_status", "") or "")
@@ -316,6 +336,57 @@ def apply_remote_status(
         remote_processing_decision=remote_processing_decision,
     )
     return outbound_job
+
+
+def _expected_processed_media_hash(
+    outbound_job: OutboundHubTransferJob,
+) -> str:
+    if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO:
+        video = outbound_job.video_file
+        return str(getattr(video, "processed_video_hash", "") or "").strip()
+
+    report = outbound_job.raw_pdf_file
+    state = getattr(report, "state", None)
+    return str(getattr(state, "processed_file_sha256", "") or "").strip()
+
+
+def _validate_remote_transfer_status(
+    outbound_job: OutboundHubTransferJob,
+    response_data: RemoteTransferStatusPayload,
+    *,
+    expected_source_node_key: str,
+) -> None:
+    source_center = outbound_job.source_center
+    video = outbound_job.video_file
+    report = outbound_job.raw_pdf_file
+    expected_values = {
+        "transfer_key": str(outbound_job.transfer_key),
+        "source_node_key": expected_source_node_key,
+        "target_node_key": str(outbound_job.target_node.node_key),
+        "source_center_key": str(getattr(source_center, "center_key", "") or ""),
+        "resource_kind": str(outbound_job.resource_kind),
+        "resource_hash": (
+            str(getattr(video, "video_hash", "") or "")
+            if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO
+            else str(getattr(report, "pdf_hash", "") or "")
+        ),
+        "processed_media_hash": _expected_processed_media_hash(outbound_job),
+        "transfer_mode": str(outbound_job.transfer_mode),
+        "payload_schema_version": "3.0",
+    }
+    mismatches = [
+        field_name
+        for field_name, expected_value in expected_values.items()
+        if not expected_value
+        or str(response_data.get(field_name, "") or "").strip() != expected_value
+    ]
+    if not str(response_data.get("id", "") or "").strip():
+        mismatches.append("id")
+    if mismatches:
+        raise RemoteTransferIntegrityError(
+            "Hub acknowledgement identity mismatch for: "
+            + ", ".join(sorted(set(mismatches)))
+        )
 
 
 def mark_outbound_job_failure(
@@ -456,7 +527,17 @@ def run_outbound_transfer_job(
             register_payload = cast(
                 RemoteTransferStatusPayload, register_response.json()
             )
-        apply_remote_status(outbound_job, register_payload)
+        apply_remote_status(
+            outbound_job,
+            register_payload,
+            expected_source_node_key=source_node.node_key,
+        )
+    except RemoteTransferIntegrityError as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
+            retryable=False,
+        )
     except requests.RequestException as exc:
         return mark_outbound_job_failure(
             outbound_job,
@@ -507,7 +588,17 @@ def run_outbound_transfer_job(
             )
             _raise_for_hub_response(media_response)
             media_payload = cast(RemoteTransferStatusPayload, media_response.json())
-            apply_remote_status(outbound_job, media_payload)
+            apply_remote_status(
+                outbound_job,
+                media_payload,
+                expected_source_node_key=source_node.node_key,
+            )
+        except RemoteTransferIntegrityError as exc:
+            return mark_outbound_job_failure(
+                outbound_job,
+                error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
+                retryable=False,
+            )
         except requests.RequestException as exc:
             return mark_outbound_job_failure(
                 outbound_job,

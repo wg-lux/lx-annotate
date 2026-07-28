@@ -12,6 +12,7 @@ from django.test import TestCase, override_settings
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
+    hub_transfer_status_payload,
     verify_hub_report_artifact,
 )
 from lx_annotate.hub.hub_export_worker import (
@@ -73,6 +74,20 @@ class HubExportWorkerTests(TestCase):
             source_center=self.center,
             target_node=self.hub_node,
             transfer_key="site-node__report__report-hash-1__processed_v1",
+        )
+
+    def _remote_status(
+        self,
+        *,
+        transfer_status: str,
+        processing_decision: str,
+    ) -> dict[str, str]:
+        return hub_transfer_status_payload(
+            job=self.job,
+            source_node_key=self.site_node.node_key,
+            remote_transfer_id="remote-transfer-1",
+            transfer_status=transfer_status,
+            processing_decision=processing_decision,
         )
 
     def test_resolve_outbound_node_secret_requires_explicit_or_env_value(self):
@@ -137,21 +152,17 @@ class HubExportWorkerTests(TestCase):
         post_mock: MagicMock,
     ):
         register_response = MagicMock()
-        register_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "awaiting_media",
-            "processing_decision": "wait_for_missing_media",
-            "status_detail": "",
-        }
+        register_response.json.return_value = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "applied",
-            "processing_decision": "skip_processing_preserved_state",
-            "status_detail": "",
-        }
+        upload_response.json.return_value = self._remote_status(
+            transfer_status="applied",
+            processing_decision="skip_processing_preserved_state",
+        )
         upload_response.raise_for_status.return_value = None
 
         post_mock.side_effect = [register_response, upload_response]
@@ -175,21 +186,17 @@ class HubExportWorkerTests(TestCase):
         post_mock: MagicMock,
     ):
         register_response = MagicMock()
-        register_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "awaiting_media",
-            "processing_decision": "wait_for_missing_media",
-            "status_detail": "",
-        }
+        register_response.json.return_value = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "applied",
-            "processing_decision": "skip_processing_preserved_state",
-            "status_detail": "",
-        }
+        upload_response.json.return_value = self._remote_status(
+            transfer_status="applied",
+            processing_decision="skip_processing_preserved_state",
+        )
         upload_response.raise_for_status.return_value = None
 
         responses = iter([register_response, upload_response])
@@ -260,21 +267,17 @@ class HubExportWorkerTests(TestCase):
         conflict_response.status_code = 409
 
         status_response = MagicMock()
-        status_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "awaiting_media",
-            "processing_decision": "wait_for_missing_media",
-            "status_detail": "",
-        }
+        status_response.json.return_value = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
         status_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "applied",
-            "processing_decision": "skip_processing_preserved_state",
-            "status_detail": "",
-        }
+        upload_response.json.return_value = self._remote_status(
+            transfer_status="applied",
+            processing_decision="skip_processing_preserved_state",
+        )
         upload_response.raise_for_status.return_value = None
 
         post_mock.side_effect = [conflict_response, upload_response]
@@ -310,6 +313,33 @@ class HubExportWorkerTests(TestCase):
         self.assertIn("registration failed", result.last_error)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_run_outbound_transfer_job_rejects_mismatched_acknowledgement(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        response = MagicMock()
+        acknowledgement = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
+        acknowledgement["processed_media_hash"] = "0" * 64
+        response.json.return_value = acknowledgement
+        response.raise_for_status.return_value = None
+        post_mock.return_value = response
+
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(result.retry_count, 0)
+        self.assertIn("acknowledgement inconsistent", result.last_error)
+        self.assertIn("processed_media_hash", result.last_error)
+        post_mock.assert_called_once()
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
     @patch("lx_annotate.hub.hub_export_worker.ensure_local_file")
     def test_run_outbound_transfer_job_localizes_processed_media_before_upload(
         self,
@@ -317,21 +347,17 @@ class HubExportWorkerTests(TestCase):
         post_mock: MagicMock,
     ) -> None:
         register_response = MagicMock()
-        register_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "awaiting_media",
-            "processing_decision": "wait_for_missing_media",
-            "status_detail": "",
-        }
+        register_response.json.return_value = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = {
-            "id": "remote-transfer-1",
-            "transfer_status": "applied",
-            "processing_decision": "skip_processing_preserved_state",
-            "status_detail": "",
-        }
+        upload_response.json.return_value = self._remote_status(
+            transfer_status="applied",
+            processing_decision="skip_processing_preserved_state",
+        )
         upload_response.raise_for_status.return_value = None
         post_mock.side_effect = [register_response, upload_response]
 

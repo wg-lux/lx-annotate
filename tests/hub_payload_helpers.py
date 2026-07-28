@@ -30,6 +30,37 @@ def verify_hub_report_artifact(report: RawPdfFile) -> str:
     return verify_and_persist_processed_report_sha256(report)
 
 
+def hub_transfer_status_payload(
+    *,
+    job: Any,
+    source_node_key: str,
+    remote_transfer_id: str,
+    transfer_status: str,
+    processing_decision: str,
+) -> dict[str, str]:
+    if str(job.resource_kind) == "video":
+        resource_hash = str(job.video_file.video_hash)
+        processed_media_hash = str(job.video_file.processed_video_hash)
+    else:
+        resource_hash = str(job.raw_pdf_file.pdf_hash)
+        processed_media_hash = str(job.raw_pdf_file.state.processed_file_sha256)
+    return {
+        "id": remote_transfer_id,
+        "transfer_key": str(job.transfer_key),
+        "source_node_key": source_node_key,
+        "target_node_key": str(job.target_node.node_key),
+        "source_center_key": str(job.source_center.center_key),
+        "resource_kind": str(job.resource_kind),
+        "resource_hash": resource_hash,
+        "processed_media_hash": processed_media_hash,
+        "transfer_mode": str(job.transfer_mode),
+        "transfer_status": transfer_status,
+        "processing_decision": processing_decision,
+        "payload_schema_version": "3.0",
+        "status_detail": "",
+    }
+
+
 def valid_report_resource_rows(*, pdf_hash: str = "hash-1") -> dict[str, Any]:
     processed_file_sha256 = hashlib.sha256(f"processed:{pdf_hash}".encode()).hexdigest()
     return {

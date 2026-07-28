@@ -12,6 +12,7 @@ from endoreg_db.models import NetworkNode
 
 from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_worker import (
+    RemoteTransferIntegrityError,
     apply_remote_status,
     fetch_remote_transfer_status,
     mark_outbound_job_failure,
@@ -163,7 +164,18 @@ def reconcile_outbound_transfer_job(
         )
         return outbound_job
 
-    apply_remote_status(outbound_job, remote_status)
+    try:
+        apply_remote_status(
+            outbound_job,
+            remote_status,
+            expected_source_node_key=source_node.node_key,
+        )
+    except RemoteTransferIntegrityError as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
+            retryable=False,
+        )
     emit_hub_export_audit_event(
         "hub_export.reconciled",
         outbound_job=outbound_job,
