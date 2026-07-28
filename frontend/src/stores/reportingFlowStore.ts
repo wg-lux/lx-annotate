@@ -33,6 +33,7 @@ export type ReportingRuntimeDraft = {
 
 type PersistedReportingFlowState = {
   lookupToken: string | null
+  caseId: string | null
   patientExaminationId: number | null
   selectedPatientId: number | null
   selectedExaminationId: number | null
@@ -89,11 +90,15 @@ function normalizeRuntimePatientFindings(
   return patientFindings.map((patientFinding) => ({
     ...patientFinding,
     localId: patientFinding.localId || nextRuntimeDraftEntityId('finding'),
-    classificationChoices: normalizeRuntimeClassificationChoices(patientFinding.classificationChoices)
+    classificationChoices: normalizeRuntimeClassificationChoices(
+      patientFinding.classificationChoices
+    )
   }))
 }
 
-function normalizeRuntimePayloadIds(payload: ReportTemplateRuntimePayload): ReportTemplateRuntimePayload {
+function normalizeRuntimePayloadIds(
+  payload: ReportTemplateRuntimePayload
+): ReportTemplateRuntimePayload {
   return {
     ...payload,
     patientFindings: normalizeRuntimePatientFindings(payload.patientFindings)
@@ -129,6 +134,7 @@ function normalizePersistedState(
 
   return {
     lookupToken: typeof parsed.lookupToken === 'string' ? parsed.lookupToken : null,
+    caseId: typeof parsed.caseId === 'string' && parsed.caseId.trim() ? parsed.caseId : null,
     patientExaminationId:
       typeof parsed.patientExaminationId === 'number' ? parsed.patientExaminationId : null,
     selectedPatientId:
@@ -168,8 +174,10 @@ function normalizePersistedState(
             })
           )
         : {},
-    runtimeDraftsByPatientExaminationId:
-      runtimeDraftsByPatientExaminationId as Record<string, ReportingRuntimeDraft>
+    runtimeDraftsByPatientExaminationId: runtimeDraftsByPatientExaminationId as Record<
+      string,
+      ReportingRuntimeDraft
+    >
   }
 }
 
@@ -203,6 +211,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const authSubject = ref<string | null>(null)
   const sessionStatus = ref<SessionStatus>('idle')
   const lookupToken = ref<string | null>(null)
+  const caseId = ref<string | null>(null)
   const patientExaminationId = ref<number | null>(null)
   const selectedPatientId = ref<number | null>(null)
   const selectedExaminationId = ref<number | null>(null)
@@ -210,9 +219,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const selectedKbModule = ref<string>('report_template_examples')
   const selectedTemplateName = ref<string | null>(null)
   const templateSectionDrafts = ref<Record<string, ReportTemplateSectionDraft>>({})
-  const indications = ref<ReportingIndicationRow[]>(
-    [{ examinationIndicationId: null, indicationChoiceId: null }]
-  )
+  const indications = ref<ReportingIndicationRow[]>([
+    { examinationIndicationId: null, indicationChoiceId: null }
+  ])
   const lookupSnapshot = ref<ReportingLookupSnapshot | null>(null)
   const lastTemplateValidation = ref<ReportingTemplateValidation>(null)
   const findingsRevision = ref(0)
@@ -236,7 +245,11 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const savingFinalReport = ref(false)
 
   const hasActiveCase = computed(
-    () => !!patientExaminationId.value && !!selectedExaminationId.value && !!selectedPatientId.value
+    () =>
+      !!caseId.value &&
+      !!patientExaminationId.value &&
+      !!selectedExaminationId.value &&
+      !!selectedPatientId.value
   )
 
   const currentRuntimeDraft = computed<ReportingRuntimeDraft | null>(() => {
@@ -253,14 +266,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
     return !!(
       patientExaminationId.value &&
-      (
-        activeReportId.value ||
+      (activeReportId.value ||
         currentRuntimeDraft.value ||
         selectedTemplateName.value ||
         Object.keys(templateSectionDrafts.value).length ||
         hasNonDefaultIndications ||
-        findingsRevision.value > 0
-      )
+        findingsRevision.value > 0)
     )
   })
 
@@ -308,6 +319,13 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     }
   }
 
+  function setCaseContext(params: { caseId: string | null; selectedPatientId?: number | null }) {
+    caseId.value = params.caseId
+    if (params.selectedPatientId !== undefined) {
+      selectedPatientId.value = params.selectedPatientId
+    }
+  }
+
   function setRuntimeDraft(draft: ReportingRuntimeDraft) {
     runtimeDraftsByPatientExaminationId.value = {
       ...runtimeDraftsByPatientExaminationId.value,
@@ -326,9 +344,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function updateCurrentRuntimeDraft(
-    updater: (
-      draft: ReportingRuntimeDraft
-    ) => ReportingRuntimeDraft | null
+    updater: (draft: ReportingRuntimeDraft) => ReportingRuntimeDraft | null
   ): ReportingRuntimeDraft | null {
     const currentDraft = currentRuntimeDraft.value
     if (!currentDraft) return null
@@ -341,9 +357,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     return runtimeDraftsByPatientExaminationId.value[String(nextDraft.patientExaminationId)] || null
   }
 
-  function addFinding(params: {
-    findingName: string
-  }): string | null {
+  function addFinding(params: { findingName: string }): string | null {
     if (!params.findingName.trim()) return null
     const findingLocalId = nextRuntimeDraftEntityId('finding')
     const updated = updateCurrentRuntimeDraft((draft) => ({
@@ -519,7 +533,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedExaminationId?: number | null
   }) {
     if (params.selectedPatientId !== undefined) selectedPatientId.value = params.selectedPatientId
-    if (params.selectedExaminationId !== undefined) selectedExaminationId.value = params.selectedExaminationId
+    if (params.selectedExaminationId !== undefined)
+      selectedExaminationId.value = params.selectedExaminationId
   }
 
   function setActiveReportId(id: number | null) {
@@ -530,10 +545,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     sessionStatus.value = status
   }
 
-  function setTemplateSelection(params: {
-    moduleName?: string
-    templateName?: string | null
-  }) {
+  function setTemplateSelection(params: { moduleName?: string; templateName?: string | null }) {
     if (params.moduleName !== undefined) {
       selectedKbModule.value = params.moduleName || 'report_template_examples'
     }
@@ -557,8 +569,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       [sectionName]: {
         note: patch.note ?? current.note,
         includePatientData: patch.includePatientData ?? current.includePatientData,
-        includeExaminationData:
-          patch.includeExaminationData ?? current.includeExaminationData
+        includeExaminationData: patch.includeExaminationData ?? current.includeExaminationData
       }
     }
   }
@@ -569,19 +580,18 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   function applyPersistedState(persisted: PersistedReportingFlowState | null) {
     lookupToken.value = persisted?.lookupToken ?? null
+    caseId.value = persisted?.caseId ?? null
     patientExaminationId.value = persisted?.patientExaminationId ?? null
     selectedPatientId.value = persisted?.selectedPatientId ?? null
     selectedExaminationId.value = persisted?.selectedExaminationId ?? null
     activeReportId.value = persisted?.activeReportId ?? null
-    indications.value =
-      persisted?.indications?.length
-        ? persisted.indications
-        : [{ examinationIndicationId: null, indicationChoiceId: null }]
+    indications.value = persisted?.indications?.length
+      ? persisted.indications
+      : [{ examinationIndicationId: null, indicationChoiceId: null }]
     selectedKbModule.value = persisted?.selectedKbModule ?? 'report_template_examples'
     selectedTemplateName.value = persisted?.selectedTemplateName ?? null
     templateSectionDrafts.value = persisted?.templateSectionDrafts ?? {}
-    runtimeDraftsByPatientExaminationId.value =
-      persisted?.runtimeDraftsByPatientExaminationId ?? {}
+    runtimeDraftsByPatientExaminationId.value = persisted?.runtimeDraftsByPatientExaminationId ?? {}
   }
 
   function bindAuthSubject(subject: string | null | undefined) {
@@ -602,6 +612,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       draftAutosaveTimer.value = null
     }
     lookupToken.value = null
+    caseId.value = null
     patientExaminationId.value = null
     selectedExaminationId.value = null
     activeReportId.value = null
@@ -631,6 +642,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       draftAutosaveTimer.value = null
     }
     lookupToken.value = null
+    caseId.value = null
     patientExaminationId.value = null
     selectedPatientId.value = null
     selectedExaminationId.value = null
@@ -679,7 +691,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function setIndications(rows: ReportingIndicationRow[]) {
-    indications.value = rows.length ? rows : [{ examinationIndicationId: null, indicationChoiceId: null }]
+    indications.value = rows.length
+      ? rows
+      : [{ examinationIndicationId: null, indicationChoiceId: null }]
   }
 
   function setLookupSnapshot(snapshot: ReportingLookupSnapshot | null) {
@@ -706,7 +720,11 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     }
   }
 
-  function noteClassificationUpdated(findingId: number, classificationId: number, choiceId: number | null) {
+  function noteClassificationUpdated(
+    findingId: number,
+    classificationId: number,
+    choiceId: number | null
+  ) {
     findingsRevision.value += 1
     lastFindingsEvent.value = {
       type: 'classification_updated',
@@ -744,6 +762,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   const persistable = computed<PersistedReportingFlowState>(() => ({
     lookupToken: lookupToken.value,
+    caseId: caseId.value,
     patientExaminationId: patientExaminationId.value,
     selectedPatientId: selectedPatientId.value,
     selectedExaminationId: selectedExaminationId.value,
@@ -773,19 +792,17 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     { deep: true }
   )
 
-  watch(
-    currentDraftPersistenceSignature,
-    (signature) => {
-      if (!signature) return
-      if (signature === draftAutosaveSignature.value) return
-      scheduleDraftAutosave()
-    }
-  )
+  watch(currentDraftPersistenceSignature, (signature) => {
+    if (!signature) return
+    if (signature === draftAutosaveSignature.value) return
+    scheduleDraftAutosave()
+  })
 
   return {
     authSubject,
     sessionStatus,
     lookupToken,
+    caseId,
     patientExaminationId,
     selectedPatientId,
     selectedExaminationId,
@@ -812,6 +829,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     hasDraftContent,
     canUseLookupPages,
     setLookupSession,
+    setCaseContext,
     setPatientExaminationContext,
     setRuntimeDraft,
     markDraftPersistenceHydrated,

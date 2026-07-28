@@ -36,7 +36,11 @@
               <option value="" disabled>
                 {{ templateLoading ? 'Templates laden...' : 'Template wählen' }}
               </option>
-              <option v-for="template in templateOptions" :key="template.name" :value="template.name">
+              <option
+                v-for="template in templateOptions"
+                :key="template.name"
+                :value="template.name"
+              >
                 {{ template.name }}
               </option>
             </select>
@@ -74,9 +78,14 @@
         </div>
         <div v-if="currentRuntimeDraft" class="small text-muted">
           Entwurf:
-          {{ currentRuntimeDraft.hydratedFrom === 'session_storage' || currentRuntimeDraft.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : 'initialisiert' }}
-          · Befunde: {{ currentPayload?.patientFindings.length || 0 }}
-          · Aktualisiert: {{ new Date(currentRuntimeDraft.updatedAt).toLocaleTimeString('de-DE') }}
+          {{
+            currentRuntimeDraft.hydratedFrom === 'session_storage' ||
+            currentRuntimeDraft.hydratedFrom === 'draft_api'
+              ? 'wiederhergestellt'
+              : 'initialisiert'
+          }}
+          · Befunde: {{ currentPayload?.patientFindings.length || 0 }} · Aktualisiert:
+          {{ new Date(currentRuntimeDraft.updatedAt).toLocaleTimeString('de-DE') }}
         </div>
       </template>
     </MedicalBlock>
@@ -85,7 +94,9 @@
       <div class="card-header d-flex justify-content-between align-items-center">
         <div>
           <h5 class="mb-0">Befunderfassung</h5>
-          <small class="text-muted">Frontend-eigene Befundgraphen pflegen und gegen das Template validieren</small>
+          <small class="text-muted"
+            >Frontend-eigene Befundgraphen pflegen und gegen das Template validieren</small
+          >
         </div>
         <div class="small text-muted">
           {{ currentPayload?.patientFindings.length || 0 }} Befundinstanz(en)
@@ -97,22 +108,22 @@
 
         <ReportingMediaPreviewCards class="mb-3" />
 
-        <div v-if="!flow.patientExaminationId || !flow.selectedExaminationId" class="alert alert-warning">
+        <div
+          v-if="!flow.patientExaminationId || !flow.selectedExaminationId"
+          class="alert alert-warning"
+        >
           Bitte zuerst das Fall-Setup abschließen (Patient + Untersuchung + PatientExamination).
         </div>
         <div v-else-if="!currentRuntimeDraft || !currentPayload" class="alert alert-warning">
           Kein lokaler Reporting-Entwurf vorhanden. Bitte den Reporting-Shell-Kontext erneut laden.
         </div>
         <div v-else-if="!selectedTemplate" class="alert alert-info">
-          Bitte zuerst ein Template wählen, damit die Befunde abschnittsweise gerendert werden können.
+          Bitte zuerst ein Template wählen, damit die Befunde abschnittsweise gerendert werden
+          können.
         </div>
 
         <template v-else>
-          <div
-            v-for="section in sectionBlocks"
-            :key="section.name"
-            class="card border mb-3"
-          >
+          <div v-for="section in sectionBlocks" :key="section.name" class="card border mb-3">
             <div class="card-header bg-light">
               <div class="d-flex justify-content-between align-items-center gap-3">
                 <div>
@@ -145,7 +156,11 @@
                     :disabled="!canAddFinding(templateFinding)"
                     @click="onAddFinding(templateFinding.finding)"
                   >
-                    {{ instancesForFinding(templateFinding.finding).length ? 'Weitere Instanz hinzufügen' : 'Befund hinzufügen' }}
+                    {{
+                      instancesForFinding(templateFinding.finding).length
+                        ? 'Weitere Instanz hinzufügen'
+                        : 'Befund hinzufügen'
+                    }}
                   </button>
                 </div>
 
@@ -184,27 +199,41 @@
 
                     <div class="row g-3">
                       <div
-                        v-for="classification in visibleClassificationsForFinding(templateFinding.finding)"
+                        v-for="classification in visibleClassificationsForFinding(
+                          templateFinding.finding
+                        )"
                         :key="`${instance.localId}:${classification.name}`"
                         class="col-md-6"
                       >
                         <label class="form-label">
                           {{ classification.displayName || classification.name }}
-                          <span v-if="isClassificationRequired(templateFinding.finding, classification.name)" class="text-danger">*</span>
+                          <span
+                            v-if="
+                              isClassificationRequired(templateFinding.finding, classification.name)
+                            "
+                            class="text-danger"
+                            >*</span
+                          >
                         </label>
                         <select
                           class="form-select"
-                          :class="{ 'is-invalid': hasFieldError(instance, templateFinding.finding, classification.name) }"
+                          :class="{
+                            'is-invalid': hasFieldError(
+                              instance,
+                              templateFinding.finding,
+                              classification.name
+                            )
+                          }"
                           :value="classificationChoiceName(instance, classification.name)"
-                          @change="onClassificationChoiceChange(
-                            instance.localId || '',
-                            classification.name,
-                            ($event.target as HTMLSelectElement).value
-                          )"
+                          @change="
+                            onClassificationChoiceChange(
+                              instance.localId || '',
+                              classification.name,
+                              ($event.target as HTMLSelectElement).value
+                            )
+                          "
                         >
-                          <option value="">
-                            Auswahl treffen
-                          </option>
+                          <option value="">Auswahl treffen</option>
                           <option
                             v-for="choice in classification.choices"
                             :key="choice.id"
@@ -215,7 +244,11 @@
                         </select>
 
                         <div
-                          v-for="descriptorKey in descriptorKeysForField(templateFinding.finding, classification.name, instance)"
+                          v-for="descriptorKey in descriptorKeysForField(
+                            templateFinding.finding,
+                            classification.name,
+                            instance
+                          )"
                           :key="`${instance.localId}:${classification.name}:${descriptorKey}`"
                           class="mt-2"
                         >
@@ -226,21 +259,30 @@
                             class="form-control form-control-sm"
                             :type="descriptorInputType(descriptorKey)"
                             :value="descriptorValue(instance, classification.name, descriptorKey)"
-                            @input="onDescriptorInput(
-                              instance.localId || '',
-                              classification.name,
-                              descriptorKey,
-                              ($event.target as HTMLInputElement).value
-                            )"
+                            @input="
+                              onDescriptorInput(
+                                instance.localId || '',
+                                classification.name,
+                                descriptorKey,
+                                ($event.target as HTMLInputElement).value
+                              )
+                            "
                           />
                         </div>
 
                         <div
-                          v-if="fieldMessages(instance, templateFinding.finding, classification.name).length"
+                          v-if="
+                            fieldMessages(instance, templateFinding.finding, classification.name)
+                              .length
+                          "
                           class="invalid-feedback d-block"
                         >
                           <div
-                            v-for="message in fieldMessages(instance, templateFinding.finding, classification.name)"
+                            v-for="message in fieldMessages(
+                              instance,
+                              templateFinding.finding,
+                              classification.name
+                            )"
                             :key="message"
                           >
                             {{ message }}
@@ -259,7 +301,10 @@
           </div>
 
           <div class="mt-3 p-3 bg-light rounded small">
-            <div><strong>Letztes Befund-Ereignis:</strong> {{ flow.lastFindingsEvent ? formatFindingsEvent(flow.lastFindingsEvent) : 'keins' }}</div>
+            <div>
+              <strong>Letztes Befund-Ereignis:</strong>
+              {{ flow.lastFindingsEvent ? formatFindingsEvent(flow.lastFindingsEvent) : 'keins' }}
+            </div>
           </div>
 
           <div class="mt-3">
@@ -338,12 +383,11 @@ const {
 
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
 const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
-const canValidateDraft = computed(
-  () => !!selectedTemplateName.value && !!currentPayload.value
-)
+const canValidateDraft = computed(() => !!selectedTemplateName.value && !!currentPayload.value)
 const selectedExamination = computed(
   () =>
-    examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) || null
+    examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) ||
+    null
 )
 const selectedExaminationName = computed(() => selectedExamination.value?.name || null)
 const selectedExaminationDisplayName = computed(
@@ -362,7 +406,9 @@ const selectedTemplateValidatorCounts = computed(() => {
 })
 
 const catalogFindingsByNormalizedName = computed(() => {
-  const entries = catalogFindings.value.map((finding) => [normalizeKey(finding.name), finding] as const)
+  const entries = catalogFindings.value.map(
+    (finding) => [normalizeKey(finding.name), finding] as const
+  )
   return new Map<string, Finding>(entries)
 })
 
@@ -375,20 +421,17 @@ const backendMissingClassificationsByFinding = computed<Record<string, string[]>
 })
 
 const backendMessagesByFinding = computed<Record<string, string[]>>(() => {
-  const entries = (flow.lastTemplateValidation?.findingsValidators || []).map((validator) => [
-    normalizeKey(validator.finding),
-    validator.issues.map((issue) => issue.message)
-  ] as const)
+  const entries = (flow.lastTemplateValidation?.findingsValidators || []).map(
+    (validator) =>
+      [normalizeKey(validator.finding), validator.issues.map((issue) => issue.message)] as const
+  )
   return Object.fromEntries(entries)
 })
 
 const findingAnchors = computed<Record<string, string>>(() => {
   const entries = sectionBlocks.value
     .flatMap((section) => section.findings)
-    .map((finding) => [
-      normalizeKey(finding.finding),
-      findingAnchorId(finding.finding)
-    ] as const)
+    .map((finding) => [normalizeKey(finding.finding), findingAnchorId(finding.finding)] as const)
   return Object.fromEntries(entries)
 })
 
@@ -451,7 +494,8 @@ function allDefinitionClassificationsForFinding(findingName: string): FindingCla
 
 function visibleClassificationsForFinding(findingName: string): FindingClassification[] {
   const definitions = allDefinitionClassificationsForFinding(findingName)
-  const extraRequired = backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []
+  const extraRequired =
+    backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []
   const byKey = new Map<string, FindingClassification>()
 
   for (const classification of definitions) {
@@ -493,13 +537,13 @@ function isClassificationRequired(findingName: string, classificationName: strin
       .flatMap((section) => section.findings)
       .find((finding) => normalizeKey(finding.finding) === normalizeKey(findingName))
       ?.classifications.find(
-        (classification) => normalizeKey(classification.classification) === normalizeKey(classificationName)
+        (classification) =>
+          normalizeKey(classification.classification) === normalizeKey(classificationName)
       )?.required || false
 
-  const fromValidation =
-    (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some(
-      (classification) => normalizeKey(classification) === normalizeKey(classificationName)
-    )
+  const fromValidation = (
+    backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []
+  ).some((classification) => normalizeKey(classification) === normalizeKey(classificationName))
 
   return fromTemplate || fromValidation
 }
@@ -533,7 +577,9 @@ function selectedChoiceDefinition(
   const choiceName = classificationChoiceName(instance, classificationName)
   if (!classification || !choiceName) return null
   return (
-    classification.choices.find((choice) => normalizeKey(choice.name) === normalizeKey(choiceName)) || null
+    classification.choices.find(
+      (choice) => normalizeKey(choice.name) === normalizeKey(choiceName)
+    ) || null
   )
 }
 
@@ -577,9 +623,7 @@ function descriptorValue(
 }
 
 function descriptorLabel(descriptorKey: string): string {
-  return descriptorKey
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
+  return descriptorKey.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 function descriptorInputType(descriptorKey: string): 'number' | 'text' {
@@ -592,7 +636,8 @@ function buildDescriptors(
   nextChoiceName: string,
   patch?: { descriptorKey?: string; descriptorValue?: string }
 ): ReportTemplateRuntimeDescriptorInput[] {
-  const existingDescriptors = classificationChoiceState(instance, classificationName)?.descriptors || []
+  const existingDescriptors =
+    classificationChoiceState(instance, classificationName)?.descriptors || []
   const descriptorKeys = descriptorKeysForField(instance.finding, classificationName, instance)
   const byKey = new Map<string, ReportTemplateRuntimeDescriptorInput>(
     existingDescriptors.map((descriptor) => [descriptor.classificationChoiceDescriptor, descriptor])
@@ -628,19 +673,15 @@ function hasFieldError(
   const isMissingRequired =
     isClassificationRequired(findingName, classificationName) &&
     !choiceValue.trim() &&
-    (
-      showValidationFeedback.value ||
-      touchedFields.value[fieldKey(instance.localId || '', classificationName)]
-    )
+    (showValidationFeedback.value ||
+      touchedFields.value[fieldKey(instance.localId || '', classificationName)])
 
   const hasBackendMissing =
     (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some(
       (classification) => normalizeKey(classification) === normalizeKey(classificationName)
     ) &&
-    (
-      showValidationFeedback.value ||
-      touchedFields.value[fieldKey(instance.localId || '', classificationName)]
-    )
+    (showValidationFeedback.value ||
+      touchedFields.value[fieldKey(instance.localId || '', classificationName)])
 
   return isMissingRequired || hasBackendMissing
 }
@@ -736,15 +777,9 @@ function onClassificationChoiceChange(
     findingLocalId,
     classificationName,
     classificationChoice: nextChoice || null,
-    descriptors: nextChoice
-      ? buildDescriptors(instance, classificationName, nextChoice)
-      : []
+    descriptors: nextChoice ? buildDescriptors(instance, classificationName, nextChoice) : []
   })
-  flow.noteClassificationUpdated(
-    getFindingDefinitionByName(instance.finding)?.id || 0,
-    0,
-    null
-  )
+  flow.noteClassificationUpdated(getFindingDefinitionByName(instance.finding)?.id || 0, 0, null)
 }
 
 function onDescriptorInput(
@@ -834,15 +869,12 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
   event.returnValue = ''
 }
 
-watch(
-  [selectedKbModule, selectedTemplateName],
-  ([moduleName, templateName]) => {
-    flow.setTemplateSelection({
-      moduleName,
-      templateName
-    })
-  }
-)
+watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName]) => {
+  flow.setTemplateSelection({
+    moduleName,
+    templateName
+  })
+})
 
 watch(
   () => flow.patientExaminationId,
@@ -876,7 +908,7 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('beforeunload', handleBeforeUnload)
-  await ensureCatalogLoaded()
+  await ensureCatalogLoaded(flow.selectedExaminationId)
   if (selectedExaminationName.value) {
     await refreshTemplatesForExamination()
   }

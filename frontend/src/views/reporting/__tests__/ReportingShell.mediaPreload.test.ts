@@ -117,6 +117,7 @@ function buildFlowStore() {
   return {
     sessionStatus: 'active',
     lookupToken: 'tok',
+    caseId: 'case-uuid-314',
     patientExaminationId: 314,
     selectedPatientId: 42,
     selectedExaminationId: 9,
@@ -131,6 +132,11 @@ function buildFlowStore() {
     draftPersistenceError: null as string | null,
     lastPersistedDraftAt: null as string | null,
     setCaseSelection: vi.fn(),
+    setCaseContext: vi.fn(function (this: any, payload: any) {
+      this.caseId = payload.caseId
+      if (payload.selectedPatientId !== undefined)
+        this.selectedPatientId = payload.selectedPatientId
+    }),
     setPatientExaminationContext: vi.fn(function (this: any, payload: any) {
       this.patientExaminationId = payload.patientExaminationId
       if (payload.selectedPatientId !== undefined)
@@ -225,6 +231,40 @@ describe('ReportingShell media preload', () => {
       patientFindings: []
     })
     hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'cases/') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 5,
+              caseId: 'case-uuid-314',
+              patient: 42,
+              admissionDate: '2026-03-10T08:00:00Z',
+              leaveDate: null,
+              isActive: true,
+              isClosed: false,
+              isDeleted: false,
+              patientExaminations: [
+                {
+                  id: 314,
+                  examination: { id: 9, name: 'colonoscopy' },
+                  patientData: { id: 42 },
+                  dateStart: '2026-03-10'
+                },
+                {
+                  id: 315,
+                  examination: { id: 10, name: 'gastroscopy' },
+                  patientData: { id: 42 },
+                  dateStart: '2026-03-11'
+                }
+              ],
+              patientMedications: [],
+              patientMedicationSchedules: [],
+              patientLabSamples: [],
+              patientLabValues: []
+            }
+          ]
+        })
+      }
       if (url === 'patient-examinations/314/') {
         return Promise.resolve({
           data: {
@@ -577,7 +617,7 @@ describe('ReportingShell media preload', () => {
 
     const guide = wrapper.get('[aria-label="Einstieg in den Reporting-Ablauf"]')
     expect(guide.text()).toContain('Hier starten')
-    expect(guide.text()).toContain('Fall wählen')
+    expect(guide.text()).toContain('Fall und Untersuchung wählen')
     expect(guide.text()).toContain('Vorlage festlegen')
     expect(guide.text()).toContain('Befunde erfassen')
   })

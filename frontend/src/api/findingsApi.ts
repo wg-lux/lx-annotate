@@ -1,5 +1,4 @@
-import axiosInstance, { dtypesApi, endoregApi } from '@/api/axiosInstance'
-import { endpoints } from '@/types/api/endpoints'
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import {
   normalizeFindingChoice,
   normalizeFindings,
@@ -12,9 +11,6 @@ import {
   type FindingClassification,
   type PatientFindingRow
 } from '@/api/findings.contract'
-
-export type FindingsBackendMode = 'endoreg' | 'dtypes_read' | 'dtypes'
-export const DEFAULT_FINDINGS_BACKEND_MODE: FindingsBackendMode = 'dtypes'
 
 export type FindingsApiErrorCode =
   | 'required-finding'
@@ -44,19 +40,6 @@ export interface UpdatePatientFindingPayload {
   classifications?: ClassificationSelection[]
 }
 
-const ENDOREG_PATHS = {
-  findings: endoregApi(endpoints.router.findings),
-  examinationFindings: (examinationId: number) =>
-    endoregApi(endpoints.examination.examinationFindings(examinationId)),
-  findingClassifications: (findingId: number) =>
-    endoregApi(endpoints.examination.findingClassifications(findingId)),
-  classificationChoices: (classificationId: number) =>
-    endoregApi(endpoints.examination.classificationChoices(classificationId)),
-  patientFindings: endoregApi(endpoints.patient.patientFindings),
-  patientFindingById: (patientFindingId: number) =>
-    endoregApi(endpoints.patient.patientFindingById(patientFindingId))
-}
-
 const DTYPES_PATHS = {
   examinationFindings: (examinationId: number) =>
     dtypesApi(`examinations/${examinationId}/findings/`),
@@ -69,25 +52,6 @@ const DTYPES_PATHS = {
     dtypesApi(`patient-findings/${patientFindingId}/`),
   patientFindingClassifications: (patientFindingId: number) =>
     dtypesApi(`patient-findings/${patientFindingId}/classifications/`)
-}
-
-function normalizeMode(value: unknown): FindingsBackendMode {
-  if (value === 'dtypes' || value === 'dtypes_read' || value === 'endoreg') {
-    return value
-  }
-  return DEFAULT_FINDINGS_BACKEND_MODE
-}
-
-export function getFindingsBackendMode(): FindingsBackendMode {
-  return normalizeMode(import.meta.env.VITE_FINDINGS_BACKEND)
-}
-
-function useDtypesRead(mode: FindingsBackendMode): boolean {
-  return mode === 'dtypes' || mode === 'dtypes_read'
-}
-
-function useDtypesWrite(mode: FindingsBackendMode): boolean {
-  return mode === 'dtypes'
 }
 
 function parseMessages(data: any): string[] {
@@ -194,152 +158,69 @@ export function parseFindingsApiError(error: any): FindingsApiError {
   }
 }
 
-async function setClassificationsViaDtypes(
-  patientFindingId: number,
-  classifications: ClassificationSelection[]
-): Promise<void> {
-  await axiosInstance.post(DTYPES_PATHS.patientFindingClassifications(patientFindingId), {
-    replace: true,
-    classifications
-  })
-}
-
 export const findingsApi = {
-  getBackendMode(): FindingsBackendMode {
-    return getFindingsBackendMode()
-  },
-
-  async listFindings(): Promise<Finding[]> {
-    const response = await axiosInstance.get(ENDOREG_PATHS.findings)
-    return normalizeFindings(response.data)
-  },
-
   async getExaminationFindings(examinationId: number): Promise<Finding[]> {
-    const mode = getFindingsBackendMode()
-    const path = useDtypesRead(mode)
-      ? DTYPES_PATHS.examinationFindings(examinationId)
-      : ENDOREG_PATHS.examinationFindings(examinationId)
-    const response = await axiosInstance.get(path)
+    const response = await axiosInstance.get(DTYPES_PATHS.examinationFindings(examinationId))
     return normalizeFindings(response.data)
   },
 
   async getFindingClassifications(findingId: number): Promise<FindingClassification[]> {
-    const mode = getFindingsBackendMode()
-    const path = useDtypesRead(mode)
-      ? DTYPES_PATHS.findingClassifications(findingId)
-      : ENDOREG_PATHS.findingClassifications(findingId)
-    const response = await axiosInstance.get(path)
+    const response = await axiosInstance.get(DTYPES_PATHS.findingClassifications(findingId))
     if (!Array.isArray(response.data)) return []
     return response.data.map(normalizeFindingClassification)
   },
 
   async getClassificationChoices(classificationId: number): Promise<FindingChoice[]> {
-    const mode = getFindingsBackendMode()
-    const path = useDtypesRead(mode)
-      ? DTYPES_PATHS.classificationChoices(classificationId)
-      : ENDOREG_PATHS.classificationChoices(classificationId)
-    const response = await axiosInstance.get(path)
+    const response = await axiosInstance.get(DTYPES_PATHS.classificationChoices(classificationId))
     const payload = response.data
     if (Array.isArray(payload)) return payload.map(normalizeFindingChoice)
     return Array.isArray(payload?.choices) ? payload.choices.map(normalizeFindingChoice) : []
   },
 
   async listPatientFindings(patientExaminationId: number): Promise<PatientFindingRow[]> {
-    const mode = getFindingsBackendMode()
-    const basePath = useDtypesWrite(mode)
-      ? DTYPES_PATHS.patientFindings
-      : ENDOREG_PATHS.patientFindings
-    const response = await axiosInstance.get(basePath, {
+    const response = await axiosInstance.get(DTYPES_PATHS.patientFindings, {
       params: { patient_examination: patientExaminationId }
     })
     return normalizePatientFindingRows(response.data)
   },
 
   async createPatientFinding(payload: CreatePatientFindingPayload): Promise<PatientFindingRow> {
-    const mode = getFindingsBackendMode()
-    const classifications = Array.isArray(payload.classifications)
-      ? payload.classifications
-      : []
-
-    if (useDtypesWrite(mode)) {
-      const response = await axiosInstance.post(DTYPES_PATHS.patientFindings, {
-        patient_examination: payload.patientExamination,
-        finding: payload.finding,
-        classifications
-      })
-      return normalizePatientFindingRow(response.data)
-    }
-
-    // Endoreg-safe path:
-    // 1) create finding on the endoreg API
-    // 2) write classifications via dedicated dtypes API route
-    const createRes = await axiosInstance.post(ENDOREG_PATHS.patientFindings, {
-      patientExamination: payload.patientExamination,
-      finding: payload.finding
+    const classifications = Array.isArray(payload.classifications) ? payload.classifications : []
+    const response = await axiosInstance.post(DTYPES_PATHS.patientFindings, {
+      patient_examination: payload.patientExamination,
+      finding: payload.finding,
+      classifications
     })
-    const created = normalizePatientFindingRow(createRes.data)
-    const createdId = Number(created?.id)
-    if (Number.isFinite(createdId) && classifications.length > 0) {
-      await setClassificationsViaDtypes(createdId, classifications)
-    }
-    return created
+    return normalizePatientFindingRow(response.data)
   },
 
   async updatePatientFinding(
     patientFindingId: number,
     payload: UpdatePatientFindingPayload
   ): Promise<PatientFindingRow> {
-    const mode = getFindingsBackendMode()
     const classifications = Array.isArray(payload.classifications)
       ? payload.classifications
       : undefined
-
-    if (useDtypesWrite(mode)) {
-      const response = await axiosInstance.patch(
-        DTYPES_PATHS.patientFindingById(patientFindingId),
-        {
-          finding: payload.finding,
-          is_active: payload.isActive,
-          classifications
-        }
-      )
-      return normalizePatientFindingRow(response.data)
-    }
-
-    const patchPayload: Record<string, unknown> = {}
-    if (typeof payload.finding === 'number') patchPayload.finding = payload.finding
-    if (typeof payload.isActive === 'boolean') patchPayload.isActive = payload.isActive
-    const response = await axiosInstance.patch(
-      ENDOREG_PATHS.patientFindingById(patientFindingId),
-      patchPayload
-    )
-    if (classifications) {
-      await setClassificationsViaDtypes(patientFindingId, classifications)
-    }
+    const response = await axiosInstance.patch(DTYPES_PATHS.patientFindingById(patientFindingId), {
+      finding: payload.finding,
+      is_active: payload.isActive,
+      classifications
+    })
     return normalizePatientFindingRow(response.data)
   },
 
   async deletePatientFinding(patientFindingId: number): Promise<void> {
-    const mode = getFindingsBackendMode()
-    const path = useDtypesWrite(mode)
-      ? DTYPES_PATHS.patientFindingById(patientFindingId)
-      : ENDOREG_PATHS.patientFindingById(patientFindingId)
-    await axiosInstance.delete(path)
+    await axiosInstance.delete(DTYPES_PATHS.patientFindingById(patientFindingId))
   },
 
   async replacePatientFindingClassifications(
     patientFindingId: number,
     classifications: ClassificationSelection[]
   ): Promise<PatientFindingRow | null> {
-    const mode = getFindingsBackendMode()
-    if (useDtypesWrite(mode)) {
-      const response = await axiosInstance.post(
-        DTYPES_PATHS.patientFindingClassifications(patientFindingId),
-        { replace: true, classifications }
-      )
-      return normalizePatientFindingRow(response.data)
-    }
-    await setClassificationsViaDtypes(patientFindingId, classifications)
-    return null
+    const response = await axiosInstance.post(
+      DTYPES_PATHS.patientFindingClassifications(patientFindingId),
+      { replace: true, classifications }
+    )
+    return normalizePatientFindingRow(response.data)
   }
 }

@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { endpoints } from '@/types/api/endpoints'
-
 const hoisted = vi.hoisted(() => ({
   axios: {
     get: vi.fn(),
@@ -16,48 +14,25 @@ vi.mock('@/api/axiosInstance', () => ({
   dtypesApi: (path: string) => `/dtypes-api/${path.replace(/^\/+/, '')}`
 }))
 
-import {
-  DEFAULT_FINDINGS_BACKEND_MODE,
-  findingsApi,
-  getFindingsBackendMode,
-  parseFindingsApiError
-} from '@/api/findingsApi'
+import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 
-describe('findingsApi backend mode routing', () => {
+describe('findingsApi canonical routing', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
   })
 
-  it('defaults to dtypes mode when backend flag is missing or invalid', () => {
-    expect(DEFAULT_FINDINGS_BACKEND_MODE).toBe('dtypes')
-    expect(getFindingsBackendMode()).toBe('dtypes')
-    vi.stubEnv('VITE_FINDINGS_BACKEND', 'unknown')
-    expect(getFindingsBackendMode()).toBe('dtypes')
-  })
-
-  it('routes examination findings reads by backend mode', async () => {
+  it('always routes examination findings through the canonical dtypes API', async () => {
     hoisted.axios.get.mockResolvedValue({ data: [] })
 
-    await findingsApi.getExaminationFindings(12)
-    expect(hoisted.axios.get).toHaveBeenLastCalledWith('/dtypes-api/examinations/12/findings/')
-
-    vi.stubEnv('VITE_FINDINGS_BACKEND', 'dtypes_read')
-    await findingsApi.getExaminationFindings(12)
-    expect(hoisted.axios.get).toHaveBeenLastCalledWith('/dtypes-api/examinations/12/findings/')
-
     vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg')
     await findingsApi.getExaminationFindings(12)
-    expect(hoisted.axios.get).toHaveBeenLastCalledWith(
-      `/endoreg-api/${endpoints.examination.examinationFindings(12)}`
-    )
+    expect(hoisted.axios.get).toHaveBeenLastCalledWith('/dtypes-api/examinations/12/findings/')
   })
 
-  it('keeps endoreg-safe create contract with dedicated classification write', async () => {
+  it('ignores obsolete rollback flags for patient-finding writes', async () => {
     vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg')
-    hoisted.axios.post
-      .mockResolvedValueOnce({ data: { id: 91, finding: 7 } })
-      .mockResolvedValueOnce({ data: { id: 91 } })
+    hoisted.axios.post.mockResolvedValueOnce({ data: { id: 91, finding: 7 } })
 
     await findingsApi.createPatientFinding({
       patientExamination: 35,
@@ -65,18 +40,11 @@ describe('findingsApi backend mode routing', () => {
       classifications: [{ classification: 11, choice: 44 }]
     })
 
-    expect(hoisted.axios.post).toHaveBeenNthCalledWith(1, `/endoreg-api/${endpoints.patient.patientFindings}`, {
-      patientExamination: 35,
-      finding: 7
+    expect(hoisted.axios.post).toHaveBeenCalledWith('/dtypes-api/patient-findings/', {
+      patient_examination: 35,
+      finding: 7,
+      classifications: [{ classification: 11, choice: 44 }]
     })
-    expect(hoisted.axios.post).toHaveBeenNthCalledWith(
-      2,
-      '/dtypes-api/patient-findings/91/classifications/',
-      {
-        replace: true,
-        classifications: [{ classification: 11, choice: 44 }]
-      }
-    )
   })
 
   it('uses dtypes patient-findings endpoint directly by default', async () => {

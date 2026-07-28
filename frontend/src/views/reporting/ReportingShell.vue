@@ -9,9 +9,39 @@
           <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2">
             <select
               class="form-select"
+              data-testid="case-select"
+              :value="flow.caseId ?? ''"
+              :disabled="caseOptionsLoading || !caseOptions.length"
+              aria-label="Fall auswählen"
+              @change="onCaseSelect(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">
+                {{
+                  caseOptionsLoading
+                    ? 'Fälle werden geladen...'
+                    : caseOptions.length
+                      ? 'Bitte Fall wählen'
+                      : 'Keine Fälle verfügbar'
+                }}
+              </option>
+              <option
+                v-for="patientCase in caseOptions"
+                :key="patientCase.caseId"
+                :value="patientCase.caseId"
+              >
+                {{ formatCaseLabel(patientCase) }}
+              </option>
+            </select>
+            <select
+              class="form-select"
               data-testid="patient-examination-select"
               :value="selectedPatientExaminationId"
-              :disabled="patientExaminationOptionsLoading || !patientExaminationOptions.length"
+              :disabled="
+                !flow.caseId ||
+                patientExaminationOptionsLoading ||
+                !patientExaminationOptions.length
+              "
+              aria-label="Untersuchung auswählen"
               @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
             >
               <option value="">
@@ -90,6 +120,9 @@
           <div v-if="patientExaminationOptionsError" class="small text-danger mt-1">
             {{ patientExaminationOptionsError }}
           </div>
+          <div v-if="caseOptionsError" class="small text-danger mt-1">
+            {{ caseOptionsError }}
+          </div>
         </div>
       </div>
       <div class="reporting-start-guide" aria-label="Einstieg in den Reporting-Ablauf">
@@ -98,8 +131,8 @@
           <li :class="{ 'is-complete': Boolean(flow.patientExaminationId) }">
             <span>1</span>
             <div>
-              <b>Fall wählen</b>
-              <small>Oben eine Patientenuntersuchung auswählen.</small>
+              <b>Fall und Untersuchung wählen</b>
+              <small>Oben den Fall und eine zugehörige Patientenuntersuchung auswählen.</small>
             </div>
           </li>
           <li :class="{ 'is-complete': Boolean(flow.selectedTemplateName) }">
@@ -357,7 +390,10 @@
                       class="w-100 mt-2 rounded border"
                       controls
                     />
-                    <div v-if="reportingVideoPlaybackError" class="alert alert-warning py-2 mt-2 mb-0">
+                    <div
+                      v-if="reportingVideoPlaybackError"
+                      class="alert alert-warning py-2 mt-2 mb-0"
+                    >
                       {{ reportingVideoPlaybackError.message }}
                     </div>
                   </div>
@@ -523,6 +559,7 @@ import { useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
+import { fetchPatientCases, type PatientCase } from '@/api/casesApi'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import {
   buildReportTemplateRuntimePayload,
@@ -547,10 +584,7 @@ import type {
 import { endpoints } from '@/types/api/endpoints'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useTerminologyStore } from '@/stores/terminologyStore'
-import {
-  fetchPatientTimelineLatest,
-  pickPreferredReportStream
-} from '@/api/reportingTimelineApi'
+import { fetchPatientTimelineLatest, pickPreferredReportStream } from '@/api/reportingTimelineApi'
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 
@@ -619,6 +653,9 @@ type KbAdviceRow = {
 const patientExaminationOptions = ref<PatientExaminationOption[]>([])
 const patientExaminationOptionsLoading = ref(false)
 const patientExaminationOptionsError = ref<string | null>(null)
+const caseOptions = ref<PatientCase[]>([])
+const caseOptionsLoading = ref(false)
+const caseOptionsError = ref<string | null>(null)
 const draftBootstrapInFlight = ref<Promise<void> | null>(null)
 const draftBootstrapError = ref<string | null>(null)
 const patientExaminationDetail = ref<Record<string, any> | null>(null)
@@ -744,8 +781,10 @@ const selectedPatientExaminationOption = computed(() => {
 
 const currentPayload = computed(() => flow.currentRuntimeDraft?.payload || null)
 
-const caseIdLabel = computed(() =>
-  flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt'
+const caseIdLabel = computed(() => flow.caseId || 'Noch nicht gewählt')
+
+const selectedPatientCase = computed(
+  () => caseOptions.value.find((patientCase) => patientCase.caseId === flow.caseId) || null
 )
 
 const patientHeaderLabel = computed(() => {
@@ -767,13 +806,7 @@ const patientHeaderLabel = computed(() => {
     .trim()
   if (detailName) return detailName
 
-  const detailHash = readString(
-    detailPatient,
-    'patientHash',
-    'patient_hash',
-    'hash',
-    'pseudonym'
-  )
+  const detailHash = readString(detailPatient, 'patientHash', 'patient_hash', 'hash', 'pseudonym')
   if (detailHash) return detailHash
   if (currentPayload.value?.patient) return currentPayload.value.patient
   return flow.selectedPatientId ? `Patient #${flow.selectedPatientId}` : 'Nicht gewählt'
@@ -819,6 +852,9 @@ const examinationTypeLabel = computed(() => {
 })
 
 const caseStatusLabel = computed(() => {
+  if (selectedPatientCase.value?.isClosed) return 'Fall geschlossen'
+  if (selectedPatientCase.value?.isActive) return 'Fall aktiv'
+  if (selectedPatientCase.value) return 'Fall inaktiv'
   return (
     readString(
       patientExaminationDetail.value,
@@ -854,7 +890,9 @@ const templateSectionsForReference = computed(() =>
 )
 
 const catalogFindingsByName = computed(() => {
-  const entries = findingCatalog.value.map((finding) => [normalizeKey(finding.name), finding] as const)
+  const entries = findingCatalog.value.map(
+    (finding) => [normalizeKey(finding.name), finding] as const
+  )
   return new Map<string, Finding>(entries)
 })
 
@@ -873,12 +911,14 @@ const validationIssueMessagesByFinding = computed(() => {
   }
   for (const validator of flow.lastTemplateValidation?.classificationValidators || []) {
     const messages = validator.issues.map((issue) => issue.message)
-    if (!validator.ok && !messages.length) messages.push(`Klassifikation "${validator.classification}" prüfen.`)
+    if (!validator.ok && !messages.length)
+      messages.push(`Klassifikation "${validator.classification}" prüfen.`)
     addMessages(validator.finding, messages)
   }
   for (const validator of flow.lastTemplateValidation?.interventionValidators || []) {
     const messages = validator.issues.map((issue) => issue.message)
-    if (!validator.ok && !messages.length) messages.push(`Intervention "${validator.intervention}" prüfen.`)
+    if (!validator.ok && !messages.length)
+      messages.push(`Intervention "${validator.intervention}" prüfen.`)
     addMessages(validator.finding, messages)
   }
   for (const validator of flow.lastTemplateValidation?.unitValidators || []) {
@@ -942,7 +982,9 @@ const findingProgressSummary = computed(() => {
   if (!rows.length) return 'Keine Befunde'
   const complete = rows.filter((row) => row.status === 'complete').length
   const open = rows.filter((row) => row.status === 'warning' || row.status === 'missing').length
-  return open ? `${complete}/${rows.length} vollständig · ${open} offen` : `${complete}/${rows.length} vollständig`
+  return open
+    ? `${complete}/${rows.length} vollständig · ${open} offen`
+    : `${complete}/${rows.length} vollständig`
 })
 
 const routeReferenceFindingKey = computed(() => {
@@ -968,7 +1010,9 @@ const activeReferenceFindingKey = computed(() => {
 })
 
 const activeReferenceFinding = computed(
-  () => findingStatusRows.value.find((row) => row.normalizedKey === activeReferenceFindingKey.value) || null
+  () =>
+    findingStatusRows.value.find((row) => row.normalizedKey === activeReferenceFindingKey.value) ||
+    null
 )
 
 const activeFindingInstances = computed(() => {
@@ -995,7 +1039,10 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
   const templateClassifications = active.templateFinding?.classifications || []
   const catalogClassifications = mergeFindingClassifications(activeFindingCatalogDefinition.value)
   const catalogByName = new Map<string, FindingClassification>(
-    catalogClassifications.map((classification) => [normalizeKey(classification.name), classification])
+    catalogClassifications.map((classification) => [
+      normalizeKey(classification.name),
+      classification
+    ])
   )
   const templateKeys = templateClassifications.map((classification) =>
     normalizeKey(classification.classification)
@@ -1036,10 +1083,7 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
 const activeAdviceRows = computed<KbAdviceRow[]>(() => {
   const active = activeReferenceFinding.value
   if (!active) return []
-  return [
-    ...interventionAdviceRows(active.findingName),
-    ...unitAdviceRows(active.findingName)
-  ]
+  return [...interventionAdviceRows(active.findingName), ...unitAdviceRows(active.findingName)]
 })
 
 const activeSuggestedActions = computed(() => {
@@ -1085,9 +1129,7 @@ function isVideoArtifactKind(value: string | null | undefined): value is Streama
   return value === 'raw' || value === 'processed'
 }
 
-function preferredArtifactKind(
-  options: Array<{ type: string }>
-): StreamableVideoFileType | null {
+function preferredArtifactKind(options: Array<{ type: string }>): StreamableVideoFileType | null {
   if (options.some((option) => option.type === 'processed')) return 'processed'
   if (options.some((option) => option.type === 'raw')) return 'raw'
   return null
@@ -1240,7 +1282,9 @@ function buildFindingStatusRow(params: {
   const messages = Array.from(
     new Set([
       ...validationMessages,
-      ...(params.required && !instances.length ? ['Dieser Befund ist im Template erforderlich.'] : []),
+      ...(params.required && !instances.length
+        ? ['Dieser Befund ist im Template erforderlich.']
+        : []),
       ...(missingClassifications.length
         ? [`Erforderliche Klassifikationen fehlen: ${missingClassifications.join(', ')}.`]
         : [])
@@ -1376,7 +1420,10 @@ function formatRuntimeFindingInstance(instance: ReportTemplateRuntimePatientFind
   return instance.classificationChoices
     .map((choice) => {
       const descriptors = choice.descriptors
-        .map((descriptor) => `${formatKnowledgeName(descriptor.classificationChoiceDescriptor)}: ${descriptor.descriptorValue}`)
+        .map(
+          (descriptor) =>
+            `${formatKnowledgeName(descriptor.classificationChoiceDescriptor)}: ${descriptor.descriptorValue}`
+        )
         .join(', ')
       const base = `${formatKnowledgeName(choice.classification)} = ${formatKnowledgeName(choice.classificationChoice)}`
       return descriptors ? `${base} (${descriptors})` : base
@@ -1426,9 +1473,7 @@ async function loadTemplateReferenceForSelection() {
     if (templateReferenceKey.value !== nextKey) return
     templateReference.value = null
     templateReferenceError.value =
-      error?.response?.data?.detail ||
-      error?.message ||
-      'KB-Referenz konnte nicht geladen werden.'
+      error?.response?.data?.detail || error?.message || 'KB-Referenz konnte nicht geladen werden.'
   } finally {
     if (templateReferenceKey.value === nextKey) {
       templateReferenceLoading.value = false
@@ -1688,9 +1733,109 @@ function normalizePatientExaminationOption(raw: unknown) {
     id,
     label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
     examinationName,
-    patientId: toPositiveInteger(row.patient?.id ?? row.patient_id ?? row.patientId),
+    patientId: toPositiveInteger(
+      row.patient?.id ??
+        row.patient_data?.id ??
+        row.patientData?.id ??
+        row.patient_id ??
+        row.patientId
+    ),
     examinationId: toPositiveInteger(row.examination?.id ?? row.examination_id ?? row.examinationId)
   }
+}
+
+function formatCaseLabel(patientCase: PatientCase): string {
+  const admissionDate = formatDateLabel(patientCase.admissionDate)
+  const leaveDate = formatDateLabel(patientCase.leaveDate)
+  const period = [admissionDate, leaveDate].filter(Boolean).join(' – ')
+  const status = patientCase.isClosed ? 'geschlossen' : patientCase.isActive ? 'aktiv' : 'inaktiv'
+  return [patientCase.caseId, period, status].filter(Boolean).join(' · ')
+}
+
+function caseExaminationOptions(patientCase: PatientCase): PatientExaminationOption[] {
+  return patientCase.patientExaminations
+    .map(normalizePatientExaminationOption)
+    .filter(
+      (
+        option: ReturnType<typeof normalizePatientExaminationOption>
+      ): option is PatientExaminationOption => option !== null
+    )
+    .filter(isPatientExaminationAllowedForMedicalField)
+    .sort((left, right) => right.id - left.id)
+}
+
+function activateCase(patientCase: PatientCase): void {
+  flow.setCaseContext({ caseId: patientCase.caseId, selectedPatientId: patientCase.patient })
+  patientExaminationOptions.value = caseExaminationOptions(patientCase)
+}
+
+function mergeCaseOptions(rows: PatientCase[]): void {
+  const byCaseId = new Map(caseOptions.value.map((row) => [row.caseId, row]))
+  for (const row of rows) byCaseId.set(row.caseId, row)
+  caseOptions.value = [...byCaseId.values()].sort((left, right) =>
+    right.admissionDate.localeCompare(left.admissionDate)
+  )
+}
+
+async function fetchCaseOptions(patientId: number): Promise<void> {
+  caseOptionsLoading.value = true
+  caseOptionsError.value = null
+  try {
+    caseOptions.value = await fetchPatientCases({ patientId })
+    const activeCase = caseOptions.value.find((row) => row.caseId === flow.caseId)
+    if (activeCase) activateCase(activeCase)
+  } catch (error: any) {
+    caseOptions.value = []
+    caseOptionsError.value =
+      error?.response?.data?.detail || error?.message || 'Fälle konnten nicht geladen werden.'
+  } finally {
+    caseOptionsLoading.value = false
+  }
+}
+
+async function ensureCaseForPatientExamination(patientExaminationId: number): Promise<void> {
+  try {
+    const rows = await fetchPatientCases({ patientExaminationId })
+    mergeCaseOptions(rows)
+    const patientCase = rows.find((row) =>
+      row.patientExaminations.some((examination) => examination.id === patientExaminationId)
+    )
+    if (!patientCase) {
+      flow.setCaseContext({ caseId: null })
+      caseOptionsError.value =
+        'Diese Patientenuntersuchung ist keinem persistierten Fall zugeordnet.'
+      return
+    }
+    caseOptionsError.value = null
+    activateCase(patientCase)
+  } catch (error: any) {
+    flow.setCaseContext({ caseId: null })
+    caseOptionsError.value =
+      error?.response?.data?.detail ||
+      error?.message ||
+      'Die Fallzuordnung konnte nicht geladen werden.'
+  }
+}
+
+async function onCaseSelect(caseId: string): Promise<void> {
+  const patientCase = caseOptions.value.find((row) => row.caseId === caseId)
+  if (!patientCase) return
+  activateCase(patientCase)
+  const currentPatientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
+  const examinationIds = new Set(patientCase.patientExaminations.map((row) => row.id))
+  if (currentPatientExaminationId && examinationIds.has(currentPatientExaminationId)) return
+
+  const firstExamination = patientExaminationOptions.value[0]
+  if (!firstExamination) {
+    flow.setPatientExaminationContext({
+      patientExaminationId: null,
+      selectedPatientId: patientCase.patient,
+      selectedExaminationId: null
+    })
+    await router.push('/reporting/case-setup')
+    return
+  }
+  await onPatientExaminationSelect(String(firstExamination.id))
 }
 
 function upsertPatientExaminationOption(option: {
@@ -1897,7 +2042,9 @@ async function ensureRuntimeDraft(patientExaminationId: number) {
         selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
       })
       flow.setIndications(extractIndicationRows(detail))
-      await loadFindingCatalogForExamination(extractExaminationId(detail) ?? flow.selectedExaminationId)
+      await loadFindingCatalogForExamination(
+        extractExaminationId(detail) ?? flow.selectedExaminationId
+      )
     } catch {
       // Keep the local draft usable even if detail hydration fails.
     }
@@ -1924,7 +2071,9 @@ async function ensureRuntimeDraft(patientExaminationId: number) {
         selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
       })
       flow.setIndications(extractIndicationRows(detail))
-      await loadFindingCatalogForExamination(extractExaminationId(detail) ?? flow.selectedExaminationId)
+      await loadFindingCatalogForExamination(
+        extractExaminationId(detail) ?? flow.selectedExaminationId
+      )
     } catch {
       // Keep persisted draft usable even if detail hydration fails.
     }
@@ -2032,15 +2181,19 @@ watch(
   async ([patientId, patientExaminationId]) => {
     if (patientId) {
       await fetchPatientExaminationOptions(patientId)
+      await fetchCaseOptions(patientId)
     } else {
       patientExaminationOptions.value = []
       patientExaminationOptionsError.value = null
+      caseOptions.value = []
+      caseOptionsError.value = null
       patientExaminationDetail.value = null
       findingCatalog.value = []
     }
 
     if (patientExaminationId) {
       await ensureCurrentPatientExaminationOption(patientExaminationId)
+      await ensureCaseForPatientExamination(patientExaminationId)
       await hydrateDraftForRoutePatientExamination(patientExaminationId)
     }
   },

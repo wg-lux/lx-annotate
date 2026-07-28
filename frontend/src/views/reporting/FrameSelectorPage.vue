@@ -9,7 +9,11 @@
           </small>
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" :disabled="loading || !flow.patientExaminationId" @click="loadFrameSelectorState">
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="loading || !flow.patientExaminationId"
+            @click="loadFrameSelectorState"
+          >
             Aktualisieren
           </button>
         </div>
@@ -40,9 +44,7 @@
                 #{{ frame.frameNumber }} · {{ frame.category || 'fallback' }}
               </button>
             </div>
-            <div v-else class="small text-muted">
-              Keine vorab ausgewählten Frames verfügbar.
-            </div>
+            <div v-else class="small text-muted">Keine vorab ausgewählten Frames verfügbar.</div>
           </div>
         </div>
 
@@ -93,7 +95,9 @@
                       {{ selectedSegment.labelName || `Segment ${selectedSegment.segmentId}` }}
                     </h6>
                     <small class="text-muted">
-                      Framebereich {{ selectedSegment.startFrameNumber }}-{{ selectedSegment.endFrameNumber }}
+                      Framebereich {{ selectedSegment.startFrameNumber }}-{{
+                        selectedSegment.endFrameNumber
+                      }}
                     </small>
                   </div>
                   <span class="badge bg-secondary">
@@ -106,18 +110,31 @@
                       <div class="frame-preview rounded border p-3">
                         <div class="fw-semibold mb-2">Frame-Vorschau (Metadaten)</div>
                         <div v-if="selectedSegment.selectedFrame" class="small">
-                          <div><strong>Frame-ID:</strong> {{ selectedSegment.selectedFrame.frameId }}</div>
-                          <div><strong>Frame-Nummer:</strong> {{ selectedSegment.selectedFrame.frameNumber }}</div>
-                          <div><strong>Zeitstempel:</strong> {{ selectedSegment.selectedFrame.timestamp ?? 'n/a' }}</div>
-                          <div><strong>Datei:</strong> {{ selectedSegment.selectedFrame.relativePath || 'n/a' }}</div>
-                          <div><strong>Extrahiert:</strong> {{ selectedSegment.selectedFrame.fileExists ? 'ja' : 'nein' }}</div>
+                          <div>
+                            <strong>Frame-ID:</strong> {{ selectedSegment.selectedFrame.frameId }}
+                          </div>
+                          <div>
+                            <strong>Frame-Nummer:</strong>
+                            {{ selectedSegment.selectedFrame.frameNumber }}
+                          </div>
+                          <div>
+                            <strong>Zeitstempel:</strong>
+                            {{ selectedSegment.selectedFrame.timestamp ?? 'n/a' }}
+                          </div>
+                          <div>
+                            <strong>Datei:</strong>
+                            {{ selectedSegment.selectedFrame.relativePath || 'n/a' }}
+                          </div>
+                          <div>
+                            <strong>Extrahiert:</strong>
+                            {{ selectedSegment.selectedFrame.fileExists ? 'ja' : 'nein' }}
+                          </div>
                         </div>
-                        <div v-else class="text-muted small">
-                          Kein Frame ausgewählt.
-                        </div>
+                        <div v-else class="text-muted small">Kein Frame ausgewählt.</div>
                         <div class="mt-3 text-muted small">
-                          Hinweis: Für eine echte Bildvorschau wäre ggf. ein dedizierter Frame-Stream hilfreich, falls
-                          `relative_path` nicht direkt browserfähig ist.
+                          Hinweis: Für eine echte Bildvorschau wäre ggf. ein dedizierter
+                          Frame-Stream hilfreich, falls `relative_path` nicht direkt browserfähig
+                          ist.
                         </div>
                       </div>
                     </div>
@@ -133,7 +150,11 @@
                             :min="selectedSegment.startFrameNumber"
                             :max="selectedSegment.endFrameNumber"
                           />
-                          <button class="btn btn-outline-primary" :disabled="loading" @click="setFrameManual">
+                          <button
+                            class="btn btn-outline-primary"
+                            :disabled="loading"
+                            @click="setFrameManual"
+                          >
                             Setzen
                           </button>
                         </div>
@@ -141,33 +162,50 @@
 
                       <div class="mb-3">
                         <label class="form-label">Befund anhängen (optional)</label>
-                        <select v-model="selectedFindingIdForSegment" class="form-select" :disabled="loading">
+                        <select
+                          v-model="selectedFindingIdForSegment"
+                          class="form-select"
+                          :disabled="loading"
+                        >
                           <option :value="null">Unverändert lassen</option>
                           <option :value="CLEAR_FINDING_SENTINEL">Befund entfernen</option>
-                          <option
-                            v-for="finding in findings"
-                            :key="finding.id"
-                            :value="finding.id"
-                          >
+                          <option v-for="finding in findings" :key="finding.id" :value="finding.id">
                             {{ finding.nameDe || finding.name || `Befund ${finding.id}` }}
                           </option>
                         </select>
                         <div class="small text-muted mt-1">
-                          Aktuell: {{ selectedSegment.attachedFinding?.findingName || 'kein Befund' }}
+                          Aktuell:
+                          {{ selectedSegment.attachedFinding?.findingName || 'kein Befund' }}
                         </div>
                       </div>
 
                       <div class="d-grid gap-2">
-                        <button class="btn btn-outline-secondary" :disabled="loading" @click="patchSegmentAction('random')">
+                        <button
+                          class="btn btn-outline-secondary"
+                          :disabled="loading"
+                          @click="patchSegmentAction('random')"
+                        >
                           Zufallsframe
                         </button>
-                        <button class="btn btn-outline-secondary" :disabled="loading" @click="patchSegmentAction('step', -5)">
+                        <button
+                          class="btn btn-outline-secondary"
+                          :disabled="loading"
+                          @click="patchSegmentAction('step', -5)"
+                        >
                           -5 Frames
                         </button>
-                        <button class="btn btn-outline-secondary" :disabled="loading" @click="patchSegmentAction('step', 5)">
+                        <button
+                          class="btn btn-outline-secondary"
+                          :disabled="loading"
+                          @click="patchSegmentAction('step', 5)"
+                        >
                           +5 Frames
                         </button>
-                        <button class="btn btn-outline-danger" :disabled="loading" @click="patchSegmentAction('clear')">
+                        <button
+                          class="btn btn-outline-danger"
+                          :disabled="loading"
+                          @click="patchSegmentAction('clear')"
+                        >
                           Auswahl löschen
                         </button>
                       </div>
@@ -177,9 +215,7 @@
               </div>
 
               <div v-else class="card border h-100">
-                <div class="card-body text-muted">
-                  Kein Segment ausgewählt.
-                </div>
+                <div class="card-body text-muted">Kein Segment ausgewählt.</div>
               </div>
             </div>
           </div>
@@ -244,10 +280,7 @@ type SegmentFrameSelectorState = {
 const CLEAR_FINDING_SENTINEL = -1
 
 const flow = useReportingFlowStore()
-const {
-  catalogFindings,
-  ensureCatalogLoaded
-} = useFindingSelectors()
+const { catalogFindings, ensureCatalogLoaded } = useFindingSelectors()
 
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
@@ -276,11 +309,16 @@ function open_stream_url(url: string) {
 
 function selectorUrl(): string | null {
   if (!flow.patientExaminationId) return null
-  return r(endpoints.report.segmentFrameSelector(flow.patientExaminationId, flow.activeReportId ?? undefined))
+  return r(
+    endpoints.report.segmentFrameSelector(
+      flow.patientExaminationId,
+      flow.activeReportId ?? undefined
+    )
+  )
 }
 
 async function ensureFindingsLoaded() {
-  await ensureCatalogLoaded()
+  await ensureCatalogLoaded(flow.selectedExaminationId)
 }
 
 function syncSelectionDefaults() {
@@ -291,16 +329,17 @@ function syncSelectionDefaults() {
     return
   }
 
-  if (!selectedSegmentId.value || !segments.value.some((s) => s.segmentId === selectedSegmentId.value)) {
+  if (
+    !selectedSegmentId.value ||
+    !segments.value.some((s) => s.segmentId === selectedSegmentId.value)
+  ) {
     selectedSegmentId.value = segments.value[0]?.segmentId ?? null
   }
 
   const seg = selectedSegment.value
   if (!seg) return
   manualFrameNumber.value =
-    seg.selectedFrameNumber ??
-    latest_frames.value[0]?.frameNumber ??
-    seg.startFrameNumber
+    seg.selectedFrameNumber ?? latest_frames.value[0]?.frameNumber ?? seg.startFrameNumber
   selectedFindingIdForSegment.value = seg.attachedFinding?.findingId ?? null
 }
 
@@ -401,8 +440,7 @@ async function setFrameManual() {
     syncSelectionDefaults()
     successMessage.value = 'Frame manuell gesetzt.'
   } catch (e: any) {
-    errorMessage.value =
-      e?.response?.data?.detail || e?.message || 'Fehler beim Setzen des Frames.'
+    errorMessage.value = e?.response?.data?.detail || e?.message || 'Fehler beim Setzen des Frames.'
   } finally {
     loading.value = false
   }
@@ -432,7 +470,6 @@ onMounted(async () => {
 
 .frame-preview {
   min-height: 220px;
-  background:
-    linear-gradient(180deg, rgba(248, 249, 250, 1) 0%, rgba(233, 236, 239, 1) 100%);
+  background: linear-gradient(180deg, rgba(248, 249, 250, 1) 0%, rgba(233, 236, 239, 1) 100%);
 }
 </style>

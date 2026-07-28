@@ -41,6 +41,12 @@ export const endpoints = {
     checkPatientExaminationExists: (id: Id) => `check_pe_exist/${id}/`
   },
 
+  case: {
+    cases: 'cases/',
+    createWithExamination: 'cases/create-with-examination/',
+    caseById: (caseId: UUID) => `cases/${caseId}/`
+  },
+
   examination: {
     examinationsDropdown: 'patient-examinations/examinations_dropdown/',
     examinationFindings: (examinationId: Id) => `examinations/${examinationId}/findings/`,
@@ -122,6 +128,8 @@ export const endpoints = {
 
   anonymization: {
     itemsOverview: 'anonymization/items/overview/',
+    retryUploadJob: (jobId: UUID) =>
+      `anonymization/upload-jobs/${jobId}/retry/`,
     documentTypesDropdown: 'anonymization/document-types/dropdown/',
     current: (fileId: Id) => `anonymization/${fileId}/current/`,
     start: (fileId: Id) => `anonymization/${fileId}/start/`,

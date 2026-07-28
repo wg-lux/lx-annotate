@@ -90,9 +90,7 @@ function buildFlowStore() {
 }
 
 function getButtonByText(wrapper: ReturnType<typeof mount>, label: string) {
-  const button = wrapper
-    .findAll('button')
-    .find((candidate) => candidate.text().includes(label))
+  const button = wrapper.findAll('button').find((candidate) => candidate.text().includes(label))
 
   if (!button) {
     throw new Error(`Button with label "${label}" not found.`)
@@ -121,7 +119,7 @@ describe('FrameSelectorPage', () => {
     })
     await flushPromises()
 
-    expect(hoisted.ensureCatalogLoaded).toHaveBeenCalledTimes(1)
+    expect(hoisted.ensureCatalogLoaded).toHaveBeenCalledWith(9)
     expect(hoisted.get).toHaveBeenCalledWith(
       'patient-examination-reports/segment-frame-selector/?patient_examination_id=42'
     )
@@ -139,26 +137,24 @@ describe('FrameSelectorPage', () => {
 
   it('patches segment actions and manual frame selection through the reporting route', async () => {
     hoisted.get.mockResolvedValue({ data: buildFrameSelectorState() })
-    hoisted.patch
-      .mockResolvedValueOnce({ data: buildFrameSelectorState() })
-      .mockResolvedValueOnce({
-        data: {
-          ...buildFrameSelectorState(),
-          results: [
-            {
-              ...buildFrameSelectorState().results[0],
-              selectedFrameNumber: 19,
-              selectedFrame: {
-                frameId: 902,
-                frameNumber: 19,
-                timestamp: 1.9,
-                relativePath: 'frames/frame-19.jpg',
-                fileExists: true
-              }
+    hoisted.patch.mockResolvedValueOnce({ data: buildFrameSelectorState() }).mockResolvedValueOnce({
+      data: {
+        ...buildFrameSelectorState(),
+        results: [
+          {
+            ...buildFrameSelectorState().results[0],
+            selectedFrameNumber: 19,
+            selectedFrame: {
+              frameId: 902,
+              frameNumber: 19,
+              timestamp: 1.9,
+              relativePath: 'frames/frame-19.jpg',
+              fileExists: true
             }
-          ]
-        }
-      })
+          }
+        ]
+      }
+    })
 
     const wrapper = mount(FrameSelectorPage, {
       global: {
@@ -172,26 +168,34 @@ describe('FrameSelectorPage', () => {
     await getButtonByText(wrapper, 'Zufallsframe').trigger('click')
     await flushPromises()
 
-    expect(hoisted.patch).toHaveBeenNthCalledWith(1, 'patient-examination-reports/segment-frame-selector/', {
-      patientExaminationId: 42,
-      reportId: 88,
-      segmentId: 7,
-      action: 'random',
-      findingId: 11
-    })
+    expect(hoisted.patch).toHaveBeenNthCalledWith(
+      1,
+      'patient-examination-reports/segment-frame-selector/',
+      {
+        patientExaminationId: 42,
+        reportId: 88,
+        segmentId: 7,
+        action: 'random',
+        findingId: 11
+      }
+    )
 
     await wrapper.get('input[type="number"]').setValue('19')
     await getButtonByText(wrapper, 'Setzen').trigger('click')
     await flushPromises()
 
-    expect(hoisted.patch).toHaveBeenNthCalledWith(2, 'patient-examination-reports/segment-frame-selector/', {
-      patientExaminationId: 42,
-      reportId: 88,
-      segmentId: 7,
-      action: 'set',
-      frameNumber: 19,
-      findingId: 11
-    })
+    expect(hoisted.patch).toHaveBeenNthCalledWith(
+      2,
+      'patient-examination-reports/segment-frame-selector/',
+      {
+        patientExaminationId: 42,
+        reportId: 88,
+        segmentId: 7,
+        action: 'set',
+        frameNumber: 19,
+        findingId: 11
+      }
+    )
     expect(wrapper.text()).toContain('Frame manuell gesetzt.')
   })
 })

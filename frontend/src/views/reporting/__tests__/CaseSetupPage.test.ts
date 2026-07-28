@@ -22,8 +22,7 @@ const hoisted = vi.hoisted(() => ({
 vi.mock('vue-router', () => ({
   RouterLink: {
     props: ['to'],
-    template:
-      '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
+    template: '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
   },
   useRoute: () => hoisted.routeRef.current
 }))
@@ -54,23 +53,33 @@ function buildFlowStore(
     selectedPatientId: number | null
     selectedExaminationId: number | null
     patientExaminationId: number | null
+    caseId: string | null
   }> = {}
 ) {
   const flow: any = reactive({
     selectedPatientId: 7,
     selectedExaminationId: 9,
     patientExaminationId: null,
+    caseId: null,
     lookupToken: null,
     currentRuntimeDraft: null,
     sessionStatus: 'idle',
-    setCaseSelection: vi.fn((payload: { selectedPatientId?: number | null; selectedExaminationId?: number | null }) => {
-      if (payload.selectedPatientId !== undefined) flow.selectedPatientId = payload.selectedPatientId
-      if (payload.selectedExaminationId !== undefined) flow.selectedExaminationId = payload.selectedExaminationId
-    }),
+    setCaseSelection: vi.fn(
+      (payload: { selectedPatientId?: number | null; selectedExaminationId?: number | null }) => {
+        if (payload.selectedPatientId !== undefined)
+          flow.selectedPatientId = payload.selectedPatientId
+        if (payload.selectedExaminationId !== undefined)
+          flow.selectedExaminationId = payload.selectedExaminationId
+      }
+    ),
     setPatientExaminationContext: vi.fn(function (this: any, payload: any) {
       this.patientExaminationId = payload.patientExaminationId
       this.selectedPatientId = payload.selectedPatientId
       this.selectedExaminationId = payload.selectedExaminationId
+    }),
+    setCaseContext: vi.fn(function (this: any, payload: any) {
+      this.caseId = payload.caseId
+      this.selectedPatientId = payload.selectedPatientId
     }),
     resetForPatientSwitch: vi.fn(),
     clearAll: vi.fn()
@@ -98,7 +107,7 @@ describe('CaseSetupPage draft-first setup', () => {
               dob: '1980-01-01',
               gender: 'f'
             }
-        : null,
+          : null,
       fetchPatients: vi.fn().mockResolvedValue(undefined)
     }
     hoisted.examinationStoreRef.current = {
@@ -113,8 +122,16 @@ describe('CaseSetupPage draft-first setup', () => {
       addPatientExamination: vi.fn(),
       setCurrentPatientExaminationId: vi.fn()
     }
-    hoisted.axiosApi.post.mockResolvedValue({
-      data: { id: 42 }
+    hoisted.axiosApi.post.mockImplementation((url: string) => {
+      if (url === 'cases/create-with-examination/') {
+        return Promise.resolve({
+          data: {
+            case: { id: 5, caseId: 'case-uuid-5' },
+            patientExamination: { id: 42 }
+          }
+        })
+      }
+      return Promise.reject(new Error(`Unexpected URL: ${url}`))
     })
   })
 
@@ -132,10 +149,13 @@ describe('CaseSetupPage draft-first setup', () => {
 
     expect(hoisted.axiosApi.post).toHaveBeenCalledTimes(1)
     expect(hoisted.axiosApi.post).toHaveBeenCalledWith(
-      'patient-examinations/create/',
+      'cases/create-with-examination/',
       expect.objectContaining({
-        patient: 'patient_7',
-        examination: 'gastroscopy'
+        admissionDate: expect.any(String),
+        patientExamination: expect.objectContaining({
+          patient: 'patient_7',
+          examination: 'gastroscopy'
+        })
       })
     )
     expect(hoisted.flowRef.current.setPatientExaminationContext).toHaveBeenCalledWith({
@@ -143,6 +163,10 @@ describe('CaseSetupPage draft-first setup', () => {
       selectedPatientId: 7,
       selectedExaminationId: 9,
       preserveTemplateSelection: true
+    })
+    expect(hoisted.flowRef.current.setCaseContext).toHaveBeenCalledWith({
+      caseId: 'case-uuid-5',
+      selectedPatientId: 7
     })
   })
 

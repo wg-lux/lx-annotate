@@ -157,10 +157,19 @@ axiosInstance.interceptors.request.use((config) => {
 })
 
 // ─── Convert incoming payload from snake_case → camelCase ───────────
+function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
+  if (!value || Object.prototype.toString.call(value) !== '[object Object]') return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+export function convertIncomingResponseData(data: unknown): unknown {
+  if (!Array.isArray(data) && !isPlainJsonObject(data)) return data
+  return camelcaseKeys(data, { deep: true })
+}
+
 axiosInstance.interceptors.response.use((response) => {
-  if (response.data && typeof response.data === 'object') {
-    response.data = camelcaseKeys(response.data, { deep: true })
-  }
+  response.data = convertIncomingResponseData(response.data)
   return response
 })
 

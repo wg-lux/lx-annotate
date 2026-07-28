@@ -31,9 +31,12 @@ export function useFindingSelectors() {
   const catalogFindings = computed<readonly Finding[]>(() => catalogState.findings.value)
   const loading = computed(() => catalogState.loading.value || patientFindingStore.loading)
 
-  const ensureCatalogLoaded = async (): Promise<readonly Finding[]> => {
-    if (!catalogState.findings.value.length) {
-      await catalogState.fetchFindings()
+  const ensureCatalogLoaded = async (
+    examinationId: number | null | undefined
+  ): Promise<readonly Finding[]> => {
+    if (!examinationId) return []
+    if (catalogState.examinationId.value !== examinationId) {
+      await catalogState.fetchFindings(examinationId)
     }
     return catalogState.findings.value
   }
@@ -51,7 +54,9 @@ export function useFindingSelectors() {
 
   const getFindingNameById = (findingId: number, fallbackName?: string): string => {
     if (fallbackName) return fallbackName
-    return getFindingDisplayName(getFindingById(findingId) ?? { id: findingId, name: `Befund ${findingId}` })
+    return getFindingDisplayName(
+      getFindingById(findingId) ?? { id: findingId, name: `Befund ${findingId}` }
+    )
   }
 
   const getAttachedFindingIds = (patientExaminationId: number | null | undefined): number[] => {
@@ -96,22 +101,25 @@ export function useFindingSelectors() {
 
 const catalogFindingsState = ref<Finding[]>([])
 const catalogFindingsByIdState = ref<Map<number, Finding>>(new Map())
+const catalogExaminationIdState = ref<number | null>(null)
 const patientFindingIdsByPatientExaminationState = ref<Map<number, number[]>>(new Map())
 const catalogLoadingState = ref(false)
 const catalogErrorState = ref<string | null>(null)
 
 function useFindingCatalogState() {
-  const fetchFindings = async (): Promise<readonly Finding[]> => {
+  const fetchFindings = async (examinationId: number): Promise<readonly Finding[]> => {
     try {
       catalogLoadingState.value = true
       catalogErrorState.value = null
-      const nextFindings = await findingsApi.listFindings()
+      const nextFindings = await findingsApi.getExaminationFindings(examinationId)
       catalogFindingsState.value = nextFindings
+      catalogExaminationIdState.value = examinationId
       catalogFindingsByIdState.value = new Map(
         nextFindings.map((finding) => [finding.id, finding] as const)
       )
       return catalogFindingsState.value
     } catch (error: unknown) {
+      catalogExaminationIdState.value = null
       const message = error instanceof Error ? error.message : 'Unknown findings error'
       catalogErrorState.value = `Fehler beim Laden der Befunde: ${message}`
       console.error('Fetch findings error:', error)
@@ -124,6 +132,7 @@ function useFindingCatalogState() {
   return {
     findings: catalogFindingsState,
     findingsById: catalogFindingsByIdState,
+    examinationId: catalogExaminationIdState,
     patientFindingIdsByPatientExamination: patientFindingIdsByPatientExaminationState,
     loading: catalogLoadingState,
     error: catalogErrorState,
