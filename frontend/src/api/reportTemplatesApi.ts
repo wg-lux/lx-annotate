@@ -35,6 +35,13 @@ import type {
   ReportTemplateReadiness,
   ReportTemplateLifecycleStatus,
   ReportTemplateValidators,
+  ReportConceptApplicabilityStatus,
+  ReportConceptCoverage,
+  ReportConceptCoverageIdentity,
+  ReportConceptCoverageItem,
+  ReportConceptCoverageProvenance,
+  ReportConceptValidationStatus,
+  ReportTemplateCoverageState,
   RuntimeValidationIssue,
   RuntimeValidatorDependencyStatus,
   InterventionValidatorExecution,
@@ -170,6 +177,115 @@ function normalizeReadiness(value: unknown): ReportTemplateReadiness | null {
     blockingIssues: asStringArray(value.blockingIssues ?? value.blocking_issues),
     warnings: asStringArray(value.warnings),
     raw: value
+  }
+}
+
+function field(record: Record<string, unknown>, camel: string, snake: string): unknown {
+  return record[camel] ?? record[snake]
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
+}
+
+function normalizeCoverageIdentity(value: unknown): ReportConceptCoverageIdentity | null {
+  if (!isRecordLike(value)) return null
+  const identity = {
+    moduleName: asString(field(value, 'moduleName', 'module_name')),
+    moduleVersion: asString(field(value, 'moduleVersion', 'module_version')),
+    moduleDigest: field(value, 'moduleDigest', 'module_digest'),
+    templateName: asString(field(value, 'templateName', 'template_name')),
+    templateVersion: asString(field(value, 'templateVersion', 'template_version')),
+    templateDigest: field(value, 'templateDigest', 'template_digest')
+  }
+  if (
+    !identity.moduleName ||
+    !identity.moduleVersion ||
+    !isSha256(identity.moduleDigest) ||
+    !identity.templateName ||
+    !identity.templateVersion ||
+    !isSha256(identity.templateDigest)
+  ) {
+    return null
+  }
+  return identity as ReportConceptCoverageIdentity
+}
+
+function normalizeCoverageProvenance(value: unknown): ReportConceptCoverageProvenance | null {
+  if (!isRecordLike(value)) return null
+  const provenance = {
+    resolver: asString(value.resolver),
+    resolverVersion: asString(field(value, 'resolverVersion', 'resolver_version')),
+    evidenceDigest: field(value, 'evidenceDigest', 'evidence_digest')
+  }
+  if (
+    !provenance.resolver ||
+    !provenance.resolverVersion ||
+    !isSha256(provenance.evidenceDigest)
+  ) {
+    return null
+  }
+  return provenance as ReportConceptCoverageProvenance
+}
+
+function normalizeCoverageItem(value: unknown): ReportConceptCoverageItem | null {
+  if (!isRecordLike(value)) return null
+  const conceptId = asString(field(value, 'conceptId', 'concept_id'))
+  const label = asString(value.label)
+  const applicability = isRecordLike(value.applicability) ? value.applicability : null
+  const applicabilityStatus = applicability
+    ? (asString(applicability.status) as ReportConceptApplicabilityStatus | null)
+    : null
+  const validationStatus = asString(
+    field(value, 'validationStatus', 'validation_status')
+  ) as ReportConceptValidationStatus | null
+  const evidencePath = value.evidencePath ?? value.evidence_path
+  const evidence = Array.isArray(evidencePath)
+    ? evidencePath.map((entry) => asString(entry)).filter((entry): entry is string => !!entry)
+    : []
+  if (!applicability) return null
+  if (
+    !conceptId ||
+    !/^[a-z][a-z0-9_.:-]*$/.test(conceptId) ||
+    !label ||
+    !applicabilityStatus ||
+    !['required', 'conditional', 'not_applicable', 'unknown'].includes(applicabilityStatus) ||
+    !validationStatus ||
+    !['present', 'missing', 'invalid', 'unknown', 'undetermined'].includes(validationStatus) ||
+    !evidence.length
+  ) {
+    return null
+  }
+  const rule = asString(applicability.rule)
+  const reason = asString(applicability.reason)
+  if (applicabilityStatus === 'conditional' && !rule) return null
+  if (applicabilityStatus === 'not_applicable' && !reason) return null
+  if (applicabilityStatus === 'not_applicable' && validationStatus !== 'undetermined') return null
+  return {
+    conceptId,
+    label,
+    applicability: { status: applicabilityStatus, rule, reason },
+    validationStatus,
+    evidencePath: evidence
+  }
+}
+
+export function normalizeReportConceptCoverage(value: unknown): ReportConceptCoverage | null {
+  if (!isRecordLike(value)) return null
+  if (value.contractVersion !== 'report_concept_coverage_v1' && value.contract_version !== 'report_concept_coverage_v1') {
+    return null
+  }
+  const identity = normalizeCoverageIdentity(value.identity)
+  const provenance = normalizeCoverageProvenance(value.provenance)
+  const concepts = Array.isArray(value.concepts)
+    ? value.concepts.map(normalizeCoverageItem)
+    : null
+  if (!identity || !provenance || !concepts || concepts.some((item) => item === null)) return null
+  return {
+    contractVersion: 'report_concept_coverage_v1',
+    identity,
+    provenance,
+    concepts: concepts as ReportConceptCoverageItem[]
   }
 }
 
@@ -464,12 +580,18 @@ export function normalizeTemplatePayload(payload: unknown): ReportTemplatePayloa
   const name = asString(payload.name)
   if (!name) return null
   const reportSections = normalizeSections(payload.reportSections ?? payload.report_sections)
+  const hasCoverage = Object.prototype.hasOwnProperty.call(payload, 'conceptCoverage') ||
+    Object.prototype.hasOwnProperty.call(payload, 'concept_coverage')
+  const rawCoverage = payload.conceptCoverage ?? payload.concept_coverage
+  const conceptCoverage = hasCoverage ? normalizeReportConceptCoverage(rawCoverage) : null
   return {
     name,
     examination: asString(payload.examination) || '',
     identity: normalizeReportTemplateIdentity(payload),
     reportSections,
-    validators: normalizeValidators(payload.validators, reportSections)
+    validators: normalizeValidators(payload.validators, reportSections),
+    conceptCoverage,
+    conceptCoverageState: hasCoverage ? (conceptCoverage ? 'valid' : 'invalid') : 'missing'
   }
 }
 

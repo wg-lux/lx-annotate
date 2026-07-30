@@ -475,12 +475,43 @@
             <div>
               <h6 class="mb-0">LXDM-Konzeptabdeckung</h6>
               <small class="text-muted">{{ conceptCoverageSubtitle }}</small>
+              <small
+                v-if="conceptCoverage.source === 'server' && conceptCoverage.identity"
+                class="d-block text-muted"
+                data-testid="concept-coverage-identity"
+              >
+                Modul {{ conceptCoverage.identity.moduleName }} v{{ conceptCoverage.identity.moduleVersion }}
+                · {{ conceptCoverage.identity.moduleDigest.slice(0, 12) }}… · Template
+                {{ conceptCoverage.identity.templateName }} v{{ conceptCoverage.identity.templateVersion }}
+                · {{ conceptCoverage.identity.templateDigest.slice(0, 12) }}…
+              </small>
             </div>
             <span class="context-status-pill" :class="conceptCoveragePillClass">
               {{ conceptCoverageSummaryLabel }}
             </span>
           </div>
           <div class="card-body">
+            <div
+              v-if="conceptCoverage.source === 'legacy_fallback'"
+              class="alert alert-warning py-2 small mb-2"
+              data-testid="concept-coverage-legacy-warning"
+            >
+              {{
+                templateReference?.conceptCoverageState === 'invalid'
+                  ? 'Der serverseitige Coverage-Vertrag ist ungültig.'
+                  : 'Keine serverseitige Coverage geliefert.'
+              }}
+              Diese technische Fallback-Auflösung ist nicht autoritativ.
+            </div>
+            <small
+              v-if="conceptCoverage.source === 'server' && conceptCoverage.provenance"
+              class="d-block text-muted mb-2"
+              data-testid="concept-coverage-provenance"
+            >
+              Serververtrag {{ templateReference?.conceptCoverage?.contractVersion }} · Resolver
+              {{ conceptCoverage.provenance.resolver }} v{{ conceptCoverage.provenance.resolverVersion }}
+              · Evidenz {{ conceptCoverage.provenance.evidenceDigest.slice(0, 12) }}…
+            </small>
             <div v-if="conceptCoverage.items.length" class="d-grid gap-2">
               <div
                 v-for="item in conceptCoverage.items"
@@ -662,7 +693,7 @@ import type {
   UnitValidatorExecution
 } from '@/types/reportTemplate'
 import {
-  deriveReportConceptCoverage,
+  resolveReportConceptCoverage,
   type ReportConceptCoverageStatus
 } from '@/utils/reportConceptCoverage'
 import { endpoints } from '@/types/api/endpoints'
@@ -1008,7 +1039,8 @@ const templateSectionsForReference = computed(() =>
 )
 
 const conceptCoverage = computed(() =>
-  deriveReportConceptCoverage({
+  resolveReportConceptCoverage({
+    serverCoverage: templateReference.value?.conceptCoverage || null,
     sections: templateSectionsForReference.value,
     payload: currentPayload.value,
     validation: flow.lastTemplateValidation

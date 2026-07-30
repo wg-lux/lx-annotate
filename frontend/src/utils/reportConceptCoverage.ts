@@ -1,4 +1,5 @@
 import type {
+  ReportConceptCoverage as ServerReportConceptCoverage,
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateRuntimeValidationResult,
   ReportTemplateSection
@@ -33,6 +34,9 @@ export type ReportConceptCoverageItem = {
 export type ReportConceptCoverage = {
   items: ReportConceptCoverageItem[]
   counts: Record<ReportConceptCoverageStatus, number>
+  source: 'server' | 'legacy_fallback'
+  identity: ServerReportConceptCoverage['identity'] | null
+  provenance: ServerReportConceptCoverage['provenance'] | null
 }
 
 type CoverageTemplateFinding = ReportTemplateSection['findings'][number]
@@ -298,5 +302,67 @@ export function deriveReportConceptCoverage(params: {
 
   const counts = { ...EMPTY_COUNTS }
   for (const item of items) counts[item.status] += 1
-  return { items, counts }
+  return { items, counts, source: 'legacy_fallback', identity: null, provenance: null }
+}
+
+function serverStatus(
+  applicability: ServerReportConceptCoverage['concepts'][number]['applicability'],
+  validationStatus: ServerReportConceptCoverage['concepts'][number]['validationStatus']
+): ReportConceptCoverageStatus {
+  if (applicability.status === 'not_applicable') return 'not_applicable'
+  if (validationStatus === 'present') return 'present'
+  if (validationStatus === 'missing') return 'missing'
+  if (validationStatus === 'invalid') return 'invalid'
+  return 'unknown'
+}
+
+export function mapServerReportConceptCoverage(
+  coverage: ServerReportConceptCoverage
+): ReportConceptCoverage {
+  const items: ReportConceptCoverageItem[] = coverage.concepts.map((concept) => ({
+    conceptId: concept.conceptId,
+    label: concept.label,
+    kind: concept.conceptId.includes('.') ? 'classification' : 'finding',
+    finding: concept.conceptId.includes('.')
+      ? concept.conceptId.slice(0, concept.conceptId.indexOf('.'))
+      : concept.label,
+    status: serverStatus(concept.applicability, concept.validationStatus),
+    required: concept.applicability.status === 'required',
+    documentation:
+      concept.validationStatus === 'present' ? 'recorded' : 'absent',
+    applicability:
+      concept.applicability.status === 'not_applicable'
+        ? 'not_applicable'
+        : concept.applicability.status === 'unknown' || concept.applicability.status === 'conditional'
+          ? 'undetermined'
+          : 'applicable',
+    validation:
+      concept.validationStatus === 'present'
+        ? 'valid'
+        : concept.validationStatus === 'invalid'
+          ? 'invalid'
+          : 'not_evaluated',
+    validatorNames: [],
+    evidencePath: concept.evidencePath.join('.'),
+    messages: []
+  }))
+  const counts = { ...EMPTY_COUNTS }
+  for (const item of items) counts[item.status] += 1
+  return {
+    items,
+    counts,
+    source: 'server',
+    identity: coverage.identity,
+    provenance: coverage.provenance
+  }
+}
+
+export function resolveReportConceptCoverage(params: {
+  serverCoverage: ServerReportConceptCoverage | null
+  sections: ReportTemplateSection[]
+  payload: { patientFindings?: ReportTemplateRuntimePatientFindingInput[] } | null
+  validation: ReportTemplateRuntimeValidationResult | null
+}): ReportConceptCoverage {
+  if (params.serverCoverage) return mapServerReportConceptCoverage(params.serverCoverage)
+  return deriveReportConceptCoverage(params)
 }

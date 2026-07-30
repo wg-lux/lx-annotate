@@ -46,6 +46,57 @@ export type ReportTemplateIdentity = {
   readiness: ReportTemplateReadiness | null
 }
 
+export type ReportConceptCoverageContractVersion = 'report_concept_coverage_v1'
+export type ReportConceptApplicabilityStatus =
+  | 'required'
+  | 'conditional'
+  | 'not_applicable'
+  | 'unknown'
+export type ReportConceptValidationStatus =
+  | 'present'
+  | 'missing'
+  | 'invalid'
+  | 'unknown'
+  | 'undetermined'
+
+export type ReportConceptCoverageIdentity = {
+  moduleName: string
+  moduleVersion: string
+  moduleDigest: string
+  templateName: string
+  templateVersion: string
+  templateDigest: string
+}
+
+export type ReportConceptCoverageProvenance = {
+  resolver: string
+  resolverVersion: string
+  evidenceDigest: string
+}
+
+export type ReportConceptApplicability = {
+  status: ReportConceptApplicabilityStatus
+  rule: string | null
+  reason: string | null
+}
+
+export type ReportConceptCoverageItem = {
+  conceptId: string
+  label: string
+  applicability: ReportConceptApplicability
+  validationStatus: ReportConceptValidationStatus
+  evidencePath: string[]
+}
+
+export type ReportConceptCoverage = {
+  contractVersion: ReportConceptCoverageContractVersion
+  identity: ReportConceptCoverageIdentity
+  provenance: ReportConceptCoverageProvenance
+  concepts: ReportConceptCoverageItem[]
+}
+
+export type ReportTemplateCoverageState = 'valid' | 'missing' | 'invalid'
+
 export type FindingsValidatorOperator = 'exists' | 'missing' | 'condition'
 
 export type FindingsValidatorComparator =
@@ -115,6 +166,8 @@ export type ReportTemplatePayload = {
   identity: ReportTemplateIdentity
   reportSections: ReportTemplateSection[]
   validators: ReportTemplateValidators
+  conceptCoverage: ReportConceptCoverage | null
+  conceptCoverageState: ReportTemplateCoverageState
 }
 
 export type ReportTemplateSectionBlock = {
