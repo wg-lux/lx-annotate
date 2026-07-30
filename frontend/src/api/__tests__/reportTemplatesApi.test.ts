@@ -4,7 +4,10 @@ import axiosInstance from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
 import {
   fetchReportTemplatesByExamination,
+  fetchBuilderReportTemplatesByExamination,
+  fetchReportTemplatePreviewByName,
   normalizeDefinitionValidationResult,
+  normalizeReportConceptCoverage,
   normalizeTemplatePayload,
   validatePatientFindingsAgainstTemplate,
   validateReportTemplateRuntimeFromLedger,
@@ -79,6 +82,45 @@ describe('reportTemplatesApi', () => {
     ])
   })
 
+  it('loads draft templates through the preview endpoint', async () => {
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: {
+        name: 'draft_template',
+        examination: 'colonoscopy',
+        report_sections: [],
+        validators: { findings_validators: [], examination_validators: [] }
+      }
+    })
+
+    await expect(
+      fetchReportTemplatePreviewByName('report_template_examples', 'draft_template')
+    ).resolves.toMatchObject({ name: 'draft_template', examination: 'colonoscopy' })
+    expect(axiosInstance.get).toHaveBeenCalledWith(
+      '/dtypes-api/report-templates/report_template_examples/draft_template/preview'
+    )
+  })
+
+  it('uses the builder list endpoint so drafts remain outside clinical selection', async () => {
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: [
+        {
+          name: 'draft_template',
+          examination: 'colonoscopy',
+          lifecycle_status: 'draft',
+          report_sections: [],
+          validators: { findings_validators: [], examination_validators: [] }
+        }
+      ]
+    })
+
+    await expect(
+      fetchBuilderReportTemplatesByExamination('module', 'colonoscopy')
+    ).resolves.toMatchObject([{ name: 'draft_template' }])
+    expect(axiosInstance.get).toHaveBeenCalledWith(
+      '/dtypes-api/report-templates/builder/by-examination/module/colonoscopy'
+    )
+  })
+
   it('normalizes snake_case template payloads', () => {
     const payload = normalizeTemplatePayload({
       name: 'snake_template',
@@ -136,6 +178,91 @@ describe('reportTemplatesApi', () => {
     expect(payload?.reportSections[1].findings[0].multipleAllowed).toBe(true)
     expect(payload?.validators.findingsValidators[0].requiredClassifications).toEqual(['c1'])
     expect(payload?.validators.examinationValidators[0].findingValidators).toEqual(['v1'])
+  })
+
+  it('keeps template identity, readiness and patient/history section fields', () => {
+    const payload = normalizeTemplatePayload({
+      name: 'published_template',
+      examination: 'star_upper_gi_endoscopy',
+      lifecycle_status: 'published',
+      knowledge_base_module: 'report_template_examples',
+      knowledge_base_version: '0.2.8',
+      template_version: '3',
+      template_hash: 'sha256:template',
+      readiness: { can_publish: true, warnings: ['reviewed'] },
+      report_sections: [
+        {
+          name: 'patient_context',
+          position: 0,
+          section_kind: 'patient_data',
+          fields: [{ key: 'date_of_birth', required: true, source: 'patient' }],
+          findings: []
+        }
+      ]
+    })
+
+    expect(payload?.identity).toMatchObject({
+      lifecycleStatus: 'published',
+      knowledgeBaseVersion: '0.2.8',
+      templateVersion: '3',
+      templateHash: 'sha256:template'
+    })
+    expect(payload?.identity.readiness?.canPublish).toBe(true)
+    expect(payload?.reportSections[0]).toMatchObject({
+      sectionKind: 'patient_data',
+      fields: [{ key: 'date_of_birth', source: 'patient' }]
+    })
+  })
+
+  it('validates and normalizes the server concept_coverage contract', () => {
+    const coverage = normalizeReportConceptCoverage({
+      contract_version: 'report_concept_coverage_v1',
+      identity: {
+        moduleName: 'colonoscopy',
+        module_version: '1.2.0',
+        moduleDigest: 'a'.repeat(64),
+        template_name: 'standard',
+        template_version: '3',
+        templateDigest: 'b'.repeat(64)
+      },
+      provenance: {
+        resolver: 'lx-resolver',
+        resolverVersion: '1.0.0',
+        evidence_digest: 'c'.repeat(64)
+      },
+      concepts: [
+        {
+          conceptId: 'lesion.size',
+          label: 'Größe',
+          applicability: { status: 'required', rule: null, reason: null },
+          validation_status: 'present',
+          evidencePath: ['findings', '0', 'classifications', 'size']
+        }
+      ]
+    })
+
+    expect(coverage).toMatchObject({
+      contractVersion: 'report_concept_coverage_v1',
+      identity: { moduleName: 'colonoscopy', templateDigest: 'b'.repeat(64) },
+      concepts: [{ conceptId: 'lesion.size', validationStatus: 'present' }]
+    })
+    expect(
+      normalizeReportConceptCoverage({
+        ...coverage,
+        concepts: [{ ...(coverage?.concepts[0] || {}), evidencePath: [] }]
+      })
+    ).toBeNull()
+  })
+
+  it('marks a present but malformed server coverage block as invalid', () => {
+    const payload = normalizeTemplatePayload({
+      name: 'template',
+      examination: 'colonoscopy',
+      concept_coverage: { contract_version: 'report_concept_coverage_v1', concepts: [] }
+    })
+
+    expect(payload?.conceptCoverage).toBeNull()
+    expect(payload?.conceptCoverageState).toBe('invalid')
   })
 
   it('normalizes runtime validation responses', async () => {

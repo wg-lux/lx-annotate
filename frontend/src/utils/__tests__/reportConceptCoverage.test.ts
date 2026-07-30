@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { deriveReportConceptCoverage } from '@/utils/reportConceptCoverage'
+import {
+  deriveReportConceptCoverage,
+  resolveReportConceptCoverage
+} from '@/utils/reportConceptCoverage'
+import type { ReportConceptCoverage } from '@/types/reportTemplate'
 import type {
   ReportTemplateRuntimeValidationResult,
   ReportTemplateSection
@@ -114,6 +118,70 @@ describe('deriveReportConceptCoverage', () => {
       invalid: 0,
       unknown: 1
     })
+    expect(result.source).toBe('legacy_fallback')
+  })
+
+  it('uses server coverage as the authoritative source and preserves provenance', () => {
+    const serverCoverage: ReportConceptCoverage = {
+      contractVersion: 'report_concept_coverage_v1',
+      identity: {
+        moduleName: 'colonoscopy',
+        moduleVersion: '1.2.0',
+        moduleDigest: 'a'.repeat(64),
+        templateName: 'standard',
+        templateVersion: '3',
+        templateDigest: 'b'.repeat(64)
+      },
+      provenance: {
+        resolver: 'lx-resolver',
+        resolverVersion: '1.0.0',
+        evidenceDigest: 'c'.repeat(64)
+      },
+      concepts: [
+        {
+          conceptId: 'lesion.size',
+          label: 'Größe',
+          applicability: { status: 'required', rule: null, reason: null },
+          validationStatus: 'present',
+          evidencePath: ['findings', '0', 'size']
+        },
+        {
+          conceptId: 'normal_colon',
+          label: 'Normaler Kolonbefund',
+          applicability: { status: 'not_applicable', rule: null, reason: 'not examined' },
+          validationStatus: 'undetermined',
+          evidencePath: ['examination', 'applicability']
+        }
+      ]
+    }
+
+    const result = resolveReportConceptCoverage({
+      serverCoverage,
+      sections,
+      payload: null,
+      validation: null
+    })
+
+    expect(result.source).toBe('server')
+    expect(result.items.map((item) => [item.conceptId, item.status])).toEqual([
+      ['lesion.size', 'present'],
+      ['normal_colon', 'not_applicable']
+    ])
+    expect(result.identity).toEqual(serverCoverage.identity)
+    expect(result.provenance).toEqual(serverCoverage.provenance)
+  })
+
+  it('keeps the legacy resolver explicitly non-authoritative without server coverage', () => {
+    const result = resolveReportConceptCoverage({
+      serverCoverage: null,
+      sections: [],
+      payload: null,
+      validation: null
+    })
+
+    expect(result.source).toBe('legacy_fallback')
+    expect(result.identity).toBeNull()
+    expect(result.provenance).toBeNull()
   })
 
   it('does not treat a present but invalid concept as present', () => {
