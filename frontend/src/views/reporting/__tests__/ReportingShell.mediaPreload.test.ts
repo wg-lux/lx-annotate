@@ -182,6 +182,12 @@ function buildFlowStore() {
       if (payload.templateName !== undefined) flow.selectedTemplateName = payload.templateName
     }),
     setIndications: vi.fn(),
+    clearRuntimeDraft: vi.fn(() => {
+      flow.currentRuntimeDraft = null
+      delete flow.runtimeDraftsByPatientExaminationId['314']
+    }),
+    clearTemplateSectionDrafts: vi.fn(),
+    setLastTemplateValidation: vi.fn(),
     setRuntimeDraft: vi.fn((payload: ReportingRuntimeDraft) => {
       flow.currentRuntimeDraft = payload
       flow.runtimeDraftsByPatientExaminationId[String(payload.patientExaminationId)] = payload
@@ -408,33 +414,18 @@ describe('ReportingShell media preload', () => {
       latestFrames: []
     })
 
-    mountShell()
+    const wrapper = mountShell()
     await flushPromises()
 
     expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
       'report_template_examples',
       'colonoscopy'
     )
-    expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).toHaveBeenCalledWith({
-      moduleName: 'report_template_examples',
-      patientExaminationId: 314,
-      patient: 'patient_42',
-      examiners: ['dr_house', 'Lisa Cuddy', 'dr_wilson'],
-      examination: 'colonoscopy',
-      getFindingById: expect.any(Function)
-    })
-    expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalledWith(
-      expect.objectContaining({
-        patientExaminationId: 314,
-        moduleName: 'report_template_examples',
-        templateName: 'default_template',
-        hydratedFrom: 'backend_context',
-        payload: expect.objectContaining({
-          patient: 'patient_42',
-          examination: 'colonoscopy',
-          knowledgeBaseModule: 'report_template_examples'
-        })
-      })
+    expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
+    expect(hoisted.flowRef.current.setRuntimeDraft).not.toHaveBeenCalled()
+    const templateSelect = wrapper.get('[data-testid="report-template-select"]')
+    expect(templateSelect.findAll('option').map((option) => option.text())).toContain(
+      'default_template'
     )
   })
 
@@ -464,6 +455,9 @@ describe('ReportingShell media preload', () => {
     hoisted.flowRef.current.runtimeDraftsByPatientExaminationId = {
       '314': hoisted.flowRef.current.currentRuntimeDraft
     }
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
+      { name: 'restored_template', examination: 'colonoscopy' }
+    ])
 
     mountShell()
     await flushPromises()
@@ -519,6 +513,36 @@ describe('ReportingShell media preload', () => {
     expect(hoisted.flowRef.current.markDraftPersistenceHydrated).toHaveBeenCalledWith(
       '2026-03-19T13:00:00.000Z'
     )
+  })
+
+  it('does not activate a persisted draft whose template is not published', async () => {
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+    hoisted.reportDraftApi.fetchPatientExaminationDraft.mockResolvedValue({
+      patient_examination_id: 314,
+      draft: {
+        module_name: 'report_template_examples',
+        template_name: 'draft_only_template',
+        payload: {
+          patient: 'patient_42',
+          examiners: [],
+          examination: 'colonoscopy',
+          patientFindings: []
+        }
+      },
+      updated_at: '2026-03-19T13:00:00.000Z'
+    })
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.clearRuntimeDraft).toHaveBeenCalledWith(314)
+    expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('gespeicherte Entwurf')
   })
 
   it('preselects preferred video stream and allows manual stream switching', async () => {

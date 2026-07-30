@@ -1,5 +1,10 @@
 import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
-import { extractFindingId, type Finding, type FindingClassification, type JsonMap } from '@/api/findings.contract'
+import {
+  extractFindingId,
+  type Finding,
+  type FindingClassification,
+  type JsonMap
+} from '@/api/findings.contract'
 import { findingsApi } from '@/api/findingsApi'
 import type {
   ReportTemplateDefinitionValidationResult,
@@ -25,6 +30,10 @@ import type {
   ReportTemplateStructureGraph,
   ReportTemplateStructureIssue,
   ReportTemplateSection,
+  ReportTemplateSectionField,
+  ReportTemplateIdentity,
+  ReportTemplateReadiness,
+  ReportTemplateLifecycleStatus,
   ReportTemplateValidators,
   RuntimeValidationIssue,
   RuntimeValidatorDependencyStatus,
@@ -57,9 +66,7 @@ function asNumber(value: unknown): number | null {
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
-  return value
-    .map((entry) => asString(entry))
-    .filter((entry): entry is string => entry !== null)
+  return value.map((entry) => asString(entry)).filter((entry): entry is string => entry !== null)
 }
 
 function normalizeKey(value: string): string {
@@ -79,7 +86,9 @@ function normalizeClassifications(
 ): Array<{ classification: string; required: boolean }> {
   if (!Array.isArray(classifications)) return []
   return classifications
-    .filter((classification): classification is Record<string, unknown> => isRecordLike(classification))
+    .filter((classification): classification is Record<string, unknown> =>
+      isRecordLike(classification)
+    )
     .map((classification) => ({
       classification: asString(classification.classification) || '',
       required: asBoolean(classification.required)
@@ -110,6 +119,9 @@ function normalizeReportTemplateFinding(entry: unknown): ReportTemplateFinding |
     finding,
     required: asBoolean(entry.required),
     multipleAllowed: asBoolean(entry.multipleAllowed ?? entry.multiple_allowed),
+    applicability:
+      (asString(entry.applicability) as ReportTemplateFinding['applicability']) || undefined,
+    applicabilityRule: asString(entry.applicabilityRule ?? entry.applicability_rule),
     classifications: normalizeClassifications(entry.classifications)
   }
 }
@@ -121,11 +133,80 @@ function normalizeSections(sections: unknown): ReportTemplateSection[] {
     .map((section) => ({
       name: asString(section.name) || '',
       position: asNumber(section.position) ?? 0,
+      sectionKind:
+        (asString(section.sectionKind ?? section.section_kind) as
+          | ReportTemplateSection['sectionKind']
+          | null) || 'findings',
+      fields: normalizeSectionFields(section.fields),
       types: asStringArray(section.types),
       findings: normalizeFindings(section.findings)
     }))
     .filter((section) => !!section.name)
     .sort((a, b) => a.position - b.position)
+}
+
+function normalizeSectionFields(value: unknown): ReportTemplateSectionField[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
+    .map((entry) => ({
+      key: asString(entry.key) || '',
+      required: asBoolean(entry.required),
+      label: asString(entry.label),
+      source: (asString(entry.source) as ReportTemplateSectionField['source']) || null
+    }))
+    .filter((entry) => !!entry.key)
+}
+
+function normalizeReadiness(value: unknown): ReportTemplateReadiness | null {
+  if (!isRecordLike(value)) return null
+  return {
+    canPublish:
+      typeof value.canPublish === 'boolean'
+        ? value.canPublish
+        : typeof value.can_publish === 'boolean'
+          ? value.can_publish
+          : null,
+    blockingIssues: asStringArray(value.blockingIssues ?? value.blocking_issues),
+    warnings: asStringArray(value.warnings),
+    raw: value
+  }
+}
+
+export function normalizeReportTemplateIdentity(payload: unknown): ReportTemplateIdentity {
+  const record = isRecordLike(payload) ? payload : {}
+  const lifecycle = asString(record.lifecycleStatus ?? record.lifecycle_status)
+  const identity = isRecordLike(record.identity) ? record.identity : {}
+  const readiness = normalizeReadiness(record.readiness)
+  return {
+    moduleName: asString(
+      record.knowledgeBaseModule ??
+        record.knowledge_base_module ??
+        record.moduleName ??
+        record.module_name
+    ),
+    knowledgeBaseVersion: asString(
+      record.knowledgeBaseVersion ?? record.knowledge_base_version ?? record.version
+    ),
+    templateVersion: asString(
+      record.templateVersion ??
+        record.template_version ??
+        identity.templateVersion ??
+        identity.template_version
+    ),
+    templateHash: asString(
+      record.templateHash ??
+        record.template_hash ??
+        record.hash ??
+        identity.templateHash ??
+        identity.template_hash
+    ),
+    lifecycleStatus:
+      lifecycle === 'draft' || lifecycle === 'published'
+        ? (lifecycle as ReportTemplateLifecycleStatus)
+        : null,
+    readiness
+  }
 }
 
 function normalizeConditionClause(
@@ -198,7 +279,10 @@ function findRelatedSections(findingName: string, sections: ReportTemplateSectio
 }
 
 function buildFindingValidatorSummary(
-  validator: Pick<ReportTemplateFindingValidator, 'finding' | 'operator' | 'query' | 'requiredClassifications'>
+  validator: Pick<
+    ReportTemplateFindingValidator,
+    'finding' | 'operator' | 'query' | 'requiredClassifications'
+  >
 ): string {
   if (validator.operator === 'exists') {
     return `Befund "${validator.finding}" muss vorhanden sein.`
@@ -252,12 +336,18 @@ function normalizeFindingValidator(
   if (!isRecordLike(input)) return null
 
   const name = asString(input.name)
-  const finding = asString(input.finding) || asString((input.query as Record<string, unknown> | undefined)?.finding)
-  const operator = (asString(input.operator) || asString((input.query as Record<string, unknown> | undefined)?.operator)) as FindingsValidatorOperator | null
+  const finding =
+    asString(input.finding) ||
+    asString((input.query as Record<string, unknown> | undefined)?.finding)
+  const operator = (asString(input.operator) ||
+    asString(
+      (input.query as Record<string, unknown> | undefined)?.operator
+    )) as FindingsValidatorOperator | null
   if (!name || !finding || !operator) return null
 
   const query = normalizeQuery(input.query, finding)
-  const requiredClassifications = query.condition?.thenRequires.map((entry) => entry.classification) || []
+  const requiredClassifications =
+    query.condition?.thenRequires.map((entry) => entry.classification) || []
   const relatedSections = findRelatedSections(finding, sections)
   const validator: ReportTemplateFindingValidator = {
     kind: 'finding',
@@ -341,7 +431,9 @@ function normalizeValidators(
   sections: ReportTemplateSection[]
 ): ReportTemplateValidators {
   const source = isRecordLike(validators) ? validators : {}
-  const rawFindingValidators = Array.isArray(source.findingsValidators ?? source.findings_validators)
+  const rawFindingValidators = Array.isArray(
+    source.findingsValidators ?? source.findings_validators
+  )
     ? ((source.findingsValidators ?? source.findings_validators) as unknown[])
     : []
   const findingValidators = rawFindingValidators
@@ -375,6 +467,7 @@ export function normalizeTemplatePayload(payload: unknown): ReportTemplatePayloa
   return {
     name,
     examination: asString(payload.examination) || '',
+    identity: normalizeReportTemplateIdentity(payload),
     reportSections,
     validators: normalizeValidators(payload.validators, reportSections)
   }
@@ -390,12 +483,35 @@ export async function fetchReportTemplateByName(
   return normalizeTemplatePayload(response.data)
 }
 
+export async function fetchReportTemplatePreviewByName(
+  moduleName: string,
+  templateName: string
+): Promise<ReportTemplatePayload | null> {
+  const response = await axiosInstance.get(
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/preview`
+  )
+  return normalizeTemplatePayload(response.data)
+}
+
 export async function fetchReportTemplatesByExamination(
   moduleName: string,
   examinationName: string
 ): Promise<ReportTemplatePayload[]> {
   const response = await axiosInstance.get(
     `${REPORT_TEMPLATE_BASE}/by-examination/${encodeURIComponent(moduleName)}/${encodeURIComponent(examinationName)}`
+  )
+  if (!Array.isArray(response.data)) return []
+  return response.data
+    .map((entry) => normalizeTemplatePayload(entry))
+    .filter((entry): entry is ReportTemplatePayload => entry !== null)
+}
+
+export async function fetchBuilderReportTemplatesByExamination(
+  moduleName: string,
+  examinationName: string
+): Promise<ReportTemplatePayload[]> {
+  const response = await axiosInstance.get(
+    `${REPORT_TEMPLATE_BASE}/builder/by-examination/${encodeURIComponent(moduleName)}/${encodeURIComponent(examinationName)}`
   )
   if (!Array.isArray(response.data)) return []
   return response.data
@@ -420,7 +536,9 @@ function normalizeGraphNode(input: unknown): ReportTemplateGraphNode | null {
   if (!isRecordLike(input)) return null
   const nodeId = asString(input.nodeId ?? input.node_id)
   const name = asString(input.name)
-  const nodeType = asString(input.nodeType ?? input.node_type) as ReportTemplateGraphNode['nodeType'] | null
+  const nodeType = asString(input.nodeType ?? input.node_type) as
+    | ReportTemplateGraphNode['nodeType']
+    | null
   if (!nodeId || !name || !nodeType) return null
   return {
     nodeId,
@@ -434,7 +552,9 @@ function normalizeGraphEdge(input: unknown): ReportTemplateGraphEdge | null {
   if (!isRecordLike(input)) return null
   const sourceNodeId = asString(input.sourceNodeId ?? input.source_node_id)
   const targetNodeId = asString(input.targetNodeId ?? input.target_node_id)
-  const edgeType = asString(input.edgeType ?? input.edge_type) as ReportTemplateGraphEdge['edgeType'] | null
+  const edgeType = asString(input.edgeType ?? input.edge_type) as
+    | ReportTemplateGraphEdge['edgeType']
+    | null
   if (!sourceNodeId || !targetNodeId || !edgeType) return null
   return {
     sourceNodeId,
@@ -763,8 +883,8 @@ function extractNumericalValue(
   const directMatch = numericalDescriptors[classificationName]
   if (directMatch !== undefined) return directMatch
 
-  const preferredEntry = Object.entries(numericalDescriptors).find(([key]) =>
-    normalizeKey(key) === normalizeKey(classificationName)
+  const preferredEntry = Object.entries(numericalDescriptors).find(
+    ([key]) => normalizeKey(key) === normalizeKey(classificationName)
   )
   if (preferredEntry) return preferredEntry[1]
 
@@ -801,7 +921,8 @@ function serializeRuntimeClassificationChoices(
   classificationsKey: string
 ) {
   return classificationChoices.map((classificationChoice, choiceIndex) => {
-    const choiceKey = classificationChoice.localId || `${classificationsKey}_choice_${choiceIndex + 1}`
+    const choiceKey =
+      classificationChoice.localId || `${classificationsKey}_choice_${choiceIndex + 1}`
     return {
       classification: classificationChoice.classification,
       classification_choice: classificationChoice.classificationChoice,
@@ -820,7 +941,8 @@ function serializeRuntimePatientFindings(
 ) {
   const patientExaminationKey = 'frontend_runtime_exam'
   return patientFindings.map((patientFinding, findingIndex) => {
-    const findingKey = patientFinding.localId || `${patientExaminationKey}_finding_${findingIndex + 1}`
+    const findingKey =
+      patientFinding.localId || `${patientExaminationKey}_finding_${findingIndex + 1}`
     const classificationsKey = `${findingKey}_classifications_1`
     return {
       finding: patientFinding.finding,
@@ -862,7 +984,9 @@ async function buildRuntimeValidationFindings(
   const rows = await findingsApi.listPatientFindings(patientExaminationId)
   const findingClassificationsCache = new Map<number, readonly FindingClassification[]>()
 
-  const getFindingDefinitions = async (findingId: number): Promise<readonly FindingClassification[]> => {
+  const getFindingDefinitions = async (
+    findingId: number
+  ): Promise<readonly FindingClassification[]> => {
     const cached = findingClassificationsCache.get(findingId)
     if (cached) return cached
     const loaded = await findingsApi.getFindingClassifications(findingId)
@@ -881,53 +1005,52 @@ async function buildRuntimeValidationFindings(
     if (!finding?.name) continue
 
     const findingDefinitions = await getFindingDefinitions(findingId)
-    const classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[] = row.classifications
-      .filter((classification) => classification.isActive !== false)
-      .map((classification) => {
-        const classificationName =
-          classification.classificationName ||
-          findClassificationDefinition(findingDefinitions, classification.classification)?.name ||
-          null
-        if (!classificationName) return null
+    const classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[] =
+      row.classifications
+        .filter((classification) => classification.isActive !== false)
+        .map((classification) => {
+          const classificationName =
+            classification.classificationName ||
+            findClassificationDefinition(findingDefinitions, classification.classification)?.name ||
+            null
+          if (!classificationName) return null
 
-        const derivedValue = extractNumericalValue(
-          classificationName,
-          classification.numericalDescriptors
+          const derivedValue = extractNumericalValue(
+            classificationName,
+            classification.numericalDescriptors
+          )
+          const descriptors = Object.entries(classification.numericalDescriptors || {})
+            .map((entry) => descriptorFromEntry(entry))
+            .filter((entry): entry is ReportTemplateRuntimeDescriptorInput => entry !== null)
+          const choiceName =
+            classification.classificationChoiceName ||
+            findChoiceName(
+              findingDefinitions,
+              classification.classification,
+              classification.classificationChoice
+            ) ||
+            null
+
+          return {
+            classification: classificationName,
+            classificationChoice: choiceName || classificationName,
+            descriptors:
+              descriptors.length > 0
+                ? descriptors
+                : derivedValue !== undefined && !Array.isArray(derivedValue)
+                  ? [
+                      {
+                        classificationChoiceDescriptor: `${normalizeKey(classificationName)}_descriptor`,
+                        descriptorValue: derivedValue
+                      }
+                    ]
+                  : []
+          }
+        })
+        .filter(
+          (classification): classification is ReportTemplateRuntimeClassificationChoiceInput =>
+            classification !== null
         )
-        const descriptors = Object.entries(classification.numericalDescriptors || {})
-          .map((entry) => descriptorFromEntry(entry))
-          .filter((entry): entry is ReportTemplateRuntimeDescriptorInput => entry !== null)
-        const choiceName =
-          classification.classificationChoiceName ||
-          findChoiceName(
-            findingDefinitions,
-            classification.classification,
-            classification.classificationChoice
-          ) ||
-          null
-
-        return {
-          classification: classificationName,
-          classificationChoice: choiceName || classificationName,
-          descriptors:
-            descriptors.length > 0
-              ? descriptors
-              : derivedValue !== undefined && !Array.isArray(derivedValue)
-                ? [
-                    {
-                      classificationChoiceDescriptor: `${normalizeKey(classificationName)}_descriptor`,
-                      descriptorValue: derivedValue
-                    }
-                  ]
-                : []
-        }
-      })
-      .filter(
-        (
-          classification
-        ): classification is ReportTemplateRuntimeClassificationChoiceInput =>
-          classification !== null
-      )
 
     findingsPayload.push({
       finding: finding.name,
@@ -951,8 +1074,7 @@ export async function validatePatientFindingsAgainstTemplate(params: {
       params.patientExaminationId
     )
   } catch (error: unknown) {
-    const errorRecord =
-      error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+    const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
     const response =
       errorRecord.response && typeof errorRecord.response === 'object'
         ? (errorRecord.response as Record<string, unknown>)
@@ -965,7 +1087,8 @@ export async function validatePatientFindingsAgainstTemplate(params: {
     const detail = String(data.detail || '')
       .trim()
       .toLowerCase()
-    const isGenericNotFound = status === 404 && (!detail || detail === 'not found' || detail === 'not found.')
+    const isGenericNotFound =
+      status === 404 && (!detail || detail === 'not found' || detail === 'not found.')
     const fallbackAllowed = isGenericNotFound || status === 405 || status === 501 || status >= 500
     if (!fallbackAllowed) {
       throw error
@@ -1001,8 +1124,7 @@ export async function buildReportTemplateRuntimePayload(params: {
   )
 
   return {
-    patient:
-      params.patient?.trim() || `patient_examination_${params.patientExaminationId}`,
+    patient: params.patient?.trim() || `patient_examination_${params.patientExaminationId}`,
     examiners: Array.isArray(params.examiners) ? params.examiners.filter(Boolean) : [],
     examination: params.examination,
     knowledgeBaseModule: params.moduleName,

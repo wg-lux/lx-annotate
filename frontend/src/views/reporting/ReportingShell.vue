@@ -34,6 +34,41 @@
             </select>
             <select
               class="form-select"
+              data-testid="report-template-select"
+              :value="flow.selectedTemplateName ?? ''"
+              :disabled="templateLoading || !availableTemplates.length"
+              aria-label="Berichtsvorlage auswählen"
+              @change="
+                onTemplateSelectionChange(
+                  ($event.target as HTMLSelectElement).value,
+                  $event.target as HTMLSelectElement
+                )
+              "
+            >
+              <option value="">
+                {{
+                  templateLoading
+                    ? 'Vorlagen werden geladen...'
+                    : availableTemplates.length
+                      ? 'Bitte Vorlage wählen'
+                      : 'Keine veröffentlichte Vorlage verfügbar'
+                }}
+              </option>
+              <option
+                v-for="template in availableTemplates"
+                :key="template.name"
+                :value="template.name"
+              >
+                {{ template.name
+                }}{{
+                  template.identity?.knowledgeBaseVersion
+                    ? ` · ${template.identity.knowledgeBaseVersion}`
+                    : ''
+                }}
+              </option>
+            </select>
+            <select
+              class="form-select"
               data-testid="patient-examination-select"
               :value="selectedPatientExaminationId"
               :disabled="
@@ -122,6 +157,9 @@
           </div>
           <div v-if="caseOptionsError" class="small text-danger mt-1">
             {{ caseOptionsError }}
+          </div>
+          <div v-if="templateSelectionError" class="small text-danger mt-1" role="alert">
+            {{ templateSelectionError }}
           </div>
         </div>
       </div>
@@ -432,6 +470,47 @@
       </main>
 
       <aside class="reporting-right-rail">
+        <div class="card shadow-sm concept-coverage-panel mb-3">
+          <div class="card-header d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <h6 class="mb-0">LXDM-Konzeptabdeckung</h6>
+              <small class="text-muted">{{ conceptCoverageSubtitle }}</small>
+            </div>
+            <span class="context-status-pill" :class="conceptCoveragePillClass">
+              {{ conceptCoverageSummaryLabel }}
+            </span>
+          </div>
+          <div class="card-body">
+            <div v-if="conceptCoverage.items.length" class="d-grid gap-2">
+              <div
+                v-for="item in conceptCoverage.items"
+                :key="item.conceptId"
+                class="small d-flex justify-content-between align-items-start gap-2"
+                :title="item.evidencePath || undefined"
+              >
+                <span>
+                  <span class="fw-semibold">{{ item.label }}</span>
+                  <span v-if="item.kind === 'classification'" class="text-muted">
+                    · {{ item.finding }}
+                  </span>
+                  <small v-if="item.messages.length" class="d-block text-danger">
+                    {{ item.messages.join(' ') }}
+                  </small>
+                </span>
+                <span class="text-nowrap" :class="`text-${conceptCoverageStatusTone(item.status)}`">
+                  {{ conceptCoverageStatusLabel(item.status) }}
+                </span>
+              </div>
+            </div>
+            <div v-else class="small text-muted">
+              Kein Berichtstemplate oder keine LXDM-Konzepte geladen.
+            </div>
+            <small class="d-block text-muted mt-3">
+              Technische Konzeptabdeckung; kein Nachweis klinischer Vollständigkeit oder
+              Leitlinienadhärenz.
+            </small>
+          </div>
+        </div>
         <div class="card shadow-sm kb-reference-panel">
           <div class="card-header">
             <div class="d-flex justify-content-between align-items-start gap-2">
@@ -576,11 +655,16 @@ import type {
   InterventionValidatorExecution,
   ReportTemplateFinding,
   ReportTemplatePayload,
+  ReportTemplateIdentity,
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateRuntimePayload,
   RuntimeValidationIssue,
   UnitValidatorExecution
 } from '@/types/reportTemplate'
+import {
+  deriveReportConceptCoverage,
+  type ReportConceptCoverageStatus
+} from '@/utils/reportConceptCoverage'
 import { endpoints } from '@/types/api/endpoints'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useTerminologyStore } from '@/stores/terminologyStore'
@@ -664,16 +748,49 @@ const templateReference = ref<ReportTemplatePayload | null>(null)
 const templateReferenceLoading = ref(false)
 const templateReferenceError = ref<string | null>(null)
 const templateReferenceKey = ref<string | null>(null)
+const availableTemplates = ref<ReportTemplatePayload[]>([])
+const templateLoading = ref(false)
+const templateSelectionError = ref<string | null>(null)
 const selectedReferenceFindingKey = ref<string | null>(null)
 const findingCatalog = ref<Finding[]>([])
 const findingCatalogLoading = ref(false)
+
+const emptyTemplateIdentity: ReportTemplateIdentity = {
+  moduleName: null,
+  knowledgeBaseVersion: null,
+  templateVersion: null,
+  templateHash: null,
+  lifecycleStatus: null,
+  readiness: null
+}
 const routePatientExaminationId = computed<number | null>(() => {
   const parsed = Number(route.params.patient_examination_id)
   if (!Number.isFinite(parsed)) return null
   return parsed > 0 ? parsed : null
 })
+const routePatientId = computed<number | null>(() => {
+  const query = route.query || {}
+  const value = Array.isArray(query.patient_id) ? query.patient_id[0] : query.patient_id
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+})
 const selectedPatientExaminationId = computed(
   () => routePatientExaminationId.value ?? flow.patientExaminationId ?? ''
+)
+
+watch(
+  routePatientId,
+  (patientId) => {
+    if (patientId && patientId !== flow.selectedPatientId) {
+      flow.setPatientExaminationContext({
+        patientExaminationId: null,
+        selectedPatientId: patientId,
+        selectedExaminationId: null
+      })
+      flow.setCaseContext({ caseId: null })
+    }
+  },
+  { immediate: true }
 )
 
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id')
@@ -889,6 +1006,38 @@ const templateSectionsForReference = computed(() =>
     .slice()
     .sort((left, right) => (left.position || 0) - (right.position || 0))
 )
+
+const conceptCoverage = computed(() =>
+  deriveReportConceptCoverage({
+    sections: templateSectionsForReference.value,
+    payload: currentPayload.value,
+    validation: flow.lastTemplateValidation
+  })
+)
+
+const conceptCoverageSubtitle = computed(() => {
+  const identity = templateReference.value?.identity || flow.selectedTemplateIdentity
+  const moduleName = identity?.moduleName || activeKbModule.value
+  const version =
+    identity?.knowledgeBaseVersion || terminology.activeBundle?.version || 'Version unbekannt'
+  return `${moduleName} · ${version}`
+})
+
+const conceptCoverageSummaryLabel = computed(() => {
+  const counts = conceptCoverage.value.counts
+  if (!conceptCoverage.value.items.length) return 'ungeprüft'
+  if (counts.invalid || counts.missing) return `${counts.invalid + counts.missing} offen`
+  if (counts.unknown) return `${counts.unknown} ungeklärt`
+  return `${counts.present} nachgewiesen`
+})
+
+const conceptCoveragePillClass = computed(() => {
+  const counts = conceptCoverage.value.counts
+  if (!conceptCoverage.value.items.length) return 'is-idle'
+  if (counts.invalid || counts.missing) return 'is-error'
+  if (counts.unknown) return 'is-warning'
+  return 'is-ready'
+})
 
 const catalogFindingsByName = computed(() => {
   const entries = findingCatalog.value.map(
@@ -1325,6 +1474,20 @@ function findingStatusIconClass(status: FindingStatus): string {
   return 'ni ni-fat-add'
 }
 
+function conceptCoverageStatusLabel(status: ReportConceptCoverageStatus): string {
+  if (status === 'present') return 'nachgewiesen'
+  if (status === 'missing') return 'fehlt'
+  if (status === 'not_applicable') return 'nicht anwendbar'
+  if (status === 'invalid') return 'ungültig'
+  return 'ungeklärt'
+}
+
+function conceptCoverageStatusTone(status: ReportConceptCoverageStatus): string {
+  if (status === 'present' || status === 'not_applicable') return 'success'
+  if (status === 'missing' || status === 'invalid') return 'danger'
+  return 'warning'
+}
+
 function findingStatusTarget(row: FindingStatusRow) {
   const patientExaminationId = flow.patientExaminationId || routePatientExaminationId.value
   if (!patientExaminationId) return { path: route.path, hash: `#${row.anchorId}` }
@@ -1469,8 +1632,10 @@ async function loadTemplateReferenceForSelection() {
   } catch (error: unknown) {
     if (templateReferenceKey.value !== nextKey) return
     templateReference.value = null
-    templateReferenceError.value =
-      reportingApiErrorMessage(error, 'KB-Referenz konnte nicht geladen werden.')
+    templateReferenceError.value = reportingApiErrorMessage(
+      error,
+      'KB-Referenz konnte nicht geladen werden.'
+    )
   } finally {
     if (templateReferenceKey.value === nextKey) {
       templateReferenceLoading.value = false
@@ -1559,9 +1724,7 @@ function extractExaminers(raw: Record<string, unknown>): string[] {
 
   const values = candidates.flatMap((candidate) => {
     if (!Array.isArray(candidate)) return []
-    return candidate
-      .map(normalizeExaminer)
-      .filter((value): value is string => Boolean(value))
+    return candidate.map(normalizeExaminer).filter((value): value is string => Boolean(value))
   })
 
   return Array.from(new Set(values))
@@ -1620,7 +1783,9 @@ function extractPatientId(raw: Record<string, unknown>): number | null {
 }
 
 function extractExaminationId(raw: Record<string, unknown>): number | null {
-  return toPositiveInteger(readRecord(raw.examination).id ?? raw.examination_id ?? raw.examinationId)
+  return toPositiveInteger(
+    readRecord(raw.examination).id ?? raw.examination_id ?? raw.examinationId
+  )
 }
 
 function extractDraftDate(raw: Record<string, unknown>): string | null {
@@ -1739,11 +1904,7 @@ function normalizePatientExaminationOption(raw: unknown) {
     label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
     examinationName,
     patientId: toPositiveInteger(
-      patient.id ??
-        patientData.id ??
-        camelPatientData.id ??
-        row.patient_id ??
-        row.patientId
+      patient.id ?? patientData.id ?? camelPatientData.id ?? row.patient_id ?? row.patientId
     ),
     examinationId: toPositiveInteger(examination.id ?? row.examination_id ?? row.examinationId)
   }
@@ -1791,8 +1952,7 @@ async function fetchCaseOptions(patientId: number): Promise<void> {
     if (activeCase) activateCase(activeCase)
   } catch (error: unknown) {
     caseOptions.value = []
-    caseOptionsError.value =
-      reportingApiErrorMessage(error, 'Fälle konnten nicht geladen werden.')
+    caseOptionsError.value = reportingApiErrorMessage(error, 'Fälle konnten nicht geladen werden.')
   } finally {
     caseOptionsLoading.value = false
   }
@@ -1815,8 +1975,10 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
     activateCase(patientCase)
   } catch (error: unknown) {
     flow.setCaseContext({ caseId: null })
-    caseOptionsError.value =
-      reportingApiErrorMessage(error, 'Die Fallzuordnung konnte nicht geladen werden.')
+    caseOptionsError.value = reportingApiErrorMessage(
+      error,
+      'Die Fallzuordnung konnte nicht geladen werden.'
+    )
   }
 }
 
@@ -1881,8 +2043,10 @@ async function fetchPatientExaminationOptions(patientId: number) {
       .sort((left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id)
   } catch (error: unknown) {
     patientExaminationOptions.value = []
-    patientExaminationOptionsError.value =
-      reportingApiErrorMessage(error, 'Patientenuntersuchungen konnten nicht geladen werden.')
+    patientExaminationOptionsError.value = reportingApiErrorMessage(
+      error,
+      'Patientenuntersuchungen konnten nicht geladen werden.'
+    )
   } finally {
     patientExaminationOptionsLoading.value = false
   }
@@ -1929,6 +2093,53 @@ async function onPatientExaminationSelect(rawValue: string) {
   await router.push(getNavigationTargetForPatientExamination(patientExaminationId))
 }
 
+function draftHasRuntimeContent(): boolean {
+  return Boolean(
+    flow.currentRuntimeDraft?.payload.patientFindings.length ||
+      (flow.templateSectionDrafts && Object.keys(flow.templateSectionDrafts).length) ||
+      flow.activeReportId ||
+      flow.findingsRevision > 0
+  )
+}
+
+async function onTemplateSelectionChange(name: string, select?: HTMLSelectElement) {
+  const previousName = flow.selectedTemplateName
+  if (!name || name === previousName) return
+  if (draftHasRuntimeContent()) {
+    const confirmed = window.confirm(
+      'Für diese Untersuchung existieren bereits Befunde oder ein Entwurf. Vorlage wirklich wechseln? Der bisherige Entwurf wird nicht weiterverwendet.'
+    )
+    if (!confirmed) {
+      if (select) select.value = previousName || ''
+      return
+    }
+    await flow.flushDraftAutosave()
+    flow.clearRuntimeDraft(flow.patientExaminationId)
+    flow.clearTemplateSectionDrafts()
+    flow.setLastTemplateValidation(null)
+  }
+
+  const selected = availableTemplates.value.find((template) => template.name === name)
+  if (!selected) {
+    templateSelectionError.value =
+      'Die ausgewählte Vorlage ist nicht mehr veröffentlicht oder nicht verfügbar.'
+    if (select) select.value = previousName || ''
+    return
+  }
+  templateSelectionError.value = null
+  flow.setTemplateSelection({
+    moduleName: (selected.identity || emptyTemplateIdentity).moduleName || activeKbModule.value,
+    templateName: selected.name,
+    templateIdentity: selected.identity || emptyTemplateIdentity
+  })
+  if (flow.patientExaminationId) {
+    const option =
+      patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
+      null
+    await bootstrapRuntimeDraft(flow.patientExaminationId, option)
+  }
+}
+
 async function bootstrapRuntimeDraft(
   patientExaminationId: number,
   option: PatientExaminationOption | null
@@ -1951,14 +2162,27 @@ async function bootstrapRuntimeDraft(
   })
 
   const examinationName = extractExaminationName(detail)
+  templateLoading.value = true
   const templates = examinationName
     ? await fetchReportTemplatesByExamination(activeKbModule.value, examinationName)
     : []
+  availableTemplates.value = templates
+  templateLoading.value = false
   const selectedTemplate =
     (flow.selectedTemplateName &&
       templates.find((template) => template.name === flow.selectedTemplateName)) ||
-    templates[0] ||
     null
+
+  if (!selectedTemplate) {
+    flow.setTemplateSelection({ templateName: null, templateIdentity: null })
+    flow.clearRuntimeDraft(patientExaminationId)
+    throw new Error(
+      templates.length
+        ? 'Bitte wählen Sie eine veröffentlichte Berichtsvorlage aus.'
+        : 'Für diese Untersuchung ist keine veröffentlichte und produktionsbereite Berichtsvorlage verfügbar.'
+    )
+  }
+  const selectedTemplateIdentity = selectedTemplate.identity || emptyTemplateIdentity
 
   const selectedExaminationId = option?.examinationId ?? detailExaminationId
   const catalogRows = selectedExaminationId
@@ -1980,14 +2204,16 @@ async function bootstrapRuntimeDraft(
 
   flow.setTemplateSelection({
     moduleName: activeKbModule.value,
-    templateName: selectedTemplate?.name || null
+    templateName: selectedTemplate.name,
+    templateIdentity: selectedTemplateIdentity
   })
   flow.setIndications(extractIndicationRows(detail))
   flow.setRuntimeDraft({
     draftId: `draft_${patientExaminationId}`,
     patientExaminationId,
     moduleName: activeKbModule.value,
-    templateName: selectedTemplate?.name || null,
+    templateName: selectedTemplate.name,
+    templateIdentity: selectedTemplateIdentity,
     payload: {
       ...payload,
       ...(extractDraftDate(detail) ? { date: extractDraftDate(detail) } : {})
@@ -2002,6 +2228,10 @@ async function hydrateRuntimeDraftFromDraftApi(patientExaminationId: number): Pr
   const draft = response?.draft && typeof response.draft === 'object' ? response.draft : {}
   const draftModuleName = stringField(draft, 'moduleName', 'module_name') || activeKbModule.value
   const draftTemplateName = stringField(draft, 'templateName', 'template_name')
+  const draftTemplateIdentity =
+    draft.templateIdentity && typeof draft.templateIdentity === 'object'
+      ? (draft.templateIdentity as ReportTemplateIdentity)
+      : null
   const updatedAt = response?.updatedAt ?? response?.updated_at ?? null
   if (!isRuntimePayload(draft.payload)) {
     flow.markDraftPersistenceHydrated(updatedAt)
@@ -2010,19 +2240,57 @@ async function hydrateRuntimeDraftFromDraftApi(patientExaminationId: number): Pr
 
   flow.setTemplateSelection({
     moduleName: draftModuleName,
-    templateName: draftTemplateName
+    templateName: draftTemplateName,
+    templateIdentity: draftTemplateIdentity
   })
   flow.setRuntimeDraft({
     draftId: `draft_${patientExaminationId}`,
     patientExaminationId,
     moduleName: draftModuleName,
     templateName: draftTemplateName,
+    templateIdentity: draftTemplateIdentity,
     payload: draft.payload,
     hydratedFrom: 'draft_api',
     updatedAt: updatedAt || new Date().toISOString()
   })
   flow.markDraftPersistenceHydrated(updatedAt)
   return true
+}
+
+async function validateRestoredDraftTemplate(
+  detail: Record<string, unknown>,
+  draft: { templateName: string | null; templateIdentity?: ReportTemplateIdentity | null }
+) {
+  const examinationName = extractExaminationName(detail)
+  const templates = examinationName
+    ? await fetchReportTemplatesByExamination(activeKbModule.value, examinationName)
+    : []
+  availableTemplates.value = templates
+  const selected = draft.templateName
+    ? templates.find((template) => template.name === draft.templateName)
+    : null
+  const identity = draft.templateIdentity
+  const incompatible = Boolean(
+    !selected ||
+      (identity?.templateHash &&
+        selected.identity.templateHash &&
+        identity.templateHash !== selected.identity.templateHash) ||
+      (identity?.templateVersion &&
+        selected.identity.templateVersion &&
+        identity.templateVersion !== selected.identity.templateVersion)
+  )
+  if (incompatible) {
+    flow.clearRuntimeDraft(flow.patientExaminationId)
+    flow.setTemplateSelection({ templateName: null, templateIdentity: null })
+    throw new Error(
+      'Der gespeicherte Entwurf gehört zu keiner aktuell veröffentlichten und kompatiblen Berichtsvorlage.'
+    )
+  }
+  flow.setTemplateSelection({
+    moduleName: (selected?.identity || emptyTemplateIdentity).moduleName || activeKbModule.value,
+    templateName: selected?.name || null,
+    templateIdentity: selected?.identity || emptyTemplateIdentity
+  })
 }
 
 async function ensureRuntimeDraft(patientExaminationId: number) {
@@ -2046,12 +2314,17 @@ async function ensureRuntimeDraft(patientExaminationId: number) {
       await loadFindingCatalogForExamination(
         extractExaminationId(detail) ?? flow.selectedExaminationId
       )
-    } catch {
+      await validateRestoredDraftTemplate(detail, existingDraft)
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes('gespeicherte Entwurf')) throw error
       // Keep the local draft usable even if detail hydration fails.
     }
     flow.setTemplateSelection({
       moduleName: existingDraft.moduleName,
-      templateName: existingDraft.templateName
+      templateName: existingDraft.templateName,
+      ...(existingDraft.templateIdentity
+        ? { templateIdentity: existingDraft.templateIdentity }
+        : {})
     })
     return
   }
@@ -2075,7 +2348,10 @@ async function ensureRuntimeDraft(patientExaminationId: number) {
       await loadFindingCatalogForExamination(
         extractExaminationId(detail) ?? flow.selectedExaminationId
       )
-    } catch {
+      const restoredDraft = flow.currentRuntimeDraft
+      if (restoredDraft) await validateRestoredDraftTemplate(detail, restoredDraft)
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes('gespeicherte Entwurf')) throw error
       // Keep persisted draft usable even if detail hydration fails.
     }
     return
