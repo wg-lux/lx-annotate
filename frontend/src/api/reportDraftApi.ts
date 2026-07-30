@@ -1,12 +1,16 @@
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import type { ReportTemplateRuntimePayload } from '@/types/reportTemplate'
+import type { ReportTemplateIdentity } from '@/types/reportTemplate'
+import { normalizeReportTemplateIdentity } from '@/api/reportTemplatesApi'
 
 export type ReportDraftBlob = {
   moduleName?: string
   module_name?: string
   templateName?: string
   template_name?: string
+  templateIdentity?: ReportTemplateIdentity | null
+  template_identity?: unknown
   payload?: unknown
 }
 
@@ -24,13 +28,25 @@ export async function fetchPatientExaminationDraft(
   const response = await axiosInstance.get(
     r(endpoints.examination.patientExaminationDraft(patientExaminationId))
   )
-  return response.data as ReportDraftResponse
+  const data = response.data as ReportDraftResponse
+  const draft = data?.draft || {}
+  return {
+    ...data,
+    draft: {
+      ...draft,
+      templateIdentity:
+        draft.templateIdentity || draft.template_identity
+          ? normalizeReportTemplateIdentity(draft.templateIdentity || draft.template_identity)
+          : null
+    }
+  }
 }
 
 export async function savePatientExaminationDraft(params: {
   patientExaminationId: number
   moduleName: string
   templateName: string | null
+  templateIdentity?: ReportTemplateIdentity | null
   payload: ReportTemplateRuntimePayload
 }): Promise<ReportDraftResponse> {
   const response = await axiosInstance.put(
@@ -38,6 +54,7 @@ export async function savePatientExaminationDraft(params: {
     {
       moduleName: params.moduleName,
       templateName: params.templateName || '',
+      ...(params.templateIdentity ? { templateIdentity: params.templateIdentity } : {}),
       payload: params.payload
     }
   )

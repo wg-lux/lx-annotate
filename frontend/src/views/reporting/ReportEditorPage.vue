@@ -465,6 +465,7 @@ const indicationOptionsError = ref<string | null>(null)
 const {
   moduleName: selectedKbModule,
   selectedTemplateName,
+  selectedTemplate,
   templateOptions,
   sectionBlocks,
   loading: templateLoading,
@@ -492,9 +493,28 @@ const selectedPatient = computed(() =>
 
 const templateStatusMessage = ref<string | null>(null)
 
-const canSave = computed(() => !!flow.patientExaminationId && !!selectedTemplateName.value)
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
 const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
+const draftMatchesSelectedTemplate = computed(() => {
+  const draft = currentRuntimeDraft.value
+  const template = selectedTemplate.value
+  if (!draft || !template || draft.templateName !== template.name) return false
+  if (draft.moduleName !== selectedKbModule.value) return false
+  return !(
+    (draft.templateIdentity?.templateHash &&
+      template.identity.templateHash &&
+      draft.templateIdentity.templateHash !== template.identity.templateHash) ||
+    (draft.templateIdentity?.templateVersion &&
+      template.identity.templateVersion &&
+      draft.templateIdentity.templateVersion !== template.identity.templateVersion)
+  )
+})
+const canSave = computed(
+  () =>
+    !!flow.patientExaminationId &&
+    !!selectedTemplateName.value &&
+    draftMatchesSelectedTemplate.value
+)
 const renderedReportPreview = computed(() => buildRenderedText())
 const reportWordCount = computed(() => {
   const words = renderedReportPreview.value
@@ -661,11 +681,12 @@ const missingRequiredCount = computed(
 )
 
 watch(
-  [selectedKbModule, selectedTemplateName],
-  ([moduleName, templateName], [, previousTemplateName]) => {
+  [selectedKbModule, selectedTemplateName, selectedTemplate],
+  ([moduleName, templateName, template], [, previousTemplateName]) => {
     flow.setTemplateSelection({
       moduleName,
-      templateName
+      templateName,
+      templateIdentity: template?.identity || null
     })
     if (templateName && previousTemplateName && templateName !== previousTemplateName) {
       flow.clearTemplateSectionDrafts()
@@ -1122,7 +1143,17 @@ function onModuleChange(next: string) {
   void refreshTemplatesForExamination()
 }
 
-function onTemplateSelectionChange(name: string) {
+async function onTemplateSelectionChange(name: string) {
+  if (name !== selectedTemplateName.value && currentRuntimeDraft.value?.payload.patientFindings.length) {
+    const confirmed = window.confirm(
+      'Für diese Untersuchung existieren bereits Befunde. Vorlage wirklich wechseln? Der bisherige Entwurf wird nicht weiterverwendet.'
+    )
+    if (!confirmed) return
+    await flow.flushDraftAutosave()
+    flow.clearRuntimeDraft(flow.patientExaminationId)
+    flow.clearTemplateSectionDrafts()
+    flow.setLastTemplateValidation(null)
+  }
   void selectTemplateByName(name || null)
 }
 

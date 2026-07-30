@@ -124,7 +124,6 @@ export function useReportTemplates(params?: {
       const preferredName = selectedTemplateName.value
       const preferredTemplate =
         (preferredName && templates.find((item) => item.name === preferredName)) ||
-        templates[0] ||
         null
       selectedTemplate.value = preferredTemplate
       selectedTemplateName.value = preferredTemplate?.name || null

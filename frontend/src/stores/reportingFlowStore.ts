@@ -6,7 +6,8 @@ import type {
   ReportTemplateRuntimeDescriptorInput,
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateRuntimePayload,
-  ReportTemplateSectionDraft
+  ReportTemplateSectionDraft,
+  ReportTemplateIdentity
 } from '@/types/reportTemplate'
 import type { ReportTemplateRuntimeValidationResult } from '@/types/reportTemplate'
 import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
@@ -26,6 +27,7 @@ export type ReportingRuntimeDraft = {
   patientExaminationId: number
   moduleName: string
   templateName: string | null
+  templateIdentity?: ReportTemplateIdentity | null
   payload: ReportTemplateRuntimePayload
   hydratedFrom: 'session_storage' | 'backend_context' | 'draft_api'
   updatedAt: string
@@ -41,6 +43,7 @@ type PersistedReportingFlowState = {
   indications: ReportingIndicationRow[]
   selectedKbModule: string
   selectedTemplateName: string | null
+  selectedTemplateIdentity: ReportTemplateIdentity | null
   templateSectionDrafts: Record<string, ReportTemplateSectionDraft>
   runtimeDraftsByPatientExaminationId: Record<string, ReportingRuntimeDraft>
 }
@@ -160,6 +163,10 @@ function normalizePersistedState(
       typeof parsed.selectedTemplateName === 'string' && parsed.selectedTemplateName.trim()
         ? parsed.selectedTemplateName
         : null,
+    selectedTemplateIdentity:
+      parsed.selectedTemplateIdentity && typeof parsed.selectedTemplateIdentity === 'object'
+        ? parsed.selectedTemplateIdentity
+        : null,
     templateSectionDrafts:
       parsed.templateSectionDrafts && typeof parsed.templateSectionDrafts === 'object'
         ? Object.fromEntries(
@@ -220,6 +227,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const activeReportId = ref<number | null>(null)
   const selectedKbModule = ref<string>('report_template_examples')
   const selectedTemplateName = ref<string | null>(null)
+  const selectedTemplateIdentity = ref<ReportTemplateIdentity | null>(null)
   const templateSectionDrafts = ref<Record<string, ReportTemplateSectionDraft>>({})
   const indications = ref<ReportingIndicationRow[]>([
     { examinationIndicationId: null, indicationChoiceId: null }
@@ -315,6 +323,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     lastFindingsEvent.value = null
     if (!(params.preserveTemplateSelection ?? false)) {
       selectedTemplateName.value = null
+      selectedTemplateIdentity.value = null
       templateSectionDrafts.value = {}
     } else {
       templateSectionDrafts.value = {}
@@ -333,6 +342,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       ...runtimeDraftsByPatientExaminationId.value,
       [String(draft.patientExaminationId)]: {
         ...draft,
+        templateIdentity: draft.templateIdentity ?? selectedTemplateIdentity.value,
         payload: normalizeRuntimePayloadIds(draft.payload)
       }
     }
@@ -454,6 +464,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       patientExaminationId: draft.patientExaminationId,
       moduleName: draft.moduleName,
       templateName: draft.templateName,
+      ...(draft.templateIdentity ?? selectedTemplateIdentity.value
+        ? { templateIdentity: draft.templateIdentity ?? selectedTemplateIdentity.value }
+        : {}),
       payload: draft.payload
     }
   })
@@ -493,6 +506,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
           patientExaminationId: draft.patientExaminationId,
           moduleName: draft.moduleName,
           templateName: draft.templateName,
+          ...(draft.templateIdentity ?? selectedTemplateIdentity.value
+            ? { templateIdentity: draft.templateIdentity ?? selectedTemplateIdentity.value }
+            : {}),
           payload: draft.payload
         })
         draftPersistenceStatus.value = 'saved'
@@ -569,12 +585,19 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     sessionStatus.value = status
   }
 
-  function setTemplateSelection(params: { moduleName?: string; templateName?: string | null }) {
+  function setTemplateSelection(params: {
+    moduleName?: string
+    templateName?: string | null
+    templateIdentity?: ReportTemplateIdentity | null
+  }) {
     if (params.moduleName !== undefined) {
       selectedKbModule.value = params.moduleName || 'report_template_examples'
     }
     if (params.templateName !== undefined) {
       selectedTemplateName.value = params.templateName || null
+    }
+    if (params.templateIdentity !== undefined) {
+      selectedTemplateIdentity.value = params.templateIdentity
     }
   }
 
@@ -614,6 +637,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       : [{ examinationIndicationId: null, indicationChoiceId: null }]
     selectedKbModule.value = persisted?.selectedKbModule ?? 'report_template_examples'
     selectedTemplateName.value = persisted?.selectedTemplateName ?? null
+    selectedTemplateIdentity.value = persisted?.selectedTemplateIdentity ?? null
     templateSectionDrafts.value = persisted?.templateSectionDrafts ?? {}
     runtimeDraftsByPatientExaminationId.value = persisted?.runtimeDraftsByPatientExaminationId ?? {}
   }
@@ -647,6 +671,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     findingsRevision.value = 0
     lastFindingsEvent.value = null
     selectedTemplateName.value = null
+    selectedTemplateIdentity.value = null
     templateSectionDrafts.value = {}
     runtimeDraftsByPatientExaminationId.value = {}
     mediaPreload.value = null
@@ -679,6 +704,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     lastFindingsEvent.value = null
     selectedKbModule.value = 'report_template_examples'
     selectedTemplateName.value = null
+    selectedTemplateIdentity.value = null
     templateSectionDrafts.value = {}
     runtimeDraftsByPatientExaminationId.value = {}
     mediaPreload.value = null
@@ -794,6 +820,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     indications: indications.value,
     selectedKbModule: selectedKbModule.value,
     selectedTemplateName: selectedTemplateName.value,
+    selectedTemplateIdentity: selectedTemplateIdentity.value,
     templateSectionDrafts: templateSectionDrafts.value,
     runtimeDraftsByPatientExaminationId: runtimeDraftsByPatientExaminationId.value
   }))
@@ -833,6 +860,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     activeReportId,
     selectedKbModule,
     selectedTemplateName,
+    selectedTemplateIdentity,
     templateSectionDrafts,
     runtimeDraftsByPatientExaminationId,
     currentRuntimeDraft,

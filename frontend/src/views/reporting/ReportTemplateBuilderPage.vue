@@ -15,6 +15,20 @@
           <button class="btn btn-success btn-sm" :disabled="saving" @click="showSavePrompt = true">
             Template speichern
           </button>
+          <button
+            class="btn btn-outline-success btn-sm"
+            :disabled="lifecycleLoading || !templateName || !builderReadiness?.canPublish || lifecycleStatus === 'published'"
+            @click="publishTemplate"
+          >
+            Veröffentlichen
+          </button>
+          <button
+            class="btn btn-outline-warning btn-sm"
+            :disabled="lifecycleLoading || !templateName || lifecycleStatus !== 'published'"
+            @click="unpublishTemplate"
+          >
+            Entveröffentlichen
+          </button>
         </div>
       </div>
       <div class="card-body">
@@ -70,6 +84,13 @@
                 >
                   Struktur validieren
                 </button>
+                <button
+                  class="btn btn-outline-secondary btn-sm"
+                  :disabled="definitionLoading || !templateName"
+                  @click="refreshReadiness"
+                >
+                  Readiness prüfen
+                </button>
               </div>
             </div>
 
@@ -103,6 +124,21 @@
               <div class="small text-muted mt-2">
                 {{ selectedTemplate.validators.findingsValidators.length }} Befundregeln,
                 {{ selectedTemplate.validators.examinationValidators.length }} Untersuchungsregeln
+              </div>
+              <div class="mt-3 border rounded p-2 small" data-testid="template-readiness">
+                <div class="d-flex justify-content-between align-items-center">
+                  <strong>Readiness</strong>
+                  <span class="badge" :class="builderReadiness?.canPublish ? 'text-bg-success' : 'text-bg-warning'">
+                    {{ builderReadiness?.canPublish ? 'bereit zur Veröffentlichung' : 'offen' }}
+                  </span>
+                </div>
+                <div class="text-muted">Status: {{ lifecycleStatus || 'unbekannt' }}</div>
+                <ul v-if="builderReadiness?.errors.length" class="text-danger mb-0 mt-2">
+                  <li v-for="error in builderReadiness.errors" :key="error">{{ error }}</li>
+                </ul>
+                <ul v-if="builderReadiness?.warnings.length" class="text-warning mb-0 mt-2">
+                  <li v-for="warning in builderReadiness.warnings" :key="warning">{{ warning }}</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -653,12 +689,17 @@ import { computed, onMounted, ref, watch } from 'vue'
 import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import {
   fetchReportTemplateByName,
-  fetchReportTemplatesByExamination,
+  fetchReportTemplatePreviewByName,
+  fetchBuilderReportTemplatesByExamination,
   validateReportTemplateDefinition,
   validateReportTemplateRuntime
 } from '@/api/reportTemplatesApi'
 import {
   saveReportTemplateDefinition,
+  fetchReportTemplateReadiness,
+  publishReportTemplate,
+  unpublishReportTemplate,
+  type ReportTemplateBuilderReadiness,
   type ReportTemplateBuilderClassification,
   type ReportTemplateBuilderField,
   type ReportTemplateBuilderFinding,
@@ -708,11 +749,14 @@ const templatesLoading = ref(false)
 const templateLoading = ref(false)
 const definitionLoading = ref(false)
 const runtimeLoading = ref(false)
+const lifecycleLoading = ref(false)
 const coreConcepts = ref<CoreConceptPayload>({})
 const templateOptions = ref<ReportTemplatePayload[]>([])
 const selectedTemplate = ref<ReportTemplatePayload | null>(null)
 const definitionValidationResult = ref<ReportTemplateDefinitionValidationResult | null>(null)
 const runtimeValidationResult = ref<ReportTemplateRuntimeValidationResult | null>(null)
+const builderReadiness = ref<ReportTemplateBuilderReadiness | null>(null)
+const lifecycleStatus = ref<'draft' | 'published' | null>(null)
 
 const runtimePatient = ref('frontend_test_patient')
 const runtimeKnowledgeBaseVersion = ref('')
@@ -1052,7 +1096,7 @@ async function refreshTemplateOptions() {
 
   templatesLoading.value = true
   try {
-    templateOptions.value = await fetchReportTemplatesByExamination(moduleName.value, examination.value)
+    templateOptions.value = await fetchBuilderReportTemplatesByExamination(moduleName.value, examination.value)
     if (!templateName.value && templateOptions.value.length) {
       templateName.value = templateOptions.value[0].name
     }
@@ -1067,11 +1111,24 @@ async function loadSelectedTemplate() {
   if (!templateName.value) return
   templateLoading.value = true
   try {
-    const template = await fetchReportTemplateByName(moduleName.value, templateName.value)
+    const fetchTemplate = lifecycleStatus.value === 'draft'
+      ? fetchReportTemplatePreviewByName
+      : fetchReportTemplateByName
+    const template = await fetchTemplate(moduleName.value, templateName.value)
     if (!template) {
       throw new Error('Ungültiges Format der Berichtsvorlage.')
     }
     selectedTemplate.value = template
+    lifecycleStatus.value = template.identity.lifecycleStatus
+    builderReadiness.value = template.identity.readiness
+      ? {
+          canPublish: template.identity.readiness.canPublish === true,
+          lifecycleStatus: template.identity.lifecycleStatus || 'draft',
+          errors: template.identity.readiness.blockingIssues,
+          warnings: template.identity.readiness.warnings,
+          raw: template.identity.readiness.raw
+        }
+      : null
     examination.value = template.examination || examination.value
     runtimeValidationResult.value = null
     definitionValidationResult.value = null
@@ -1092,6 +1149,52 @@ async function runDefinitionValidation() {
     setError(reportingApiErrorMessage(error, 'Strukturprüfung fehlgeschlagen.'))
   } finally {
     definitionLoading.value = false
+  }
+}
+
+async function refreshReadiness() {
+  if (!templateName.value) return
+  definitionLoading.value = true
+  try {
+    builderReadiness.value = await fetchReportTemplateReadiness(moduleName.value, templateName.value)
+    lifecycleStatus.value = builderReadiness.value.lifecycleStatus
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Readiness-Prüfung fehlgeschlagen.'))
+  } finally {
+    definitionLoading.value = false
+  }
+}
+
+async function publishTemplate() {
+  if (!templateName.value || !builderReadiness.value?.canPublish) return
+  lifecycleLoading.value = true
+  clearMessages()
+  try {
+    const result = await publishReportTemplate(moduleName.value, templateName.value)
+    lifecycleStatus.value = result.lifecycleStatus
+    builderReadiness.value = result.readiness
+    successMessage.value = `Vorlage "${templateName.value}" wurde veröffentlicht.`
+    await refreshTemplateOptions()
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht veröffentlicht werden.'))
+  } finally {
+    lifecycleLoading.value = false
+  }
+}
+
+async function unpublishTemplate() {
+  if (!templateName.value || lifecycleStatus.value !== 'published') return
+  lifecycleLoading.value = true
+  clearMessages()
+  try {
+    const result = await unpublishReportTemplate(moduleName.value, templateName.value)
+    lifecycleStatus.value = result.lifecycleStatus
+    builderReadiness.value = result.readiness
+    successMessage.value = `Vorlage "${templateName.value}" wurde entveröffentlicht.`
+  } catch (error: unknown) {
+    setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht entveröffentlicht werden.'))
+  } finally {
+    lifecycleLoading.value = false
   }
 }
 
@@ -1139,6 +1242,8 @@ async function saveTemplate() {
       sections: sections.value
     })
     successMessage.value = `Vorlage "${result.templateName}" wurde in ${result.fileName} gespeichert.`
+    lifecycleStatus.value = result.lifecycleStatus
+    builderReadiness.value = result.readiness
     showSavePrompt.value = false
     await refreshTemplateOptions()
     await loadSelectedTemplate()

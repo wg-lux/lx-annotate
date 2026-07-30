@@ -382,7 +382,25 @@ const {
 
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
 const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
-const canValidateDraft = computed(() => !!selectedTemplateName.value && !!currentPayload.value)
+const draftMatchesSelectedTemplate = computed(() => {
+  const draft = currentRuntimeDraft.value
+  const template = selectedTemplate.value
+  if (!draft || !template || draft.templateName !== template.name) return false
+  if (draft.moduleName !== selectedKbModule.value) return false
+  const draftIdentity = draft.templateIdentity
+  const templateIdentity = template.identity
+  return !(
+    (draftIdentity?.templateHash &&
+      templateIdentity.templateHash &&
+      draftIdentity.templateHash !== templateIdentity.templateHash) ||
+    (draftIdentity?.templateVersion &&
+      templateIdentity.templateVersion &&
+      draftIdentity.templateVersion !== templateIdentity.templateVersion)
+  )
+})
+const canValidateDraft = computed(
+  () => !!selectedTemplateName.value && !!currentPayload.value && draftMatchesSelectedTemplate.value
+)
 const selectedExamination = computed(
   () =>
     examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) ||
@@ -729,7 +747,17 @@ function onModuleChange(next: string) {
   void refreshTemplatesForExamination()
 }
 
-function onTemplateSelectionChange(name: string) {
+async function onTemplateSelectionChange(name: string) {
+  if (name !== selectedTemplateName.value && currentRuntimeDraft.value?.payload.patientFindings.length) {
+    const confirmed = window.confirm(
+      'Für diese Untersuchung existieren bereits Befunde. Vorlage wirklich wechseln? Der bisherige Entwurf wird nicht weiterverwendet.'
+    )
+    if (!confirmed) return
+    await flow.flushDraftAutosave()
+    flow.clearRuntimeDraft(flow.patientExaminationId)
+    flow.clearTemplateSectionDrafts()
+    flow.setLastTemplateValidation(null)
+  }
   void selectTemplateByName(name || null)
   showValidationFeedback.value = false
 }
@@ -812,6 +840,12 @@ async function runRuntimeValidation(forceFeedback = false) {
     flow.setLastTemplateValidation(null)
     return
   }
+  if (!draftMatchesSelectedTemplate.value) {
+    templateValidationError.value =
+      'Der Entwurf gehört nicht zur aktuell ausgewählten Berichtsvorlage und wird nicht validiert.'
+    flow.setLastTemplateValidation(null)
+    return
+  }
 
   if (forceFeedback) {
     showValidationFeedback.value = true
@@ -864,12 +898,16 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
   event.returnValue = ''
 }
 
-watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName]) => {
+watch(
+  [selectedKbModule, selectedTemplateName, selectedTemplate],
+  ([moduleName, templateName, template]) => {
   flow.setTemplateSelection({
     moduleName,
-    templateName
+    templateName,
+    templateIdentity: template?.identity || null
   })
-})
+  }
+)
 
 watch(
   () => flow.patientExaminationId,

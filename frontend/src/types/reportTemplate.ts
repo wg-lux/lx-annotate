@@ -7,14 +7,43 @@ export type ReportTemplateFinding = {
   finding: string
   required: boolean
   multipleAllowed: boolean
+  applicability?: 'required' | 'optional' | 'conditional' | 'not_applicable'
+  applicabilityRule?: string | null
   classifications: ReportTemplateClassification[]
 }
 
 export type ReportTemplateSection = {
   name: string
   position: number
+  sectionKind: 'findings' | 'patient_data' | 'history'
+  fields: ReportTemplateSectionField[]
   types: string[]
   findings: ReportTemplateFinding[]
+}
+
+export type ReportTemplateSectionField = {
+  key: string
+  required: boolean
+  label: string | null
+  source: 'patient' | 'patient_examination' | 'history' | null
+}
+
+export type ReportTemplateLifecycleStatus = 'draft' | 'published'
+
+export type ReportTemplateReadiness = {
+  canPublish: boolean | null
+  blockingIssues: string[]
+  warnings: string[]
+  raw: Record<string, unknown>
+}
+
+export type ReportTemplateIdentity = {
+  moduleName: string | null
+  knowledgeBaseVersion: string | null
+  templateVersion: string | null
+  templateHash: string | null
+  lifecycleStatus: ReportTemplateLifecycleStatus | null
+  readiness: ReportTemplateReadiness | null
 }
 
 export type FindingsValidatorOperator = 'exists' | 'missing' | 'condition'
@@ -83,6 +112,7 @@ export type ReportTemplateValidators = {
 export type ReportTemplatePayload = {
   name: string
   examination: string
+  identity: ReportTemplateIdentity
   reportSections: ReportTemplateSection[]
   validators: ReportTemplateValidators
 }
