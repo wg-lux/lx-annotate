@@ -210,4 +210,37 @@ describe('reportingFlowStore template draft state', () => {
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledTimes(1)
     expect(flow.hasUnpersistedDraftChanges).toBe(false)
   })
+
+  it('records scheduled autosave failures without leaking an unhandled rejection', async () => {
+    hoisted.reportDraftApi.savePatientExaminationDraft.mockRejectedValueOnce({
+      message: 'Request failed with status code 400',
+      response: {
+        data: {
+          nonFieldErrors: ['template_identity.readiness: Extra inputs are not permitted']
+        }
+      }
+    })
+    const flow = useReportingFlowStore()
+    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setRuntimeDraft({
+      draftId: 'draft_42',
+      patientExaminationId: 42,
+      moduleName: 'report_template_examples',
+      templateName: 'star_upper_gi_main',
+      payload: {
+        patient: 'patient_7',
+        examiners: [],
+        examination: 'colonoscopy',
+        patientFindings: []
+      },
+      hydratedFrom: 'backend_context',
+      updatedAt: '2026-03-19T13:55:00.000Z'
+    })
+
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(flow.draftPersistenceStatus).toBe('error')
+    expect(flow.draftPersistenceError).toContain('template_identity.readiness')
+    expect(flow.hasUnpersistedDraftChanges).toBe(true)
+  })
 })

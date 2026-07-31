@@ -110,6 +110,29 @@ function normalizeRuntimePayloadIds(
   }
 }
 
+function draftPersistenceErrorMessage(error: unknown): string {
+  const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const response =
+    errorRecord.response && typeof errorRecord.response === 'object'
+      ? (errorRecord.response as Record<string, unknown>)
+      : {}
+  const data =
+    response.data && typeof response.data === 'object'
+      ? (response.data as Record<string, unknown>)
+      : {}
+  const nonFieldErrors = data.nonFieldErrors ?? data.non_field_errors
+  const firstNonFieldError =
+    Array.isArray(nonFieldErrors) && typeof nonFieldErrors[0] === 'string'
+      ? nonFieldErrors[0]
+      : null
+  return (
+    (typeof data.detail === 'string' ? data.detail : null) ||
+    firstNonFieldError ||
+    (typeof errorRecord.message === 'string' ? errorRecord.message : null) ||
+    'Der Reporting-Entwurf konnte nicht gespeichert werden.'
+  )
+}
+
 function clearPersistedState() {
   try {
     sessionStorage.removeItem(STORAGE_KEY)
@@ -522,21 +545,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         lastPersistedDraftAt.value = response.updatedAt ?? response.updated_at ?? null
         draftAutosaveSignature.value = signatureToPersist
       } catch (error: unknown) {
-        const errorRecord =
-          error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
-        const response =
-          errorRecord.response && typeof errorRecord.response === 'object'
-            ? (errorRecord.response as Record<string, unknown>)
-            : {}
-        const data =
-          response.data && typeof response.data === 'object'
-            ? (response.data as Record<string, unknown>)
-            : {}
         draftPersistenceStatus.value = 'error'
-        draftPersistenceError.value =
-          (typeof data.detail === 'string' ? data.detail : null) ||
-          (typeof errorRecord.message === 'string' ? errorRecord.message : null) ||
-          'Der Reporting-Entwurf konnte nicht gespeichert werden.'
+        draftPersistenceError.value = draftPersistenceErrorMessage(error)
         throw error
       } finally {
         draftPersistencePromise.value = null
@@ -552,7 +562,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     draftAutosaveTimer.value = setTimeout(() => {
       draftAutosaveTimer.value = null
       if (savingFinalReport.value) return
-      void persistCurrentRuntimeDraft()
+      void persistCurrentRuntimeDraft().catch(() => {
+        // Scheduled autosave errors are exposed through draftPersistenceStatus/error.
+        // Explicit flushes still reject so navigation can fail closed.
+      })
     }, DRAFT_AUTOSAVE_DEBOUNCE_MS)
   }
 
