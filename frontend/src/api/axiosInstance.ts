@@ -31,9 +31,7 @@ function shouldSuppressErrorToast(url: string, explicitlySuppressed: boolean): b
   if (explicitlySuppressed) return true
   return (
     url.includes('/dtypes-api/') ||
-    url.startsWith('dtypes-api/') ||
-    url.includes('/base_api/') ||
-    url.startsWith('base_api/')
+    url.startsWith('dtypes-api/')
   )
 }
 

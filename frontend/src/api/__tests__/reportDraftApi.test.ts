@@ -10,7 +10,8 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock('@/api/axiosInstance', () => ({
   default: hoisted.axios,
-  r: (path: string) => `/api/${path}`
+  r: (path: string) => `/api/${path}`,
+  dtypesApi: (path: string) => `/dtypes-api/${path.replace(/^\/+/, '')}`
 }))
 
 import { fetchPatientExaminationDraft, savePatientExaminationDraft } from '@/api/reportDraftApi'
@@ -63,6 +64,19 @@ describe('reportDraftApi', () => {
       patientExaminationId: 314,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
+      templateIdentity: {
+        moduleName: 'report_template_examples',
+        knowledgeBaseVersion: '0.2.8',
+        templateVersion: '3',
+        templateHash: 'sha256:template',
+        lifecycleStatus: 'published',
+        readiness: {
+          canPublish: true,
+          blockingIssues: [],
+          warnings: [],
+          raw: { can_publish: true }
+        }
+      },
       payload: {
         patient: 'patient_42',
         examiners: ['dr_house'],
@@ -76,6 +90,13 @@ describe('reportDraftApi', () => {
       {
         moduleName: 'report_template_examples',
         templateName: 'star_upper_gi_main',
+        templateIdentity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '0.2.8',
+          templateVersion: '3',
+          templateHash: 'sha256:template',
+          lifecycleStatus: 'published'
+        },
         payload: {
           patient: 'patient_42',
           examiners: ['dr_house'],

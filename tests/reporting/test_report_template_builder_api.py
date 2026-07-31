@@ -7,7 +7,7 @@ import yaml
 from django.test import Client, override_settings
 from django.urls import clear_url_caches, resolve, set_urlconf
 
-from tests.api.test_base_api_mount import _reload_urls_with_base_api
+from tests.api.test_base_api_mount import _reload_urls_with_dtypes_api
 
 
 def _make_temp_kb_module(tmp_path):
@@ -32,8 +32,8 @@ def _make_temp_kb_module(tmp_path):
 def _assert_builder_route_is_mounted() -> None:
     clear_url_caches()
     set_urlconf("lx_annotate.urls")
-    match = resolve("/base_api/report-templates/builder/templates")
-    assert "lx_dtypes_base_api" in match.namespaces
+    match = resolve("/dtypes-api/report-templates/builder/templates")
+    assert "lx_dtypes_api" in match.namespaces
 
 
 @override_settings(
@@ -43,7 +43,7 @@ def _assert_builder_route_is_mounted() -> None:
 def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
     monkeypatch, tmp_path
 ):
-    _reload_urls_with_base_api(monkeypatch)
+    _reload_urls_with_dtypes_api(monkeypatch, tmp_path)
     _assert_builder_route_is_mounted()
 
     from lx_dtypes.django.api import report_template_builder as builder
@@ -53,7 +53,7 @@ def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
 
     client = Client()
     response = client.post(
-        "/base_api/report-templates/builder/templates",
+        "/dtypes-api/report-templates/builder/templates",
         data=json.dumps(
             {
                 "module_name": "report_template_examples",
@@ -159,7 +159,7 @@ def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
 def test_report_template_builder_rejects_invalid_findings_sections(
     monkeypatch, tmp_path
 ):
-    _reload_urls_with_base_api(monkeypatch)
+    _reload_urls_with_dtypes_api(monkeypatch, tmp_path)
     _assert_builder_route_is_mounted()
 
     from lx_dtypes.django.api import report_template_builder as builder
@@ -169,7 +169,7 @@ def test_report_template_builder_rejects_invalid_findings_sections(
 
     client = Client()
     response = client.post(
-        "/base_api/report-templates/builder/templates",
+        "/dtypes-api/report-templates/builder/templates",
         data=json.dumps(
             {
                 "module_name": "report_template_examples",
