@@ -168,8 +168,6 @@ let
 
 in
 {
-  secretspec.provider = "env";
-
   dotenv.enable = false;
   dotenv.disableHint = true;
   packages = lib.unique (devenv_utils.buildInputs ++ runtimePackages);
