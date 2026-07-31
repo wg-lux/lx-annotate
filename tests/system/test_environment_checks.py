@@ -72,6 +72,11 @@ def test_environment_checks_require_native_hls_state_machine(monkeypatch, tmp_pa
 def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
     monkeypatch, tmp_path
 ):
+    from lx_dtypes.models.interface.KnowledgeBaseResolver import (
+        clear_knowledge_base_resolver_caches,
+    )
+
+    clear_knowledge_base_resolver_caches()
     kb_root = tmp_path / "knowledge-bases"
     module_dir = kb_root / "verified_reporting"
     module_dir.mkdir(parents=True)
@@ -111,7 +116,10 @@ def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
     monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(tmp_path))
     monkeypatch.setattr(checks_module, "check_environment_readiness", lambda: [])
 
-    messages = checks_module.lx_annotate_environment_checks(None)
+    try:
+        messages = checks_module.lx_annotate_environment_checks(None)
+    finally:
+        clear_knowledge_base_resolver_caches()
 
     assert not any(
         message.id is not None and "lx_dtypes" in message.id for message in messages

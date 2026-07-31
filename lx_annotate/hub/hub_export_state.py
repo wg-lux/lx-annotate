@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from endoreg_db.models import NetworkNode, RawPdfFile, VideoFile
-from endoreg_db.models.state.video_segment_validation import (
+from endoreg_db.services.video_segment_validation_workflow import (
     resolve_segment_annotation_status,
     segment_annotations_are_final,
 )

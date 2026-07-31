@@ -121,7 +121,8 @@ def test_repo_urls_expose_live_report_template_generation_routes(monkeypatch, tm
     validate_payload = validate_res.json()
     assert validate_payload["template_name"] == "colonoscopy_training_basic"
     assert validate_payload["evaluated_findings_count"] == 1
-    assert validate_payload["examination_validators"][0]["ok"] is True
+    assert validate_payload["ok"] is False
+    assert validate_payload["examination_validators"][0]["ok"] is False
     assert validate_payload["findings_validators"][0]["ok"] is False
 
     core_concepts_res = client.get(

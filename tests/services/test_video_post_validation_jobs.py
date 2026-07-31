@@ -3,8 +3,8 @@ from unittest.mock import patch
 import pytest
 
 from endoreg_db.models import Center, VideoFile, VideoProcessingHistory, VideoState
-from endoreg_db.models.state.video_segment_validation import (
-    blackening_history_config,
+from endoreg_db.services.video_segment_blackening import blackening_history_config
+from endoreg_db.services.video_segment_validation_workflow import (
     resolve_segment_annotation_status,
 )
 from endoreg_db.services.jobs import video_post_validation_jobs

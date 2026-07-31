@@ -3,11 +3,15 @@ from __future__ import annotations
 import json
 import textwrap
 
+import pytest
 import yaml
+from django.contrib.auth import get_user_model
 from django.test import Client, override_settings
 from django.urls import clear_url_caches, resolve, set_urlconf
 
 from tests.api.test_base_api_mount import _reload_urls_with_dtypes_api
+
+pytestmark = pytest.mark.django_db
 
 
 def _make_temp_kb_module(tmp_path):
@@ -36,6 +40,16 @@ def _assert_builder_route_is_mounted() -> None:
     assert "lx_dtypes_api" in match.namespaces
 
 
+def _authenticated_builder_client() -> Client:
+    user = get_user_model().objects.create_user(
+        username="report-template-builder",
+        is_staff=True,
+    )
+    client = Client()
+    client.force_login(user)
+    return client
+
+
 @override_settings(
     ROOT_URLCONF="lx_annotate.urls",
     ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
@@ -51,7 +65,7 @@ def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
     _make_temp_kb_module(tmp_path)
     monkeypatch.setattr(builder, "MODULES_ROOT", tmp_path)
 
-    client = Client()
+    client = _authenticated_builder_client()
     response = client.post(
         "/dtypes-api/report-templates/builder/templates",
         data=json.dumps(
@@ -167,7 +181,7 @@ def test_report_template_builder_rejects_invalid_findings_sections(
     _make_temp_kb_module(tmp_path)
     monkeypatch.setattr(builder, "MODULES_ROOT", tmp_path)
 
-    client = Client()
+    client = _authenticated_builder_client()
     response = client.post(
         "/dtypes-api/report-templates/builder/templates",
         data=json.dumps(

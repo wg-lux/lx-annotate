@@ -18,7 +18,7 @@ from endoreg_db.models import (
     VideoProcessingHistory,
     VideoState,
 )
-from endoreg_db.models.state import video_segment_validation as segment_state
+from endoreg_db.services.video_segment_blackening import blackening_history_config
 from lx_annotate.hub.hub_export_jobs import build_hub_export_overview
 from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import verify_hub_report_artifact
@@ -165,7 +165,7 @@ class HubExportHookTests(TestCase):
             operation=VideoProcessingHistory.OPERATION_REPROCESSING,
             status=VideoProcessingHistory.STATUS_PENDING,
             task_id="cleanup-pending",
-            config=segment_state.blackening_history_config(only_validated=False),
+            config=blackening_history_config(only_validated=False),
         )
 
         overview = build_hub_export_overview(target_node=self.hub_node)

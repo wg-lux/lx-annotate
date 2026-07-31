@@ -105,8 +105,12 @@ def test_reporting_workflow_paths_resolve_to_vue_spa(spa_path: str):
     ROOT_URLCONF="lx_annotate.urls",
     ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
 )
-def test_canonical_api_urls_are_reachable_and_base_api_is_removed(monkeypatch):
-    _fresh_urls_module(monkeypatch)
+def test_canonical_api_urls_are_reachable_and_base_api_is_removed(
+    monkeypatch, tmp_path
+):
+    from tests.api.test_base_api_mount import _reload_urls_with_dtypes_api
+
+    _reload_urls_with_dtypes_api(monkeypatch, tmp_path)
     clear_url_caches()
     set_urlconf("lx_annotate.urls")
     client = Client()
