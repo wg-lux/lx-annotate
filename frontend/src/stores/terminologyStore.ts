@@ -12,8 +12,6 @@ import {
 import axios from 'axios'
 
 const MEDICAL_FIELD_STORAGE_KEY = 'terminologyMedicalField.v1'
-const DEFAULT_KB_MODULE = 'report_template_examples'
-
 function terminologyErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError<{ detail?: string }>(error)) {
     return error.response?.data?.detail || error.message || fallback
@@ -38,7 +36,6 @@ function bundleKey(bundle: Pick<TerminologyBundleVersion, 'moduleName' | 'versio
 export const useTerminologyStore = defineStore('terminology', () => {
   const bundles = ref<TerminologyBundleVersion[]>([])
   const activeBundle = ref<TerminologyBundleVersion | null>(null)
-  const registryPath = ref('')
   const loading = ref(false)
   const selecting = ref(false)
   const importing = ref(false)
@@ -46,10 +43,10 @@ export const useTerminologyStore = defineStore('terminology', () => {
   const selectedMedicalField = ref<MedicalField>(loadPersistedMedicalField())
   const lastSelectionCounts = ref<Record<string, number> | null>(null)
 
-  const activeModuleName = computed(() => activeBundle.value?.moduleName || DEFAULT_KB_MODULE)
+  const activeModuleName = computed(() => activeBundle.value?.moduleName || '')
   const activeBundleKey = computed(() => (activeBundle.value ? bundleKey(activeBundle.value) : ''))
   const activeBundleLabel = computed(() => {
-    if (!activeBundle.value) return 'Standard-Terminologie'
+    if (!activeBundle.value) return 'Keine aktive Terminologie'
     return `${activeBundle.value.moduleName} · ${activeBundle.value.version}`
   })
   const filteredBundles = computed(() =>
@@ -70,7 +67,6 @@ export const useTerminologyStore = defineStore('terminology', () => {
       const response = await fetchTerminologyBundles()
       bundles.value = response.bundles
       activeBundle.value = response.active
-      registryPath.value = response.registryPath
       lastSelectionCounts.value = null
     } catch (caught: unknown) {
       error.value = terminologyErrorMessage(
@@ -118,7 +114,6 @@ export const useTerminologyStore = defineStore('terminology', () => {
       const response = await importTerminologyBundle(file)
       const imported = response.imported
       activeBundle.value = imported
-      registryPath.value = response.registryPath
       lastSelectionCounts.value = response.counts
       const withoutImported = bundles.value.filter(
         (candidate) =>
@@ -163,7 +158,6 @@ export const useTerminologyStore = defineStore('terminology', () => {
   return {
     bundles,
     activeBundle,
-    registryPath,
     loading,
     selecting,
     importing,

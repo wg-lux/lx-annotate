@@ -308,8 +308,8 @@
             <strong>{{ terminology.activeBundleLabel }}</strong>
           </div>
           <div class="backup-stat">
-            <span>Register</span>
-            <strong>{{ terminology.registryPath || 'Nicht gesetzt' }}</strong>
+            <span>Governance</span>
+            <strong>{{ terminology.activeBundle ? 'Verifiziertes Register' : 'Nicht bereit' }}</strong>
           </div>
         </div>
 

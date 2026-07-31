@@ -22,7 +22,6 @@ const hoisted = vi.hoisted(() => ({
         moduleName: 'editor_bundle',
         version: '2026.04.30',
         medicalField: 'gastroenterology',
-        inputDirs: ['/registry/editor_bundle'],
         isActive: true
       }
     ],
@@ -30,10 +29,8 @@ const hoisted = vi.hoisted(() => ({
       moduleName: 'editor_bundle',
       version: '2026.04.30',
       medicalField: 'gastroenterology',
-      inputDirs: ['/registry/editor_bundle'],
       isActive: true
     },
-    registryPath: '/registry',
     loading: false,
     selecting: false,
     error: null as string | null,
@@ -47,7 +44,6 @@ const hoisted = vi.hoisted(() => ({
         moduleName: 'editor_bundle',
         version: '2026.04.30',
         medicalField: 'gastroenterology',
-        inputDirs: ['/registry/editor_bundle'],
         isActive: true
       }
     ],
@@ -62,7 +58,6 @@ const hoisted = vi.hoisted(() => ({
             moduleName: 'editor_bundle',
             version: '2026.04.30',
             medicalField: 'gastroenterology',
-            inputDirs: ['/registry/editor_bundle'],
             isActive: true
           }
         : null

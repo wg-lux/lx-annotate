@@ -9,12 +9,10 @@ export type TerminologyBundleVersion = {
   moduleName: string
   version: string
   medicalField: MedicalField | null
-  inputDirs: string[]
   isActive: boolean
 }
 
 export type TerminologyBundleListResponse = {
-  registryPath: string
   active: TerminologyBundleVersion | null
   bundles: TerminologyBundleVersion[]
 }
@@ -33,7 +31,6 @@ export type SelectTerminologyBundleResponse = {
 export type ImportTerminologyBundleResponse = {
   ok: boolean
   imported: TerminologyBundleVersion
-  registryPath: string
   counts: Record<string, number>
 }
 
