@@ -10,6 +10,10 @@ vi.mock('axios', () => ({
   }
 }))
 
+vi.mock('@/api/axiosInstance', () => ({
+  r: (path: string) => `/endoreg-api/${path}`
+}))
+
 describe('annotationStatsStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
