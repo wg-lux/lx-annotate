@@ -301,6 +301,96 @@ and data-recovery units, so operators should treat the wheel deployment docs
 plus active LuxNix host configuration as the current operational source of
 truth for multi-service production setups.
 
+## Runtime Schema Gate And Feature-Tracker Alignment
+
+The `lx-annotate` runtime schema gate and the `endoreg_db` feature tracker
+answer different questions:
+
+- the feature tracker records reviewed production-readiness evidence for a
+  feature in the `endoreg-db` source repository
+- the installed `endoreg_db` package determines the models, services, and
+  upstream migrations available to the deployed application
+- the `lx-annotate` migration override set determines the migration graph
+  actually applied by this Django project
+- the live database determines whether the required tables, columns,
+  constraints, and existing rows are consistent
+
+A tracker entry marked done therefore does not prove that a particular host has
+the matching wheel or an up-to-date database. Conversely, a database
+introspection failure does not prove that the tracker or installed package is
+out of sync.
+
+At application startup, `lx_annotate.checks.assert_runtime_checks_pass()` checks
+the live database for the required `endoreg_db` tables, columns, constraints,
+and constraint-compatible data. The migration management commands are excluded
+from this startup gate so that `migrate` can repair an older schema. The web
+runtime runs the gate after the migration stage has had that opportunity.
+
+Interpret the check identifiers in two groups:
+
+- `lx_annotate.endoreg_db_schema_introspection_failed` and
+  `lx_annotate.endoreg_db_constraint_introspection_failed` mean that Django
+  could not query the database. Check the endpoint, TLS mode, credentials,
+  service ordering, and database-role permissions before reasoning about
+  migration drift.
+- `lx_annotate.endoreg_db_schema_table_missing`,
+  `lx_annotate.endoreg_db_schema_column_missing`,
+  `lx_annotate.endoreg_db_schema_constraint_missing`, and
+  `lx_annotate.endoreg_db_constraint_violated` mean that connectivity worked
+  and the checker found a concrete schema or data incompatibility.
+
+The same connection failure may be reported repeatedly because each required
+table, constraint, and data predicate is checked independently. The repetition
+does not mean that several unrelated migrations failed.
+
+### How The LuxNix Module Handles The Gate
+
+The LuxNix module at
+`/home/admin/luxnix/modules/nixos/services/lx-annotate-local` makes the
+deployment sequence explicit:
+
+1. `lx-annotate-runtime-env.service` writes
+   `/var/lib/lx-annotate/.env.systemd`, including `DJANGO_DB_NAME`,
+   `DJANGO_DB_USER`, `DJANGO_DB_HOST`, `DJANGO_DB_PORT`, and
+   `DJANGO_DB_SSLMODE`. It copies the locally provisioned database password to
+   the application configuration directory with mode `0600`; the environment
+   file contains the password-file path, not the password.
+2. When no external PostgreSQL host is configured, LuxNix enables and orders
+   the application after `postgresql.service` and
+   `postgres-endoreg-setup.service`. An external host removes those local
+   service dependencies.
+3. `lx-annotate-migrate.service` runs
+   `lx-annotate-manage migrate --noinput` with the same generated database
+   environment as the application services.
+4. Base-data loading and the master-key check require the migration unit.
+   `lx-annotate.service` requires those successful prerequisites before it
+   accepts traffic. Its application startup then runs the live schema gate.
+5. `lx-annotate-acceptance.service` is the preferred post-deployment check
+   because it exercises Django checks with the generated production
+   environment as well as the encrypted-storage and Nginx handoff contracts.
+
+The module's local database defaults are port `5433` and
+`database.sslMode = "prefer"`, rather than the repository development shell's
+fallback values. `scripts/env.nix` exports the selected value as
+`DJANGO_DB_SSLMODE` to every application unit and wrapper. This is why a
+traceback produced by an ad-hoc `devenv shell` without the generated LuxNix
+environment does not describe the effective NixOS service configuration.
+
+For an external PostgreSQL endpoint, set a fail-closed TLS mode and the
+corresponding trust configuration explicitly. The module currently passes
+`database.sslMode` through but does not assert that an external database uses a
+non-fallback TLS policy. Do not use `prefer` as the security policy for
+node-to-node database traffic.
+
+LuxNix does not read or enforce the `endoreg-db/feature-tracking` YAML at host
+startup. Release alignment remains a deployment responsibility: verify the
+effective `lx-annotate` wheel or repository revision, its installed
+`endoreg_db` version, the matching feature-tracker revision, and the live
+database gate as separate pieces of evidence.
+
+Host-level commands for diagnosing this gate are documented in the LuxNix
+module's `Diagnostics.md`.
+
 ## Data Recovery Unit
 
 Some deployments also run a one-shot `systemd` unit named

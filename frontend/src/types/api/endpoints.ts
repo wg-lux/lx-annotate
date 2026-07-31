@@ -32,6 +32,13 @@ export const endpoints = {
   patient: {
     patients: 'patients/',
     patientById: (id: Id) => `patients/${id}/`,
+    patientMedicalLedger: (id: Id) => `patients/${id}/medical-ledger/`,
+    patientMedications: (id: Id) => `patients/${id}/medications/`,
+    patientMedicationById: (id: Id, medicationId: Id) =>
+      `patients/${id}/medications/${medicationId}/`,
+    patientMedicationSchedules: (id: Id) => `patients/${id}/medication-schedules/`,
+    patientMedicationScheduleById: (id: Id, scheduleId: Id) =>
+      `patients/${id}/medication-schedules/${scheduleId}/`,
     patientPseudonym: (id: Id) => `patients/${id}/pseudonym/`,
     patientDeletionSafety: (id: Id) => `patients/${id}/check_deletion_safety/`,
     centers: 'centers/',
@@ -44,6 +51,7 @@ export const endpoints = {
   case: {
     cases: 'cases/',
     createWithExamination: 'cases/create-with-examination/',
+    documents: (caseId: string) => `cases/${caseId}/documents/`,
     caseById: (caseId: UUID) => `cases/${caseId}/`
   },
 

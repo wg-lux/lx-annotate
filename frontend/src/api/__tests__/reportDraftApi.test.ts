@@ -10,6 +10,8 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock('@/api/axiosInstance', () => ({
   default: hoisted.axios,
+  dtypesApi: (path: string) => `/dtypes-api/${path.replace(/^\/+/, '')}`,
+  endoregApi: (path: string) => `/endoreg-api/${path.replace(/^\/+/, '')}`,
   r: (path: string) => `/api/${path}`
 }))
 

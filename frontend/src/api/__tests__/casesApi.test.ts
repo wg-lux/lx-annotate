@@ -13,6 +13,7 @@ vi.mock('@/api/axiosInstance', () => ({
 }))
 
 import {
+  attachCaseDocument,
   createCaseWithExamination,
   createPatientCase,
   fetchPatientCases,
@@ -29,6 +30,7 @@ const patientCase: PatientCase = {
   isClosed: false,
   isDeleted: false,
   patientExaminations: [{ id: 314 }],
+  documents: [],
   patientMedications: [],
   patientMedicationSchedules: [],
   patientLabSamples: [],
@@ -95,5 +97,22 @@ describe('casesApi', () => {
       payload
     )
     expect(result).toBe(response)
+  })
+
+  it('attaches one existing document through the case-scoped API', async () => {
+    hoisted.axios.post.mockResolvedValue({ data: patientCase })
+    const payload = {
+      mediaType: 'video' as const,
+      mediaId: 88,
+      patientExaminationId: 314
+    }
+
+    const result = await attachCaseDocument(patientCase.caseId, payload)
+
+    expect(hoisted.axios.post).toHaveBeenCalledWith(
+      `/endoreg-api/cases/${patientCase.caseId}/documents/`,
+      payload
+    )
+    expect(result).toBe(patientCase)
   })
 })

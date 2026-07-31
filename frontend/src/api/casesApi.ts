@@ -19,10 +19,23 @@ export type PatientCase = {
   isClosed: boolean
   isDeleted: boolean
   patientExaminations: CasePatientExamination[]
+  documents: CaseDocument[]
   patientMedications: number[]
   patientMedicationSchedules: number[]
   patientLabSamples: number[]
   patientLabValues: number[]
+}
+
+export type CaseDocument = {
+  mediaType: 'pdf' | 'video' | 'text_report' | string
+  id: number
+  uuid?: string
+  patientExaminationId: number
+  occurrenceAt: string
+  fileName?: string | null
+  title?: string
+  status?: string
+  version?: number
 }
 
 export type CaseListParams = {
@@ -57,6 +70,12 @@ export type CreateCaseWithExaminationResponse = {
   patientExamination: CasePatientExamination
 }
 
+export type AttachCaseDocumentPayload = {
+  mediaType: 'pdf' | 'video'
+  mediaId: number
+  patientExaminationId: number
+}
+
 function normalizeCaseRows(data: unknown): PatientCase[] {
   if (Array.isArray(data)) return data as PatientCase[]
   if (data && typeof data === 'object') {
@@ -86,4 +105,12 @@ export async function createCaseWithExamination(
 ): Promise<CreateCaseWithExaminationResponse> {
   const response = await axiosInstance.post(r(endpoints.case.createWithExamination), payload)
   return response.data as CreateCaseWithExaminationResponse
+}
+
+export async function attachCaseDocument(
+  caseId: string,
+  payload: AttachCaseDocumentPayload
+): Promise<PatientCase> {
+  const response = await axiosInstance.post(r(endpoints.case.documents(caseId)), payload)
+  return response.data as PatientCase
 }

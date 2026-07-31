@@ -1,0 +1,736 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>Secure Backup and Disaster Recovery - lx-annotate Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">lx-annotate Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">lx-annotate Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
+<li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">Dates and Times</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/guides/secure-backup-disaster-recovery.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="secure-backup-and-disaster-recovery">
+<h1>Secure Backup and Disaster Recovery<a class="headerlink" href="#secure-backup-and-disaster-recovery" title="Link to this heading">¶</a></h1>
+<p>This is the canonical operator runbook for LX-Annotate backup verification and
+disaster recovery. It defines the security boundary, approvals, recovery order,
+and evidence required for a database-only recovery or a complete application
+recovery.</p>
+<p>This runbook does not authorize access by itself. It must be used with the
+applicable incident procedure, change record, and access-control policy.</p>
+<section id="current-recovery-status">
+<h2>Current Recovery Status<a class="headerlink" href="#current-recovery-status" title="Link to this heading">¶</a></h2>
+<p>The following evidence was reported on 2026-07-28:</p>
+<ul class="simple">
+<li><p>An encrypted PostgreSQL archive is stored on <code class="docutils literal notranslate"><span class="pre">gs-02</span></code> at
+<code class="docutils literal notranslate"><span class="pre">/var/backup/postgresql/gc-10/gc-10-postgresql-all-20260728T094044CEST.sql.gz.age</span></code>.</p></li>
+<li><p>Its recorded size is <code class="docutils literal notranslate"><span class="pre">35188721</span></code> bytes, ownership is <code class="docutils literal notranslate"><span class="pre">root:root</span></code>, mode is
+<code class="docutils literal notranslate"><span class="pre">0600</span></code>, and SHA-256 is
+<code class="docutils literal notranslate"><span class="pre">1791ef7d8326dcde33b4dafb84609af0e0b914dc806724b9055863d479df8c17</span></code>.</p></li>
+<li><p>Its outer age decryption and gzip integrity were reported as successfully
+verified on <code class="docutils literal notranslate"><span class="pre">gs-02</span></code>.</p></li>
+<li><p>The archive is encrypted to the <code class="docutils literal notranslate"><span class="pre">gs-02</span></code> SSH host identity. Root on a
+surviving <code class="docutils literal notranslate"><span class="pre">gs-02</span></code> can use its local private host identity for decryption.</p></li>
+<li><p>An encrypted recovery bundle for the <code class="docutils literal notranslate"><span class="pre">gs-02</span></code> host identities is recorded at
+<code class="docutils literal notranslate"><span class="pre">/home/admin/.lxv/host-ssh-keys/gs-02/gs-02-ssh-host-keys-20260728.age</span></code>.
+Its recorded mode is <code class="docutils literal notranslate"><span class="pre">0600</span></code>, and its SHA-256 is
+<code class="docutils literal notranslate"><span class="pre">5ac78d6a7895d3dc31fb663d64a7813d4de53c60345b69fa9a4e799158431838</span></code>.
+It is encrypted to a separately held operator age identity.</p></li>
+</ul>
+<p>These facts establish a recovery path for the archive’s outer encryption. They
+do <strong>not</strong> establish complete LX-Annotate recovery:</p>
+<ul class="simple">
+<li><p>application-encrypted database fields still require the correct version of
+the LX-Annotate application master key;</p></li>
+<li><p>the PostgreSQL archive does not contain protected video, report, HLS, or
+other managed media; and</p></li>
+<li><p>a clean-host, production-like restore has not yet been completed.</p></li>
+</ul>
+<p>Treat the current state as <strong>database-only recovery available, full disaster
+recovery blocked</strong>.</p>
+</section>
+<section id="security-invariants">
+<h2>Security Invariants<a class="headerlink" href="#security-invariants" title="Link to this heading">¶</a></h2>
+<p>Every backup and recovery action must preserve these rules:</p>
+<ol class="arabic simple">
+<li><p>Never transmit the long-lived LX-Annotate application master key over the
+network, store it in application configuration, commit it to version
+control, or expose it in logs, shell history, process arguments, tickets, or
+chat.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">NetworkNode.shared_secret</span></code> is only for request authentication. It must
+never encrypt backup payloads or keys.</p></li>
+<li><p>Use mTLS for node-to-node communication when the deployment profile
+requires it. Missing mTLS is a hard failure, not permission to fall back.</p></li>
+<li><p>Raw media export is prohibited. Raw media must not be sent through the hub
+export path or copied off-node merely because the copy is encrypted.</p></li>
+<li><p>A standalone permitted artifact that leaves its local storage boundary must
+use envelope encryption: a new per-transfer Data Encryption Key encrypts the
+payload and the receiving hub’s public key wraps that key.</p></li>
+<li><p>Private recovery identities must not be stored in plaintext beside the
+archives they decrypt. Recovery must not depend on one unescrowed host or
+operator identity.</p></li>
+<li><p>Application-managed filesystem restores must use the typed wrappers in
+<code class="docutils literal notranslate"><span class="pre">endoreg_db.utils.file_operations</span></code>, atomic replacement, and structured JSON
+logging. Do not use ad hoc <code class="docutils literal notranslate"><span class="pre">cp</span></code>, <code class="docutils literal notranslate"><span class="pre">mv</span></code>, <code class="docutils literal notranslate"><span class="pre">rsync</span></code>, or <code class="docutils literal notranslate"><span class="pre">shutil</span></code> operations to
+mutate managed storage.</p></li>
+<li><p>An inconsistent restore fails closed. Preserve the archive, logs, hashes,
+and database state; mark unrecoverable artifacts <code class="docutils literal notranslate"><span class="pre">LOST</span></code> where the
+application model supports it. Do not guess or silently reconstruct state.</p></li>
+</ol>
+</section>
+<section id="recovery-classes">
+<h2>Recovery Classes<a class="headerlink" href="#recovery-classes" title="Link to this heading">¶</a></h2>
+<section id="database-only-recovery">
+<h3>Database-only recovery<a class="headerlink" href="#database-only-recovery" title="Link to this heading">¶</a></h3>
+<p>A database-only recovery restores PostgreSQL into an isolated target and
+validates its structural integrity. It can recover ordinary relational data
+from the demonstrated archive.</p>
+<p>It is not complete if application-encrypted fields cannot be decrypted or
+managed media cannot be reconciled. Label every resulting environment
+<code class="docutils literal notranslate"><span class="pre">DATABASE-ONLY</span> <span class="pre">/</span> <span class="pre">NOT</span> <span class="pre">FOR</span> <span class="pre">CLINICAL</span> <span class="pre">USE</span></code> until all full-recovery gates pass.</p>
+</section>
+<section id="full-recovery">
+<h3>Full recovery<a class="headerlink" href="#full-recovery" title="Link to this heading">¶</a></h3>
+<p>A full recovery requires all of the following:</p>
+<ul class="simple">
+<li><p>a verified PostgreSQL restore;</p></li>
+<li><p>the exact approved application master-key version required by the restored
+data, provisioned through its independent recovery boundary;</p></li>
+<li><p>protected media and provenance restored through an approved storage path;</p></li>
+<li><p>reconciliation of database references, hashes, storage modes, ownership,
+permissions, reports, and representative playback;</p></li>
+<li><p>measured recovery point and recovery time within approved objectives; and</p></li>
+<li><p>documented technical, security, operational, and clinical approval.</p></li>
+</ul>
+<p>Absence of any item means the recovery remains incomplete.</p>
+</section>
+</section>
+<section id="roles-and-authorization">
+<h2>Roles and Authorization<a class="headerlink" href="#roles-and-authorization" title="Link to this heading">¶</a></h2>
+<p>Before any decryption or restore, create an incident or planned-drill record
+with:</p>
+<ul class="simple">
+<li><p>incident or change identifier and reason for recovery;</p></li>
+<li><p>source archive identifier and intended recovery class;</p></li>
+<li><p>named database, LuxNix, LX-Annotate, and security operators;</p></li>
+<li><p>clinical owner when restored data could become available for clinical use;</p></li>
+<li><p>two-person approval for use of an escrowed private identity or application
+master-key recovery mechanism;</p></li>
+<li><p>exact isolated target host, database instance, and storage boundary;</p></li>
+<li><p>expected recovery point and recovery time; and</p></li>
+<li><p>an explicit statement that the target is disposable and is not the
+production database.</p></li>
+</ul>
+<p>The requester, approver, and operator should be different people where staffing
+permits. Access only the specific identity needed for the approved recovery.
+Never attach secrets or decrypted key material to the record.</p>
+<p>Stop and escalate to security if authorization, archive provenance, expected
+fingerprints, key version, or target isolation is uncertain.</p>
+</section>
+<section id="phase-1-preserve-and-inspect">
+<h2>Phase 1: Preserve and Inspect<a class="headerlink" href="#phase-1-preserve-and-inspect" title="Link to this heading">¶</a></h2>
+<p>Do not alter the source archive, the surviving source backup, or recovery
+identities during initial inspection.</p>
+<p>On <code class="docutils literal notranslate"><span class="pre">gs-02</span></code>, an authorized root operator may perform read-only metadata checks
+against the exact archive path:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">stat --format=&#39;path=%n size=%s owner=%U group=%G mode=%a&#39; \</span>
+<span class="go">  /var/backup/postgresql/gc-10/gc-10-postgresql-all-20260728T094044CEST.sql.gz.age</span>
+<span class="go">sha256sum \</span>
+<span class="go">  /var/backup/postgresql/gc-10/gc-10-postgresql-all-20260728T094044CEST.sql.gz.age</span>
+</pre></div>
+</div>
+<p>Compare the output exactly with the recorded path, size, owner, group, mode,
+and SHA-256 above. Record the command output in the audit record. Do not
+“repair” a mismatch. A mismatch means the candidate archive is untrusted:
+preserve it, deny restoration, and escalate.</p>
+<p>For later archives, obtain expected metadata from the immutable backup-run
+record, not from the candidate file itself. Confirm the age recipient
+fingerprint against the approved inventory. File names and host names are not
+proof of recipient identity.</p>
+<p>The encrypted host-identity recovery bundle is needed only if the local
+<code class="docutils literal notranslate"><span class="pre">gs-02</span></code> identity is unavailable or the host itself has been lost. Do not open,
+copy, rotate, or test that bundle during routine archive inspection.</p>
+</section>
+<section id="phase-2-non-persistent-integrity-check">
+<h2>Phase 2: Non-Persistent Integrity Check<a class="headerlink" href="#phase-2-non-persistent-integrity-check" title="Link to this heading">¶</a></h2>
+<p>Use the surviving local <code class="docutils literal notranslate"><span class="pre">gs-02</span></code> private host identity when it is available and
+authorized. Decrypt as a stream directly into the gzip integrity checker; do
+not write plaintext SQL to disk:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">set -o pipefail</span>
+<span class="go">age --decrypt --identity /etc/ssh/ssh_host_ed25519_key \</span>
+<span class="go">  /var/backup/postgresql/gc-10/gc-10-postgresql-all-20260728T094044CEST.sql.gz.age \</span>
+<span class="go">  | gzip --test</span>
+</pre></div>
+</div>
+<p>Run this only from a root session whose auditing and terminal controls are
+approved for sensitive recovery. The command contains a private-key <em>path</em>,
+not private-key material. Do not replace the path with key contents, print the
+identity, enable shell tracing, or capture the decrypted stream.</p>
+<p>Both processes must succeed. With <code class="docutils literal notranslate"><span class="pre">pipefail</span></code>, a successful gzip command cannot
+hide an age failure. Record exit status, archive hash, recipient fingerprint,
+operator, host, and time. Do not record decrypted bytes.</p>
+<p>If the local host identity is unavailable, stop. Recovery of its encrypted
+escrow bundle requires a separately approved two-person procedure on a
+disposable, isolated host. Confirm the encrypted bundle hash before use,
+compare derived public fingerprints to the approved inventory, keep any
+restored private identity root-owned with mode <code class="docutils literal notranslate"><span class="pre">0600</span></code>, and destroy the
+disposable recovery environment according to the approved evidence-retention
+procedure. This runbook intentionally does not reproduce escrow-opening
+commands.</p>
+</section>
+<section id="phase-3-restore-postgresql-into-an-isolated-target">
+<h2>Phase 3: Restore PostgreSQL into an Isolated Target<a class="headerlink" href="#phase-3-restore-postgresql-into-an-isolated-target" title="Link to this heading">¶</a></h2>
+<p>The database owner must provision a fresh PostgreSQL instance that:</p>
+<ul class="simple">
+<li><p>is on the explicitly named disposable target;</p></li>
+<li><p>has no route, replication link, shared storage, or service discovery entry
+that can affect production;</p></li>
+<li><p>accepts connections only from the recovery operators and test application;</p></li>
+<li><p>uses encrypted local storage;</p></li>
+<li><p>is running a PostgreSQL version compatible with the recorded dump; and</p></li>
+<li><p>has enough capacity for the restore plus validation.</p></li>
+</ul>
+<p>Never restore directly into an existing production database. Never use an
+ambiguous host alias or default connection. Before restoring, have a second
+operator compare the resolved target host, port, and database identity with the
+change record.</p>
+<p>The demonstrated archive name indicates a compressed SQL archive rather than a
+custom-format <code class="docutils literal notranslate"><span class="pre">pg_restore</span></code> archive. After the target has been positively
+identified, stream plaintext directly from age and gzip into <code class="docutils literal notranslate"><span class="pre">psql</span></code>:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">set -o pipefail</span>
+<span class="go">age --decrypt --identity /etc/ssh/ssh_host_ed25519_key \</span>
+<span class="go">  /var/backup/postgresql/gc-10/gc-10-postgresql-all-20260728T094044CEST.sql.gz.age \</span>
+<span class="go">  | gzip --decompress --stdout \</span>
+<span class="go">  | psql --host=ISOLATED_TARGET_FQDN --port=ISOLATED_TARGET_PORT \</span>
+<span class="go">      --username=APPROVED_RESTORE_ROLE --dbname=APPROVED_MAINTENANCE_DATABASE \</span>
+<span class="go">      --set=ON_ERROR_STOP=on</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">ISOLATED_TARGET_FQDN</span></code>, <code class="docutils literal notranslate"><span class="pre">ISOLATED_TARGET_PORT</span></code>,
+<code class="docutils literal notranslate"><span class="pre">APPROVED_RESTORE_ROLE</span></code>, and <code class="docutils literal notranslate"><span class="pre">APPROVED_MAINTENANCE_DATABASE</span></code> are review
+placeholders, not defaults. The approved operator must replace each one with
+the exact values from the change record and have a second operator verify the
+resolved destination before execution. Do not put a database password in this
+command, an environment variable, or shell history; use the deployment’s
+approved peer, certificate, or protected credential mechanism.</p>
+<p>Because this is a cluster-wide SQL dump, review it in a controlled validation
+process for roles, databases, ownership, and extensions compatible with the
+isolated target before the exercise. Do not weaken the target’s authentication
+or grant broad privileges merely to make the restore pass.</p>
+<p>After restore, keep the LX-Annotate application stopped and record:</p>
+<ul class="simple">
+<li><p>PostgreSQL server and dump compatibility information;</p></li>
+<li><p>restore start/end times and complete exit status;</p></li>
+<li><p>restored database and role inventory;</p></li>
+<li><p>extension availability;</p></li>
+<li><p>constraint and index validity;</p></li>
+<li><p>migration state;</p></li>
+<li><p>row-count or domain-specific consistency checks approved by the database
+owner; and</p></li>
+<li><p>all warnings and errors.</p></li>
+</ul>
+<p>A structurally valid restore completes only the database-only portion.</p>
+</section>
+<section id="phase-4-recover-the-application-master-key-boundary">
+<h2>Phase 4: Recover the Application Master-Key Boundary<a class="headerlink" href="#phase-4-recover-the-application-master-key-boundary" title="Link to this heading">¶</a></h2>
+<p>The database archive’s age recipient identity and the LX-Annotate application
+master key serve different purposes. The <code class="docutils literal notranslate"><span class="pre">gs-02</span></code> SSH host identity opens the
+outer backup archive; it cannot decrypt application-encrypted database fields
+or managed files.</p>
+<p>Full recovery therefore requires the independently escrowed version of the
+application master key that corresponds to the restored data. Its recovery
+mechanism must be one of:</p>
+<ul class="simple">
+<li><p>an approved KMS or Vault workflow using machine identity and audited
+authorization; or</p></li>
+<li><p>an independently encrypted offline escrow with documented custody and
+two-person access.</p></li>
+</ul>
+<p>The key must be provisioned locally to the isolated application node through
+that approved boundary. It must never cross the network, be entered on a
+command line, or be copied into an LX-Annotate configuration file. Record only
+the key identifier/version, custody approvals, provisioning result, and audit
+event identifier—never the key value.</p>
+<p>Start the isolated application only after provisioning. Run the project’s
+approved non-mutating verification for representative encrypted fields and
+encrypted managed objects. If the key is unavailable, its version is
+uncertain, or any authentication check fails, stop. Do not try candidate keys,
+replace encrypted values, or generate a new key as a recovery fallback. The
+environment remains database-only and unsuitable for clinical use.</p>
+<p>No independently verified application-master-key recovery path is currently
+recorded. This phase is a blocking gate, not a claim that the mechanism already
+exists.</p>
+</section>
+<section id="phase-5-restore-protected-media">
+<h2>Phase 5: Restore Protected Media<a class="headerlink" href="#phase-5-restore-protected-media" title="Link to this heading">¶</a></h2>
+<p>Classify each required media class before recovery:</p>
+<ul class="simple">
+<li><p>raw source media;</p></li>
+<li><p>anonymized processed media;</p></li>
+<li><p>reports and derived artifacts;</p></li>
+<li><p>HLS or playback artifacts; and</p></li>
+<li><p>workflow and provenance records.</p></li>
+</ul>
+<p>Raw media export remains prohibited. A raw-media recovery source must remain
+inside an approved local encrypted-storage boundary; do not send it through
+the anonymized hub-transfer path or treat payload encryption as
+anonymization. If complete recovery after loss of that local boundary is a
+requirement, security and clinical owners must first approve an architecture
+that satisfies the raw-export prohibition. Until then, that disaster scenario
+is explicitly unrecoverable.</p>
+<p>Permitted anonymized processed media leaving the local boundary must use the
+phase-appropriate envelope-encryption path. Transport encryption such as mTLS
+does not replace payload encryption for standalone files or blobs.</p>
+<p>Restore application-managed files only through a reviewed, typed restore tool
+that uses <code class="docutils literal notranslate"><span class="pre">endoreg_db.utils.file_operations</span></code>, atomic replacement, typed
+<code class="docutils literal notranslate"><span class="pre">VideoStorageMode</span></code> routing, validated persisted provenance schemas, and
+structured JSON mutation logs. There is no approved generic copy command in
+this runbook. If that restore tool is unavailable, stop and keep the media
+criterion blocked.</p>
+<p>For every restored object, retain and verify:</p>
+<ul class="simple">
+<li><p>database identifier and expected storage mode;</p></li>
+<li><p>source and destination storage identity;</p></li>
+<li><p>ciphertext and, where policy permits, content hashes;</p></li>
+<li><p>size, ownership, mode, and provenance;</p></li>
+<li><p>atomic-publish result; and</p></li>
+<li><p>final state, including <code class="docutils literal notranslate"><span class="pre">LOST</span></code> for an object that cannot be recovered
+consistently.</p></li>
+</ul>
+<p>Do not infer that media exists from a database row alone, and do not mark
+missing or hash-mismatched content as recovered.</p>
+</section>
+<section id="phase-6-reconcile-and-approve">
+<h2>Phase 6: Reconcile and Approve<a class="headerlink" href="#phase-6-reconcile-and-approve" title="Link to this heading">¶</a></h2>
+<p>Reconciliation is mandatory and must be reproducible. Compare:</p>
+<ul class="simple">
+<li><p>restored database media references against restored objects;</p></li>
+<li><p>object hashes, sizes, ownership, permissions, and <code class="docutils literal notranslate"><span class="pre">VideoStorageMode</span></code>;</p></li>
+<li><p>application-encrypted fields using the approved verification path;</p></li>
+<li><p>reports and workflow provenance against validated schemas;</p></li>
+<li><p>representative anonymized playback and report access;</p></li>
+<li><p>expected <code class="docutils literal notranslate"><span class="pre">LOST</span></code> records and orphaned objects; and</p></li>
+<li><p>restored timestamp against the approved recovery point objective.</p></li>
+</ul>
+<p>Run read-only application and integration tests before enabling writes. Keep
+outbound transfer disabled during validation. Any inconsistency fails the
+recovery closed; preserve evidence and return to the responsible phase.</p>
+<p>Technical success does not authorize clinical use. Database, application,
+security, operations, and clinical owners must sign the final disposition. The
+disposition must be exactly one of:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DATABASE-ONLY</span> <span class="pre">/</span> <span class="pre">NOT</span> <span class="pre">FOR</span> <span class="pre">CLINICAL</span> <span class="pre">USE</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">FULL</span> <span class="pre">RECOVERY</span> <span class="pre">APPROVED</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">RECOVERY</span> <span class="pre">FAILED</span> <span class="pre">/</span> <span class="pre">EVIDENCE</span> <span class="pre">PRESERVED</span></code>; or</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ARTIFACTS</span> <span class="pre">LOST</span></code>, with the affected identifiers recorded.</p></li>
+</ul>
+</section>
+<section id="audit-record">
+<h2>Audit Record<a class="headerlink" href="#audit-record" title="Link to this heading">¶</a></h2>
+<p>Each drill and real recovery must record:</p>
+<ul class="simple">
+<li><p>incident/change identifier, recovery class, and reason;</p></li>
+<li><p>requester, approvers, operators, and role separation;</p></li>
+<li><p>archive path, immutable backup-run identifier, recorded and observed hash,
+size, mode, owner, and recipient fingerprint;</p></li>
+<li><p>target host and database identifiers and proof of isolation;</p></li>
+<li><p>commands or automation version used, start/end times, and exit results;</p></li>
+<li><p>application master-key identifier/version and external audit event, without
+secret material;</p></li>
+<li><p>media classes, counts, hashes, storage modes, and reconciliation results;</p></li>
+<li><p>recovery point and measured recovery time;</p></li>
+<li><p>errors, exceptions, escalations, and <code class="docutils literal notranslate"><span class="pre">LOST</span></code> artifacts;</p></li>
+<li><p>cleanup and access-revocation evidence; and</p></li>
+<li><p>final disposition and owner approvals.</p></li>
+</ul>
+<p>Logs must be structured JSON where automation performs filesystem mutations.
+Redact secret values and decrypted data, but do not suppress failures or remove
+evidence needed for investigation.</p>
+</section>
+<section id="cleanup-rotation-and-retention">
+<h2>Cleanup, Rotation, and Retention<a class="headerlink" href="#cleanup-rotation-and-retention" title="Link to this heading">¶</a></h2>
+<p>After the final disposition:</p>
+<ol class="arabic simple">
+<li><p>Revoke temporary access and stop the isolated application.</p></li>
+<li><p>Preserve required logs, hashes, approvals, and failure evidence.</p></li>
+<li><p>Confirm that no plaintext SQL, key material, shell trace, terminal capture,
+or transfer temporary remains. Use the approved host cleanup procedure; do
+not run broad recursive deletion commands.</p></li>
+<li><p>Retain or dispose of the isolated encrypted target according to the
+approved clinical retention and incident policy.</p></li>
+<li><p>Confirm that source archives remain governed by the approved retention and
+legal-hold policy. Successful restore is not permission to delete a source.</p></li>
+</ol>
+<p>Rotate a backup recipient or recovery identity only through a planned,
+two-person change. Before retiring an old identity:</p>
+<ul class="simple">
+<li><p>inventory every retained archive encrypted to it;</p></li>
+<li><p>create and verify replacement encrypted copies without persistent plaintext;</p></li>
+<li><p>record old and new public fingerprints and hashes;</p></li>
+<li><p>complete a disposable restore exercise with the replacement identity; and</p></li>
+<li><p>retain or revoke the old identity according to archive retention and
+compromise policy.</p></li>
+</ul>
+<p>Application master-key rotation is a separate application and KMS/Vault
+procedure. Never bundle it with SSH host-key rotation, and never delete an old
+key version while retained data still depends on it.</p>
+</section>
+<section id="incident-escalation">
+<h2>Incident Escalation<a class="headerlink" href="#incident-escalation" title="Link to this heading">¶</a></h2>
+<p>Immediately stop recovery and notify the security incident lead when:</p>
+<ul class="simple">
+<li><p>an archive hash, size, ownership, mode, or recipient fingerprint differs;</p></li>
+<li><p>a key or decrypted data may have appeared in logs, history, arguments,
+tickets, chat, or a temporary file;</p></li>
+<li><p>an identity is unavailable, compromised, or of uncertain provenance;</p></li>
+<li><p>mTLS or another required transport control is absent;</p></li>
+<li><p>the resolved restore target is not the approved isolated target;</p></li>
+<li><p>decryption, gzip validation, PostgreSQL restore, application-field
+validation, or media reconciliation fails;</p></li>
+<li><p>raw media may have crossed its approved storage boundary; or</p></li>
+<li><p>database and filesystem state disagree.</p></li>
+</ul>
+<p>Preserve affected hosts, encrypted artifacts, audit logs, and observed hashes.
+Do not rotate, delete, overwrite, retry with alternate keys, or initiate
+production failover until the incident lead and system owners approve the next
+action.</p>
+</section>
+<section id="readiness-gaps">
+<h2>Readiness Gaps<a class="headerlink" href="#readiness-gaps" title="Link to this heading">¶</a></h2>
+<p>The following must be completed before LX-Annotate can claim full disaster
+recovery:</p>
+<ul class="simple">
+<li><p>approve recovery point, recovery time, retention, legal-hold, and ownership
+requirements;</p></li>
+<li><p>establish independently recoverable custody for the backup recipient
+identity;</p></li>
+<li><p>implement and test the separate application-master-key recovery path;</p></li>
+<li><p>implement a compliant protected-media backup and typed atomic restore path;</p></li>
+<li><p>automate backup scheduling, verification, retention, structured evidence,
+capacity checks, and alerting; and</p></li>
+<li><p>execute this runbook on a clean, isolated, production-like target, including
+negative tests for wrong identity, corrupt archive, missing media,
+interrupted restore, and inconsistent state.</p></li>
+</ul>
+<p>Readiness and evidence are tracked in
+<code class="docutils literal notranslate"><span class="pre">feature-tracking/SecureBackupRecovery.yml</span></code>.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 1980, Thomas J. Lux
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Secure Backup and Disaster Recovery</a><ul>
+<li><a class="reference internal" href="#current-recovery-status">Current Recovery Status</a></li>
+<li><a class="reference internal" href="#security-invariants">Security Invariants</a></li>
+<li><a class="reference internal" href="#recovery-classes">Recovery Classes</a><ul>
+<li><a class="reference internal" href="#database-only-recovery">Database-only recovery</a></li>
+<li><a class="reference internal" href="#full-recovery">Full recovery</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#roles-and-authorization">Roles and Authorization</a></li>
+<li><a class="reference internal" href="#phase-1-preserve-and-inspect">Phase 1: Preserve and Inspect</a></li>
+<li><a class="reference internal" href="#phase-2-non-persistent-integrity-check">Phase 2: Non-Persistent Integrity Check</a></li>
+<li><a class="reference internal" href="#phase-3-restore-postgresql-into-an-isolated-target">Phase 3: Restore PostgreSQL into an Isolated Target</a></li>
+<li><a class="reference internal" href="#phase-4-recover-the-application-master-key-boundary">Phase 4: Recover the Application Master-Key Boundary</a></li>
+<li><a class="reference internal" href="#phase-5-restore-protected-media">Phase 5: Restore Protected Media</a></li>
+<li><a class="reference internal" href="#phase-6-reconcile-and-approve">Phase 6: Reconcile and Approve</a></li>
+<li><a class="reference internal" href="#audit-record">Audit Record</a></li>
+<li><a class="reference internal" href="#cleanup-rotation-and-retention">Cleanup, Rotation, and Retention</a></li>
+<li><a class="reference internal" href="#incident-escalation">Incident Escalation</a></li>
+<li><a class="reference internal" href="#readiness-gaps">Readiness Gaps</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=c0fdfda8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    </body>
+</html>

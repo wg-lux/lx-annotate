@@ -1,4 +1,4 @@
-import axiosInstance, { r } from './axiosInstance';
+import axiosInstance, { r, silentRequestConfig } from './axiosInstance';
 import axios, { type AxiosResponse } from 'axios';
 import { endpoints } from '@/types/api/endpoints'
 
@@ -101,7 +101,192 @@ export interface PatientListResponse {
   results: Patient[];
 }
 
+export type MedicalLedgerJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | MedicalLedgerJsonValue[]
+  | { [key: string]: MedicalLedgerJsonValue }
+
+export interface MedicalLedgerIdentity {
+  uuid: string
+  externalIds: {
+    endoregDb: string
+  }
+  createdAt: string
+}
+
+export interface PatientMedicationLedgerRecord extends MedicalLedgerIdentity {
+  patient: string
+  medicationIndication: string | null
+  medication: string
+  intakeTimes: string[]
+  unit: string | null
+  dosage: MedicalLedgerJsonValue
+  active: boolean
+}
+
+export interface PatientMedicationCreatePayload {
+  medication: string
+  medicationIndication?: string | null
+  intakeTimes?: string[]
+  unit?: string | null
+  dosage?: MedicalLedgerJsonValue
+  active?: boolean
+}
+
+export interface PatientMedicationUpdatePayload {
+  medication?: string
+  medicationIndication?: string | null
+  intakeTimes?: string[]
+  unit?: string | null
+  dosage?: MedicalLedgerJsonValue
+  active?: boolean
+}
+
+export interface PatientMedicationSchedulePayload {
+  medicationIds: number[]
+}
+
+export interface PatientMedicationScheduleLedgerRecord extends MedicalLedgerIdentity {
+  patient: string
+  medications: PatientMedicationLedgerRecord[]
+  scheduleCreatedAt: string
+  updatedAt: string
+}
+
+export interface PatientDiseaseLedgerRecord extends MedicalLedgerIdentity {
+  patient: string
+  disease: string
+  classificationChoices: string[]
+  startDate: string | null
+  endDate: string | null
+  numericalDescriptors: Record<string, MedicalLedgerJsonValue>
+  subcategories: Record<string, MedicalLedgerJsonValue>
+  lastUpdate: string | null
+}
+
+export interface PatientEventLedgerRecord extends MedicalLedgerIdentity {
+  patient: string
+  event: string
+  dateStart: string
+  dateEnd: string | null
+  description: string | null
+  classificationChoice: string | null
+  numericalDescriptors: Record<string, MedicalLedgerJsonValue>
+  subcategories: Record<string, MedicalLedgerJsonValue>
+  lastUpdate: string | null
+}
+
+export interface LabValueNormalRange {
+  min: number | null
+  max: number | null
+  male: { min: number | null; max: number | null } | null
+  female: { min: number | null; max: number | null } | null
+  other: { min: number | null; max: number | null } | null
+}
+
+export interface PatientLabValueLedgerRecord extends MedicalLedgerIdentity {
+  patient: string | null
+  labValue: string
+  value: number | null
+  valueStr: string | null
+  sample: string | null
+  timestamp: string
+  normalRange: LabValueNormalRange
+  unit: string | null
+}
+
+export interface PatientLabSampleLedgerRecord extends MedicalLedgerIdentity {
+  patient: string
+  sampleType: string
+  date: string
+  values: PatientLabValueLedgerRecord[]
+}
+
+export interface PatientMedicalLedger extends MedicalLedgerIdentity {
+  patient: string
+  diseases: PatientDiseaseLedgerRecord[]
+  events: PatientEventLedgerRecord[]
+  labSamples: PatientLabSampleLedgerRecord[]
+  labValues: PatientLabValueLedgerRecord[]
+  medications: PatientMedicationLedgerRecord[]
+  medicationSchedules: PatientMedicationScheduleLedgerRecord[]
+}
+
+export function isMedicalLedgerContractUnavailable(error: unknown): boolean {
+  return (
+    axios.isAxiosError<{ code?: string }>(error) &&
+    error.response?.status === 503 &&
+    error.response.data?.code === 'medical-ledger-contract-unavailable'
+  )
+}
+
 export const patientService = {
+  async getPatient(patientId: number): Promise<Patient> {
+    const response: AxiosResponse<Patient> = await axiosInstance.get(
+      r(endpoints.patient.patientById(patientId))
+    );
+    return response.data;
+  },
+
+  async getMedicalLedger(patientId: number): Promise<PatientMedicalLedger> {
+    const response: AxiosResponse<PatientMedicalLedger> = await axiosInstance.get(
+      r(endpoints.patient.patientMedicalLedger(patientId)),
+      silentRequestConfig()
+    )
+    return response.data
+  },
+
+  async createMedication(
+    patientId: number,
+    payload: PatientMedicationCreatePayload
+  ): Promise<PatientMedicationLedgerRecord> {
+    const response: AxiosResponse<PatientMedicationLedgerRecord> = await axiosInstance.post(
+      r(endpoints.patient.patientMedications(patientId)),
+      payload
+    )
+    return response.data
+  },
+
+  async updateMedication(
+    patientId: number,
+    medicationId: number,
+    payload: PatientMedicationUpdatePayload
+  ): Promise<PatientMedicationLedgerRecord> {
+    const response: AxiosResponse<PatientMedicationLedgerRecord> = await axiosInstance.patch(
+      r(endpoints.patient.patientMedicationById(patientId, medicationId)),
+      payload
+    )
+    return response.data
+  },
+
+  async createMedicationSchedule(
+    patientId: number,
+    payload: PatientMedicationSchedulePayload
+  ): Promise<PatientMedicationScheduleLedgerRecord> {
+    const response: AxiosResponse<PatientMedicationScheduleLedgerRecord> =
+      await axiosInstance.post(
+        r(endpoints.patient.patientMedicationSchedules(patientId)),
+        payload
+      )
+    return response.data
+  },
+
+  async updateMedicationSchedule(
+    patientId: number,
+    scheduleId: number,
+    payload: PatientMedicationSchedulePayload
+  ): Promise<PatientMedicationScheduleLedgerRecord> {
+    const response: AxiosResponse<PatientMedicationScheduleLedgerRecord> =
+      await axiosInstance.patch(
+        r(endpoints.patient.patientMedicationScheduleById(patientId, scheduleId)),
+        payload
+      )
+    return response.data
+  },
+
   async getPatients(): Promise<Patient[]> {
     try {
       const response: AxiosResponse<Patient[] | PatientListResponse> = await axiosInstance.get(r(endpoints.patient.patients));

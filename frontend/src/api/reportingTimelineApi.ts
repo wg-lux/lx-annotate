@@ -49,6 +49,24 @@ export type TimelineLatestPayload = {
   latestFrames: TimelineLatestFrame[]
 }
 
+export type PatientTimelineItem = {
+  mediaType: 'pdf' | 'full_report' | 'video' | string
+  id: number
+  timestamp: string | null
+  examinationDate: string | null
+  documentType: string | null
+  fileName: string | null
+  processedFileName?: string | null
+  patientExaminationId: number | null
+  streamOptions: TimelineStreamOption[]
+}
+
+export type PatientTimelinePayload = {
+  patient: TimelinePatient
+  count: number
+  results: PatientTimelineItem[]
+}
+
 export function pickPreferredStream(options: TimelineStreamOption[] = []): string | null {
   return (
     options.find((option) => option.type === 'processed')?.url ??
@@ -79,4 +97,16 @@ export async function fetchPatientTimelineLatest(params: {
   })
 
   return response.data as TimelineLatestPayload
+}
+
+export async function fetchPatientTimeline(
+  patientId: number,
+  patientExaminationId?: number | null
+): Promise<PatientTimelinePayload> {
+  const response = await axiosInstance.get(r(endpoints.media.patientTimeline(patientId)), {
+    params: patientExaminationId
+      ? { patient_examination_id: patientExaminationId }
+      : undefined
+  })
+  return response.data as PatientTimelinePayload
 }

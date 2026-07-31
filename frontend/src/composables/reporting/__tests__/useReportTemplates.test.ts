@@ -16,7 +16,7 @@ describe('useReportTemplates', () => {
     vi.clearAllMocks()
   })
 
-  it('loads templates by examination with module-scoped endpoint', async () => {
+  it('loads templates by examination without implicitly selecting a clinical template', async () => {
     vi.mocked(axiosInstance.get).mockResolvedValue({
       data: [
         {
@@ -38,7 +38,11 @@ describe('useReportTemplates', () => {
     expect(axiosInstance.get).toHaveBeenCalledWith(
       '/dtypes-api/report-templates/by-examination/report_template_examples/star_upper_gi_endoscopy'
     )
-    expect(catalog.selectedTemplateName.value).toBe('star_upper_gi_main')
+    expect(catalog.templateOptions.value.map((template) => template.name)).toEqual([
+      'star_upper_gi_main'
+    ])
+    expect(catalog.selectedTemplateName.value).toBeNull()
+    expect(catalog.selectedTemplate.value).toBeNull()
   })
 
   it('loads a template by explicit name endpoint when not in local options', async () => {
@@ -93,6 +97,10 @@ describe('useReportTemplates', () => {
     expect(templates[0].reportSections[0].findings).toEqual([])
     expect(templates[0].validators.examinationValidators).toEqual([])
     expect(templates[0].validators.findingsValidators).toEqual([])
+    expect(catalog.sectionBlocks.value).toEqual([])
+
+    await catalog.selectTemplateByName('broken_template')
+
     expect(catalog.sectionBlocks.value[0].requiredFindingsCount).toBe(0)
   })
 

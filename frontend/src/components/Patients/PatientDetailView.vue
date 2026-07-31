@@ -18,6 +18,36 @@
       </div>
       
       <div class="detail-actions">
+        <RouterLink
+          v-if="patient.id"
+          class="btn btn-outline-primary btn-sm"
+          :to="{ name: 'Patientendokumente', params: { patientId: patient.id } }"
+          data-testid="patient-documents-link"
+        >
+          <i class="ni ni-single-copy-04"></i>
+          Dokumente
+        </RouterLink>
+
+        <RouterLink
+          v-if="patient.id"
+          class="btn btn-outline-primary btn-sm"
+          :to="{ name: 'Patientenmedikation', params: { patientId: patient.id } }"
+          data-testid="patient-medication-link"
+        >
+          <i class="ni ni-box-2"></i>
+          Medikation
+        </RouterLink>
+
+        <RouterLink
+          v-if="patient.id"
+          class="btn btn-outline-primary btn-sm"
+          :to="{ path: '/reporting', query: { patient_id: patient.id } }"
+          data-testid="patient-reporting-link"
+        >
+          <i class="ni ni-single-copy-04"></i>
+          Reporting
+        </RouterLink>
+
         <button 
           class="btn btn-secondary btn-sm"
           :disabled="loading"
@@ -736,6 +766,7 @@ const regeneratePseudonym = async (): Promise<void> => {
   
   .detail-actions {
     justify-content: center;
+    flex-wrap: wrap;
   }
   
   .modal-dialog {

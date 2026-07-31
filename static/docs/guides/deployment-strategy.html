@@ -545,6 +545,91 @@ and data-recovery units, so operators should treat the wheel deployment docs
 plus active LuxNix host configuration as the current operational source of
 truth for multi-service production setups.</p>
 </section>
+<section id="runtime-schema-gate-and-feature-tracker-alignment">
+<h2>Runtime Schema Gate And Feature-Tracker Alignment<a class="headerlink" href="#runtime-schema-gate-and-feature-tracker-alignment" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> runtime schema gate and the <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> feature tracker
+answer different questions:</p>
+<ul class="simple">
+<li><p>the feature tracker records reviewed production-readiness evidence for a
+feature in the <code class="docutils literal notranslate"><span class="pre">endoreg-db</span></code> source repository</p></li>
+<li><p>the installed <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> package determines the models, services, and
+upstream migrations available to the deployed application</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> migration override set determines the migration graph
+actually applied by this Django project</p></li>
+<li><p>the live database determines whether the required tables, columns,
+constraints, and existing rows are consistent</p></li>
+</ul>
+<p>A tracker entry marked done therefore does not prove that a particular host has
+the matching wheel or an up-to-date database. Conversely, a database
+introspection failure does not prove that the tracker or installed package is
+out of sync.</p>
+<p>At application startup, <code class="docutils literal notranslate"><span class="pre">lx_annotate.checks.assert_runtime_checks_pass()</span></code> checks
+the live database for the required <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> tables, columns, constraints,
+and constraint-compatible data. The migration management commands are excluded
+from this startup gate so that <code class="docutils literal notranslate"><span class="pre">migrate</span></code> can repair an older schema. The web
+runtime runs the gate after the migration stage has had that opportunity.</p>
+<p>Interpret the check identifiers in two groups:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lx_annotate.endoreg_db_schema_introspection_failed</span></code> and
+<code class="docutils literal notranslate"><span class="pre">lx_annotate.endoreg_db_constraint_introspection_failed</span></code> mean that Django
+could not query the database. Check the endpoint, TLS mode, credentials,
+service ordering, and database-role permissions before reasoning about
+migration drift.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx_annotate.endoreg_db_schema_table_missing</span></code>,
+<code class="docutils literal notranslate"><span class="pre">lx_annotate.endoreg_db_schema_column_missing</span></code>,
+<code class="docutils literal notranslate"><span class="pre">lx_annotate.endoreg_db_schema_constraint_missing</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">lx_annotate.endoreg_db_constraint_violated</span></code> mean that connectivity worked
+and the checker found a concrete schema or data incompatibility.</p></li>
+</ul>
+<p>The same connection failure may be reported repeatedly because each required
+table, constraint, and data predicate is checked independently. The repetition
+does not mean that several unrelated migrations failed.</p>
+<section id="how-the-luxnix-module-handles-the-gate">
+<h3>How The LuxNix Module Handles The Gate<a class="headerlink" href="#how-the-luxnix-module-handles-the-gate" title="Link to this heading">¶</a></h3>
+<p>The LuxNix module at
+<code class="docutils literal notranslate"><span class="pre">/home/admin/luxnix/modules/nixos/services/lx-annotate-local</span></code> makes the
+deployment sequence explicit:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-runtime-env.service</span></code> writes
+<code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code>, including <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_NAME</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_DB_USER</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_HOST</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PORT</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">DJANGO_DB_SSLMODE</span></code>. It copies the locally provisioned database password to
+the application configuration directory with mode <code class="docutils literal notranslate"><span class="pre">0600</span></code>; the environment
+file contains the password-file path, not the password.</p></li>
+<li><p>When no external PostgreSQL host is configured, LuxNix enables and orders
+the application after <code class="docutils literal notranslate"><span class="pre">postgresql.service</span></code> and
+<code class="docutils literal notranslate"><span class="pre">postgres-endoreg-setup.service</span></code>. An external host removes those local
+service dependencies.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-migrate.service</span></code> runs
+<code class="docutils literal notranslate"><span class="pre">lx-annotate-manage</span> <span class="pre">migrate</span> <span class="pre">--noinput</span></code> with the same generated database
+environment as the application services.</p></li>
+<li><p>Base-data loading and the master-key check require the migration unit.
+<code class="docutils literal notranslate"><span class="pre">lx-annotate.service</span></code> requires those successful prerequisites before it
+accepts traffic. Its application startup then runs the live schema gate.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-acceptance.service</span></code> is the preferred post-deployment check
+because it exercises Django checks with the generated production
+environment as well as the encrypted-storage and Nginx handoff contracts.</p></li>
+</ol>
+<p>The module’s local database defaults are port <code class="docutils literal notranslate"><span class="pre">5433</span></code> and
+<code class="docutils literal notranslate"><span class="pre">database.sslMode</span> <span class="pre">=</span> <span class="pre">&quot;prefer&quot;</span></code>, rather than the repository development shell’s
+fallback values. <code class="docutils literal notranslate"><span class="pre">scripts/env.nix</span></code> exports the selected value as
+<code class="docutils literal notranslate"><span class="pre">DJANGO_DB_SSLMODE</span></code> to every application unit and wrapper. This is why a
+traceback produced by an ad-hoc <code class="docutils literal notranslate"><span class="pre">devenv</span> <span class="pre">shell</span></code> without the generated LuxNix
+environment does not describe the effective NixOS service configuration.</p>
+<p>For an external PostgreSQL endpoint, set a fail-closed TLS mode and the
+corresponding trust configuration explicitly. The module currently passes
+<code class="docutils literal notranslate"><span class="pre">database.sslMode</span></code> through but does not assert that an external database uses a
+non-fallback TLS policy. Do not use <code class="docutils literal notranslate"><span class="pre">prefer</span></code> as the security policy for
+node-to-node database traffic.</p>
+<p>LuxNix does not read or enforce the <code class="docutils literal notranslate"><span class="pre">endoreg-db/feature-tracking</span></code> YAML at host
+startup. Release alignment remains a deployment responsibility: verify the
+effective <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> wheel or repository revision, its installed
+<code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> version, the matching feature-tracker revision, and the live
+database gate as separate pieces of evidence.</p>
+<p>Host-level commands for diagnosing this gate are documented in the LuxNix
+module’s <code class="docutils literal notranslate"><span class="pre">Diagnostics.md</span></code>.</p>
+</section>
+</section>
 <section id="data-recovery-unit">
 <h2>Data Recovery Unit<a class="headerlink" href="#data-recovery-unit" title="Link to this heading">¶</a></h2>
 <p>Some deployments also run a one-shot <code class="docutils literal notranslate"><span class="pre">systemd</span></code> unit named
@@ -749,6 +834,10 @@ automated rollback path.</p></li>
 <li><a class="reference internal" href="#hub-export-contract">Hub Export Contract</a></li>
 <li><a class="reference internal" href="#current-service-environment">Current Service Environment</a></li>
 <li><a class="reference internal" href="#luxnix-audit-findings">LuxNix Audit Findings</a></li>
+<li><a class="reference internal" href="#runtime-schema-gate-and-feature-tracker-alignment">Runtime Schema Gate And Feature-Tracker Alignment</a><ul>
+<li><a class="reference internal" href="#how-the-luxnix-module-handles-the-gate">How The LuxNix Module Handles The Gate</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#data-recovery-unit">Data Recovery Unit</a></li>
 <li><a class="reference internal" href="#reverse-proxy-strategy">Reverse Proxy Strategy</a></li>
 <li><a class="reference internal" href="#luxnix-strategy">LuxNix Strategy</a><ul>
@@ -769,7 +858,7 @@ automated rollback path.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=87a11ee3"></script>
+</div><script src="../_static/documentation_options.js?v=c0fdfda8"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

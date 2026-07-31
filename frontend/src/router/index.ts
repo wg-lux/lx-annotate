@@ -199,6 +199,26 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
         }
       },
       {
+        path: '/patienten/:patientId(\\d+)/dokumente',
+        name: 'Patientendokumente',
+        component: () => import('@/views/PatientDocumentsPage.vue'),
+        props: (route) => ({ patientId: Number(route.params.patientId) }),
+        meta: {
+          description: 'Alle Dokumente eines Patienten.',
+          cap: 'page.patients.view'
+        }
+      },
+      {
+        path: '/patienten/:patientId(\\d+)/medikation',
+        name: 'Patientenmedikation',
+        component: () => import('@/views/PatientMedicationPage.vue'),
+        props: (route) => ({ patientId: Number(route.params.patientId) }),
+        meta: {
+          description: 'Fallbezogene Medikationsübersicht eines Patienten.',
+          cap: 'page.patients.view'
+        }
+      },
+      {
         path: '/anonymisierung/uebersicht',
         name: 'Anonymisierung Übersicht',
         component: () => import('@/views/AnonymizationOverview.vue'),

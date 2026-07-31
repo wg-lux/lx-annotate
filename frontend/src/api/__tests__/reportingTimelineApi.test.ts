@@ -12,7 +12,11 @@ vi.mock('@/api/axiosInstance', () => ({
   r: (path: string) => `/api/${path}`
 }))
 
-import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi'
+import {
+  fetchPatientTimeline,
+  fetchPatientTimelineLatest,
+  pickPreferredStream
+} from '@/api/reportingTimelineApi'
 
 describe('reportingTimelineApi', () => {
   beforeEach(() => {
@@ -54,5 +58,31 @@ describe('reportingTimelineApi', () => {
         patient_examination_id: 314
       }
     })
+  })
+
+  it('requests the complete patient timeline without latest_only', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: { patient: { id: 42 }, count: 0, results: [] }
+    })
+
+    await fetchPatientTimeline(42)
+
+    expect(hoisted.axios.get).toHaveBeenCalledWith(
+      `/api/${endpoints.media.patientTimeline(42)}`,
+      { params: undefined }
+    )
+  })
+
+  it('requests every document occurrence for one examination', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: { patient: { id: 42 }, count: 0, results: [] }
+    })
+
+    await fetchPatientTimeline(42, 314)
+
+    expect(hoisted.axios.get).toHaveBeenCalledWith(
+      `/api/${endpoints.media.patientTimeline(42)}`,
+      { params: { patient_examination_id: 314 } }
+    )
   })
 })
