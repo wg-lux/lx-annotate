@@ -11,6 +11,7 @@ import type {
 } from '@/types/reportTemplate'
 import type { ReportTemplateRuntimeValidationResult } from '@/types/reportTemplate'
 import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
+import type { ReportLanguageCode } from '@/api/reportingLanguagesApi'
 
 type SessionStatus = 'idle' | 'active' | 'expired' | 'restarting'
 
@@ -42,6 +43,7 @@ type PersistedReportingFlowState = {
   activeReportId: number | null
   indications: ReportingIndicationRow[]
   selectedKbModule: string
+  selectedReportLanguage: ReportLanguageCode
   selectedTemplateName: string | null
   selectedTemplateIdentity: ReportTemplateIdentity | null
   templateSectionDrafts: Record<string, ReportTemplateSectionDraft>
@@ -159,6 +161,10 @@ function normalizePersistedState(
       typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
         ? parsed.selectedKbModule
         : 'report_template_examples',
+    selectedReportLanguage:
+      parsed.selectedReportLanguage === 'en' || parsed.selectedReportLanguage === 'de'
+        ? parsed.selectedReportLanguage
+        : 'de',
     selectedTemplateName:
       typeof parsed.selectedTemplateName === 'string' && parsed.selectedTemplateName.trim()
         ? parsed.selectedTemplateName
@@ -226,6 +232,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const selectedExaminationId = ref<number | null>(null)
   const activeReportId = ref<number | null>(null)
   const selectedKbModule = ref<string>('report_template_examples')
+  const selectedReportLanguage = ref<ReportLanguageCode>('de')
   const selectedTemplateName = ref<string | null>(null)
   const selectedTemplateIdentity = ref<ReportTemplateIdentity | null>(null)
   const templateSectionDrafts = ref<Record<string, ReportTemplateSectionDraft>>({})
@@ -601,6 +608,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     }
   }
 
+  function setReportLanguage(language: ReportLanguageCode) {
+    selectedReportLanguage.value = language
+  }
+
   function setTemplateSectionDraft(
     sectionName: string,
     patch: Partial<ReportTemplateSectionDraft>
@@ -636,6 +647,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       ? persisted.indications
       : [{ examinationIndicationId: null, indicationChoiceId: null }]
     selectedKbModule.value = persisted?.selectedKbModule ?? 'report_template_examples'
+    selectedReportLanguage.value = persisted?.selectedReportLanguage ?? 'de'
     selectedTemplateName.value = persisted?.selectedTemplateName ?? null
     selectedTemplateIdentity.value = persisted?.selectedTemplateIdentity ?? null
     templateSectionDrafts.value = persisted?.templateSectionDrafts ?? {}
@@ -703,6 +715,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     findingsRevision.value = 0
     lastFindingsEvent.value = null
     selectedKbModule.value = 'report_template_examples'
+    selectedReportLanguage.value = 'de'
     selectedTemplateName.value = null
     selectedTemplateIdentity.value = null
     templateSectionDrafts.value = {}
@@ -819,6 +832,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     activeReportId: activeReportId.value,
     indications: indications.value,
     selectedKbModule: selectedKbModule.value,
+    selectedReportLanguage: selectedReportLanguage.value,
     selectedTemplateName: selectedTemplateName.value,
     selectedTemplateIdentity: selectedTemplateIdentity.value,
     templateSectionDrafts: templateSectionDrafts.value,
@@ -859,6 +873,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedExaminationId,
     activeReportId,
     selectedKbModule,
+    selectedReportLanguage,
     selectedTemplateName,
     selectedTemplateIdentity,
     templateSectionDrafts,
@@ -896,6 +911,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     setActiveReportId,
     setSessionStatus,
     setTemplateSelection,
+    setReportLanguage,
     setTemplateSectionDraft,
     clearTemplateSectionDrafts,
     bindAuthSubject,

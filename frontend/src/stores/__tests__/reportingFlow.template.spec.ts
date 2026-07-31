@@ -44,6 +44,7 @@ describe('reportingFlowStore template draft state', () => {
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main'
     })
+    flow.setReportLanguage('en')
     flow.setTemplateSectionDraft('examination_baseline', {
       note: 'Baseline details',
       includePatientData: true
@@ -51,6 +52,7 @@ describe('reportingFlowStore template draft state', () => {
 
     expect(flow.selectedKbModule).toBe('report_template_examples')
     expect(flow.selectedTemplateName).toBe('star_upper_gi_main')
+    expect(flow.selectedReportLanguage).toBe('en')
     expect(flow.templateSectionDrafts.examination_baseline).toEqual({
       note: 'Baseline details',
       includePatientData: true,

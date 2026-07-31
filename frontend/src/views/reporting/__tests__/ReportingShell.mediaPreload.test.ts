@@ -47,6 +47,9 @@ const hoisted = vi.hoisted(() => {
     reportDraftApi: {
       fetchPatientExaminationDraft: vi.fn()
     },
+    reportingLanguagesApi: {
+      fetchReportingLanguages: vi.fn()
+    },
     terminologyStore: {
       bundles: [],
       activeBundle: null as TerminologyBundleVersion | null,
@@ -123,6 +126,10 @@ vi.mock('@/api/reportDraftApi', () => ({
   fetchPatientExaminationDraft: hoisted.reportDraftApi.fetchPatientExaminationDraft
 }))
 
+vi.mock('@/api/reportingLanguagesApi', () => ({
+  fetchReportingLanguages: hoisted.reportingLanguagesApi.fetchReportingLanguages
+}))
+
 vi.mock('@/api/reportingTimelineApi', () => ({
   fetchPatientTimelineLatest: hoisted.timelineApi.fetchPatientTimelineLatest,
   pickPreferredStream: hoisted.timelineApi.pickPreferredStream
@@ -155,6 +162,7 @@ function buildFlowStore() {
     selectedPatientId: 42 as number | null,
     selectedExaminationId: 9 as number | null,
     selectedKbModule: 'report_template_examples',
+    selectedReportLanguage: 'de' as 'de' | 'en',
     selectedTemplateName: null as string | null,
     currentRuntimeDraft: null as ReportingRuntimeDraft | null,
     runtimeDraftsByPatientExaminationId: {} as Record<string, ReportingRuntimeDraft>,
@@ -180,6 +188,9 @@ function buildFlowStore() {
     setTemplateSelection: vi.fn((payload: TemplateSelection) => {
       if (payload.moduleName !== undefined) flow.selectedKbModule = payload.moduleName
       if (payload.templateName !== undefined) flow.selectedTemplateName = payload.templateName
+    }),
+    setReportLanguage: vi.fn((language: 'de' | 'en') => {
+      flow.selectedReportLanguage = language
     }),
     setIndications: vi.fn(),
     clearRuntimeDraft: vi.fn(() => {
@@ -245,6 +256,13 @@ describe('ReportingShell media preload', () => {
     hoisted.terminologyStore.selectedMedicalField = 'gastroenterology'
     hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined)
     hoisted.flowRef.current = reactive(buildFlowStore())
+    hoisted.reportingLanguagesApi.fetchReportingLanguages.mockResolvedValue({
+      defaultLanguage: 'de',
+      languages: [
+        { code: 'de', label: 'Deutsch' },
+        { code: 'en', label: 'English' }
+      ]
+    })
     hoisted.findingsApi.getExaminationFindings.mockResolvedValue([])
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
       { name: 'default_template', examination: 'colonoscopy' }
@@ -679,6 +697,22 @@ describe('ReportingShell media preload', () => {
     expect(guide.text()).toContain('Fall und Untersuchung wählen')
     expect(guide.text()).toContain('Vorlage festlegen')
     expect(guide.text()).toContain('Befunde erfassen')
+  })
+
+  it('loads and applies the report language contract', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const languageSelect = wrapper.get('[data-testid="report-language-select"]')
+    expect(languageSelect.findAll('option').map((option) => option.text())).toEqual([
+      'Deutsch',
+      'English'
+    ])
+
+    await languageSelect.setValue('en')
+
+    expect(hoisted.flowRef.current.setReportLanguage).toHaveBeenCalledWith('en')
+    expect(hoisted.flowRef.current.selectedReportLanguage).toBe('en')
   })
 
   it('imports all files selected through the terminology folder picker', async () => {

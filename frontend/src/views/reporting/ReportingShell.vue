@@ -96,6 +96,26 @@
                 {{ option.label }}
               </option>
             </select>
+            <select
+              class="form-select"
+              data-testid="report-language-select"
+              :value="flow.selectedReportLanguage"
+              :disabled="reportLanguagesLoading || !reportLanguageOptions.length"
+              aria-label="Berichtssprache auswählen"
+              @change="
+                flow.setReportLanguage(
+                  ($event.target as HTMLSelectElement).value as ReportLanguageCode
+                )
+              "
+            >
+              <option
+                v-for="language in reportLanguageOptions"
+                :key="language.code"
+                :value="language.code"
+              >
+                {{ language.label }}
+              </option>
+            </select>
             <input
               ref="terminologyFolderInput"
               class="visually-hidden"
@@ -223,6 +243,10 @@
           <strong>{{ selectedTerminologyLabel }}</strong>
         </div>
         <div class="context-summary-item">
+          <span class="context-summary-label">Berichtssprache</span>
+          <strong>{{ selectedReportLanguageLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
           <span class="context-summary-label">Entwurf</span>
           <strong>{{ draftSummaryLabel }}</strong>
         </div>
@@ -233,6 +257,9 @@
       </div>
       <div v-if="terminologyImportMessage" class="small text-muted mt-2">
         {{ terminologyImportMessage }}
+      </div>
+      <div v-if="reportLanguagesError" class="small text-danger mt-2">
+        {{ reportLanguagesError }}
       </div>
     </section>
 
@@ -670,6 +697,11 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
 import { fetchPatientCases, type PatientCase } from '@/api/casesApi'
+import {
+  fetchReportingLanguages,
+  type ReportLanguageCode,
+  type ReportLanguageOption
+} from '@/api/reportingLanguagesApi'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import {
   buildReportTemplateRuntimePayload,
@@ -716,6 +748,9 @@ const terminologyLoadPromise = ref<Promise<void> | null>(null)
 const terminologyFolderInput = ref<HTMLInputElement | null>(null)
 const terminologyZipInput = ref<HTMLInputElement | null>(null)
 const terminologyImportMessage = ref('')
+const reportLanguageOptions = ref<ReportLanguageOption[]>([])
+const reportLanguagesLoading = ref(false)
+const reportLanguagesError = ref<string | null>(null)
 type PatientExaminationOption = {
   id: number
   label: string
@@ -904,9 +939,36 @@ const selectedTemplateLabel = computed(
 
 const selectedTerminologyLabel = computed(() => {
   const field = terminology.medicalFieldLabel
-  const bundle = terminology.activeBundle ? terminology.activeBundleLabel : 'Standard-Terminologie'
+  const bundle = terminology.activeBundle ? terminology.activeBundleLabel : 'Keine aktive Terminologie'
   return `${field} · ${bundle}`
 })
+
+const selectedReportLanguageLabel = computed(
+  () =>
+    reportLanguageOptions.value.find(
+      (option) => option.code === flow.selectedReportLanguage
+    )?.label || flow.selectedReportLanguage.toUpperCase()
+)
+
+async function loadReportingLanguages() {
+  reportLanguagesLoading.value = true
+  reportLanguagesError.value = null
+  try {
+    const response = await fetchReportingLanguages()
+    reportLanguageOptions.value = response.languages
+    if (!response.languages.some((option) => option.code === flow.selectedReportLanguage)) {
+      flow.setReportLanguage(response.defaultLanguage)
+    }
+  } catch (error) {
+    reportLanguageOptions.value = []
+    reportLanguagesError.value = reportingApiErrorMessage(
+      error,
+      'Berichtssprachen konnten nicht geladen werden.'
+    )
+  } finally {
+    reportLanguagesLoading.value = false
+  }
+}
 
 const currentStepLabel = computed(() => {
   const current = navItems.value.find((item) => isActive(item.to))
@@ -2550,6 +2612,7 @@ watch(
 
 onMounted(() => {
   ensureTerminologyBundlesLoaded()
+  void loadReportingLanguages()
 })
 </script>
 
