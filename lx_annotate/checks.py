@@ -49,7 +49,18 @@ _ENDOREG_DB_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
         "processed_streamable_relative_path",
         "raw_streamable_relative_path",
     ),
-    "endoreg_db_videohlsartifact": ("error_code", "status"),
+    "endoreg_db_videohlsartifact": (
+        "encoding_profile_name",
+        "error_code",
+        "status",
+    ),
+    "endoreg_db_medicalledgerwritereceipt": (
+        "created_at",
+        "idempotency_key",
+        "patient_id",
+        "record_ids",
+        "request_hash",
+    ),
     "report_import_attempt": (
         "fencing_token",
         "heartbeat_at",
@@ -67,6 +78,7 @@ _ENDOREG_DB_REQUIRED_TABLES: tuple[str, ...] = (
     "endoreg_db_ledgerhead",
     "endoreg_db_uploadjob",
     "endoreg_db_videohlsartifact",
+    "endoreg_db_medicalledgerwritereceipt",
     "report_import_attempt",
 )
 
@@ -80,6 +92,11 @@ _ENDOREG_DB_REQUIRED_CONSTRAINTS: dict[str, tuple[str, ...]] = {
         "unique_active_video_hls_attempt",
         "unique_ready_video_hls_artifact_kind",
         "video_hls_failure_coded",
+    ),
+    "endoreg_db_medicalledgerwritereceipt": (
+        "medled_receipt_patient_key_uq",
+        "medled_receipt_key_nonempty",
+        "medled_receipt_hash_nonempty",
     ),
     "report_import_attempt": ("report_attempt_lease_state_consistent",),
 }
