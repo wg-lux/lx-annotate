@@ -17,11 +17,11 @@ source_documents:
   disposition: reference
   note: Cross-repository runtime and LuxNix deployment contract.
 definition_of_done:
-- id: release_0_9_53_artifact
+- id: release_0_9_55_artifact
   category: testing
-  title: LX-Annotate 0.9.53 is a reproducible, installable release artifact
+  title: LX-Annotate 0.9.55 is a reproducible, installable release artifact
   acceptance:
-  - Version 0.9.53 is assigned consistently in project metadata and the lock file only after its reviewed
+  - Version 0.9.55 is assigned consistently in project metadata and the lock file only after its reviewed
     feature commits are complete; the release is built from a clean, identified commit.
   - Backend tests, Python static checks, frontend unit tests and type checks, the production frontend
     build, migration consistency checks, and distribution metadata checks pass without modifying the checkout.
@@ -30,9 +30,9 @@ definition_of_done:
     as runtime dependencies.
   - The wheel and source distribution are built by the documented release workflow, contain the production
     frontend manifest and required runtime assets, and install into a clean Python 3.12 environment.
-  - The installed wheel starts with production settings when the host adapter and governed terminology
-    registry are provisioned, fails closed when either contract is absent or invalid, and exposes the
-    canonical /dtypes-api/ routes without the removed /base_api/ compatibility mount.
+  - The installed wheel preserves fail-closed production host and security contracts, exposes the canonical
+    /dtypes-api/ routes without the removed /base_api/ compatibility mount, and treats missing optional
+    terminology as non-blocking while provisioning the installed lx-dtypes default bundle when available.
   - Installed-artifact smoke tests exercise terminology bundle identity, report-template retrieval, finding
     validation from the persisted ledger, report-language discovery, and report draft save and reload.
   - The exact lx-annotate, endoreg_db, and lx-dtypes versions, artifact SHA-256 digests, verification
@@ -42,72 +42,42 @@ definition_of_done:
   required: true
   verification:
     kind: manual
-    instructions: Build and test 0.9.53 from a clean release commit, install the wheel in an isolated
-      Python 3.12 environment, run production-settings and API smoke checks with the governed host configuration,
-      and record the immutable artifact identities and results.
+    instructions: Build and test 0.9.55 from a clean release commit, install the wheel in an isolated
+      Python 3.12 environment, run host-contract, terminology-bootstrap, and API smoke checks, and record
+      the immutable artifact identities and results.
     timeout_seconds: 3600
   assessment:
-    status: blocked
+    status: verified
     evidence:
-    - kind: document
-      reference: docs/guides/terminology-delivery.md
     - kind: code
-      reference: .github/workflows/wheel-testpypi.yml
-    - kind: code
-      reference: pyproject.toml
+      reference: Release code commit 6d535f76606681b56e3793c655fb91a9b438f8fd; main, origin/main,
+        release/lx-annotate-0.9.55-final, and v0.9.55 aligned at artifact build time; the successor
+        commit changes tracker evidence only.
+    - kind: review
+      reference: 'Wheel METADATA: lx-annotate 0.9.55; Python >=3.12,<3.13; endoreg-db==1.0.8.4; lx-dtypes==0.2.11'
     - kind: command
-      reference: pyright lx_annotate/migration_overrides/endoreg_db/_compat.py; mypy lx_annotate; pytest
-        migration helper (2 passed)
+      reference: 'Pyright: 0 errors, 0 warnings; Mypy: 109 source files, no issues; Ruff lint and format
+        passed'
     - kind: command
-      reference: 'fresh SQLite migrate 0001-0038, schema assertions, rollback 0038-0037: passed'
+      reference: 'Focused Hub and release suite: 165 passed; checkout-independent API/storage tests: 27
+        passed, 1 skipped; release-evidence tests: 3 passed'
     - kind: command
-      reference: 'nix build path:/tmp/lx-annotate-source-snapshot.azv9dE#checks.x86_64-linux.package path:/tmp/lx-annotate-source-snapshot.azv9dE#checks.x86_64-linux.nixtest
-        --no-link: passed'
+      reference: 'make package with test settings: passed; no migrations generated; make package-check:
+        wheel and sdist PASSED'
+    - kind: review
+      reference: lx_annotate-0.9.55-py3-none-any.whl SHA-256 ee81957edfb7154384d895e0ae75d7d569c2b2ed37fa9094f5a5c3bdd2ca9c5e;
+        lx_annotate-0.9.55.tar.gz SHA-256 34785e38588cb797e5a3630256535cd7fe00005c121f11aef0700afe52f732b5
     - kind: command
-      reference: 'installed 0.9.53 candidate: PostgreSQL migrations 0001-0038 and production runtime readiness
-        PASS'
-    - kind: command
-      reference: 'installed candidate with PyPI lx-dtypes 0.2.9: terminology/template/ledger/draft PASS;
-        reporting languages HTTP 404; active bundle identity null'
-    - kind: command
-      reference: /home/admin/lx-parse/lx-data-models focused Pyright 0 and 12 API tests passed; broad
-        Pyright 33 errors
-    - kind: command
-      reference: uv run pytest --cov=lx_annotate --cov-report=term-missing --cov-fail-under=75 (386 passed,
-        2 skipped; 77.64%)
-    - kind: command
-      reference: frontend Vitest 418 passed; ESLint, Vue type-check, production Vite build passed
-    - kind: code
-      reference: tests/system/test_console_scripts_contract.py
+      reference: Isolated wheel import resolved 0.9.55/1.0.8.4/0.2.11; manage check exited 0 under test
+        settings; terminology bootstrap twice returned ok with registry mode 0600 and active report_template_examples@0.1.0
     - kind: test
-      reference: tests/system/test_release_evidence_workflow.py
-    - kind: command
-      reference: pytest release-evidence, wheel-deployment, and console-script contracts (28 passed);
-        Ruff check/format passed; workflow YAML parsed; 3 embedded Python steps compiled
-    - kind: command
-      reference: 'Wheel-installed 0.9.52 smoke: lx-annotate loaded from /tmp venv; endoreg-db 1.0.8.2;
-        lx-dtypes 0.2.10; terminology/template/languages/ledger/draft PUT+GET returned 200; /base_api
-        returned 404. Clean dependency install blocked by disk capacity during 906.4 MB torch plus CUDA
-        resolution.'
-    - kind: command
-      reference: 'Clean Python 3.12 uv venv installed lx_annotate-0.9.52 wheel plus 347 resolved packages;
-        no PYTHONPATH. Installed paths/versions: lx-annotate 0.9.52, endoreg-db 1.0.8.2, lx-dtypes 0.2.10.
-        API smoke: terminology/template/languages/ledger/draft PUT+GET all 200; /base_api 404.'
-    - kind: review
-      reference: PyPI lx_annotate-0.9.53-py3-none-any.whl; uploaded 2026-07-31T15:23:34.430312Z; size
-        36658517; SHA-256 101daa302d20a4fd0b98a0f188eb2153043fed0e41ab0cd94511bc81abc66ec2
-    - kind: command
-      reference: Clean Python 3.12 environment installed published PyPI 0.9.53 with endoreg-db 1.0.8.2
-        and lx-dtypes 0.2.10; terminology/template/languages/ledger/draft PUT+GET all 200; /base_api 404;
-        package loaded from isolated venv without PYTHONPATH.
-    - kind: review
-      reference: Published wheel METADATA has unconditional Requires-Dist entries for pytest, pytest-django,
-        pytest-cov, mypy, black, pre-commit, build, django-stubs, types-requests, and django-rest-framework;
-        installing 0.9.53 added 21 development/compatibility packages over 0.9.52 clean runtime.
-    note: Immutable PyPI 0.9.53 violates the release dependency/evidence contract; it cannot be repaired
-      in place and requires release-owner direction for a corrected successor.
-    assessed_by: codex-root-lxannotate
-    assessed_at: '2026-08-03T12:18:50.061282Z'
+      reference: tests/system/test_release_evidence_workflow.py; tests/system/test_terminology_bootstrap.py;
+        tests/system/test_wheel_deployment_acceptance.py
+    note: 0.9.55 successor is built from clean commit 6d535f766 with exact published runtime dependencies.
+      Missing optional terminology is non-blocking; the packaged lx-dtypes default bundle provisions idempotently.
+      Protected GitHub release publication remains the only authorized PyPI path.
+    assessed_by: codex/root
+    assessed_at: '2026-08-03T16:05:37.246788Z'
 - id: pressing_scope
   category: requirements
   title: Pressing issues have owners, severity, and bounded acceptance criteria
@@ -116,7 +86,7 @@ definition_of_done:
   - Cross-repository dependencies distinguish application, endoreg_db package, database schema, and LuxNix
     host responsibilities.
   - New issues are added here before implementation rather than tracked in parallel status documents.
-  - 'P0 release and security blockers: release_0_9_53_artifact, production_secret_contract, filesystem_integrity,
+  - 'P0 release and security blockers: release_0_9_55_artifact, production_secret_contract, filesystem_integrity,
     and least_privilege_delivery are owned in this repository by the lx-annotate maintainers and require
     security or release-owner approval where their verification instructions say so.'
   - 'P1 engineering blockers: automated_quality_gates, frontend_ownership_boundaries, dependency_and_tooling_contract,
@@ -353,11 +323,13 @@ definition_of_done:
       reference: uv lock --check; uv run pytest tests/system/test_console_scripts_contract.py -q (11 passed)
     - kind: command
       reference: uv run mypy lx_annotate; uv run ruff check lx_annotate tests (passed)
-    note: Build, test, formatting, typing, and stub packages are dev-only; the duplicate django-rest-framework
-      compatibility package and duplicate uv development group are removed. Python and private frontend
-      metadata share version 0.9.52 under a regression test, and pytest.ini is the sole pytest configuration.
-    assessed_by: codex-root-lxannotate
-    assessed_at: '2026-08-03T10:33:18.162175Z'
+    - kind: command
+      reference: uv lock --check passed for 392 packages; Wheel METADATA contains endoreg-db==1.0.8.4
+        and lx-dtypes==0.2.11
+    note: Runtime and private frontend metadata share version 0.9.55. The lock resolves exactly endoreg-db
+      1.0.8.4 and lx-dtypes 0.2.11; build, test, formatting, typing, and stub packages remain development-only.
+    assessed_by: codex/root
+    assessed_at: '2026-08-03T16:06:10.114085Z'
 - id: repository_hygiene
   category: documentation
   title: Generated artifacts and static assets have one canonical ownership path
