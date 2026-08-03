@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from .hub_export_reconciliation import hub_export_max_retries
 from ..models import OutboundHubTransferJob
@@ -20,6 +22,21 @@ class HubExportHealthSummary(BaseModel):
     unclassified_failure: int
     critical_count: int
     healthy: bool
+
+    @model_validator(mode="after")
+    def validate_derived_fields(self) -> Self:
+        expected_critical_count = (
+            self.configuration_rejection
+            + self.authorization_denial
+            + self.integrity_inconsistency
+            + self.retry_exhausted
+            + self.unclassified_failure
+        )
+        if self.critical_count != expected_critical_count:
+            raise ValueError("critical_count does not match terminal failure counts")
+        if self.healthy != (expected_critical_count == 0):
+            raise ValueError("healthy does not match critical_count")
+        return self
 
 
 _ACTIVE_STATUSES = {
@@ -81,12 +98,15 @@ def build_hub_export_health_summary(
         else:
             counts["unclassified_failure"] += 1
 
-    critical_count = (
-        counts["configuration_rejection"]
-        + counts["authorization_denial"]
-        + counts["integrity_inconsistency"]
-        + counts["retry_exhausted"]
-        + counts["unclassified_failure"]
+    critical_count = sum(
+        counts[field]
+        for field in (
+            "configuration_rejection",
+            "authorization_denial",
+            "integrity_inconsistency",
+            "retry_exhausted",
+            "unclassified_failure",
+        )
     )
     return HubExportHealthSummary(
         total_jobs=jobs.count(),

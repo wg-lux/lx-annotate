@@ -8,14 +8,46 @@ import pytest
 from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from pydantic import ValidationError
 
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
 
-from lx_annotate.hub.hub_export_health import build_hub_export_health_summary
+from lx_annotate.hub.hub_export_health import (
+    HubExportHealthSummary,
+    build_hub_export_health_summary,
+)
 from lx_annotate.models import OutboundHubTransferJob
 
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.mark.parametrize(
+    ("critical_count", "healthy", "message"),
+    [
+        (1, False, "critical_count does not match terminal failure counts"),
+        (0, False, "healthy does not match critical_count"),
+    ],
+)
+def test_health_summary_rejects_inconsistent_derived_fields(
+    critical_count: int,
+    healthy: bool,
+    message: str,
+) -> None:
+    with pytest.raises(ValidationError, match=message):
+        HubExportHealthSummary(
+            total_jobs=0,
+            active=0,
+            completed=0,
+            configuration_rejection=0,
+            authorization_denial=0,
+            integrity_inconsistency=0,
+            transient_retry=0,
+            retry_exhausted=0,
+            unclassified_failure=0,
+            critical_count=critical_count,
+            healthy=healthy,
+        )
 
 
 @pytest.fixture

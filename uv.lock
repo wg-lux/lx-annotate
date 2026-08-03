@@ -1129,7 +1129,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.8.3"
+version = "1.0.8.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1198,9 +1198,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/96/62/731b10598fd79718a375d96a8a25ec5db7ce548c06baa41f30c71fe737a7/endoreg_db-1.0.8.3.tar.gz", hash = "sha256:5363fc9b495052baad865a2201d65cbc0d3c6d89b8d39a3d75a99d5566205e51", size = 1230768, upload-time = "2026-08-03T15:02:47.513Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a5/51/1d2e46492f30a5a052c979b52af5151208a44c2c37e25d108ce587344c77/endoreg_db-1.0.8.4.tar.gz", hash = "sha256:fe33b6abe1d46d07ddd20e8047445b606ae941f1ddd6afd29abf29dcf967908f", size = 1230710, upload-time = "2026-08-03T15:29:20.002Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/fc/5579cf430d4ddf75b7fcd0b3bcd1ca7bdf23f5ab4fb1eda9d0da32e61620/endoreg_db-1.0.8.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5d30bf991e7c18ff79df542dfcd5ee6caba54300b7f390aeb3041eb51322a6fe", size = 2181623, upload-time = "2026-08-03T15:02:45.678Z" },
+    { url = "https://files.pythonhosted.org/packages/af/ad/5dc7a0a4bf65488fb18e9a921e3c52a73af60b029b3b3e082697853b76e0/endoreg_db-1.0.8.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:41794c43f3ffb2a2bbdb747b2590ea22c18cb39217a8d4c4dfb1071ef5be4323", size = 2181640, upload-time = "2026-08-03T15:29:16.41Z" },
 ]
 
 [[package]]
@@ -2140,14 +2140,14 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.8.3" },
+    { name = "endoreg-db", specifier = "==1.0.8.4" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
-    { name = "lx-dtypes", specifier = ">=0.2.11" },
+    { name = "lx-dtypes", specifier = "==0.2.11" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
     { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0.1" },
