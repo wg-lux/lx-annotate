@@ -457,8 +457,9 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
     ).strip()
     if not configured_path:
         return [
-            Critical(
-                "LX_DTYPES_KB_REGISTRY must identify the governed knowledge-base registry.",
+            Warning(
+                "LX_DTYPES_KB_REGISTRY does not identify a knowledge-base registry; "
+                "terminology features remain unavailable until one is provisioned.",
                 id="lx_annotate.lx_dtypes_kb_registry_missing",
             )
         ]
@@ -468,23 +469,26 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
         payload = json.loads(registry_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         return [
-            Critical(
-                f"LX_DTYPES_KB_REGISTRY is not readable valid JSON: {type(exc).__name__}.",
+            Warning(
+                "LX_DTYPES_KB_REGISTRY is not readable valid JSON; terminology "
+                f"features remain unavailable: {type(exc).__name__}.",
                 id="lx_annotate.lx_dtypes_kb_registry_invalid",
             )
         ]
     if not isinstance(payload, dict) or not isinstance(payload.get("modules"), dict):
         return [
-            Critical(
-                "LX_DTYPES_KB_REGISTRY must contain a modules object.",
+            Warning(
+                "LX_DTYPES_KB_REGISTRY has no modules object; terminology features "
+                "remain unavailable.",
                 id="lx_annotate.lx_dtypes_kb_registry_schema_invalid",
             )
         ]
     active = payload.get("active")
     if not isinstance(active, dict):
         return [
-            Critical(
-                "LX_DTYPES_KB_REGISTRY must contain an explicit active bundle identity.",
+            Warning(
+                "LX_DTYPES_KB_REGISTRY has no active bundle identity; terminology "
+                "features remain unavailable.",
                 id="lx_annotate.lx_dtypes_kb_registry_active_missing",
             )
         ]
@@ -500,8 +504,9 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
         or version not in versions
     ):
         return [
-            Critical(
-                "The active knowledge-base identity is not registered in LX_DTYPES_KB_REGISTRY.",
+            Warning(
+                "The active knowledge-base identity is not registered in "
+                "LX_DTYPES_KB_REGISTRY; terminology features remain unavailable.",
                 id="lx_annotate.lx_dtypes_kb_registry_active_invalid",
             )
         ]
@@ -512,8 +517,9 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
         load_knowledge_base(module_name, version=version)
     except Exception as exc:
         return [
-            Critical(
-                f"The active registered knowledge base cannot be loaded: {type(exc).__name__}.",
+            Warning(
+                "The active registered knowledge base cannot be loaded; terminology "
+                f"features remain unavailable: {type(exc).__name__}.",
                 id="lx_annotate.lx_dtypes_kb_registry_active_unloadable",
             )
         ]

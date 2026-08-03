@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import json
 
 import pytest
+from django.core.checks import CRITICAL
 from django.core.checks.registry import registry
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
@@ -127,7 +128,7 @@ def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
 
 
 @override_settings(MEDIA_ROOT="/tmp/media-root", LX_DTYPES_HOST_MODELS_MODULE="")
-def test_environment_checks_fail_for_missing_lx_dtypes_contract(monkeypatch, tmp_path):
+def test_environment_checks_warn_for_missing_lx_dtypes_registry(monkeypatch, tmp_path):
     monkeypatch.delenv("LX_DTYPES_KB_REGISTRY", raising=False)
     monkeypatch.setenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/")
     monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(tmp_path))
@@ -139,10 +140,51 @@ def test_environment_checks_fail_for_missing_lx_dtypes_contract(monkeypatch, tmp
         message.id == "lx_annotate.lx_dtypes_host_models_module_missing"
         for message in messages
     )
-    assert any(
-        message.id == "lx_annotate.lx_dtypes_kb_registry_missing"
+    registry_message = next(
+        message
         for message in messages
+        if message.id == "lx_annotate.lx_dtypes_kb_registry_missing"
     )
+    assert registry_message.level < CRITICAL
+
+
+@override_settings(
+    MEDIA_ROOT="/tmp/media-root",
+    LX_DTYPES_HOST_MODELS_MODULE="endoreg_db.integrations.lx_dtypes_host_models",
+)
+@pytest.mark.parametrize(
+    ("payload", "expected_id"),
+    [
+        (None, "lx_annotate.lx_dtypes_kb_registry_invalid"),
+        ({}, "lx_annotate.lx_dtypes_kb_registry_schema_invalid"),
+        ({"modules": {}}, "lx_annotate.lx_dtypes_kb_registry_active_missing"),
+        (
+            {
+                "active": {"module_name": "missing", "version": "1.0.0"},
+                "modules": {"missing": {}},
+            },
+            "lx_annotate.lx_dtypes_kb_registry_active_invalid",
+        ),
+    ],
+)
+def test_unavailable_terminology_registry_is_non_blocking(
+    monkeypatch, tmp_path, payload, expected_id
+):
+    registry_path = tmp_path / "terminology" / "registry.json"
+    registry_path.parent.mkdir()
+    if payload is not None:
+        registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setenv("LX_DTYPES_KB_REGISTRY", str(registry_path))
+    monkeypatch.setenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/")
+    monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(tmp_path))
+    monkeypatch.setattr(checks_module, "check_environment_readiness", lambda: [])
+
+    messages = checks_module.lx_annotate_environment_checks(None)
+
+    registry_message = next(
+        message for message in messages if message.id == expected_id
+    )
+    assert registry_message.level < CRITICAL
 
 
 def test_runtime_checks_are_not_registered_as_pre_migrate_system_checks():
