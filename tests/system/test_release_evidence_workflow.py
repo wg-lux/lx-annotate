@@ -28,6 +28,9 @@ def test_wheel_workflow_records_and_revalidates_release_evidence() -> None:
     assert "hashlib.sha256(artifact.read_bytes()).hexdigest()" in workflow
     assert workflow.count("wheel SHA-256 mismatch:") == 2
     assert workflow.count('installed_versions != evidence["package_versions"]') == 2
+    assert workflow.count("known_decord_metadata_error") == 4
+    assert workflow.count("pip check failed with unexpected dependency errors") == 2
+    assert workflow.count("assert decord.__version__ == '0.6.0'; decord.cpu(0)") == 2
 
 
 def test_release_metadata_is_not_uploaded_to_package_indexes() -> None:

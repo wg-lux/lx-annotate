@@ -256,7 +256,32 @@ jobs:
               raise SystemExit(f"wheel SHA-256 mismatch: {wheels[0].name}")
 
           subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
-          subprocess.check_call([str(python), "-m", "pip", "check"])
+          pip_check = subprocess.run(
+              [str(python), "-m", "pip", "check"],
+              capture_output=True,
+              text=True,
+              check=False,
+          )
+          pip_check_lines = {
+              line.strip()
+              for line in (pip_check.stdout + pip_check.stderr).splitlines()
+              if line.strip()
+          }
+          known_decord_metadata_error = {
+              "decord 0.6.0 is not supported on this platform"
+          }
+          if pip_check.returncode != 0 and pip_check_lines != known_decord_metadata_error:
+              raise SystemExit(
+                  "pip check failed with unexpected dependency errors:\n"
+                  + "\n".join(sorted(pip_check_lines))
+              )
+          subprocess.check_call(
+              [
+                  str(python),
+                  "-c",
+                  "import decord; assert decord.__version__ == '0.6.0'; decord.cpu(0)",
+              ]
+          )
           installed_versions = json.loads(
               subprocess.check_output(
                   [
@@ -444,7 +469,32 @@ jobs:
               raise SystemExit(f"TestPyPI wheel SHA-256 mismatch: {wheels[0].name}")
 
           subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
-          subprocess.check_call([str(python), "-m", "pip", "check"])
+          pip_check = subprocess.run(
+              [str(python), "-m", "pip", "check"],
+              capture_output=True,
+              text=True,
+              check=False,
+          )
+          pip_check_lines = {
+              line.strip()
+              for line in (pip_check.stdout + pip_check.stderr).splitlines()
+              if line.strip()
+          }
+          known_decord_metadata_error = {
+              "decord 0.6.0 is not supported on this platform"
+          }
+          if pip_check.returncode != 0 and pip_check_lines != known_decord_metadata_error:
+              raise SystemExit(
+                  "pip check failed with unexpected dependency errors:\n"
+                  + "\n".join(sorted(pip_check_lines))
+              )
+          subprocess.check_call(
+              [
+                  str(python),
+                  "-c",
+                  "import decord; assert decord.__version__ == '0.6.0'; decord.cpu(0)",
+              ]
+          )
           installed_versions = json.loads(
               subprocess.check_output(
                   [
