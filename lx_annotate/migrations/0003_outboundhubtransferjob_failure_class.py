@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 blank=True,
                 choices=[
+                    ("", "No Failure"),
                     ("configuration_rejection", "Configuration Rejection"),
                     ("authorization_denial", "Authorization Denial"),
                     ("integrity_inconsistency", "Integrity Inconsistency"),

@@ -32,6 +32,7 @@ class OutboundHubTransferJob(models.Model):
         FAILED = "failed", "Failed"
 
     class FailureClass(models.TextChoices):
+        NO_FAILURE = "", "No Failure"
         CONFIGURATION_REJECTION = (
             "configuration_rejection",
             "Configuration Rejection",
@@ -121,7 +122,7 @@ class OutboundHubTransferJob(models.Model):
         max_length=32,
         choices=FailureClass.choices,
         blank=True,
-        default="",
+        default=FailureClass.NO_FAILURE,
         db_index=True,
     )
     last_error: Any = models.TextField(blank=True, default="")
