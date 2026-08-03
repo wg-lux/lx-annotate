@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Encrypted Storage Process" href="encrypted-storage-process.html"><link rel="prev" title="Deployment Strategy" href="deployment-strategy.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>Runtime environment contract test - lx-annotate Documentation</title>
+        <title>Runtime environment migration and rollback record - lx-annotate Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -192,9 +192,10 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Runtime environment migration and rollback record</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
 <li class="toctree-l1"><a class="reference internal" href="secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
@@ -252,234 +253,200 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="runtime-environment-contract-test">
-<h1>Runtime environment contract test<a class="headerlink" href="#runtime-environment-contract-test" title="Link to this heading">¶</a></h1>
-<section id="purpose">
-<h2>Purpose<a class="headerlink" href="#purpose" title="Link to this heading">¶</a></h2>
-<p>This change records the environment ownership audit and its correction. The
-first reduction to 28 keys was too broad: a source audit found that many
-removed names are still consumed by <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code>, <code class="docutils literal notranslate"><span class="pre">endoreg-db</span></code>, or their
-runtime tooling. Those non-secret inputs are restored. Only keys without an
-internal consumer and unsafe inline-secret declarations remain removed.</p>
-<p>The NixOS VM assertion continues to verify that every environment variable
-required by the packaged web-service contract is present and non-empty in the
-evaluated <code class="docutils literal notranslate"><span class="pre">lx-annotate.service</span></code> systemd environment.</p>
-<p>The check reads the effective environment with:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">systemctl show --property=Environment --value lx-annotate.service</span>
-</pre></div>
-</div>
-<p>It parses the systemd output, reports all missing variables together, and
-separately reports variables that are present with an empty value. Secret
-values are never printed by the assertion.</p>
+          <section id="runtime-environment-migration-and-rollback-record">
+<h1>Runtime environment migration and rollback record<a class="headerlink" href="#runtime-environment-migration-and-rollback-record" title="Link to this heading">¶</a></h1>
+<section id="scope">
+<h2>Scope<a class="headerlink" href="#scope" title="Link to this heading">¶</a></h2>
+<p>This change reduces the Secretspec environment by the agreed removal subset,
+keeps environment variables that still have runtime consumers, and verifies the
+ownership boundary between LuxNix and the packaged LX-Annotate runtime.</p>
+<p>The 29 deployment inputs in <code class="docutils literal notranslate"><span class="pre">REQUIRED_HOST_ENVIRONMENT_KEYS</span></code> remain available
+in the default Secretspec profile. Application-owned derived paths, development
+and test controls, and other values with confirmed consumers also remain
+declared. They are not part of the host-only subset, but removing them before
+their consumers are migrated would break the development or test runtime.</p>
+<p>The following unused entries were removed:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_CORS_ALLOWED_HOSTS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ENABLE_FILE_WATCHER</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ENDOSCOPY_PROCESSOR_NAME</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">EXPORT_OUTPUT_DIR</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">HF_HOME</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">HF_HUB_CACHE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">HF_HUB_ENABLE_HF_TRANSFER</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OLLAMA_KEEP_ALIVE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OLLAMA_MODELS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SECRETSPEC_PROFILE</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TRANSFORMERS_CACHE</span></code></p></li>
+</ul>
+<p>The following inline-secret entries were removed:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SALT</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_MASTER_KEY</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SECRET_KEY</span></code></p></li>
+</ul>
+<p>Runtime secrets now use <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD_FILE</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY_FILE</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_MASTER_KEY_FILE</span></code>. No secret contents are printed by the tests.</p>
 </section>
-<section id="files-changed">
-<h2>Files changed<a class="headerlink" href="#files-changed" title="Link to this heading">¶</a></h2>
+<section id="changed-files">
+<h2>Changed files<a class="headerlink" href="#changed-files" title="Link to this heading">¶</a></h2>
 <section id="secretspec-toml">
 <h3><code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code><a class="headerlink" href="#secretspec-toml" title="Link to this heading">¶</a></h3>
-<p>The following names remain removed because neither repository has a direct
-internal consumer. Hugging Face and Ollama may still interpret some of them as
-external process configuration, but LX-Annotate and EndoReg-DB do not:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>DJANGO_CORS_ALLOWED_HOSTS
-ENABLE_FILE_WATCHER
-ENDOSCOPY_PROCESSOR_NAME
-EXPORT_OUTPUT_DIR
-HF_HOME
-HF_HUB_CACHE
-HF_HUB_ENABLE_HF_TRANSFER
-OLLAMA_KEEP_ALIVE
-OLLAMA_MODELS
-SECRETSPEC_PROFILE
-TRANSFORMERS_CACHE
-</pre></div>
-</div>
-<p>Consumed non-secret keys were restored with their pre-reduction defaults,
-including database selection, URL/path compatibility values, runtime policy,
-watcher timing, FFmpeg overrides, test controls, and the development and
-production profile tables. Both canonical <code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code> and the
-consumed legacy <code class="docutils literal notranslate"><span class="pre">ALLOWED_HOSTS</span></code> alias are declared.</p>
-<p>The old inline values <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_MASTER_KEY</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD</span></code>,
-<code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code>, <code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span></code>, <code class="docutils literal notranslate"><span class="pre">SECRET_KEY</span></code>, and <code class="docutils literal notranslate"><span class="pre">DJANGO_SALT</span></code>
-were not restored. Restoring their old <code class="docutils literal notranslate"><span class="pre">changeme</span></code> defaults would violate the
-runtime security contract. The existing master-key, database, and Django
-secret-file handles remain, and <code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code> was added
-for the already-supported OIDC file-backed path. <code class="docutils literal notranslate"><span class="pre">DJANGO_SALT</span></code> still lacks a
-file-backed application contract and therefore remains an explicit follow-up.</p>
+<ul class="simple">
+<li><p>Removes the eleven unused entries and six inline-secret entries listed
+above.</p></li>
+<li><p>Retains host-owned deployment values and still-consumed application,
+development, test, video, watcher, and compatibility settings.</p></li>
+<li><p>Retains the development and production profile overrides.</p></li>
+</ul>
 </section>
 <section id="devenv-nix">
 <h3><code class="docutils literal notranslate"><span class="pre">devenv.nix</span></code><a class="headerlink" href="#devenv-nix" title="Link to this heading">¶</a></h3>
-<p>The development environment reads the restored values again. Application-owned
-storage children remain derived through <code class="docutils literal notranslate"><span class="pre">mkAppOwnedEnvironment</span></code> so they cannot
-escape the canonical encrypted-data root. Runtime tuning, development/test
-database values, legacy host compatibility, watcher policy, and optional tool
-paths are exported from Secretspec. Secret values are exported only when a
-non-empty file handle is configured.</p>
+<ul class="simple">
+<li><p>Uses <code class="docutils literal notranslate"><span class="pre">nix/runtime-environment.nix</span></code> to derive application-owned storage and
+URL values.</p></li>
+<li><p>Uses guarded Secretspec lookups with explicit development defaults, so the
+removal subset no longer causes evaluation failures.</p></li>
+<li><p>Exports secret-file handles instead of recreating plaintext secrets.</p></li>
+<li><p>Continues to allow local <code class="docutils literal notranslate"><span class="pre">.env.systemd</span></code> overrides for development.</p></li>
+</ul>
+</section>
+<section id="nix-runtime-environment-nix">
+<h3><code class="docutils literal notranslate"><span class="pre">nix/runtime-environment.nix</span></code><a class="headerlink" href="#nix-runtime-environment-nix" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Declares application-owned and host-owned environment names separately.</p></li>
+<li><p>Classifies all literal Python runtime consumers found by the AST audit,
+including Hub export/mTLS policy, Hub queue settings, upload limits,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_DEBUG</span></code>, and the OIDC token endpoint.</p></li>
+<li><p>Derives application-owned storage roots and the LX-DTypes registry/import
+paths from the canonical data directory.</p></li>
+</ul>
+</section>
+<section id="lx-annotate-settings-settings-prod-py">
+<h3><code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/settings_prod.py</span></code><a class="headerlink" href="#lx-annotate-settings-settings-prod-py" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Keeps the upstream Keycloak settings bundle, but sources
+<code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span></code> from the validated local <code class="docutils literal notranslate"><span class="pre">AppConfig</span></code>. This prevents
+the upstream module from overwriting a secret loaded through
+<code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code> with an empty value.</p></li>
+</ul>
 </section>
 <section id="tests-system-test-secretspec-environment-contract-py">
 <h3><code class="docutils literal notranslate"><span class="pre">tests/system/test_secretspec_environment_contract.py</span></code><a class="headerlink" href="#tests-system-test-secretspec-environment-contract-py" title="Link to this heading">¶</a></h3>
-<p>The static contract test now asserts that every consumed non-secret key found by
-the audit remains declared, the eleven unused keys remain absent, required host
-file handles remain present, and unsafe inline secrets remain prohibited.</p>
-<p>Following the environment-coverage testing strategy, an AST audit also scans
-literal <code class="docutils literal notranslate"><span class="pre">os.getenv(...)</span></code>, <code class="docutils literal notranslate"><span class="pre">os.environ.get/pop/setdefault(...)</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">os.environ[...]</span></code> accesses below <code class="docutils literal notranslate"><span class="pre">lx_annotate/</span></code>. Every discovered key must be
-classified as application-owned, host-owned, process-internal, or a forbidden
-legacy inline-secret input. Dynamic variable names cannot be determined by a
-static audit and remain covered by the runtime VM assertion.</p>
+<ul class="simple">
+<li><p>Asserts that all required host inputs and all confirmed consumers remain
+declared.</p></li>
+<li><p>Asserts that the unused removal subset and inline secrets stay absent.</p></li>
+<li><p>Parses <code class="docutils literal notranslate"><span class="pre">nix/runtime-environment.nix</span></code> and verifies host ownership.</p></li>
+<li><p>Uses Python’s AST to collect literal <code class="docutils literal notranslate"><span class="pre">os.getenv</span></code>, <code class="docutils literal notranslate"><span class="pre">os.environ.get</span></code>,
+<code class="docutils literal notranslate"><span class="pre">os.environ.setdefault</span></code>, <code class="docutils literal notranslate"><span class="pre">os.environ.pop</span></code>, and <code class="docutils literal notranslate"><span class="pre">os.environ[...]</span></code> accesses
+under <code class="docutils literal notranslate"><span class="pre">lx_annotate</span></code>; every discovered key must be classified as app-owned,
+host-owned, process-internal, or a forbidden legacy inline secret.</p></li>
+</ul>
+</section>
+<section id="tests-system-test-focused-coverage-py">
+<h3><code class="docutils literal notranslate"><span class="pre">tests/system/test_focused_coverage.py</span></code><a class="headerlink" href="#tests-system-test-focused-coverage-py" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Makes the production missing-secret branch independent of the development
+shell’s <code class="docutils literal notranslate"><span class="pre">DJANGO_DEBUG</span></code> value.</p></li>
+<li><p>Changes the LuxNix-style production fixture to deliver Django, database, and
+OIDC secrets through files and verifies that production settings consume
+them.</p></li>
+</ul>
 </section>
 <section id="nix-tests-service-vm-test-nix">
 <h3><code class="docutils literal notranslate"><span class="pre">nix/tests/service_vm_test.nix</span></code><a class="headerlink" href="#nix-tests-service-vm-test-nix" title="Link to this heading">¶</a></h3>
-<p>The test now defines <code class="docutils literal notranslate"><span class="pre">requiredServiceEnvironmentVariables</span></code>. The list covers the
-application-owned values produced by <code class="docutils literal notranslate"><span class="pre">nix/runtime-environment.nix</span></code>, the
-host-owned values required by the test deployment, and the explicit security
-and origin values configured by the VM fixture.</p>
-<p><code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code> is the required canonical host-list input. The legacy
-fallback alias <code class="docutils literal notranslate"><span class="pre">ALLOWED_HOSTS</span></code> is intentionally not required in addition to it.</p>
-<p>The VM test imports Python’s <code class="docutils literal notranslate"><span class="pre">shlex</span></code> module to parse systemd’s quoted
-environment representation. It fails when either of these lists is non-empty:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">missing_environment_variables</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">empty_environment_variables</span></code></p></li>
+<li><p>Reads the evaluated <code class="docutils literal notranslate"><span class="pre">lx-annotate.service</span></code> environment with <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">show</span></code>.</p></li>
+<li><p>Parses systemd quoting with <code class="docutils literal notranslate"><span class="pre">shlex</span></code> and reports missing and empty variables
+without printing values.</p></li>
+<li><p>Enables migrations against a local SQLite database so the packaged service
+can pass its fail-closed schema readiness check.</p></li>
+<li><p>Exercises packaged recovery, terminology bootstrap, Hub provisioning,
+storage-relief, and acceptance command entry points.</p></li>
 </ul>
-<p>The same VM fixture also contains the
-<code class="docutils literal notranslate"><span class="pre">lx-annotate-operational-command-contract</span></code> oneshot service. It inherits the
-evaluated web-service environment and verifies that the packaged recovery,
-terminology bootstrap, hub provisioning, storage-relief, and acceptance
-commands exist and accept <code class="docutils literal notranslate"><span class="pre">--help</span></code>. This ensures that those commands can be
-started under the same runtime contract without a checkout-specific wrapper.</p>
-<p>The fixture enables packaged migrations against a local SQLite database. This
-provides an introspectable schema before the web service starts, instead of
-weakening the application’s fail-closed schema readiness checks. The
-environment assertion runs after <code class="docutils literal notranslate"><span class="pre">multi-user.target</span></code> and before waiting for the
-HTTP port, so environment-contract failures are reported independently from
-later application startup failures.</p>
-<p>The existing package-entrypoint, timer, resource-control, and mutable-runtime
-assertions remain in place.</p>
-</section>
-<section id="docs-guides-runtime-environment-contract-test-md">
-<h3><code class="docutils literal notranslate"><span class="pre">docs/guides/runtime-environment-contract-test.md</span></code><a class="headerlink" href="#docs-guides-runtime-environment-contract-test-md" title="Link to this heading">¶</a></h3>
-<p>This file records the implementation, verification commands, expected result,
-and rollback procedure.</p>
 </section>
 </section>
-<section id="verification">
-<h2>Verification<a class="headerlink" href="#verification" title="Link to this heading">¶</a></h2>
-<p>Run formatting and whitespace validation:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">nixfmt --check devenv.nix nix/tests/service_vm_test.nix</span>
-<span class="go">git diff --check -- devenv.nix secretspec.toml \</span>
-<span class="go">  nix/tests/service_vm_test.nix \</span>
+<section id="verification-commands-and-results">
+<h2>Verification commands and results<a class="headerlink" href="#verification-commands-and-results" title="Link to this heading">¶</a></h2>
+<p>Formatting and static checks:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">nixfmt --check devenv.nix nix/runtime-environment.nix \</span>
+<span class="go">  nix/tests/service_vm_test.nix</span>
+<span class="go">devenv shell -- ruff check \</span>
 <span class="go">  tests/system/test_secretspec_environment_contract.py \</span>
+<span class="go">  tests/system/test_focused_coverage.py \</span>
+<span class="go">  lx_annotate/settings/settings_prod.py</span>
+<span class="go">git diff --check -- secretspec.toml devenv.nix \</span>
+<span class="go">  nix/runtime-environment.nix nix/tests/service_vm_test.nix \</span>
+<span class="go">  lx_annotate/settings/settings_prod.py \</span>
+<span class="go">  tests/system/test_secretspec_environment_contract.py \</span>
+<span class="go">  tests/system/test_focused_coverage.py \</span>
 <span class="go">  docs/guides/runtime-environment-contract-test.md</span>
 </pre></div>
 </div>
-<p>Run the static environment contracts:</p>
+<p>All three checks passed on 2026-08-03.</p>
+<p>Python environment and branch contracts:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">devenv shell -- pytest -q \</span>
 <span class="go">  tests/system/test_secretspec_environment_contract.py \</span>
 <span class="go">  tests/system/test_environment_checks.py \</span>
-<span class="go">  tests/system/test_runtime_check_bundle_contract.py</span>
+<span class="go">  tests/system/test_runtime_check_bundle_contract.py \</span>
+<span class="go">  tests/system/test_focused_coverage.py</span>
 </pre></div>
 </div>
-<p>Build and execute the LX-Annotate Nix tests:</p>
+<p>Result: <strong>51 passed</strong>.</p>
+<p>Nix runner build:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">nix build .#checks.x86_64-linux.nixtest --no-write-lock-file</span>
-<span class="go">result/bin/nixtests:run --no-color --workers 1</span>
 </pre></div>
 </div>
-<p>Evaluate a LuxNix host while overriding its <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> input with a filtered
-copy of this local checkout. Do not pass the development checkout directly as
-a <code class="docutils literal notranslate"><span class="pre">path:</span></code> input because ignored virtual environments and build caches would
-also be copied to the Nix store.</p>
-<p>Create the filtered copy from tracked and non-ignored workspace files:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">runtime_eval_dir=$(mktemp -d /tmp/lx-annotate-runtime-eval.XXXXXX)</span>
-<span class="go">git ls-files -co --exclude-standard -z \</span>
-<span class="go">  | tar --null --files-from=- -cf - \</span>
-<span class="go">  | tar -C &quot;$runtime_eval_dir&quot; -xf -</span>
+<p>Result: passed.</p>
+<p>NixOS VM execution:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">result/bin/nixtests:run --no-color --workers 1 \</span>
+<span class="go">  --skip packaged-runtime-entrypoints-are-pure</span>
 </pre></div>
 </div>
-<p>Then evaluate the LuxNix test host:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">nix eval --json \</span>
-<span class="go">  /home/admin/luxnix#nixosConfigurations.lx-test.config.systemd.services \</span>
-<span class="go">  --override-input lx-annotate &quot;path:$runtime_eval_dir&quot; \</span>
-<span class="go">  --apply &#39;services: builtins.attrNames services&#39; \</span>
-<span class="go">  --no-write-lock-file</span>
-</pre></div>
-</div>
-<p>After identifying the effective LX-Annotate service name, evaluate its
-environment and compare its variable names with
-<code class="docutils literal notranslate"><span class="pre">requiredServiceEnvironmentVariables</span></code>. This evaluation must use paths and
-secret-file handles only; it must not expose secret file contents.</p>
-<section id="verification-results-on-2026-08-03">
-<h3>Verification results on 2026-08-03<a class="headerlink" href="#verification-results-on-2026-08-03" title="Link to this heading">¶</a></h3>
-<ul class="simple">
-<li><p>Corrective restoration audit: 78 default-profile keys and 79 unique keys
-across all profiles. The eleven unused keys remain absent.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">devenv</span> <span class="pre">shell</span> <span class="pre">--</span> <span class="pre">true</span></code>: passed with the restored configuration.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">-q</span> <span class="pre">tests/system/test_secretspec_environment_contract.py</span> <span class="pre">tests/system/test_environment_checks.py</span> <span class="pre">tests/system/test_runtime_check_bundle_contract.py</span></code>: 22 passed.</p></li>
-<li><p>The rebuilt Nix test runner evaluated successfully. The current VM rerun is
-blocked before boot by an unrelated concurrent frontend change:
-<code class="docutils literal notranslate"><span class="pre">frontend/package-lock.json</span></code> reports version <code class="docutils literal notranslate"><span class="pre">0.9.52</span></code>, while the fixed-output
-npm dependency source contains <code class="docutils literal notranslate"><span class="pre">0.0.0</span></code>; Nix reports <code class="docutils literal notranslate"><span class="pre">npmDepsHash</span> <span class="pre">is</span> <span class="pre">out</span> <span class="pre">of</span> <span class="pre">date</span></code>. The environment VM itself previously passed before that frontend
-package inconsistency appeared.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">diff</span> <span class="pre">--check</span></code>: passed.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">nixfmt</span> <span class="pre">--check</span> <span class="pre">nix/tests/service_vm_test.nix</span></code>: passed.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">-q</span> <span class="pre">tests/system/test_environment_checks.py</span> <span class="pre">tests/system/test_runtime_check_bundle_contract.py</span></code>: 18 passed.</p></li>
-<li><p>The expanded static and runtime Python contract suite passed: 22 tests.</p></li>
-<li><p>LX-Annotate package-contract Nix test: passed.</p></li>
-<li><p>The first NixOS VM run was interrupted while fetching its closure because
-the Nix daemon disconnected. The root/Nix filesystem was at 99% usage.</p></li>
-<li><p>The VM retry built and booted successfully, then exposed a pre-existing test
-fixture gap: the web service correctly refused to start because no migrated,
-introspectable database was available. The fixture now enables migrations
-against SQLite; verification of that adjustment must use the VM command
-above.</p></li>
-<li><p>The migrated VM reached <code class="docutils literal notranslate"><span class="pre">multi-user.target</span></code> and executed the environment
-assertion. Its first result showed only the redundant legacy alias
-<code class="docutils literal notranslate"><span class="pre">ALLOWED_HOSTS</span></code> as absent while canonical <code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code> was present;
-the contract list was corrected to require only the canonical input.</p></li>
-<li><p>LuxNix successfully evaluated the <code class="docutils literal notranslate"><span class="pre">lx-test</span></code> service set with the current
-workspace as its <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> override and produced the expected
-<code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> service family.</p></li>
-<li><p>Evaluation of the individual LuxNix <code class="docutils literal notranslate"><span class="pre">lx-annotate.environment</span></code> remains blocked
-by an existing LuxNix module error: <code class="docutils literal notranslate"><span class="pre">services.luxnix.endoAi</span></code> is defined by the
-enabled <code class="docutils literal notranslate"><span class="pre">endoreg-client</span></code> role, but no corresponding option is available in
-the evaluated <code class="docutils literal notranslate"><span class="pre">lx-test</span></code> module graph.</p></li>
-</ul>
-</section>
+<p>The latest run did not reach the VM environment assertion. The frontend
+derivation failed first because the workspace <code class="docutils literal notranslate"><span class="pre">frontend/package-lock.json</span></code>
+contains package version <code class="docutils literal notranslate"><span class="pre">0.9.52</span></code>, while the fixed-output NPM dependency copy
+contains <code class="docutils literal notranslate"><span class="pre">0.0.0</span></code>; Nix reports <code class="docutils literal notranslate"><span class="pre">npmDepsHash</span> <span class="pre">is</span> <span class="pre">out</span> <span class="pre">of</span> <span class="pre">date</span></code>. This packaging
+metadata mismatch is outside this environment migration and was not modified.
+An earlier VM run, before that unrelated workspace change, reached the service
+and passed the missing/non-empty environment assertion, but it is not treated
+as verification of the latest complete working tree.</p>
+<p>LuxNix evaluation remains independently blocked before an individual service
+environment can be returned: the current LuxNix module graph either supplies a
+set where <code class="docutils literal notranslate"><span class="pre">services.lx-annotate.extraEnv</span></code> expects a list or, with a filtered
+current checkout, references the missing <code class="docutils literal notranslate"><span class="pre">services.luxnix.endoAi</span></code> option.
+LuxNix files were not changed as part of this work.</p>
 </section>
 <section id="rollback">
 <h2>Rollback<a class="headerlink" href="#rollback" title="Link to this heading">¶</a></h2>
-<p>To undo only the corrective restoration while preserving unrelated work in the
-dirty worktree:</p>
+<p>Revert only the following scoped changes; do not reset the repository because
+the worktree contains unrelated user changes.</p>
 <ol class="arabic simple">
-<li><p>Remove from <code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code> the keys listed by
-<code class="docutils literal notranslate"><span class="pre">RESTORED_CONSUMED_ENVIRONMENT_KEYS</span></code> in the static contract test, retaining
-the host/file-handle keys and the eleven-key exclusion list above. Remove
-<code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code> only if the OIDC file-backed contract is
-intentionally abandoned.</p></li>
-<li><p>In <code class="docutils literal notranslate"><span class="pre">devenv.nix</span></code>, restore the explicit development defaults and remove the
-restored runtime-policy, development/test, watcher-timing, and optional-tool
-exports. Keep all file-backed secret handling.</p></li>
-<li><p>Restore the exact reduced-key assertion in
-<code class="docutils literal notranslate"><span class="pre">tests/system/test_secretspec_environment_contract.py</span></code> and remove its
-restored/unused set assertions.</p></li>
-<li><p>To remove the VM contract independently, remove the
-<code class="docutils literal notranslate"><span class="pre">requiredServiceEnvironmentVariables</span></code> <code class="docutils literal notranslate"><span class="pre">let</span></code> binding from
-<code class="docutils literal notranslate"><span class="pre">nix/tests/service_vm_test.nix</span></code> and restore the top level to the original
-direct attribute set.</p></li>
-<li><p>Remove the <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">shlex</span></code> statement and the environment parsing/assertion
-block between <code class="docutils literal notranslate"><span class="pre">machine.wait_for_open_port(8000)</span></code> and the existing
-<code class="docutils literal notranslate"><span class="pre">ExecStart</span></code> assertion.</p></li>
-<li><p>If the operational-command check must also be reverted, restore the VM node
-arguments from <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">config,</span> <span class="pre">pkgs,</span> <span class="pre">...</span> <span class="pre">}</span></code> to <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code>, remove the
-<code class="docutils literal notranslate"><span class="pre">lx-annotate-operational-command-contract</span></code> service, and remove its
-<code class="docutils literal notranslate"><span class="pre">machine.wait_for_unit</span></code> call.</p></li>
-<li><p>Remove <code class="docutils literal notranslate"><span class="pre">migrate.enable</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_ENGINE</span></code>, and <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_NAME</span></code> to restore
-the old database-less VM fixture, and move the environment check back only
-if its ordering must also be reverted.</p></li>
-<li><p>Delete this documentation file only if the entire environment-contract work
-is being reverted.</p></li>
-<li><p>Re-run the formatting, whitespace, Python, and Nix test commands above.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code>, restore the eleven unused entries and six inline-secret
+declarations listed in <strong>Scope</strong> if the old contract is intentionally
+required.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">devenv.nix</span></code>, restore direct Secretspec lookups, plaintext secret exports,
+legacy storage-path exports, and the previous shell-hook directory lookups.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">nix/runtime-environment.nix</span></code>, remove the added ownership classifications,
+<code class="docutils literal notranslate"><span class="pre">LX_DTYPES_KB_REGISTRY</span></code> output, and the shared app-/host-owned environment
+helper usage introduced by this migration.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/settings_prod.py</span></code>, restore
+<code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span> <span class="pre">=</span> <span class="pre">KEYCLOAK.OIDC_RP_CLIENT_SECRET</span></code>.</p></li>
+<li><p>Delete <code class="docutils literal notranslate"><span class="pre">tests/system/test_secretspec_environment_contract.py</span></code>.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">tests/system/test_focused_coverage.py</span></code>, restore the three inline-secret
+fixture variables, remove their temporary secret files, and remove the
+explicit <code class="docutils literal notranslate"><span class="pre">DJANGO_DEBUG</span></code> cleanup from the missing-secret test.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">nix/tests/service_vm_test.nix</span></code>, remove
+<code class="docutils literal notranslate"><span class="pre">requiredServiceEnvironmentVariables</span></code>, the <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">show</span></code> parsing and
+assertions, the SQLite migration fixture, and the operational-command VM
+test.</p></li>
+<li><p>Delete this document and rerun the verification commands above.</p></li>
 </ol>
-<p>Do not use a repository-wide reset for rollback: the worktree contains
-unrelated user changes.</p>
 </section>
 </section>
 
@@ -488,8 +455,26 @@ unrelated user changes.</p>
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="encrypted-storage-process.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Encrypted Storage Process</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="deployment-strategy.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Deployment Strategy</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -520,20 +505,19 @@ unrelated user changes.</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Runtime environment contract test</a><ul>
-<li><a class="reference internal" href="#purpose">Purpose</a></li>
-<li><a class="reference internal" href="#files-changed">Files changed</a><ul>
+<li><a class="reference internal" href="#">Runtime environment migration and rollback record</a><ul>
+<li><a class="reference internal" href="#scope">Scope</a></li>
+<li><a class="reference internal" href="#changed-files">Changed files</a><ul>
 <li><a class="reference internal" href="#secretspec-toml"><code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code></a></li>
 <li><a class="reference internal" href="#devenv-nix"><code class="docutils literal notranslate"><span class="pre">devenv.nix</span></code></a></li>
+<li><a class="reference internal" href="#nix-runtime-environment-nix"><code class="docutils literal notranslate"><span class="pre">nix/runtime-environment.nix</span></code></a></li>
+<li><a class="reference internal" href="#lx-annotate-settings-settings-prod-py"><code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/settings_prod.py</span></code></a></li>
 <li><a class="reference internal" href="#tests-system-test-secretspec-environment-contract-py"><code class="docutils literal notranslate"><span class="pre">tests/system/test_secretspec_environment_contract.py</span></code></a></li>
+<li><a class="reference internal" href="#tests-system-test-focused-coverage-py"><code class="docutils literal notranslate"><span class="pre">tests/system/test_focused_coverage.py</span></code></a></li>
 <li><a class="reference internal" href="#nix-tests-service-vm-test-nix"><code class="docutils literal notranslate"><span class="pre">nix/tests/service_vm_test.nix</span></code></a></li>
-<li><a class="reference internal" href="#docs-guides-runtime-environment-contract-test-md"><code class="docutils literal notranslate"><span class="pre">docs/guides/runtime-environment-contract-test.md</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#verification">Verification</a><ul>
-<li><a class="reference internal" href="#verification-results-on-2026-08-03">Verification results on 2026-08-03</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#verification-commands-and-results">Verification commands and results</a></li>
 <li><a class="reference internal" href="#rollback">Rollback</a></li>
 </ul>
 </li>
@@ -546,7 +530,7 @@ unrelated user changes.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=f70577c2"></script>
+</div><script src="../_static/documentation_options.js?v=3c8ce70f"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

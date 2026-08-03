@@ -258,6 +258,81 @@ Before queueing any transfer, the local node must have:
 If any of these are missing, the UI and sender worker must refuse to start
 transfer work.
 
+## Deployment And Operator Procedure
+
+The site-node deployment must keep all credentials in mounted secret files,
+not in Git, the database, or frontend configuration. A production sender uses
+at least:
+
+```sh
+ENDOREG_DEPLOYMENT_ROLE=site_node
+LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=true
+LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE=/run/secrets/hub-client.crt
+LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE=/run/secrets/hub-client.key
+LX_ANNOTATE_HUB_EXPORT_CA_FILE=/run/secrets/hub-ca.crt
+LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE=/run/secrets/hub-node-secret
+LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=false
+LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY=retain_processed_media
+```
+
+Use the node-specific
+`LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_<NORMALIZED_NODE_KEY>_FILE` setting when a
+deployment has more than one sender identity. Never set TLS verification to
+false. The target `NetworkNode.base_url` must use `https://`.
+
+Before enabling queueing, an authenticated operator must:
+
+1. Open the administration overview and confirm that one active site node,
+   exactly one active hub target, an HTTPS target, readable mTLS files, and the
+   configured certificate-authority bundle are reported ready.
+2. Open the hub-export overview and confirm the displayed operator identity,
+   target node, selected resource count, anonymization readiness, and privacy
+   summary.
+3. Mark only the reviewed resources. The overview must then show the persisted
+   operator name and marking time. Do not use client-supplied actor fields.
+4. Queue or enable automatic queueing only after this review. Bulk marking and
+   unmarking are atomic; unmarking is allowed only while the job remains
+   `marked`.
+5. Follow the local job through registration, processed-media upload, and the
+   verified remote `applied` acknowledgement. `awaiting_media`, `failed`, and
+   `inconsistent` are not successful completion.
+
+For a bounded recovery pass after a worker or broker outage, run:
+
+```sh
+python manage.py dispatch_hub_export_recovery --source-node-key <site-node-key>
+```
+
+This command only dispatches reconciliation. Inspect the administration
+overview and the structured `lx_annotate.hub_export.audit` events afterward.
+Retry exhaustion remains visible and must not be reset by changing the
+`transfer_key`. A configuration or payload rejection and an acknowledgement
+integrity inconsistency are terminal until an operator corrects and reviews
+the cause.
+
+Certificate rotation, hub-side proxy checks, storage-capacity response,
+database-plus-media restore, quarantine handling, and the full incident
+procedure are defined in the matching `endoreg_db` runbook:
+`docs/hub_ingest_operations.md`. Rotate the certificate authority first, then
+the client certificate and key with an overlap window; verify a complete
+transfer before revoking the old identity.
+
+During an incident, preserve the sender ledger, receiver ledger, proxy logs,
+worker logs, and structured audit events. Correlate by outbound job ID,
+`transfer_key`, source and target node, source center, remote transfer ID,
+attempt number, acknowledgement, and cleanup decision. Do not copy secrets,
+raw media, raw report text, absolute paths, or long-lived keys into tickets.
+Disable the affected sender node when authentication or integrity compromise
+is suspected, and resume only with the same transfer identity after the cause
+has been reviewed.
+
+The current production boundary is Phase 1: anonymized processed artifacts are
+protected in transit by mutual Transport Layer Security (mTLS) and at rest by
+each node's encrypted storage boundary. Standalone files or blobs must not
+leave that boundary until Phase 2 implements and verifies per-transfer data
+encryption keys wrapped for the receiving hub. Shared secrets and the
+long-lived master key are never payload-encryption substitutes.
+
 ## Audit Requirements
 
 The sender must record:

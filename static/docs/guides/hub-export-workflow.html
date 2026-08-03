@@ -195,6 +195,7 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="runtime-environment-contract-test.html">Runtime environment migration and rollback record</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
 <li class="toctree-l1"><a class="reference internal" href="secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Hub Export Workflow</a></li>
@@ -513,6 +514,73 @@ overview.</p>
 <p>If any of these are missing, the UI and sender worker must refuse to start
 transfer work.</p>
 </section>
+<section id="deployment-and-operator-procedure">
+<h2>Deployment And Operator Procedure<a class="headerlink" href="#deployment-and-operator-procedure" title="Link to this heading">¶</a></h2>
+<p>The site-node deployment must keep all credentials in mounted secret files,
+not in Git, the database, or frontend configuration. A production sender uses
+at least:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nv">ENDOREG_DEPLOYMENT_ROLE</span><span class="o">=</span>site_node
+<span class="nv">LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS</span><span class="o">=</span><span class="nb">true</span>
+<span class="nv">LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE</span><span class="o">=</span>/run/secrets/hub-client.crt
+<span class="nv">LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE</span><span class="o">=</span>/run/secrets/hub-client.key
+<span class="nv">LX_ANNOTATE_HUB_EXPORT_CA_FILE</span><span class="o">=</span>/run/secrets/hub-ca.crt
+<span class="nv">LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE</span><span class="o">=</span>/run/secrets/hub-node-secret
+<span class="nv">LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE</span><span class="o">=</span><span class="nb">false</span>
+<span class="nv">LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY</span><span class="o">=</span>retain_processed_media
+</pre></div>
+</div>
+<p>Use the node-specific
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_&lt;NORMALIZED_NODE_KEY&gt;_FILE</span></code> setting when a
+deployment has more than one sender identity. Never set TLS verification to
+false. The target <code class="docutils literal notranslate"><span class="pre">NetworkNode.base_url</span></code> must use <code class="docutils literal notranslate"><span class="pre">https://</span></code>.</p>
+<p>Before enabling queueing, an authenticated operator must:</p>
+<ol class="arabic simple">
+<li><p>Open the administration overview and confirm that one active site node,
+exactly one active hub target, an HTTPS target, readable mTLS files, and the
+configured certificate-authority bundle are reported ready.</p></li>
+<li><p>Open the hub-export overview and confirm the displayed operator identity,
+target node, selected resource count, anonymization readiness, and privacy
+summary.</p></li>
+<li><p>Mark only the reviewed resources. The overview must then show the persisted
+operator name and marking time. Do not use client-supplied actor fields.</p></li>
+<li><p>Queue or enable automatic queueing only after this review. Bulk marking and
+unmarking are atomic; unmarking is allowed only while the job remains
+<code class="docutils literal notranslate"><span class="pre">marked</span></code>.</p></li>
+<li><p>Follow the local job through registration, processed-media upload, and the
+verified remote <code class="docutils literal notranslate"><span class="pre">applied</span></code> acknowledgement. <code class="docutils literal notranslate"><span class="pre">awaiting_media</span></code>, <code class="docutils literal notranslate"><span class="pre">failed</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">inconsistent</span></code> are not successful completion.</p></li>
+</ol>
+<p>For a bounded recovery pass after a worker or broker outage, run:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>manage.py<span class="w"> </span>dispatch_hub_export_recovery<span class="w"> </span>--source-node-key<span class="w"> </span>&lt;site-node-key&gt;
+</pre></div>
+</div>
+<p>This command only dispatches reconciliation. Inspect the administration
+overview and the structured <code class="docutils literal notranslate"><span class="pre">lx_annotate.hub_export.audit</span></code> events afterward.
+Retry exhaustion remains visible and must not be reset by changing the
+<code class="docutils literal notranslate"><span class="pre">transfer_key</span></code>. A configuration or payload rejection and an acknowledgement
+integrity inconsistency are terminal until an operator corrects and reviews
+the cause.</p>
+<p>Certificate rotation, hub-side proxy checks, storage-capacity response,
+database-plus-media restore, quarantine handling, and the full incident
+procedure are defined in the matching <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> runbook:
+<code class="docutils literal notranslate"><span class="pre">docs/hub_ingest_operations.md</span></code>. Rotate the certificate authority first, then
+the client certificate and key with an overlap window; verify a complete
+transfer before revoking the old identity.</p>
+<p>During an incident, preserve the sender ledger, receiver ledger, proxy logs,
+worker logs, and structured audit events. Correlate by outbound job ID,
+<code class="docutils literal notranslate"><span class="pre">transfer_key</span></code>, source and target node, source center, remote transfer ID,
+attempt number, acknowledgement, and cleanup decision. Do not copy secrets,
+raw media, raw report text, absolute paths, or long-lived keys into tickets.
+Disable the affected sender node when authentication or integrity compromise
+is suspected, and resume only with the same transfer identity after the cause
+has been reviewed.</p>
+<p>The current production boundary is Phase 1: anonymized processed artifacts are
+protected in transit by mutual Transport Layer Security (mTLS) and at rest by
+each node’s encrypted storage boundary. Standalone files or blobs must not
+leave that boundary until Phase 2 implements and verifies per-transfer data
+encryption keys wrapped for the receiving hub. Shared secrets and the
+long-lived master key are never payload-encryption substitutes.</p>
+</section>
 <section id="audit-requirements">
 <h2>Audit Requirements<a class="headerlink" href="#audit-requirements" title="Link to this heading">¶</a></h2>
 <p>The sender must record:</p>
@@ -623,6 +691,7 @@ successful hub outcome.</p>
 <li><a class="reference internal" href="#verified-hub-acknowledgement">Verified Hub Acknowledgement</a></li>
 <li><a class="reference internal" href="#ui-workflow">UI Workflow</a></li>
 <li><a class="reference internal" href="#operational-requirements">Operational Requirements</a></li>
+<li><a class="reference internal" href="#deployment-and-operator-procedure">Deployment And Operator Procedure</a></li>
 <li><a class="reference internal" href="#audit-requirements">Audit Requirements</a></li>
 <li><a class="reference internal" href="#local-cleanup-policy">Local Cleanup Policy</a></li>
 <li><a class="reference internal" href="#summary">Summary</a></li>
@@ -637,7 +706,7 @@ successful hub outcome.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=f70577c2"></script>
+</div><script src="../_static/documentation_options.js?v=3c8ce70f"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
