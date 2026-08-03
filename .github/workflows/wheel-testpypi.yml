@@ -203,8 +203,6 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-latest
-          - windows-latest
 
     steps:
       - name: Set up Python
@@ -257,7 +255,6 @@ jobs:
           if expected_hashes.get(wheels[0].name) != actual_hash:
               raise SystemExit(f"wheel SHA-256 mismatch: {wheels[0].name}")
 
-          subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip"])
           subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
           subprocess.check_call([str(python), "-m", "pip", "check"])
           installed_versions = json.loads(
@@ -373,8 +370,6 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-latest
-          - windows-latest
 
     steps:
       - name: Set up Python
@@ -419,7 +414,6 @@ jobs:
           python = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
           scripts = python.parent
 
-          subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip"])
           subprocess.check_call(
               [
                   str(python),

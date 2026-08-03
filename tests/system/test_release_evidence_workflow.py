@@ -38,6 +38,15 @@ def test_release_metadata_is_not_uploaded_to_package_indexes() -> None:
     assert workflow.count("name: python-package-distributions") >= 3
 
 
+def test_release_install_smoke_targets_supported_linux_runtime() -> None:
+    workflow = _workflow_text()
+
+    assert workflow.count("- ubuntu-latest") == 2
+    assert "- macos-latest" not in workflow
+    assert "- windows-latest" not in workflow
+    assert '"pip", "install", "--upgrade", "pip"' not in workflow
+
+
 def test_clean_checkout_installs_dependencies_before_generated_staticfiles() -> None:
     release_workflow = _workflow_text()
     ci_workflow = CI_WORKFLOW_PATH.read_text(encoding="utf-8")
