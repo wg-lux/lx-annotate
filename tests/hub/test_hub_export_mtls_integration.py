@@ -2,17 +2,11 @@ from __future__ import annotations
 
 import ipaddress
 import ssl
-import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import cast
 
 import pytest
-import requests
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -171,52 +165,86 @@ def _create_certificate_paths(tmp_path: Path) -> _CertificatePaths:
     return paths
 
 
-@contextmanager
-def _mutual_tls_server(
+def _tls_contexts(
     paths: _CertificatePaths,
-) -> Iterator[tuple[str, list[bytes]]]:
-    received_bodies: list[bytes] = []
+    transport: HubTransportConfig,
+) -> tuple[ssl.SSLContext, ssl.SSLContext]:
+    if transport.cert is None or not isinstance(transport.verify, str):
+        raise ValueError(
+            "The integration harness requires client identity and CA files."
+        )
+    client_certificate, client_key = transport.cert
 
-    class _Handler(BaseHTTPRequestHandler):
-        def do_POST(self) -> None:  # noqa: N802
-            content_length = int(self.headers.get("Content-Length", "0"))
-            received_bodies.append(self.rfile.read(content_length))
-            self.send_response(204)
-            self.end_headers()
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_context.load_cert_chain(paths.server_certificate, paths.server_key)
+    server_context.load_verify_locations(cafile=paths.ca)
+    server_context.verify_mode = ssl.CERT_REQUIRED
 
-        def log_message(self, format: str, *_args: object) -> None:  # noqa: A002
-            del format
-            return
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
-    tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    tls_context.load_cert_chain(paths.server_certificate, paths.server_key)
-    tls_context.load_verify_locations(cafile=paths.ca)
-    tls_context.verify_mode = ssl.CERT_REQUIRED
-    server.socket = tls_context.wrap_socket(server.socket, server_side=True)
-    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
-    server_thread.start()
-    try:
-        host, port = cast(tuple[str, int], server.server_address)
-        yield f"https://{host}:{port}/hub/transfers", received_bodies
-    finally:
-        server.shutdown()
-        server.server_close()
-        server_thread.join(timeout=2)
+    client_context = ssl.create_default_context(
+        ssl.Purpose.SERVER_AUTH,
+        cafile=transport.verify,
+    )
+    client_context.load_cert_chain(client_certificate, client_key)
+    return client_context, server_context
 
 
-def _post_with_transport(
+def _transfer_tls_records(source: ssl.MemoryBIO, target: ssl.MemoryBIO) -> None:
+    while data := source.read():
+        target.write(data)
+
+
+def _exchange_after_mutual_tls_handshake(
     *,
-    url: str,
+    paths: _CertificatePaths,
     body: bytes,
     transport: HubTransportConfig,
-) -> requests.Response:
-    return requests.post(
-        url,
-        data=body,
-        timeout=2,
-        **transport.request_kwargs(),
+) -> bytes:
+    client_context, server_context = _tls_contexts(paths, transport)
+    client_incoming = ssl.MemoryBIO()
+    client_outgoing = ssl.MemoryBIO()
+    server_incoming = ssl.MemoryBIO()
+    server_outgoing = ssl.MemoryBIO()
+    client = client_context.wrap_bio(
+        client_incoming,
+        client_outgoing,
+        server_hostname="127.0.0.1",
     )
+    server = server_context.wrap_bio(
+        server_incoming,
+        server_outgoing,
+        server_side=True,
+    )
+
+    client_complete = False
+    server_complete = False
+    for _ in range(20):
+        if not client_complete:
+            try:
+                client.do_handshake()
+                client_complete = True
+            except ssl.SSLWantReadError:
+                pass
+        _transfer_tls_records(client_outgoing, server_incoming)
+
+        if not server_complete:
+            try:
+                server.do_handshake()
+                server_complete = True
+            except ssl.SSLWantReadError:
+                pass
+        _transfer_tls_records(server_outgoing, client_incoming)
+
+        if client_complete and server_complete:
+            break
+    else:
+        raise AssertionError("Mutual TLS handshake did not complete.")
+
+    # The application body is deliberately written only after both peers have
+    # authenticated. Failed client identity or CA validation therefore cannot
+    # disclose even the first payload byte.
+    client.write(body)
+    _transfer_tls_records(client_outgoing, server_incoming)
+    return server.read(len(body))
 
 
 def test_sender_mtls_rejects_expired_client_and_wrong_ca_before_body_disclosure(
@@ -239,29 +267,26 @@ def test_sender_mtls_rejects_expired_client_and_wrong_ca_before_body_disclosure(
         verify=str(paths.wrong_ca),
     )
 
-    with _mutual_tls_server(paths) as (url, received_bodies):
-        valid_body = b"validated anonymized metadata"
-        response = _post_with_transport(
-            url=url,
+    valid_body = b"validated anonymized metadata"
+    assert (
+        _exchange_after_mutual_tls_handshake(
+            paths=paths,
             body=valid_body,
             transport=valid_transport,
         )
-        assert response.status_code == 204
-        assert received_bodies == [valid_body]
+        == valid_body
+    )
 
-        received_bodies.clear()
-        with pytest.raises(requests.exceptions.SSLError):
-            _post_with_transport(
-                url=url,
-                body=b"must not cross expired-client handshake",
-                transport=expired_client_transport,
-            )
-        assert received_bodies == []
+    with pytest.raises(ssl.SSLError):
+        _exchange_after_mutual_tls_handshake(
+            paths=paths,
+            body=b"must not cross expired-client handshake",
+            transport=expired_client_transport,
+        )
 
-        with pytest.raises(requests.exceptions.SSLError):
-            _post_with_transport(
-                url=url,
-                body=b"must not cross wrong-ca handshake",
-                transport=wrong_ca_transport,
-            )
-        assert received_bodies == []
+    with pytest.raises(ssl.SSLError):
+        _exchange_after_mutual_tls_handshake(
+            paths=paths,
+            body=b"must not cross wrong-ca handshake",
+            transport=wrong_ca_transport,
+        )

@@ -2,12 +2,26 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 
 class HubExportResourceKind(StrEnum):
     VIDEO = "video"
     REPORT = "report"
+
+
+class HubExportResourceRef(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: PositiveInt
+    resource_kind: HubExportResourceKind
+
+
+class HubExportMutationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target_node_key: str | None = None
+    resources: list[HubExportResourceRef] = Field(min_length=1)
 
 
 class HubExportPrivacyStatus(StrEnum):
@@ -199,11 +213,13 @@ __all__ = [
     "HubCenterSyncState",
     "HubExportDuplicateReason",
     "HubExportItem",
+    "HubExportMutationRequest",
     "HubExportOverview",
     "HubExportPrivacyStatus",
     "HubExportPrivacySummary",
     "HubExportRejectionReason",
     "HubExportResourceKind",
+    "HubExportResourceRef",
     "HubFileSyncSummary",
     "HubNodeSummary",
     "HubProcessedFile",

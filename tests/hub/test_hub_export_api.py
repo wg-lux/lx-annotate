@@ -99,9 +99,8 @@ class HubExportApiTests(TestCase):
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": "hub-node",
-                "marked_by": "client-supplied-actor",
-                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                "target_node_key": "hub-node",
+                "resources": [{"id": self.report.id, "resource_kind": "report"}],
             },
             content_type="application/json",
         )
@@ -134,8 +133,8 @@ class HubExportApiTests(TestCase):
         unmark_response = self.client.post(
             "/api/hub-export/unmark/",
             data={
-                "targetNodeKey": "hub-node",
-                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                "target_node_key": "hub-node",
+                "resources": [{"id": self.report.id, "resource_kind": "report"}],
             },
             content_type="application/json",
         )
@@ -146,12 +145,30 @@ class HubExportApiTests(TestCase):
             0,
         )
 
+    def test_mark_rejects_client_supplied_operator_identity(self) -> None:
+        response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "target_node_key": "hub-node",
+                "marked_by": "client-supplied-actor",
+                "resources": [
+                    {"id": self.report.id, "resource_kind": "report"},
+                ],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists()
+        )
+
     def test_overview_exposes_typed_failure_class_for_operator_triage(self) -> None:
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": "hub-node",
-                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                "target_node_key": "hub-node",
+                "resources": [{"id": self.report.id, "resource_kind": "report"}],
             },
             content_type="application/json",
         )
@@ -159,7 +176,10 @@ class HubExportApiTests(TestCase):
         job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
         job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
         job.failure_class = OutboundHubTransferJob.FailureClass.AUTHORIZATION_DENIAL
-        job.last_error = "Hub transfer authorization denied with HTTP 403."
+        job.last_error = (
+            "Hub transfer authorization denied for /protected/clinical/report.pdf "
+            "with secret super-secret."
+        )
         job.save(update_fields=["local_status", "failure_class", "last_error"])
 
         response = self.client.get("/api/hub-export/overview/")
@@ -167,7 +187,9 @@ class HubExportApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         item = response.json()["items"][0]
         self.assertEqual(item["failure_class"], "authorization_denial")
+        self.assertEqual(item["last_error"], "Hub transfer authorization was denied.")
         self.assertNotIn("super-secret", item["last_error"])
+        self.assertNotIn("/protected/clinical", item["last_error"])
 
     def test_hub_export_operator_endpoints_require_authentication(self):
         self.client.logout()
@@ -178,16 +200,16 @@ class HubExportApiTests(TestCase):
                 "post",
                 "/api/hub-export/mark/",
                 {
-                    "targetNodeKey": "hub-node",
-                    "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                    "target_node_key": "hub-node",
+                    "resources": [{"id": self.report.id, "resource_kind": "report"}],
                 },
             ),
             (
                 "post",
                 "/api/hub-export/unmark/",
                 {
-                    "targetNodeKey": "hub-node",
-                    "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                    "target_node_key": "hub-node",
+                    "resources": [{"id": self.report.id, "resource_kind": "report"}],
                 },
             ),
         ):
@@ -198,14 +220,50 @@ class HubExportApiTests(TestCase):
             )
             self.assertIn(response.status_code, {401, 403})
 
+    def test_hub_export_rejects_camel_case_request_aliases(self) -> None:
+        resource_alias_response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "target_node_key": "hub-node",
+                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(resource_alias_response.status_code, 400)
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists()
+        )
+
+        NetworkNode.objects.create(
+            display_name="Second Hub Node",
+            node_key="hub-node-2",
+            role=NetworkNode.Role.CENTRAL_HUB,
+            base_url="https://hub-2.example/",
+            owning_center=self.center,
+        )
+        target_alias_response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "targetNodeKey": "hub-node",
+                "resources": [{"id": self.report.id, "resource_kind": "report"}],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(target_alias_response.status_code, 400)
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists()
+        )
+
     def test_bulk_mark_is_atomic_when_one_resource_is_invalid(self):
         response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": "hub-node",
+                "target_node_key": "hub-node",
                 "resources": [
-                    {"id": self.report.id, "resourceKind": "report"},
-                    {"id": 999999, "resourceKind": "report"},
+                    {"id": self.report.id, "resource_kind": "report"},
+                    {"id": 999999, "resource_kind": "report"},
                 ],
             },
             content_type="application/json",
@@ -220,8 +278,8 @@ class HubExportApiTests(TestCase):
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": "hub-node",
-                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                "target_node_key": "hub-node",
+                "resources": [{"id": self.report.id, "resource_kind": "report"}],
             },
             content_type="application/json",
         )
@@ -231,10 +289,10 @@ class HubExportApiTests(TestCase):
         failed_unmark = self.client.post(
             "/api/hub-export/unmark/",
             data={
-                "targetNodeKey": "hub-node",
+                "target_node_key": "hub-node",
                 "resources": [
-                    {"id": self.report.id, "resourceKind": "report"},
-                    {"id": self.report.id, "resourceKind": "unsupported"},
+                    {"id": self.report.id, "resource_kind": "report"},
+                    {"id": self.report.id, "resource_kind": "unsupported"},
                 ],
             },
             content_type="application/json",
@@ -247,8 +305,8 @@ class HubExportApiTests(TestCase):
         queued_unmark = self.client.post(
             "/api/hub-export/unmark/",
             data={
-                "targetNodeKey": "hub-node",
-                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                "target_node_key": "hub-node",
+                "resources": [{"id": self.report.id, "resource_kind": "report"}],
             },
             content_type="application/json",
         )
@@ -260,8 +318,8 @@ class HubExportApiTests(TestCase):
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": "hub-node",
-                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                "target_node_key": "hub-node",
+                "resources": [{"id": self.report.id, "resource_kind": "report"}],
             },
             content_type="application/json",
         )
@@ -283,8 +341,8 @@ class HubExportApiTests(TestCase):
             response = self.client.post(
                 "/api/hub-export/mark/",
                 data={
-                    "targetNodeKey": "hub-node",
-                    "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                    "target_node_key": "hub-node",
+                    "resources": [{"id": self.report.id, "resource_kind": "report"}],
                 },
                 content_type="application/json",
             )

@@ -120,8 +120,8 @@ class HubExportEndToEndTests(TestCase):
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": "hub-node",
-                "resources": [{"id": report.id, "resourceKind": "report"}],
+                "target_node_key": "hub-node",
+                "resources": [{"id": report.id, "resource_kind": "report"}],
             },
             content_type="application/json",
         )
@@ -200,8 +200,8 @@ class HubExportEndToEndTests(TestCase):
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": self.hub_node.node_key,
-                "resources": [{"id": report.id, "resourceKind": "report"}],
+                "target_node_key": self.hub_node.node_key,
+                "resources": [{"id": report.id, "resource_kind": "report"}],
             },
             content_type="application/json",
         )
@@ -357,11 +357,11 @@ class HubExportEndToEndTests(TestCase):
         hash_mismatch_mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": self.hub_node.node_key,
+                "target_node_key": self.hub_node.node_key,
                 "resources": [
                     {
                         "id": hash_mismatch_report.id,
-                        "resourceKind": "report",
+                        "resource_kind": "report",
                     }
                 ],
             },
@@ -482,8 +482,8 @@ class HubExportEndToEndTests(TestCase):
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
-                "targetNodeKey": "hub-node",
-                "resources": [{"id": video.id, "resourceKind": "video"}],
+                "target_node_key": "hub-node",
+                "resources": [{"id": video.id, "resource_kind": "video"}],
             },
             content_type="application/json",
         )

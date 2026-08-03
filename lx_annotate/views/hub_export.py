@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from django.core.exceptions import ObjectDoesNotExist
+from pydantic import ValidationError
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import (
@@ -12,6 +14,7 @@ from rest_framework.response import Response
 
 from endoreg_db.models import NetworkNode
 
+from lx_annotate.hub.hub_export_contracts import HubExportMutationRequest
 from lx_annotate.hub.hub_export_jobs import (
     build_hub_export_overview,
     mark_resources_for_hub_upload,
@@ -31,8 +34,12 @@ def _resolve_target_node(target_node_key: str | None) -> NetworkNode | None:
         return None
 
 
-def _request_target_node_key(data) -> str | None:
-    return data.get("target_node_key") or data.get("targetNodeKey")
+def _parse_mutation_request(data: object) -> HubExportMutationRequest:
+    return HubExportMutationRequest.model_validate(data)
+
+
+def _validation_errors(exc: ValidationError) -> object:
+    return exc.errors(include_url=False, include_input=False)
 
 
 @api_view(["GET"])
@@ -53,8 +60,14 @@ def hub_export_overview(request):
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def hub_export_mark(request):
-    data = request.data or {}
-    target_node = _resolve_target_node(_request_target_node_key(data))
+    try:
+        mutation = _parse_mutation_request(request.data or {})
+    except ValidationError as exc:
+        return Response(
+            {"errors": _validation_errors(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    target_node = _resolve_target_node(mutation.target_node_key)
     if target_node is None:
         return Response(
             {
@@ -65,20 +78,15 @@ def hub_export_mark(request):
             status=status.HTTP_409_CONFLICT,
         )
 
-    resources = data.get("resources")
-    if not isinstance(resources, list) or not resources:
-        return Response(
-            {"errors": {"resources": "resources must be a non-empty list."}},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
     try:
         jobs = mark_resources_for_hub_upload(
-            resource_refs=list(resources),
+            resource_refs=[
+                resource.model_dump(mode="json") for resource in mutation.resources
+            ],
             target_node=target_node,
-            marked_by=getattr(request, "user", None),
+            marked_by=request.user,
         )
-    except Exception as exc:
+    except (ObjectDoesNotExist, ValueError) as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(
@@ -94,8 +102,14 @@ def hub_export_mark(request):
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def hub_export_unmark(request):
-    data = request.data or {}
-    target_node = _resolve_target_node(_request_target_node_key(data))
+    try:
+        mutation = _parse_mutation_request(request.data or {})
+    except ValidationError as exc:
+        return Response(
+            {"errors": _validation_errors(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    target_node = _resolve_target_node(mutation.target_node_key)
     if target_node is None:
         return Response(
             {
@@ -106,19 +120,14 @@ def hub_export_unmark(request):
             status=status.HTTP_409_CONFLICT,
         )
 
-    resources = data.get("resources")
-    if not isinstance(resources, list) or not resources:
-        return Response(
-            {"errors": {"resources": "resources must be a non-empty list."}},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
     try:
         deleted_count = unmark_resources_for_hub_upload(
-            resource_refs=list(resources),
+            resource_refs=[
+                resource.model_dump(mode="json") for resource in mutation.resources
+            ],
             target_node=target_node,
         )
-    except Exception as exc:
+    except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(

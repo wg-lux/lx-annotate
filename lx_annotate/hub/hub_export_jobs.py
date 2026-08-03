@@ -69,11 +69,7 @@ def build_transfer_key(
 
 
 def _resource_ref_kind(resource_ref: dict[str, Any]) -> str:
-    return (
-        str(resource_ref.get("resource_kind") or resource_ref.get("resourceKind") or "")
-        .strip()
-        .lower()
-    )
+    return str(resource_ref.get("resource_kind") or "").strip().lower()
 
 
 def _resource_ref_id(resource_ref: dict[str, Any]) -> int:
@@ -355,7 +351,7 @@ def _job_overview_fields(
         "failure_class": job.failure_class
         if job is not None and job.failure_class
         else None,
-        "last_error": job.last_error if job is not None else "",
+        "last_error": _operator_failure_detail(job),
         "last_transfer_timestamp": (
             job.completed_at.isoformat() if job and job.completed_at else None
         ),
@@ -367,6 +363,29 @@ def _job_overview_fields(
             else None
         ),
     }
+
+
+def _operator_failure_detail(job: OutboundHubTransferJob | None) -> str:
+    if job is None or job.local_status != OutboundHubTransferJob.LocalStatus.FAILED:
+        return ""
+    messages = {
+        OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION: (
+            "Hub transfer configuration or payload was rejected."
+        ),
+        OutboundHubTransferJob.FailureClass.AUTHORIZATION_DENIAL: (
+            "Hub transfer authorization was denied."
+        ),
+        OutboundHubTransferJob.FailureClass.INTEGRITY_INCONSISTENCY: (
+            "Hub transfer integrity verification failed."
+        ),
+        OutboundHubTransferJob.FailureClass.TRANSIENT_RETRY: (
+            "Hub transfer is waiting for a bounded retry."
+        ),
+    }
+    return messages.get(
+        job.failure_class,
+        "Hub transfer failed; inspect protected structured logs.",
+    )
 
 
 def _append_sync_outcomes(
