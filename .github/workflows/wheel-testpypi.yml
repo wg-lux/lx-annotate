@@ -104,7 +104,7 @@ jobs:
           PY
 
       - name: Install backend build dependencies
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen --extra dev --no-install-project
 
       - name: Install frontend dependencies
         run: npm --prefix frontend ci

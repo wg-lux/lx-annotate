@@ -7,6 +7,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "wheel-testpypi.yml"
+CI_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "ci-cd.yml"
 
 
 def _workflow_text() -> str:
@@ -34,3 +35,12 @@ def test_release_metadata_is_not_uploaded_to_package_indexes() -> None:
     cleanup = "rm -f dist/PACKAGE_VERSION.txt dist/RELEASE_EVIDENCE.json"
     assert workflow.count(cleanup) == 2
     assert workflow.count("name: python-package-distributions") >= 3
+
+
+def test_clean_checkout_installs_dependencies_before_generated_staticfiles() -> None:
+    release_workflow = _workflow_text()
+    ci_workflow = CI_WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert "uv sync --frozen --extra dev --no-install-project" in release_workflow
+    assert "uv sync --frozen --extra dev\n" not in release_workflow
+    assert ci_workflow.count("uv sync --frozen --extra dev --no-install-project") == 2
