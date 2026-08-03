@@ -24,7 +24,7 @@ def test_wheel_workflow_records_and_revalidates_release_evidence() -> None:
     assert '"release_assessor": os.environ["RELEASE_ACTOR"]' in workflow
     assert '"endoreg-db": version("endoreg-db")' in workflow
     assert '"lx-dtypes": version("lx-dtypes")' in workflow
-    assert "shell: .venv/bin/python {0}" in workflow
+    assert ".venv/bin/python - <<'PY'" in workflow
     assert "hashlib.sha256(artifact.read_bytes()).hexdigest()" in workflow
     assert workflow.count("wheel SHA-256 mismatch:") == 2
     assert workflow.count('installed_versions != evidence["package_versions"]') == 2
