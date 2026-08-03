@@ -111,13 +111,13 @@ jobs:
 
       - name: Run backend static checks
         run: |
-          uv run mypy lx_annotate
-          uv run ruff check lx_annotate tests
-          uv run ruff format --check lx_annotate tests
+          uv run --no-sync mypy lx_annotate
+          uv run --no-sync ruff check lx_annotate tests
+          uv run --no-sync ruff format --check lx_annotate tests
 
       - name: Run backend tests with coverage gate
         run: >-
-          uv run pytest
+          uv run --no-sync pytest
           --cov=lx_annotate
           --cov-report=term-missing
           --cov-fail-under=75

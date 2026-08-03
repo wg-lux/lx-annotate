@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict
 
 from .hub_export_reconciliation import hub_export_max_retries
 from ..models import OutboundHubTransferJob
@@ -18,22 +18,8 @@ class HubExportHealthSummary(BaseModel):
     transient_retry: int
     retry_exhausted: int
     unclassified_failure: int
-
-    @computed_field
-    @property
-    def critical_count(self) -> int:
-        return (
-            self.configuration_rejection
-            + self.authorization_denial
-            + self.integrity_inconsistency
-            + self.retry_exhausted
-            + self.unclassified_failure
-        )
-
-    @computed_field
-    @property
-    def healthy(self) -> bool:
-        return self.critical_count == 0
+    critical_count: int
+    healthy: bool
 
 
 _ACTIVE_STATUSES = {
@@ -95,4 +81,16 @@ def build_hub_export_health_summary(
         else:
             counts["unclassified_failure"] += 1
 
-    return HubExportHealthSummary(total_jobs=jobs.count(), **counts)
+    critical_count = (
+        counts["configuration_rejection"]
+        + counts["authorization_denial"]
+        + counts["integrity_inconsistency"]
+        + counts["retry_exhausted"]
+        + counts["unclassified_failure"]
+    )
+    return HubExportHealthSummary(
+        total_jobs=jobs.count(),
+        critical_count=critical_count,
+        healthy=critical_count == 0,
+        **counts,
+    )

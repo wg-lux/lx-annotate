@@ -43,4 +43,6 @@ def test_clean_checkout_installs_dependencies_before_generated_staticfiles() -> 
 
     assert "uv sync --frozen --extra dev --no-install-project" in release_workflow
     assert "uv sync --frozen --extra dev\n" not in release_workflow
+    assert release_workflow.count("uv run --no-sync") == 4
     assert ci_workflow.count("uv sync --frozen --extra dev --no-install-project") == 2
+    assert ci_workflow.count("uv run --no-sync") == 4

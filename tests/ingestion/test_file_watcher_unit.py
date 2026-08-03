@@ -15,9 +15,9 @@ def test_ffmpeg_setup_adds_discovered_binary_directory(monkeypatch) -> None:
     monkeypatch.setattr(
         file_watcher.glob,
         "glob",
-        lambda pattern: ["/nix/store/ffmpeg/bin/ffmpeg"]
-        if pattern.endswith("/ffmpeg")
-        else [],
+        lambda pattern: (
+            ["/nix/store/ffmpeg/bin/ffmpeg"] if pattern.endswith("/ffmpeg") else []
+        ),
     )
     monkeypatch.setenv("PATH", "/existing/bin")
 
