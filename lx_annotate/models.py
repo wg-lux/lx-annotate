@@ -31,6 +31,18 @@ class OutboundHubTransferJob(models.Model):
         COMPLETED = "completed", "Completed"
         FAILED = "failed", "Failed"
 
+    class FailureClass(models.TextChoices):
+        CONFIGURATION_REJECTION = (
+            "configuration_rejection",
+            "Configuration Rejection",
+        )
+        AUTHORIZATION_DENIAL = "authorization_denial", "Authorization Denial"
+        INTEGRITY_INCONSISTENCY = (
+            "integrity_inconsistency",
+            "Integrity Inconsistency",
+        )
+        TRANSIENT_RETRY = "transient_retry", "Transient Retry"
+
     class TransferMode(models.TextChoices):
         METADATA_AND_PROCESSED_MEDIA = (
             "metadata_and_processed_media",
@@ -105,6 +117,13 @@ class OutboundHubTransferJob(models.Model):
         db_index=True,
     )
     retry_count: Any = models.PositiveIntegerField(default=0)
+    failure_class: Any = models.CharField(
+        max_length=32,
+        choices=FailureClass.choices,
+        blank=True,
+        default="",
+        db_index=True,
+    )
     last_error: Any = models.TextField(blank=True, default="")
     remote_transfer_id: Any = models.CharField(max_length=64, blank=True, default="")
     remote_transfer_status: Any = models.CharField(

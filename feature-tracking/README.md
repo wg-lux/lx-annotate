@@ -107,3 +107,56 @@ New requirements reopen a completed feature and reset the named criterion:
 Do not create parallel completion trackers. Architecture and operational
 documents may remain as references, but readiness state and evidence belong in
 these YAML definitions.
+
+## Multi-agent orchestration contracts
+
+Use multiple workers only for independently executable branches. Sequential or
+interdependent work stays in one context-rich agent. Every run is described by
+a strict JSON contract that selects `single_agent` or
+`centralized_multi_agent`, identifies one orchestrator, caps workers at four,
+caps each worker at one or two turns, and limits the total token budget to
+50,000. Parallel plans require at least two non-blocking root work units;
+dependency chains cannot be mislabeled as parallel work.
+
+Each work unit has one responsibility and returns only a schema-validated
+result containing `task_status`, sourced `findings`, confidence, and explicit
+`gaps`. Workers report to the named orchestrator; the contract does not model a
+peer-to-peer mesh.
+
+Centralized plans must also select one typed execution backend:
+
+- `native_subagent` delegates bounded work to child threads owned by the current
+  Codex session. An optional `agent_profile` names a built-in or configured
+  custom agent. Project custom-agent files live under `.codex/agents/` and must
+  define `name`, `description`, and `developer_instructions`; model and sandbox
+  settings are optional overrides.
+- `external_codex_exec` delegates to processes managed by an external
+  orchestrator. The contract permits only `read-only` or `workspace-write`
+  sandboxes and fixes the non-interactive approval policy to `never`. Launchers
+  must use `codex exec --sandbox <mode> --ask-for-approval never`; plain
+  interactive `codex` invocation is not a headless worker contract.
+
+Native subagents inherit the parent session's permission boundary. External
+workers remain subject to the same feature locks, stable owner identity,
+structured results, token allocation, and checkpoints as native workers.
+Neither backend permits peer-to-peer delegation or silently launches work while
+validating a contract.
+
+Validate a plan before delegation:
+
+```bash
+./feature-tracking/tracker.py orchestration validate run-contract.json
+```
+
+Persist stage boundaries with the atomic checkpoint command. A work unit moves
+from `pending` to `in_progress`, then to `complete` or `blocked`; blocked work
+may resume. Repeating the same checkpoint is idempotent, while invalid
+transitions fail loudly. Completed and blocked checkpoints require a matching
+worker-result JSON file.
+
+```bash
+./feature-tracking/tracker.py orchestration checkpoint run-contract.json audit_api \
+  --status in_progress
+./feature-tracking/tracker.py orchestration checkpoint run-contract.json audit_api \
+  --status complete --result-file audit-api-result.json
+```

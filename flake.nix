@@ -10,7 +10,6 @@
     pyproject-build-systems.url = "github:pyproject-nix/build-system-pkgs/04e9c186e01f0830dad3739088070e4c551191a4";
 
     nixtest.url = "gitlab:TECHNOFAB/nixtest?dir=lib";
-    nixtest.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -65,15 +64,20 @@
                     setuptoolsBackedPackages = [
                       "antlr4-python3-runtime"
                       "bibtexparser"
-                      "django-rest-framework"
+                      "connection-pool"
+                      "docopt"
                       "encodec"
                       "ffprobe"
                       "googlemaps"
+                      "langdetect"
                       "ordereddict"
+                      "pptree"
                       "py-ubjson"
                       "python-environ"
                       "sops"
+                      "sqlitedict"
                       "tesseract"
+                      "wikipedia-api"
                     ];
                     withSetuptools =
                       pkg:

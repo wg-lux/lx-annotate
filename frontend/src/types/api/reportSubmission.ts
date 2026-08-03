@@ -37,6 +37,8 @@ export type SaveReportSubmissionRequest = {
   reportId?: number
   patientExaminationId: number
   templateName: string
+  templateVersion?: string
+  templateHash?: string
   status: ReportSubmissionStatus
   editorPayload: Record<string, unknown>
   renderedText: string

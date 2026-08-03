@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from importlib import import_module
 from pathlib import Path
@@ -49,7 +50,18 @@ _ENDOREG_DB_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
         "processed_streamable_relative_path",
         "raw_streamable_relative_path",
     ),
-    "endoreg_db_videohlsartifact": ("error_code", "status"),
+    "endoreg_db_videohlsartifact": (
+        "encoding_profile_name",
+        "error_code",
+        "status",
+    ),
+    "endoreg_db_medicalledgerwritereceipt": (
+        "created_at",
+        "idempotency_key",
+        "patient_id",
+        "record_ids",
+        "request_hash",
+    ),
     "report_import_attempt": (
         "fencing_token",
         "heartbeat_at",
@@ -67,6 +79,7 @@ _ENDOREG_DB_REQUIRED_TABLES: tuple[str, ...] = (
     "endoreg_db_ledgerhead",
     "endoreg_db_uploadjob",
     "endoreg_db_videohlsartifact",
+    "endoreg_db_medicalledgerwritereceipt",
     "report_import_attempt",
 )
 
@@ -80,6 +93,11 @@ _ENDOREG_DB_REQUIRED_CONSTRAINTS: dict[str, tuple[str, ...]] = {
         "unique_active_video_hls_attempt",
         "unique_ready_video_hls_artifact_kind",
         "video_hls_failure_coded",
+    ),
+    "endoreg_db_medicalledgerwritereceipt": (
+        "medled_receipt_patient_key_uq",
+        "medled_receipt_key_nonempty",
+        "medled_receipt_hash_nonempty",
     ),
     "report_import_attempt": ("report_attempt_lease_state_consistent",),
 }
@@ -432,6 +450,76 @@ def _host_models_module_messages() -> list[CheckMessage]:
     return []
 
 
+def _knowledge_base_registry_messages() -> list[CheckMessage]:
+    configured_path = str(
+        getattr(settings, "LX_DTYPES_KB_REGISTRY", "")
+        or os.environ.get("LX_DTYPES_KB_REGISTRY", "")
+    ).strip()
+    if not configured_path:
+        return [
+            Warning(
+                "LX_DTYPES_KB_REGISTRY must identify the governed knowledge-base registry.",
+                id="lx_annotate.lx_dtypes_kb_registry_missing",
+            )
+        ]
+
+    registry_path = Path(configured_path).expanduser().resolve()
+    try:
+        payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [
+            Warning(
+                f"LX_DTYPES_KB_REGISTRY is not readable valid JSON: {type(exc).__name__}.",
+                id="lx_annotate.lx_dtypes_kb_registry_invalid",
+            )
+        ]
+    if not isinstance(payload, dict) or not isinstance(payload.get("modules"), dict):
+        return [
+            Warning(
+                "LX_DTYPES_KB_REGISTRY must contain a modules object.",
+                id="lx_annotate.lx_dtypes_kb_registry_schema_invalid",
+            )
+        ]
+    active = payload.get("active")
+    if not isinstance(active, dict):
+        return [
+            Warning(
+                "LX_DTYPES_KB_REGISTRY must contain an explicit active bundle identity.",
+                id="lx_annotate.lx_dtypes_kb_registry_active_missing",
+            )
+        ]
+    module_name = active.get("module_name")
+    version = active.get("version")
+    versions = payload["modules"].get(module_name, {})
+    if (
+        not isinstance(module_name, str)
+        or not module_name.strip()
+        or not isinstance(version, str)
+        or not version.strip()
+        or not isinstance(versions, dict)
+        or version not in versions
+    ):
+        return [
+            Warning(
+                "The active knowledge-base identity is not registered in LX_DTYPES_KB_REGISTRY.",
+                id="lx_annotate.lx_dtypes_kb_registry_active_invalid",
+            )
+        ]
+
+    try:
+        from lx_dtypes.models.interface.KnowledgeBaseResolver import load_knowledge_base
+
+        load_knowledge_base(module_name, version=version)
+    except Exception as exc:
+        return [
+            Warning(
+                f"The active registered knowledge base cannot be loaded: {type(exc).__name__}.",
+                id="lx_annotate.lx_dtypes_kb_registry_active_unloadable",
+            )
+        ]
+    return []
+
+
 def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
     messages: list[CheckMessage] = []
     messages.extend(_native_capability_messages())
@@ -439,6 +527,7 @@ def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unuse
     messages.extend(_protected_media_url_messages())
     messages.extend(_protected_media_root_messages())
     messages.extend(_host_models_module_messages())
+    messages.extend(_knowledge_base_registry_messages())
 
     return messages
 

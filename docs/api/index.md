@@ -15,7 +15,7 @@ compatibility aliases.
 | Canonical mount | Compatibility alias | Backing package | Frontend usage |
 | --- | --- | --- | --- |
 | `/endoreg-api/` | `/api/` | `lx_annotate.api_urls`, including `endoreg_db.urls` plus `lx-annotate` local routes such as hub export and runtime quarantine | Main application API used by `frontend/src/types/api/endpoints.ts` through `endoregApi()` or legacy `r()` |
-| `/dtypes-api/` | `/base_api/` | `lx_annotate.base_api_urls`, backed by `lx_dtypes.django.api.main` | Typed lookup, requirement, and report-template contracts sourced from `lx_dtypes`, called through `dtypesApi()` |
+| `/dtypes-api/` | Internal Ninja router | `lx_annotate.dtypes_api_urls`, backed by `lx_dtypes.django.api.main` | Typed terminology, finding, and report-template contracts sourced from `lx_dtypes`, called through `dtypesApi()`; no public `/base_api/` alias exists |
 
 Do not document `dtypes-api/` routes as if they were `endoreg_db` routes. The
 `endpoints.ts` contract below describes the main `/endoreg-api/` surface. The

@@ -633,6 +633,17 @@ import {
   loadAnnotatorOverride,
   saveAnnotatorOverride
 } from '@/utils/annotationPrincipal'
+import {
+  clampFrameCoordinate,
+  createFrameBoxDraft,
+  extractFrameBoxRecords,
+  formatFrameBox,
+  frameBoxStyle,
+  parseFrameBoxRecord,
+  serializeFrameBox,
+  type FrameBoxAnnotationDraft,
+  type FrameImagePoint
+} from './frameBoxAnnotations'
 
 interface LabelGroupOption {
   id: string
@@ -653,31 +664,6 @@ interface AnonymizerFieldRow extends AnonymizerFieldDefinition {
   labelId: number | null
   labelName: string
   selected: boolean
-}
-
-interface FrameBoxAnnotationDraft {
-  id: number | null
-  clientId: string
-  frameId: number
-  labelId: number
-  labelName: string
-  value: boolean
-  floatValue: number | null
-  x: number
-  y: number
-  width: number
-  height: number
-  imageWidth: number
-  imageHeight: number
-  annotator: string
-  externalAnnotationId: string
-}
-
-interface ImagePoint {
-  x: number
-  y: number
-  imageWidth: number
-  imageHeight: number
 }
 
 interface FrameAnnotationApiError {
@@ -797,7 +783,7 @@ const isLoadingBoxAnnotations = ref(false)
 const isSavingBoxAnnotations = ref(false)
 const boxAnnotationError = ref<string | null>(null)
 const initialRouteQuery = new URLSearchParams(window.location.search)
-let boxDraftStart: ImagePoint | null = null
+let boxDraftStart: FrameImagePoint | null = null
 let frameImageRetryTimer: ReturnType<typeof setTimeout> | null = null
 let frameImageProbeGeneration = 0
 let frameImageObjectUrl: string | null = null
@@ -1332,18 +1318,14 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
   }
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
-}
-
-function imagePointFromPointerEvent(event: PointerEvent): ImagePoint | null {
+function imagePointFromPointerEvent(event: PointerEvent): FrameImagePoint | null {
   const image = frameImageElement.value
   if (!image || image.naturalWidth <= 0 || image.naturalHeight <= 0) return null
   const rect = image.getBoundingClientRect()
   if (rect.width <= 0 || rect.height <= 0) return null
 
-  const displayX = clamp(event.clientX - rect.left, 0, rect.width)
-  const displayY = clamp(event.clientY - rect.top, 0, rect.height)
+  const displayX = clampFrameCoordinate(event.clientX - rect.left, 0, rect.width)
+  const displayY = clampFrameCoordinate(event.clientY - rect.top, 0, rect.height)
   return {
     x: (displayX / rect.width) * image.naturalWidth,
     y: (displayY / rect.height) * image.naturalHeight,
@@ -1352,29 +1334,17 @@ function imagePointFromPointerEvent(event: PointerEvent): ImagePoint | null {
   }
 }
 
-function buildBoxDraft(start: ImagePoint, current: ImagePoint): FrameBoxAnnotationDraft | null {
+function buildBoxDraft(
+  start: FrameImagePoint,
+  current: FrameImagePoint
+): FrameBoxAnnotationDraft | null {
   if (!currentTask.value || !selectedBoxLabel.value) return null
-  const x = Math.min(start.x, current.x)
-  const y = Math.min(start.y, current.y)
-  const width = Math.abs(current.x - start.x)
-  const height = Math.abs(current.y - start.y)
-  return {
-    id: null,
-    clientId: uuidv7(),
+  return createFrameBoxDraft(start, current, {
     frameId: currentTask.value.data.frameId,
-    labelId: selectedBoxLabel.value.id,
-    labelName: selectedBoxLabel.value.name,
-    value: true,
-    floatValue: null,
-    x,
-    y,
-    width,
-    height,
-    imageWidth: current.imageWidth,
-    imageHeight: current.imageHeight,
+    label: selectedBoxLabel.value,
     annotator: activeAnnotatorPrincipal.value,
-    externalAnnotationId: uuidv7()
-  }
+    createId: uuidv7
+  })
 }
 
 function startBoxDraft(event: PointerEvent): void {
@@ -1417,23 +1387,11 @@ function cancelBoxDraft(): void {
 }
 
 function boxAnnotationStyle(box: FrameBoxAnnotationDraft): Record<string, string> {
-  const imageWidth = box.imageWidth || 1
-  const imageHeight = box.imageHeight || 1
-  return {
-    left: `${(box.x / imageWidth) * 100}%`,
-    top: `${(box.y / imageHeight) * 100}%`,
-    width: `${(box.width / imageWidth) * 100}%`,
-    height: `${(box.height / imageHeight) * 100}%`
-  }
+  return frameBoxStyle(box)
 }
 
 function formatBoxAnnotation(box: FrameBoxAnnotationDraft): string {
-  return [
-    `x ${Math.round(box.x)}`,
-    `y ${Math.round(box.y)}`,
-    `w ${Math.round(box.width)}`,
-    `h ${Math.round(box.height)}`
-  ].join(' / ')
+  return formatFrameBox(box)
 }
 
 function removeBoxAnnotation(clientId: string): void {
@@ -1455,73 +1413,11 @@ async function submitEmptyPhiBackgroundFrame(): Promise<void> {
   await submitBoxAnnotations()
 }
 
-function extractBoxAnnotationPayload(payload: unknown): Array<Record<string, unknown>> {
-  if (Array.isArray(payload)) {
-    return payload.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
-    )
-  }
-  if (!payload || typeof payload !== 'object') return []
-  const obj = payload as Record<string, unknown>
-  if (Array.isArray(obj.annotations)) {
-    return obj.annotations.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
-    )
-  }
-  if (Array.isArray(obj.results)) {
-    return obj.results.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
-    )
-  }
-  return []
-}
-
 function parseBoxAnnotation(raw: Record<string, unknown>): FrameBoxAnnotationDraft | null {
-  const id = parseOptionalNumber(raw.id)
-  const frameId = parseOptionalNumber(raw.frameId ?? raw.frame_id)
-  const labelId = parseOptionalNumber(raw.labelId ?? raw.label_id)
-  const x = parseOptionalNumber(raw.x)
-  const y = parseOptionalNumber(raw.y)
-  const width = parseOptionalNumber(raw.width)
-  const height = parseOptionalNumber(raw.height)
-  const imageWidth = parseOptionalNumber(raw.imageWidth ?? raw.image_width)
-  const imageHeight = parseOptionalNumber(raw.imageHeight ?? raw.image_height)
-  const labelNameRaw = raw.labelName ?? raw.label_name
-  const labelName = typeof labelNameRaw === 'string' ? labelNameRaw.trim() : ''
-  if (
-    frameId === null ||
-    labelId === null ||
-    x === null ||
-    y === null ||
-    width === null ||
-    height === null ||
-    imageWidth === null ||
-    imageHeight === null ||
-    !labelName
-  ) {
-    return null
-  }
-  const externalRaw = raw.externalAnnotationId ?? raw.external_annotation_id
-  const annotatorRaw = raw.annotator
-  const floatValue = parseOptionalNumber(raw.floatValue ?? raw.float_value)
-  return {
-    id,
-    clientId: id !== null ? `box-${id}` : uuidv7(),
-    frameId,
-    labelId,
-    labelName,
-    value: raw.value !== false,
-    floatValue,
-    x,
-    y,
-    width,
-    height,
-    imageWidth,
-    imageHeight,
-    annotator: typeof annotatorRaw === 'string' ? annotatorRaw : activeAnnotatorPrincipal.value,
-    externalAnnotationId:
-      typeof externalRaw === 'string' && externalRaw.trim() ? externalRaw.trim() : uuidv7()
-  }
+  return parseFrameBoxRecord(raw, {
+    fallbackAnnotator: activeAnnotatorPrincipal.value,
+    createId: uuidv7
+  })
 }
 
 async function loadBoxAnnotationsForTask(task: typeof currentTask.value): Promise<void> {
@@ -1539,7 +1435,7 @@ async function loadBoxAnnotationsForTask(task: typeof currentTask.value): Promis
         annotator: activeAnnotatorPrincipal.value
       }
     })
-    boxAnnotations.value = extractBoxAnnotationPayload(res.data)
+    boxAnnotations.value = extractFrameBoxRecords(res.data)
       .map((item) => parseBoxAnnotation(item))
       .filter((box): box is FrameBoxAnnotationDraft => box !== null)
     activeBoxClientId.value = boxAnnotations.value[0]?.clientId ?? null
@@ -1566,23 +1462,13 @@ async function submitBoxAnnotations(): Promise<void> {
       replace: true,
       information_source_name: informationSource.value,
       annotator: activeAnnotatorPrincipal.value,
-      annotations: boxAnnotations.value.map((box) => ({
-        id: box.id,
-        frame_id: task.data.frameId,
-        label_id: box.labelId,
-        value: box.value,
-        float_value: box.floatValue,
-        x: Math.round(box.x),
-        y: Math.round(box.y),
-        width: Math.round(box.width),
-        height: Math.round(box.height),
-        image_width: Math.round(box.imageWidth),
-        image_height: Math.round(box.imageHeight),
-        information_source_name: informationSource.value,
-        annotator: activeAnnotatorPrincipal.value,
-        external_annotation_id: box.externalAnnotationId,
-        model_meta_id: null
-      }))
+      annotations: boxAnnotations.value.map((box) =>
+        serializeFrameBox(box, {
+          frameId: task.data.frameId,
+          informationSourceName: informationSource.value,
+          annotator: activeAnnotatorPrincipal.value
+        })
+      )
     })
     const completedLabelIds = new Set(selectedLabelIds.value)
     for (const box of boxAnnotations.value) {
@@ -1828,10 +1714,7 @@ async function loadNextTask(): Promise<void> {
     }
   } catch (error: unknown) {
     currentTask.value = null
-    errorMessage.value = frameAnnotationErrorMessage(
-      error,
-      'Aufgabe konnte nicht geladen werden.'
-    )
+    errorMessage.value = frameAnnotationErrorMessage(error, 'Aufgabe konnte nicht geladen werden.')
   } finally {
     isLoadingTask.value = false
   }

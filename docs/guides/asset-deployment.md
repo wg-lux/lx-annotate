@@ -2,6 +2,24 @@
 
 This guide defines the deployment contract for Vite assets in `lx-annotate`.
 
+## Canonical Ownership
+
+- `frontend/src/assets/` owns source assets imported by the Vue application.
+- `static/` owns non-Vite Django source assets and the published documentation
+  tree under `static/docs/`.
+- `staticfiles/` is disposable deployment output produced by Vite,
+  `collectstatic`, and `docs-publish`; it is ignored by Git and packaged only
+  after regeneration.
+
+Do not create package-local copies under `lx_annotate/static/` or
+`lx_annotate/staticfiles/`. Django and third-party application assets are
+collected from their installed packages, while the generated top-level
+`staticfiles/` tree is force-included in release artifacts.
+
+Vite's dependency cache under `frontend/.vite/` is local and ignored. Legacy
+dashboard bundles under `static/assets/` must not be restored; the maintained
+dashboard source is imported from `frontend/src/assets/` and emitted by Vite.
+
 ## Contract Summary
 
 1. Build output directory:
@@ -41,9 +59,10 @@ ensures the frontend `/documentation` page can load the packaged docs bundle.
 
 ## Why `emptyOutDir` Is Disabled
 
-`vite.config.ts` uses `emptyOutDir: false` because `staticfiles/` is a mixed directory
-containing both Vite output and non-Vite assets (for example, framework/static content).
-Auto-emptying this directory would risk deleting non-Vite files.
+`vite.config.ts` uses `emptyOutDir: false` because `staticfiles/` is a mixed
+generated directory containing Vite output plus assets produced by
+`collectstatic` and `docs-publish`. Auto-emptying this directory would risk
+deleting output owned by the other build stages.
 
 ## Smoke Tests
 

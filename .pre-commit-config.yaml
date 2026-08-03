@@ -27,6 +27,12 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: runtime-check-bundle-contract
+        name: runtime check migration bundle contract
+        entry: devenv shell -- python scripts/evaluate_runtime_check_bundle.py
+        language: system
+        pass_filenames: false
+
       - id: frontend-vitest
         name: frontend vitest
         entry: devenv shell -- npm --prefix frontend run test:unit -- --run

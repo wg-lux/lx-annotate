@@ -22,7 +22,6 @@ const hoisted = vi.hoisted(() => ({
         moduleName: 'editor_bundle',
         version: '2026.04.30',
         medicalField: 'gastroenterology',
-        inputDirs: ['/registry/editor_bundle'],
         isActive: true
       }
     ],
@@ -30,12 +29,11 @@ const hoisted = vi.hoisted(() => ({
       moduleName: 'editor_bundle',
       version: '2026.04.30',
       medicalField: 'gastroenterology',
-      inputDirs: ['/registry/editor_bundle'],
       isActive: true
     },
-    registryPath: '/registry',
     loading: false,
     selecting: false,
+    importing: false,
     error: null as string | null,
     selectedMedicalField: 'gastroenterology',
     lastSelectionCounts: null as Record<string, number> | null,
@@ -47,31 +45,32 @@ const hoisted = vi.hoisted(() => ({
         moduleName: 'editor_bundle',
         version: '2026.04.30',
         medicalField: 'gastroenterology',
-        inputDirs: ['/registry/editor_bundle'],
         isActive: true
       }
     ],
     medicalFieldLabel: 'Gastroenterologie',
     medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
-    bundleKey: vi.fn(
-      (bundle: TerminologyBundle) => `${bundle.moduleName}@@${bundle.version}`
-    ),
+    bundleKey: vi.fn((bundle: TerminologyBundle) => `${bundle.moduleName}@@${bundle.version}`),
     findBundleByKey: vi.fn((key: string) =>
       key === 'editor_bundle@@2026.04.30'
         ? {
             moduleName: 'editor_bundle',
             version: '2026.04.30',
             medicalField: 'gastroenterology',
-            inputDirs: ['/registry/editor_bundle'],
             isActive: true
           }
         : null
     ),
     loadBundles: vi.fn(),
     selectBundle: vi.fn(),
+    importBundle: vi.fn(),
+    importBundles: vi.fn(),
+    importBundleFolder: vi.fn(),
+    importBundleFolders: vi.fn(),
     setMedicalField: vi.fn()
   },
-  toastSuccess: vi.fn()
+  toastSuccess: vi.fn(),
+  toastWarning: vi.fn()
 }))
 
 vi.mock('@/api/applicationSettingsApi', () => ({
@@ -88,12 +87,14 @@ vi.mock('@/stores/toastStore', () => ({
   useToastStore: () => ({
     success: hoisted.toastSuccess,
     error: vi.fn(),
-    warning: vi.fn(),
+    warning: hoisted.toastWarning,
     info: vi.fn()
   })
 }))
 
 vi.mock('@/stores/terminologyStore', () => ({
+  terminologyBatchImportMessage: (result: { imported: unknown[]; failures: unknown[] }) =>
+    `${result.imported.length} Pakete installiert`,
   useTerminologyStore: () => hoisted.terminologyStore
 }))
 
@@ -105,6 +106,24 @@ describe('ApplicationSettingsPage', () => {
       ok: true,
       active: hoisted.terminologyStore.activeBundle,
       counts: { findings: 2 }
+    })
+    hoisted.terminologyStore.importBundle.mockResolvedValue({
+      ok: true,
+      imported: hoisted.terminologyStore.activeBundle,
+      counts: { findings: 2 }
+    })
+    hoisted.terminologyStore.importBundleFolder.mockResolvedValue({
+      ok: true,
+      imported: hoisted.terminologyStore.activeBundle,
+      counts: { findings: 2 }
+    })
+    hoisted.terminologyStore.importBundles.mockResolvedValue({
+      imported: [hoisted.terminologyStore.activeBundle],
+      failures: []
+    })
+    hoisted.terminologyStore.importBundleFolders.mockResolvedValue({
+      imported: [hoisted.terminologyStore.activeBundle],
+      failures: []
     })
 
     hoisted.fetchApplicationSettings.mockResolvedValue({
@@ -290,6 +309,45 @@ describe('ApplicationSettingsPage', () => {
     expect(wrapper.get('[data-test="summary-report-template"]').text()).toContain('Template B')
     expect(wrapper.get('[data-test="summary-ai-dataset"]').text()).toContain('dataset_beta')
     expect(wrapper.get('[data-test="summary-ai-dataset-type"]').text()).toContain('Video')
+  })
+
+  it('imports multiple local or cloud-backed terminology ZIPs from settings', async () => {
+    const wrapper = mount(ApplicationSettingsPage)
+    await flushPromises()
+    const firstArchive = new File(['first'], 'first.zip', { type: 'application/zip' })
+    const secondArchive = new File(['second'], 'second.zip', { type: 'application/zip' })
+    const input = wrapper.get('[data-test="terminology-zip-input"]')
+    Object.defineProperty(input.element, 'files', {
+      value: [firstArchive, secondArchive],
+      configurable: true
+    })
+
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.importBundles).toHaveBeenCalledWith([
+      firstArchive,
+      secondArchive
+    ])
+    expect(hoisted.toastSuccess).toHaveBeenCalledWith({
+      text: '1 Pakete installiert'
+    })
+  })
+
+  it('imports a selected terminology data folder from settings', async () => {
+    const wrapper = mount(ApplicationSettingsPage)
+    await flushPromises()
+    const config = new File(['name: editor_bundle'], 'config.yaml', { type: 'text/yaml' })
+    const input = wrapper.get('[data-test="terminology-folder-input"]')
+    Object.defineProperty(input.element, 'files', { value: [config], configurable: true })
+
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.importBundleFolders).toHaveBeenCalledWith([config])
+    expect(hoisted.toastSuccess).toHaveBeenCalledWith({
+      text: '1 Pakete installiert'
+    })
   })
 
   it('runs a backup when the data paths are complete', async () => {

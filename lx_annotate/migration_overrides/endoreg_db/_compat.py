@@ -85,8 +85,9 @@ def backfill_missing_uuid(
 
 
 def drop_table_if_exists(schema_editor, table_name: str) -> None:
+    cascade_clause = "" if schema_editor.connection.vendor == "sqlite" else " CASCADE"
     schema_editor.execute(
-        f"DROP TABLE IF EXISTS {schema_editor.quote_name(table_name)} CASCADE"
+        f"DROP TABLE IF EXISTS {schema_editor.quote_name(table_name)}{cascade_clause}"
     )
 
 

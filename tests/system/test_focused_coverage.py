@@ -262,6 +262,7 @@ def test_settings_base_rejects_missing_secret_in_production(monkeypatch, tmp_pat
     monkeypatch.setenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
     monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
+    monkeypatch.delenv("DJANGO_DEBUG", raising=False)
     sys.modules.pop("lx_annotate.settings.settings_base", None)
 
     with pytest.raises(RuntimeError, match=r"DJANGO_SECRET_KEY is missing"):
@@ -500,10 +501,17 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
     app_data_dir = tmp_path / "lx-annotate-data"
     app_data_dir.mkdir(parents=True, exist_ok=True)
     static_root = tmp_path / "static-root"
+    django_secret_file = tmp_path / "django-secret"
+    django_secret_file.write_text("p" * 64, encoding="utf-8")
+    db_password_file = tmp_path / "database-password"
+    db_password_file.write_text("super-secret-db-password", encoding="utf-8")
+    oidc_secret_file = tmp_path / "oidc-client-secret"
+    oidc_secret_file.write_text("oidc-secret-from-service", encoding="utf-8")
     monkeypatch.setenv("LX_ANNOTATE_DATA_DIR", str(app_data_dir))
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
     monkeypatch.setenv("ENFORCE_AUTH", "0")
-    monkeypatch.setenv("DJANGO_SECRET_KEY", "p" * 64)
+    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+    monkeypatch.setenv("DJANGO_SECRET_KEY_FILE", str(django_secret_file))
     monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "annotate.example.test,localhost")
     monkeypatch.setenv("DJANGO_CSRF_TRUSTED_ORIGINS", "https://annotate.example.test")
     monkeypatch.setenv("DJANGO_CORS_ALLOWED_ORIGINS", "https://frontend.example.test")
@@ -511,11 +519,13 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
     monkeypatch.setenv("DJANGO_STATIC_ROOT", str(static_root))
     monkeypatch.setenv("DJANGO_DB_NAME", "lxAnnotateLocal")
     monkeypatch.setenv("DJANGO_DB_USER", "lxAnnotateLocal")
-    monkeypatch.setenv("DJANGO_DB_PASSWORD", "super-secret-db-password")
+    monkeypatch.delenv("DJANGO_DB_PASSWORD", raising=False)
+    monkeypatch.setenv("DJANGO_DB_PASSWORD_FILE", str(db_password_file))
     monkeypatch.setenv("DJANGO_DB_HOST", "postgres.internal")
     monkeypatch.setenv("DJANGO_DB_PORT", "5434")
     monkeypatch.setenv("DJANGO_DB_SSLMODE", "require")
-    monkeypatch.setenv("OIDC_RP_CLIENT_SECRET", "oidc-secret-from-service")
+    monkeypatch.delenv("OIDC_RP_CLIENT_SECRET", raising=False)
+    monkeypatch.setenv("DJANGO_KEYCLOAK_CLIENT_SECRET_FILE", str(oidc_secret_file))
     monkeypatch.setenv("DJANGO_DEBUG", "False")
 
     sys.modules.pop("endoreg_db.config.settings.keycloak", None)

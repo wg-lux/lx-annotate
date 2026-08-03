@@ -22,6 +22,26 @@ export type ReportDraftResponse = {
   updated_at?: string | null
 }
 
+type PersistedReportTemplateIdentity = {
+  moduleName: string
+  knowledgeBaseVersion: string
+  templateVersion: string
+  templateHash: string
+  lifecycleStatus: string
+}
+
+export function serializeDraftTemplateIdentity(
+  identity: ReportTemplateIdentity
+): PersistedReportTemplateIdentity {
+  return {
+    moduleName: identity.moduleName ?? '',
+    knowledgeBaseVersion: identity.knowledgeBaseVersion ?? '',
+    templateVersion: identity.templateVersion ?? '',
+    templateHash: identity.templateHash ?? '',
+    lifecycleStatus: identity.lifecycleStatus ?? ''
+  }
+}
+
 export async function fetchPatientExaminationDraft(
   patientExaminationId: number
 ): Promise<ReportDraftResponse> {
@@ -54,7 +74,9 @@ export async function savePatientExaminationDraft(params: {
     {
       moduleName: params.moduleName,
       templateName: params.templateName || '',
-      ...(params.templateIdentity ? { templateIdentity: params.templateIdentity } : {}),
+      ...(params.templateIdentity
+        ? { templateIdentity: serializeDraftTemplateIdentity(params.templateIdentity) }
+        : {}),
       payload: params.payload
     }
   )

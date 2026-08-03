@@ -110,7 +110,7 @@ Inside `frontend`, the `flake.nix` provides a Node.js and npm development
 environment.
 
 Backend to frontend `snake_case` to `camelCase` conversion is handled by
-[axiosInstance.ts](/home/admin/dev/lx-annotate/frontend/src/api/axiosInstance.ts).
+[axiosInstance.ts](frontend/src/api/axiosInstance.ts).
 
 The backend views and urls are located inside:
 

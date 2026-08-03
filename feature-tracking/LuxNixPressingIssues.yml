@@ -15,6 +15,56 @@ source_documents:
   disposition: reference
   note: LX-Annotate view of the active LuxNix deployment contract and remaining gaps.
 definition_of_done:
+- id: release_0_9_53_wheel_consumption
+  category: operations
+  title: LuxNix consumes the verified LX-Annotate 0.9.53 wheel safely
+  acceptance:
+  - The LuxNix wheel URL and SHA-256 pin are updated only after 0.9.53 is published to PyPI, and the inferred
+    package version evaluates to exactly 0.9.53.
+  - The pinned PyPI digest matches the release evidence recorded for the tested LX-Annotate wheel; LuxNix
+    does not rebuild or substitute an unreviewed source checkout for production wheel mode.
+  - Nix package evaluation and the LX-Annotate NixOS virtual-machine test pass with the pinned wheel and
+    the production systemd environment, including the governed terminology registry and host adapter settings.
+  - Installed-service smoke checks cover Django readiness, the canonical /dtypes-api/ routes, reporting-language
+    discovery, report-template retrieval, persisted-ledger validation, and report draft save and reload.
+  - Upgrade ordering, migration compatibility, and a rollback to the previously pinned 0.9.52 wheel are
+    demonstrated on a disposable production-like host before the production option is promoted.
+  - The LuxNix commit that changes the wheel pin records the PyPI artifact identity and links to the completed
+    LX-Annotate 0.9.53 release evidence.
+  required: true
+  verification:
+    kind: manual
+    instructions: After PyPI publication, update the immutable wheel pin, run package evaluation and the
+      NixOS virtual-machine lane, then exercise installed-service upgrade, API smoke, and rollback on
+      a disposable production-like host.
+    timeout_seconds: 3600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: /home/admin/luxnix/modules/nixos/services/lx-annotate-local/options.nix
+    - kind: code
+      reference: /home/admin/luxnix/modules/nixos/services/lx-annotate-local/config.nix
+    - kind: command
+      reference: '/home/admin/luxnix focused wheel/runtime tests: 9 passed'
+    - kind: command
+      reference: 'nix build .#checks.x86_64-linux.nixtests --no-link: passed'
+    - kind: command
+      reference: '/home/admin/luxnix focused wheel/version contract: 9 passed; Nix parse passed; full
+        nixtests passed'
+    - kind: command
+      reference: 'installed 0.9.53 candidate API smoke: draft roundtrip passed with production RBAC; language/active
+        terminology dependency blockers confirmed'
+    note: LuxNix remains correctly pinned to immutable lx-annotate 0.9.52. The wheel installer now fails
+      closed when wheelPath/packageVersion is missing, includes the expected version in the content-addressed
+      installation stamp, and verifies installed importlib.metadata on every invocation before writing
+      the stamp. Focused installer/evaluation tests passed, including a deliberate filename/metadata mismatch.
+      Promotion is additionally blocked because the 0.9.53 installed-artifact smoke against published
+      lx-dtypes 0.2.9 lacks /dtypes-api/reporting/languages and an active terminology identity. Update
+      options.nix only after clean lx-dtypes and lx-annotate releases exist; then pin the published 0.9.53
+      digest and repeat NixOS VM upgrade/API/rollback validation.
+    assessed_by: codex/root
+    assessed_at: '2026-07-31T12:36:41.141503Z'
 - id: deployment_scope
   category: requirements
   title: The canonical LuxNix LX-Annotate topology is explicit

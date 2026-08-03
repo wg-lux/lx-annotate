@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive, ref } from 'vue'
 
 import ReportingShell from '../ReportingShell.vue'
@@ -47,10 +47,12 @@ const hoisted = vi.hoisted(() => {
     reportDraftApi: {
       fetchPatientExaminationDraft: vi.fn()
     },
+    reportingLanguagesApi: {
+      fetchReportingLanguages: vi.fn()
+    },
     terminologyStore: {
       bundles: [],
       activeBundle: null as TerminologyBundleVersion | null,
-      registryPath: '',
       loading: false,
       selecting: false,
       error: null as string | null,
@@ -68,7 +70,9 @@ const hoisted = vi.hoisted(() => {
       ),
       findBundleByKey: vi.fn(),
       importBundle: vi.fn(),
+      importBundles: vi.fn(),
       importBundleFolder: vi.fn(),
+      importBundleFolders: vi.fn(),
       loadBundles: vi.fn(),
       selectBundle: vi.fn(),
       setMedicalField: vi.fn()
@@ -84,12 +88,33 @@ const hoisted = vi.hoisted(() => {
 })
 
 vi.mock('@/stores/reportingFlowStore', () => ({
+  isVerifiedRuntimeDraftForBundle: (
+    draft: ReportingRuntimeDraft | null,
+    bundle: TerminologyBundleVersion | null,
+    patientExaminationId?: number | null
+  ) => {
+    if (!draft || !bundle || draft.verificationStatus !== 'verified' || !draft.templateName) {
+      return false
+    }
+    if (patientExaminationId && draft.patientExaminationId !== patientExaminationId) return false
+    const moduleName =
+      draft.templateIdentity?.moduleName || draft.payload.knowledgeBaseModule || draft.moduleName
+    const version =
+      draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
+    return moduleName === bundle.moduleName && version === bundle.version
+  },
   useReportingFlowStore: () => hoisted.flowRef.current
 }))
 
-vi.mock('@/stores/terminologyStore', () => ({
-  useTerminologyStore: () => hoisted.terminologyStore
-}))
+vi.mock('@/stores/terminologyStore', async () => {
+  const { reactive: makeReactive } = await vi.importActual<typeof import('vue')>('vue')
+  const terminologyStore = makeReactive(hoisted.terminologyStore)
+  return {
+    terminologyBatchImportMessage: (result: { imported: unknown[]; failures: unknown[] }) =>
+      `${result.imported.length} Pakete installiert`,
+    useTerminologyStore: () => terminologyStore
+  }
+})
 
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
@@ -116,11 +141,17 @@ vi.mock('@/api/findingsApi', () => ({
 vi.mock('@/api/reportTemplatesApi', () => ({
   fetchReportTemplatesByExamination: hoisted.reportTemplatesApi.fetchReportTemplatesByExamination,
   fetchReportTemplateByName: hoisted.reportTemplatesApi.fetchReportTemplateByName,
-  buildReportTemplateRuntimePayload: hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload
+  buildReportTemplateRuntimePayload: hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload,
+  describeReportTemplateTitle: (name: string) =>
+    name === 'colonoscopy_training_basic' ? 'Koloskopie – S2k-Qualitätsdokumentation' : name
 }))
 
 vi.mock('@/api/reportDraftApi', () => ({
   fetchPatientExaminationDraft: hoisted.reportDraftApi.fetchPatientExaminationDraft
+}))
+
+vi.mock('@/api/reportingLanguagesApi', () => ({
+  fetchReportingLanguages: hoisted.reportingLanguagesApi.fetchReportingLanguages
 }))
 
 vi.mock('@/api/reportingTimelineApi', () => ({
@@ -145,6 +176,7 @@ function buildFlowStore() {
   type TemplateSelection = {
     moduleName?: string
     templateName?: string | null
+    templateIdentity?: unknown
   }
 
   const flow = reactive({
@@ -155,6 +187,7 @@ function buildFlowStore() {
     selectedPatientId: 42 as number | null,
     selectedExaminationId: 9 as number | null,
     selectedKbModule: 'report_template_examples',
+    selectedReportLanguage: 'de' as 'de' | 'en',
     selectedTemplateName: null as string | null,
     currentRuntimeDraft: null as ReportingRuntimeDraft | null,
     runtimeDraftsByPatientExaminationId: {} as Record<string, ReportingRuntimeDraft>,
@@ -164,6 +197,7 @@ function buildFlowStore() {
     draftPersistenceStatus: 'idle' as 'idle' | 'saving' | 'saved' | 'error',
     draftPersistenceError: null as string | null,
     lastPersistedDraftAt: null as string | null,
+    hasUnpersistedDraftChanges: false,
     setCaseSelection: vi.fn(),
     setCaseContext: vi.fn((payload: CaseContext) => {
       flow.caseId = payload.caseId
@@ -181,12 +215,16 @@ function buildFlowStore() {
       if (payload.moduleName !== undefined) flow.selectedKbModule = payload.moduleName
       if (payload.templateName !== undefined) flow.selectedTemplateName = payload.templateName
     }),
+    setReportLanguage: vi.fn((language: 'de' | 'en') => {
+      flow.selectedReportLanguage = language
+    }),
     setIndications: vi.fn(),
     clearRuntimeDraft: vi.fn(() => {
       flow.currentRuntimeDraft = null
       delete flow.runtimeDraftsByPatientExaminationId['314']
     }),
     clearTemplateSectionDrafts: vi.fn(),
+    flushDraftAutosave: vi.fn().mockResolvedValue(undefined),
     setLastTemplateValidation: vi.fn(),
     setRuntimeDraft: vi.fn((payload: ReportingRuntimeDraft) => {
       flow.currentRuntimeDraft = payload
@@ -220,8 +258,18 @@ function buildFlowStore() {
   return flow
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+  return { promise, resolve }
+}
+
+const mountedShells: Array<ReturnType<typeof mount>> = []
+
 function mountShell() {
-  return mount(ReportingShell, {
+  const wrapper = mount(ReportingShell, {
     global: {
       stubs: {
         RouterLink: true,
@@ -229,25 +277,59 @@ function mountShell() {
       }
     }
   })
+  mountedShells.push(wrapper)
+  return wrapper
 }
 
 describe('ReportingShell media preload', () => {
+  afterEach(() => {
+    for (const wrapper of mountedShells.splice(0)) wrapper.unmount()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.routeRef.current = reactive({
+      path: '/reporting/314/findings',
+      params: { patient_examination_id: '314' }
+    })
     hoisted.useAuthenticatedVideoStream.mockReturnValue({
       playbackError: ref(null),
       playbackSourceUrl: ref(''),
       playbackMode: ref('idle'),
       isHlsPlayback: ref(false)
     })
-    hoisted.terminologyStore.activeBundle = null
+    hoisted.terminologyStore.activeBundle = {
+      moduleName: 'report_template_examples',
+      version: '1.0.0',
+      medicalField: 'gastroenterology',
+      isActive: true
+    }
     hoisted.terminologyStore.activeModuleName = 'report_template_examples'
+    hoisted.terminologyStore.activeBundleKey = 'report_template_examples@@1.0.0'
     hoisted.terminologyStore.selectedMedicalField = 'gastroenterology'
     hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined)
     hoisted.flowRef.current = reactive(buildFlowStore())
+    hoisted.reportingLanguagesApi.fetchReportingLanguages.mockResolvedValue({
+      defaultLanguage: 'de',
+      languages: [
+        { code: 'de', label: 'Deutsch' },
+        { code: 'en', label: 'English' }
+      ]
+    })
     hoisted.findingsApi.getExaminationFindings.mockResolvedValue([])
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
-      { name: 'default_template', examination: 'colonoscopy' }
+      {
+        name: 'default_template',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '1.0.0',
+          templateVersion: null,
+          templateHash: null,
+          lifecycleStatus: 'published',
+          readiness: null
+        }
+      }
     ])
     hoisted.reportTemplatesApi.fetchReportTemplateByName.mockResolvedValue({
       name: 'default_template',
@@ -406,6 +488,106 @@ describe('ReportingShell media preload', () => {
     expect(hoisted.routerRef.current.push).toHaveBeenCalledWith('/reporting/315/findings')
   })
 
+  it('discards a late bootstrap response after a rapid examination switch', async () => {
+    const delayedFirstDetail = deferred<{ data: Record<string, unknown> }>()
+    const defaultGet = hoisted.axiosApi.get.getMockImplementation()
+    hoisted.axiosApi.get.mockImplementation((url: string, ...args: unknown[]) => {
+      if (url === 'patient-examinations/314/') return delayedFirstDetail.promise
+      if (url === 'patient-examinations/315/') {
+        return Promise.resolve({
+          data: {
+            id: 315,
+            examination: { id: 10, name: 'gastroscopy' },
+            patient: { id: 42 },
+            date_start: '2026-03-11'
+          }
+        })
+      }
+      return defaultGet?.(url, ...args)
+    })
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+    hoisted.flowRef.current.selectedTemplateName = 'default_template'
+
+    mountShell()
+    await vi.waitFor(() => {
+      expect(hoisted.axiosApi.get).toHaveBeenCalledWith('patient-examinations/314/')
+    })
+
+    hoisted.routeRef.current.path = '/reporting/315/findings'
+    hoisted.routeRef.current.params.patient_examination_id = '315'
+    await flushPromises()
+    delayedFirstDetail.resolve({
+      data: {
+        id: 314,
+        examination: { id: 9, name: 'colonoscopy' },
+        patient: { id: 99 },
+        date_start: '2026-03-10'
+      }
+    })
+    await flushPromises()
+
+    const verifiedDraftCalls = hoisted.flowRef.current.setRuntimeDraft.mock.calls
+      .map(([draft]) => draft as ReportingRuntimeDraft)
+      .filter((draft) => draft.verificationStatus === 'verified')
+    expect(verifiedDraftCalls.some((draft) => draft.patientExaminationId === 315)).toBe(true)
+    expect(verifiedDraftCalls.some((draft) => draft.patientExaminationId === 314)).toBe(false)
+    expect(hoisted.flowRef.current.patientExaminationId).toBe(315)
+  })
+
+  it('flushes the current draft before switching examinations', async () => {
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+    hoisted.flowRef.current.hasUnpersistedDraftChanges = true
+    const wrapper = mountShell()
+    await flushPromises()
+    hoisted.flowRef.current.setPatientExaminationContext.mockClear()
+
+    await wrapper.get('[data-testid="patient-examination-select"]').setValue('315')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.flushDraftAutosave).toHaveBeenCalledTimes(1)
+    expect(hoisted.flowRef.current.setPatientExaminationContext).toHaveBeenCalledWith({
+      patientExaminationId: 315,
+      selectedPatientId: 42,
+      selectedExaminationId: 10
+    })
+    expect(hoisted.flowRef.current.flushDraftAutosave.mock.invocationCallOrder[0]).toBeLessThan(
+      hoisted.flowRef.current.setPatientExaminationContext.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('keeps the current examination when its draft cannot be saved', async () => {
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+    hoisted.flowRef.current.hasUnpersistedDraftChanges = true
+    hoisted.flowRef.current.flushDraftAutosave.mockRejectedValueOnce(new Error('save unavailable'))
+    const wrapper = mountShell()
+    await flushPromises()
+    hoisted.flowRef.current.setPatientExaminationContext.mockClear()
+    hoisted.routerRef.current.push.mockClear()
+
+    await wrapper.get('[data-testid="patient-examination-select"]').setValue('315')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.patientExaminationId).toBe(314)
+    expect(hoisted.flowRef.current.setPatientExaminationContext).not.toHaveBeenCalled()
+    expect(hoisted.routerRef.current.push).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Die Untersuchung wurde nicht gewechselt')
+  })
+
   it('bootstraps a local runtime draft from patient examination context on route entry', async () => {
     hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
       patient: { id: 42 },
@@ -422,11 +604,190 @@ describe('ReportingShell media preload', () => {
       'colonoscopy'
     )
     expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
-    expect(hoisted.flowRef.current.setRuntimeDraft).not.toHaveBeenCalled()
-    const templateSelect = wrapper.get('[data-testid="report-template-select"]')
-    expect(templateSelect.findAll('option').map((option) => option.text())).toContain(
-      'default_template'
+    expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patientExaminationId: 314,
+        moduleName: 'report_template_examples',
+        templateName: null,
+        verificationStatus: 'unverified'
+      })
     )
+    const templateSelect = wrapper.get('[data-testid="report-template-select"]')
+    expect(
+      templateSelect
+        .findAll('option')
+        .map((option) => option.text())
+        .some((label) => label.includes('default_template'))
+    ).toBe(true)
+  })
+
+  it('does not request report templates without an active terminology bundle', async () => {
+    hoisted.terminologyStore.activeBundle = null
+    hoisted.terminologyStore.activeModuleName = 'report_template_examples'
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.loadBundles).toHaveBeenCalled()
+    expect(hoisted.flowRef.current.setTemplateSelection).toHaveBeenCalledWith({
+      moduleName: '',
+      templateName: null,
+      templateIdentity: null
+    })
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
+    expect(hoisted.reportTemplatesApi.fetchReportTemplateByName).not.toHaveBeenCalled()
+    expect(hoisted.reportDraftApi.fetchPatientExaminationDraft).toHaveBeenCalledWith(314)
+    expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patientExaminationId: 314,
+        moduleName: '',
+        templateName: null,
+        verificationStatus: 'unverified'
+      })
+    )
+    expect(wrapper.text()).toContain('Keine aktive Terminologie')
+  })
+
+  it('recovers template loading immediately after a successful terminology import', async () => {
+    hoisted.terminologyStore.activeBundle = null
+    hoisted.terminologyStore.activeModuleName = ''
+    hoisted.terminologyStore.activeBundleKey = ''
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+    hoisted.terminologyStore.importBundleFolders.mockImplementation(async function (
+      this: typeof hoisted.terminologyStore
+    ) {
+      const imported = {
+        moduleName: 'colonoscopy_reporting',
+        version: '2.0.0',
+        medicalField: 'gastroenterology' as const,
+        isActive: true
+      }
+      this.activeBundle = imported
+      this.activeModuleName = imported.moduleName
+      this.activeBundleKey = `${imported.moduleName}@@${imported.version}`
+      return { imported: [imported], failures: [] }
+    })
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
+      {
+        name: 'colonoscopy_published',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'colonoscopy_reporting',
+          knowledgeBaseVersion: '2.0.0',
+          templateVersion: '1',
+          templateHash: 'hash-1',
+          lifecycleStatus: 'published',
+          readiness: null
+        }
+      }
+    ])
+
+    const wrapper = mountShell()
+    await flushPromises()
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockClear()
+    const folderInput = wrapper.get('input[webkitdirectory]')
+    Object.defineProperty(folderInput.element, 'files', {
+      value: [new File(['name: colonoscopy_reporting'], 'config.yaml')],
+      configurable: true
+    })
+
+    await folderInput.trigger('change')
+    await flushPromises()
+
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
+      'colonoscopy_reporting',
+      'colonoscopy'
+    )
+    expect(wrapper.get('[data-testid="report-template-select"]').text()).toContain(
+      'colonoscopy_published'
+    )
+  })
+
+  it('keeps a draft from another knowledge base unverified and inactive', async () => {
+    hoisted.terminologyStore.activeBundle = {
+      moduleName: 'colonoscopy_reporting',
+      version: '2.0.0',
+      medicalField: 'gastroenterology',
+      isActive: true
+    }
+    hoisted.terminologyStore.activeModuleName = 'colonoscopy_reporting'
+    hoisted.terminologyStore.activeBundleKey = 'colonoscopy_reporting@@2.0.0'
+    const staleDraft: ReportingRuntimeDraft = {
+      draftId: 'draft_314',
+      patientExaminationId: 314,
+      moduleName: 'report_template_examples',
+      templateName: 'same_name',
+      templateIdentity: {
+        moduleName: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0',
+        templateVersion: '1',
+        templateHash: null,
+        lifecycleStatus: 'published',
+        readiness: null
+      },
+      hydratedFrom: 'session_storage',
+      updatedAt: '2026-03-19T12:00:00.000Z',
+      payload: {
+        patient: 'patient_42',
+        examiners: [],
+        examination: 'colonoscopy',
+        knowledgeBaseModule: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0',
+        patientFindings: []
+      }
+    }
+    hoisted.flowRef.current.currentRuntimeDraft = staleDraft
+    hoisted.flowRef.current.runtimeDraftsByPatientExaminationId = { '314': staleDraft }
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
+      {
+        name: 'same_name',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'colonoscopy_reporting',
+          knowledgeBaseVersion: '2.0.0',
+          templateVersion: '1',
+          templateHash: null,
+          lifecycleStatus: 'published',
+          readiness: null
+        }
+      }
+    ])
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        moduleName: 'report_template_examples',
+        verificationStatus: 'unverified'
+      })
+    )
+    expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('keiner aktuell veröffentlichten und kompatiblen')
+  })
+
+  it('leaves template loading retryable after a template endpoint error', async () => {
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockRejectedValue({
+      response: { status: 409, data: { detail: 'active bundle changed' } }
+    })
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const templateSelect = wrapper.get('[data-testid="report-template-select"]')
+    expect(templateSelect.text()).not.toContain('Vorlagen werden geladen')
+    expect(wrapper.text()).toContain('active bundle changed')
   })
 
   it('reuses an existing local runtime draft instead of rebuilding it', async () => {
@@ -441,6 +802,14 @@ describe('ReportingShell media preload', () => {
       patientExaminationId: 314,
       moduleName: 'report_template_examples',
       templateName: 'restored_template',
+      templateIdentity: {
+        moduleName: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0',
+        templateVersion: null,
+        templateHash: null,
+        lifecycleStatus: 'published',
+        readiness: null
+      },
       hydratedFrom: 'session_storage',
       updatedAt: '2026-03-19T12:00:00.000Z',
       payload: {
@@ -448,7 +817,7 @@ describe('ReportingShell media preload', () => {
         examiners: [],
         examination: 'colonoscopy',
         knowledgeBaseModule: 'report_template_examples',
-        knowledgeBaseVersion: null,
+        knowledgeBaseVersion: '1.0.0',
         patientFindings: []
       }
     }
@@ -456,17 +825,191 @@ describe('ReportingShell media preload', () => {
       '314': hoisted.flowRef.current.currentRuntimeDraft
     }
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
-      { name: 'restored_template', examination: 'colonoscopy' }
+      {
+        name: 'restored_template',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '1.0.0',
+          templateVersion: null,
+          templateHash: null,
+          lifecycleStatus: 'published',
+          readiness: null
+        }
+      }
     ])
 
     mountShell()
     await flushPromises()
 
     expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
-    expect(hoisted.flowRef.current.setTemplateSelection).toHaveBeenCalledWith({
-      moduleName: 'report_template_examples',
-      templateName: 'restored_template'
+    expect(hoisted.flowRef.current.setTemplateSelection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        moduleName: 'report_template_examples',
+        templateName: 'restored_template'
+      })
+    )
+  })
+
+  it('keeps descriptor-backed medication rules open until a dose is entered', async () => {
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
     })
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
+      {
+        name: 'medication_template',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '1.0.0',
+          templateVersion: null,
+          templateHash: null,
+          lifecycleStatus: 'published',
+          readiness: null
+        }
+      }
+    ])
+    hoisted.reportTemplatesApi.fetchReportTemplateByName.mockResolvedValue({
+      name: 'medication_template',
+      examination: 'colonoscopy',
+      reportSections: [
+        {
+          name: 'indikation_und_sedierung',
+          position: 1,
+          sectionKind: 'findings',
+          fields: [],
+          types: ['baseline'],
+          findings: [
+            {
+              finding: 'endoscopy_medication_administration',
+              required: false,
+              multipleAllowed: true,
+              classifications: [
+                {
+                  classification: 'endoscopy_medication_product_and_dose',
+                  required: true,
+                  input: {
+                    choices: [
+                      {
+                        name: 'medication_propofol',
+                        descriptors: [
+                          {
+                            name: 'propofol_dose_mg_value',
+                            type: 'numeric',
+                            unit: 'milligram',
+                            unitAbbreviation: 'mg',
+                            numericMin: 0,
+                            numericMax: 2000
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  classification: 'medication_administration_time',
+                  required: true,
+                  input: {
+                    choices: [
+                      {
+                        name: 'medication_administration_time_recorded',
+                        descriptors: [
+                          {
+                            name: 'medication_administration_time_value',
+                            type: 'text',
+                            unit: null,
+                            unitAbbreviation: null,
+                            numericMin: null,
+                            numericMax: null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      validators: {
+        findingsValidators: [],
+        examinationValidators: []
+      }
+    })
+    const draft: ReportingRuntimeDraft = {
+      draftId: 'draft_314',
+      patientExaminationId: 314,
+      moduleName: 'report_template_examples',
+      templateName: 'medication_template',
+      templateIdentity: {
+        moduleName: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0',
+        templateVersion: null,
+        templateHash: null,
+        lifecycleStatus: 'published',
+        readiness: null
+      },
+      hydratedFrom: 'session_storage',
+      updatedAt: '2026-03-19T12:00:00.000Z',
+      payload: {
+        patient: 'patient_42',
+        examiners: [],
+        examination: 'colonoscopy',
+        knowledgeBaseModule: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0',
+        patientFindings: [
+          {
+            finding: 'endoscopy_medication_administration',
+            classificationChoices: [
+              {
+                classification: 'endoscopy_medication_product_and_dose',
+                classificationChoice: 'medication_propofol',
+                descriptors: []
+              },
+              {
+                classification: 'medication_administration_time',
+                classificationChoice: 'medication_administration_time_recorded',
+                descriptors: []
+              }
+            ]
+          }
+        ]
+      }
+    }
+    hoisted.flowRef.current.currentRuntimeDraft = draft
+    hoisted.flowRef.current.runtimeDraftsByPatientExaminationId = { '314': draft }
+    hoisted.flowRef.current.selectedTemplateName = 'medication_template'
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const statusRows = wrapper.findAll('.finding-status-row')
+    expect(statusRows).toHaveLength(1)
+    expect(statusRows[0].classes()).toContain('is-warning')
+
+    hoisted.flowRef.current.currentRuntimeDraft?.payload.patientFindings[0].classificationChoices[0].descriptors.push(
+      {
+        classificationChoiceDescriptor: 'propofol_dose_mg_value',
+        descriptorValue: 120
+      }
+    )
+    await wrapper.vm.$nextTick()
+
+    expect(statusRows[0].classes()).toContain('is-warning')
+
+    hoisted.flowRef.current.currentRuntimeDraft?.payload.patientFindings[0].classificationChoices[1].descriptors.push(
+      {
+        classificationChoiceDescriptor: 'medication_administration_time_value',
+        descriptorValue: '10:30'
+      }
+    )
+    await wrapper.vm.$nextTick()
+
+    expect(statusRows[0].classes()).toContain('is-complete')
   })
 
   it('restores a persisted backend draft before rebuilding from patient examination detail', async () => {
@@ -481,17 +1024,39 @@ describe('ReportingShell media preload', () => {
       draft: {
         module_name: 'report_template_examples',
         template_name: 'persisted_template',
+        templateIdentity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '1.0.0',
+          templateVersion: null,
+          templateHash: null,
+          lifecycleStatus: 'published',
+          readiness: null
+        },
         payload: {
           patient: 'patient_42',
           examiners: ['dr_house'],
           examination: 'colonoscopy',
           knowledgeBaseModule: 'report_template_examples',
-          knowledgeBaseVersion: null,
+          knowledgeBaseVersion: '1.0.0',
           patientFindings: []
         }
       },
       updated_at: '2026-03-19T13:00:00.000Z'
     })
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
+      {
+        name: 'persisted_template',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '1.0.0',
+          templateVersion: null,
+          templateHash: null,
+          lifecycleStatus: 'published',
+          readiness: null
+        }
+      }
+    ])
 
     mountShell()
     await flushPromises()
@@ -540,8 +1105,10 @@ describe('ReportingShell media preload', () => {
     const wrapper = mountShell()
     await flushPromises()
 
-    expect(hoisted.flowRef.current.clearRuntimeDraft).toHaveBeenCalledWith(314)
-    expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalled()
+    expect(hoisted.flowRef.current.clearRuntimeDraft).not.toHaveBeenCalled()
+    expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ verificationStatus: 'unverified' })
+    )
     expect(wrapper.text()).toContain('gespeicherte Entwurf')
   })
 
@@ -681,8 +1248,27 @@ describe('ReportingShell media preload', () => {
     expect(guide.text()).toContain('Befunde erfassen')
   })
 
+  it('loads and applies the report language contract', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const languageSelect = wrapper.get('[data-testid="report-language-select"]')
+    expect(languageSelect.findAll('option').map((option) => option.text())).toEqual([
+      'Deutsch',
+      'English'
+    ])
+
+    await languageSelect.setValue('en')
+
+    expect(hoisted.flowRef.current.setReportLanguage).toHaveBeenCalledWith('en')
+    expect(hoisted.flowRef.current.selectedReportLanguage).toBe('en')
+  })
+
   it('imports all files selected through the terminology folder picker', async () => {
-    hoisted.terminologyStore.importBundleFolder.mockResolvedValue({ ok: true })
+    hoisted.terminologyStore.importBundleFolders.mockResolvedValue({
+      imported: [{ moduleName: 'custom', version: '1' }],
+      failures: []
+    })
     const wrapper = mountShell()
     await flushPromises()
     const folderInput = wrapper.get('input[webkitdirectory]')
@@ -692,27 +1278,99 @@ describe('ReportingShell media preload', () => {
     await folderInput.trigger('change')
     await flushPromises()
 
-    expect(hoisted.terminologyStore.importBundleFolder).toHaveBeenCalledWith(files)
-    expect(wrapper.text()).toContain('Terminologieordner importiert und geladen.')
+    expect(hoisted.terminologyStore.importBundleFolders).toHaveBeenCalledWith(files)
+    expect(wrapper.text()).toContain('1 Pakete installiert')
   })
 
-  it('keeps direct ZIP import available for lx-terminology-editor exports', async () => {
-    hoisted.terminologyStore.importBundle.mockResolvedValue({ ok: true })
+  it('saves dirty annotation state before importing terminology folders', async () => {
+    hoisted.flowRef.current.hasUnpersistedDraftChanges = true
+    hoisted.terminologyStore.importBundleFolders.mockResolvedValue({
+      imported: [{ moduleName: 'custom', version: '1' }],
+      failures: []
+    })
+    const wrapper = mountShell()
+    await flushPromises()
+    const folderInput = wrapper.get('input[webkitdirectory]')
+    const files = [new File(['name: custom\nversion: "1"\n'], 'config.yaml')]
+    Object.defineProperty(folderInput.element, 'files', { value: files, configurable: true })
+
+    await folderInput.trigger('change')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.flushDraftAutosave).toHaveBeenCalled()
+    expect(hoisted.flowRef.current.flushDraftAutosave.mock.invocationCallOrder[0]).toBeLessThan(
+      hoisted.terminologyStore.importBundleFolders.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('does not import terminology when dirty annotation state cannot be saved', async () => {
+    hoisted.flowRef.current.hasUnpersistedDraftChanges = true
+    hoisted.flowRef.current.flushDraftAutosave.mockRejectedValueOnce(new Error('save unavailable'))
+    const wrapper = mountShell()
+    await flushPromises()
+    const folderInput = wrapper.get('input[webkitdirectory]')
+    Object.defineProperty(folderInput.element, 'files', {
+      value: [new File(['name: custom'], 'config.yaml')],
+      configurable: true
+    })
+
+    await folderInput.trigger('change')
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.importBundleFolders).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('save unavailable')
+  })
+
+  it('keeps the current draft when an explicitly selected template was depublished', async () => {
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValueOnce([
+      {
+        name: 'replacement_template',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '1.0.0',
+          lifecycleStatus: 'published'
+        }
+      }
+    ])
+    const wrapper = mountShell()
+    await flushPromises()
+    const draftBeforeSwitch = hoisted.flowRef.current.currentRuntimeDraft
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValueOnce([])
+
+    await wrapper.get('[data-testid="report-template-select"]').setValue('replacement_template')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.currentRuntimeDraft).toBe(draftBeforeSwitch)
+    expect(wrapper.text()).toContain('veröffentlichte Berichtsvorlage')
+  })
+
+  it('imports multiple ZIPs from local or cloud-backed file pickers', async () => {
+    hoisted.terminologyStore.importBundles.mockResolvedValue({
+      imported: [
+        { moduleName: 'custom', version: '1' },
+        { moduleName: 'additional', version: '2' }
+      ],
+      failures: []
+    })
     const wrapper = mountShell()
     await flushPromises()
     const zipInput = wrapper.get('input[accept=".zip,application/zip"]')
-    const editorZip = new File(['editor export'], 'custom_terminology.zip', {
+    const firstZip = new File(['editor export'], 'custom_terminology.zip', {
+      type: 'application/zip'
+    })
+    const secondZip = new File(['editor export'], 'additional_terminology.zip', {
       type: 'application/zip'
     })
     Object.defineProperty(zipInput.element, 'files', {
-      value: [editorZip],
+      value: [firstZip, secondZip],
       configurable: true
     })
 
     await zipInput.trigger('change')
     await flushPromises()
 
-    expect(hoisted.terminologyStore.importBundle).toHaveBeenCalledWith(editorZip)
-    expect(wrapper.text()).toContain('Terminologiepaket aus dem Editor importiert und geladen.')
+    expect(hoisted.terminologyStore.importBundles).toHaveBeenCalledWith([firstZip, secondZip])
+    expect(wrapper.text()).toContain('2 Pakete installiert')
   })
 })

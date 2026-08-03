@@ -253,6 +253,60 @@
           </button>
         </div>
 
+        <div class="terminology-import-panel mb-3" data-test="terminology-import-panel">
+          <input
+            ref="terminologyFolderInput"
+            class="visually-hidden"
+            type="file"
+            webkitdirectory
+            directory
+            multiple
+            data-test="terminology-folder-input"
+            @change="importTerminologyFolder"
+          />
+          <input
+            ref="terminologyZipInput"
+            class="visually-hidden"
+            type="file"
+            accept=".zip,application/zip"
+            multiple
+            data-test="terminology-zip-input"
+            @change="importTerminologyZip"
+          />
+          <div>
+            <strong>Terminologie bereitstellen</strong>
+            <p class="mb-0">
+              Wählen Sie einen Paketordner, einen Ordner mit mehreren Paketverzeichnissen oder
+              mehrere von lx-terminology-editor veröffentlichte ZIP-Pakete. Der ZIP-Dialog kann auch
+              Dateien aus eingebundenem Cloud-Speicher öffnen. Pakete werden einzeln geprüft und
+              nacheinander installiert; das zuletzt erfolgreiche Paket wird aktiviert. Annotationen
+              bleiben auch ohne aktives Paket verfügbar.
+            </p>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="btn btn-outline-primary mb-0"
+              data-test="import-terminology-folder"
+              :disabled="terminology.importing"
+              @click="terminologyFolderInput?.click()"
+            >
+              Paketverzeichnis(se) auswählen
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-primary mb-0"
+              data-test="import-terminology-zip"
+              :disabled="terminology.importing"
+              @click="terminologyZipInput?.click()"
+            >
+              {{
+                terminology.importing ? 'Pakete werden importiert…' : 'ZIPs lokal/Cloud auswählen'
+              }}
+            </button>
+          </div>
+        </div>
+
         <label class="settings-field">
           <span>Fachbereich</span>
           <select
@@ -296,8 +350,7 @@
               :key="terminology.bundleKey(bundle)"
               :value="terminology.bundleKey(bundle)"
             >
-              {{ bundle.moduleName }} · {{ bundle.version
-              }}{{ bundle.isActive ? ' · aktiv' : '' }}
+              {{ bundle.moduleName }} · {{ bundle.version }}{{ bundle.isActive ? ' · aktiv' : '' }}
             </option>
           </select>
         </label>
@@ -308,8 +361,10 @@
             <strong>{{ terminology.activeBundleLabel }}</strong>
           </div>
           <div class="backup-stat">
-            <span>Register</span>
-            <strong>{{ terminology.registryPath || 'Nicht gesetzt' }}</strong>
+            <span>Governance</span>
+            <strong>{{
+              terminology.activeBundle ? 'Verifiziertes Register' : 'Nicht bereit'
+            }}</strong>
           </div>
         </div>
 
@@ -441,11 +496,7 @@
           {{ aiDatasetExportMessage }}
         </div>
 
-        <dl
-          v-if="aiDatasetExportResult"
-          class="export-result"
-          data-test="ai-dataset-export-result"
-        >
+        <dl v-if="aiDatasetExportResult" class="export-result" data-test="ai-dataset-export-result">
           <div>
             <dt>SHA-256</dt>
             <dd>{{ aiDatasetExportResult.sha256 || 'Nicht verfügbar' }}</dd>
@@ -575,7 +626,7 @@ import {
 } from '@/api/applicationSettingsApi'
 import { isAxiosError } from 'axios'
 import type { MedicalField } from '@/api/terminologyApi'
-import { useTerminologyStore } from '@/stores/terminologyStore'
+import { terminologyBatchImportMessage, useTerminologyStore } from '@/stores/terminologyStore'
 import { useToastStore } from '@/stores/toastStore'
 import { computed, onMounted, reactive, ref } from 'vue'
 
@@ -621,6 +672,8 @@ const videoDimensionBackfillLimit = ref('')
 const videoDimensionBackfillRun = ref<ApplicationVideoDimensionBackfillRun | null>(null)
 const videoDimensionBackfillError = ref('')
 const selectedTerminologyKey = ref('')
+const terminologyFolderInput = ref<HTMLInputElement | null>(null)
+const terminologyZipInput = ref<HTMLInputElement | null>(null)
 
 const dropdowns = reactive<ApplicationSettingsDropdowns>({
   centers: [],
@@ -741,6 +794,9 @@ const terminologyStatusMessage = computed(() => {
     )
     return `Terminologie aktiviert: ${total} Einträge geladen.`
   }
+  if (!terminology.activeBundle) {
+    return 'Noch kein Terminologiepaket aktiv. Annotationen können unabhängig davon fortgesetzt werden.'
+  }
   return ''
 })
 
@@ -859,6 +915,42 @@ async function activateTerminologyBundle() {
     toast.success({ text: 'Terminologiepaket geladen.' })
   } catch (error) {
     console.error('Failed to activate terminology bundle:', error)
+  }
+}
+
+async function importTerminologyFolder(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length) return
+
+  try {
+    const result = await terminology.importBundleFolders(files)
+    selectedTerminologyKey.value = terminology.activeBundleKey
+    const message = { text: terminologyBatchImportMessage(result) }
+    if (result.failures.length) toast.warning(message)
+    else toast.success(message)
+  } catch (error) {
+    console.error('Failed to import terminology folder:', error)
+  } finally {
+    input.value = ''
+  }
+}
+
+async function importTerminologyZip(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length) return
+
+  try {
+    const result = await terminology.importBundles(files)
+    selectedTerminologyKey.value = terminology.activeBundleKey
+    const message = { text: terminologyBatchImportMessage(result) }
+    if (result.failures.length) toast.warning(message)
+    else toast.success(message)
+  } catch (error) {
+    console.error('Failed to import terminology ZIP:', error)
+  } finally {
+    input.value = ''
   }
 }
 
@@ -1296,6 +1388,20 @@ onMounted(() => {
 .terminology-summary {
   grid-template-columns: 1fr;
   margin-top: 1rem;
+}
+
+.terminology-import-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(17, 78, 121, 0.16);
+  border-radius: 0.95rem;
+  background: rgba(229, 243, 255, 0.45);
+}
+
+.terminology-import-panel p {
+  color: #607488;
+  line-height: 1.5;
 }
 
 .backup-stat,

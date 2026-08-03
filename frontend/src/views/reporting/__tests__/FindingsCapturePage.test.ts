@@ -30,6 +30,7 @@ const hoisted = vi.hoisted(() => {
       createFixtureRef<ReturnType<typeof buildFindingSelectors>>('finding selectors'),
     validateRuntime: vi.fn(),
     templateControls: {
+      annotationOnly: false,
       setModuleName: vi.fn(),
       selectTemplateByName: vi.fn().mockResolvedValue(undefined),
       fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
@@ -50,11 +51,15 @@ vi.mock('@/api/reportTemplatesApi', () => ({
 }))
 
 vi.mock('@/composables/reporting/useReportTemplates', () => ({
-  useReportTemplates: () => ({
-    moduleName: ref('report_template_examples'),
-    selectedTemplateName: ref('star_upper_gi_main'),
-    templateOptions: ref([{ name: 'star_upper_gi_main', examination: 'gastroscopy' }]),
-    selectedTemplate: ref({
+  useReportTemplates: () => {
+    const annotationOnly = hoisted.templateControls.annotationOnly
+    return {
+    moduleName: ref(annotationOnly ? '' : 'report_template_examples'),
+    selectedTemplateName: ref(annotationOnly ? null : 'star_upper_gi_main'),
+    templateOptions: ref(
+      annotationOnly ? [] : [{ name: 'star_upper_gi_main', examination: 'gastroscopy' }]
+    ),
+    selectedTemplate: ref(annotationOnly ? null : {
       name: 'star_upper_gi_main',
       examination: 'gastroscopy',
       reportSections: [],
@@ -63,7 +68,7 @@ vi.mock('@/composables/reporting/useReportTemplates', () => ({
         findingsValidators: []
       }
     }),
-    sectionBlocks: ref([
+    sectionBlocks: ref(annotationOnly ? [] : [
       {
         name: 'examination_baseline',
         position: 0,
@@ -75,8 +80,49 @@ vi.mock('@/composables/reporting/useReportTemplates', () => ({
             required: true,
             multipleAllowed: true,
             classifications: [
-              { classification: 'size_mm', required: true },
-              { classification: 'lst', required: false }
+              {
+                classification: 'size_mm',
+                required: true,
+                input: {
+                  choices: [
+                    {
+                      name: 'size_mm',
+                      descriptors: [
+                        {
+                          name: 'length_mm_descriptor',
+                          type: 'numeric',
+                          unit: 'milimeter',
+                          unitAbbreviation: 'mm',
+                          numericMin: 0,
+                          numericMax: 200
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              { classification: 'lst', required: false },
+              {
+                classification: 'medication_administration_time',
+                required: false,
+                input: {
+                  choices: [
+                    {
+                      name: 'medication_administration_time_recorded',
+                      descriptors: [
+                        {
+                          name: 'medication_administration_time_value',
+                          type: 'text',
+                          unit: null,
+                          unitAbbreviation: null,
+                          numericMin: null,
+                          numericMax: null
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
             ]
           }
         ],
@@ -90,7 +136,8 @@ vi.mock('@/composables/reporting/useReportTemplates', () => ({
     fetchTemplatesByExamination: hoisted.templateControls.fetchTemplatesByExamination,
     selectTemplateByName: hoisted.templateControls.selectTemplateByName,
     setModuleName: hoisted.templateControls.setModuleName
-  })
+  }
+  }
 }))
 
 vi.mock('@/stores/examinationStore', () => ({
@@ -233,7 +280,7 @@ function buildFindingSelectors() {
                 name: 'size_mm',
                 displayName: 'Size (mm)',
                 subcategories: {},
-                numericalDescriptors: { length_mm_descriptor: 0 }
+                numericalDescriptors: {}
               }
             ]
           },
@@ -297,6 +344,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.clearAllMocks()
+    hoisted.templateControls.annotationOnly = false
     hoisted.templateControls.fetchTemplatesByExamination.mockResolvedValue([])
     hoisted.templateControls.selectTemplateByName.mockResolvedValue(undefined)
     hoisted.flowRef.current = buildFlowStore()
@@ -349,6 +397,40 @@ describe('FindingsCapturePage runtime draft flow', () => {
     expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).toHaveBeenCalled()
   })
 
+  it('keeps catalog-backed finding capture available without terminology', async () => {
+    hoisted.templateControls.annotationOnly = true
+    hoisted.flowRef.current.selectedKbModule = ''
+    hoisted.flowRef.current.selectedTemplateName = null
+    hoisted.flowRef.current.currentRuntimeDraft.moduleName = ''
+    hoisted.flowRef.current.currentRuntimeDraft.templateName = ''
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Befunderfassung ohne Berichtsvorlage')
+    expect(wrapper.text()).toContain('Oesophagus Polyp')
+    expect(wrapper.find('[data-testid="validation-panel-stub"]').exists()).toBe(false)
+    expect(hoisted.validateRuntime).not.toHaveBeenCalled()
+
+    const addButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Befund hinzufügen'))
+    expect(addButton).toBeTruthy()
+    await addButton!.trigger('click')
+    expect(hoisted.flowRef.current.addFinding).toHaveBeenCalledWith({
+      findingName: 'esophagus_polyp'
+    })
+  })
+
+  it('renders the active knowledge-base module as read-only context', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+
+    const moduleInput = wrapper.find('input[value="report_template_examples"]')
+    expect(moduleInput.exists()).toBe(true)
+    expect(moduleInput.attributes()).toHaveProperty('readonly')
+  })
+
   it('updates classification values on the local draft and validates them', async () => {
     hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings = [
       {
@@ -383,5 +465,71 @@ describe('FindingsCapturePage runtime draft flow', () => {
       hoisted.flowRef.current.currentRuntimeDraft.payload
     )
     expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).toHaveBeenCalled()
+  })
+
+  it('renders and records numeric descriptors supplied by the compiled template', async () => {
+    hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings = [
+      {
+        localId: 'finding_1',
+        finding: 'esophagus_polyp',
+        classificationChoices: []
+      }
+    ]
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.findAll('select')[1].setValue('size_mm')
+    await flushPromises()
+
+    const descriptorInput = wrapper.get('input[type="number"]')
+    await descriptorInput.setValue('12')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.updateClassificationValue).toHaveBeenLastCalledWith({
+      findingLocalId: 'finding_1',
+      classificationName: 'size_mm',
+      classificationChoice: 'size_mm',
+      descriptors: [
+        {
+          localId: undefined,
+          classificationChoiceDescriptor: 'length_mm_descriptor',
+          descriptorValue: 12
+        }
+      ]
+    })
+  })
+
+  it('renders and records text descriptors supplied by the compiled template', async () => {
+    hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings = [
+      {
+        localId: 'finding_1',
+        finding: 'esophagus_polyp',
+        classificationChoices: []
+      }
+    ]
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.findAll('select')[3].setValue('medication_administration_time_recorded')
+    await flushPromises()
+
+    const descriptorInput = wrapper.get('.runtime-finding-instance input[type="text"]')
+    await descriptorInput.setValue('10:30')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.updateClassificationValue).toHaveBeenLastCalledWith({
+      findingLocalId: 'finding_1',
+      classificationName: 'medication_administration_time',
+      classificationChoice: 'medication_administration_time_recorded',
+      descriptors: [
+        {
+          localId: undefined,
+          classificationChoiceDescriptor: 'medication_administration_time_value',
+          descriptorValue: '10:30'
+        }
+      ]
+    })
   })
 })

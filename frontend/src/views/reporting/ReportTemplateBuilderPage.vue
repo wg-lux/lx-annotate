@@ -733,7 +733,7 @@ type RuntimeFindingDraft = {
   classificationChoices: RuntimeClassificationChoiceDraft[]
 }
 
-const moduleName = ref('report_template_examples')
+const moduleName = ref('')
 const templateName = ref('')
 const examination = ref('')
 const templateDescription = ref('')

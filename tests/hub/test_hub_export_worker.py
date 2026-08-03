@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import tempfile
+import json
 import requests
 from unittest.mock import MagicMock, patch
 from pathlib import Path
@@ -135,16 +136,25 @@ class HubExportWorkerTests(TestCase):
         self.assertEqual(transport.cert, (str(cert_file), str(key_file)))
         self.assertEqual(transport.verify, str(ca_file))
 
-    def test_run_outbound_transfer_job_rejects_non_https_hub_target(self):
+    def test_run_outbound_transfer_job_records_non_https_configuration_rejection(
+        self,
+    ) -> None:
         self.hub_node.base_url = "http://hub.example/"
         self.hub_node.save(update_fields=["base_url", "updated_at"])
 
-        with self.assertRaisesMessage(ValueError, "must use https"):
-            run_outbound_transfer_job(
+        with self.assertLogs("lx_annotate.hub_export.audit", level="INFO") as logs:
+            result = run_outbound_transfer_job(
                 outbound_job_id=str(self.job.id),
                 source_node_key=self.site_node.node_key,
                 source_secret="super-secret",
             )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(result.retry_count, 0)
+        self.assertIn("must use https", result.last_error)
+        event = json.loads(logs.records[-1].getMessage())
+        self.assertEqual(event["failure_class"], "configuration_rejection")
+        self.assertEqual(event["attempt_number"], 1)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_registers_and_uploads_processed_media(
@@ -256,51 +266,14 @@ class HubExportWorkerTests(TestCase):
         )
         post_mock.assert_not_called()
 
-    @patch("lx_annotate.hub.hub_export_worker.requests.get")
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
-    def test_run_outbound_transfer_job_reuses_existing_remote_transfer_on_409(
+    def test_run_outbound_transfer_job_rejects_canonical_replay_conflict_on_409(
         self,
         post_mock: MagicMock,
-        get_mock: MagicMock,
     ):
         conflict_response = MagicMock()
         conflict_response.status_code = 409
-
-        status_response = MagicMock()
-        status_response.json.return_value = self._remote_status(
-            transfer_status="awaiting_media",
-            processing_decision="wait_for_missing_media",
-        )
-        status_response.raise_for_status.return_value = None
-
-        upload_response = MagicMock()
-        upload_response.json.return_value = self._remote_status(
-            transfer_status="applied",
-            processing_decision="skip_processing_preserved_state",
-        )
-        upload_response.raise_for_status.return_value = None
-
-        post_mock.side_effect = [conflict_response, upload_response]
-        get_mock.return_value = status_response
-
-        result = run_outbound_transfer_job(
-            outbound_job_id=str(self.job.id),
-            source_node_key=self.site_node.node_key,
-            source_secret="super-secret",
-        )
-
-        self.assertEqual(
-            result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
-        )
-        self.assertEqual(get_mock.call_count, 1)
-        self.assertEqual(post_mock.call_count, 2)
-
-    @patch("lx_annotate.hub.hub_export_worker.requests.post")
-    def test_run_outbound_transfer_job_marks_failure_on_network_error(
-        self,
-        post_mock: MagicMock,
-    ):
-        post_mock.side_effect = requests.RequestException("connection dropped")
+        post_mock.return_value = conflict_response
 
         result = run_outbound_transfer_job(
             outbound_job_id=str(self.job.id),
@@ -309,8 +282,57 @@ class HubExportWorkerTests(TestCase):
         )
 
         self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(result.retry_count, 0)
+        self.assertEqual(
+            result.failure_class,
+            OutboundHubTransferJob.FailureClass.INTEGRITY_INCONSISTENCY,
+        )
+        self.assertIn("canonical replay conflict", result.last_error)
+        self.assertEqual(post_mock.call_count, 1)
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_run_outbound_transfer_job_records_authorization_denial_without_retry(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        denied_response = MagicMock()
+        denied_response.status_code = 403
+        post_mock.return_value = denied_response
+
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(
+            result.failure_class,
+            OutboundHubTransferJob.FailureClass.AUTHORIZATION_DENIAL,
+        )
+        self.assertEqual(result.retry_count, 0)
+        self.assertEqual(post_mock.call_count, 1)
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_run_outbound_transfer_job_marks_failure_on_network_error(
+        self,
+        post_mock: MagicMock,
+    ):
+        post_mock.side_effect = requests.RequestException("connection dropped")
+
+        with self.assertLogs("lx_annotate.hub_export.audit", level="INFO") as logs:
+            result = run_outbound_transfer_job(
+                outbound_job_id=str(self.job.id),
+                source_node_key=self.site_node.node_key,
+                source_secret="super-secret",
+            )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
         self.assertEqual(result.retry_count, 1)
         self.assertIn("registration failed", result.last_error)
+        event = json.loads(logs.records[-1].getMessage())
+        self.assertEqual(event["failure_class"], "transient_retry")
+        self.assertEqual(event["attempt_number"], 1)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_rejects_mismatched_acknowledgement(
@@ -337,6 +359,36 @@ class HubExportWorkerTests(TestCase):
         self.assertEqual(result.retry_count, 0)
         self.assertIn("acknowledgement inconsistent", result.last_error)
         self.assertIn("processed_media_hash", result.last_error)
+        post_mock.assert_called_once()
+
+    @patch("lx_annotate.hub.hub_export_worker.ensure_local_file")
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_run_outbound_transfer_job_records_unreadable_processed_media(
+        self,
+        post_mock: MagicMock,
+        ensure_local_file_mock: MagicMock,
+    ) -> None:
+        register_response = MagicMock()
+        register_response.json.return_value = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
+        register_response.raise_for_status.return_value = None
+        post_mock.return_value = register_response
+        ensure_local_file_mock.side_effect = OSError("protected media unavailable")
+
+        with self.assertLogs("lx_annotate.hub_export.audit", level="INFO") as logs:
+            result = run_outbound_transfer_job(
+                outbound_job_id=str(self.job.id),
+                source_node_key=self.site_node.node_key,
+                source_secret="super-secret",
+            )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(result.retry_count, 0)
+        self.assertIn("processed media rejected", result.last_error)
+        event = json.loads(logs.records[-1].getMessage())
+        self.assertEqual(event["failure_class"], "configuration_rejection")
         post_mock.assert_called_once()
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")

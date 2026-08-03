@@ -40,19 +40,9 @@ urlpatterns = [
 urlpatterns.append(
     lazy_urlconf(
         "dtypes-api/",
-        "lx_annotate.base_api_urls",
+        "lx_annotate.dtypes_api_urls",
         app_name="ninja",
         namespace="lx_dtypes_api",
-    )
-)
-
-urlpatterns.append(
-    lazy_urlconf(
-        # Legacy compatibility alias. Prefer dtypes-api/ for new frontend code.
-        "base_api/",
-        "lx_annotate.base_api_urls",
-        app_name="ninja",
-        namespace="lx_dtypes_base_api",
     )
 )
 

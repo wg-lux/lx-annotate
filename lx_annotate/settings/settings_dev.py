@@ -44,6 +44,16 @@ DATABASES = cast(dict[str, Any], DATABASES)
 BASE_DIR = cast(Path, BASE_DIR)
 SECRET_KEY = cast(str, SECRET_KEY)
 LX_DTYPES_HOST_MODELS_MODULE = cast(str, LX_DTYPES_HOST_MODELS_MODULE)
+
+# Keep development settings usable for packaged runtime tests and local service
+# deployments.  The base settings use a checkout-relative SQLite database by
+# default; honor explicit service-provided database settings when present.
+DATABASES = {name: config.copy() for name, config in DATABASES.items()}
+if database_engine := os.getenv("DJANGO_DB_ENGINE"):
+    DATABASES["default"]["ENGINE"] = database_engine
+if database_name := os.getenv("DJANGO_DB_NAME"):
+    DATABASES["default"]["NAME"] = database_name
+
 # -----------------------------------------------------------------------------
 # 1. CORE OVERRIDES
 DEBUG = True

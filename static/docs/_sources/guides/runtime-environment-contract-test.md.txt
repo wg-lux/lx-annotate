@@ -1,0 +1,252 @@
+# Runtime environment contract test
+
+## Purpose
+
+This change records the environment ownership audit and its correction. The
+first reduction to 28 keys was too broad: a source audit found that many
+removed names are still consumed by `lx-annotate`, `endoreg-db`, or their
+runtime tooling. Those non-secret inputs are restored. Only keys without an
+internal consumer and unsafe inline-secret declarations remain removed.
+
+The NixOS VM assertion continues to verify that every environment variable
+required by the packaged web-service contract is present and non-empty in the
+evaluated `lx-annotate.service` systemd environment.
+
+The check reads the effective environment with:
+
+```console
+systemctl show --property=Environment --value lx-annotate.service
+```
+
+It parses the systemd output, reports all missing variables together, and
+separately reports variables that are present with an empty value. Secret
+values are never printed by the assertion.
+
+## Files changed
+
+### `secretspec.toml`
+
+The following names remain removed because neither repository has a direct
+internal consumer. Hugging Face and Ollama may still interpret some of them as
+external process configuration, but LX-Annotate and EndoReg-DB do not:
+
+```text
+DJANGO_CORS_ALLOWED_HOSTS
+ENABLE_FILE_WATCHER
+ENDOSCOPY_PROCESSOR_NAME
+EXPORT_OUTPUT_DIR
+HF_HOME
+HF_HUB_CACHE
+HF_HUB_ENABLE_HF_TRANSFER
+OLLAMA_KEEP_ALIVE
+OLLAMA_MODELS
+SECRETSPEC_PROFILE
+TRANSFORMERS_CACHE
+```
+
+Consumed non-secret keys were restored with their pre-reduction defaults,
+including database selection, URL/path compatibility values, runtime policy,
+watcher timing, FFmpeg overrides, test controls, and the development and
+production profile tables. Both canonical `DJANGO_ALLOWED_HOSTS` and the
+consumed legacy `ALLOWED_HOSTS` alias are declared.
+
+The old inline values `LX_ANNOTATE_MASTER_KEY`, `DJANGO_DB_PASSWORD`,
+`DJANGO_SECRET_KEY`, `OIDC_RP_CLIENT_SECRET`, `SECRET_KEY`, and `DJANGO_SALT`
+were not restored. Restoring their old `changeme` defaults would violate the
+runtime security contract. The existing master-key, database, and Django
+secret-file handles remain, and `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE` was added
+for the already-supported OIDC file-backed path. `DJANGO_SALT` still lacks a
+file-backed application contract and therefore remains an explicit follow-up.
+
+### `devenv.nix`
+
+The development environment reads the restored values again. Application-owned
+storage children remain derived through `mkAppOwnedEnvironment` so they cannot
+escape the canonical encrypted-data root. Runtime tuning, development/test
+database values, legacy host compatibility, watcher policy, and optional tool
+paths are exported from Secretspec. Secret values are exported only when a
+non-empty file handle is configured.
+
+### `tests/system/test_secretspec_environment_contract.py`
+
+The static contract test now asserts that every consumed non-secret key found by
+the audit remains declared, the eleven unused keys remain absent, required host
+file handles remain present, and unsafe inline secrets remain prohibited.
+
+Following the environment-coverage testing strategy, an AST audit also scans
+literal `os.getenv(...)`, `os.environ.get/pop/setdefault(...)`, and
+`os.environ[...]` accesses below `lx_annotate/`. Every discovered key must be
+classified as application-owned, host-owned, process-internal, or a forbidden
+legacy inline-secret input. Dynamic variable names cannot be determined by a
+static audit and remain covered by the runtime VM assertion.
+
+### `nix/tests/service_vm_test.nix`
+
+The test now defines `requiredServiceEnvironmentVariables`. The list covers the
+application-owned values produced by `nix/runtime-environment.nix`, the
+host-owned values required by the test deployment, and the explicit security
+and origin values configured by the VM fixture.
+
+`DJANGO_ALLOWED_HOSTS` is the required canonical host-list input. The legacy
+fallback alias `ALLOWED_HOSTS` is intentionally not required in addition to it.
+
+The VM test imports Python's `shlex` module to parse systemd's quoted
+environment representation. It fails when either of these lists is non-empty:
+
+- `missing_environment_variables`
+- `empty_environment_variables`
+
+The same VM fixture also contains the
+`lx-annotate-operational-command-contract` oneshot service. It inherits the
+evaluated web-service environment and verifies that the packaged recovery,
+terminology bootstrap, hub provisioning, storage-relief, and acceptance
+commands exist and accept `--help`. This ensures that those commands can be
+started under the same runtime contract without a checkout-specific wrapper.
+
+The fixture enables packaged migrations against a local SQLite database. This
+provides an introspectable schema before the web service starts, instead of
+weakening the application's fail-closed schema readiness checks. The
+environment assertion runs after `multi-user.target` and before waiting for the
+HTTP port, so environment-contract failures are reported independently from
+later application startup failures.
+
+The existing package-entrypoint, timer, resource-control, and mutable-runtime
+assertions remain in place.
+
+### `docs/guides/runtime-environment-contract-test.md`
+
+This file records the implementation, verification commands, expected result,
+and rollback procedure.
+
+## Verification
+
+Run formatting and whitespace validation:
+
+```console
+nixfmt --check devenv.nix nix/tests/service_vm_test.nix
+git diff --check -- devenv.nix secretspec.toml \
+  nix/tests/service_vm_test.nix \
+  tests/system/test_secretspec_environment_contract.py \
+  docs/guides/runtime-environment-contract-test.md
+```
+
+Run the static environment contracts:
+
+```console
+devenv shell -- pytest -q \
+  tests/system/test_secretspec_environment_contract.py \
+  tests/system/test_environment_checks.py \
+  tests/system/test_runtime_check_bundle_contract.py
+```
+
+Build and execute the LX-Annotate Nix tests:
+
+```console
+nix build .#checks.x86_64-linux.nixtest --no-write-lock-file
+result/bin/nixtests:run --no-color --workers 1
+```
+
+Evaluate a LuxNix host while overriding its `lx-annotate` input with a filtered
+copy of this local checkout. Do not pass the development checkout directly as
+a `path:` input because ignored virtual environments and build caches would
+also be copied to the Nix store.
+
+Create the filtered copy from tracked and non-ignored workspace files:
+
+```console
+runtime_eval_dir=$(mktemp -d /tmp/lx-annotate-runtime-eval.XXXXXX)
+git ls-files -co --exclude-standard -z \
+  | tar --null --files-from=- -cf - \
+  | tar -C "$runtime_eval_dir" -xf -
+```
+
+Then evaluate the LuxNix test host:
+
+```console
+nix eval --json \
+  /home/admin/luxnix#nixosConfigurations.lx-test.config.systemd.services \
+  --override-input lx-annotate "path:$runtime_eval_dir" \
+  --apply 'services: builtins.attrNames services' \
+  --no-write-lock-file
+```
+
+After identifying the effective LX-Annotate service name, evaluate its
+environment and compare its variable names with
+`requiredServiceEnvironmentVariables`. This evaluation must use paths and
+secret-file handles only; it must not expose secret file contents.
+
+### Verification results on 2026-08-03
+
+- Corrective restoration audit: 78 default-profile keys and 79 unique keys
+  across all profiles. The eleven unused keys remain absent.
+- `devenv shell -- true`: passed with the restored configuration.
+- `pytest -q tests/system/test_secretspec_environment_contract.py
+  tests/system/test_environment_checks.py
+  tests/system/test_runtime_check_bundle_contract.py`: 22 passed.
+- The rebuilt Nix test runner evaluated successfully. The current VM rerun is
+  blocked before boot by an unrelated concurrent frontend change:
+  `frontend/package-lock.json` reports version `0.9.52`, while the fixed-output
+  npm dependency source contains `0.0.0`; Nix reports `npmDepsHash is out of
+  date`. The environment VM itself previously passed before that frontend
+  package inconsistency appeared.
+- `git diff --check`: passed.
+- `nixfmt --check nix/tests/service_vm_test.nix`: passed.
+- `pytest -q tests/system/test_environment_checks.py
+  tests/system/test_runtime_check_bundle_contract.py`: 18 passed.
+- The expanded static and runtime Python contract suite passed: 22 tests.
+- LX-Annotate package-contract Nix test: passed.
+- The first NixOS VM run was interrupted while fetching its closure because
+  the Nix daemon disconnected. The root/Nix filesystem was at 99% usage.
+- The VM retry built and booted successfully, then exposed a pre-existing test
+  fixture gap: the web service correctly refused to start because no migrated,
+  introspectable database was available. The fixture now enables migrations
+  against SQLite; verification of that adjustment must use the VM command
+  above.
+- The migrated VM reached `multi-user.target` and executed the environment
+  assertion. Its first result showed only the redundant legacy alias
+  `ALLOWED_HOSTS` as absent while canonical `DJANGO_ALLOWED_HOSTS` was present;
+  the contract list was corrected to require only the canonical input.
+- LuxNix successfully evaluated the `lx-test` service set with the current
+  workspace as its `lx-annotate` override and produced the expected
+  `lx-annotate` service family.
+- Evaluation of the individual LuxNix `lx-annotate.environment` remains blocked
+  by an existing LuxNix module error: `services.luxnix.endoAi` is defined by the
+  enabled `endoreg-client` role, but no corresponding option is available in
+  the evaluated `lx-test` module graph.
+
+## Rollback
+
+To undo only the corrective restoration while preserving unrelated work in the
+dirty worktree:
+
+1. Remove from `secretspec.toml` the keys listed by
+   `RESTORED_CONSUMED_ENVIRONMENT_KEYS` in the static contract test, retaining
+   the host/file-handle keys and the eleven-key exclusion list above. Remove
+   `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE` only if the OIDC file-backed contract is
+   intentionally abandoned.
+2. In `devenv.nix`, restore the explicit development defaults and remove the
+   restored runtime-policy, development/test, watcher-timing, and optional-tool
+   exports. Keep all file-backed secret handling.
+3. Restore the exact reduced-key assertion in
+   `tests/system/test_secretspec_environment_contract.py` and remove its
+   restored/unused set assertions.
+4. To remove the VM contract independently, remove the
+   `requiredServiceEnvironmentVariables` `let` binding from
+   `nix/tests/service_vm_test.nix` and restore the top level to the original
+   direct attribute set.
+5. Remove the `import shlex` statement and the environment parsing/assertion
+   block between `machine.wait_for_open_port(8000)` and the existing
+   `ExecStart` assertion.
+6. If the operational-command check must also be reverted, restore the VM node
+   arguments from `{ config, pkgs, ... }` to `{ ... }`, remove the
+   `lx-annotate-operational-command-contract` service, and remove its
+   `machine.wait_for_unit` call.
+7. Remove `migrate.enable`, `DJANGO_DB_ENGINE`, and `DJANGO_DB_NAME` to restore
+   the old database-less VM fixture, and move the environment check back only
+   if its ordering must also be reverted.
+8. Delete this documentation file only if the entire environment-contract work
+   is being reverted.
+9. Re-run the formatting, whitespace, Python, and Nix test commands above.
+
+Do not use a repository-wide reset for rollback: the worktree contains
+unrelated user changes.

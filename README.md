@@ -233,7 +233,7 @@ Outbound hub transfer is tracked as a separate sender workflow from ingest.
   anonymization overview, not from the legacy annotation segment export screen
 
 The sender-side workflow contract is documented in
-[docs/guides/hub-export-workflow.md](/home/admin/dev/lx-annotate/docs/guides/hub-export-workflow.md).
+[docs/guides/hub-export-workflow.md](docs/guides/hub-export-workflow.md).
 
 ## Configuration
 
@@ -268,7 +268,7 @@ dev shell:
 nix develop --no-pure-eval
 ```
 
-This evaluates [`devenv.nix`](/home/admin/dev/lx-annotate/devenv.nix) through
+This evaluates [`devenv.nix`](devenv.nix) through
 the top-level `flake.nix`, so the same shell can be entered either with
 `devenv`/`direnv` or directly through `nix develop`.
 

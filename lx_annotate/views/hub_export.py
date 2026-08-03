@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from endoreg_db.models import NetworkNode
-from endoreg_db.utils.permissions import EnvironmentAwarePermission
 
 from lx_annotate.hub.hub_export_jobs import (
     build_hub_export_overview,
@@ -31,7 +36,8 @@ def _request_target_node_key(data) -> str | None:
 
 
 @api_view(["GET"])
-@permission_classes([EnvironmentAwarePermission])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def hub_export_overview(request):
     target_node_key = request.query_params.get("target_node_key")
     target_node = (
@@ -44,7 +50,8 @@ def hub_export_overview(request):
 
 
 @api_view(["POST"])
-@permission_classes([EnvironmentAwarePermission])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def hub_export_mark(request):
     data = request.data or {}
     target_node = _resolve_target_node(_request_target_node_key(data))
@@ -84,7 +91,8 @@ def hub_export_mark(request):
 
 
 @api_view(["POST"])
-@permission_classes([EnvironmentAwarePermission])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def hub_export_unmark(request):
     data = request.data or {}
     target_node = _resolve_target_node(_request_target_node_key(data))

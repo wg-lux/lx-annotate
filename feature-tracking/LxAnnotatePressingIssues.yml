@@ -17,6 +17,97 @@ source_documents:
   disposition: reference
   note: Cross-repository runtime and LuxNix deployment contract.
 definition_of_done:
+- id: release_0_9_53_artifact
+  category: testing
+  title: LX-Annotate 0.9.53 is a reproducible, installable release artifact
+  acceptance:
+  - Version 0.9.53 is assigned consistently in project metadata and the lock file only after its reviewed
+    feature commits are complete; the release is built from a clean, identified commit.
+  - Backend tests, Python static checks, frontend unit tests and type checks, the production frontend
+    build, migration consistency checks, and distribution metadata checks pass without modifying the checkout.
+  - The automated_quality_gates, least_privilege_delivery, dependency_and_tooling_contract, and repository_hygiene
+    criteria are verified before the release commit is approved; development and test tools are not shipped
+    as runtime dependencies.
+  - The wheel and source distribution are built by the documented release workflow, contain the production
+    frontend manifest and required runtime assets, and install into a clean Python 3.12 environment.
+  - The installed wheel starts with production settings when the host adapter and governed terminology
+    registry are provisioned, fails closed when either contract is absent or invalid, and exposes the
+    canonical /dtypes-api/ routes without the removed /base_api/ compatibility mount.
+  - Installed-artifact smoke tests exercise terminology bundle identity, report-template retrieval, finding
+    validation from the persisted ledger, report-language discovery, and report draft save and reload.
+  - The exact lx-annotate, endoreg_db, and lx-dtypes versions, artifact SHA-256 digests, verification
+    commands, results, and release assessor are recorded before upload to PyPI.
+  - PyPI publication is an explicit protected release action with read-only permissions for ordinary pull-request
+    and branch validation; passing an arbitrary branch build does not promote it automatically.
+  required: true
+  verification:
+    kind: manual
+    instructions: Build and test 0.9.53 from a clean release commit, install the wheel in an isolated
+      Python 3.12 environment, run production-settings and API smoke checks with the governed host configuration,
+      and record the immutable artifact identities and results.
+    timeout_seconds: 3600
+  assessment:
+    status: blocked
+    evidence:
+    - kind: document
+      reference: docs/guides/terminology-delivery.md
+    - kind: code
+      reference: .github/workflows/wheel-testpypi.yml
+    - kind: code
+      reference: pyproject.toml
+    - kind: command
+      reference: pyright lx_annotate/migration_overrides/endoreg_db/_compat.py; mypy lx_annotate; pytest
+        migration helper (2 passed)
+    - kind: command
+      reference: 'fresh SQLite migrate 0001-0038, schema assertions, rollback 0038-0037: passed'
+    - kind: command
+      reference: 'nix build path:/tmp/lx-annotate-source-snapshot.azv9dE#checks.x86_64-linux.package path:/tmp/lx-annotate-source-snapshot.azv9dE#checks.x86_64-linux.nixtest
+        --no-link: passed'
+    - kind: command
+      reference: 'installed 0.9.53 candidate: PostgreSQL migrations 0001-0038 and production runtime readiness
+        PASS'
+    - kind: command
+      reference: 'installed candidate with PyPI lx-dtypes 0.2.9: terminology/template/ledger/draft PASS;
+        reporting languages HTTP 404; active bundle identity null'
+    - kind: command
+      reference: /home/admin/lx-parse/lx-data-models focused Pyright 0 and 12 API tests passed; broad
+        Pyright 33 errors
+    - kind: command
+      reference: uv run pytest --cov=lx_annotate --cov-report=term-missing --cov-fail-under=75 (386 passed,
+        2 skipped; 77.64%)
+    - kind: command
+      reference: frontend Vitest 418 passed; ESLint, Vue type-check, production Vite build passed
+    - kind: code
+      reference: tests/system/test_console_scripts_contract.py
+    - kind: test
+      reference: tests/system/test_release_evidence_workflow.py
+    - kind: command
+      reference: pytest release-evidence, wheel-deployment, and console-script contracts (28 passed);
+        Ruff check/format passed; workflow YAML parsed; 3 embedded Python steps compiled
+    - kind: command
+      reference: 'Wheel-installed 0.9.52 smoke: lx-annotate loaded from /tmp venv; endoreg-db 1.0.8.2;
+        lx-dtypes 0.2.10; terminology/template/languages/ledger/draft PUT+GET returned 200; /base_api
+        returned 404. Clean dependency install blocked by disk capacity during 906.4 MB torch plus CUDA
+        resolution.'
+    - kind: command
+      reference: 'Clean Python 3.12 uv venv installed lx_annotate-0.9.52 wheel plus 347 resolved packages;
+        no PYTHONPATH. Installed paths/versions: lx-annotate 0.9.52, endoreg-db 1.0.8.2, lx-dtypes 0.2.10.
+        API smoke: terminology/template/languages/ledger/draft PUT+GET all 200; /base_api 404.'
+    - kind: review
+      reference: PyPI lx_annotate-0.9.53-py3-none-any.whl; uploaded 2026-07-31T15:23:34.430312Z; size
+        36658517; SHA-256 101daa302d20a4fd0b98a0f188eb2153043fed0e41ab0cd94511bc81abc66ec2
+    - kind: command
+      reference: Clean Python 3.12 environment installed published PyPI 0.9.53 with endoreg-db 1.0.8.2
+        and lx-dtypes 0.2.10; terminology/template/languages/ledger/draft PUT+GET all 200; /base_api 404;
+        package loaded from isolated venv without PYTHONPATH.
+    - kind: review
+      reference: Published wheel METADATA has unconditional Requires-Dist entries for pytest, pytest-django,
+        pytest-cov, mypy, black, pre-commit, build, django-stubs, types-requests, and django-rest-framework;
+        installing 0.9.53 added 21 development/compatibility packages over 0.9.52 clean runtime.
+    note: Immutable PyPI 0.9.53 violates the release dependency/evidence contract; it cannot be repaired
+      in place and requires release-owner direction for a corrected successor.
+    assessed_by: codex-root-lxannotate
+    assessed_at: '2026-08-03T12:18:50.061282Z'
 - id: pressing_scope
   category: requirements
   title: Pressing issues have owners, severity, and bounded acceptance criteria
@@ -25,14 +116,34 @@ definition_of_done:
   - Cross-repository dependencies distinguish application, endoreg_db package, database schema, and LuxNix
     host responsibilities.
   - New issues are added here before implementation rather than tracked in parallel status documents.
+  - 'P0 release and security blockers: release_0_9_53_artifact, production_secret_contract, filesystem_integrity,
+    and least_privilege_delivery are owned in this repository by the lx-annotate maintainers and require
+    security or release-owner approval where their verification instructions say so.'
+  - 'P1 engineering blockers: automated_quality_gates, frontend_ownership_boundaries, dependency_and_tooling_contract,
+    and repository_hygiene are owned in this repository by the lx-annotate maintainers.'
+  - Cross-repository package or schema defects are owned by the endoreg_db maintainers until published
+    in an immutable endoreg-db release; governed terminology registry and API defects are owned by the
+    lx-dtypes maintainers until published in an immutable lx-dtypes release.
+  - LuxNix maintainers and deployment operators own host mTLS, secret-file injection, encrypted runtime
+    storage, systemd unit, reverse-proxy, and deployment-environment responsibilities; lx-annotate must
+    validate those inputs and fail closed but must not silently assume host ownership.
   required: true
   verification:
     kind: manual
     instructions: Review the issue set with application, security, and operations owners.
     timeout_seconds: 300
   assessment:
-    status: not_assessed
-    evidence: []
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: feature-tracking/LxAnnotatePressingIssues.yml
+    - kind: document
+      reference: docs/guides/deployment-strategy.md
+    note: Severity, repository ownership, maintainer responsibility, and cross-repository handoff boundaries
+      are now explicit in the canonical tracker. Verification remains pending named application, security,
+      release, and operations owner review; no owner approval is inferred from implementation work.
+    assessed_by: codex-root-lxannotate
+    assessed_at: '2026-08-03T10:52:43.141636Z'
 - id: production_secret_contract
   category: security
   title: Production Django secrets are explicitly injected and fail closed
@@ -120,16 +231,28 @@ definition_of_done:
     instructions: Inspect CI jobs and execute the clean-checkout quality workflow.
     timeout_seconds: 1200
   assessment:
-    status: in_progress
+    status: verified
     evidence:
     - kind: code
       reference: .github/workflows/ci-cd.yml
     - kind: code
-      reference: frontend/package.json
-    note: Tests and frontend type checking are enforced, but lint, formatting, static Python typing, coverage
-      thresholds, and a non-mutating frontend lint command are absent from the main CI workflow.
-    assessed_by: Codex
-    assessed_at: '2026-07-28T11:00:00+02:00'
+      reference: .github/workflows/wheel-testpypi.yml
+    - kind: code
+      reference: pytest.ini
+    - kind: command
+      reference: uv run pytest --cov=lx_annotate --cov-report=term-missing --cov-fail-under=75 (386 passed,
+        2 skipped; 77.64%)
+    - kind: command
+      reference: uv run mypy lx_annotate; uv run ruff check lx_annotate tests; uv run ruff format --check
+        lx_annotate tests (passed)
+    - kind: command
+      reference: npm --prefix frontend run test:unit -- --run; lint; type-check; build (82 files, 418
+        tests; passed)
+    note: CI now enforces backend and frontend tests, MyPy, Ruff lint and formatting, ESLint, Vue type
+      checking, a production build, and a 75% backend coverage floor. The release-published wheel lane
+      runs the complete backend suite including slow/video-marked tests before protected publication.
+    assessed_by: codex-root-lxannotate
+    assessed_at: '2026-08-03T10:33:16.510116Z'
 - id: frontend_ownership_boundaries
   category: operations
   title: Large frontend workflows have bounded components and stores
@@ -145,18 +268,37 @@ definition_of_done:
       tests.
     timeout_seconds: 600
   assessment:
-    status: in_progress
+    status: verified
     evidence:
     - kind: code
-      reference: frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue
+      reference: frontend/src/components/VideoExamination/videoDropdownPresentation.ts
+    - kind: test
+      reference: frontend/src/components/VideoExamination/__tests__/videoDropdownPresentation.test.ts
     - kind: code
-      reference: frontend/src/components/Anonymizer/AnonymizationValidationComponent.vue
+      reference: frontend/src/views/frameBoxAnnotations.ts
+    - kind: test
+      reference: frontend/src/views/__tests__/frameBoxAnnotations.test.ts
     - kind: code
-      reference: frontend/src/stores/videoStore.ts
-    note: Several central workflow files exceed two thousand lines and combine orchestration, state, API,
-      and presentation concerns.
-    assessed_by: Codex
-    assessed_at: '2026-07-28T11:00:00+02:00'
+      reference: frontend/src/components/Anonymizer/anonymizationValidationPresentation.ts
+    - kind: test
+      reference: frontend/src/components/Anonymizer/__tests__/anonymizationValidationPresentation.test.ts
+    - kind: code
+      reference: frontend/src/views/reporting/reportingShellPresentation.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/reportingShellPresentation.test.ts
+    - kind: test
+      reference: npm run test:unit -- --run --silent=true (86 files, 447 tests passed)
+    - kind: command
+      reference: npm run type-check; targeted ESLint; npm run build-only (passed)
+    - kind: review
+      reference: Four workflow shells reduced by 434 net lines; orchestration remains in views/stores
+        and typed pure presentation/API-normalization boundaries have focused regression tests
+    note: Video examination, frame annotation, anonymization validation, and reporting now each expose
+      a named typed presentation/normalization boundary with direct tests. Existing stores retain API
+      state and views retain orchestration. The video dropdown resolver and its component regression suite
+      explicitly preserve anonymization usability and segment-validation as separate gates.
+    assessed_by: codex-root-lxannotate
+    assessed_at: '2026-08-03T11:26:37.728543Z'
 - id: least_privilege_delivery
   category: security
   title: CI and promotion use least privilege and explicit release intent
@@ -170,14 +312,19 @@ definition_of_done:
     instructions: Review GitHub Actions permissions, triggers, environments, and branch-protection behavior.
     timeout_seconds: 300
   assessment:
-    status: in_progress
+    status: verified
     evidence:
     - kind: code
       reference: .github/workflows/ci-cd.yml
-    note: The workflow grants contents write globally and promotes every successful non-prototype branch
-      push to prototype.
-    assessed_by: Codex
-    assessed_at: '2026-07-28T11:00:00+02:00'
+    - kind: code
+      reference: .github/workflows/wheel-testpypi.yml
+    - kind: review
+      reference: Workflow permission and trigger audit 2026-08-03
+    note: Workflow permissions default to contents:read. Only the main-to-prototype delivery job receives
+      contents:write, prototype promotion is limited to tested pushes on main, and PyPI publication requires
+      a published matching release tag plus the protected pypi environment with OIDC.
+    assessed_by: codex-root-lxannotate
+    assessed_at: '2026-08-03T10:33:17.327917Z'
 - id: dependency_and_tooling_contract
   category: operations
   title: Runtime dependencies, versions, and test configuration are unambiguous
@@ -194,18 +341,23 @@ definition_of_done:
     - -q
     timeout_seconds: 1800
   assessment:
-    status: in_progress
+    status: verified
     evidence:
     - kind: code
       reference: pyproject.toml
     - kind: code
       reference: pytest.ini
     - kind: code
-      reference: frontend/package.json
-    note: Development tools are included in runtime dependencies, two similarly named Django REST Framework
-      packages are declared, versions diverge, and pytest reports that pyproject configuration is ignored.
-    assessed_by: Codex
-    assessed_at: '2026-07-28T11:00:00+02:00'
+      reference: tests/system/test_console_scripts_contract.py
+    - kind: command
+      reference: uv lock --check; uv run pytest tests/system/test_console_scripts_contract.py -q (11 passed)
+    - kind: command
+      reference: uv run mypy lx_annotate; uv run ruff check lx_annotate tests (passed)
+    note: Build, test, formatting, typing, and stub packages are dev-only; the duplicate django-rest-framework
+      compatibility package and duplicate uv development group are removed. Python and private frontend
+      metadata share version 0.9.52 under a regression test, and pytest.ini is the sole pytest configuration.
+    assessed_by: codex-root-lxannotate
+    assessed_at: '2026-08-03T10:33:18.162175Z'
 - id: repository_hygiene
   category: documentation
   title: Generated artifacts and static assets have one canonical ownership path
@@ -221,11 +373,39 @@ definition_of_done:
       results.
     timeout_seconds: 600
   assessment:
-    status: in_progress
+    status: verified
     evidence:
+    - kind: code
+      reference: .gitignore
+    - kind: code
+      reference: .gitattributes
+    - kind: code
+      reference: pyproject.toml
+    - kind: code
+      reference: frontend/default.nix
+    - kind: code
+      reference: tests/system/test_wheel_deployment_acceptance.py
+    - kind: document
+      reference: docs/guides/asset-deployment.md
+    - kind: document
+      reference: docs/guides/pypi.md
+    - kind: command
+      reference: uv run pytest tests/system/test_wheel_deployment_acceptance.py -q (15 passed)
+    - kind: command
+      reference: wheel/sdist build and twine check passed; wheel manifest=1, packaged staticfiles=455,
+        legacy static=0
+    - kind: command
+      reference: nix build .#checks.x86_64-linux.package --no-link (passed; manifest present, 434 static
+        files)
+    - kind: command
+      reference: make docs-publish (passed without warnings)
     - kind: review
-      reference: Repository inventory on 2026-07-28
-      note: Approximately 110 MiB is tracked, generated documentation is committed, and large static assets
-        occur in several paths.
-    assessed_by: Codex
-    assessed_at: '2026-07-28T11:00:00+02:00'
+      reference: Removed 984 tracked generated/duplicate files (33.79 MiB); no surviving duplicate tracked
+        asset over 500 KiB
+    note: 'Static ownership is now explicit: frontend/src/assets owns Vite sources, static owns Django/docs
+      sources, staticfiles is ignored generated deployment output, and static/docs is the single tracked
+      deployed documentation tree. Removed stale lx_annotate/static, legacy static/assets, frontend/.vite,
+      and docs/_build copies; package-local generated paths are ignored and excluded from hatch input.
+      Wheel, sdist, Nix package, Vite manifest, and documentation regeneration contracts pass.'
+    assessed_by: codex-root-lxannotate
+    assessed_at: '2026-08-03T10:51:42.898532Z'

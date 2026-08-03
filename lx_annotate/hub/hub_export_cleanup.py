@@ -27,6 +27,8 @@ def configured_local_cleanup_policy() -> str:
 
 def apply_completed_export_cleanup_policy(
     outbound_job: OutboundHubTransferJob,
+    *,
+    source_node_key: str,
 ) -> OutboundHubTransferJob:
     if (
         outbound_job.local_cleanup_policy
@@ -52,6 +54,7 @@ def apply_completed_export_cleanup_policy(
     emit_hub_export_audit_event(
         "hub_export.local_cleanup_policy_applied",
         outbound_job=outbound_job,
+        source_node_key=source_node_key,
         local_cleanup_policy=outbound_job.local_cleanup_policy,
         local_cleanup_status=outbound_job.local_cleanup_status,
     )

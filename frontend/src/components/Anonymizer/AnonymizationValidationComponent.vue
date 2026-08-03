@@ -865,6 +865,18 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 import { isAxiosError } from 'axios';
 import { endpoints } from '@/types/api/endpoints';
 import type { VideoAnonymizationStatus } from '@/types/anonymizationPipeline';
+import {
+  caseLinkageStatusBadgeClass,
+  caseLinkageStatusDescription,
+  caseLinkageStatusLabel,
+  formatPatientExamination,
+  formatPseudoPatient,
+  normalizeDocumentTypeOptions,
+  normalizePatientExaminationOption,
+  resolveCaseLinkageStatus,
+  type DocumentTypeOption,
+  type PatientExaminationOption
+} from './anonymizationValidationPresentation';
 
 
 const toast = useToastStore();
@@ -979,16 +991,6 @@ watch(mediaInferral, (val) => {
   sourceMediaScope.value = val;
 });
 
-
-type DocumentTypeOption = {
-  value: string;
-  label: string;
-};
-
-type PatientExaminationOption = {
-  id: number;
-  label: string;
-};
 
 type CaseResolutionMatch = {
   id: number;
@@ -1419,94 +1421,35 @@ const linkedPatientExaminationId = computed(() => {
     null;
   return typeof value === 'number' && value > 0 ? value : null;
 });
-const linkageStatus = computed<'not_linked' | 'suggested' | 'linked' | 'deferred'>(() => {
-  if (caseResolution.value?.matchStatus === 'linked') {
-    return 'linked';
-  }
-  if (caseResolution.value?.matchStatus === 'deferred') {
-    return 'deferred';
-  }
-  if (caseResolution.value?.matchStatus === 'suggested') {
-    return 'suggested';
-  }
-  if (caseResolution.value?.matchStatus === 'unresolved') {
-    return 'not_linked';
-  }
-  if (
-    caseResolution.value?.pseudoExamination?.linkedPatientExaminationId ||
-    currentItem.value?.patientExaminationId
-  ) {
-    return 'linked';
-  }
-  if (patientHashDisplay.value || examinationHashDisplay.value || pseudoPatientId.value !== null) {
-    return 'suggested';
-  }
-  return 'not_linked';
-});
-const linkageStatusLabel = computed(() => {
-  const labels = {
-    not_linked: 'Nicht verknuepft',
-    suggested: 'Vorgeschlagen',
-    linked: 'Verknuepft',
-    deferred: 'Zurueckgestellt'
-  } as const;
-  return labels[linkageStatus.value];
-});
-const linkageStatusDescription = computed(() => {
-  if (linkageStatus.value === 'linked') {
-    if (caseResolution.value?.isAutoResolved) {
-      return 'Der Patientenfall wurde automatisch aus den validierten Metadaten zugeordnet.';
-    }
-    return 'Eine bestehende Fallverknuepfung ist bereits vorhanden.';
-  }
-  if (linkageStatus.value === 'deferred') {
-    return 'Die Fallzuordnung wurde bewusst vertagt und kann spaeter abgeschlossen werden.';
-  }
-  if (
-    caseResolution.value?.matchStatus === 'suggested' &&
-    (caseResolution.value?.suggestedMatchCount ?? 0) > 1
-  ) {
-    return 'Mehrere passende PatientExaminations wurden gefunden. Eine explizite Auswahl ist spaeter erforderlich.';
-  }
-  if (
-    caseResolution.value?.matchStatus === 'suggested' &&
-    (caseResolution.value?.suggestedMatchCount ?? 0) === 1
-  ) {
-    return 'Eine passende PatientExamination wurde vorgeschlagen, ist aber noch nicht final bestaetigt.';
-  }
-  if (linkageStatus.value === 'suggested') {
-    return 'Hash- oder Pseudo-Patient-Hinweise sind vorhanden, die Zuordnung ist aber noch nicht final.';
-  }
-  return 'Derzeit liegt noch keine erkennbare Fallverknuepfung vor.';
-});
-const linkageStatusBadgeClass = computed(() => {
-  const classes = {
-    not_linked: 'bg-secondary',
-    suggested: 'bg-warning text-dark',
-    linked: 'bg-success',
-    deferred: 'bg-info text-dark'
-  } as const;
-  return classes[linkageStatus.value];
-});
-const pseudoPatientDisplay = computed(() => {
-  if (pseudoPatientId.value !== null) {
-    const matchCount = caseResolution.value?.pseudoPatient?.matchCount;
-    return typeof matchCount === 'number' && matchCount > 0
-      ? `#${pseudoPatientId.value} (${matchCount} Treffer)`
-      : `#${pseudoPatientId.value}`;
-  }
-  return 'Nicht verknuepft';
-});
-const patientExaminationDisplay = computed(() => {
-  if (linkedPatientExaminationId.value !== null) {
-    return `#${linkedPatientExaminationId.value}`;
-  }
-  const suggestedId = caseResolution.value?.recommendedPatientExaminationId;
-  if (typeof suggestedId === 'number' && suggestedId > 0) {
-    return `Vorschlag: #${suggestedId}`;
-  }
-  return 'Noch keine Zuordnung';
-});
+const linkageStatus = computed(() =>
+  resolveCaseLinkageStatus({
+    matchStatus: caseResolution.value?.matchStatus,
+    linkedPatientExaminationId:
+      caseResolution.value?.pseudoExamination?.linkedPatientExaminationId,
+    currentPatientExaminationId: currentItem.value?.patientExaminationId,
+    hasLinkageHints: Boolean(
+      patientHashDisplay.value || examinationHashDisplay.value || pseudoPatientId.value !== null
+    )
+  })
+);
+const linkageStatusLabel = computed(() => caseLinkageStatusLabel(linkageStatus.value));
+const linkageStatusDescription = computed(() =>
+  caseLinkageStatusDescription(linkageStatus.value, {
+    isAutoResolved: caseResolution.value?.isAutoResolved,
+    matchStatus: caseResolution.value?.matchStatus,
+    suggestedMatchCount: caseResolution.value?.suggestedMatchCount
+  })
+);
+const linkageStatusBadgeClass = computed(() => caseLinkageStatusBadgeClass(linkageStatus.value));
+const pseudoPatientDisplay = computed(() =>
+  formatPseudoPatient(pseudoPatientId.value, caseResolution.value?.pseudoPatient?.matchCount)
+);
+const patientExaminationDisplay = computed(() =>
+  formatPatientExamination(
+    linkedPatientExaminationId.value,
+    caseResolution.value?.recommendedPatientExaminationId
+  )
+);
 const caseResolutionRoute = computed(() => {
   const targetFileId = resolveFileIdFromContext();
   const targetScope = sourceMediaScope.value;
@@ -1859,29 +1802,6 @@ function convertGender(gender: string | undefined) {
   return gender;
 }
 
-function normalizeDocumentTypeOptions(raw: unknown): DocumentTypeOption[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((entry) => {
-      if (typeof entry === 'string') {
-        return { value: entry, label: entry };
-      }
-      if (
-        entry &&
-        typeof entry === 'object' &&
-        typeof (entry as { value?: unknown }).value === 'string' &&
-        typeof (entry as { label?: unknown }).label === 'string'
-      ) {
-        return {
-          value: (entry as { value: string }).value,
-          label: (entry as { label: string }).label,
-        };
-      }
-      return null;
-    })
-    .filter((entry): entry is DocumentTypeOption => entry !== null);
-}
-
 async function fetchDocumentTypeOptions(): Promise<void> {
   if (isLoadingDocumentTypes.value) return;
   isLoadingDocumentTypes.value = true;
@@ -1904,27 +1824,6 @@ async function fetchDocumentTypeOptions(): Promise<void> {
   } finally {
     isLoadingDocumentTypes.value = false;
   }
-}
-
-function normalizePatientExaminationOption(raw: unknown): PatientExaminationOption | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const row = raw as Record<string, unknown>;
-  const id = toPositiveInteger(row.id);
-  if (id === null) return null;
-
-  const examinationName =
-    (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
-    (typeof row.examination === 'string' && row.examination.trim()) ||
-    'Untersuchung';
-  const dateStartRaw = typeof row.date_start === 'string' ? row.date_start : '';
-  const dateStart = dateStartRaw ? dateStartRaw.split('T')[0] : '';
-
-  return {
-    id,
-    label: dateStart
-      ? `#${id} · ${examinationName} · ${dateStart}`
-      : `#${id} · ${examinationName}`,
-  };
 }
 
 function addOrReplacePatientExaminationOption(

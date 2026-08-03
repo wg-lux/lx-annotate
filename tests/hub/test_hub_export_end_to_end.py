@@ -1,10 +1,17 @@
-# pyright: reportAttributeAccessIssue=false
+# pyright: reportAttributeAccessIssue=false, reportPrivateUsage=false
 from __future__ import annotations
 
+import base64
 import hashlib
+import os
+from typing import cast
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
 
+import requests
+from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -13,10 +20,16 @@ from endoreg_db.models import (
     NetworkNode,
     RawPdfFile,
     RawPdfState,
+    TransferJob,
     VideoFile,
     VideoState,
 )
-from lx_annotate.hub.hub_export_worker import run_outbound_transfer_job
+from endoreg_db.serializers.hub.transfer_job import TransferJobCreateSerializer
+from lx_annotate.hub.hub_export_payloads import build_transfer_payload
+from lx_annotate.hub.hub_export_worker import (
+    MultipartUploadStream,
+    run_outbound_transfer_job,
+)
 from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
@@ -24,10 +37,15 @@ from tests.hub_payload_helpers import (
     verify_hub_report_artifact,
 )
 
+User = get_user_model()
+TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
+
 
 @override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
 class HubExportEndToEndTests(TestCase):
     def setUp(self) -> None:
+        self.operator = User.objects.create_user(username="hub-e2e-operator")
+        self.client.force_login(self.operator)
         self.center = Center.objects.create(
             name="Test Center", center_key="test-center"
         )
@@ -44,6 +62,39 @@ class HubExportEndToEndTests(TestCase):
             base_url="https://hub.example/",
             owning_center=self.center,
         )
+
+    def _assert_sender_payload_accepted_by_receiver(
+        self,
+        job: OutboundHubTransferJob,
+    ) -> None:
+        payload = build_transfer_payload(
+            outbound_job=job,
+            source_node=self.site_node,
+        )
+        receiver_serializer = TransferJobCreateSerializer(data=payload)
+
+        self.assertTrue(receiver_serializer.is_valid(), receiver_serializer.errors)
+        validated_data = cast(
+            dict[str, object],
+            receiver_serializer.validated_data,
+        )
+        self.assertEqual(validated_data["source_node"], self.site_node)
+        self.assertEqual(validated_data["target_node"], self.hub_node)
+        self.assertEqual(validated_data["source_center"], self.center)
+        self.assertEqual(validated_data["payload_schema_version"], "3.0")
+
+    @staticmethod
+    def _requests_response_from_django(
+        django_response,
+        *,
+        url: str,
+    ) -> requests.Response:
+        response = requests.Response()
+        response.status_code = django_response.status_code
+        response._content = bytes(django_response.content)
+        response.encoding = "utf-8"
+        response.url = url
+        return response
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_report_mark_then_transfer_completes(self, post_mock: MagicMock) -> None:
@@ -78,6 +129,8 @@ class HubExportEndToEndTests(TestCase):
 
         register_response = MagicMock()
         job = OutboundHubTransferJob.objects.get(raw_pdf_file=report)
+        self.assertEqual(job.marked_by, self.operator)
+        self._assert_sender_payload_accepted_by_receiver(job)
         register_response.json.return_value = hub_transfer_status_payload(
             job=job,
             source_node_key=self.site_node.node_key,
@@ -108,6 +161,290 @@ class HubExportEndToEndTests(TestCase):
             result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
         )
         self.assertEqual(result.remote_transfer_status, "applied")
+
+    @override_settings(
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
+        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
+        ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
+        ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
+        ENDOREG_HUB_TRANSFER_MTLS_META_VALUE="SUCCESS",
+    )
+    @patch.dict(os.environ, {"LX_ANNOTATE_MASTER_KEY": TEST_MASTER_KEY})
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_report_worker_recovers_lost_ack_and_rejects_changed_replay(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        self.site_node.set_shared_secret("super-secret")
+        self.site_node.save(update_fields=["shared_secret_hash", "updated_at"])
+        report_state = RawPdfState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            processing_started=True,
+            anonymization_validated=True,
+        )
+        report = RawPdfFile.objects.create(
+            center=self.center,
+            state=report_state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
+            pdf_hash="report-hash-real-receiver",
+            anonymized_text="Anonymized report text",
+            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-real.pdf"),
+            processed_file=ContentFile(
+                b"%PDF-1.4\nprocessed-real\n%%EOF\n",
+                name="report-real-processed.pdf",
+            ),
+        )
+        verify_hub_report_artifact(report)
+        mark_response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "targetNodeKey": self.hub_node.node_key,
+                "resources": [{"id": report.id, "resourceKind": "report"}],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(mark_response.status_code, 200)
+        outbound_job = OutboundHubTransferJob.objects.get(raw_pdf_file=report)
+        lose_upload_ack = True
+
+        def _receiver_post(url: str, **kwargs: object) -> requests.Response:
+            nonlocal lose_upload_ack
+            request_headers = cast(dict[str, str], kwargs["headers"])
+            proxy_headers = {
+                key: value
+                for key, value in request_headers.items()
+                if key.lower()
+                not in {
+                    "content-length",
+                    "content-type",
+                }
+            } | {
+                "X-Client-Cert-Verified": "SUCCESS",
+            }
+            path = urlparse(url).path
+            json_payload = kwargs.get("json")
+            if json_payload is not None:
+                django_response = self.client.post(
+                    path,
+                    data=json_payload,
+                    content_type="application/json",
+                    secure=True,
+                    headers=proxy_headers,
+                )
+            else:
+                upload_stream = cast(MultipartUploadStream, kwargs["data"])
+                django_response = self.client.post(
+                    path,
+                    data={
+                        "media_role": upload_stream.media_role,
+                        "file": SimpleUploadedFile(
+                            upload_stream.upload_file_name,
+                            upload_stream.media_path.read_bytes(),
+                            content_type="application/octet-stream",
+                        ),
+                    },
+                    secure=True,
+                    headers=proxy_headers,
+                )
+            response = self._requests_response_from_django(django_response, url=url)
+            if json_payload is None and lose_upload_ack:
+                lose_upload_ack = False
+                self.assertEqual(response.status_code, 200, response.content)
+                raise requests.ConnectionError(
+                    "connection dropped after receiver applied the upload"
+                )
+            return response
+
+        post_mock.side_effect = _receiver_post
+        # The in-process sender and receiver share one test database and media
+        # root, unlike separate deployments. Emulate only the receiver's
+        # initially empty artifact store so registration requests the upload;
+        # the real receiver upload, hash, persistence, and status paths remain
+        # exercised below.
+        with patch(
+            "endoreg_db.services.hub.transfers._decide_report_processing",
+            return_value=(
+                TransferJob.ProcessingDecision.WAIT_FOR_MISSING_MEDIA,
+                TransferJob.TransferStatus.AWAITING_MEDIA,
+                "Receiver artifact store is empty at registration",
+            ),
+        ):
+            lost_ack_result = run_outbound_transfer_job(
+                outbound_job_id=str(outbound_job.id),
+                source_node_key=self.site_node.node_key,
+                source_secret="super-secret",
+            )
+
+        receiver_job = TransferJob.objects.get(transfer_key=outbound_job.transfer_key)
+        self.assertEqual(
+            lost_ack_result.local_status,
+            OutboundHubTransferJob.LocalStatus.FAILED,
+        )
+        self.assertEqual(
+            receiver_job.transfer_status, TransferJob.TransferStatus.APPLIED
+        )
+        self.assertEqual(lost_ack_result.retry_count, 1)
+
+        exact_replay_result = run_outbound_transfer_job(
+            outbound_job_id=str(outbound_job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+        self.assertEqual(
+            exact_replay_result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
+        )
+        self.assertEqual(str(receiver_job.id), exact_replay_result.remote_transfer_id)
+
+        report.anonymized_text = "Changed anonymized report text"
+        report.save(update_fields=["anonymized_text", "date_modified"])
+        outbound_job.refresh_from_db()
+        outbound_job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
+        outbound_job.save(update_fields=["local_status", "updated_at"])
+
+        changed_replay_result = run_outbound_transfer_job(
+            outbound_job_id=str(outbound_job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+        receiver_job.refresh_from_db()
+        self.assertEqual(
+            changed_replay_result.local_status,
+            OutboundHubTransferJob.LocalStatus.FAILED,
+        )
+        self.assertEqual(changed_replay_result.retry_count, 1)
+        self.assertIn("canonical replay conflict", changed_replay_result.last_error)
+        self.assertEqual(
+            receiver_job.transfer_status,
+            TransferJob.TransferStatus.APPLIED,
+        )
+        self.assertEqual(
+            receiver_job.resource_rows["raw_pdf_file"]["anonymized_text"],
+            "Anonymized report text",
+        )
+        self.assertEqual(
+            TransferJob.objects.filter(
+                transfer_key=outbound_job.transfer_key,
+            ).count(),
+            1,
+        )
+        self.assertEqual(post_mock.call_count, 4)
+
+        hash_mismatch_state = RawPdfState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            processing_started=True,
+            anonymization_validated=True,
+        )
+        hash_mismatch_report = RawPdfFile.objects.create(
+            center=self.center,
+            state=hash_mismatch_state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
+            pdf_hash="report-hash-mismatch",
+            anonymized_text="Anonymized hash mismatch report",
+            file=ContentFile(
+                b"%PDF-1.4\nraw-hash-mismatch\n%%EOF\n",
+                name="report-hash-mismatch.pdf",
+            ),
+            processed_file=ContentFile(
+                b"%PDF-1.4\nprocessed-hash-mismatch\n%%EOF\n",
+                name="report-hash-mismatch-processed.pdf",
+            ),
+        )
+        verify_hub_report_artifact(hash_mismatch_report)
+        hash_mismatch_mark_response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "targetNodeKey": self.hub_node.node_key,
+                "resources": [
+                    {
+                        "id": hash_mismatch_report.id,
+                        "resourceKind": "report",
+                    }
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(hash_mismatch_mark_response.status_code, 200)
+        hash_mismatch_job = OutboundHubTransferJob.objects.get(
+            raw_pdf_file=hash_mismatch_report,
+        )
+        hash_mismatch_state.refresh_from_db()
+        hash_mismatch_state.processed_file_sha256 = "0" * 64
+        hash_mismatch_state.save(
+            update_fields=["processed_file_sha256"],
+        )
+
+        hash_mismatch_result = run_outbound_transfer_job(
+            outbound_job_id=str(hash_mismatch_job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+        self.assertEqual(
+            hash_mismatch_result.local_status,
+            OutboundHubTransferJob.LocalStatus.FAILED,
+        )
+        self.assertIn("hash metadata is inconsistent", hash_mismatch_result.last_error)
+        self.assertFalse(
+            TransferJob.objects.filter(
+                transfer_key=hash_mismatch_job.transfer_key,
+            ).exists(),
+        )
+        self.assertEqual(post_mock.call_count, 4)
+
+        report.anonymized_text = "Receiver-preserved anonymized report"
+        report.save(update_fields=["anonymized_text", "date_modified"])
+        outbound_job.delete()
+        second_site_node = NetworkNode.objects.create(
+            display_name="Second Site Node",
+            node_key="second-site-node",
+            role=NetworkNode.Role.SITE_NODE,
+            owning_center=self.center,
+        )
+        second_site_node.set_shared_secret("second-super-secret")
+        second_site_node.save(
+            update_fields=["shared_secret_hash", "updated_at"],
+        )
+        collision_job = OutboundHubTransferJob.objects.create(
+            resource_kind=OutboundHubTransferJob.ResourceKind.REPORT,
+            raw_pdf_file=report,
+            source_center=self.center,
+            target_node=self.hub_node,
+            transfer_key=(
+                "second-site-node__report__report-hash-real-receiver__processed_v1"
+            ),
+            marked_by=self.operator,
+        )
+
+        collision_result = run_outbound_transfer_job(
+            outbound_job_id=str(collision_job.id),
+            source_node_key=second_site_node.node_key,
+            source_secret="second-super-secret",
+        )
+        collision_receiver_job = TransferJob.objects.get(
+            transfer_key=collision_job.transfer_key,
+        )
+        report.refresh_from_db()
+        self.assertEqual(
+            collision_result.local_status,
+            OutboundHubTransferJob.LocalStatus.FAILED,
+        )
+        self.assertEqual(
+            collision_result.remote_transfer_status,
+            TransferJob.TransferStatus.INCONSISTENT,
+        )
+        self.assertEqual(
+            collision_receiver_job.transfer_status,
+            TransferJob.TransferStatus.INCONSISTENT,
+        )
+        self.assertIsNone(collision_receiver_job.target_object_id)
+        self.assertEqual(
+            report.anonymized_text,
+            "Receiver-preserved anonymized report",
+        )
+        self.assertEqual(post_mock.call_count, 5)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_video_mark_then_transfer_completes(self, post_mock: MagicMock) -> None:
@@ -154,6 +491,8 @@ class HubExportEndToEndTests(TestCase):
 
         register_response = MagicMock()
         job = OutboundHubTransferJob.objects.get(video_file=video)
+        self.assertEqual(job.marked_by, self.operator)
+        self._assert_sender_payload_accepted_by_receiver(job)
         register_response.json.return_value = hub_transfer_status_payload(
             job=job,
             source_node_key=self.site_node.node_key,

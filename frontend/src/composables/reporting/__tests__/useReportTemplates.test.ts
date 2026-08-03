@@ -3,6 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import axiosInstance from '@/api/axiosInstance'
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+  return { promise, resolve }
+}
+
 vi.mock('@/api/axiosInstance', () => ({
   default: {
     get: vi.fn()
@@ -12,6 +20,17 @@ vi.mock('@/api/axiosInstance', () => ({
 }))
 
 describe('useReportTemplates', () => {
+  it('does not invent an example module when no terminology is active', async () => {
+    const templates = useReportTemplates({ initialModuleName: '' })
+
+    expect(templates.moduleName.value).toBe('')
+    await expect(templates.fetchTemplatesByExamination('colonoscopy')).resolves.toEqual([])
+    expect(axiosInstance.get).not.toHaveBeenCalled()
+
+    templates.setModuleName('  ')
+    expect(templates.moduleName.value).toBe('')
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -43,6 +62,43 @@ describe('useReportTemplates', () => {
     ])
     expect(catalog.selectedTemplateName.value).toBeNull()
     expect(catalog.selectedTemplate.value).toBeNull()
+  })
+
+  it('ignores an older response after the same module changes bundle version', async () => {
+    const versionOne = deferred<{ data: unknown[] }>()
+    const versionTwo = deferred<{ data: unknown[] }>()
+    vi.mocked(axiosInstance.get)
+      .mockReturnValueOnce(versionOne.promise)
+      .mockReturnValueOnce(versionTwo.promise)
+    const catalog = useReportTemplates({ initialModuleName: 'clinical_reporting' })
+
+    const firstLoad = catalog.fetchTemplatesByExamination('colonoscopy')
+    catalog.setModuleName('clinical_reporting', 'clinical_reporting@@2.0.0')
+    const secondLoad = catalog.fetchTemplatesByExamination('colonoscopy')
+    versionTwo.resolve({
+      data: [
+        {
+          name: 'version_two',
+          examination: 'colonoscopy',
+          reportSections: [],
+          validators: { examinationValidators: [], findingsValidators: [] }
+        }
+      ]
+    })
+    await secondLoad
+    versionOne.resolve({
+      data: [
+        {
+          name: 'version_one',
+          examination: 'colonoscopy',
+          reportSections: [],
+          validators: { examinationValidators: [], findingsValidators: [] }
+        }
+      ]
+    })
+    await firstLoad
+
+    expect(catalog.templateOptions.value.map((template) => template.name)).toEqual(['version_two'])
   })
 
   it('loads a template by explicit name endpoint when not in local options', async () => {

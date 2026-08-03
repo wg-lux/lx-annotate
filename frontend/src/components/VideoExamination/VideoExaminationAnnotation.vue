@@ -1001,6 +1001,18 @@ import {
   loadAnnotatorOverride,
   saveAnnotatorOverride
 } from '@/utils/annotationPrincipal'
+import {
+  getAgeFromDob,
+  getValidatedAnnotatorLabel,
+  getVideoDropdownItemClass as getDropdownItemClass,
+  getVideoDropdownStatusBadgeClass as getDropdownStatusBadgeClass,
+  getVideoDropdownStatusText as getDropdownStatusText,
+  normalizeGenderLabel,
+  normalizeValidatedAnnotators,
+  resolveVideoDropdownStatus,
+  type VideoDropdownFilter,
+  type VideoDropdownStatus
+} from './videoDropdownPresentation'
 
 const route = useRoute() // ①
 const router = useRouter()
@@ -1041,14 +1053,6 @@ interface VideoSensitiveMeta {
 }
 
 type MessageTone = 'hint' | 'danger'
-type VideoDropdownStatus =
-  | 'not_usable'
-  | 'pending_anonymization_validation'
-  | 'ready_for_annotation'
-  | 'annotation_cleanup_pending'
-  | 'annotation_cleanup_failed'
-  | 'annotation_validated'
-type VideoDropdownFilter = 'all' | 'usable' | VideoDropdownStatus
 
 type UnknownRecord = Record<string, unknown>
 
@@ -1355,9 +1359,7 @@ const scheduleFpsNormalizationPoll = (videoId: number): void => {
   }, 5000)
 }
 
-const ensureSegmentationFpsReady = async (
-  videoId: number
-): Promise<SegmentationFpsReadiness> => {
+const ensureSegmentationFpsReady = async (videoId: number): Promise<SegmentationFpsReadiness> => {
   fpsNormalizationVideoId.value = videoId
   const statusResponse = await axiosInstance.get(
     r(endpoints.media.videoSegmentsNormalizeFps(videoId))
@@ -1445,45 +1447,6 @@ const handleDocumentClick = (event: MouseEvent): void => {
   if (!videoDropdownRef.value.contains(target)) {
     closeVideoDropdown()
   }
-}
-
-const parseDobToDate = (rawDob: string | null | undefined): Date | null => {
-  if (!rawDob) return null
-  const trimmed = rawDob.trim()
-  if (!trimmed) return null
-
-  const isoCandidate = new Date(trimmed)
-  if (!Number.isNaN(isoCandidate.getTime())) return isoCandidate
-
-  const deMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
-  if (deMatch) {
-    const [, day, month, year] = deMatch
-    const parsed = new Date(Number(year), Number(month) - 1, Number(day))
-    if (!Number.isNaN(parsed.getTime())) return parsed
-  }
-
-  return null
-}
-
-const getAgeFromDob = (rawDob: string | null | undefined): number | null => {
-  const dob = parseDobToDate(rawDob)
-  if (!dob) return null
-  const today = new Date()
-  let age = today.getFullYear() - dob.getFullYear()
-  const monthDelta = today.getMonth() - dob.getMonth()
-  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate())) {
-    age -= 1
-  }
-  return age >= 0 ? age : null
-}
-
-const normalizeGenderLabel = (value: string | null | undefined): string => {
-  if (!value) return 'Unbekannt'
-  const normalized = value.toLowerCase()
-  if (normalized === 'male' || normalized === 'männlich') return 'Männlich'
-  if (normalized === 'female' || normalized === 'weiblich') return 'Weiblich'
-  if (normalized === 'diverse') return 'Divers'
-  return value
 }
 
 const getVideoPatientGender = (videoId: number): string => {
@@ -1650,10 +1613,7 @@ const activeAnnotatorLabel = computed(() =>
 
 function getVideoValidatedAnnotators(videoId: number): string[] {
   const video = selectableVideos.value.find((v) => v.id === videoId)
-  const annotators = video?.validatedAnnotators ?? []
-  return [...new Set(annotators.map((annotator) => String(annotator).trim()).filter(Boolean))].sort(
-    (a, b) => a.localeCompare(b)
-  )
+  return normalizeValidatedAnnotators(video?.validatedAnnotators ?? [])
 }
 
 function hasOtherValidatedAnnotator(videoId: number): boolean {
@@ -1664,10 +1624,7 @@ function hasOtherValidatedAnnotator(videoId: number): boolean {
 
 function getVideoValidatedAnnotatorLabel(videoId: number): string {
   const annotators = getVideoValidatedAnnotators(videoId)
-  if (!annotators.length) return ''
-
-  const prefix = hasOtherValidatedAnnotator(videoId) ? 'Vorannotation von' : 'Validiert von'
-  return `${prefix}: ${annotators.join(', ')}`
+  return getValidatedAnnotatorLabel(annotators, activeAnnotatorPrincipal.value)
 }
 
 const isSegmentReadOnlyByValidation = computed(() => isSelectedVideoValidated.value)
@@ -1844,8 +1801,7 @@ async function loadVideoDropdownData(): Promise<boolean> {
     })()
   ])
 
-  const overviewFailed =
-    overviewResult.status === 'rejected' || Boolean(anonymizationStore.error)
+  const overviewFailed = overviewResult.status === 'rejected' || Boolean(anonymizationStore.error)
   const videoListFailed = videoListResult.status === 'rejected'
   if (!overviewFailed && !videoListFailed) return true
 
@@ -1910,9 +1866,7 @@ onUnmounted(() => {
 function isAbortLikeError(error: unknown): boolean {
   const errorRecord = asRecord(error)
   const targetError = asRecord(asRecord(errorRecord.target).error)
-  const message = String(
-    errorRecord.message || targetError.message || error || ''
-  ).toLowerCase()
+  const message = String(errorRecord.message || targetError.message || error || '').toLowerCase()
   const code = errorRecord.code || targetError.code
   const mediaAbortCode = typeof MediaError !== 'undefined' ? MediaError.MEDIA_ERR_ABORTED : 1
 
@@ -2277,10 +2231,7 @@ const handleSegmentDelete = async (...args: unknown[]): Promise<void> => {
 
     const deleted = await videoStore.deleteSegment(segment.id)
     if (!deleted) {
-      showErrorMessage(
-        videoStore.errorMessage || 'Segment konnte nicht gelöscht werden.',
-        'danger'
-      )
+      showErrorMessage(videoStore.errorMessage || 'Segment konnte nicht gelöscht werden.', 'danger')
       return
     }
 
@@ -3085,14 +3036,7 @@ const onVideoError = (event: Event): void => {
 
 const getVideoDropdownStatusText = (videoId: number): string => {
   const status = getVideoDropdownStatus(videoId)
-  if (status === 'not_usable') {
-    return `Noch nicht nutzbar: ${getStatusText(getVideoAnonymizationStatus(videoId))}`
-  }
-  if (status === 'annotation_validated') return 'Video bereits validiert'
-  if (status === 'annotation_cleanup_pending') return 'Segmentvalidierung läuft'
-  if (status === 'annotation_cleanup_failed') return 'Segmentvalidierung prüfen'
-  if (status === 'ready_for_annotation') return 'Video startklar für Befundung!'
-  return 'Zurück zu Schritt 1 - Anonymisierung validieren'
+  return getDropdownStatusText(status, getStatusText(getVideoAnonymizationStatus(videoId)))
 }
 
 const getSegmentAnnotationStatusBadgeText = (videoId: number): string => {
@@ -3117,38 +3061,21 @@ const getSegmentAnnotationStatusBadgeClass = (videoId: number): string => {
 }
 
 const getVideoDropdownStatusBadgeClass = (videoId: number): string => {
-  const status = getVideoDropdownStatus(videoId)
-  if (status === 'not_usable') return 'badge-unusable'
-  if (status === 'annotation_validated') return 'badge-validated'
-  if (status === 'annotation_cleanup_pending') return 'badge-cleanup'
-  if (status === 'annotation_cleanup_failed') return 'badge-pending'
-  if (status === 'ready_for_annotation') return 'badge-ready'
-  return 'badge-pending'
+  return getDropdownStatusBadgeClass(getVideoDropdownStatus(videoId))
 }
 
 const getVideoDropdownItemClass = (videoId: number): string => {
-  const status = getVideoDropdownStatus(videoId)
-  if (status === 'not_usable') return 'video-dropdown-item-unusable'
-  if (status === 'annotation_validated') return 'video-dropdown-item-validated'
-  if (status === 'annotation_cleanup_pending') return 'video-dropdown-item-cleanup'
-  if (status === 'annotation_cleanup_failed') return 'video-dropdown-item-pending'
-  if (status === 'ready_for_annotation') return 'video-dropdown-item-ready'
-  return 'video-dropdown-item-pending'
+  return getDropdownItemClass(getVideoDropdownStatus(videoId))
 }
 
 const getVideoDropdownStatus = (videoId: number): VideoDropdownStatus => {
   // Keep anonymization validation and segment annotation validation separate:
   // filters decide visibility, while this resolver alone decides row color/text.
-  if (!canViewProcessedVideo(videoId)) return 'not_usable'
-  const segmentStatus = getVideoSegmentAnnotationStatus(videoId)
-  if (segmentStatus === 'cleanup_queued' || segmentStatus === 'cleanup_running') {
-    return 'annotation_cleanup_pending'
-  }
-  if (segmentStatus === 'cleanup_failed' || segmentStatus === 'cleanup_required') {
-    return 'annotation_cleanup_failed'
-  }
-  if (segmentStatus === 'validated') return 'annotation_validated'
-  return isVideoValidated(videoId) ? 'ready_for_annotation' : 'pending_anonymization_validation'
+  return resolveVideoDropdownStatus({
+    canViewProcessedVideo: canViewProcessedVideo(videoId),
+    segmentAnnotationStatus: getVideoSegmentAnnotationStatus(videoId),
+    isAnonymizationValidated: isVideoValidated(videoId)
+  })
 }
 
 function getVideoCountByDropdownStatus(status: VideoDropdownStatus): number {

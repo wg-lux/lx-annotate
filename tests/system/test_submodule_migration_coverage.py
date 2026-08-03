@@ -151,8 +151,9 @@ def test_portal_user_center_migration_preserves_examiner_memberships():
 
     class Membership:
         objects = SimpleNamespace(
-            bulk_create=lambda memberships,
-            ignore_conflicts: created_memberships.extend(memberships)
+            bulk_create=lambda memberships, ignore_conflicts: (
+                created_memberships.extend(memberships)
+            )
         )
 
         def __init__(self, *, portaluserinfo_id, center_id):
@@ -401,7 +402,13 @@ def test_center_identity_repair_adds_display_name_and_center_key(monkeypatch):
     assert calls[1]["field"].max_length == 255
 
 
-def test_legacy_requirement_delete_model_uses_if_exists_sql():
+@pytest.mark.parametrize(
+    ("database_vendor", "cascade_clause"),
+    [("sqlite", ""), ("postgresql", " CASCADE")],
+)
+def test_legacy_requirement_delete_model_uses_backend_compatible_if_exists_sql(
+    database_vendor, cascade_clause
+):
     module = importlib.import_module(
         "lx_annotate.migration_overrides.endoreg_db.0013_remove_legacy_requirement_models"
     )
@@ -424,6 +431,7 @@ def test_legacy_requirement_delete_model_uses_if_exists_sql():
         apps=SimpleNamespace(get_model=lambda app_label, model_name: model)
     )
     schema_editor = SimpleNamespace(
+        connection=SimpleNamespace(vendor=database_vendor),
         execute=executed_sql.append,
         quote_name=lambda table_name: f'"{table_name}"',
     )
@@ -432,8 +440,9 @@ def test_legacy_requirement_delete_model_uses_if_exists_sql():
     operation.database_forwards("endoreg_db", schema_editor, from_state, None)
 
     assert executed_sql == [
-        'DROP TABLE IF EXISTS "endoreg_db_requirement_finding_classifications" CASCADE',
-        'DROP TABLE IF EXISTS "endoreg_db_requirement" CASCADE',
+        "DROP TABLE IF EXISTS "
+        f'"endoreg_db_requirement_finding_classifications"{cascade_clause}',
+        f'DROP TABLE IF EXISTS "endoreg_db_requirement"{cascade_clause}',
     ]
 
 

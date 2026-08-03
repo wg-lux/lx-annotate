@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any, Literal, TypedDict
 
+from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 
@@ -329,6 +330,7 @@ def _jobs_by_resource(
     jobs = OutboundHubTransferJob.objects.select_related(
         "target_node",
         "source_center",
+        "marked_by",
     ).filter(target_node=selected_target)
     for job in jobs:
         if job.video_file_id is not None:
@@ -345,7 +347,14 @@ def _job_overview_fields(
 ) -> dict[str, Any]:
     return {
         "marked_for_upload": job is not None,
+        "marked_by_username": (
+            job.marked_by.get_username() if job is not None and job.marked_by else None
+        ),
+        "marked_at": job.marked_at.isoformat() if job is not None else None,
         "outbound_status": job.local_status if job is not None else "",
+        "failure_class": job.failure_class
+        if job is not None and job.failure_class
+        else None,
         "last_error": job.last_error if job is not None else "",
         "last_transfer_timestamp": (
             job.completed_at.isoformat() if job and job.completed_at else None
@@ -806,12 +815,14 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
     return HubExportOverview.model_validate(payload).model_dump(mode="json")
 
 
+@transaction.atomic
 def mark_resources_for_hub_upload(
     *,
     resource_refs: list[dict[str, Any]],
     target_node: NetworkNode,
     marked_by=None,
 ) -> list[OutboundHubTransferJob]:
+    authenticated_marker = _authenticated_marker(marked_by)
     source_node = get_default_source_node()
     if source_node is None:
         raise ValueError("No active site node is configured for outbound hub export.")
@@ -826,21 +837,21 @@ def mark_resources_for_hub_upload(
                 resource_id=resource_id,
                 target_node=target_node,
                 source_node=source_node,
-                marked_by=marked_by,
+                marked_by=authenticated_marker,
             )
         elif resource_kind == OutboundHubTransferJob.ResourceKind.REPORT:
             job, created = _mark_report_for_hub_upload(
                 resource_id=resource_id,
                 target_node=target_node,
                 source_node=source_node,
-                marked_by=marked_by,
+                marked_by=authenticated_marker,
             )
         else:
             raise ValueError(f"Unsupported resource_kind={resource_kind!r}")
         _finalize_marked_job(
             job,
             source_node=source_node,
-            marked_by=marked_by,
+            marked_by=authenticated_marker,
             created=created,
         )
         created_or_existing.append(job)
@@ -848,8 +859,12 @@ def mark_resources_for_hub_upload(
     return created_or_existing
 
 
-def _authenticated_marker(marked_by: Any) -> Any | None:
-    return marked_by if getattr(marked_by, "is_authenticated", False) else None
+def _authenticated_marker(marked_by: Any) -> Any:
+    if not getattr(marked_by, "is_authenticated", False):
+        raise ValueError(
+            "An authenticated operator is required for hub export marking."
+        )
+    return marked_by
 
 
 def _mark_video_for_hub_upload(
@@ -870,7 +885,7 @@ def _mark_video_for_hub_upload(
             "resource_kind": OutboundHubTransferJob.ResourceKind.VIDEO,
             "source_center": video.center,
             "local_cleanup_policy": configured_local_cleanup_policy(),
-            "marked_by": _authenticated_marker(marked_by),
+            "marked_by": marked_by,
             "transfer_key": build_transfer_key(
                 source_node_key=source_node.node_key,
                 resource_kind="video",
@@ -898,7 +913,7 @@ def _mark_report_for_hub_upload(
             "resource_kind": OutboundHubTransferJob.ResourceKind.REPORT,
             "source_center": report.center,
             "local_cleanup_policy": configured_local_cleanup_policy(),
-            "marked_by": _authenticated_marker(marked_by),
+            "marked_by": marked_by,
             "transfer_key": build_transfer_key(
                 source_node_key=source_node.node_key,
                 resource_kind="report",
@@ -926,6 +941,7 @@ def _finalize_marked_job(
         queue_outbound_job(job)
 
 
+@transaction.atomic
 def unmark_resources_for_hub_upload(
     *,
     resource_refs: list[dict[str, Any]],

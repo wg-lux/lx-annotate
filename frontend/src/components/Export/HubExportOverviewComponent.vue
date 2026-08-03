@@ -378,6 +378,7 @@
                 <th>Processed Media</th>
                 <th>Zentrum</th>
                 <th>Markiert</th>
+                <th>Markiert von</th>
                 <th>Status</th>
                 <th>Hinweis</th>
               </tr>
@@ -421,6 +422,15 @@
                   >
                     {{ item.markedForUpload ? 'Ja' : 'Nein' }}
                   </span>
+                </td>
+                <td :data-test="`hub-export-marker-${item.resourceKind}-${item.id}`">
+                  <template v-if="item.markedForUpload">
+                    <span class="d-block">{{ item.markedByUsername || 'unbekannt' }}</span>
+                    <span v-if="item.markedAt" class="text-xs text-muted">
+                      {{ formatTimestamp(item.markedAt) }}
+                    </span>
+                  </template>
+                  <span v-else>-</span>
                 </td>
                 <td class="transfer-progress-cell">
                   <div
@@ -538,9 +548,20 @@ const formatTimestamp = (value: string) => {
   }).format(parsed)
 }
 
+const failureClassLabel = (failureClass?: HubExportItem['failureClass']) => {
+  const labels: Record<NonNullable<HubExportItem['failureClass']>, string> = {
+    configuration_rejection: 'Konfiguration abgelehnt',
+    authorization_denial: 'Node-Autorisierung abgelehnt',
+    integrity_inconsistency: 'Integritätsprüfung fehlgeschlagen',
+    transient_retry: 'Vorübergehender Transferfehler'
+  }
+  return failureClass ? labels[failureClass] : ''
+}
+
 const itemNotice = (item: HubExportItem) => {
   if (item.lastError) {
-    return `Der Transfer wartet auf eine erneute Ausführung. ${item.lastError}`
+    const failureLabel = failureClassLabel(item.failureClass)
+    return `${failureLabel ? `${failureLabel}. ` : ''}${item.lastError}`
   }
   if (item.blockedReason) return requirementLabel(item.blockedReason)
   if (COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus)) {

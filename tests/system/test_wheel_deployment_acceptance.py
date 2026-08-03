@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import tomllib
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -8,6 +9,29 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def _read(rel_path: str) -> str:
     return (REPO_ROOT / rel_path).read_text(encoding="utf-8")
+
+
+def test_static_assets_have_one_source_and_one_generated_output() -> None:
+    pyproject = tomllib.loads(_read("pyproject.toml"))
+    build_include = set(pyproject["tool"]["hatch"]["build"]["include"])
+    wheel_force_include = pyproject["tool"]["hatch"]["build"]["targets"]["wheel"][
+        "force-include"
+    ]
+    guide = _read("docs/guides/asset-deployment.md")
+    gitignore = _read(".gitignore")
+
+    assert (REPO_ROOT / "frontend" / "src" / "assets").is_dir()
+    assert (REPO_ROOT / "static").is_dir()
+    assert not (REPO_ROOT / "lx_annotate" / "static").exists()
+    assert not (REPO_ROOT / "static" / "assets").exists()
+    assert "/frontend/.vite/" in gitignore
+    assert "/lx_annotate/static/" in gitignore
+    assert "/lx_annotate/staticfiles/" in gitignore
+    assert "/lx_annotate/static/**/*" not in build_include
+    assert "/lx_annotate/staticfiles/**/*" not in build_include
+    assert wheel_force_include == {"staticfiles": "lx_annotate/staticfiles"}
+    assert "`frontend/src/assets/` owns source assets" in guide
+    assert "`staticfiles/` is disposable deployment output" in guide
 
 
 def test_wheel_runtime_splits_code_and_data_roots():

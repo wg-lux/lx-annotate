@@ -91,6 +91,10 @@ stdenvNoCC.mkDerivation {
         export HOME="$TMPDIR/home"
         export XDG_DATA_HOME="$TMPDIR/xdg"
         export LX_ANNOTATE_ENCRYPTED_DATA_DIR="$TMPDIR/app-data"
+        export LX_ANNOTATE_DATA_DIR="$TMPDIR/app-data"
+        export DATA_DIR="$TMPDIR/app-data"
+        export STORAGE_DIR="$TMPDIR/app-data/storage"
+        export PROTECTED_MEDIA_ROOT="$TMPDIR/app-data/storage"
         export DJANGO_STATIC_ROOT="$static_root"
         export DJANGO_SETTINGS_MODULE="lx_annotate.settings.settings_prod"
         export DJANGO_SECRET_KEY="nix-build-secret-key-00000000000000000000000000000000"
@@ -145,6 +149,11 @@ stdenvNoCC.mkDerivation {
         writeCliEntrypoint lx-annotate-watch watch
         writeCliEntrypoint lx-annotate-export-frames export_frames
         writeCliEntrypoint lx-annotate-import-sap import_sap
+        writeCliEntrypoint lx-annotate-recover-data recover_data
+        writeCliEntrypoint lx-annotate-bootstrap-terminology bootstrap_terminology
+        writeCliEntrypoint lx-annotate-provision-hub-nodes provision_hub_nodes
+        writeCliEntrypoint lx-annotate-storage-relief storage_relief
+        writeCliEntrypoint lx-annotate-acceptance acceptance
 
         wrapRuntimeEntrypoint() {
           makeWrapper "$1" "$2" \
@@ -166,6 +175,11 @@ stdenvNoCC.mkDerivation {
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-watch" "$out/bin/lx-annotate-watch"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-export-frames" "$out/bin/lx-annotate-export-frames"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-import-sap" "$out/bin/lx-annotate-import-sap"
+        wrapRuntimeEntrypoint "$out/libexec/lx-annotate-recover-data" "$out/bin/lx-annotate-recover-data"
+        wrapRuntimeEntrypoint "$out/libexec/lx-annotate-bootstrap-terminology" "$out/bin/lx-annotate-bootstrap-terminology"
+        wrapRuntimeEntrypoint "$out/libexec/lx-annotate-provision-hub-nodes" "$out/bin/lx-annotate-provision-hub-nodes"
+        wrapRuntimeEntrypoint "$out/libexec/lx-annotate-storage-relief" "$out/bin/lx-annotate-storage-relief"
+        wrapRuntimeEntrypoint "$out/libexec/lx-annotate-acceptance" "$out/bin/lx-annotate-acceptance"
 
         runHook postInstall
   '';
@@ -180,6 +194,11 @@ stdenvNoCC.mkDerivation {
     watch = "lx-annotate-watch";
     exportFrames = "lx-annotate-export-frames";
     importSap = "lx-annotate-import-sap";
+    recoverData = "lx-annotate-recover-data";
+    bootstrapTerminology = "lx-annotate-bootstrap-terminology";
+    provisionHubNodes = "lx-annotate-provision-hub-nodes";
+    storageRelief = "lx-annotate-storage-relief";
+    acceptance = "lx-annotate-acceptance";
     serverAlias = "lx-annotate-server";
   };
 

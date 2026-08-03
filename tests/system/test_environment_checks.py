@@ -4,11 +4,15 @@ from types import SimpleNamespace
 import json
 
 import pytest
+from django.core.checks import WARNING
 from django.core.checks.registry import registry
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 
 from lx_annotate import checks as checks_module
+from lx_dtypes.models.interface.KnowledgeBaseResolver import (
+    clear_knowledge_base_resolver_caches,
+)
 
 
 @override_settings(MEDIA_ROOT="/tmp/media-root")
@@ -72,20 +76,55 @@ def test_environment_checks_require_native_hls_state_machine(monkeypatch, tmp_pa
 def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
     monkeypatch, tmp_path
 ):
+    kb_root = tmp_path / "knowledge-bases"
+    module_dir = kb_root / "verified_reporting"
+    module_dir.mkdir(parents=True)
+    (module_dir / "config.yaml").write_text(
+        "\n".join(
+            [
+                "name: verified_reporting",
+                "description: Verified test bundle",
+                "version: 2026.07.31",
+                "modules: []",
+                "depends_on: []",
+                "data:",
+                "  dirs: []",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     registry_path = tmp_path / "terminology" / "registry.json"
     registry_path.parent.mkdir()
-    registry_path.write_text(json.dumps({"modules": {}}), encoding="utf-8")
+    registry_path.write_text(
+        json.dumps(
+            {
+                "active": {
+                    "module_name": "verified_reporting",
+                    "version": "2026.07.31",
+                },
+                "modules": {
+                    "verified_reporting": {"2026.07.31": {"input_dirs": [str(kb_root)]}}
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LX_DTYPES_KB_REGISTRY", str(registry_path))
     monkeypatch.setenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/")
     monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(tmp_path))
     monkeypatch.setattr(checks_module, "check_environment_readiness", lambda: [])
+    clear_knowledge_base_resolver_caches()
 
     messages = checks_module.lx_annotate_environment_checks(None)
 
-    assert not any("lx_dtypes" in message.id for message in messages)
+    assert not any(
+        message.id is not None and "lx_dtypes" in message.id for message in messages
+    )
 
 
 @override_settings(MEDIA_ROOT="/tmp/media-root", LX_DTYPES_HOST_MODELS_MODULE="")
-def test_environment_checks_fail_for_missing_lx_dtypes_contract(monkeypatch, tmp_path):
+def test_environment_checks_warn_for_missing_lx_dtypes_contract(monkeypatch, tmp_path):
     monkeypatch.delenv("LX_DTYPES_KB_REGISTRY", raising=False)
     monkeypatch.setenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/")
     monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(tmp_path))
@@ -97,6 +136,12 @@ def test_environment_checks_fail_for_missing_lx_dtypes_contract(monkeypatch, tmp
         message.id == "lx_annotate.lx_dtypes_host_models_module_missing"
         for message in messages
     )
+    registry_message = next(
+        message
+        for message in messages
+        if message.id == "lx_annotate.lx_dtypes_kb_registry_missing"
+    )
+    assert registry_message.level == WARNING
 
 
 def test_runtime_checks_are_not_registered_as_pre_migrate_system_checks():
@@ -154,6 +199,34 @@ def test_schema_checks_fail_when_required_tables_are_missing(monkeypatch):
     )
 
 
+def test_schema_checks_require_release_0_9_53_columns_and_receipt_table(monkeypatch):
+    def table_columns(table_name, using=checks_module.DEFAULT_DB_ALIAS):
+        if table_name == "endoreg_db_medicalledgerwritereceipt":
+            return set()
+        required = set(
+            checks_module._ENDOREG_DB_REQUIRED_COLUMNS.get(table_name, ("id",))
+        )
+        if table_name == "endoreg_db_videohlsartifact":
+            required.remove("encoding_profile_name")
+        return required
+
+    monkeypatch.setattr(checks_module, "_table_columns", table_columns)
+
+    messages = checks_module.lx_annotate_endoreg_db_schema_checks(None)
+
+    assert any(
+        message.id == "lx_annotate.endoreg_db_schema_column_missing"
+        and message.obj == "endoreg_db_videohlsartifact"
+        and "encoding_profile_name" in message.msg
+        for message in messages
+    )
+    assert any(
+        message.id == "lx_annotate.endoreg_db_schema_table_missing"
+        and message.obj == "endoreg_db_medicalledgerwritereceipt"
+        for message in messages
+    )
+
+
 def test_schema_checks_fail_closed_when_schema_cannot_be_introspected(monkeypatch):
     monkeypatch.setattr(
         checks_module,
@@ -207,7 +280,7 @@ def test_constraint_checks_report_missing_generation_constraints(monkeypatch):
         checks_module,
         "_table_columns",
         lambda table_name, using=checks_module.DEFAULT_DB_ALIAS: (
-            {"error_code", "status"}
+            set(checks_module._ENDOREG_DB_REQUIRED_COLUMNS[table_name])
             if table_name == "endoreg_db_videohlsartifact"
             else set(checks_module._ENDOREG_DB_REQUIRED_COLUMNS[table_name])
         ),
@@ -234,6 +307,41 @@ def test_constraint_checks_report_missing_generation_constraints(monkeypatch):
         and message.obj == "endoreg_db_videohlsartifact"
         and "unique_active_video_hls_attempt" in message.msg
         and "unique_ready_video_hls_artifact_kind" in message.msg
+        for message in messages
+    )
+
+
+def test_constraint_checks_require_medical_ledger_receipt_integrity(monkeypatch):
+    monkeypatch.setattr(
+        checks_module,
+        "_table_columns",
+        lambda table_name, using=checks_module.DEFAULT_DB_ALIAS: set(
+            checks_module._ENDOREG_DB_REQUIRED_COLUMNS[table_name]
+        ),
+    )
+    monkeypatch.setattr(
+        checks_module,
+        "_table_constraint_names",
+        lambda table_name: (
+            set()
+            if table_name == "endoreg_db_medicalledgerwritereceipt"
+            else set(checks_module._ENDOREG_DB_REQUIRED_CONSTRAINTS[table_name])
+        ),
+    )
+    monkeypatch.setattr(
+        checks_module,
+        "_count_constraint_violations",
+        lambda table_name, predicate_sql, parameters: 0,
+    )
+
+    messages = checks_module.lx_annotate_endoreg_db_constraint_checks(None)
+
+    assert any(
+        message.id == "lx_annotate.endoreg_db_schema_constraint_missing"
+        and message.obj == "endoreg_db_medicalledgerwritereceipt"
+        and "medled_receipt_patient_key_uq" in message.msg
+        and "medled_receipt_key_nonempty" in message.msg
+        and "medled_receipt_hash_nonempty" in message.msg
         for message in messages
     )
 

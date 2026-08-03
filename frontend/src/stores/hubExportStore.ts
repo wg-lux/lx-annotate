@@ -19,7 +19,15 @@ export interface HubExportItem {
   sourceCenterKey: string | null
   sourceCenterName: string | null
   markedForUpload: boolean
+  markedByUsername: string | null
+  markedAt: string | null
   outboundStatus: string
+  failureClass?:
+    | 'configuration_rejection'
+    | 'authorization_denial'
+    | 'integrity_inconsistency'
+    | 'transient_retry'
+    | null
   lastError: string
   blockedReason?: string
   lastTransferTimestamp: string | null

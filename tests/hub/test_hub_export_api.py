@@ -1,6 +1,7 @@
 # pyright: reportAttributeAccessIssue=false, reportIndexIssue=false
 from __future__ import annotations
 
+from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.test import override_settings
@@ -14,12 +15,15 @@ import base64
 import os
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
+User = get_user_model()
 
 os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 
 
 class HubExportApiTests(TestCase):
     def setUp(self) -> None:
+        self.operator = User.objects.create_user(username="hub-operator")
+        self.client.force_login(self.operator)
         self.center = Center.objects.create(
             name="Test Center", center_key="test-center"
         )
@@ -68,6 +72,8 @@ class HubExportApiTests(TestCase):
         self.assertEqual(len(payload["items"]), 1)
         self.assertTrue(payload["items"][0]["eligible"])
         self.assertFalse(payload["items"][0]["marked_for_upload"])
+        self.assertIsNone(payload["items"][0]["marked_by_username"])
+        self.assertIsNone(payload["items"][0]["marked_at"])
         self.assertEqual(payload["privacy_summary"]["min_k"], 5)
         self.assertEqual(payload["privacy_summary"]["eligible_resource_count"], 1)
         self.assertEqual(
@@ -94,6 +100,7 @@ class HubExportApiTests(TestCase):
             "/api/hub-export/mark/",
             data={
                 "targetNodeKey": "hub-node",
+                "marked_by": "client-supplied-actor",
                 "resources": [{"id": self.report.id, "resourceKind": "report"}],
             },
             content_type="application/json",
@@ -104,10 +111,20 @@ class HubExportApiTests(TestCase):
             OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).count(),
             1,
         )
+        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
+        self.assertEqual(job.marked_by, self.operator)
 
         overview_response = self.client.get("/api/hub-export/overview/")
         overview_payload = overview_response.json()
         self.assertTrue(overview_payload["items"][0]["marked_for_upload"])
+        self.assertEqual(
+            overview_payload["items"][0]["marked_by_username"],
+            self.operator.get_username(),
+        )
+        self.assertEqual(
+            overview_payload["items"][0]["marked_at"],
+            job.marked_at.isoformat(),
+        )
         self.assertEqual(len(overview_payload["sync_summary"]["duplicates"]), 1)
         self.assertEqual(
             overview_payload["sync_summary"]["duplicates"][0]["reason"],
@@ -128,6 +145,136 @@ class HubExportApiTests(TestCase):
             OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).count(),
             0,
         )
+
+    def test_overview_exposes_typed_failure_class_for_operator_triage(self) -> None:
+        mark_response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "targetNodeKey": "hub-node",
+                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(mark_response.status_code, 200)
+        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
+        job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
+        job.failure_class = OutboundHubTransferJob.FailureClass.AUTHORIZATION_DENIAL
+        job.last_error = "Hub transfer authorization denied with HTTP 403."
+        job.save(update_fields=["local_status", "failure_class", "last_error"])
+
+        response = self.client.get("/api/hub-export/overview/")
+
+        self.assertEqual(response.status_code, 200)
+        item = response.json()["items"][0]
+        self.assertEqual(item["failure_class"], "authorization_denial")
+        self.assertNotIn("super-secret", item["last_error"])
+
+    def test_hub_export_operator_endpoints_require_authentication(self):
+        self.client.logout()
+
+        for method, path, data in (
+            ("get", "/api/hub-export/overview/", None),
+            (
+                "post",
+                "/api/hub-export/mark/",
+                {
+                    "targetNodeKey": "hub-node",
+                    "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                },
+            ),
+            (
+                "post",
+                "/api/hub-export/unmark/",
+                {
+                    "targetNodeKey": "hub-node",
+                    "resources": [{"id": self.report.id, "resourceKind": "report"}],
+                },
+            ),
+        ):
+            response = getattr(self.client, method)(
+                path,
+                data=data,
+                content_type="application/json" if data is not None else None,
+            )
+            self.assertIn(response.status_code, {401, 403})
+
+    def test_bulk_mark_is_atomic_when_one_resource_is_invalid(self):
+        response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "targetNodeKey": "hub-node",
+                "resources": [
+                    {"id": self.report.id, "resourceKind": "report"},
+                    {"id": 999999, "resourceKind": "report"},
+                ],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists()
+        )
+
+    def test_bulk_unmark_is_atomic_and_only_marked_jobs_are_reversible(self):
+        mark_response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "targetNodeKey": "hub-node",
+                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(mark_response.status_code, 200)
+        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
+
+        failed_unmark = self.client.post(
+            "/api/hub-export/unmark/",
+            data={
+                "targetNodeKey": "hub-node",
+                "resources": [
+                    {"id": self.report.id, "resourceKind": "report"},
+                    {"id": self.report.id, "resourceKind": "unsupported"},
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(failed_unmark.status_code, 400)
+        self.assertTrue(OutboundHubTransferJob.objects.filter(pk=job.pk).exists())
+
+        job.local_status = OutboundHubTransferJob.LocalStatus.QUEUED
+        job.save(update_fields=["local_status", "updated_at"])
+        queued_unmark = self.client.post(
+            "/api/hub-export/unmark/",
+            data={
+                "targetNodeKey": "hub-node",
+                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(queued_unmark.status_code, 200)
+        self.assertEqual(queued_unmark.json()["unmarked_count"], 0)
+        self.assertTrue(OutboundHubTransferJob.objects.filter(pk=job.pk).exists())
+
+    def test_mark_history_remains_visible_to_another_operator(self):
+        mark_response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "targetNodeKey": "hub-node",
+                "resources": [{"id": self.report.id, "resourceKind": "report"}],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(mark_response.status_code, 200)
+
+        reviewing_operator = User.objects.create_user(username="reviewing-operator")
+        self.client.force_login(reviewing_operator)
+        overview = self.client.get("/api/hub-export/overview/")
+
+        self.assertEqual(overview.status_code, 200)
+        item = overview.json()["items"][0]
+        self.assertEqual(item["marked_by_username"], self.operator.get_username())
+        self.assertIsNotNone(item["marked_at"])
 
     @override_settings(LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=True)
     @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")

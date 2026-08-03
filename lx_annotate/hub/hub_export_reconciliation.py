@@ -12,6 +12,7 @@ from endoreg_db.models import NetworkNode
 
 from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_worker import (
+    RemoteTransferAuthorizationError,
     RemoteTransferIntegrityError,
     apply_remote_status,
     fetch_remote_transfer_status,
@@ -144,6 +145,14 @@ def reconcile_outbound_transfer_job(
             secret=secret,
             request_timeout_s=request_timeout_s,
         )
+    except RemoteTransferAuthorizationError as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=str(exc),
+            source_node_key=source_node.node_key,
+            failure_class="authorization_denial",
+            retryable=False,
+        )
     except requests.RequestException as exc:
         if _is_stale(outbound_job):
             emit_hub_export_audit_event(
@@ -156,10 +165,13 @@ def reconcile_outbound_transfer_job(
                 error_message=(
                     f"Hub transfer reconciliation failed for stale in-flight job: {exc}"
                 ),
+                source_node_key=source_node.node_key,
+                failure_class="transient_retry",
             )
         emit_hub_export_audit_event(
             "hub_export.reconciliation_deferred",
             outbound_job=outbound_job,
+            source_node_key=source_node.node_key,
             error=str(exc),
         )
         return outbound_job
@@ -174,11 +186,14 @@ def reconcile_outbound_transfer_job(
         return mark_outbound_job_failure(
             outbound_job,
             error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="integrity_inconsistency",
             retryable=False,
         )
     emit_hub_export_audit_event(
         "hub_export.reconciled",
         outbound_job=outbound_job,
+        source_node_key=source_node.node_key,
         remote_transfer_status=outbound_job.remote_transfer_status,
     )
     return outbound_job

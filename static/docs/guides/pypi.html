@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="AI Training Data Export" href="ai-training-data-export.html"><link rel="prev" title="Wheel Deployment" href="wheel-deployment.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>Pypi Publishing - lx-annotate Documentation</title>
+        <title>PyPI Publishing - lx-annotate Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -192,20 +192,20 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">PyPI Publishing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">Dates and Times</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="terminology-delivery.html">Governed terminology delivery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
 <li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
@@ -253,18 +253,32 @@
         </div>
         <article role="main" id="furo-main-content">
           <section id="pypi-publishing">
-<h1>Pypi Publishing<a class="headerlink" href="#pypi-publishing" title="Link to this heading">¶</a></h1>
-<p>The make package workflow vreates a binary including the nix derivation of the frontend. This allows the python wheel to include a pinned version of the frontend.</p>
-<p>Also, docs are included here through sphinx.</p>
-<section id="the-frontend-dependency-lock-changed-but-its-nix-dependency-hash-was-not-updated">
-<h2>The frontend dependency lock changed, but its Nix dependency hash was not updated.<a class="headerlink" href="#the-frontend-dependency-lock-changed-but-its-nix-dependency-hash-was-not-updated" title="Link to this heading">¶</a></h2>
-<p>A commit might have added a package to package.json and package-lock.json. However, default.nix might still contain the hash for the previous dependency set:
-npmDepsHash = “sha256-gFyVehSwVatoPJnel6OSbV2mYRbG3Fbk5/aooeEzzhw=”;</p>
+<h1>PyPI Publishing<a class="headerlink" href="#pypi-publishing" title="Link to this heading">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> is the canonical release-version source. The private frontend
+package and its lock file carry the same version so a release commit identifies
+one application build. Update all three files in the release commit; do not use
+the frontend package version as an independent release stream.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">package</span></code> workflow builds the frontend and Sphinx documentation before
+creating the wheel and source distribution. Generated frontend files are owned
+by <code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code>; generated documentation is owned by <code class="docutils literal notranslate"><span class="pre">static/docs/</span></code> for the
+deployed documentation route. <code class="docutils literal notranslate"><span class="pre">docs/_build/</span></code> is disposable local build output
+and is not committed.</p>
+<section id="updating-the-frontend-dependency-hash">
+<h2>Updating the frontend dependency hash<a class="headerlink" href="#updating-the-frontend-dependency-hash" title="Link to this heading">¶</a></h2>
+<p>A commit might add a package to <code class="docutils literal notranslate"><span class="pre">package.json</span></code> and <code class="docutils literal notranslate"><span class="pre">package-lock.json</span></code> while the
+Nix expression still contains the hash for the previous dependency set:</p>
+<div class="highlight-nix notranslate"><div class="highlight"><pre><span></span><span class="ss">npmDepsHash</span> <span class="o">=</span> <span class="s2">&quot;sha256-gFyVehSwVatoPJnel6OSbV2mYRbG3Fbk5/aooeEzzhw=&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
 <p>Nix downloaded the dependencies described by the new lockfile, calculated their actual hash, and correctly rejected them because reproducibility checks found:</p>
-<p>expected: sha256-gFyVehSwVatoPJnel6OSbV2mYRbG3Fbk5/aooeEzzhw=
-actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=</p>
-<p>The repair is to update npmDepsHash to the reported actual hash and rerun make package:</p>
-<p>npmDepsHash = “sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=”;</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>expected: sha256-gFyVehSwVatoPJnel6OSbV2mYRbG3Fbk5/aooeEzzhw=
+actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=
+</pre></div>
+</div>
+<p>Update <code class="docutils literal notranslate"><span class="pre">npmDepsHash</span></code> to the reported actual hash and rerun <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">package</span></code>:</p>
+<div class="highlight-nix notranslate"><div class="highlight"><pre><span></span><span class="ss">npmDepsHash</span> <span class="o">=</span> <span class="s2">&quot;sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
 </section>
 </section>
 
@@ -273,8 +287,26 @@ actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=</p>
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="ai-training-data-export.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">AI Training Data Export</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="wheel-deployment.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Wheel Deployment</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -305,8 +337,8 @@ actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Pypi Publishing</a><ul>
-<li><a class="reference internal" href="#the-frontend-dependency-lock-changed-but-its-nix-dependency-hash-was-not-updated">The frontend dependency lock changed, but its Nix dependency hash was not updated.</a></li>
+<li><a class="reference internal" href="#">PyPI Publishing</a><ul>
+<li><a class="reference internal" href="#updating-the-frontend-dependency-hash">Updating the frontend dependency hash</a></li>
 </ul>
 </li>
 </ul>
@@ -318,7 +350,7 @@ actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=c0fdfda8"></script>
+</div><script src="../_static/documentation_options.js?v=f70577c2"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

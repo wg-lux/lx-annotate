@@ -99,6 +99,36 @@ class HubExportReconciliationTests(TestCase):
         )
         self.assertEqual(result.remote_transfer_status, "awaiting_media")
 
+    @patch("lx_annotate.hub.hub_export_worker.requests.get")
+    def test_reconcile_records_authorization_denial_without_retry(
+        self,
+        get_mock: MagicMock,
+    ) -> None:
+        job = OutboundHubTransferJob.objects.create(
+            resource_kind=OutboundHubTransferJob.ResourceKind.REPORT,
+            raw_pdf_file=self.report,
+            source_center=self.center,
+            target_node=self.hub_node,
+            transfer_key="site-node__report__authorization-denied__processed_v1",
+            local_status=OutboundHubTransferJob.LocalStatus.UPLOADING,
+        )
+        response = MagicMock(status_code=403)
+        get_mock.return_value = response
+
+        result = reconcile_outbound_transfer_job(
+            outbound_job_id=str(job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(
+            result.failure_class,
+            OutboundHubTransferJob.FailureClass.AUTHORIZATION_DENIAL,
+        )
+        self.assertEqual(result.retry_count, 0)
+        response.json.assert_not_called()
+
     @override_settings(LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS=60)
     @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
     @patch("lx_annotate.hub.hub_export_worker.requests.get")

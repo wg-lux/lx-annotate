@@ -195,17 +195,18 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="guides/general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/runtime-environment-contract-test.html">Runtime environment contract test</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/hub-export-workflow.html">Hub Export Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/wheel-deployment.html">Wheel Deployment</a></li>
-<li class="toctree-l1"><a class="reference internal" href="assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/pypi.html">PyPI Publishing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html">Dates and Times</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/terminology-delivery.html">Governed terminology delivery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/core-concept-contract.html">Core Concept Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
@@ -289,6 +290,13 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/deployment-strategy.html#related-guides">Related Guides</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="guides/runtime-environment-contract-test.html">Runtime environment contract test</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/runtime-environment-contract-test.html#purpose">Purpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/runtime-environment-contract-test.html#files-changed">Files changed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/runtime-environment-contract-test.html#verification">Verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/runtime-environment-contract-test.html#rollback">Rollback</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="guides/encrypted-storage-process.html">Encrypted Storage Process</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="guides/encrypted-storage-process.html#scope">Scope</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/encrypted-storage-process.html#summary">Summary</a></li>
@@ -302,6 +310,23 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/encrypted-storage-process.html#verification-command">Verification Command</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/encrypted-storage-process.html#operational-notes">Operational Notes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/encrypted-storage-process.html#related-files">Related Files</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#current-recovery-status">Current Recovery Status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#security-invariants">Security Invariants</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#recovery-classes">Recovery Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#roles-and-authorization">Roles and Authorization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#phase-1-preserve-and-inspect">Phase 1: Preserve and Inspect</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#phase-2-non-persistent-integrity-check">Phase 2: Non-Persistent Integrity Check</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#phase-3-restore-postgresql-into-an-isolated-target">Phase 3: Restore PostgreSQL into an Isolated Target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#phase-4-recover-the-application-master-key-boundary">Phase 4: Recover the Application Master-Key Boundary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#phase-5-restore-protected-media">Phase 5: Restore Protected Media</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#phase-6-reconcile-and-approve">Phase 6: Reconcile and Approve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#audit-record">Audit Record</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#cleanup-rotation-and-retention">Cleanup, Rotation, and Retention</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#incident-escalation">Incident Escalation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/secure-backup-disaster-recovery.html#readiness-gaps">Readiness Gaps</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="guides/hub-export-workflow.html">Hub Export Workflow</a><ul>
@@ -323,6 +348,7 @@ used throughout the project.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="guides/asset-deployment.html">Frontend Asset Deployment Contract</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/asset-deployment.html#canonical-ownership">Canonical Ownership</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/asset-deployment.html#contract-summary">Contract Summary</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/asset-deployment.html#deployment-flow">Deployment Flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/asset-deployment.html#why-emptyoutdir-is-disabled">Why <code class="docutils literal notranslate"><span class="pre">emptyOutDir</span></code> Is Disabled</a></li>
@@ -350,22 +376,8 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/wheel-deployment.html#notes">Notes</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#audience-and-purpose">Audience and Purpose</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#where-this-page-is-used">Where This Page Is Used</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#what-you-see-on-the-page">What You See on the Page</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#why-requirement-sets-matter-clinical-view">Why Requirement Sets Matter (Clinical View)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#typical-step-by-step-workflow">Typical Step-by-Step Workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#full-reporting-flow-all-steps">Full Reporting Flow (All Steps)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#related-specialized-guides">Related Specialized Guides</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#quick-practical-path-for-clinical-documentation">Quick Practical Path for Clinical Documentation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#deep-link-behavior">Deep Link Behavior</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#field-and-button-reference">Field and Button Reference</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#developer-mapping-requirement-objects-to-lx-dtypes-validators">Developer Mapping: Requirement Objects to <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code> Validators</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#common-problems-and-practical-fixes">Common Problems and Practical Fixes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#training-checklist-for-clinical-onboarding">Training Checklist (For Clinical Onboarding)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#glossary-plain-language">Glossary (Plain Language)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#related-technical-files-for-admins-developers">Related Technical Files (for Admins/Developers)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/pypi.html">PyPI Publishing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/pypi.html#updating-the-frontend-dependency-hash">Updating the frontend dependency hash</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="guides/ai-training-data-export.html">AI Training Data Export</a><ul>
@@ -404,30 +416,6 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/anonymization-validation-correction-workflow.html#technical-references">Technical References</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html">Dates and Times</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#always-use-strong-typing">1. Always Use Strong Typing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#enforce-timezone-awareness">2. Enforce Timezone Awareness</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#validate-business-logic">4. Validate Business Logic</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#handle-now-and-defaults">5. Handle “Now” and Defaults</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#serialization">6. Serialization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#complete-example">7. Complete Example</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="guides/pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#the-pydantic-v2-lifecycle">The Pydantic V2 Lifecycle</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#shared-base-model">1. Shared Base Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#datetime-timezones-strict-mode">2. DateTime &amp; Timezones (Strict Mode)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#reusable-fields-mixins">3. Reusable Fields (Mixins)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#advanced-validation-patterns">4. Advanced Validation Patterns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#computed-fields-derived-data">5. Computed Fields (Derived Data)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#managing-aliases-frontend-vs-backend">6. Managing Aliases (Frontend vs Backend)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#path-objects-filesystems">7. Path Objects &amp; Filesystems</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#yaml-fixtures-sample-data">8. YAML Fixtures &amp; Sample Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#summary-table-validator-modes">Summary Table: Validator Modes</a></li>
-</ul>
-</li>
 <li class="toctree-l1"><a class="reference internal" href="guides/dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#scope">Scope</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#current-state-inventory">Current-State Inventory</a></li>
@@ -437,6 +425,13 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#decision-log">Decision Log</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#progress-log">Progress Log</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#post-cutover-follow-up">Post-Cutover Follow-Up</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/terminology-delivery.html">Governed terminology delivery</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/terminology-delivery.html#delivery-path">Delivery path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/terminology-delivery.html#prohibited-runtime-overlays">Prohibited runtime overlays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/terminology-delivery.html#verification-and-release-evidence">Verification and release evidence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/terminology-delivery.html#failure-behavior">Failure behavior</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="guides/core-concept-contract.html">Core Concept Contract</a><ul>
@@ -484,6 +479,7 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/reporting-template-requirements-page.html#why-requirement-sets-matter-clinical-view">Why Requirement Sets Matter (Clinical View)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/reporting-template-requirements-page.html#typical-step-by-step-workflow">Typical Step-by-Step Workflow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/reporting-template-requirements-page.html#full-reporting-flow-all-steps">Full Reporting Flow (All Steps)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/reporting-template-requirements-page.html#related-specialized-guides">Related Specialized Guides</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/reporting-template-requirements-page.html#quick-practical-path-for-clinical-documentation">Quick Practical Path for Clinical Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/reporting-template-requirements-page.html#deep-link-behavior">Deep Link Behavior</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/reporting-template-requirements-page.html#field-and-button-reference">Field and Button Reference</a></li>
@@ -508,6 +504,7 @@ used throughout the project.</p>
 <ul class="simple">
 <li><p>Project repository: <a class="reference external" href="https://github.com/wg-lux/lx-annotate">https://github.com/wg-lux/lx-annotate</a></p></li>
 <li><p>Issue tracker: <a class="reference external" href="https://github.com/wg-lux/lx-annotate/issues">https://github.com/wg-lux/lx-annotate/issues</a></p></li>
+<li><p>Shared type guidance: <a class="reference external" href="https://github.com/wg-lux/lx-data-models/tree/main/docs/guides">https://github.com/wg-lux/lx-data-models/tree/main/docs/guides</a></p></li>
 </ul>
 </section>
 </section>
@@ -573,7 +570,7 @@ used throughout the project.</p>
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=c0fdfda8"></script>
+</div><script src="_static/documentation_options.js?v=f70577c2"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>

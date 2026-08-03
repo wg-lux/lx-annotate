@@ -1,8 +1,12 @@
-import pytest
 from pathlib import Path
 from unittest.mock import patch
-from django.core.files.base import ContentFile
+
+import pytest
+from cryptography.exceptions import InvalidTag
 from django.core.exceptions import ImproperlyConfigured
+from django.core.files.base import ContentFile
+from endoreg_db.utils.file_operations import atomic_write_file
+
 from lx_annotate.storage.encrypted import EncryptedStorage
 
 # --- FIXTURES ---
@@ -95,11 +99,7 @@ def test_atomic_write_prevents_partial_files(encrypted_storage, tmp_path):
         "Partial/corrupted file was left at the target destination!"
     )
 
-    # Verify a tmp file was created (and ideally cleaned up, but definitely not the final file)
-    tmp_files = list(tmp_path.glob("*.tmp"))
-    assert (
-        len(tmp_files) >= 0
-    )  # It's okay if it exists, as long as it's not the final filename
+    assert list(tmp_path.rglob("*.tmp")) == []
 
 
 def test_envelope_encryption_uniqueness(encrypted_storage):
@@ -118,6 +118,26 @@ def test_envelope_encryption_uniqueness(encrypted_storage):
     assert disk_content1 != disk_content2, (
         "CRITICAL: IV/DEK reuse detected! Ciphertexts are identical."
     )
+
+
+def test_tampered_ciphertext_fails_integrity_check(encrypted_storage):
+    saved_name = encrypted_storage.save(
+        "tamper-check.bin", ContentFile(b"authenticated clinical payload")
+    )
+    encrypted_path = Path(encrypted_storage.path(saved_name))
+    ciphertext = bytearray(encrypted_path.read_bytes())
+    ciphertext[-1] ^= 1
+    atomic_write_file(
+        destination=encrypted_path,
+        content=(bytes(ciphertext),),
+        required_bytes=len(ciphertext),
+    )
+
+    with (
+        pytest.raises(InvalidTag),
+        encrypted_storage.open(saved_name, "rb") as handle,
+    ):
+        handle.read()
 
 
 def test_streaming_read_prevents_oom(encrypted_storage):

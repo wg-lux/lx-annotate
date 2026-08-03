@@ -16,6 +16,13 @@ class HubExportPrivacyStatus(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+class HubExportFailureClass(StrEnum):
+    CONFIGURATION_REJECTION = "configuration_rejection"
+    AUTHORIZATION_DENIAL = "authorization_denial"
+    INTEGRITY_INCONSISTENCY = "integrity_inconsistency"
+    TRANSIENT_RETRY = "transient_retry"
+
+
 class HubExportRejectionReason(StrEnum):
     MISSING_CENTER = "missing_center"
     NOT_READY_FOR_EXPORT = "not_ready_for_export"
@@ -61,7 +68,10 @@ class HubExportItem(BaseModel):
     source_center_key: str | None
     source_center_name: str | None
     marked_for_upload: bool
+    marked_by_username: str | None
+    marked_at: str | None
     outbound_status: str
+    failure_class: HubExportFailureClass | None
     last_error: str
     blocked_reason: str
     last_transfer_timestamp: str | None

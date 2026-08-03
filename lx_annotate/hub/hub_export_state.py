@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from endoreg_db.models import NetworkNode, RawPdfFile, VideoFile
-from endoreg_db.models.state.video_segment_validation import (
+from endoreg_db.services.video_segment_validation_workflow import (
     resolve_segment_annotation_status,
     segment_annotations_are_final,
 )
@@ -151,6 +151,10 @@ def _sync_outbound_jobs(
             }:
                 job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
                 update_fields.append("local_status")
+                job.failure_class = (
+                    OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION
+                )
+                update_fields.append("failure_class")
 
         if update_fields:
             job.save(update_fields=[*update_fields, "updated_at"])

@@ -12,17 +12,18 @@ used throughout the project.
 
 guides/general-documentation
 guides/deployment-strategy
+guides/runtime-environment-contract-test
 guides/encrypted-storage-process
+guides/secure-backup-disaster-recovery
 guides/hub-export-workflow
 guides/asset-deployment
 guides/wheel-deployment
-assisted-reporting-report
+guides/pypi
 guides/ai-training-data-export
 guides/segment-annotation-workflow
 guides/anonymization-validation-correction-workflow
-guides/dates-and-times
-guides/pydantic-cheatsheet
 guides/dtypes-findings-migration
+guides/terminology-delivery
 guides/core-concept-contract
 guides/core-concept-readiness-verdict
 guides/core-concept-type-matrix
@@ -39,3 +40,4 @@ api/index
 ## Quick Links
 - Project repository: https://github.com/wg-lux/lx-annotate
 - Issue tracker: https://github.com/wg-lux/lx-annotate/issues
+- Shared type guidance: https://github.com/wg-lux/lx-data-models/tree/main/docs/guides

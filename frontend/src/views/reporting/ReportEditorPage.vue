@@ -7,7 +7,7 @@
         <div class="report-editor-facts">
           <span>{{ reportPatientLabel }}</span>
           <span>{{ selectedExaminationDisplayName || 'Untersuchung fehlt' }}</span>
-          <span>{{ selectedTemplateName || 'Vorlage fehlt' }}</span>
+          <span>{{ selectedTemplateDisplayName }}</span>
         </div>
       </div>
       <div class="report-workspace-actions">
@@ -67,9 +67,8 @@
                     <label class="form-label">Modul</label>
                     <input
                       class="form-control"
-                      :value="selectedKbModule"
-                      :disabled="loading || templateLoading"
-                      @change="onModuleChange(($event.target as HTMLInputElement).value)"
+                      :value="selectedKbModule || 'Keine aktive Terminologie'"
+                      readonly
                     />
                   </div>
                   <div class="col-md-4">
@@ -85,10 +84,8 @@
                     <select
                       class="form-select"
                       :value="selectedTemplateName || ''"
-                      :disabled="loading || templateLoading || !templateOptions.length"
-                      @change="
-                        onTemplateSelectionChange(($event.target as HTMLSelectElement).value)
-                      "
+                      disabled
+                      title="Vorlagen werden im Reporting-Kontext oberhalb der Seite gewechselt."
                     >
                       <option value="" disabled>
                         {{ templateLoading ? 'Vorlagen laden...' : 'Vorlage wählen' }}
@@ -98,9 +95,10 @@
                         :key="template.name"
                         :value="template.name"
                       >
-                        {{ template.name }}
+                        {{ describeReportTemplateTitle(template.name) }}
                       </option>
                     </select>
+                    <div class="form-text">Vorlage oben im Reporting-Kontext wechseln.</div>
                   </div>
                 </div>
 
@@ -108,14 +106,14 @@
                   <button
                     class="btn btn-outline-secondary btn-sm"
                     :disabled="loading || templateLoading || !selectedExaminationName"
-                    @click="refreshTemplatesForExamination"
+                    @click="refreshTemplatesForCurrentContext"
                   >
                     Vorlagen laden
                   </button>
                   <button
                     class="btn btn-outline-secondary btn-sm"
                     :disabled="loading"
-                    @click="loadLatestReportMeta"
+                    @click="loadLatestReportForCurrentContext"
                   >
                     Letzten Bericht laden
                   </button>
@@ -126,14 +124,21 @@
                 <div v-if="templateStatusMessage" class="alert alert-success py-2 mt-3 mb-0">
                   {{ templateStatusMessage }}
                 </div>
+                <div
+                  v-if="findingCatalogError || coreConceptsError"
+                  class="alert alert-warning py-2 mt-3 mb-0"
+                >
+                  {{ findingCatalogError || coreConceptsError }}
+                </div>
               </template>
             </MedicalBlock>
 
             <div v-if="!sectionBlocks.length" class="alert alert-info">
-              Bitte eine Vorlage auswählen.
+              Die erfassten Befunde bleiben verfügbar. Wählen Sie für Berichtstext,
+              Vollständigkeitsprüfung und Abschluss eine kompatible veröffentlichte Vorlage aus.
             </div>
             <div v-else-if="!currentRuntimeDraft || !currentPayload" class="alert alert-warning">
-              Kein aktiver Entwurf geladen.
+              Der Befundentwurf wird vorbereitet. Diese Ansicht aktualisiert sich automatisch.
             </div>
 
             <MedicalBlock
@@ -230,8 +235,46 @@
               @update-row="(idx, patch) => flow.updateIndicationRow(idx, patch)"
               @add-row="flow.addIndicationRow()"
               @remove-row="(idx) => flow.removeIndicationRow(idx)"
-              @refresh-options="loadIndicationCatalog"
+              @refresh-options="loadIndicationsForCurrentContext"
             />
+
+            <MedicalBlock
+              title="Berichtstext"
+              subtitle="Der gespeicherte Befundbericht kann frei bearbeitet werden."
+              icon="ni ni-single-copy-04"
+              icon-bg-class="bg-gradient-primary"
+              :is-complete="!!renderedReportPreview.trim()"
+              :is-active="true"
+              :show-action="false"
+              :loading="loading"
+            >
+              <template #default>
+                <label class="form-label" for="report-rendered-text">Texteditor</label>
+                <textarea
+                  id="report-rendered-text"
+                  class="form-control report-text-editor"
+                  data-testid="report-text-editor"
+                  rows="18"
+                  :disabled="loading"
+                  :value="renderedReportPreview"
+                  @input="onRenderedReportInput(($event.target as HTMLTextAreaElement).value)"
+                />
+                <div class="d-flex justify-content-between align-items-center gap-2 mt-2">
+                  <small class="text-muted">
+                    Änderungen werden als Berichtstext gespeichert; Abschnittsnotizen bleiben
+                    separat editierbar.
+                  </small>
+                  <button
+                    class="btn btn-outline-secondary btn-sm"
+                    type="button"
+                    :disabled="loading || !reportTextManuallyEdited"
+                    @click="resetRenderedReportText"
+                  >
+                    Aus Vorlage neu erzeugen
+                  </button>
+                </div>
+              </template>
+            </MedicalBlock>
 
             <div v-if="sectionCompletionSummary.totalSections" class="alert alert-info py-3">
               <div class="fw-semibold mb-1">Vollständigkeitsübersicht</div>
@@ -273,7 +316,7 @@
                   <div class="small text-uppercase text-muted fw-semibold tracking-label">
                     Vorschau
                   </div>
-                  <h6 class="mb-0">{{ selectedTemplateName || 'Unbenannte Vorlage' }}</h6>
+                  <h6 class="mb-0">{{ selectedTemplateDisplayName }}</h6>
                 </div>
                 <span class="report-status-pill compact" :class="canSave ? 'is-draft' : 'is-muted'">
                   {{ reportWordCount }} Wörter
@@ -403,6 +446,14 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import { findingsApi } from '@/api/findingsApi'
+import {
+  getFindingDisplayName,
+  mergeFindingClassifications,
+  type Finding
+} from '@/api/findings.contract'
+import { describeReportTemplateTitle } from '@/api/reportTemplatesApi'
+import { fetchCoreConcepts } from '@/api/coreConcepts'
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue'
 import ReportArtifactsPanel from '@/components/Reporting/ReportArtifactsPanel.vue'
@@ -410,6 +461,7 @@ import { useDebug } from '@/composables/useDebug'
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
 import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { useTerminologyStore } from '@/stores/terminologyStore'
 import { endpoints } from '@/types/api/endpoints'
 import type {
   ReportSubmissionStatus,
@@ -422,6 +474,7 @@ import type {
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateSectionDraft
 } from '@/types/reportTemplate'
+import type { CoreConceptBase, CoreConceptCollection } from '@/types/coreConcepts'
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
 
 type PatientExaminationReportListItem = {
@@ -430,6 +483,7 @@ type PatientExaminationReportListItem = {
   version: number
   templateName?: string
   updatedAt?: string
+  renderedText?: string
 }
 
 type IndicationChoiceOption = {
@@ -443,7 +497,15 @@ type IndicationOption = {
   choices: IndicationChoiceOption[]
 }
 
+type EditorContext = {
+  generation: number
+  patientExaminationId: number
+  selectedExaminationId: number | null
+  bundleKey: string
+}
+
 const flow = useReportingFlowStore()
+const terminology = useTerminologyStore()
 const patientStore = usePatientStore()
 const examinationStore = useExaminationStore()
 const route = useRoute()
@@ -458,6 +520,12 @@ const pendingSaveStatus = ref<ReportSubmissionStatus | null>(null)
 const currentReportVersion = ref<number | null>(null)
 const persistedArtifacts = ref<SaveReportSubmissionResponse['persistedArtifacts']>(null)
 const historyContext = ref<Record<string, unknown> | null>(null)
+const manuallyEditedReportText = ref('')
+const reportTextManuallyEdited = ref(false)
+const findingCatalog = ref<Finding[]>([])
+const findingCatalogError = ref<string | null>(null)
+const coreConcepts = ref<CoreConceptCollection | null>(null)
+const coreConceptsError = ref<string | null>(null)
 const indicationOptions = ref<IndicationOption[]>([])
 const indicationOptionsLoading = ref(false)
 const indicationOptionsError = ref<string | null>(null)
@@ -472,9 +540,10 @@ const {
   errorMessage: templateErrorMessage,
   fetchTemplatesByExamination,
   selectTemplateByName,
-  setModuleName
+  setModuleName,
+  setRequestContext
 } = useReportTemplates({
-  initialModuleName: flow.selectedKbModule,
+  initialModuleName: terminology.activeBundle ? terminology.activeModuleName : '',
   initialTemplateName: flow.selectedTemplateName
 })
 
@@ -490,23 +559,77 @@ const selectedExaminationDisplayName = computed(
 const selectedPatient = computed(() =>
   flow.selectedPatientId ? patientStore.getPatientById(flow.selectedPatientId) : null
 )
+const selectedTemplateDisplayName = computed(() =>
+  selectedTemplateName.value
+    ? describeReportTemplateTitle(selectedTemplateName.value)
+    : 'Ohne Berichtsvorlage'
+)
 
 const templateStatusMessage = ref<string | null>(null)
+let editorContextGeneration = 0
+let reportSaveGeneration = 0
+
+function captureEditorContext(): EditorContext | null {
+  if (!flow.patientExaminationId) return null
+  return {
+    generation: editorContextGeneration,
+    patientExaminationId: flow.patientExaminationId,
+    selectedExaminationId: flow.selectedExaminationId,
+    bundleKey: terminology.activeBundleKey
+  }
+}
+
+function isEditorContextCurrent(context?: EditorContext): boolean {
+  return Boolean(
+    !context ||
+      (context.generation === editorContextGeneration &&
+        context.patientExaminationId === flow.patientExaminationId &&
+        context.selectedExaminationId === flow.selectedExaminationId &&
+        context.bundleKey === terminology.activeBundleKey)
+  )
+}
+
+function isReportSaveOperationCurrent(context: EditorContext, generation: number): boolean {
+  return generation === reportSaveGeneration && isEditorContextCurrent(context)
+}
+
+function refreshTemplatesForCurrentContext() {
+  const context = captureEditorContext()
+  if (context) void refreshTemplatesForExamination(context)
+}
+
+function loadLatestReportForCurrentContext() {
+  const context = captureEditorContext()
+  if (context) void loadLatestReportMeta(context)
+}
+
+function loadIndicationsForCurrentContext() {
+  const context = captureEditorContext()
+  if (context) void loadIndicationCatalog(context)
+}
 
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
 const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
+const findingsByName = computed(
+  () => new Map(findingCatalog.value.map((finding) => [finding.name, finding]))
+)
 const draftMatchesSelectedTemplate = computed(() => {
   const draft = currentRuntimeDraft.value
   const template = selectedTemplate.value
+  const activeBundle = terminology.activeBundle
   if (!draft || !template || draft.templateName !== template.name) return false
+  if (!activeBundle) return false
+  if (draft.verificationStatus === 'unverified') return false
   if (draft.moduleName !== selectedKbModule.value) return false
+  const draftKnowledgeBaseVersion =
+    draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
+  if (draft.moduleName !== activeBundle.moduleName) return false
+  if (draftKnowledgeBaseVersion !== activeBundle.version) return false
+  const currentTemplateHash = template.identity?.templateHash || null
+  const currentTemplateVersion = template.identity?.templateVersion || null
   return !(
-    (draft.templateIdentity?.templateHash &&
-      template.identity.templateHash &&
-      draft.templateIdentity.templateHash !== template.identity.templateHash) ||
-    (draft.templateIdentity?.templateVersion &&
-      template.identity.templateVersion &&
-      draft.templateIdentity.templateVersion !== template.identity.templateVersion)
+    (currentTemplateHash && draft.templateIdentity?.templateHash !== currentTemplateHash) ||
+    (currentTemplateVersion && draft.templateIdentity?.templateVersion !== currentTemplateVersion)
   )
 })
 const canSave = computed(
@@ -515,7 +638,9 @@ const canSave = computed(
     !!selectedTemplateName.value &&
     draftMatchesSelectedTemplate.value
 )
-const renderedReportPreview = computed(() => buildRenderedText())
+const renderedReportPreview = computed(() =>
+  reportTextManuallyEdited.value ? manuallyEditedReportText.value : buildGeneratedReportText()
+)
 const reportWordCount = computed(() => {
   const words = renderedReportPreview.value
     .replace(/[#*-]/g, ' ')
@@ -627,7 +752,7 @@ const sectionCompletionSummary = computed(() => {
       .filter(
         (definition) => !sectionFindings.some((entry) => entry.finding === definition.finding)
       )
-      .map((definition) => definition.finding)
+      .map((definition) => getFindingLabel(definition.finding))
 
     const missingClassificationSet = new Set<string>()
     for (const definition of section.findings) {
@@ -643,7 +768,12 @@ const sectionCompletionSummary = computed(() => {
           )
         )
         if (!presentInAnyFinding) {
-          missingClassificationSet.add(`${definition.finding}: ${classification.classification}`)
+          missingClassificationSet.add(
+            `${getFindingLabel(definition.finding)}: ${getClassificationLabel(
+              definition.finding,
+              classification.classification
+            )}`
+          )
         }
       }
     }
@@ -690,25 +820,34 @@ watch(
     })
     if (templateName && previousTemplateName && templateName !== previousTemplateName) {
       flow.clearTemplateSectionDrafts()
+      resetRenderedReportText()
     }
   }
 )
 
 watch(
-  [() => flow.patientExaminationId, () => flow.selectedExaminationId],
-  (
-    [nextPatientExaminationId, nextExaminationId],
-    [previousPatientExaminationId, previousExaminationId]
-  ) => {
-    if (
-      nextPatientExaminationId === previousPatientExaminationId &&
-      nextExaminationId === previousExaminationId
-    ) {
-      return
-    }
-    void loadIndicationCatalog()
+  () => flow.selectedKbModule,
+  (moduleName) => {
+    if (moduleName === selectedKbModule.value) return
+    setModuleName(moduleName)
+    void refreshTemplatesForExamination()
   }
 )
+
+watch(
+  () => terminology.activeBundleKey,
+  async () => {
+    setModuleName(
+      terminology.activeBundle ? terminology.activeModuleName : '',
+      terminology.activeBundleKey
+    )
+    if (terminology.activeBundle) await refreshTemplatesForExamination()
+  }
+)
+
+watch(selectedKbModule, () => {
+  void loadCoreConceptLabels()
+})
 
 function normalizePositiveId(value: unknown): number | null {
   const parsed = Number(value)
@@ -940,9 +1079,9 @@ function extractOptionsFromPayload(payload: unknown, optionsById: Map<number, In
   }
 }
 
-async function loadIndicationCatalog() {
-  const patientExaminationId = flow.patientExaminationId
-  const selectedExaminationId = flow.selectedExaminationId
+async function loadIndicationCatalog(context?: EditorContext) {
+  const patientExaminationId = context?.patientExaminationId ?? flow.patientExaminationId
+  const selectedExaminationId = context?.selectedExaminationId ?? flow.selectedExaminationId
 
   if (!patientExaminationId && !selectedExaminationId) {
     indicationOptions.value = []
@@ -1001,6 +1140,7 @@ async function loadIndicationCatalog() {
     }
   }
 
+  if (!isEditorContextCurrent(context)) return
   indicationOptions.value = Array.from(optionsById.values())
     .map((option) => ({
       ...option,
@@ -1035,6 +1175,16 @@ function getSectionDraft(sectionName: string): ReportTemplateSectionDraft {
 
 function onSectionDraftNote(sectionName: string, note: string) {
   flow.setTemplateSectionDraft(sectionName, { note })
+}
+
+function onRenderedReportInput(value: string) {
+  manuallyEditedReportText.value = value
+  reportTextManuallyEdited.value = true
+}
+
+function resetRenderedReportText() {
+  manuallyEditedReportText.value = ''
+  reportTextManuallyEdited.value = false
 }
 
 function onSectionDraftToggle(
@@ -1076,8 +1226,91 @@ function buildPatientContextText(): string {
 }
 
 function buildExaminationContextText(): string {
-  if (!selectedExaminationDisplayName.value) return ''
-  return `Untersuchung: ${selectedExaminationDisplayName.value}`
+  const examinationName = selectedExaminationName.value
+  if (!examinationName) return ''
+  const label = localizedConceptLabel(coreConcepts.value?.examination, examinationName)
+  return `${localizedStaticText('examination')}: ${label || selectedExaminationDisplayName.value}`
+}
+
+function localizedStaticText(
+  key: 'examination' | 'minutes' | 'size_mm' | 'rectified_depth_cm'
+): string {
+  const translations = {
+    de: {
+      examination: 'Untersuchung',
+      minutes: 'Minuten',
+      size_mm: 'Größe (mm)',
+      rectified_depth_cm: 'Rektifizierte Tiefe (cm)'
+    },
+    en: {
+      examination: 'Examination',
+      minutes: 'Minutes',
+      size_mm: 'Size (mm)',
+      rectified_depth_cm: 'Rectified depth (cm)'
+    }
+  } as const
+  return translations[flow.selectedReportLanguage][key]
+}
+
+function localizedConceptLabel(
+  concepts: CoreConceptBase[] | undefined,
+  conceptName: string
+): string | null {
+  const concept = concepts?.find((entry) => entry.name === conceptName)
+  if (!concept) return null
+  return flow.selectedReportLanguage === 'de'
+    ? concept.nameDe || concept.name
+    : concept.nameEn || concept.name
+}
+
+function getFindingDefinition(findingName: string): Finding | null {
+  return findingsByName.value.get(findingName) || null
+}
+
+function getFindingLabel(findingName: string): string {
+  const localized = localizedConceptLabel(coreConcepts.value?.finding, findingName)
+  if (localized) return localized
+  const definition = getFindingDefinition(findingName)
+  return definition ? getFindingDisplayName(definition) : findingName
+}
+
+function getClassificationLabel(findingName: string, classificationName: string): string {
+  const localized = localizedConceptLabel(coreConcepts.value?.classification, classificationName)
+  if (localized) return localized
+  const definition = getFindingDefinition(findingName)
+  const classification = mergeFindingClassifications(definition).find(
+    (entry) => entry.name === classificationName
+  )
+  return classification?.displayName || classificationName
+}
+
+function getClassificationChoiceLabel(
+  findingName: string,
+  classificationName: string,
+  choiceName: string
+): string {
+  const localized = localizedConceptLabel(coreConcepts.value?.classificationChoice, choiceName)
+  if (localized) return localized
+  const definition = getFindingDefinition(findingName)
+  const classification = mergeFindingClassifications(definition).find(
+    (entry) => entry.name === classificationName
+  )
+  const choice = classification?.choices.find((entry) => entry.name === choiceName)
+  return choice?.displayName || choiceName
+}
+
+function getDescriptorLabel(descriptorName: string): string {
+  const localized = localizedConceptLabel(
+    coreConcepts.value?.classificationChoiceDescriptor,
+    descriptorName
+  )
+  if (localized) return localized
+  if (descriptorName === 'minutes_numeric_value') return localizedStaticText('minutes')
+  if (descriptorName === 'length_mm_descriptor') return localizedStaticText('size_mm')
+  if (descriptorName === 'cm_rectified' || descriptorName === 'cmRectified') {
+    return localizedStaticText('rectified_depth_cm')
+  }
+  return descriptorName.replace(/_/g, ' ')
 }
 
 function formatRuntimeFindingSummary(finding: ReportTemplateRuntimePatientFindingInput): string {
@@ -1087,15 +1320,22 @@ function formatRuntimeFindingSummary(finding: ReportTemplateRuntimePatientFindin
         ? ` (${choice.descriptors
             .map(
               (descriptor) =>
-                `${descriptor.classificationChoiceDescriptor}: ${String(descriptor.descriptorValue)}`
+                `${getDescriptorLabel(descriptor.classificationChoiceDescriptor)}: ${String(
+                  descriptor.descriptorValue
+                )}`
             )
             .join(', ')})`
         : ''
-      return `${choice.classification}: ${choice.classificationChoice}${descriptorText}`
+      return `${getClassificationLabel(finding.finding, choice.classification)}: ${getClassificationChoiceLabel(
+        finding.finding,
+        choice.classification,
+        choice.classificationChoice
+      )}${descriptorText}`
     })
     .join(' · ')
 
-  return classifications ? `${finding.finding} -> ${classifications}` : finding.finding
+  const findingLabel = getFindingLabel(finding.finding)
+  return classifications ? `${findingLabel}: ${classifications}` : findingLabel
 }
 
 function getSectionDraftFindings(sectionName: string): ReportTemplateRuntimePatientFindingInput[] {
@@ -1126,35 +1366,66 @@ async function ensureExaminationsLoaded() {
   }
 }
 
-async function refreshTemplatesForExamination() {
-  templateStatusMessage.value = null
+async function loadFindingCatalog(context?: EditorContext) {
+  if (isEditorContextCurrent(context)) findingCatalogError.value = null
+  const examinationId = context?.selectedExaminationId ?? flow.selectedExaminationId
+  if (!examinationId) {
+    if (!isEditorContextCurrent(context)) return
+    findingCatalog.value = []
+    return
+  }
+  try {
+    const findings = await findingsApi.getExaminationFindings(examinationId)
+    if (!isEditorContextCurrent(context)) return
+    findingCatalog.value = findings
+  } catch {
+    if (!isEditorContextCurrent(context)) return
+    findingCatalog.value = []
+    findingCatalogError.value =
+      'Die deutschen Befundbezeichnungen konnten nicht geladen werden. Bitte erneut versuchen.'
+  }
+}
+
+async function loadCoreConceptLabels(context?: EditorContext) {
+  if (isEditorContextCurrent(context)) coreConceptsError.value = null
+  const moduleName = selectedKbModule.value
+  if (!moduleName) {
+    if (!isEditorContextCurrent(context)) return
+    coreConcepts.value = null
+    return
+  }
+  try {
+    const concepts = await fetchCoreConcepts(moduleName)
+    if (!isEditorContextCurrent(context)) return
+    coreConcepts.value = concepts
+  } catch (error) {
+    if (!isEditorContextCurrent(context)) return
+    coreConcepts.value = null
+    coreConceptsError.value = reportingApiErrorMessage(
+      error,
+      'Die übersetzten LXDM-Bezeichnungen konnten nicht geladen werden.'
+    )
+  }
+}
+
+async function refreshTemplatesForExamination(context?: EditorContext) {
+  if (isEditorContextCurrent(context)) templateStatusMessage.value = null
+  if (!selectedKbModule.value) {
+    if (isEditorContextCurrent(context)) {
+      templateStatusMessage.value =
+        'Vorlagen werden angeboten, sobald eine Terminologie aktiviert wurde.'
+    }
+    return
+  }
   const examName = selectedExaminationName.value
   if (!examName) return
   const templates = (await fetchTemplatesByExamination(examName)) || []
+  if (!isEditorContextCurrent(context)) return
   if (templates.length) {
     templateStatusMessage.value = `${templates.length} Vorlage(n) für "${examName}" geladen.`
   } else {
     templateStatusMessage.value = `Keine Vorlagen für "${examName}" gefunden.`
   }
-}
-
-function onModuleChange(next: string) {
-  setModuleName(next.trim() || 'report_template_examples')
-  void refreshTemplatesForExamination()
-}
-
-async function onTemplateSelectionChange(name: string) {
-  if (name !== selectedTemplateName.value && currentRuntimeDraft.value?.payload.patientFindings.length) {
-    const confirmed = window.confirm(
-      'Für diese Untersuchung existieren bereits Befunde. Vorlage wirklich wechseln? Der bisherige Entwurf wird nicht weiterverwendet.'
-    )
-    if (!confirmed) return
-    await flow.flushDraftAutosave()
-    flow.clearRuntimeDraft(flow.patientExaminationId)
-    flow.clearTemplateSectionDrafts()
-    flow.setLastTemplateValidation(null)
-  }
-  void selectTemplateByName(name || null)
 }
 
 function buildDraftFindingsPayload(): SaveReportSubmissionRequest['findings'] {
@@ -1187,14 +1458,16 @@ function buildEditorPayload(): Record<string, unknown> {
       }))
     },
     runtimeDraftPayload: currentPayload.value,
+    reportLanguage: flow.selectedReportLanguage,
+    reportTextMode: reportTextManuallyEdited.value ? 'manual' : 'generated',
     savedAt: new Date().toISOString()
   }
 }
 
-function buildRenderedText(): string {
+function buildGeneratedReportText(): string {
   const fallbackAnonymizedText = flow.mediaPreload?.latestReport?.anonymizedText?.trim() || ''
   const lines: string[] = []
-  lines.push(`# ${selectedTemplateName.value || 'Unbenannte Vorlage'}`)
+  lines.push(`# ${selectedTemplateDisplayName.value}`)
   let hasStructuredContent = false
   for (const section of sectionBlocks.value) {
     const draft = getSectionDraft(section.name)
@@ -1223,8 +1496,9 @@ function buildRenderedText(): string {
   return lines.join('\n\n')
 }
 
-async function loadLatestReportMeta() {
-  if (!flow.patientExaminationId) {
+async function loadLatestReportMeta(context?: EditorContext) {
+  const patientExaminationId = context?.patientExaminationId ?? flow.patientExaminationId
+  if (!patientExaminationId) {
     errorMessage.value = 'Keine Patientenuntersuchung ausgewählt.'
     return
   }
@@ -1232,8 +1506,9 @@ async function loadLatestReportMeta() {
   clearMessages()
   try {
     const res = await axiosInstance.get(
-      r(endpoints.report.patientExaminationReportsByPatientExamination(flow.patientExaminationId))
+      r(endpoints.report.patientExaminationReportsByPatientExamination(patientExaminationId))
     )
+    if (!isEditorContextCurrent(context)) return
     const rows = (
       Array.isArray(res.data?.results) ? res.data.results : res.data
     ) as PatientExaminationReportListItem[]
@@ -1250,24 +1525,61 @@ async function loadLatestReportMeta() {
     currentReportVersion.value = latest.version ?? null
     if (latest.templateName) {
       await selectTemplateByName(latest.templateName)
+      if (!isEditorContextCurrent(context)) return
+    }
+    if (typeof latest.renderedText === 'string') {
+      manuallyEditedReportText.value = latest.renderedText
+      reportTextManuallyEdited.value = true
     }
     successMessage.value = `Bericht #${latest.id} (Version ${latest.version}) geladen.`
   } catch (e: unknown) {
+    if (!isEditorContextCurrent(context)) return
     errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden bestehender Berichte.')
   } finally {
-    loading.value = false
+    if (isEditorContextCurrent(context)) loading.value = false
+  }
+}
+
+function resolveSaveSubmissionContext(): (EditorContext & { templateName: string }) | null {
+  const context = captureEditorContext()
+  if (!context) {
+    errorMessage.value = 'Keine Patientenuntersuchung ausgewählt.'
+    return null
+  }
+  const templateName = selectedTemplateName.value
+  if (!canSave.value || !templateName) {
+    errorMessage.value =
+      'Speichern ist erst mit einer verifizierten, zur aktiven Terminologie passenden Vorlage möglich.'
+    return null
+  }
+  return { ...context, templateName }
+}
+
+function buildSaveSubmissionPayload(
+  status: ReportSubmissionStatus,
+  context: EditorContext & { templateName: string },
+  findings: SaveReportSubmissionRequest['findings']
+): SaveReportSubmissionRequest {
+  return {
+    ...(flow.activeReportId ? { reportId: flow.activeReportId } : {}),
+    ...(currentReportVersion.value ? { expectedVersion: currentReportVersion.value } : {}),
+    patientExaminationId: context.patientExaminationId,
+    templateName: context.templateName,
+    templateVersion: currentRuntimeDraft.value?.templateIdentity?.templateVersion || '',
+    templateHash: currentRuntimeDraft.value?.templateIdentity?.templateHash || '',
+    status,
+    editorPayload: buildEditorPayload(),
+    renderedText: renderedReportPreview.value,
+    patientData: buildPatientDataPayload(),
+    indications: normalizedIndications.value,
+    findings
   }
 }
 
 async function saveReportSubmission(status: ReportSubmissionStatus) {
-  if (!flow.patientExaminationId) {
-    errorMessage.value = 'Keine Patientenuntersuchung ausgewählt.'
-    return
-  }
-  if (!selectedTemplateName.value) {
-    errorMessage.value = 'Vorlage ist erforderlich.'
-    return
-  }
+  const context = resolveSaveSubmissionContext()
+  if (!context) return
+  const operationGeneration = ++reportSaveGeneration
 
   pendingSaveStatus.value = status
   loading.value = true
@@ -1276,25 +1588,16 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
 
   try {
     await ensurePatientsLoaded()
+    if (!isReportSaveOperationCurrent(context, operationGeneration)) return
     const findings = buildDraftFindingsPayload()
 
-    const payload: SaveReportSubmissionRequest = {
-      ...(flow.activeReportId ? { reportId: flow.activeReportId } : {}),
-      ...(currentReportVersion.value ? { expectedVersion: currentReportVersion.value } : {}),
-      patientExaminationId: flow.patientExaminationId,
-      templateName: selectedTemplateName.value,
-      status,
-      editorPayload: buildEditorPayload(),
-      renderedText: buildRenderedText(),
-      patientData: buildPatientDataPayload(),
-      indications: normalizedIndications.value,
-      findings
-    }
+    const payload = buildSaveSubmissionPayload(status, context, findings)
 
     const res = await axiosInstance.post<SaveReportSubmissionResponse>(
       r(endpoints.report.saveReportSubmission),
       payload
     )
+    if (!isReportSaveOperationCurrent(context, operationGeneration)) return
     const data = res.data
 
     flow.setActiveReportId(data.report.id)
@@ -1308,6 +1611,7 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
       ? `Bericht wurde erstellt (ID ${data.report.id}, Version ${data.report.version}).`
       : `Bericht wurde aktualisiert (ID ${data.report.id}, Version ${data.report.version}).`
   } catch (e: unknown) {
+    if (!isReportSaveOperationCurrent(context, operationGeneration)) return
     const versionConflict = reportingApiError(e).response?.data?.expectedVersion
     if (typeof versionConflict === 'string') {
       errorMessage.value = `Versionskonflikt: ${versionConflict}`
@@ -1315,25 +1619,86 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
       errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Speichern des Berichts.')
     }
   } finally {
-    flow.setSavingFinalReport(false)
-    loading.value = false
-    pendingSaveStatus.value = null
+    if (operationGeneration === reportSaveGeneration) {
+      flow.setSavingFinalReport(false)
+      loading.value = false
+      pendingSaveStatus.value = null
+    }
   }
 }
 
-onMounted(async () => {
+let initializedContextKey: string | null = null
+let initializationInFlightKey: string | null = null
+
+async function initializeEditorContext() {
   if (!flow.patientExaminationId) {
     errorMessage.value = 'Bitte zuerst das Fall-Setup abschließen.'
     return
   }
   if (!flow.currentRuntimeDraft) {
-    errorMessage.value = 'Kein Entwurf geladen. Bitte zuerst die klinische Dokumentation öffnen.'
+    errorMessage.value =
+      'Der Befundentwurf wird vorbereitet. Diese Ansicht aktualisiert sich automatisch.'
     return
   }
-  await Promise.all([ensurePatientsLoaded(), ensureExaminationsLoaded()])
-  await loadIndicationCatalog()
-  await refreshTemplatesForExamination()
-  await loadLatestReportMeta()
+  const context: EditorContext = {
+    generation: editorContextGeneration,
+    patientExaminationId: flow.patientExaminationId,
+    selectedExaminationId: flow.selectedExaminationId,
+    bundleKey: terminology.activeBundleKey
+  }
+  const contextKey = `${context.patientExaminationId}:${context.selectedExaminationId || ''}:${context.bundleKey}`
+  if (initializedContextKey === contextKey || initializationInFlightKey === contextKey) return
+  initializationInFlightKey = contextKey
+  errorMessage.value = null
+  try {
+    await Promise.all([
+      ensurePatientsLoaded(),
+      ensureExaminationsLoaded(),
+      loadFindingCatalog(context),
+      loadCoreConceptLabels(context)
+    ])
+    if (!isEditorContextCurrent(context)) return
+    await loadIndicationCatalog(context)
+    if (!isEditorContextCurrent(context)) return
+    await refreshTemplatesForExamination(context)
+    if (!isEditorContextCurrent(context)) return
+    await loadLatestReportMeta(context)
+    if (isEditorContextCurrent(context)) initializedContextKey = contextKey
+  } catch (error: unknown) {
+    if (!isEditorContextCurrent(context)) return
+    errorMessage.value = reportingApiErrorMessage(
+      error,
+      'Der Berichtseditor konnte nicht vollständig vorbereitet werden. Bitte erneut versuchen.'
+    )
+  } finally {
+    if (initializationInFlightKey === contextKey) initializationInFlightKey = null
+  }
+}
+
+watch(
+  [
+    () => flow.patientExaminationId,
+    () => flow.selectedExaminationId,
+    () => Boolean(flow.currentRuntimeDraft),
+    () => terminology.activeBundleKey
+  ],
+  () => {
+    editorContextGeneration += 1
+    reportSaveGeneration += 1
+    flow.setSavingFinalReport(false)
+    loading.value = false
+    pendingSaveStatus.value = null
+    initializedContextKey = null
+    setRequestContext(
+      `${terminology.activeBundleKey}:${flow.patientExaminationId || ''}:${flow.selectedExaminationId || ''}`
+    )
+    void initializeEditorContext()
+  },
+  { immediate: true }
+)
+
+onMounted(async () => {
+  await initializeEditorContext()
 })
 </script>
 
@@ -1471,6 +1836,13 @@ onMounted(async () => {
   border: 1px solid #d9e0ea;
   border-radius: 8px;
   background: #f8fafc;
+}
+
+.report-text-editor {
+  min-height: 28rem;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.55;
 }
 
 .section-toggle-row {

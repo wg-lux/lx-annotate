@@ -60,6 +60,8 @@ describe('HubExportOverviewComponent', () => {
             sourceCenterKey: 'center-a',
             sourceCenterName: 'Center A',
             markedForUpload: false,
+            markedByUsername: null,
+            markedAt: null,
             outboundStatus: '',
             lastError: '',
             lastTransferTimestamp: null,
@@ -83,6 +85,53 @@ describe('HubExportOverviewComponent', () => {
       targetNodeKey: 'hub-node',
       resources: [{ id: 11, resourceKind: 'report' }]
     })
+  })
+
+  it('shows persisted marker attribution for marked resources', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: 'center-a'
+          }
+        ],
+        configReady: true,
+        configError: '',
+        items: [
+          {
+            id: 41,
+            resourceKind: 'report',
+            filename: 'report-marked.pdf',
+            anonymizationStatus: 'validated',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: true,
+            markedByUsername: 'hub-operator',
+            markedAt: '2026-08-03T12:00:00Z',
+            outboundStatus: 'marked',
+            lastError: '',
+            blockedReason: '',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: true,
+            createdAt: '2026-08-03T11:00:00Z'
+          }
+        ]
+      }
+    })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    const marker = wrapper.get('[data-test="hub-export-marker-report-41"]')
+    expect(marker.text()).toContain('hub-operator')
+    expect(marker.text()).toContain('03.08.26')
   })
 
   it('shows configuration warnings and bulk-unmarks marked items', async () => {
@@ -547,6 +596,7 @@ describe('HubExportOverviewComponent', () => {
             sourceCenterName: 'Center A',
             markedForUpload: true,
             outboundStatus: 'failed',
+            failureClass: 'authorization_denial',
             lastError: 'Hub temporarily unavailable',
             lastTransferTimestamp: null,
             targetNodeKey: 'hub-node',
@@ -587,6 +637,7 @@ describe('HubExportOverviewComponent', () => {
     expect(wrapper.get('[data-test="hub-transfer-progress-report-52"]').text()).toContain(
       'Wartet auf erneuten Versuch'
     )
+    expect(wrapper.text()).toContain('Node-Autorisierung abgelehnt')
     expect(wrapper.text()).toContain('Die Segmentbereinigung läuft noch.')
     expect(wrapper.find('.alert-danger').exists()).toBe(false)
     expect(wrapper.find('.bg-danger').exists()).toBe(false)

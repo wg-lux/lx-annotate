@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import axiosInstance from '@/api/axiosInstance'
-import { findingsApi } from '@/api/findingsApi'
 import {
   fetchReportTemplatesByExamination,
   fetchBuilderReportTemplatesByExamination,
@@ -134,7 +133,29 @@ describe('reportTemplatesApi', () => {
               finding: 'f1',
               required: true,
               multiple_allowed: true,
-              classifications: [{ classification: 'c1', required: true }]
+              classifications: [
+                {
+                  classification: 'c1',
+                  required: true,
+                  input: {
+                    choices: [
+                      {
+                        name: 'medication_propofol',
+                        descriptors: [
+                          {
+                            name: 'propofol_dose_mg_value',
+                            type: 'numeric',
+                            unit: 'milligram',
+                            unit_abbreviation: 'mg',
+                            numeric_min: 0,
+                            numeric_max: 2000
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
             }
           ]
         },
@@ -176,6 +197,17 @@ describe('reportTemplatesApi', () => {
       'section_a'
     ])
     expect(payload?.reportSections[1].findings[0].multipleAllowed).toBe(true)
+    expect(
+      payload?.reportSections[1].findings[0].classifications[0].input?.choices[0]
+        .descriptors[0]
+    ).toEqual({
+      name: 'propofol_dose_mg_value',
+      type: 'numeric',
+      unit: 'milligram',
+      unitAbbreviation: 'mg',
+      numericMin: 0,
+      numericMax: 2000
+    })
     expect(payload?.validators.findingsValidators[0].requiredClassifications).toEqual(['c1'])
     expect(payload?.validators.examinationValidators[0].findingValidators).toEqual(['v1'])
   })
@@ -494,102 +526,26 @@ describe('reportTemplatesApi', () => {
     ).rejects.toThrow('Ungültiges Runtime-Validierungsergebnis.')
   })
 
-  it('falls back to payload validation on generic ledger endpoint not-found', async () => {
-    vi.spyOn(findingsApi, 'listPatientFindings').mockResolvedValue([
-      {
-        id: 10,
-        finding: 11,
-        patientExamination: 42,
-        isActive: true,
-        classifications: [
-          {
-            id: 501,
-            classification: 101,
-            classificationChoice: 1001,
-            classificationName: 'size_mm',
-            classificationChoiceName: 'size_mm',
-            subcategories: {},
-            numericalDescriptors: {},
-            isActive: true
-          }
-        ]
-      }
-    ])
-    vi.spyOn(findingsApi, 'getFindingClassifications').mockResolvedValue([
-      {
-        id: 101,
-        name: 'size_mm',
-        required: false,
-        classificationTypes: [],
-        choices: [
-          {
-            id: 1001,
-            name: 'size_mm',
-            subcategories: {},
-            numericalDescriptors: {}
-          }
-        ]
-      }
-    ])
-
-    vi.mocked(axiosInstance.post)
-      .mockRejectedValueOnce({
-        response: {
-          status: 404,
-          data: { detail: 'Not Found' }
-        }
-      })
-      .mockResolvedValueOnce({
-        data: {
-          templateName: 'star_upper_gi_main',
-          ok: true,
-          evaluatedFindingsCount: 1,
-          findingsValidators: [],
-          examinationValidators: [],
-          issues: []
-        }
-      })
-    vi.mocked(axiosInstance.get).mockResolvedValueOnce({
-      data: {
-        name: 'star_upper_gi_main',
-        examination: 'star_upper_gi_endoscopy'
+  it('fails closed when the canonical ledger validation endpoint is unavailable', async () => {
+    vi.mocked(axiosInstance.post).mockRejectedValueOnce({
+      response: {
+        status: 404,
+        data: { detail: 'Not Found' }
       }
     })
 
-    const result = await validatePatientFindingsAgainstTemplate({
-      moduleName: 'report_template_examples',
-      templateName: 'star_upper_gi_main',
-      patientExaminationId: 42,
-      getFindingById: () => ({
-        id: 11,
-        name: 'esophagus_polyp',
-        description: '',
-        examinations: [],
-        classifications: [],
-        locationClassifications: [],
-        morphologyClassifications: [],
-        FindingClassifications: [],
-        findingTypes: [],
-        findingInterventions: []
+    await expect(
+      validatePatientFindingsAgainstTemplate({
+        moduleName: 'report_template_examples',
+        templateName: 'star_upper_gi_main',
+        patientExaminationId: 42
       })
-    })
+    ).rejects.toMatchObject({ response: { status: 404 } })
 
-    expect(axiosInstance.post).toHaveBeenNthCalledWith(
-      1,
-      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42'
-    )
-    expect(axiosInstance.post).toHaveBeenNthCalledWith(
-      2,
-      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate',
-      expect.objectContaining({
-        patient: 'patient_examination_42',
-        examination: 'star_upper_gi_endoscopy'
-      })
-    )
-    expect(result.ok).toBe(true)
+    expect(axiosInstance.post).toHaveBeenCalledTimes(1)
   })
 
-  it('does not fallback for non-generic not-found details', async () => {
+  it('preserves specific ledger validation errors', async () => {
     vi.mocked(axiosInstance.post).mockRejectedValueOnce({
       response: {
         status: 404,

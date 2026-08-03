@@ -13,6 +13,11 @@
       <div class="card-body">
         <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
         <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
+        <div v-if="!hasVerifiedTemplateContext" class="alert alert-info py-2">
+          Für den PDF-Export ist ein verifizierter Entwurf mit einer zur aktiven Terminologie
+          passenden veröffentlichten Berichtsvorlage erforderlich. Die erfassten Befunde bleiben
+          erhalten.
+        </div>
 
         <div class="row g-3 mb-3">
           <div class="col-md-4">
@@ -121,7 +126,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { makeReport, type PersistedReportArtifacts } from '@/api/reportExportApi'
-import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import {
+  isVerifiedRuntimeDraftForBundle,
+  useReportingFlowStore
+} from '@/stores/reportingFlowStore'
+import { useTerminologyStore } from '@/stores/terminologyStore'
 import { endpoints } from '@/types/api/endpoints'
 import { reportingApiErrorMessage } from './reportingError'
 
@@ -134,6 +143,7 @@ type ReportListRow = {
 
 const route = useRoute()
 const flow = useReportingFlowStore()
+const terminology = useTerminologyStore()
 
 const loadingReport = ref(false)
 const generating = ref(false)
@@ -158,8 +168,17 @@ const patientExaminationId = computed<number | null>(() => {
 
 const selectedReportId = computed(() => latestReport.value?.id ?? flow.activeReportId ?? null)
 
+const hasVerifiedTemplateContext = computed(() =>
+  isVerifiedRuntimeDraftForBundle(
+    flow.currentRuntimeDraft,
+    terminology.activeBundle,
+    patientExaminationId.value
+  )
+)
+
 const canMakeReport = computed(
   () =>
+    hasVerifiedTemplateContext.value &&
     !!patientExaminationId.value &&
     !!patient.value.firstName &&
     !!patient.value.lastName &&
@@ -218,6 +237,11 @@ async function loadLatestReport() {
 async function onMakeReport() {
   if (!patientExaminationId.value) {
     errorMessage.value = 'Keine Patientenuntersuchung ausgewählt.'
+    return
+  }
+  if (!hasVerifiedTemplateContext.value) {
+    errorMessage.value =
+      'PDF-Export ist erst nach Auswahl und Prüfung einer kompatiblen Berichtsvorlage möglich.'
     return
   }
   if (!canMakeReport.value) {

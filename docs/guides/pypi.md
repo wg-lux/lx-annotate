@@ -1,19 +1,34 @@
-# Pypi Publishing
+# PyPI Publishing
 
-The make package workflow vreates a binary including the nix derivation of the frontend. This allows the python wheel to include a pinned version of the frontend.
+`pyproject.toml` is the canonical release-version source. The private frontend
+package and its lock file carry the same version so a release commit identifies
+one application build. Update all three files in the release commit; do not use
+the frontend package version as an independent release stream.
 
-Also, docs are included here through sphinx.
+The `make package` workflow builds the frontend and Sphinx documentation before
+creating the wheel and source distribution. Generated frontend files are owned
+by `staticfiles/`; generated documentation is owned by `static/docs/` for the
+deployed documentation route. `docs/_build/` is disposable local build output
+and is not committed.
 
-## The frontend dependency lock changed, but its Nix dependency hash was not updated.
+## Updating the frontend dependency hash
  
-A commit might have added a package to package.json and package-lock.json. However, default.nix might still contain the hash for the previous dependency set:
+A commit might add a package to `package.json` and `package-lock.json` while the
+Nix expression still contains the hash for the previous dependency set:
+
+```nix
 npmDepsHash = "sha256-gFyVehSwVatoPJnel6OSbV2mYRbG3Fbk5/aooeEzzhw=";
+```
 
 Nix downloaded the dependencies described by the new lockfile, calculated their actual hash, and correctly rejected them because reproducibility checks found:
 
+```text
 expected: sha256-gFyVehSwVatoPJnel6OSbV2mYRbG3Fbk5/aooeEzzhw=
 actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=
+```
 
-The repair is to update npmDepsHash to the reported actual hash and rerun make package:
+Update `npmDepsHash` to the reported actual hash and rerun `make package`:
 
+```nix
 npmDepsHash = "sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=";
+```

@@ -41,7 +41,6 @@ import type {
   ReportConceptCoverageItem,
   ReportConceptCoverageProvenance,
   ReportConceptValidationStatus,
-  ReportTemplateCoverageState,
   RuntimeValidationIssue,
   RuntimeValidatorDependencyStatus,
   InterventionValidatorExecution,
@@ -88,9 +87,39 @@ function titleFromSectionName(name: string): string {
     .join(' ')
 }
 
+function normalizeClassificationInput(value: unknown): ReportTemplateFinding['classifications'][number]['input'] {
+  if (!isRecordLike(value) || !Array.isArray(value.choices)) return null
+  return {
+    choices: value.choices
+      .filter((choice): choice is Record<string, unknown> => isRecordLike(choice))
+      .map((choice) => ({
+        name: asString(choice.name) || '',
+        descriptors: Array.isArray(choice.descriptors)
+          ? choice.descriptors
+              .filter(
+                (descriptor): descriptor is Record<string, unknown> =>
+                  isRecordLike(descriptor)
+              )
+              .map((descriptor) => ({
+                name: asString(descriptor.name) || '',
+                type: asString(descriptor.type) || 'unknown',
+                unit: asString(descriptor.unit),
+                unitAbbreviation: asString(
+                  descriptor.unitAbbreviation ?? descriptor.unit_abbreviation
+                ),
+                numericMin: asNumber(descriptor.numericMin ?? descriptor.numeric_min),
+                numericMax: asNumber(descriptor.numericMax ?? descriptor.numeric_max)
+              }))
+              .filter((descriptor) => !!descriptor.name)
+          : []
+      }))
+      .filter((choice) => !!choice.name)
+  }
+}
+
 function normalizeClassifications(
   classifications: unknown
-): Array<{ classification: string; required: boolean }> {
+): ReportTemplateFinding['classifications'] {
   if (!Array.isArray(classifications)) return []
   return classifications
     .filter((classification): classification is Record<string, unknown> =>
@@ -98,7 +127,8 @@ function normalizeClassifications(
     )
     .map((classification) => ({
       classification: asString(classification.classification) || '',
-      required: asBoolean(classification.required)
+      required: asBoolean(classification.required),
+      input: normalizeClassificationInput(classification.input)
     }))
     .filter((classification) => !!classification.classification)
 }
@@ -218,11 +248,7 @@ function normalizeCoverageProvenance(value: unknown): ReportConceptCoverageProve
     resolverVersion: asString(field(value, 'resolverVersion', 'resolver_version')),
     evidenceDigest: field(value, 'evidenceDigest', 'evidence_digest')
   }
-  if (
-    !provenance.resolver ||
-    !provenance.resolverVersion ||
-    !isSha256(provenance.evidenceDigest)
-  ) {
+  if (!provenance.resolver || !provenance.resolverVersion || !isSha256(provenance.evidenceDigest)) {
     return null
   }
   return provenance as ReportConceptCoverageProvenance
@@ -272,14 +298,15 @@ function normalizeCoverageItem(value: unknown): ReportConceptCoverageItem | null
 
 export function normalizeReportConceptCoverage(value: unknown): ReportConceptCoverage | null {
   if (!isRecordLike(value)) return null
-  if (value.contractVersion !== 'report_concept_coverage_v1' && value.contract_version !== 'report_concept_coverage_v1') {
+  if (
+    value.contractVersion !== 'report_concept_coverage_v1' &&
+    value.contract_version !== 'report_concept_coverage_v1'
+  ) {
     return null
   }
   const identity = normalizeCoverageIdentity(value.identity)
   const provenance = normalizeCoverageProvenance(value.provenance)
-  const concepts = Array.isArray(value.concepts)
-    ? value.concepts.map(normalizeCoverageItem)
-    : null
+  const concepts = Array.isArray(value.concepts) ? value.concepts.map(normalizeCoverageItem) : null
   if (!identity || !provenance || !concepts || concepts.some((item) => item === null)) return null
   return {
     contractVersion: 'report_concept_coverage_v1',
@@ -580,7 +607,8 @@ export function normalizeTemplatePayload(payload: unknown): ReportTemplatePayloa
   const name = asString(payload.name)
   if (!name) return null
   const reportSections = normalizeSections(payload.reportSections ?? payload.report_sections)
-  const hasCoverage = Object.prototype.hasOwnProperty.call(payload, 'conceptCoverage') ||
+  const hasCoverage =
+    Object.prototype.hasOwnProperty.call(payload, 'conceptCoverage') ||
     Object.prototype.hasOwnProperty.call(payload, 'concept_coverage')
   const rawCoverage = payload.conceptCoverage ?? payload.concept_coverage
   const conceptCoverage = hasCoverage ? normalizeReportConceptCoverage(rawCoverage) : null
@@ -1189,46 +1217,11 @@ export async function validatePatientFindingsAgainstTemplate(params: {
   patientExaminationId: number
   getFindingById?: (findingId: number) => Finding | undefined
 }): Promise<ReportTemplateRuntimeValidationResult> {
-  try {
-    return await validateReportTemplateRuntimeFromLedger(
-      params.moduleName,
-      params.templateName,
-      params.patientExaminationId
-    )
-  } catch (error: unknown) {
-    const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
-    const response =
-      errorRecord.response && typeof errorRecord.response === 'object'
-        ? (errorRecord.response as Record<string, unknown>)
-        : {}
-    const data =
-      response.data && typeof response.data === 'object'
-        ? (response.data as Record<string, unknown>)
-        : {}
-    const status = Number(response.status || 0)
-    const detail = String(data.detail || '')
-      .trim()
-      .toLowerCase()
-    const isGenericNotFound =
-      status === 404 && (!detail || detail === 'not found' || detail === 'not found.')
-    const fallbackAllowed = isGenericNotFound || status === 405 || status === 501 || status >= 500
-    if (!fallbackAllowed) {
-      throw error
-    }
-  }
-
-  const template = await fetchReportTemplateByName(params.moduleName, params.templateName)
-  const patientFindings = await buildRuntimeValidationFindings(
-    params.patientExaminationId,
-    params.getFindingById
+  return validateReportTemplateRuntimeFromLedger(
+    params.moduleName,
+    params.templateName,
+    params.patientExaminationId
   )
-  return validateReportTemplateRuntime(params.moduleName, params.templateName, {
-    patient: `patient_examination_${params.patientExaminationId}`,
-    examiners: [],
-    examination: template?.examination || '',
-    knowledgeBaseModule: params.moduleName,
-    patientFindings
-  })
 }
 
 export async function buildReportTemplateRuntimePayload(params: {
@@ -1257,4 +1250,11 @@ export async function buildReportTemplateRuntimePayload(params: {
 
 export function describeSectionTitle(sectionName: string): string {
   return titleFromSectionName(sectionName)
+}
+
+export function describeReportTemplateTitle(templateName: string): string {
+  if (templateName === 'colonoscopy_training_basic') {
+    return 'Koloskopie – S2k-Qualitätsdokumentation'
+  }
+  return titleFromSectionName(templateName)
 }

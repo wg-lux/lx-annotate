@@ -9,6 +9,7 @@ class OutboundHubTransferJobAdmin(admin.ModelAdmin):
         "transfer_key",
         "resource_kind",
         "local_status",
+        "failure_class",
         "local_cleanup_status",
         "target_node",
         "source_center",
@@ -18,6 +19,7 @@ class OutboundHubTransferJobAdmin(admin.ModelAdmin):
     list_filter = (
         "resource_kind",
         "local_status",
+        "failure_class",
         "local_cleanup_policy",
         "local_cleanup_status",
         "transfer_mode",

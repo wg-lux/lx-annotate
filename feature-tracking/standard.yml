@@ -41,6 +41,12 @@ definition_of_done:
   acceptance:
   - Overview, show, validate, check, update, verify, done, and reopen have distinct responsibilities.
   - Check succeeds only for a completely verified Definition of Done.
+  - Orchestration contracts select single-agent execution for sequential work and centralized multi-agent
+    execution only for independently runnable branches.
+  - Work units have one responsibility, one or two turns, explicit token budgets, schema-validated results,
+    and atomic idempotent checkpoints.
+  - Centralized runs explicitly select native Codex subagents or external codex exec workers; both backends
+    preserve the same hub-and-spoke ownership, lock, budget, result, and checkpoint boundaries.
   required: true
   verification:
     kind: command
@@ -50,13 +56,14 @@ definition_of_done:
     - overview
     timeout_seconds: 300
   assessment:
-    status: verified
+    status: in_progress
     evidence:
     - kind: command
       reference: .devenv/state/venv/bin/python feature-tracking/tracker.py overview
       note: Exit-Code 0
-    assessed_by: Codex
-    assessed_at: '2026-07-28T08:52:03.794883Z'
+    note: Multi-agent topology, budget, result-schema, and checkpoint contracts are being integrated.
+    assessed_by: codex-root-20260803-topology
+    assessed_at: '2026-08-03T10:05:41.832527Z'
 - id: tracker_tests
   category: testing
   title: Schema, readiness derivation, and updates are tested

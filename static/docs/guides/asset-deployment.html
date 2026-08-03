@@ -195,17 +195,18 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="runtime-environment-contract-test.html">Runtime environment contract test</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pypi.html">PyPI Publishing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">Dates and Times</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="terminology-delivery.html">Governed terminology delivery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
 <li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
@@ -255,6 +256,24 @@
           <section id="frontend-asset-deployment-contract">
 <h1>Frontend Asset Deployment Contract<a class="headerlink" href="#frontend-asset-deployment-contract" title="Link to this heading">¶</a></h1>
 <p>This guide defines the deployment contract for Vite assets in <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code>.</p>
+<section id="canonical-ownership">
+<h2>Canonical Ownership<a class="headerlink" href="#canonical-ownership" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/assets/</span></code> owns source assets imported by the Vue application.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">static/</span></code> owns non-Vite Django source assets and the published documentation
+tree under <code class="docutils literal notranslate"><span class="pre">static/docs/</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code> is disposable deployment output produced by Vite,
+<code class="docutils literal notranslate"><span class="pre">collectstatic</span></code>, and <code class="docutils literal notranslate"><span class="pre">docs-publish</span></code>; it is ignored by Git and packaged only
+after regeneration.</p></li>
+</ul>
+<p>Do not create package-local copies under <code class="docutils literal notranslate"><span class="pre">lx_annotate/static/</span></code> or
+<code class="docutils literal notranslate"><span class="pre">lx_annotate/staticfiles/</span></code>. Django and third-party application assets are
+collected from their installed packages, while the generated top-level
+<code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code> tree is force-included in release artifacts.</p>
+<p>Vite’s dependency cache under <code class="docutils literal notranslate"><span class="pre">frontend/.vite/</span></code> is local and ignored. Legacy
+dashboard bundles under <code class="docutils literal notranslate"><span class="pre">static/assets/</span></code> must not be restored; the maintained
+dashboard source is imported from <code class="docutils literal notranslate"><span class="pre">frontend/src/assets/</span></code> and emitted by Vite.</p>
+</section>
 <section id="contract-summary">
 <h2>Contract Summary<a class="headerlink" href="#contract-summary" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
@@ -298,9 +317,10 @@ ensures the frontend <code class="docutils literal notranslate"><span class="pre
 </section>
 <section id="why-emptyoutdir-is-disabled">
 <h2>Why <code class="docutils literal notranslate"><span class="pre">emptyOutDir</span></code> Is Disabled<a class="headerlink" href="#why-emptyoutdir-is-disabled" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">vite.config.ts</span></code> uses <code class="docutils literal notranslate"><span class="pre">emptyOutDir:</span> <span class="pre">false</span></code> because <code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code> is a mixed directory
-containing both Vite output and non-Vite assets (for example, framework/static content).
-Auto-emptying this directory would risk deleting non-Vite files.</p>
+<p><code class="docutils literal notranslate"><span class="pre">vite.config.ts</span></code> uses <code class="docutils literal notranslate"><span class="pre">emptyOutDir:</span> <span class="pre">false</span></code> because <code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code> is a mixed
+generated directory containing Vite output plus assets produced by
+<code class="docutils literal notranslate"><span class="pre">collectstatic</span></code> and <code class="docutils literal notranslate"><span class="pre">docs-publish</span></code>. Auto-emptying this directory would risk
+deleting output owned by the other build stages.</p>
 </section>
 <section id="smoke-tests">
 <h2>Smoke Tests<a class="headerlink" href="#smoke-tests" title="Link to this heading">¶</a></h2>
@@ -379,6 +399,7 @@ includes.</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Frontend Asset Deployment Contract</a><ul>
+<li><a class="reference internal" href="#canonical-ownership">Canonical Ownership</a></li>
 <li><a class="reference internal" href="#contract-summary">Contract Summary</a></li>
 <li><a class="reference internal" href="#deployment-flow">Deployment Flow</a></li>
 <li><a class="reference internal" href="#why-emptyoutdir-is-disabled">Why <code class="docutils literal notranslate"><span class="pre">emptyOutDir</span></code> Is Disabled</a></li>
@@ -395,7 +416,7 @@ includes.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=c0fdfda8"></script>
+</div><script src="../_static/documentation_options.js?v=f70577c2"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

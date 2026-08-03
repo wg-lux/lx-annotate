@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - "**"
+  release:
+    types:
+      - published
   workflow_dispatch:
     inputs:
       publish_to_testpypi:
@@ -63,6 +66,7 @@ jobs:
         id: version
         env:
           PUBLISH_TO_TESTPYPI: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_to_testpypi }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
         run: |
           python - <<'PY'
           import os
@@ -76,6 +80,12 @@ jobs:
               raise SystemExit("pyproject.toml does not contain a static project.version")
 
           base_version = match.group(1)
+          release_tag = os.environ["RELEASE_TAG"]
+          if release_tag and release_tag != f"v{base_version}":
+              raise SystemExit(
+                  f"release tag {release_tag!r} does not match project version v{base_version}"
+              )
+
           package_version = base_version
           if os.environ["PUBLISH_TO_TESTPYPI"] == "true":
               dev_serial = f"{os.environ['GITHUB_RUN_NUMBER']}{os.environ['GITHUB_RUN_ATTEMPT']}"
@@ -99,6 +109,25 @@ jobs:
       - name: Install frontend dependencies
         run: npm --prefix frontend ci
 
+      - name: Run backend static checks
+        run: |
+          uv run mypy lx_annotate
+          uv run ruff check lx_annotate tests
+          uv run ruff format --check lx_annotate tests
+
+      - name: Run backend tests with coverage gate
+        run: >-
+          uv run pytest
+          --cov=lx_annotate
+          --cov-report=term-missing
+          --cov-fail-under=75
+
+      - name: Run frontend tests and static checks
+        run: |
+          npm --prefix frontend run test:unit -- --run
+          npm --prefix frontend run type-check
+          npm --prefix frontend run lint
+
       - name: Build frontend staticfiles
         run: npm --prefix frontend run build
 
@@ -113,6 +142,49 @@ jobs:
 
       - name: Record package version
         run: printf '%s\n' "${{ steps.version.outputs.package-version }}" > dist/PACKAGE_VERSION.txt
+
+      - name: Record immutable release evidence
+        shell: python
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.package-version }}
+          RELEASE_COMMIT_SHA: ${{ github.sha }}
+          RELEASE_ACTOR: ${{ github.actor }}
+          RELEASE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          import hashlib
+          import json
+          import os
+          from importlib.metadata import version
+          from pathlib import Path
+
+          dist = Path("dist")
+          artifacts = sorted([*dist.glob("*.whl"), *dist.glob("*.tar.gz")])
+          if len(artifacts) != 2:
+              raise SystemExit(f"expected one wheel and one source distribution, found: {artifacts}")
+
+          evidence = {
+              "schema_version": 1,
+              "commit_sha": os.environ["RELEASE_COMMIT_SHA"],
+              "workflow_run": os.environ["RELEASE_RUN_URL"],
+              "release_assessor": os.environ["RELEASE_ACTOR"],
+              "package_versions": {
+                  "lx-annotate": os.environ["PACKAGE_VERSION"],
+                  "endoreg-db": version("endoreg-db"),
+                  "lx-dtypes": version("lx-dtypes"),
+              },
+              "artifacts": [
+                  {
+                      "filename": artifact.name,
+                      "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+                      "size": artifact.stat().st_size,
+                  }
+                  for artifact in artifacts
+              ],
+          }
+          (dist / "RELEASE_EVIDENCE.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
@@ -153,11 +225,16 @@ jobs:
 
       - name: Install wheel artifact and smoke test console scripts
         shell: python
+        env:
+          PACKAGE_VERSION: ${{ needs.build-distribution.outputs.package-version }}
         run: |
+          import hashlib
+          import json
           import os
           import pathlib
           import subprocess
           import sys
+          import tempfile
 
           root = pathlib.Path.cwd()
           venv_dir = root / ".venv-wheel-smoke"
@@ -169,9 +246,35 @@ jobs:
           if len(wheels) != 1:
               raise SystemExit(f"expected exactly one lx-annotate wheel, found: {wheels}")
 
+          evidence = json.loads((root / "dist" / "RELEASE_EVIDENCE.json").read_text())
+          if evidence["package_versions"]["lx-annotate"] != os.environ["PACKAGE_VERSION"]:
+              raise SystemExit("release evidence package version does not match the workflow output")
+          expected_hashes = {
+              artifact["filename"]: artifact["sha256"] for artifact in evidence["artifacts"]
+          }
+          actual_hash = hashlib.sha256(wheels[0].read_bytes()).hexdigest()
+          if expected_hashes.get(wheels[0].name) != actual_hash:
+              raise SystemExit(f"wheel SHA-256 mismatch: {wheels[0].name}")
+
           subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip"])
           subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
           subprocess.check_call([str(python), "-m", "pip", "check"])
+          installed_versions = json.loads(
+              subprocess.check_output(
+                  [
+                      str(python),
+                      "-c",
+                      "import json; from importlib.metadata import version; "
+                      "print(json.dumps({name: version(name) for name in "
+                      "('lx-annotate', 'endoreg-db', 'lx-dtypes')}))",
+                  ],
+                  text=True,
+              )
+          )
+          if installed_versions != evidence["package_versions"]:
+              raise SystemExit(
+                  f"installed package versions differ from release evidence: {installed_versions}"
+              )
           subprocess.check_call(
               [
                   str(python),
@@ -185,6 +288,25 @@ jobs:
               [str(manage), "check", "--settings=lx_annotate.settings.settings_test"],
               env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
           )
+
+          bootstrap = scripts / (
+              "lx-annotate-bootstrap-terminology.exe"
+              if os.name == "nt"
+              else "lx-annotate-bootstrap-terminology"
+          )
+          with tempfile.TemporaryDirectory() as temporary_dir:
+              registry = pathlib.Path(temporary_dir) / "registry.json"
+              subprocess.check_call([str(bootstrap), "--registry", str(registry)])
+              payload = json.loads(registry.read_text(encoding="utf-8"))
+              active = payload["active"]
+              input_dirs = payload["modules"][active["module_name"]][active["version"]]["input_dirs"]
+              if len(input_dirs) != 1:
+                  raise SystemExit(f"expected one packaged terminology data root: {input_dirs}")
+              packaged_data = pathlib.Path(input_dirs[0]).resolve()
+              if packaged_data.name != "data" or packaged_data.parent.name != "lx_dtypes":
+                  raise SystemExit(f"terminology root is not installed lx_dtypes/data: {packaged_data}")
+              if not packaged_data.is_relative_to(venv_dir.resolve()):
+                  raise SystemExit(f"terminology root escapes installed wheel environment: {packaged_data}")
 
   publish-testpypi:
     name: Publish To TestPyPI
@@ -206,12 +328,37 @@ jobs:
           path: dist
 
       - name: Remove workflow metadata from publish directory
-        run: rm -f dist/PACKAGE_VERSION.txt
+        run: rm -f dist/PACKAGE_VERSION.txt dist/RELEASE_EVIDENCE.json
 
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@v1.14.0
         with:
           repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: Publish Verified Release To PyPI
+    runs-on: ubuntu-latest
+    needs:
+      - build-distribution
+      - test-artifact-install
+    if: ${{ github.event_name == 'release' }}
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download verified distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist
+
+      - name: Remove workflow metadata from publish directory
+        run: rm -f dist/PACKAGE_VERSION.txt dist/RELEASE_EVIDENCE.json
+
+      - name: Publish verified artifacts to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.14.0
 
   test-testpypi-install:
     name: Install TestPyPI Build On ${{ matrix.os }}
@@ -234,6 +381,12 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Download release evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: build-distributions
+
       - name: Install Linux runtime system dependencies
         if: runner.os == 'Linux'
         run: |
@@ -249,10 +402,13 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ needs.build-distribution.outputs.package-version }}
         run: |
+          import hashlib
+          import json
           import os
           import pathlib
           import subprocess
           import sys
+          import tempfile
 
           root = pathlib.Path.cwd()
           wheel_dir = root / "testpypi-wheel"
@@ -282,8 +438,34 @@ jobs:
           if len(wheels) != 1:
               raise SystemExit(f"expected exactly one TestPyPI wheel, found: {wheels}")
 
+          evidence = json.loads(
+              (root / "build-distributions" / "RELEASE_EVIDENCE.json").read_text()
+          )
+          expected_hashes = {
+              artifact["filename"]: artifact["sha256"] for artifact in evidence["artifacts"]
+          }
+          actual_hash = hashlib.sha256(wheels[0].read_bytes()).hexdigest()
+          if expected_hashes.get(wheels[0].name) != actual_hash:
+              raise SystemExit(f"TestPyPI wheel SHA-256 mismatch: {wheels[0].name}")
+
           subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
           subprocess.check_call([str(python), "-m", "pip", "check"])
+          installed_versions = json.loads(
+              subprocess.check_output(
+                  [
+                      str(python),
+                      "-c",
+                      "import json; from importlib.metadata import version; "
+                      "print(json.dumps({name: version(name) for name in "
+                      "('lx-annotate', 'endoreg-db', 'lx-dtypes')}))",
+                  ],
+                  text=True,
+              )
+          )
+          if installed_versions != evidence["package_versions"]:
+              raise SystemExit(
+                  f"installed TestPyPI versions differ from release evidence: {installed_versions}"
+              )
           subprocess.check_call(
               [
                   str(python),
@@ -297,3 +479,22 @@ jobs:
               [str(manage), "check", "--settings=lx_annotate.settings.settings_test"],
               env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
           )
+
+          bootstrap = scripts / (
+              "lx-annotate-bootstrap-terminology.exe"
+              if os.name == "nt"
+              else "lx-annotate-bootstrap-terminology"
+          )
+          with tempfile.TemporaryDirectory() as temporary_dir:
+              registry = pathlib.Path(temporary_dir) / "registry.json"
+              subprocess.check_call([str(bootstrap), "--registry", str(registry)])
+              payload = json.loads(registry.read_text(encoding="utf-8"))
+              active = payload["active"]
+              input_dirs = payload["modules"][active["module_name"]][active["version"]]["input_dirs"]
+              if len(input_dirs) != 1:
+                  raise SystemExit(f"expected one packaged terminology data root: {input_dirs}")
+              packaged_data = pathlib.Path(input_dirs[0]).resolve()
+              if packaged_data.name != "data" or packaged_data.parent.name != "lx_dtypes":
+                  raise SystemExit(f"terminology root is not installed lx_dtypes/data: {packaged_data}")
+              if not packaged_data.is_relative_to(venv_dir.resolve()):
+                  raise SystemExit(f"terminology root escapes installed wheel environment: {packaged_data}")

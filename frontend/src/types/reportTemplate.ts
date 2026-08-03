@@ -1,6 +1,23 @@
+export type ReportTemplateClassificationDescriptorInput = {
+  name: string
+  type: 'numeric' | 'text' | 'boolean' | 'selection' | string
+  unit: string | null
+  unitAbbreviation: string | null
+  numericMin: number | null
+  numericMax: number | null
+}
+
+export type ReportTemplateClassificationChoiceInput = {
+  name: string
+  descriptors: ReportTemplateClassificationDescriptorInput[]
+}
+
 export type ReportTemplateClassification = {
   classification: string
   required: boolean
+  input?: {
+    choices: ReportTemplateClassificationChoiceInput[]
+  } | null
 }
 
 export type ReportTemplateFinding = {

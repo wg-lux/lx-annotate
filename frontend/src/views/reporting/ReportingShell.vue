@@ -34,41 +34,6 @@
             </select>
             <select
               class="form-select"
-              data-testid="report-template-select"
-              :value="flow.selectedTemplateName ?? ''"
-              :disabled="templateLoading || !availableTemplates.length"
-              aria-label="Berichtsvorlage auswählen"
-              @change="
-                onTemplateSelectionChange(
-                  ($event.target as HTMLSelectElement).value,
-                  $event.target as HTMLSelectElement
-                )
-              "
-            >
-              <option value="">
-                {{
-                  templateLoading
-                    ? 'Vorlagen werden geladen...'
-                    : availableTemplates.length
-                      ? 'Bitte Vorlage wählen'
-                      : 'Keine veröffentlichte Vorlage verfügbar'
-                }}
-              </option>
-              <option
-                v-for="template in availableTemplates"
-                :key="template.name"
-                :value="template.name"
-              >
-                {{ template.name
-                }}{{
-                  template.identity?.knowledgeBaseVersion
-                    ? ` · ${template.identity.knowledgeBaseVersion}`
-                    : ''
-                }}
-              </option>
-            </select>
-            <select
-              class="form-select"
               data-testid="patient-examination-select"
               :value="selectedPatientExaminationId"
               :disabled="
@@ -96,6 +61,78 @@
                 {{ option.label }}
               </option>
             </select>
+            <select
+              class="form-select"
+              data-testid="terminology-bundle-select"
+              :value="terminology.activeBundleKey"
+              :disabled="terminology.selecting || !terminology.filteredBundles.length"
+              aria-label="Terminologiepaket auswählen"
+              @change="onTerminologyBundleSelect(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">Keine aktive Terminologie</option>
+              <option
+                v-for="bundle in terminology.filteredBundles"
+                :key="terminology.bundleKey(bundle)"
+                :value="terminology.bundleKey(bundle)"
+              >
+                {{ bundle.moduleName }} · {{ bundle.version }}
+              </option>
+            </select>
+            <select
+              class="form-select"
+              data-testid="report-template-select"
+              :value="flow.selectedTemplateName ?? ''"
+              :disabled="templateLoading || !availableTemplates.length"
+              aria-label="Berichtsvorlage auswählen"
+              @change="
+                onTemplateSelectionChange(
+                  ($event.target as HTMLSelectElement).value,
+                  $event.target as HTMLSelectElement
+                )
+              "
+            >
+              <option value="">
+                {{
+                  templateLoading
+                    ? 'Vorlagen werden geladen...'
+                    : availableTemplates.length
+                      ? 'Bitte Vorlage wählen'
+                      : 'Keine veröffentlichte Vorlage verfügbar'
+                }}
+              </option>
+              <option
+                v-for="template in availableTemplates"
+                :key="template.name"
+                :value="template.name"
+              >
+                {{ describeReportTemplateTitle(template.name)
+                }}{{
+                  template.identity?.knowledgeBaseVersion
+                    ? ` · ${template.identity.knowledgeBaseVersion}`
+                    : ''
+                }}
+              </option>
+            </select>
+            <select
+              class="form-select"
+              data-testid="report-language-select"
+              :value="flow.selectedReportLanguage"
+              :disabled="reportLanguagesLoading || !reportLanguageOptions.length"
+              aria-label="Berichtssprache auswählen"
+              @change="
+                flow.setReportLanguage(
+                  ($event.target as HTMLSelectElement).value as ReportLanguageCode
+                )
+              "
+            >
+              <option
+                v-for="language in reportLanguageOptions"
+                :key="language.code"
+                :value="language.code"
+              >
+                {{ language.label }}
+              </option>
+            </select>
             <input
               ref="terminologyFolderInput"
               class="visually-hidden"
@@ -110,6 +147,7 @@
               class="visually-hidden"
               type="file"
               accept=".zip,application/zip"
+              multiple
               @change="importTerminologyZip"
             />
             <button
@@ -122,7 +160,7 @@
               {{
                 terminology.importing
                   ? 'Terminologie wird importiert…'
-                  : 'Terminologieordner auswählen'
+                  : 'Paketverzeichnis(se) auswählen'
               }}
             </button>
             <button
@@ -132,7 +170,7 @@
               @click="openTerminologyZipPicker"
             >
               <i class="ni ni-archive-2 me-1" aria-hidden="true"></i>
-              Editor-ZIP importieren
+              ZIPs lokal/Cloud importieren
             </button>
             <ReportImportPanel @completed="handleReportImportCompleted" />
             <button
@@ -176,8 +214,10 @@
           <li :class="{ 'is-complete': Boolean(flow.selectedTemplateName) }">
             <span>2</span>
             <div>
-              <b>Vorlage festlegen</b>
-              <small>Im Fall-Setup Terminologie und Berichtsvorlage prüfen.</small>
+              <b>Optional: Vorlage festlegen</b>
+              <small
+                >Terminologie ergänzt Vorlagen; die Befunderfassung kann vorher beginnen.</small
+              >
             </div>
           </li>
           <li :class="{ 'is-complete': Boolean(flow.currentRuntimeDraft) }">
@@ -223,6 +263,10 @@
           <strong>{{ selectedTerminologyLabel }}</strong>
         </div>
         <div class="context-summary-item">
+          <span class="context-summary-label">Berichtssprache</span>
+          <strong>{{ selectedReportLanguageLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
           <span class="context-summary-label">Entwurf</span>
           <strong>{{ draftSummaryLabel }}</strong>
         </div>
@@ -231,8 +275,37 @@
           <strong>{{ mediaPreloadLabel }}</strong>
         </div>
       </div>
-      <div v-if="terminologyImportMessage" class="small text-muted mt-2">
+      <div
+        v-if="terminologyImportMessage"
+        class="small mt-2"
+        :class="terminology.error ? 'text-danger' : 'text-muted'"
+        :role="terminology.error ? 'alert' : 'status'"
+      >
         {{ terminologyImportMessage }}
+      </div>
+      <div v-if="terminology.error" class="alert alert-warning py-2" role="alert">
+        <div>Terminologieregister konnte nicht geladen werden: {{ terminology.error }}</div>
+        <div class="small mb-2">Befunderfassung und Medien bleiben weiterhin verfügbar.</div>
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          type="button"
+          :disabled="terminology.loading"
+          @click="retryTerminologyBundles"
+        >
+          Terminologieregister erneut laden
+        </button>
+      </div>
+      <div
+        v-if="!terminology.activeBundle"
+        class="alert alert-info py-2 mt-2 mb-0"
+        role="status"
+        aria-live="polite"
+      >
+        Keine aktive Terminologie. Befunde und Medien bleiben verfügbar; Vorlagenprüfung,
+        Finalisierung und templateabhängiger Export werden nach Paketaktivierung ergänzt.
+      </div>
+      <div v-if="reportLanguagesError" class="small text-danger mt-2">
+        {{ reportLanguagesError }}
       </div>
     </section>
 
@@ -395,6 +468,16 @@
                     </div>
                   </div>
                   <div v-else class="small text-muted">Kein Bericht verfügbar.</div>
+                  <RouterLink
+                    class="btn btn-primary btn-sm w-100 mt-2"
+                    :to="`/reporting/${pe}/report-editor`"
+                  >
+                    {{
+                      flow.mediaPreload.latestReport
+                        ? 'Befundbericht bearbeiten'
+                        : 'Befundbericht erstellen'
+                    }}
+                  </RouterLink>
                 </div>
               </div>
               <div class="col-md-4">
@@ -480,9 +563,13 @@
                 class="d-block text-muted"
                 data-testid="concept-coverage-identity"
               >
-                Modul {{ conceptCoverage.identity.moduleName }} v{{ conceptCoverage.identity.moduleVersion }}
+                Modul {{ conceptCoverage.identity.moduleName }} v{{
+                  conceptCoverage.identity.moduleVersion
+                }}
                 · {{ conceptCoverage.identity.moduleDigest.slice(0, 12) }}… · Template
-                {{ conceptCoverage.identity.templateName }} v{{ conceptCoverage.identity.templateVersion }}
+                {{ conceptCoverage.identity.templateName }} v{{
+                  conceptCoverage.identity.templateVersion
+                }}
                 · {{ conceptCoverage.identity.templateDigest.slice(0, 12) }}…
               </small>
             </div>
@@ -509,7 +596,9 @@
               data-testid="concept-coverage-provenance"
             >
               Serververtrag {{ templateReference?.conceptCoverage?.contractVersion }} · Resolver
-              {{ conceptCoverage.provenance.resolver }} v{{ conceptCoverage.provenance.resolverVersion }}
+              {{ conceptCoverage.provenance.resolver }} v{{
+                conceptCoverage.provenance.resolverVersion
+              }}
               · Evidenz {{ conceptCoverage.provenance.evidenceDigest.slice(0, 12) }}…
             </small>
             <div v-if="conceptCoverage.items.length" class="d-grid gap-2">
@@ -589,6 +678,9 @@
                     <small v-if="classification.choicesLabel">
                       {{ classification.choicesLabel }}
                     </small>
+                    <small v-if="classification.inputLabel">
+                      {{ classification.inputLabel }}
+                    </small>
                     <small v-if="classification.description">
                       {{ classification.description }}
                     </small>
@@ -665,14 +757,20 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
 import { fetchPatientCases, type PatientCase } from '@/api/casesApi'
+import {
+  fetchReportingLanguages,
+  type ReportLanguageCode,
+  type ReportLanguageOption
+} from '@/api/reportingLanguagesApi'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import {
   buildReportTemplateRuntimePayload,
+  describeReportTemplateTitle,
   fetchReportTemplateByName,
   fetchReportTemplatesByExamination
 } from '@/api/reportTemplatesApi'
@@ -692,17 +790,35 @@ import type {
   RuntimeValidationIssue,
   UnitValidatorExecution
 } from '@/types/reportTemplate'
-import {
-  resolveReportConceptCoverage,
-  type ReportConceptCoverageStatus
-} from '@/utils/reportConceptCoverage'
+import { resolveReportConceptCoverage } from '@/utils/reportConceptCoverage'
 import { endpoints } from '@/types/api/endpoints'
-import { useReportingFlowStore } from '@/stores/reportingFlowStore'
-import { useTerminologyStore } from '@/stores/terminologyStore'
+import {
+  isVerifiedRuntimeDraftForBundle,
+  useReportingFlowStore,
+  type ReportingRuntimeDraft
+} from '@/stores/reportingFlowStore'
+import { terminologyBatchImportMessage, useTerminologyStore } from '@/stores/terminologyStore'
 import { fetchPatientTimelineLatest, pickPreferredReportStream } from '@/api/reportingTimelineApi'
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
+import {
+  conceptCoverageStatusLabel,
+  conceptCoverageStatusTone,
+  extractStringList,
+  findingStatusIconClass,
+  findingStatusLabel,
+  formatCaseLabel,
+  formatDateLabel,
+  formatKnowledgeName,
+  isGastroenterologyExaminationName,
+  isVideoArtifactKind,
+  normalizeKnowledgeKey as normalizeKey,
+  normalizePatientExaminationOption,
+  preferredArtifactKind,
+  type FindingStatus,
+  type PatientExaminationOption
+} from './reportingShellPresentation'
 
 const route = useRoute()
 const router = useRouter()
@@ -716,16 +832,9 @@ const terminologyLoadPromise = ref<Promise<void> | null>(null)
 const terminologyFolderInput = ref<HTMLInputElement | null>(null)
 const terminologyZipInput = ref<HTMLInputElement | null>(null)
 const terminologyImportMessage = ref('')
-type PatientExaminationOption = {
-  id: number
-  label: string
-  examinationName: string
-  patientId: number | null
-  examinationId: number | null
-}
-
-type FindingStatus = 'complete' | 'warning' | 'missing' | 'empty'
-
+const reportLanguageOptions = ref<ReportLanguageOption[]>([])
+const reportLanguagesLoading = ref(false)
+const reportLanguagesError = ref<string | null>(null)
 type FindingStatusRow = {
   key: string
   normalizedKey: string
@@ -754,6 +863,7 @@ type KbClassificationReference = {
   label: string
   required: boolean
   choicesLabel: string
+  inputLabel: string
   description: string
 }
 
@@ -772,7 +882,7 @@ const patientExaminationOptionsError = ref<string | null>(null)
 const caseOptions = ref<PatientCase[]>([])
 const caseOptionsLoading = ref(false)
 const caseOptionsError = ref<string | null>(null)
-const draftBootstrapInFlight = ref<Promise<void> | null>(null)
+const draftBootstrapInFlight = ref<{ key: string; promise: Promise<void> } | null>(null)
 const draftBootstrapError = ref<string | null>(null)
 const patientExaminationDetail = ref<Record<string, unknown> | null>(null)
 const templateReference = ref<ReportTemplatePayload | null>(null)
@@ -785,6 +895,23 @@ const templateSelectionError = ref<string | null>(null)
 const selectedReferenceFindingKey = ref<string | null>(null)
 const findingCatalog = ref<Finding[]>([])
 const findingCatalogLoading = ref(false)
+let draftBootstrapGeneration = 0
+let findingCatalogRequestGeneration = 0
+let patientOptionsRequestGeneration = 0
+let caseOptionsRequestGeneration = 0
+let mediaPreloadRequestGeneration = 0
+let routeContextWatchGeneration = 0
+
+type DraftBootstrapContext = {
+  generation: number
+  patientExaminationId: number
+  bundleKey: string
+  moduleName: string
+}
+
+class SupersededReportingContextError extends Error {}
+
+class IncompatibleReportingDraftError extends Error {}
 
 const emptyTemplateIdentity: ReportTemplateIdentity = {
   moduleName: null,
@@ -811,8 +938,11 @@ const selectedPatientExaminationId = computed(
 
 watch(
   routePatientId,
-  (patientId) => {
+  async (patientId) => {
     if (patientId && patientId !== flow.selectedPatientId) {
+      if (!(await flushDraftBeforeContextSwitch(null))) return
+      draftBootstrapGeneration += 1
+      draftBootstrapInFlight.value = null
       flow.setPatientExaminationContext({
         patientExaminationId: null,
         selectedPatientId: patientId,
@@ -838,7 +968,8 @@ const navItems = computed(() => [
   {
     label: 'Bericht schreiben',
     to: `/reporting/${pe.value}/report-editor`,
-    requiresPatientExamination: true
+    requiresPatientExamination: true,
+    requiresVerifiedTemplate: true
   },
   {
     label: 'Bilder auswählen',
@@ -848,9 +979,15 @@ const navItems = computed(() => [
   {
     label: 'Report export',
     to: `/reporting/${pe.value}/report-export`,
-    requiresPatientExamination: true
+    requiresPatientExamination: true,
+    requiresVerifiedTemplate: true
   },
-  { label: 'Abschluss', to: `/reporting/${pe.value}/finalized`, requiresPatientExamination: true }
+  {
+    label: 'Abschluss',
+    to: `/reporting/${pe.value}/finalized`,
+    requiresPatientExamination: true,
+    requiresVerifiedTemplate: true
+  }
 ])
 
 const preferredReportStream = computed(() =>
@@ -876,14 +1013,41 @@ const { playbackError: reportingVideoPlaybackError } = useAuthenticatedVideoStre
 })
 
 const activeKbModule = computed(() =>
-  terminology.activeBundle
-    ? terminology.activeModuleName
-    : flow.selectedKbModule || 'report_template_examples'
+  terminology.activeBundle ? terminology.activeModuleName : ''
 )
+
+const activeBundleIdentityKey = computed(() => {
+  const bundle = terminology.activeBundle
+  return bundle ? `${bundle.moduleName}@@${bundle.version}` : ''
+})
+const hasVerifiedTemplateContext = computed(() =>
+  isVerifiedRuntimeDraftForBundle(
+    flow.currentRuntimeDraft,
+    terminology.activeBundle,
+    flow.patientExaminationId
+  )
+)
+let lastReconciledBundleIdentity: string | null = null
+
+function isBootstrapContextCurrent(context: DraftBootstrapContext): boolean {
+  return (
+    context.generation === draftBootstrapGeneration &&
+    context.patientExaminationId === routePatientExaminationId.value &&
+    context.bundleKey === activeBundleIdentityKey.value &&
+    context.moduleName === activeKbModule.value
+  )
+}
+
+function assertBootstrapContextCurrent(context?: DraftBootstrapContext): void {
+  if (context && !isBootstrapContextCurrent(context)) {
+    throw new SupersededReportingContextError('Reporting context changed during loading.')
+  }
+}
 
 const draftSummaryLabel = computed(() => {
   const draft = flow.currentRuntimeDraft
   if (!draft) return 'leer'
+  if (draft.verificationStatus === 'unverified') return 'vorhanden · ungeprüft'
   return draft.hydratedFrom === 'session_storage' || draft.hydratedFrom === 'draft_api'
     ? 'wiederhergestellt'
     : 'initialisiert'
@@ -898,15 +1062,45 @@ const selectedPatientExaminationLabel = computed(() => {
   return flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt'
 })
 
-const selectedTemplateLabel = computed(
-  () => flow.selectedTemplateName || 'Noch keine Vorlage gewählt'
+const selectedTemplateLabel = computed(() =>
+  flow.selectedTemplateName
+    ? describeReportTemplateTitle(flow.selectedTemplateName)
+    : 'Noch keine Vorlage gewählt'
 )
 
 const selectedTerminologyLabel = computed(() => {
   const field = terminology.medicalFieldLabel
-  const bundle = terminology.activeBundle ? terminology.activeBundleLabel : 'Standard-Terminologie'
+  const bundle = terminology.activeBundle
+    ? terminology.activeBundleLabel
+    : 'Keine aktive Terminologie'
   return `${field} · ${bundle}`
 })
+
+const selectedReportLanguageLabel = computed(
+  () =>
+    reportLanguageOptions.value.find((option) => option.code === flow.selectedReportLanguage)
+      ?.label || flow.selectedReportLanguage.toUpperCase()
+)
+
+async function loadReportingLanguages() {
+  reportLanguagesLoading.value = true
+  reportLanguagesError.value = null
+  try {
+    const response = await fetchReportingLanguages()
+    reportLanguageOptions.value = response.languages
+    if (!response.languages.some((option) => option.code === flow.selectedReportLanguage)) {
+      flow.setReportLanguage(response.defaultLanguage)
+    }
+  } catch (error) {
+    reportLanguageOptions.value = []
+    reportLanguagesError.value = reportingApiErrorMessage(
+      error,
+      'Berichtssprachen konnten nicht geladen werden.'
+    )
+  } finally {
+    reportLanguagesLoading.value = false
+  }
+}
 
 const currentStepLabel = computed(() => {
   const current = navItems.value.find((item) => isActive(item.to))
@@ -1048,8 +1242,10 @@ const conceptCoverage = computed(() =>
 )
 
 const conceptCoverageSubtitle = computed(() => {
-  const identity = templateReference.value?.identity || flow.selectedTemplateIdentity
-  const moduleName = identity?.moduleName || activeKbModule.value
+  const identity = terminology.activeBundle
+    ? templateReference.value?.identity || flow.selectedTemplateIdentity
+    : null
+  const moduleName = activeKbModule.value || 'Keine aktive Terminologie'
   const version =
     identity?.knowledgeBaseVersion || terminology.activeBundle?.version || 'Version unbekannt'
   return `${moduleName} · ${version}`
@@ -1234,12 +1430,14 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
       ? templateClassifications.map((classification) => ({
           key: normalizeKey(classification.classification),
           name: classification.classification,
-          required: !!classification.required
+          required: !!classification.required,
+          input: classification.input
         }))
       : catalogClassifications.map((classification) => ({
           key: normalizeKey(classification.name),
           name: classification.name,
-          required: !!classification.required
+          required: !!classification.required,
+          input: null
         }))
 
   return source
@@ -1252,11 +1450,25 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
       const choices = (catalog?.choices || [])
         .map((choice) => choice.displayName || choice.name)
         .filter(Boolean)
+      const descriptorInputs = (classification.input?.choices || []).flatMap(
+        (choice) => choice.descriptors
+      )
+      const descriptorLabels = Array.from(
+        new Set(
+          descriptorInputs.map((descriptor) => {
+            const unit = descriptor.unitAbbreviation || descriptor.unit
+            return unit ? `${descriptor.type} (${unit})` : descriptor.type
+          })
+        )
+      )
       return {
         key: classification.key,
         label: catalog?.displayName || formatKnowledgeName(classification.name),
         required: classification.required,
         choicesLabel: choices.length ? `Werte: ${choices.join(', ')}` : '',
+        inputLabel: descriptorLabels.length
+          ? `Erforderliche Eingabe: ${descriptorLabels.join(', ')}`
+          : '',
         description: catalog?.description || ''
       }
     })
@@ -1280,7 +1492,7 @@ const activeSuggestedActions = computed(() => {
 })
 
 const kbReferenceSubtitle = computed(() => {
-  const moduleName = flow.selectedKbModule || activeKbModule.value
+  const moduleName = activeKbModule.value || 'Keine aktive Terminologie'
   const templateName = templateReference.value?.name || flow.selectedTemplateName
   if (!templateName) return `${moduleName} · kein Template`
   return `${moduleName} · ${templateName}`
@@ -1291,7 +1503,16 @@ const nextStepHint = computed(() => {
     return 'Wählen Sie zuerst eine Patientenuntersuchung, um Befunde und Bericht zu bearbeiten.'
   }
   if (!flow.currentRuntimeDraft) {
+    if (!terminology.activeBundle) {
+      return 'Annotation und Medien bleiben verfügbar. Für den Bericht zuerst ein passendes Terminologiepaket installieren oder aktivieren.'
+    }
+    if (draftBootstrapError.value) {
+      return 'Reporting konnte nicht vorbereitet werden. Terminologie, Untersuchung und veröffentlichte Vorlage prüfen.'
+    }
     return 'Der Entwurf wird vorbereitet. Danach können Sie direkt mit den Befunden starten.'
+  }
+  if (flow.currentRuntimeDraft.verificationStatus === 'unverified') {
+    return 'Befunde bleiben bearbeitbar; Vorlage, Vollständigkeitsprüfung und Finalisierung sind noch nicht verifiziert.'
   }
   if (route.path.includes('/report-editor')) {
     return 'Bericht prüfen, Text ergänzen und anschließend zum Abschluss wechseln.'
@@ -1305,16 +1526,6 @@ const nextStepHint = computed(() => {
 function openUrl(url: string | null) {
   if (!url) return
   window.open(url, '_blank', 'noopener,noreferrer')
-}
-
-function isVideoArtifactKind(value: string | null | undefined): value is StreamableVideoFileType {
-  return value === 'raw' || value === 'processed'
-}
-
-function preferredArtifactKind(options: Array<{ type: string }>): StreamableVideoFileType | null {
-  if (options.some((option) => option.type === 'processed')) return 'processed'
-  if (options.some((option) => option.type === 'raw')) return 'raw'
-  return null
 }
 
 function selectVideoStream(artifactKind: string | null) {
@@ -1336,6 +1547,35 @@ function openTerminologyZipPicker() {
   terminologyZipInput.value?.click()
 }
 
+async function onTerminologyBundleSelect(bundleKey: string) {
+  const bundle = terminology.findBundleByKey(bundleKey)
+  if (!bundle) return
+  terminologyImportMessage.value = ''
+  try {
+    if (flow.hasUnpersistedDraftChanges) await flow.flushDraftAutosave()
+    await terminology.selectBundle(bundle)
+    await reconcileActiveTerminology()
+  } catch (error: unknown) {
+    terminologyImportMessage.value =
+      terminology.error ||
+      reportingApiErrorMessage(error, 'Terminologiepaket konnte nicht aktiviert werden.')
+  }
+}
+
+async function retryTerminologyBundles() {
+  terminologyImportMessage.value = ''
+  try {
+    await terminology.loadBundles()
+    lastReconciledBundleIdentity = null
+    await reconcileActiveTerminology()
+  } catch (error: unknown) {
+    terminologyImportMessage.value = reportingApiErrorMessage(
+      error,
+      'Terminologieregister konnte nicht geladen werden.'
+    )
+  }
+}
+
 async function importTerminologyFolder(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
@@ -1343,8 +1583,10 @@ async function importTerminologyFolder(event: Event) {
 
   terminologyImportMessage.value = ''
   try {
-    await terminology.importBundleFolder(files)
-    terminologyImportMessage.value = 'Terminologieordner importiert und geladen.'
+    if (flow.hasUnpersistedDraftChanges) await flow.flushDraftAutosave()
+    const result = await terminology.importBundleFolders(files)
+    terminologyImportMessage.value = terminologyBatchImportMessage(result)
+    if (result.imported.length) await reconcileActiveTerminology()
   } catch (error: unknown) {
     terminologyImportMessage.value =
       terminology.error ||
@@ -1356,13 +1598,15 @@ async function importTerminologyFolder(event: Event) {
 
 async function importTerminologyZip(event: Event) {
   const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
+  const files = Array.from(input.files || [])
+  if (!files.length) return
 
   terminologyImportMessage.value = ''
   try {
-    await terminology.importBundle(file)
-    terminologyImportMessage.value = 'Terminologiepaket aus dem Editor importiert und geladen.'
+    if (flow.hasUnpersistedDraftChanges) await flow.flushDraftAutosave()
+    const result = await terminology.importBundles(files)
+    terminologyImportMessage.value = terminologyBatchImportMessage(result)
+    if (result.imported.length) await reconcileActiveTerminology()
   } catch (error: unknown) {
     terminologyImportMessage.value =
       terminology.error ||
@@ -1391,23 +1635,6 @@ function readString(
   return null
 }
 
-function normalizeKey(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
-}
-
-function formatKnowledgeName(value: string): string {
-  const normalized = value.replace(/[_-]/g, ' ').trim()
-  if (!normalized) return 'Unbenannt'
-  return normalized.replace(/\b\w/g, (char) => char.toUpperCase())
-}
-
-function formatDateLabel(value: string | null | undefined): string | null {
-  if (!value) return null
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return parsed.toLocaleDateString('de-DE')
-}
-
 function findingAnchorId(findingName: string): string {
   return `finding-${normalizeKey(findingName)}`
 }
@@ -1434,14 +1661,35 @@ function requiredClassificationsMissing(
   return required
     .filter((classification) => {
       const key = normalizeKey(classification.classification)
-      return !instances.some((instance) =>
-        instance.classificationChoices.some(
-          (choice) =>
-            normalizeKey(choice.classification) === key &&
-            typeof choice.classificationChoice === 'string' &&
-            choice.classificationChoice.trim()
-        )
-      )
+      return !instances.some((instance) => {
+        return instance.classificationChoices.some((choice) => {
+          if (
+            normalizeKey(choice.classification) !== key ||
+            typeof choice.classificationChoice !== 'string' ||
+            !choice.classificationChoice.trim()
+          ) {
+            return false
+          }
+
+          const inputChoice = classification.input?.choices.find(
+            (entry) => normalizeKey(entry.name) === normalizeKey(choice.classificationChoice)
+          )
+          if (!inputChoice?.descriptors.length) return true
+          return inputChoice.descriptors.every((descriptorInput) => {
+            const descriptor = choice.descriptors.find(
+              (entry) =>
+                normalizeKey(entry.classificationChoiceDescriptor) ===
+                normalizeKey(descriptorInput.name)
+            )
+            const value = descriptor?.descriptorValue
+            return (
+              value !== null &&
+              value !== undefined &&
+              (typeof value !== 'string' || value.trim().length > 0)
+            )
+          })
+        })
+      })
     })
     .map((classification) => formatKnowledgeName(classification.classification))
 }
@@ -1490,34 +1738,6 @@ function buildFindingStatusRow(params: {
     messages,
     templateFinding: params.templateFinding
   }
-}
-
-function findingStatusLabel(status: FindingStatus, required: boolean): string {
-  if (status === 'complete') return 'vollständig'
-  if (status === 'warning') return 'prüfen'
-  if (status === 'missing') return 'fehlt'
-  return required ? 'offen' : 'optional'
-}
-
-function findingStatusIconClass(status: FindingStatus): string {
-  if (status === 'complete') return 'ni ni-check-bold'
-  if (status === 'warning') return 'ni ni-alert-circle-exc'
-  if (status === 'missing') return 'ni ni-fat-remove'
-  return 'ni ni-fat-add'
-}
-
-function conceptCoverageStatusLabel(status: ReportConceptCoverageStatus): string {
-  if (status === 'present') return 'nachgewiesen'
-  if (status === 'missing') return 'fehlt'
-  if (status === 'not_applicable') return 'nicht anwendbar'
-  if (status === 'invalid') return 'ungültig'
-  return 'ungeklärt'
-}
-
-function conceptCoverageStatusTone(status: ReportConceptCoverageStatus): string {
-  if (status === 'present' || status === 'not_applicable') return 'success'
-  if (status === 'missing' || status === 'invalid') return 'danger'
-  return 'warning'
 }
 
 function findingStatusTarget(row: FindingStatusRow) {
@@ -1589,24 +1809,6 @@ function collectValidatorSuggestions(
   ])
 }
 
-function extractStringList(value: unknown): string[] {
-  if (typeof value === 'string' && value.trim()) return [value.trim()]
-  if (!Array.isArray(value)) return []
-  return value
-    .map((entry) => {
-      if (typeof entry === 'string') return entry.trim()
-      if (!entry || typeof entry !== 'object') return ''
-      const record = entry as Record<string, unknown>
-      return (
-        (typeof record.label === 'string' && record.label.trim()) ||
-        (typeof record.message === 'string' && record.message.trim()) ||
-        (typeof record.action === 'string' && record.action.trim()) ||
-        ''
-      )
-    })
-    .filter((entry): entry is string => Boolean(entry))
-}
-
 function formatRuntimeFindingInstance(instance: ReportTemplateRuntimePatientFindingInput): string {
   if (!instance.classificationChoices.length) return 'Keine Klassifikation gesetzt'
   return instance.classificationChoices
@@ -1623,14 +1825,97 @@ function formatRuntimeFindingInstance(instance: ReportTemplateRuntimePatientFind
     .join(' · ')
 }
 
+function clearInactiveTerminologySelection() {
+  if (terminology.activeBundle) return
+  markCurrentDraftUnverified()
+  flow.setTemplateSelection({
+    moduleName: '',
+    templateName: null,
+    templateIdentity: null
+  })
+  templateReference.value = null
+  templateReferenceKey.value = null
+}
+
+function markCurrentDraftUnverified() {
+  const draft = flow.currentRuntimeDraft
+  if (!draft || draft.verificationStatus === 'unverified') return
+  const activeBundle = terminology.activeBundle
+  const draftVersion =
+    draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
+  if (
+    activeBundle &&
+    draft.moduleName === activeBundle.moduleName &&
+    draftVersion === activeBundle.version &&
+    draft.verificationStatus === 'verified'
+  ) {
+    return
+  }
+  flow.setRuntimeDraft({
+    ...draft,
+    verificationStatus: 'unverified',
+    persistencePolicy: 'blocked_until_verified'
+  })
+}
+
+function clearTerminologyDerivedViewState() {
+  availableTemplates.value = []
+  templateLoading.value = false
+  templateSelectionError.value = null
+  templateReference.value = null
+  templateReferenceKey.value = null
+  templateReferenceError.value = null
+  templateReferenceLoading.value = false
+  draftBootstrapError.value = null
+  selectedReferenceFindingKey.value = null
+}
+
+async function reconcileActiveTerminology() {
+  const bundleIdentity = activeBundleIdentityKey.value
+  if (lastReconciledBundleIdentity === bundleIdentity) return
+  if (flow.hasUnpersistedDraftChanges) {
+    try {
+      await flow.flushDraftAutosave()
+    } catch (error: unknown) {
+      draftBootstrapError.value = `Der aktuelle Entwurf konnte vor dem Terminologiewechsel nicht gespeichert werden. ${reportingApiErrorMessage(error, 'Bitte erneut versuchen.')}`
+      return
+    }
+  }
+  draftBootstrapGeneration += 1
+  draftBootstrapInFlight.value = null
+  markCurrentDraftUnverified()
+  clearTerminologyDerivedViewState()
+
+  if (!terminology.activeBundle) {
+    clearInactiveTerminologySelection()
+    lastReconciledBundleIdentity = bundleIdentity
+    return
+  }
+
+  flow.setTemplateSelection({
+    moduleName: terminology.activeBundle.moduleName,
+    templateName: flow.currentRuntimeDraft?.templateName || flow.selectedTemplateName,
+    templateIdentity: null
+  })
+  const patientExaminationId = routePatientExaminationId.value
+  if (patientExaminationId) {
+    await hydrateDraftForRoutePatientExamination(patientExaminationId)
+  }
+  if (!draftBootstrapError.value) lastReconciledBundleIdentity = bundleIdentity
+}
+
 function ensureTerminologyBundlesLoaded(): Promise<void> {
   if (terminology.activeBundle || terminology.bundles.length || terminology.error) {
+    clearInactiveTerminologySelection()
     return Promise.resolve()
   }
   if (terminologyLoadPromise.value) return terminologyLoadPromise.value
 
   const task = terminology
     .loadBundles()
+    .then(() => {
+      clearInactiveTerminologySelection()
+    })
     .catch((error) => {
       console.error('Failed to load terminology bundles:', error)
     })
@@ -1642,16 +1927,17 @@ function ensureTerminologyBundlesLoaded(): Promise<void> {
 }
 
 async function loadTemplateReferenceForSelection() {
-  const moduleName = flow.selectedKbModule || activeKbModule.value
+  const moduleName = activeKbModule.value
   const templateName = flow.selectedTemplateName
   if (!moduleName || !templateName) {
     templateReference.value = null
     templateReferenceKey.value = null
     templateReferenceError.value = null
+    templateReferenceLoading.value = false
     return
   }
 
-  const nextKey = `${moduleName}:${templateName}`
+  const nextKey = `${activeBundleIdentityKey.value}:${templateName}`
   if (templateReferenceKey.value === nextKey && templateReference.value) return
 
   templateReferenceLoading.value = true
@@ -1676,18 +1962,29 @@ async function loadTemplateReferenceForSelection() {
 }
 
 async function loadFindingCatalogForExamination(examinationId: number | null | undefined) {
+  const requestGeneration = ++findingCatalogRequestGeneration
   if (!examinationId) {
     findingCatalog.value = []
+    findingCatalogLoading.value = false
     return
   }
   findingCatalogLoading.value = true
   try {
     const rows = await findingsApi.getExaminationFindings(examinationId)
+    if (
+      requestGeneration !== findingCatalogRequestGeneration ||
+      examinationId !== flow.selectedExaminationId
+    ) {
+      return
+    }
     findingCatalog.value = Array.isArray(rows) ? rows : []
   } catch {
+    if (requestGeneration !== findingCatalogRequestGeneration) return
     findingCatalog.value = []
   } finally {
-    findingCatalogLoading.value = false
+    if (requestGeneration === findingCatalogRequestGeneration) {
+      findingCatalogLoading.value = false
+    }
   }
 }
 
@@ -1772,40 +2069,8 @@ function extractExaminationName(raw: Record<string, unknown>): string {
   )
 }
 
-function isGastroenterologyExaminationName(value: string): boolean {
-  const normalized = value.trim().toLowerCase()
-  if (!normalized) return false
-  return [
-    'gastro',
-    'kolon',
-    'colon',
-    'colo',
-    'rekt',
-    'rect',
-    'endoskop',
-    'endoscop',
-    'gastroskop',
-    'gastroscop',
-    'koloskop',
-    'colonoscop',
-    'colonoscopy',
-    'magen',
-    'darm',
-    'duoden',
-    'sigmo',
-    'procto',
-    'ösoph',
-    'oesoph',
-    'esoph',
-    'egd',
-    'ercp',
-    'eus',
-    'upper gi',
-    'lower gi'
-  ].some((keyword) => normalized.includes(keyword))
-}
-
 function isPatientExaminationAllowedForMedicalField(option: PatientExaminationOption): boolean {
+  if (!terminology.activeBundle) return true
   if (terminology.selectedMedicalField !== 'gastroenterology') return true
   return isGastroenterologyExaminationName(option.examinationName)
 }
@@ -1910,46 +2175,6 @@ function stringField(record: Record<string, unknown>, ...keys: string[]): string
   return null
 }
 
-function normalizePatientExaminationOption(raw: unknown) {
-  if (!raw || typeof raw !== 'object') return null
-  const row = raw as Record<string, unknown>
-  const examination = readRecord(row.examination)
-  const patient = readRecord(row.patient)
-  const patientData = readRecord(row.patient_data)
-  const camelPatientData = readRecord(row.patientData)
-  const id = toPositiveInteger(row.id)
-  if (id === null) return null
-  const examinationName =
-    (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
-    (typeof examination.name === 'string' && examination.name.trim()) ||
-    (typeof row.examination === 'string' && row.examination.trim()) ||
-    'Untersuchung'
-  const dateStartRaw =
-    typeof row.date_start === 'string'
-      ? row.date_start
-      : typeof row.dateStart === 'string'
-        ? row.dateStart
-        : ''
-  const dateLabel = dateStartRaw ? new Date(dateStartRaw).toLocaleDateString('de-DE') : ''
-  return {
-    id,
-    label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
-    examinationName,
-    patientId: toPositiveInteger(
-      patient.id ?? patientData.id ?? camelPatientData.id ?? row.patient_id ?? row.patientId
-    ),
-    examinationId: toPositiveInteger(examination.id ?? row.examination_id ?? row.examinationId)
-  }
-}
-
-function formatCaseLabel(patientCase: PatientCase): string {
-  const admissionDate = formatDateLabel(patientCase.admissionDate)
-  const leaveDate = formatDateLabel(patientCase.leaveDate)
-  const period = [admissionDate, leaveDate].filter(Boolean).join(' – ')
-  const status = patientCase.isClosed ? 'geschlossen' : patientCase.isActive ? 'aktiv' : 'inaktiv'
-  return [patientCase.caseId, period, status].filter(Boolean).join(' · ')
-}
-
 function caseExaminationOptions(patientCase: PatientCase): PatientExaminationOption[] {
   return patientCase.patientExaminations
     .map(normalizePatientExaminationOption)
@@ -1976,23 +2201,41 @@ function mergeCaseOptions(rows: PatientCase[]): void {
 }
 
 async function fetchCaseOptions(patientId: number): Promise<void> {
+  const requestGeneration = ++caseOptionsRequestGeneration
   caseOptionsLoading.value = true
   caseOptionsError.value = null
   try {
-    caseOptions.value = await fetchPatientCases({ patientId })
+    const rows = await fetchPatientCases({ patientId })
+    if (
+      requestGeneration !== caseOptionsRequestGeneration ||
+      patientId !== flow.selectedPatientId
+    ) {
+      return
+    }
+    caseOptions.value = rows
     const activeCase = caseOptions.value.find((row) => row.caseId === flow.caseId)
     if (activeCase) activateCase(activeCase)
   } catch (error: unknown) {
+    if (requestGeneration !== caseOptionsRequestGeneration) return
     caseOptions.value = []
     caseOptionsError.value = reportingApiErrorMessage(error, 'Fälle konnten nicht geladen werden.')
   } finally {
-    caseOptionsLoading.value = false
+    if (requestGeneration === caseOptionsRequestGeneration) {
+      caseOptionsLoading.value = false
+    }
   }
 }
 
 async function ensureCaseForPatientExamination(patientExaminationId: number): Promise<void> {
+  const requestGeneration = ++caseOptionsRequestGeneration
   try {
     const rows = await fetchPatientCases({ patientExaminationId })
+    if (
+      requestGeneration !== caseOptionsRequestGeneration ||
+      patientExaminationId !== routePatientExaminationId.value
+    ) {
+      return
+    }
     mergeCaseOptions(rows)
     const patientCase = rows.find((row) =>
       row.patientExaminations.some((examination) => examination.id === patientExaminationId)
@@ -2006,6 +2249,7 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
     caseOptionsError.value = null
     activateCase(patientCase)
   } catch (error: unknown) {
+    if (requestGeneration !== caseOptionsRequestGeneration) return
     flow.setCaseContext({ caseId: null })
     caseOptionsError.value = reportingApiErrorMessage(
       error,
@@ -2017,12 +2261,16 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
 async function onCaseSelect(caseId: string): Promise<void> {
   const patientCase = caseOptions.value.find((row) => row.caseId === caseId)
   if (!patientCase) return
-  activateCase(patientCase)
   const currentPatientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
   const examinationIds = new Set(patientCase.patientExaminations.map((row) => row.id))
-  if (currentPatientExaminationId && examinationIds.has(currentPatientExaminationId)) return
+  if (currentPatientExaminationId && examinationIds.has(currentPatientExaminationId)) {
+    activateCase(patientCase)
+    return
+  }
 
-  const firstExamination = patientExaminationOptions.value[0]
+  const firstExamination = caseExaminationOptions(patientCase)[0]
+  if (!(await flushDraftBeforeContextSwitch(firstExamination?.id ?? null))) return
+  activateCase(patientCase)
   if (!firstExamination) {
     flow.setPatientExaminationContext({
       patientExaminationId: null,
@@ -2053,12 +2301,19 @@ function upsertPatientExaminationOption(option: {
 }
 
 async function fetchPatientExaminationOptions(patientId: number) {
+  const requestGeneration = ++patientOptionsRequestGeneration
   patientExaminationOptionsLoading.value = true
   patientExaminationOptionsError.value = null
   try {
     const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList), {
       params: { patient_id: patientId }
     })
+    if (
+      requestGeneration !== patientOptionsRequestGeneration ||
+      patientId !== flow.selectedPatientId
+    ) {
+      return
+    }
     const rows = Array.isArray(response.data?.results)
       ? response.data.results
       : Array.isArray(response.data)
@@ -2074,23 +2329,33 @@ async function fetchPatientExaminationOptions(patientId: number) {
       .filter(isPatientExaminationAllowedForMedicalField)
       .sort((left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id)
   } catch (error: unknown) {
+    if (requestGeneration !== patientOptionsRequestGeneration) return
     patientExaminationOptions.value = []
     patientExaminationOptionsError.value = reportingApiErrorMessage(
       error,
       'Patientenuntersuchungen konnten nicht geladen werden.'
     )
   } finally {
-    patientExaminationOptionsLoading.value = false
+    if (requestGeneration === patientOptionsRequestGeneration) {
+      patientExaminationOptionsLoading.value = false
+    }
   }
 }
 
 async function ensureCurrentPatientExaminationOption(patientExaminationId: number) {
   const exists = patientExaminationOptions.value.some((entry) => entry.id === patientExaminationId)
   if (exists) return
+  const requestGeneration = ++patientOptionsRequestGeneration
   try {
     const response = await axiosInstance.get(
       r(endpoints.examination.patientExaminationDetail(patientExaminationId))
     )
+    if (
+      requestGeneration !== patientOptionsRequestGeneration ||
+      patientExaminationId !== routePatientExaminationId.value
+    ) {
+      return
+    }
     if (response.data && typeof response.data === 'object') {
       patientExaminationDetail.value = response.data as Record<string, unknown>
     }
@@ -2108,9 +2373,28 @@ function getNavigationTargetForPatientExamination(patientExaminationId: number):
     : `/reporting/${patientExaminationId}/findings`
 }
 
+async function flushDraftBeforeContextSwitch(
+  nextPatientExaminationId: number | null
+): Promise<boolean> {
+  if (flow.patientExaminationId === nextPatientExaminationId || !flow.hasUnpersistedDraftChanges) {
+    return true
+  }
+  try {
+    await flow.flushDraftAutosave()
+    return true
+  } catch (error: unknown) {
+    const detail = reportingApiErrorMessage(error, 'unbekannter Speicherfehler')
+    draftBootstrapError.value = `Der aktuelle Entwurf konnte nicht gespeichert werden. Die Untersuchung wurde nicht gewechselt. ${detail}`
+    return false
+  }
+}
+
 async function onPatientExaminationSelect(rawValue: string) {
   const patientExaminationId = toPositiveInteger(rawValue)
   if (patientExaminationId === null) return
+  if (!(await flushDraftBeforeContextSwitch(patientExaminationId))) return
+  draftBootstrapGeneration += 1
+  draftBootstrapInFlight.value = null
   const selectedOption =
     patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) ?? null
 
@@ -2136,7 +2420,21 @@ function draftHasRuntimeContent(): boolean {
 
 async function onTemplateSelectionChange(name: string, select?: HTMLSelectElement) {
   const previousName = flow.selectedTemplateName
+  const previousIdentity = flow.selectedTemplateIdentity
   if (!name || name === previousName) return
+  const selected = availableTemplates.value.find((template) => template.name === name)
+  if (!selected) {
+    templateSelectionError.value =
+      'Die ausgewählte Vorlage ist nicht mehr veröffentlicht oder nicht verfügbar.'
+    if (select) select.value = previousName || ''
+    return
+  }
+  if (!flow.patientExaminationId || !routePatientExaminationId.value) {
+    templateSelectionError.value = 'Bitte wählen Sie zuerst eine Patientenuntersuchung.'
+    if (select) select.value = previousName || ''
+    return
+  }
+
   if (draftHasRuntimeContent()) {
     const confirmed = window.confirm(
       'Für diese Untersuchung existieren bereits Befunde oder ein Entwurf. Vorlage wirklich wechseln? Der bisherige Entwurf wird nicht weiterverwendet.'
@@ -2145,44 +2443,98 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
       if (select) select.value = previousName || ''
       return
     }
-    await flow.flushDraftAutosave()
-    flow.clearRuntimeDraft(flow.patientExaminationId)
-    flow.clearTemplateSectionDrafts()
-    flow.setLastTemplateValidation(null)
   }
 
-  const selected = availableTemplates.value.find((template) => template.name === name)
-  if (!selected) {
-    templateSelectionError.value =
-      'Die ausgewählte Vorlage ist nicht mehr veröffentlicht oder nicht verfügbar.'
-    if (select) select.value = previousName || ''
-    return
-  }
   templateSelectionError.value = null
-  flow.setTemplateSelection({
-    moduleName: (selected.identity || emptyTemplateIdentity).moduleName || activeKbModule.value,
-    templateName: selected.name,
-    templateIdentity: selected.identity || emptyTemplateIdentity
-  })
-  if (flow.patientExaminationId) {
-    const option =
-      patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
-      null
-    await bootstrapRuntimeDraft(flow.patientExaminationId, option)
+  const originContext: DraftBootstrapContext = {
+    generation: draftBootstrapGeneration,
+    patientExaminationId: flow.patientExaminationId,
+    bundleKey: activeBundleIdentityKey.value,
+    moduleName: activeKbModule.value
   }
+  let attemptedContext: DraftBootstrapContext | null = null
+  try {
+    if (draftHasRuntimeContent()) await flow.flushDraftAutosave()
+    assertBootstrapContextCurrent(originContext)
+    const option =
+      patientExaminationOptions.value.find(
+        (entry) => entry.id === originContext.patientExaminationId
+      ) || null
+    const generation = ++draftBootstrapGeneration
+    attemptedContext = {
+      ...originContext,
+      generation
+    }
+    flow.setTemplateSelection({
+      moduleName:
+        (selected.identity || emptyTemplateIdentity).moduleName || originContext.moduleName,
+      templateName: selected.name,
+      templateIdentity: selected.identity || emptyTemplateIdentity
+    })
+    await bootstrapRuntimeDraft(originContext.patientExaminationId, option, attemptedContext, false)
+    flow.clearTemplateSectionDrafts()
+    flow.setLastTemplateValidation(null)
+  } catch (error: unknown) {
+    if (
+      error instanceof SupersededReportingContextError ||
+      !isBootstrapContextCurrent(attemptedContext ?? originContext)
+    ) {
+      return
+    }
+    flow.setTemplateSelection({
+      moduleName: activeKbModule.value,
+      templateName: previousName,
+      templateIdentity: previousIdentity
+    })
+    templateSelectionError.value = reportingApiErrorMessage(
+      error,
+      'Die neue Berichtsvorlage konnte nicht vorbereitet werden; der bisherige Entwurf bleibt erhalten.'
+    )
+    if (select) select.value = previousName || ''
+  }
+}
+
+async function loadBootstrapTemplates(
+  moduleName: string,
+  examinationName: string,
+  context: DraftBootstrapContext
+): Promise<ReportTemplatePayload[]> {
+  availableTemplates.value = []
+  templateLoading.value = true
+  try {
+    const templates = examinationName
+      ? await fetchReportTemplatesByExamination(moduleName, examinationName)
+      : []
+    assertBootstrapContextCurrent(context)
+    availableTemplates.value = templates
+    return templates
+  } finally {
+    if (isBootstrapContextCurrent(context)) templateLoading.value = false
+  }
+}
+
+async function loadBootstrapFindingCatalog(
+  examinationId: number | null,
+  context: DraftBootstrapContext
+): Promise<Map<number, Finding>> {
+  const rows = examinationId ? await findingsApi.getExaminationFindings(examinationId) : []
+  assertBootstrapContextCurrent(context)
+  findingCatalog.value = Array.isArray(rows) ? rows : []
+  return new Map(findingCatalog.value.map((finding) => [finding.id, finding]))
 }
 
 async function bootstrapRuntimeDraft(
   patientExaminationId: number,
-  option: PatientExaminationOption | null
+  option: PatientExaminationOption | null,
+  context: DraftBootstrapContext,
+  allowMissingTemplate = true
 ) {
+  const moduleName = context.moduleName
   const detailResponse = await axiosInstance.get(
     r(endpoints.examination.patientExaminationDetail(patientExaminationId))
   )
-  const detail =
-    detailResponse.data && typeof detailResponse.data === 'object'
-      ? (detailResponse.data as Record<string, unknown>)
-      : {}
+  assertBootstrapContextCurrent(context)
+  const detail = readRecord(detailResponse.data)
   patientExaminationDetail.value = detail
 
   const detailPatientId = extractPatientId(detail)
@@ -2194,48 +2546,44 @@ async function bootstrapRuntimeDraft(
   })
 
   const examinationName = extractExaminationName(detail)
-  templateLoading.value = true
-  const templates = examinationName
-    ? await fetchReportTemplatesByExamination(activeKbModule.value, examinationName)
-    : []
-  availableTemplates.value = templates
-  templateLoading.value = false
+  if (!moduleName) {
+    throw new Error(
+      'Keine verifizierte aktive Knowledge Base ist im Terminologieregister ausgewählt.'
+    )
+  }
+  const templates = await loadBootstrapTemplates(moduleName, examinationName, context)
   const selectedTemplate =
     (flow.selectedTemplateName &&
       templates.find((template) => template.name === flow.selectedTemplateName)) ||
     null
 
+  const findingsById = await loadBootstrapFindingCatalog(
+    option?.examinationId ?? detailExaminationId,
+    context
+  )
+
   if (!selectedTemplate) {
-    flow.setTemplateSelection({ templateName: null, templateIdentity: null })
-    flow.clearRuntimeDraft(patientExaminationId)
-    throw new Error(
-      templates.length
-        ? 'Bitte wählen Sie eine veröffentlichte Berichtsvorlage aus.'
-        : 'Für diese Untersuchung ist keine veröffentlichte und produktionsbereite Berichtsvorlage verfügbar.'
-    )
+    if (!allowMissingTemplate) {
+      throw new Error('Bitte wählen Sie eine veröffentlichte Berichtsvorlage aus.')
+    }
+    setAnnotationOnlyRuntimeDraft(patientExaminationId, detail, context)
+    return
   }
   const selectedTemplateIdentity = selectedTemplate.identity || emptyTemplateIdentity
 
-  const selectedExaminationId = option?.examinationId ?? detailExaminationId
-  const catalogRows = selectedExaminationId
-    ? await findingsApi.getExaminationFindings(selectedExaminationId)
-    : []
-  findingCatalog.value = Array.isArray(catalogRows) ? catalogRows : []
-  const findingsById = new Map<number, Finding>(
-    findingCatalog.value.map((finding) => [finding.id, finding])
-  )
-
   const payload = await buildReportTemplateRuntimePayload({
-    moduleName: activeKbModule.value,
+    moduleName,
     patientExaminationId,
     patient: resolvePatientKey(detail, patientExaminationId),
     examiners: extractExaminers(detail),
     examination: selectedTemplate?.examination || examinationName,
+    knowledgeBaseVersion: terminology.activeBundle?.version || null,
     getFindingById: (findingId) => findingsById.get(findingId)
   })
+  assertBootstrapContextCurrent(context)
 
   flow.setTemplateSelection({
-    moduleName: activeKbModule.value,
+    moduleName,
     templateName: selectedTemplate.name,
     templateIdentity: selectedTemplateIdentity
   })
@@ -2243,7 +2591,7 @@ async function bootstrapRuntimeDraft(
   flow.setRuntimeDraft({
     draftId: `draft_${patientExaminationId}`,
     patientExaminationId,
-    moduleName: activeKbModule.value,
+    moduleName,
     templateName: selectedTemplate.name,
     templateIdentity: selectedTemplateIdentity,
     payload: {
@@ -2251,12 +2599,18 @@ async function bootstrapRuntimeDraft(
       ...(extractDraftDate(detail) ? { date: extractDraftDate(detail) } : {})
     },
     hydratedFrom: 'backend_context',
+    verificationStatus: 'verified',
+    persistencePolicy: 'persistable',
     updatedAt: new Date().toISOString()
   })
 }
 
-async function hydrateRuntimeDraftFromDraftApi(patientExaminationId: number): Promise<boolean> {
+async function hydrateRuntimeDraftFromDraftApi(
+  patientExaminationId: number,
+  context: DraftBootstrapContext
+): Promise<boolean> {
   const response = await fetchPatientExaminationDraft(patientExaminationId)
+  assertBootstrapContextCurrent(context)
   const draft = response?.draft && typeof response.draft === 'object' ? response.draft : {}
   const draftModuleName = stringField(draft, 'moduleName', 'module_name') || activeKbModule.value
   const draftTemplateName = stringField(draft, 'templateName', 'template_name')
@@ -2271,9 +2625,9 @@ async function hydrateRuntimeDraftFromDraftApi(patientExaminationId: number): Pr
   }
 
   flow.setTemplateSelection({
-    moduleName: draftModuleName,
-    templateName: draftTemplateName,
-    templateIdentity: draftTemplateIdentity
+    moduleName: context.moduleName,
+    templateName: null,
+    templateIdentity: null
   })
   flow.setRuntimeDraft({
     draftId: `draft_${patientExaminationId}`,
@@ -2283,126 +2637,249 @@ async function hydrateRuntimeDraftFromDraftApi(patientExaminationId: number): Pr
     templateIdentity: draftTemplateIdentity,
     payload: draft.payload,
     hydratedFrom: 'draft_api',
+    verificationStatus: 'unverified',
+    persistencePolicy: context.moduleName ? 'blocked_until_verified' : 'persistable',
     updatedAt: updatedAt || new Date().toISOString()
   })
   flow.markDraftPersistenceHydrated(updatedAt)
   return true
 }
 
+function restoredDraftMatchesContext(
+  detail: Record<string, unknown>,
+  draft: ReportingRuntimeDraft,
+  context: DraftBootstrapContext
+): boolean {
+  if (draft.moduleName !== context.moduleName) return false
+  if (draft.patientExaminationId !== context.patientExaminationId) return false
+  if (draft.payload.patient !== resolvePatientKey(detail, context.patientExaminationId))
+    return false
+
+  const examinationName = extractExaminationName(detail)
+  const draftExamination = draft.payload.examination?.trim().toLowerCase()
+  if (
+    draftExamination &&
+    examinationName &&
+    draftExamination !== examinationName.trim().toLowerCase()
+  ) {
+    return false
+  }
+  return true
+}
+
+function restoredDraftMatchesKnowledgeBase(
+  draft: ReportingRuntimeDraft,
+  selectedIdentity: ReportTemplateIdentity,
+  context: DraftBootstrapContext
+): boolean {
+  const identity = draft.templateIdentity
+  if (identity?.moduleName && identity.moduleName !== context.moduleName) return false
+  if (
+    draft.payload.knowledgeBaseModule &&
+    draft.payload.knowledgeBaseModule !== context.moduleName
+  ) {
+    return false
+  }
+
+  const draftKnowledgeBaseVersion =
+    identity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
+  const activeKnowledgeBaseVersion = terminology.activeBundle?.version || null
+  if (!draftKnowledgeBaseVersion || draftKnowledgeBaseVersion !== activeKnowledgeBaseVersion) {
+    return false
+  }
+  if (
+    selectedIdentity.knowledgeBaseVersion &&
+    selectedIdentity.knowledgeBaseVersion !== activeKnowledgeBaseVersion
+  ) {
+    return false
+  }
+  return true
+}
+
+function restoredDraftMatchesTemplateRevision(
+  identity: ReportTemplateIdentity | null,
+  selectedIdentity: ReportTemplateIdentity
+): boolean {
+  if (selectedIdentity.templateHash && identity?.templateHash !== selectedIdentity.templateHash) {
+    return false
+  }
+  if (
+    selectedIdentity.templateVersion &&
+    identity?.templateVersion !== selectedIdentity.templateVersion
+  ) {
+    return false
+  }
+  return true
+}
+
+function restoredDraftMatchesActiveTemplate(
+  detail: Record<string, unknown>,
+  draft: ReportingRuntimeDraft,
+  selected: ReportTemplatePayload | null,
+  context: DraftBootstrapContext
+): boolean {
+  if (!selected) return false
+  const selectedIdentity = selected.identity || emptyTemplateIdentity
+  return (
+    restoredDraftMatchesContext(detail, draft, context) &&
+    restoredDraftMatchesKnowledgeBase(draft, selectedIdentity, context) &&
+    restoredDraftMatchesTemplateRevision(draft.templateIdentity || null, selectedIdentity)
+  )
+}
+
 async function validateRestoredDraftTemplate(
   detail: Record<string, unknown>,
-  draft: { templateName: string | null; templateIdentity?: ReportTemplateIdentity | null }
+  draft: ReportingRuntimeDraft,
+  context: DraftBootstrapContext
 ) {
   const examinationName = extractExaminationName(detail)
   const templates = examinationName
-    ? await fetchReportTemplatesByExamination(activeKbModule.value, examinationName)
+    ? await fetchReportTemplatesByExamination(context.moduleName, examinationName)
     : []
+  assertBootstrapContextCurrent(context)
   availableTemplates.value = templates
   const selected = draft.templateName
     ? templates.find((template) => template.name === draft.templateName)
     : null
-  const identity = draft.templateIdentity
-  const incompatible = Boolean(
-    !selected ||
-      (identity?.templateHash &&
-        selected.identity.templateHash &&
-        identity.templateHash !== selected.identity.templateHash) ||
-      (identity?.templateVersion &&
-        selected.identity.templateVersion &&
-        identity.templateVersion !== selected.identity.templateVersion)
-  )
-  if (incompatible) {
-    flow.clearRuntimeDraft(flow.patientExaminationId)
+  const matchingTemplate = selected || null
+  const selectedIdentity = matchingTemplate?.identity || emptyTemplateIdentity
+  if (!restoredDraftMatchesActiveTemplate(detail, draft, matchingTemplate, context)) {
     flow.setTemplateSelection({ templateName: null, templateIdentity: null })
-    throw new Error(
+    flow.setRuntimeDraft({
+      ...draft,
+      verificationStatus: 'unverified',
+      persistencePolicy: 'blocked_until_verified'
+    })
+    throw new IncompatibleReportingDraftError(
       'Der gespeicherte Entwurf gehört zu keiner aktuell veröffentlichten und kompatiblen Berichtsvorlage.'
     )
   }
+  flow.setRuntimeDraft({
+    ...draft,
+    moduleName: context.moduleName,
+    templateName: matchingTemplate?.name || null,
+    templateIdentity: selectedIdentity,
+    verificationStatus: 'verified',
+    persistencePolicy: 'persistable'
+  })
   flow.setTemplateSelection({
-    moduleName: (selected?.identity || emptyTemplateIdentity).moduleName || activeKbModule.value,
-    templateName: selected?.name || null,
-    templateIdentity: selected?.identity || emptyTemplateIdentity
+    moduleName: selectedIdentity.moduleName || context.moduleName,
+    templateName: matchingTemplate?.name || null,
+    templateIdentity: matchingTemplate?.identity || emptyTemplateIdentity
   })
 }
 
-async function ensureRuntimeDraft(patientExaminationId: number) {
+async function loadPatientExaminationDraftContext(
+  patientExaminationId: number,
+  context: DraftBootstrapContext
+): Promise<Record<string, unknown>> {
+  const detailResponse = await axiosInstance.get(
+    r(endpoints.examination.patientExaminationDetail(patientExaminationId))
+  )
+  assertBootstrapContextCurrent(context)
+  const detail =
+    detailResponse.data && typeof detailResponse.data === 'object'
+      ? (detailResponse.data as Record<string, unknown>)
+      : {}
+  patientExaminationDetail.value = detail
+  flow.setCaseSelection({
+    selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
+    selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
+  })
+  flow.setIndications(extractIndicationRows(detail))
+  await loadFindingCatalogForExamination(extractExaminationId(detail) ?? flow.selectedExaminationId)
+  assertBootstrapContextCurrent(context)
+  return detail
+}
+
+function setAnnotationOnlyRuntimeDraft(
+  patientExaminationId: number,
+  detail: Record<string, unknown>,
+  context: DraftBootstrapContext
+) {
+  flow.setTemplateSelection({
+    moduleName: context.moduleName,
+    templateName: null,
+    templateIdentity: null
+  })
+  flow.setRuntimeDraft({
+    draftId: `draft_${patientExaminationId}`,
+    patientExaminationId,
+    moduleName: context.moduleName,
+    templateName: null,
+    templateIdentity: null,
+    payload: {
+      patient: resolvePatientKey(detail, patientExaminationId),
+      examiners: extractExaminers(detail),
+      examination: extractExaminationName(detail),
+      knowledgeBaseModule: context.moduleName || null,
+      knowledgeBaseVersion: terminology.activeBundle?.version || null,
+      patientFindings: [],
+      ...(extractDraftDate(detail) ? { date: extractDraftDate(detail) } : {})
+    },
+    hydratedFrom: 'backend_context',
+    verificationStatus: 'unverified',
+    persistencePolicy: 'persistable',
+    updatedAt: new Date().toISOString()
+  })
+  flow.markDraftPersistenceHydrated(null)
+}
+
+async function ensureRuntimeDraft(patientExaminationId: number, context: DraftBootstrapContext) {
   const existingDraft =
     flow.runtimeDraftsByPatientExaminationId[String(patientExaminationId)] || null
   if (existingDraft) {
-    try {
-      const detailResponse = await axiosInstance.get(
-        r(endpoints.examination.patientExaminationDetail(patientExaminationId))
-      )
-      const detail =
-        detailResponse.data && typeof detailResponse.data === 'object'
-          ? (detailResponse.data as Record<string, unknown>)
-          : {}
-      patientExaminationDetail.value = detail
-      flow.setCaseSelection({
-        selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
-        selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
-      })
-      flow.setIndications(extractIndicationRows(detail))
-      await loadFindingCatalogForExamination(
-        extractExaminationId(detail) ?? flow.selectedExaminationId
-      )
-      await validateRestoredDraftTemplate(detail, existingDraft)
-    } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes('gespeicherte Entwurf')) throw error
-      // Keep the local draft usable even if detail hydration fails.
-    }
-    flow.setTemplateSelection({
-      moduleName: existingDraft.moduleName,
-      templateName: existingDraft.templateName,
-      ...(existingDraft.templateIdentity
-        ? { templateIdentity: existingDraft.templateIdentity }
-        : {})
+    flow.setRuntimeDraft({
+      ...existingDraft,
+      verificationStatus: 'unverified',
+      persistencePolicy:
+        !context.moduleName && !existingDraft.templateName
+          ? 'persistable'
+          : 'blocked_until_verified'
     })
+    const detail = await loadPatientExaminationDraftContext(patientExaminationId, context)
+    if (context.moduleName) {
+      await validateRestoredDraftTemplate(detail, existingDraft, context)
+    } else {
+      clearInactiveTerminologySelection()
+    }
     return
   }
 
-  const restoredFromDraftApi = await hydrateRuntimeDraftFromDraftApi(patientExaminationId)
+  const restoredFromDraftApi = await hydrateRuntimeDraftFromDraftApi(patientExaminationId, context)
   if (restoredFromDraftApi) {
-    try {
-      const detailResponse = await axiosInstance.get(
-        r(endpoints.examination.patientExaminationDetail(patientExaminationId))
-      )
-      const detail =
-        detailResponse.data && typeof detailResponse.data === 'object'
-          ? (detailResponse.data as Record<string, unknown>)
-          : {}
-      patientExaminationDetail.value = detail
-      flow.setCaseSelection({
-        selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
-        selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
-      })
-      flow.setIndications(extractIndicationRows(detail))
-      await loadFindingCatalogForExamination(
-        extractExaminationId(detail) ?? flow.selectedExaminationId
-      )
-      const restoredDraft = flow.currentRuntimeDraft
-      if (restoredDraft) await validateRestoredDraftTemplate(detail, restoredDraft)
-    } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes('gespeicherte Entwurf')) throw error
-      // Keep persisted draft usable even if detail hydration fails.
+    const detail = await loadPatientExaminationDraftContext(patientExaminationId, context)
+    const restoredDraft = flow.currentRuntimeDraft
+    if (restoredDraft && context.moduleName) {
+      await validateRestoredDraftTemplate(detail, restoredDraft, context)
+    } else if (!context.moduleName) {
+      clearInactiveTerminologySelection()
     }
     return
   }
 
   const option =
     patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
-  await bootstrapRuntimeDraft(patientExaminationId, option)
+  if (!context.moduleName) {
+    const detail = await loadPatientExaminationDraftContext(patientExaminationId, context)
+    setAnnotationOnlyRuntimeDraft(patientExaminationId, detail, context)
+    return
+  }
+  await bootstrapRuntimeDraft(patientExaminationId, option, context)
   flow.markDraftPersistenceHydrated(null)
 }
 
 async function hydrateDraftForRoutePatientExamination(patientExaminationId: number) {
-  if (draftBootstrapInFlight.value) {
-    await draftBootstrapInFlight.value
+  if (patientExaminationId !== routePatientExaminationId.value) return
+  const requestedKey = `${patientExaminationId}:${activeBundleIdentityKey.value || 'loading'}`
+  if (draftBootstrapInFlight.value?.key === requestedKey) {
+    await draftBootstrapInFlight.value.promise
     return
   }
 
   const option =
     patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
+  if (patientExaminationId !== routePatientExaminationId.value) return
   if (
     flow.patientExaminationId !== patientExaminationId ||
     (option?.patientId ?? flow.selectedPatientId) !== flow.selectedPatientId ||
@@ -2416,42 +2893,69 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
     })
   }
 
+  const generation = ++draftBootstrapGeneration
   const task = (async () => {
     draftBootstrapError.value = null
     try {
       await ensureTerminologyBundlesLoaded()
-      await ensureRuntimeDraft(patientExaminationId)
+      if (generation !== draftBootstrapGeneration) return
+      const context: DraftBootstrapContext = {
+        generation,
+        patientExaminationId,
+        bundleKey: activeBundleIdentityKey.value,
+        moduleName: activeKbModule.value
+      }
+      assertBootstrapContextCurrent(context)
+      await ensureRuntimeDraft(patientExaminationId, context)
     } catch (error: unknown) {
+      if (error instanceof SupersededReportingContextError) return
+      if (generation !== draftBootstrapGeneration) return
       draftBootstrapError.value = reportingApiErrorMessage(
         error,
         'Der lokale Reporting-Entwurf konnte nicht initialisiert werden.'
       )
     } finally {
-      draftBootstrapInFlight.value = null
+      if (
+        draftBootstrapInFlight.value?.key === requestedKey &&
+        generation === draftBootstrapGeneration
+      ) {
+        draftBootstrapInFlight.value = null
+      }
     }
   })()
 
-  draftBootstrapInFlight.value = task
+  draftBootstrapInFlight.value = { key: requestedKey, promise: task }
   await task
 }
 
 async function refreshMediaPreload() {
   if (!flow.selectedPatientId) {
+    mediaPreloadRequestGeneration += 1
     flow.clearMediaPreload()
     return
   }
   const patientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
+  const patientId = flow.selectedPatientId
+  const requestGeneration = ++mediaPreloadRequestGeneration
   flow.setMediaPreloadLoading()
   try {
     const payload = await fetchPatientTimelineLatest({
-      patientId: flow.selectedPatientId,
+      patientId,
       patientExaminationId
     })
+    if (
+      requestGeneration !== mediaPreloadRequestGeneration ||
+      patientId !== flow.selectedPatientId ||
+      patientExaminationId !== (routePatientExaminationId.value || flow.patientExaminationId)
+    ) {
+      return
+    }
     flow.setMediaPreload(payload)
     selectedVideoArtifactKind.value =
       preferredArtifactKind(payload.latestVideo?.streamOptions || []) ?? 'processed'
     selectedFrameStreamUrl.value = payload.latestFrames[0]?.streamUrl || null
   } catch (error: unknown) {
+    if (requestGeneration !== mediaPreloadRequestGeneration) return
     const candidate = reportingApiError(error)
     const status = candidate.response?.status
     const detail = reportingApiErrorMessage(error, 'unbekannt')
@@ -2475,13 +2979,28 @@ function isActive(path: string): boolean {
   return route.path === path
 }
 
-function isStepDisabled(item: { requiresPatientExamination?: boolean }) {
-  return Boolean(item.requiresPatientExamination && !flow.patientExaminationId)
+function isStepDisabled(item: {
+  requiresPatientExamination?: boolean
+  requiresVerifiedTemplate?: boolean
+}) {
+  return Boolean(
+    (item.requiresPatientExamination && !flow.patientExaminationId) ||
+      (item.requiresVerifiedTemplate && !hasVerifiedTemplateContext.value)
+  )
 }
 
-function stepStatusLabel(item: { to: string; requiresPatientExamination?: boolean }) {
+function stepStatusLabel(item: {
+  label: string
+  to: string
+  requiresPatientExamination?: boolean
+  requiresVerifiedTemplate?: boolean
+}) {
   if (isActive(item.to)) return 'Aktuell'
-  if (isStepDisabled(item)) return 'Fall wählen'
+  if (item.requiresPatientExamination && !flow.patientExaminationId) return 'Fall wählen'
+  if (item.requiresVerifiedTemplate && !hasVerifiedTemplateContext.value) {
+    return 'Verifizierte Vorlage erforderlich'
+  }
+  if (item.label === 'Befunde' && !terminology.activeBundle) return 'Ohne Terminologie verfügbar'
   if (item.requiresPatientExamination) return 'Bereit'
   return 'Verfügbar'
 }
@@ -2489,9 +3008,15 @@ function stepStatusLabel(item: { to: string; requiresPatientExamination?: boolea
 watch(
   [() => flow.selectedPatientId, routePatientExaminationId],
   async ([patientId, patientExaminationId]) => {
+    const watchGeneration = ++routeContextWatchGeneration
+    const isCurrent = () =>
+      watchGeneration === routeContextWatchGeneration &&
+      patientExaminationId === routePatientExaminationId.value
     if (patientId) {
       await fetchPatientExaminationOptions(patientId)
+      if (!isCurrent()) return
       await fetchCaseOptions(patientId)
+      if (!isCurrent()) return
     } else {
       patientExaminationOptions.value = []
       patientExaminationOptionsError.value = null
@@ -2503,7 +3028,9 @@ watch(
 
     if (patientExaminationId) {
       await ensureCurrentPatientExaminationOption(patientExaminationId)
+      if (!isCurrent()) return
       await ensureCaseForPatientExamination(patientExaminationId)
+      if (!isCurrent()) return
       await hydrateDraftForRoutePatientExamination(patientExaminationId)
     }
   },
@@ -2519,8 +3046,19 @@ watch(
   }
 )
 
+watch(activeBundleIdentityKey, async (nextKey, previousKey) => {
+  if (nextKey === previousKey) return
+  if (terminology.importing) return
+  await reconcileActiveTerminology()
+})
+
 watch(
-  [() => flow.selectedKbModule, () => flow.selectedTemplateName, activeKbModule],
+  [
+    () => flow.selectedKbModule,
+    () => flow.selectedTemplateName,
+    activeKbModule,
+    activeBundleIdentityKey
+  ],
   async () => {
     selectedReferenceFindingKey.value = null
     await loadTemplateReferenceForSelection()
@@ -2540,6 +3078,7 @@ watch(
   [() => flow.selectedPatientId, () => flow.patientExaminationId, routePatientExaminationId],
   async ([patientId]) => {
     if (!patientId) {
+      mediaPreloadRequestGeneration += 1
       flow.clearMediaPreload()
       return
     }
@@ -2550,6 +3089,7 @@ watch(
 
 onMounted(() => {
   ensureTerminologyBundlesLoaded()
+  void loadReportingLanguages()
 })
 </script>
 

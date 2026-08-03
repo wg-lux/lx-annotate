@@ -47,12 +47,14 @@ export function useReportTemplates(params?: {
   initialModuleName?: string
   initialTemplateName?: string | null
 }) {
-  const moduleName = ref(params?.initialModuleName || 'report_template_examples')
+  const moduleName = ref(params?.initialModuleName?.trim() || '')
   const selectedTemplateName = ref<string | null>(params?.initialTemplateName || null)
   const templateOptions = ref<ReportTemplatePayload[]>([])
   const selectedTemplate = ref<ReportTemplatePayload | null>(null)
   const loading = ref(false)
   const errorMessage = ref<string | null>(null)
+  let contextKey = moduleName.value
+  let requestGeneration = 0
 
   const sectionBlocks = computed(() => normalizeSections(selectedTemplate.value?.reportSections))
   const validatorDescriptors = computed<ReportTemplateValidatorDescriptor[]>(() => [
@@ -64,8 +66,27 @@ export function useReportTemplates(params?: {
     errorMessage.value = null
   }
 
-  function setModuleName(next: string) {
-    moduleName.value = next || 'report_template_examples'
+  function setModuleName(next: string, nextContextKey = next.trim()) {
+    const normalized = next.trim()
+    if (moduleName.value === normalized && contextKey === nextContextKey) return
+    moduleName.value = normalized
+    contextKey = nextContextKey
+    requestGeneration += 1
+    loading.value = false
+    errorMessage.value = null
+    templateOptions.value = []
+    selectedTemplate.value = null
+    selectedTemplateName.value = null
+  }
+
+  function setRequestContext(nextContextKey: string) {
+    if (contextKey === nextContextKey) return
+    contextKey = nextContextKey
+    requestGeneration += 1
+    loading.value = false
+    errorMessage.value = null
+    templateOptions.value = []
+    selectedTemplate.value = null
   }
 
   async function fetchTemplateByName(
@@ -74,11 +95,13 @@ export function useReportTemplates(params?: {
   ): Promise<ReportTemplatePayload | null> {
     const useModule = opts?.moduleOverride || moduleName.value
     if (!templateName || !useModule) return null
+    const generation = ++requestGeneration
 
     loading.value = true
     clearError()
     try {
       const payload = await fetchTemplateByNameApi(useModule, templateName)
+      if (generation !== requestGeneration || useModule !== moduleName.value) return null
       if (!payload) {
         throw new Error('Ungültiges Report-Template-Format.')
       }
@@ -94,13 +117,14 @@ export function useReportTemplates(params?: {
       }
       return payload
     } catch (error: unknown) {
+      if (generation !== requestGeneration) return null
       errorMessage.value = reportingApiErrorMessage(
         error,
         'Fehler beim Laden des Report-Templates.'
       )
       return null
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -114,22 +138,24 @@ export function useReportTemplates(params?: {
       selectedTemplate.value = null
       return []
     }
+    const generation = ++requestGeneration
 
     loading.value = true
     clearError()
     try {
       const templates = await fetchTemplatesByExaminationApi(useModule, examinationName)
+      if (generation !== requestGeneration || useModule !== moduleName.value) return []
       templateOptions.value = templates
 
       const preferredName = selectedTemplateName.value
       const preferredTemplate =
-        (preferredName && templates.find((item) => item.name === preferredName)) ||
-        null
+        (preferredName && templates.find((item) => item.name === preferredName)) || null
       selectedTemplate.value = preferredTemplate
       selectedTemplateName.value = preferredTemplate?.name || null
 
       return templates
     } catch (error: unknown) {
+      if (generation !== requestGeneration) return []
       errorMessage.value = reportingApiErrorMessage(
         error,
         'Fehler beim Laden der Report-Templates für die Untersuchung.'
@@ -138,7 +164,7 @@ export function useReportTemplates(params?: {
       selectedTemplate.value = null
       return []
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -168,6 +194,7 @@ export function useReportTemplates(params?: {
     errorMessage,
     clearError,
     setModuleName,
+    setRequestContext,
     fetchTemplateByName,
     fetchTemplatesByExamination,
     selectTemplateByName

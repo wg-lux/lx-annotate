@@ -17,7 +17,7 @@ from endoreg_db.models import (
     VideoProcessingHistory,
     VideoState,
 )
-from endoreg_db.models.state.video_segment_validation import (
+from endoreg_db.services.video_segment_blackening import (
     OUTSIDE_FRAME_BLACKENING_KIND,
     blackening_history_config,
 )

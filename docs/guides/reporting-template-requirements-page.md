@@ -191,6 +191,15 @@ Use this step when image/video evidence selection is needed.
 
 ---
 
+## Related Specialized Guides
+
+For detailed operational instructions, continue with:
+
+- [Segment Annotation Workflow](segment-annotation-workflow.md)
+- [Anonymization Validation and Correction Workflow](anonymization-validation-correction-workflow.md)
+
+---
+
 ## Quick Practical Path for Clinical Documentation
 
 If the primary objective is to document findings quickly and safely:

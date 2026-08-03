@@ -70,8 +70,13 @@ def manage(argv: Sequence[str] | None = None) -> int:
 
     from django.core.management import execute_from_command_line
 
-    execute_from_command_line(["lx-annotate-manage", *_command_args(argv)])
-    return 0
+    args = _command_args(argv)
+
+    def run_management_command() -> int:
+        execute_from_command_line(["lx-annotate-manage", *args])
+        return 0
+
+    return _run_with_argv("lx-annotate-manage", args, run_management_command)
 
 
 def migrate(argv: Sequence[str] | None = None) -> int:
@@ -105,6 +110,28 @@ def export_frames(argv: Sequence[str] | None = None) -> int:
 
 def import_sap(argv: Sequence[str] | None = None) -> int:
     return manage(["import_sap_ish_zip", *_command_args(argv)])
+
+
+def recover_data(argv: Sequence[str] | None = None) -> int:
+    return manage(["recover_runtime_data", *_command_args(argv)])
+
+
+def bootstrap_terminology(argv: Sequence[str] | None = None) -> int:
+    from lx_annotate.runtime_commands.terminology_bootstrap import main
+
+    return main(_command_args(argv))
+
+
+def provision_hub_nodes(argv: Sequence[str] | None = None) -> int:
+    return manage(["provision_hub_nodes", *_command_args(argv)])
+
+
+def storage_relief(argv: Sequence[str] | None = None) -> int:
+    return manage(["emergency_storage_relief", *_command_args(argv)])
+
+
+def acceptance(argv: Sequence[str] | None = None) -> int:
+    return manage(["runtime_acceptance", *_command_args(argv)])
 
 
 def _run_celery(program_name: str, args: Sequence[str]) -> int:

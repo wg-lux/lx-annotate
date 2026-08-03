@@ -5,7 +5,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, TypedDict, cast
+from typing import Any, Iterator, Literal, TypedDict, cast
 from urllib.parse import urljoin
 from urllib.parse import urlparse
 
@@ -22,6 +22,12 @@ from .hub_export_payloads import build_transfer_payload, validate_transfer_paylo
 from ..models import OutboundHubTransferJob
 
 _MULTIPART_UPLOAD_CHUNK_SIZE = 1024 * 1024
+HubExportFailureClass = Literal[
+    "configuration_rejection",
+    "authorization_denial",
+    "integrity_inconsistency",
+    "transient_retry",
+]
 
 
 class HubTransportRequestKwargs(TypedDict, total=False):
@@ -63,6 +69,10 @@ class RemoteTransferStatusPayload(TypedDict, total=False):
 
 class RemoteTransferIntegrityError(ValueError):
     """The hub acknowledgement does not match the outbound transfer identity."""
+
+
+class RemoteTransferAuthorizationError(requests.RequestException):
+    """The authenticated hub rejected the source node identity or scope."""
 
 
 def _normalize_env_suffix(node_key: str) -> str:
@@ -147,6 +157,10 @@ def resolve_hub_transport_config() -> HubTransportConfig:
 
 def _raise_for_hub_response(response: requests.Response) -> None:
     status_code = response.status_code
+    if status_code in {401, 403}:
+        raise RemoteTransferAuthorizationError(
+            f"Hub transfer authorization denied with HTTP {status_code}."
+        )
     if isinstance(status_code, int) and 300 <= status_code < 400:
         raise requests.RequestException(
             "Hub transfer redirects are prohibited to prevent credential disclosure."
@@ -304,12 +318,19 @@ def apply_remote_status(
 
     if remote_transfer_status == "awaiting_media":
         outbound_job.local_status = OutboundHubTransferJob.LocalStatus.AWAITING_MEDIA
+        outbound_job.failure_class = ""
     elif remote_transfer_status == "applied":
         outbound_job.local_status = OutboundHubTransferJob.LocalStatus.COMPLETED
         outbound_job.completed_at = timezone.now()
+        outbound_job.failure_class = ""
         outbound_job.last_error = ""
     elif remote_transfer_status in {"failed", "inconsistent"}:
         outbound_job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
+        outbound_job.failure_class = (
+            OutboundHubTransferJob.FailureClass.INTEGRITY_INCONSISTENCY
+            if remote_transfer_status == "inconsistent"
+            else OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION
+        )
         outbound_job.last_error = str(response_data.get("status_detail", "") or "")
 
     outbound_job.save(
@@ -318,13 +339,17 @@ def apply_remote_status(
             "remote_transfer_status",
             "remote_processing_decision",
             "local_status",
+            "failure_class",
             "completed_at",
             "last_error",
             "updated_at",
         ]
     )
     if outbound_job.local_status == OutboundHubTransferJob.LocalStatus.COMPLETED:
-        apply_completed_export_cleanup_policy(outbound_job)
+        apply_completed_export_cleanup_policy(
+            outbound_job,
+            source_node_key=expected_source_node_key,
+        )
     emit_hub_export_audit_event(
         "hub_export.completed"
         if outbound_job.local_status == OutboundHubTransferJob.LocalStatus.COMPLETED
@@ -332,6 +357,7 @@ def apply_remote_status(
         if previous_status == OutboundHubTransferJob.LocalStatus.REGISTERING
         else "hub_export.remote_status_updated",
         outbound_job=outbound_job,
+        source_node_key=expected_source_node_key,
         remote_transfer_status=remote_transfer_status,
         remote_processing_decision=remote_processing_decision,
     )
@@ -393,9 +419,13 @@ def mark_outbound_job_failure(
     outbound_job: OutboundHubTransferJob,
     *,
     error_message: str,
+    source_node_key: str,
+    failure_class: HubExportFailureClass,
     retryable: bool = True,
 ) -> OutboundHubTransferJob:
+    attempt_number = int(outbound_job.retry_count or 0) + 1
     outbound_job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
+    outbound_job.failure_class = failure_class
     outbound_job.last_error = error_message
     if retryable:
         outbound_job.retry_count = int(outbound_job.retry_count or 0) + 1
@@ -403,6 +433,7 @@ def mark_outbound_job_failure(
     outbound_job.save(
         update_fields=[
             "local_status",
+            "failure_class",
             "last_error",
             "retry_count",
             "last_attempt_at",
@@ -412,8 +443,11 @@ def mark_outbound_job_failure(
     emit_hub_export_audit_event(
         "hub_export.failed",
         outbound_job=outbound_job,
+        source_node_key=source_node_key,
         error=error_message,
+        failure_class=failure_class,
         retry_count=int(outbound_job.retry_count or 0),
+        attempt_number=attempt_number,
     )
     return outbound_job
 
@@ -458,15 +492,30 @@ def run_outbound_transfer_job(
     if outbound_job.local_status == OutboundHubTransferJob.LocalStatus.COMPLETED:
         return outbound_job
 
-    transport = resolve_hub_transport_config()
-
-    source_node = NetworkNode.objects.get(node_key=source_node_key, is_active=True)
-    secret = resolve_outbound_node_secret(
-        source_node_key=source_node_key,
-        explicit_secret=source_secret,
-    )
-    payload = build_transfer_payload(outbound_job=outbound_job, source_node=source_node)
-    validate_transfer_payload(payload)
+    try:
+        transport = resolve_hub_transport_config()
+        source_node = NetworkNode.objects.get(
+            node_key=source_node_key,
+            is_active=True,
+        )
+        secret = resolve_outbound_node_secret(
+            source_node_key=source_node_key,
+            explicit_secret=source_secret,
+        )
+        payload = build_transfer_payload(
+            outbound_job=outbound_job,
+            source_node=source_node,
+        )
+        validate_transfer_payload(payload)
+        registration_url = hub_transfer_url(outbound_job.target_node)
+    except (NetworkNode.DoesNotExist, OSError, ValueError) as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer configuration or payload rejected: {exc}",
+            source_node_key=source_node_key,
+            failure_class="configuration_rejection",
+            retryable=False,
+        )
 
     now = timezone.now()
     if outbound_job.local_status in {
@@ -484,11 +533,15 @@ def run_outbound_transfer_job(
         )
 
     outbound_job.local_status = OutboundHubTransferJob.LocalStatus.REGISTERING
+    outbound_job.failure_class = ""
+    outbound_job.last_error = ""
     outbound_job.registration_started_at = now
     outbound_job.last_attempt_at = now
     outbound_job.save(
         update_fields=[
             "local_status",
+            "failure_class",
+            "last_error",
             "queued_at",
             "registration_started_at",
             "last_attempt_at",
@@ -503,30 +556,27 @@ def run_outbound_transfer_job(
 
     try:
         register_response = requests.post(
-            hub_transfer_url(outbound_job.target_node),
-            json=payload,
+            registration_url,
+            # The payload has already passed both typed sender validation and
+            # the canonical lx_dtypes contract. Requests' recursive JSON type
+            # cannot express this TypedDict boundary without a narrow cast.
+            json=cast(Any, payload),
             headers=hub_headers(source_node=source_node, source_secret=secret),
             timeout=request_timeout_s,
             **transport.request_kwargs(),
         )
         if register_response.status_code == 409:
-            emit_hub_export_audit_event(
-                "hub_export.registration_reused",
-                outbound_job=outbound_job,
-                source_node_key=source_node_key,
+            return mark_outbound_job_failure(
+                outbound_job,
+                error_message=(
+                    "Hub transfer registration rejected as a canonical replay conflict"
+                ),
+                source_node_key=source_node.node_key,
+                failure_class="integrity_inconsistency",
+                retryable=False,
             )
-            register_payload = fetch_remote_transfer_status(
-                outbound_job=outbound_job,
-                source_node=source_node,
-                secret=secret,
-                request_timeout_s=request_timeout_s,
-                transport=transport,
-            )
-        else:
-            _raise_for_hub_response(register_response)
-            register_payload = cast(
-                RemoteTransferStatusPayload, register_response.json()
-            )
+        _raise_for_hub_response(register_response)
+        register_payload = cast(RemoteTransferStatusPayload, register_response.json())
         apply_remote_status(
             outbound_job,
             register_payload,
@@ -536,46 +586,59 @@ def run_outbound_transfer_job(
         return mark_outbound_job_failure(
             outbound_job,
             error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="integrity_inconsistency",
+            retryable=False,
+        )
+    except RemoteTransferAuthorizationError as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=str(exc),
+            source_node_key=source_node.node_key,
+            failure_class="authorization_denial",
             retryable=False,
         )
     except requests.RequestException as exc:
         return mark_outbound_job_failure(
             outbound_job,
             error_message=f"Hub transfer registration failed: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="transient_retry",
         )
 
     if outbound_job.local_status != OutboundHubTransferJob.LocalStatus.AWAITING_MEDIA:
         return outbound_job
 
-    with _localized_processed_media_path(outbound_job) as (media_path, media_role):
-        outbound_job.local_status = OutboundHubTransferJob.LocalStatus.UPLOADING
-        outbound_job.media_upload_started_at = timezone.now()
-        outbound_job.last_attempt_at = outbound_job.media_upload_started_at
-        outbound_job.save(
-            update_fields=[
-                "local_status",
-                "media_upload_started_at",
-                "last_attempt_at",
-                "updated_at",
-            ]
-        )
-        emit_hub_export_audit_event(
-            "hub_export.upload_started",
-            outbound_job=outbound_job,
-        )
+    try:
+        with _localized_processed_media_path(outbound_job) as (media_path, media_role):
+            outbound_job.local_status = OutboundHubTransferJob.LocalStatus.UPLOADING
+            outbound_job.media_upload_started_at = timezone.now()
+            outbound_job.last_attempt_at = outbound_job.media_upload_started_at
+            outbound_job.save(
+                update_fields=[
+                    "local_status",
+                    "media_upload_started_at",
+                    "last_attempt_at",
+                    "updated_at",
+                ]
+            )
+            emit_hub_export_audit_event(
+                "hub_export.upload_started",
+                outbound_job=outbound_job,
+                source_node_key=source_node.node_key,
+            )
 
-        upload_stream = MultipartUploadStream(
-            media_path=media_path,
-            media_role=media_role,
-            upload_file_name=_pseudonymous_upload_file_name(
-                outbound_job,
+            upload_stream = MultipartUploadStream(
                 media_path=media_path,
-            ),
-        )
-        headers = hub_headers(source_node=source_node, source_secret=secret)
-        headers["Content-Type"] = upload_stream.content_type
-        headers["Content-Length"] = str(upload_stream.content_length)
-        try:
+                media_role=media_role,
+                upload_file_name=_pseudonymous_upload_file_name(
+                    outbound_job,
+                    media_path=media_path,
+                ),
+            )
+            headers = hub_headers(source_node=source_node, source_secret=secret)
+            headers["Content-Type"] = upload_stream.content_type
+            headers["Content-Length"] = str(upload_stream.content_length)
             media_response = requests.post(
                 hub_transfer_media_url(
                     outbound_job.target_node,
@@ -593,15 +656,35 @@ def run_outbound_transfer_job(
                 media_payload,
                 expected_source_node_key=source_node.node_key,
             )
-        except RemoteTransferIntegrityError as exc:
-            return mark_outbound_job_failure(
-                outbound_job,
-                error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
-                retryable=False,
-            )
-        except requests.RequestException as exc:
-            return mark_outbound_job_failure(
-                outbound_job,
-                error_message=f"Hub transfer media upload failed: {exc}",
-            )
+    except RemoteTransferIntegrityError as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="integrity_inconsistency",
+            retryable=False,
+        )
+    except RemoteTransferAuthorizationError as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=str(exc),
+            source_node_key=source_node.node_key,
+            failure_class="authorization_denial",
+            retryable=False,
+        )
+    except requests.RequestException as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer media upload failed: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="transient_retry",
+        )
+    except (OSError, ValueError) as exc:
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer processed media rejected: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="configuration_rejection",
+            retryable=False,
+        )
     return outbound_job
