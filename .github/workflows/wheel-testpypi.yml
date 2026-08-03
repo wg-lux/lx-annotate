@@ -144,7 +144,7 @@ jobs:
         run: printf '%s\n' "${{ steps.version.outputs.package-version }}" > dist/PACKAGE_VERSION.txt
 
       - name: Record immutable release evidence
-        shell: python
+        shell: .venv/bin/python {0}
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.package-version }}
           RELEASE_COMMIT_SHA: ${{ github.sha }}
