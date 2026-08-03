@@ -46,6 +46,8 @@
           workspaceRoot = ./.;
         };
 
+        pyprojectHacks = pkgs.callPackage pyproject-nix.build.hacks { };
+
         uvOverlay = workspace.mkPyprojectOverlay {
           sourcePreference = "wheel";
         };
@@ -84,15 +86,12 @@
                       pkg.overrideAttrs (old: {
                         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ final.setuptools ];
                       });
-                    withPyprojectMetadata =
-                      nativePackage: pyprojectPackage: dependencies:
-                      nativePackage.overrideAttrs (old: {
-                        passthru = (old.passthru or { }) // {
-                          inherit dependencies;
-                          optional-dependencies = pyprojectPackage.passthru.optional-dependencies or { };
-                          dependency-groups = pyprojectPackage.passthru.dependency-groups or { };
-                        };
-                      });
+                    fromNixpkgs =
+                      nativePackage: pyprojectPackage:
+                      pyprojectHacks.nixpkgsPrebuilt {
+                        from = nativePackage;
+                        prev = pyprojectPackage;
+                      };
                     cudaWheelDependencyNames = [
                       "nvidia-cublas-cu12"
                       "nvidia-cuda-cupti-cu12"
@@ -108,23 +107,19 @@
                       "nvidia-nvtx-cu12"
                       "triton"
                     ];
-                    torchDependencies = builtins.removeAttrs prev.torch.passthru.dependencies cudaWheelDependencyNames;
+                    torchWithoutCudaDependencies = prev.torch.overrideAttrs (old: {
+                      passthru = (old.passthru or { }) // {
+                        dependencies = builtins.removeAttrs old.passthru.dependencies cudaWheelDependencyNames;
+                      };
+                    });
                   in
                   pkgs.lib.genAttrs setuptoolsBackedPackages (name: withSetuptools prev.${name})
                   // {
-                    numba =
-                      withPyprojectMetadata pkgs.python312Packages.numba prev.numba
-                        prev.numba.passthru.dependencies;
-                    onnxruntime-gpu =
-                      withPyprojectMetadata pkgs.python312Packages.onnxruntime prev.onnxruntime-gpu
-                        prev.onnxruntime-gpu.passthru.dependencies;
-                    torch = withPyprojectMetadata pkgs.python312Packages.torch prev.torch torchDependencies;
-                    torchaudio =
-                      withPyprojectMetadata pkgs.python312Packages.torchaudio prev.torchaudio
-                        prev.torchaudio.passthru.dependencies;
-                    torchvision =
-                      withPyprojectMetadata pkgs.python312Packages.torchvision prev.torchvision
-                        prev.torchvision.passthru.dependencies;
+                    numba = fromNixpkgs pkgs.python312Packages.numba prev.numba;
+                    onnxruntime-gpu = fromNixpkgs pkgs.python312Packages.onnxruntime prev.onnxruntime-gpu;
+                    torch = fromNixpkgs pkgs.python312Packages.torch torchWithoutCudaDependencies;
+                    torchaudio = fromNixpkgs pkgs.python312Packages.torchaudio prev.torchaudio;
+                    torchvision = fromNixpkgs pkgs.python312Packages.torchvision prev.torchvision;
                   }
                 )
               ]
@@ -143,10 +138,10 @@
         frontend = pkgs.callPackage ./frontend/default.nix { };
 
         runtimeLibs = [
-          pkgs.stdenv.cc.cc.lib  # Provides libstdc++.so.6, libgcc_s.so.1, libgomp.so.1
-          pkgs.tbb               # Provides libtbb.so
-          pkgs.zlib              # Commonly required by data/image processors
-          pkgs.glib              # Required if any underlying tools utilize core utilities
+          pkgs.stdenv.cc.cc.lib # Provides libstdc++.so.6, libgcc_s.so.1, libgomp.so.1
+          pkgs.tbb # Provides libtbb.so
+          pkgs.zlib # Commonly required by data/image processors
+          pkgs.glib # Required if any underlying tools utilize core utilities
         ];
 
         lx-annotate = pkgs.callPackage ./package.nix {
