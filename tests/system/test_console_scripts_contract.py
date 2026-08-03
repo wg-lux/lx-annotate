@@ -4,12 +4,17 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from packaging.requirements import Requirement
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _project_metadata() -> dict:
+    return tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
+
+
 def test_python_wheel_exposes_runtime_console_scripts():
-    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
+    pyproject = _project_metadata()
 
     expected_scripts = {
         "lx-annotate-web": "lx_annotate.cli:web",
@@ -22,8 +27,44 @@ def test_python_wheel_exposes_runtime_console_scripts():
         "lx-annotate-watch": "lx_annotate.cli:watch",
         "lx-annotate-export-frames": "lx_annotate.cli:export_frames",
         "lx-annotate-import-sap": "lx_annotate.cli:import_sap",
+        "lx-annotate-bootstrap-terminology": ("lx_annotate.cli:bootstrap_terminology"),
     }
     assert pyproject["project"]["scripts"].items() >= expected_scripts.items()
+
+
+def test_python_wheel_does_not_ship_development_tools_as_runtime_dependencies():
+    pyproject = _project_metadata()
+    runtime_names = {
+        Requirement(requirement).name.lower()
+        for requirement in pyproject["project"]["dependencies"]
+    }
+    forbidden_runtime_dependencies = {
+        "black",
+        "build",
+        "django-rest-framework",
+        "django-stubs",
+        "mypy",
+        "pre-commit",
+        "pytest",
+        "pytest-cov",
+        "pytest-django",
+        "types-requests",
+    }
+
+    assert runtime_names.isdisjoint(forbidden_runtime_dependencies)
+    dev_dependencies = "\n".join(pyproject["project"]["optional-dependencies"]["dev"])
+    for required_tool in (
+        "black",
+        "build",
+        "django-stubs",
+        "mypy",
+        "pre-commit",
+        "pytest",
+        "pytest-cov",
+        "pytest-django",
+        "types-requests",
+    ):
+        assert required_tool in dev_dependencies
 
 
 def test_cli_entrypoints_keep_luxnix_compatibility_aliases():

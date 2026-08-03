@@ -107,6 +107,12 @@ def import_sap(argv: Sequence[str] | None = None) -> int:
     return manage(["import_sap_ish_zip", *_command_args(argv)])
 
 
+def bootstrap_terminology(argv: Sequence[str] | None = None) -> int:
+    from lx_annotate.runtime_commands.terminology_bootstrap import main
+
+    return main(_command_args(argv))
+
+
 def _run_celery(program_name: str, args: Sequence[str]) -> int:
     _set_default_django_settings()
 

@@ -155,9 +155,11 @@ jobs:
         shell: python
         run: |
           import os
+          import json
           import pathlib
           import subprocess
           import sys
+          import tempfile
 
           root = pathlib.Path.cwd()
           venv_dir = root / ".venv-wheel-smoke"
@@ -185,6 +187,25 @@ jobs:
               [str(manage), "check", "--settings=lx_annotate.settings.settings_test"],
               env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
           )
+
+          bootstrap = scripts / (
+              "lx-annotate-bootstrap-terminology.exe"
+              if os.name == "nt"
+              else "lx-annotate-bootstrap-terminology"
+          )
+          with tempfile.TemporaryDirectory() as temporary_dir:
+              registry = pathlib.Path(temporary_dir) / "registry.json"
+              subprocess.check_call([str(bootstrap), "--registry", str(registry)])
+              payload = json.loads(registry.read_text(encoding="utf-8"))
+              active = payload["active"]
+              input_dirs = payload["modules"][active["module_name"]][active["version"]]["input_dirs"]
+              if len(input_dirs) != 1:
+                  raise SystemExit(f"expected one packaged terminology data root: {input_dirs}")
+              packaged_data = pathlib.Path(input_dirs[0]).resolve()
+              if packaged_data.name != "data" or packaged_data.parent.name != "lx_dtypes":
+                  raise SystemExit(f"terminology root is not installed lx_dtypes/data: {packaged_data}")
+              if not packaged_data.is_relative_to(venv_dir.resolve()):
+                  raise SystemExit(f"terminology root escapes installed wheel environment: {packaged_data}")
 
   publish-testpypi:
     name: Publish To TestPyPI
@@ -250,9 +271,11 @@ jobs:
           PACKAGE_VERSION: ${{ needs.build-distribution.outputs.package-version }}
         run: |
           import os
+          import json
           import pathlib
           import subprocess
           import sys
+          import tempfile
 
           root = pathlib.Path.cwd()
           wheel_dir = root / "testpypi-wheel"
@@ -297,3 +320,22 @@ jobs:
               [str(manage), "check", "--settings=lx_annotate.settings.settings_test"],
               env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
           )
+
+          bootstrap = scripts / (
+              "lx-annotate-bootstrap-terminology.exe"
+              if os.name == "nt"
+              else "lx-annotate-bootstrap-terminology"
+          )
+          with tempfile.TemporaryDirectory() as temporary_dir:
+              registry = pathlib.Path(temporary_dir) / "registry.json"
+              subprocess.check_call([str(bootstrap), "--registry", str(registry)])
+              payload = json.loads(registry.read_text(encoding="utf-8"))
+              active = payload["active"]
+              input_dirs = payload["modules"][active["module_name"]][active["version"]]["input_dirs"]
+              if len(input_dirs) != 1:
+                  raise SystemExit(f"expected one packaged terminology data root: {input_dirs}")
+              packaged_data = pathlib.Path(input_dirs[0]).resolve()
+              if packaged_data.name != "data" or packaged_data.parent.name != "lx_dtypes":
+                  raise SystemExit(f"terminology root is not installed lx_dtypes/data: {packaged_data}")
+              if not packaged_data.is_relative_to(venv_dir.resolve()):
+                  raise SystemExit(f"terminology root escapes installed wheel environment: {packaged_data}")
