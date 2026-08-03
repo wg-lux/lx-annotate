@@ -3,10 +3,14 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import endoreg_db
 
-UPSTREAM_MIGRATION_COMMAND = Path(
-    "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/"
-    "endoreg_db/management/commands/migrate_data_dir.py"
+assert endoreg_db.__file__ is not None
+UPSTREAM_MIGRATION_COMMAND = (
+    Path(endoreg_db.__file__).resolve().parent
+    / "management"
+    / "commands"
+    / "migrate_data_dir.py"
 )
 
 

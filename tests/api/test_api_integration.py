@@ -342,13 +342,13 @@ class UploadJobAPITests(APIIntegrationTestCase):
 
         first = self.client.post(
             url,
-            {"file": self._pdf_upload(payload=b"%PDF first\n"), **payload},
+            {"file": self._pdf_upload(payload=b"%PDF-1.4 first\n"), **payload},
             format="multipart",
             **headers,
         )
         second = self.client.post(
             url,
-            {"file": self._pdf_upload(payload=b"%PDF first\n"), **payload},
+            {"file": self._pdf_upload(payload=b"%PDF-1.4 first\n"), **payload},
             format="multipart",
             **headers,
         )
