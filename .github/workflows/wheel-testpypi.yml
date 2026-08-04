@@ -311,6 +311,20 @@ jobs:
               [str(manage), "check", "--settings=lx_annotate.settings.settings_test"],
               env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
           )
+          hub_route_smoke = (
+              "from django.urls import resolve; "
+              "prefixes=(\'/endoreg-api/\', \'/api/\'); "
+              "suffixes=((\'media/hub/transfers/\', \'hub-transfer-create\'), "
+              "(\'media/hub/transfers/installed-smoke/status/\', \'hub-transfer-status\'), "
+              "(\'media/hub/transfers/installed-smoke/media/\', \'hub-transfer-media-upload\')); "
+              "expected=tuple((prefix + suffix, name) for prefix in prefixes for suffix, name in suffixes); "
+              "actual=tuple((route, resolve(route).url_name) for route, _ in expected); "
+              "assert actual == expected, f\'lx-annotate installed Hub route mismatch: {actual!r}\'"
+          )
+          subprocess.check_call(
+              [str(manage), "shell", "-c", hub_route_smoke],
+              env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
+          )
 
           bootstrap = scripts / (
               "lx-annotate-bootstrap-terminology.exe"
@@ -522,6 +536,20 @@ jobs:
           manage = scripts / ("lx-annotate-manage.exe" if os.name == "nt" else "lx-annotate-manage")
           subprocess.check_call(
               [str(manage), "check", "--settings=lx_annotate.settings.settings_test"],
+              env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
+          )
+          hub_route_smoke = (
+              "from django.urls import resolve; "
+              "prefixes=(\'/endoreg-api/\', \'/api/\'); "
+              "suffixes=((\'media/hub/transfers/\', \'hub-transfer-create\'), "
+              "(\'media/hub/transfers/installed-smoke/status/\', \'hub-transfer-status\'), "
+              "(\'media/hub/transfers/installed-smoke/media/\', \'hub-transfer-media-upload\')); "
+              "expected=tuple((prefix + suffix, name) for prefix in prefixes for suffix, name in suffixes); "
+              "actual=tuple((route, resolve(route).url_name) for route, _ in expected); "
+              "assert actual == expected, f\'lx-annotate installed Hub route mismatch: {actual!r}\'"
+          )
+          subprocess.check_call(
+              [str(manage), "shell", "-c", hub_route_smoke],
               env={**os.environ, "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test"},
           )
 

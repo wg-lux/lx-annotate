@@ -31,6 +31,14 @@ def test_wheel_workflow_records_and_revalidates_release_evidence() -> None:
     assert workflow.count("known_decord_metadata_error") == 4
     assert workflow.count("pip check failed with unexpected dependency errors") == 2
     assert workflow.count("assert decord.__version__ == '0.6.0'; decord.cpu(0)") == 2
+    assert workflow.count("hub_route_smoke = (") == 2
+    assert workflow.count("lx-annotate installed Hub route mismatch") == 2
+    assert workflow.count("/endoreg-api/") == 2
+    assert workflow.count("/api/") == 2
+    assert workflow.count("media/hub/transfers/") == 6
+    assert workflow.count("hub-transfer-create") == 2
+    assert workflow.count("hub-transfer-status") == 2
+    assert workflow.count("hub-transfer-media-upload") == 2
 
 
 def test_release_metadata_is_not_uploaded_to_package_indexes() -> None:
