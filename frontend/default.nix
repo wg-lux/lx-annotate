@@ -10,7 +10,7 @@ buildNpmPackage rec {
   src = ./.;
 
 
-  npmDepsHash = "sha256-MJQWhZrxmX0Nl4KZbOB20I/39skEE6CRLigd1pKAIFU=";
+  npmDepsHash = "sha256-T9uNPiv/qNGn72WWsxchv1EFK4PNnHGpHj65byNkqkY=";
 
   npmBuildScript = "build";
   doCheck = false;
