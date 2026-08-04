@@ -1,0 +1,180 @@
+schema_version: '1.0'
+id: hub_release_0_9_56
+name: Hub Release 0.9.56
+description: Restore and release the complete LX-Annotate site-to-hub transfer path as 0.9.56,
+  then activate it through LuxNix without weakening the clinical-network Vault, mTLS, media,
+  or encrypted-storage boundaries.
+owners:
+- lx-annotate maintainers
+- endoreg-db maintainers
+- LuxNix maintainers
+- deployment operators
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/hub-export-workflow.md
+  disposition: reference
+  note: Sender state machine, payload, retry, reconciliation, and operator workflow.
+- path: docs/guides/wheel-deployment.md
+  disposition: reference
+  note: Installed-artifact, central-hub, and secure-transfer runtime contract.
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Cross-repository application, package, and LuxNix ownership boundaries.
+definition_of_done:
+- id: bounded_cross_repository_scope
+  category: requirements
+  title: The 0.9.56 repair has an attributable cross-repository scope
+  acceptance:
+  - The reviewed LX-Annotate Hub implementation is present on the published 0.9.55 source through an
+    attributable semantic integration, without importing generated artifacts or unrelated historical
+    worktree changes.
+  - The exact LX-Annotate source commit, endoreg-db receiver commit and package version, LuxNix source
+    commit, target hosts, route set, and immutable artifacts are recorded.
+  - Receiver changes are made only for a demonstrated endoreg-db contract failure; Vault reachability,
+    certificate provisioning, reverse-proxy activation, and systemd activation remain LuxNix or operator
+    responsibilities.
+  - The work is released as 0.9.56; immutable 0.9.55 PyPI artifacts are never overwritten or treated as
+    containing unpublished Hub commits.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review Git ancestry, the selected patches, dependency metadata, LuxNix lock data, and
+      the deployment record before release approval.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: Archived Hub patch 94db4c13e249026bfd07dd1f7d965c7ab224f134; published integration commits 0e8533ec62a888f077a37a20e7427397250901b1, 62821d996b104a97df1d852f9a3cc5ecce8535e2, and dc29a572ba9616517edf80c70f749e7cd63307e7.
+    - kind: review
+      reference: The archived commit is not an ancestor of published source 7e2ce39085863c6aae5afbe3ad9b10466694ec75, but its 23-file implementation is semantically present; the current tree differs only by the release-safe explicit health fields and typed empty failure state.
+    - kind: test
+      reference: endoreg-db prototype 322c94bc0f3b3897f29786b9d1b992b3358610db focused receiver suite reported 93 passed and 1 skipped.
+    note: No Hub HTTP request reached the receiver during the failed 0.9.55 rollout. The Hub application
+      implementation was already included in the published artifact; the demonstrated blocker was before
+      the application boundary, so neither a duplicate sender patch nor a receiver code change is currently
+      justified.
+    assessed_by: codex-hub-deploy-coordinator-20260804
+    assessed_at: '2026-08-04T10:55:00+02:00'
+- id: sender_receiver_contract
+  category: functionality
+  title: Sender and receiver complete one idempotent anonymized transfer
+  acceptance:
+  - The site sender registers a deterministic transfer at POST /api/media/hub/transfers/, uploads media
+    at the transfer-key media route, and reconciles through the transfer-key status route.
+  - The receiver authenticates the node, validates center and transfer identity, persists normalized
+    provenance, applies the upload exactly once, and returns the documented awaiting_media, applied,
+    failed, or inconsistent states.
+  - Retries, timeouts, duplicate requests, hash mismatches, payload collisions, stale jobs, and remote
+    terminal states are deterministic and leave an auditable ledger.
+  - Installed-wheel tests exercise the real URL configuration, middleware, receiver services, database
+    models, and sender client rather than only mocked helper functions.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused sender, receiver, URL, middleware, transfer-service, model, and installed-wheel
+      integration suites, then demonstrate a real mTLS request across disposable site and hub endpoints.
+    timeout_seconds: 2400
+  assessment:
+    status: not_assessed
+- id: fail_closed_security_boundary
+  category: security
+  title: Hub transfer remains fail closed across hostile internal networks
+  acceptance:
+  - Transfer activation requires HTTPS, a trusted client CA, successful proxy mTLS verification, and
+    authenticated NetworkNode request identity; shared-secret-only fallback is rejected.
+  - Only explicitly selected anonymized processed media is exportable; raw media and unvalidated media
+    are rejected before network transmission.
+  - The long-lived application master key is never transmitted, logged, embedded in release artifacts,
+    or reused for request or payload authentication.
+  - Missing Vault, AppRole, CA, client certificate, private key, encrypted storage, or receiver trust state
+    prevents transfer and preserves actionable logs.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run positive and negative Hub security tests, inspect generated Nginx and systemd
+      configuration, and exercise missing or invalid Vault, mTLS, node-secret, and media-state cases.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: coherent_release_artifact
+  category: testing
+  title: LX-Annotate 0.9.56 is a coherent immutable release artifact
+  acceptance:
+  - Project metadata, frontend metadata, lock data, installed package metadata, and release evidence all
+    identify 0.9.56 and the exact reviewed dependency versions.
+  - Backend tests, Hub tests, migrations, Python static checks, frontend checks and production build,
+    package checks, and clean Python 3.12 wheel installation pass from one clean release commit.
+  - The wheel contains the production frontend manifest, Hub modules, management commands, migrations,
+    and required runtime assets and exposes the expected Hub routes after installation.
+  - PyPI publication uses the protected release workflow and records wheel and sdist SHA-256 digests,
+    source commit, workflow run, dependency versions, and named assessor.
+  required: true
+  verification:
+    kind: manual
+    instructions: Execute the protected 0.9.56 release workflow from a clean identified commit, inspect
+      and install both distributions, run the installed-artifact Hub smoke suite, and verify PyPI digests.
+    timeout_seconds: 3600
+  assessment:
+    status: not_assessed
+- id: luxnix_hub_activation
+  category: operations
+  title: LuxNix activates the pinned 0.9.56 Hub runtime on site and hub nodes
+  acceptance:
+  - LuxNix pins the published 0.9.56 wheel URL and digest and the matching LX-Annotate Flake commit from
+    one reviewed source tree without unrelated fleet changes.
+  - The gs-02 Vault service is deployed, initialized and unsealed under the approved operator process;
+    VPN DNS and reachability, AppRole files, CA material, and site client certificates are provisioned.
+  - Generated gc-02 and gs-02 units order Vault authentication, managed secrets, certificate issuance,
+    encrypted storage, migrations, Hub node provisioning, web, Hub worker, and acceptance gates correctly.
+  - Hub enablement never introduces public Vault reachability, offline secret fallback, plaintext secrets,
+    or a service dependency on a repository or temporary worktree.
+  required: true
+  verification:
+    kind: manual
+    instructions: Evaluate and build both host configurations, inspect generated units and secret paths,
+      deploy through the reviewed LuxNix source, and record active Nix closures and service entrypoints.
+    timeout_seconds: 3600
+  assessment:
+    status: not_assessed
+- id: live_hub_acceptance
+  category: operations
+  title: Live site-to-hub transfer and recovery acceptance pass
+  acceptance:
+  - Site and hub web services, the dedicated Hub transfer worker, database, Redis, Vault gates, certificate
+    renewal, and reverse proxy are active with no unresolved restart loop or capacity failure.
+  - A representative anonymized processed artifact completes register, media upload, receiver apply,
+    sender reconciliation, local cleanup policy, and audit correlation over the production-like mTLS path.
+  - Negative acceptance proves raw media, invalid certificate, wrong node secret, wrong center, hash mismatch,
+    duplicate collision, and unavailable Vault or receiver states fail closed without data leakage.
+  - Restart, retry, stale-job recovery, certificate rotation, and rollback to the prior application generation
+    preserve ledger integrity and do not replay an applied transfer.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the installed live acceptance workflow on the designated production-like site and
+      hub nodes, retain structured logs and identifiers, then exercise failure, recovery, rotation, and rollback.
+    timeout_seconds: 3600
+  assessment:
+    status: not_assessed
+- id: operator_handoff
+  category: documentation
+  title: Operators have one accurate Hub deployment and incident workflow
+  acceptance:
+  - Documentation identifies exact routes, roles, Vault and certificate prerequisites, service units,
+    expected states, health commands, retry and reconciliation behavior, and ownership boundaries.
+  - The runbook distinguishes application defects from DNS, VPN, Vault, AppRole, PKI, Nginx, systemd,
+    Redis, storage-capacity, and receiver failures using observable evidence.
+  - Release and deployment evidence link back to this tracker; passing tests or a successful build alone
+    are not represented as live Hub readiness.
+  required: true
+  verification:
+    kind: manual
+    instructions: Have application, LuxNix, security, and deployment owners execute the documented workflow
+      against the deployed 0.9.56 system and record corrections and approval.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
