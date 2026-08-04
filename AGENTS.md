@@ -19,6 +19,43 @@ After implementation:
 2. Run broader integration checks if the change crosses module boundaries.
 3. Report what passed, what failed, and any residual risk.
 4. Documentation language for this project is english
+
+## Deployment Source Hygiene Feature Workflow
+
+Changes involving production deployment sources, release worktrees, temporary
+artifact staging or cleanup, Nix GC roots, release provenance, or deployment
+acceptance are governed by
+`feature-tracking/DeploymentSourceHygiene.yml`.
+
+Before changing or using those boundaries:
+
+1. Read `docs/guides/deployment-strategy.md`,
+   `docs/guides/wheel-deployment.md`, and the LuxNix
+   `docs/deployment-guide.md`.
+2. Inspect the current readiness state with
+   `./feature-tracking/tracker.py show deployment_source_hygiene`.
+3. Record the exact repository path, Git revision, locked Flake inputs, target
+   host, LX-Annotate version, and artifact digest. Review dirty state for
+   unrelated changes before evaluation or deployment.
+4. Never use a repository checkout, Git worktree, render tree, test environment,
+   cache, or verification clone below `/tmp` as a production source. Short-lived
+   immutable wheel staging is permitted only under the documented contract.
+5. Treat deployment as fleet-impacting: shared LuxNix modules and defaults may
+   affect clinical-network hosts beyond the explicitly selected target.
+
+After related work:
+
+1. Run `./feature-tracking/tracker.py validate`.
+2. Run `./feature-tracking/tracker.py check deployment_source_hygiene` before
+   representing the workflow as production-ready. A nonzero readiness result is
+   a blocker, not a reason to bypass or weaken a criterion.
+3. Update assessments only with stable, reviewable evidence and an identified
+   assessor. Local cleanup, documentation, or a passing build alone is not
+   production approval.
+4. Complete the feature only through
+   `./feature-tracking/tracker.py done deployment_source_hygiene` after every
+   required criterion is verified.
+
 ## System Directive: Security And Storage Architecture
 
 You are acting as the Lead Security and Systems Architect for `endoreg_db` and

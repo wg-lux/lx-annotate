@@ -1,0 +1,133 @@
+schema_version: '1.0'
+id: deployment
+name: Deployment
+description: Govern attributable release inputs, temporary deployment artifacts, release worktrees,
+  Nix roots, and post-deployment cleanup for LX-Annotate across the LuxNix clinical fleet.
+owners:
+- LuxNix maintainers
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Application deployment-source, temporary-file, and cleanup boundaries.
+- path: docs/guides/wheel-deployment.md
+  disposition: reference
+  note: Verified wheel staging, installation, acceptance, and cleanup procedure.
+definition_of_done:
+- id: attributable_source_contract
+  category: requirements
+  title: Every production input has an attributable source identity
+  acceptance:
+  - The deployment record identifies the LuxNix commit, selected host, locked Flake inputs, LX-Annotate
+    version, and immutable wheel or Nix closure digest.
+  - Operators review repository status and reject unrelated or unexplained changes before evaluation.
+  - Evaluation, build, and deployment use the same reviewed source path.
+  - Shared module and default changes are reviewed for their fleet-wide impact, not only for the named
+    target host.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review a production-like deployment record against the LuxNix deployment guide, Git
+      state, flake.lock, selected host output, and LX-Annotate artifact metadata.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: immutable_runtime_source
+  category: functionality
+  title: Runtime services consume immutable installed artifacts
+  acceptance:
+  - Production service entrypoints resolve to an installed virtual environment or a Nix store closure.
+  - Persistent configuration does not reference a repository, worktree, render directory, test environment,
+    package cache, or verification clone below /tmp.
+  - A release worktree used for deployment is clean, attached to a durable Git reference, and located
+    outside /tmp.
+  - The active system profile and /run/current-system protect the selected NixOS generation independently
+    of temporary GC roots.
+  required: true
+  verification:
+    kind: manual
+    instructions: On a disposable production-like host, inspect /run/current-system, system profiles,
+      relevant systemd ExecStart values, service environments, Git worktrees, and Nix roots after activation.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+- id: reproducible_pre_deploy_gate
+  category: testing
+  title: Pre-deployment checks reproduce the selected fleet configuration
+  acceptance:
+  - The selected host evaluates and builds from the reviewed LuxNix source without changing that source
+    between the checks and deployment.
+  - LX-Annotate package and deployment contract tests run against the exact version selected by LuxNix.
+  - A production-like rollout proves migration, startup, live acceptance, and rollback behavior before
+    fleet promotion.
+  - Test output records commands, revisions, artifact identities, results, and the assessor.
+  required: true
+  verification:
+    kind: manual
+    instructions: Reproduce the target-host evaluation and build, focused LX-Annotate deployment tests,
+      and disposable-host rollout and rollback using one recorded source identity.
+    timeout_seconds: 3600
+  assessment:
+    status: not_assessed
+- id: protected_temporary_boundary
+  category: security
+  title: Temporary storage never becomes a protected-data or secret boundary
+  acceptance:
+  - Temporary build and staging paths contain no clinical data, master keys, node secrets, private keys,
+    credentials, or durable audit evidence.
+  - Secret-file references resolve to host-managed protected locations with the required ownership and
+    permissions.
+  - Cleanup preserves security and acceptance logs in the approved audit-log location.
+  - Cleanup never removes an active encrypted-storage mount, application key, trust anchor, or Nix store
+    path.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review generated service configuration, temporary artifact inventories, secret-file
+      paths, mount dependencies, permissions, and cleanup evidence on a disposable production-like host.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+- id: accepted_cleanup_and_recovery
+  category: operations
+  title: Cleanup follows successful acceptance and remains recoverable
+  acceptance:
+  - Operators verify the active generation, installed LX-Annotate version, service entrypoints, required
+    workers, and post-deployment acceptance gate before cleanup.
+  - No live process references a temporary candidate path when that path is removed.
+  - Unique commits are preserved by a durable branch or tag before a worktree or clone is removed.
+  - Registered worktrees are removed through Git, stale metadata is pruned, and redundant GC roots are
+    removed only after another durable root protects the closure.
+  - Unverified artifacts are quarantined recoverably; verified disposable artifacts are removed according
+    to the host retention policy.
+  required: true
+  verification:
+    kind: manual
+    instructions: Perform deployment, acceptance, inventory, recoverable cleanup, Git worktree validation,
+      and Nix-root validation on a disposable production-like host, then demonstrate artifact recovery.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: documented_operator_and_agent_workflow
+  category: documentation
+  title: Operators and agents follow one source-hygiene workflow
+  acceptance:
+  - The LuxNix deployment guide and LX-Annotate deployment guides agree on source identity, /tmp staging,
+    release worktrees, Nix roots, acceptance, and cleanup.
+  - AGENTS.md directs deployment-source and temporary-artifact work to this feature tracker.
+  - Documentation distinguishes disposable build output from required runtime state and durable deployment
+    evidence.
+  - Readiness is recorded only in this YAML tracker and is not inferred from documentation, cleanup completion,
+    or a local passing build.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review AGENTS.md, the LuxNix deployment guide, both LX-Annotate deployment guides, and
+      this tracker together; then run the tracker registry validation.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed

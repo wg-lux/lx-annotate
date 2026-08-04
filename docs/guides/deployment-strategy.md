@@ -35,6 +35,35 @@ Runtime layout:
 - virtual environment: `/var/lib/lx-annotate/.venv` for the standalone deploy
   scripts, or under the service user home in LuxNix wheel mode
 
+### Deployment Source Hygiene
+
+Production hosts must consume an immutable, attributable wheel or Nix closure.
+A repository checkout, Git worktree, generated documentation tree, frontend
+build directory, smoke-test environment, or package cache below `/tmp` is not a
+deployment source. This restriction matters especially in LuxNix because shared
+configuration can affect every machine in the clinical network.
+
+The approved boundaries are:
+
+- a reviewed lx-annotate release artifact with its version and digest recorded;
+- a reviewed LuxNix revision with its locked inputs recorded;
+- a named, clean release worktree outside `/tmp` when a worktree is required;
+- the activated Nix closure rooted by the system profile and
+  `/run/current-system`.
+
+`/tmp` may hold a wheel briefly while an installation command consumes it. It
+may also hold disposable build, render, test, and diagnostic output. Such paths
+must not be referenced by persistent service configuration, used as an extra
+long-lived Nix GC root, or treated as release evidence. They must contain no
+secrets, master keys, clinical data, or durable audit logs.
+
+After a successful deployment, verify the active system generation, service
+entrypoints, installed lx-annotate version, and post-deployment acceptance gate
+before removing temporary artifacts. Preserve any unique commit with a durable
+branch or tag before removing its checkout. Never remove a Nix store path
+directly; remove only a redundant root after confirming that the active profile
+still protects the closure.
+
 Runtime services:
 
 - ASGI app via Daphne
@@ -300,6 +329,10 @@ LuxNix topology described here, including the separate watcher, SAP-import,
 and data-recovery units, so operators should treat the wheel deployment docs
 plus active LuxNix host configuration as the current operational source of
 truth for multi-service production setups.
+
+The fleet-wide source-selection, release-worktree, temporary-file, and cleanup
+rules are documented in the LuxNix `docs/deployment-guide.md`. Application
+documentation does not override those host-level controls.
 
 ## Runtime Schema Gate And Feature-Tracker Alignment
 

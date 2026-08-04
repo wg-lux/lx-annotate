@@ -330,7 +330,10 @@ This is still Phase 1 of the security roadmap:
 
 ## Deployment
 
-1. Copy the built wheel from CI to the server.
+1. Copy the built wheel from CI to the server. Record its release version and
+   digest, and verify both before installation. A wheel may be staged briefly in
+   `/tmp`, but the temporary path is not release evidence or a persistent
+   runtime location.
 2. Copy `deployment_example/lx-annotate.service` to `/etc/systemd/system/`.
 3. Copy `deployment_example/lx-annotate-watcher.service` to `/etc/systemd/system/` if the
    file watcher should run in production.
@@ -345,7 +348,7 @@ sudo chown -R lx-annotate:lx-annotate /var/lib/lx-annotate
 5. Run the deployment script:
 
 ```bash
-./deployment_example/deploy.sh /tmp/lx_annotate-0.0.1-py3-none-any.whl
+./deployment_example/deploy.sh <path-to-verified-wheel>
 ```
 
 That script now runs `deployment_example/acceptance-smoke.sh` by default after the service
@@ -357,6 +360,12 @@ restart. The smoke path verifies:
 
 Set `RUN_POST_DEPLOY_ACCEPTANCE=0` only when you need to separate rollout from
 acceptance debugging.
+
+After acceptance succeeds, remove the staged wheel and any disposable build or
+smoke-test environment. First confirm that the service entrypoint resolves to
+the installed virtual environment or Nix store closure and that no live process
+uses the staging path. Never retain a repository checkout or Git worktree under
+`/tmp` as the source for a later deployment.
 
 6. Put a reverse proxy in front of Daphne. An example Nginx server block lives
    in `deployment_example/nginx-lx-annotate.conf`.
