@@ -50,9 +50,12 @@ definition_of_done:
     status: verified
     evidence:
     - kind: code
-      reference: Release code commit 6d535f76606681b56e3793c655fb91a9b438f8fd; main, origin/main,
-        release/lx-annotate-0.9.55-final, and v0.9.55 aligned at artifact build time; the successor
-        commit changes tracker evidence only.
+      reference: Release artifact commit 7e2ce39085863c6aae5afbe3ad9b10466694ec75; origin/main and
+        remote v0.9.55 resolve to this commit. The retained release/lx-annotate-0.9.55-final branch
+        identifies the earlier 6d535f766 release candidate, not the published artifact source.
+    - kind: command
+      reference: GitHub Actions run 30834291091 recorded RELEASE_EVIDENCE.json for commit 7e2ce39085863c6aae5afbe3ad9b10466694ec75,
+        release assessor maxhild, lx-annotate 0.9.55, endoreg-db 1.0.8.4, and lx-dtypes 0.2.11.
     - kind: review
       reference: 'Wheel METADATA: lx-annotate 0.9.55; Python >=3.12,<3.13; endoreg-db==1.0.8.4; lx-dtypes==0.2.11'
     - kind: command
@@ -65,19 +68,21 @@ definition_of_done:
       reference: 'make package with test settings: passed; no migrations generated; make package-check:
         wheel and sdist PASSED'
     - kind: review
-      reference: lx_annotate-0.9.55-py3-none-any.whl SHA-256 ee81957edfb7154384d895e0ae75d7d569c2b2ed37fa9094f5a5c3bdd2ca9c5e;
-        lx_annotate-0.9.55.tar.gz SHA-256 34785e38588cb797e5a3630256535cd7fe00005c121f11aef0700afe52f732b5
+      reference: lx_annotate-0.9.55-py3-none-any.whl SHA-256 9946ed918c4f8b4bf69e744a3c232d86ae28b4a9b244cf30bc0c8634893b545b;
+        lx_annotate-0.9.55.tar.gz SHA-256 c7e254c8a5292ccd8393c131e3a8c2d3536509b8b61325c51f8dc3a200fdf16e;
+        both match RELEASE_EVIDENCE.json and the files published on PyPI.
     - kind: command
       reference: Isolated wheel import resolved 0.9.55/1.0.8.4/0.2.11; manage check exited 0 under test
         settings; terminology bootstrap twice returned ok with registry mode 0600 and active report_template_examples@0.1.0
     - kind: test
       reference: tests/system/test_release_evidence_workflow.py; tests/system/test_terminology_bootstrap.py;
         tests/system/test_wheel_deployment_acceptance.py
-    note: 0.9.55 successor is built from clean commit 6d535f766 with exact published runtime dependencies.
-      Missing optional terminology is non-blocking; the packaged lx-dtypes default bundle provisions idempotently.
+    note: The published 0.9.55 artifacts were built and install-smoked by the protected GitHub workflow
+      from clean commit 7e2ce390 after the final Linux/decord release-workflow corrections. Missing
+      optional terminology is non-blocking; the packaged lx-dtypes default bundle provisions idempotently.
       Protected GitHub release publication remains the only authorized PyPI path.
     assessed_by: codex/root
-    assessed_at: '2026-08-03T16:05:37.246788Z'
+    assessed_at: '2026-08-04T08:45:41Z'
 - id: pressing_scope
   category: requirements
   title: Pressing issues have owners, severity, and bounded acceptance criteria
