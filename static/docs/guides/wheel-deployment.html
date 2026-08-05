@@ -570,7 +570,10 @@ and mTLS</p></li>
 <section id="deployment">
 <h2>Deployment<a class="headerlink" href="#deployment" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
-<li><p>Copy the built wheel from CI to the server.</p></li>
+<li><p>Copy the built wheel from CI to the server. Record its release version and
+digest, and verify both before installation. A wheel may be staged briefly in
+<code class="docutils literal notranslate"><span class="pre">/tmp</span></code>, but the temporary path is not release evidence or a persistent
+runtime location.</p></li>
 <li><p>Copy <code class="docutils literal notranslate"><span class="pre">deployment_example/lx-annotate.service</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/systemd/system/</span></code>.</p></li>
 <li><p>Copy <code class="docutils literal notranslate"><span class="pre">deployment_example/lx-annotate-watcher.service</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/systemd/system/</span></code> if the
 file watcher should run in production.</p></li>
@@ -584,7 +587,7 @@ sudo<span class="w"> </span>chown<span class="w"> </span>-R<span class="w"> </sp
 <ol class="arabic simple" start="5">
 <li><p>Run the deployment script:</p></li>
 </ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./deployment_example/deploy.sh<span class="w"> </span>/tmp/lx_annotate-0.0.1-py3-none-any.whl
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./deployment_example/deploy.sh<span class="w"> </span>&lt;path-to-verified-wheel&gt;
 </pre></div>
 </div>
 <p>That script now runs <code class="docutils literal notranslate"><span class="pre">deployment_example/acceptance-smoke.sh</span></code> by default after the service
@@ -596,6 +599,11 @@ restart. The smoke path verifies:</p>
 </ul>
 <p>Set <code class="docutils literal notranslate"><span class="pre">RUN_POST_DEPLOY_ACCEPTANCE=0</span></code> only when you need to separate rollout from
 acceptance debugging.</p>
+<p>After acceptance succeeds, remove the staged wheel and any disposable build or
+smoke-test environment. First confirm that the service entrypoint resolves to
+the installed virtual environment or Nix store closure and that no live process
+uses the staging path. Never retain a repository checkout or Git worktree under
+<code class="docutils literal notranslate"><span class="pre">/tmp</span></code> as the source for a later deployment.</p>
 <ol class="arabic simple" start="6">
 <li><p>Put a reverse proxy in front of Daphne. An example Nginx server block lives
 in <code class="docutils literal notranslate"><span class="pre">deployment_example/nginx-lx-annotate.conf</span></code>.</p></li>
@@ -866,7 +874,7 @@ cache growth on long-lived hosts.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=3c8ce70f"></script>
+</div><script src="../_static/documentation_options.js?v=af0ce97c"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

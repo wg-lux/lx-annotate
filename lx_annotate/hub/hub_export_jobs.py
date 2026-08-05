@@ -282,7 +282,7 @@ def build_hub_export_privacy_summary(
     )
 
 
-def _sync_rejection_reason(blocked_reason: str) -> HubExportRejectionReason:
+def _sync_rejection_reason(blocked_reason: str) -> HubExportRejectionReason: 
     reasons = {
         "source center missing": HubExportRejectionReason.MISSING_CENTER,
         "processed media missing": HubExportRejectionReason.MISSING_PROCESSED_FILE,

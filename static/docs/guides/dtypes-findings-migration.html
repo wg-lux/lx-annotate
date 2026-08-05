@@ -255,7 +255,7 @@
         <article role="main" id="furo-main-content">
           <section id="dtypes-findings-migration-incremental-endoreg-safe">
 <h1>Dtypes Findings Migration (Incremental, Endoreg-Safe)<a class="headerlink" href="#dtypes-findings-migration-incremental-endoreg-safe" title="Link to this heading">¶</a></h1>
-<p>Last updated: 2026-07-22
+<p>Last updated: 2026-08-04
 Owner: reporting/frontend/backend</p>
 <section id="scope">
 <h2>Scope<a class="headerlink" href="#scope" title="Link to this heading">¶</a></h2>
@@ -305,7 +305,6 @@ endoreg_db routes from <code class="docutils literal notranslate"><span class="p
 frontend?</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">/home/admin/endoreg-db/endoreg_db/urls/examination.py</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">/home/admin/endoreg-db/endoreg_db/urls/classification.py</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">/home/admin/endoreg-db/endoreg_db/urls/patient.py</span></code></p></li>
 </ul>
 <section id="examination-py">
@@ -371,13 +370,20 @@ frontend?</p>
 </table>
 </div>
 </section>
-<section id="classification-py">
-<h3><code class="docutils literal notranslate"><span class="pre">classification.py</span></code><a class="headerlink" href="#classification-py" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">classification.py</span></code> currently contributes an empty <code class="docutils literal notranslate"><span class="pre">url_patterns</span></code> list; the NICE,
-PARIS, batch, and status paths are commented out. No frontend source call sites
-for <code class="docutils literal notranslate"><span class="pre">/api/classifications/nice/</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/classifications/paris/</span></code>,
-<code class="docutils literal notranslate"><span class="pre">/api/classifications/batch/</span></code>, or <code class="docutils literal notranslate"><span class="pre">/api/classifications/status/{video_id}/</span></code>
-were found.</p>
+<section id="removed-nice-paris-classification-island">
+<h3>Removed NICE/PARIS classification island<a class="headerlink" href="#removed-nice-paris-classification-island" title="Link to this heading">¶</a></h3>
+<p>The confirmed-dead NICE/PARIS classification island was removed from
+<code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> on 2026-08-04. The removed files were
+<code class="docutils literal notranslate"><span class="pre">endoreg_db/urls/classification.py</span></code>,
+<code class="docutils literal notranslate"><span class="pre">endoreg_db/serializers/Frames_NICE_and_PARIS_classifications.py</span></code>, and the
+exclusive <code class="docutils literal notranslate"><span class="pre">endoreg_db/utils/extract_specific_frames.py</span></code> helper. The URL module
+had never been mounted and its <code class="docutils literal notranslate"><span class="pre">url_patterns</span></code> list was empty, so this is a
+compatibility cleanup rather than a route removal. No lx-annotate frontend or
+backend runtime consumer was found for the NICE, PARIS, batch, or status paths.</p>
+<p>This cleanup does not affect active PTS-based frame extraction, video segment
+APIs, HLS delivery, persisted frame coordinates, imports, or storage
+generations. The active finding/classification-choice routes documented above
+are separate dtypes-backed contracts and remain unchanged.</p>
 </section>
 <section id="patient-py">
 <h3><code class="docutils literal notranslate"><span class="pre">patient.py</span></code><a class="headerlink" href="#patient-py" title="Link to this heading">¶</a></h3>
@@ -597,8 +603,8 @@ env var is unset or invalid.</p></li>
 <td><p>backend</p></td>
 </tr>
 <tr class="row-odd"><td><p>2026-06-03</p></td>
-<td><p>Document frontend route usage against <code class="docutils literal notranslate"><span class="pre">examination.py</span></code>, <code class="docutils literal notranslate"><span class="pre">classification.py</span></code>, and <code class="docutils literal notranslate"><span class="pre">patient.py</span></code>.</p></td>
-<td><p>Clarifies which endoreg routes remain part of the active frontend contract during dtypes migration.</p></td>
+<td><p>Document frontend route usage against <code class="docutils literal notranslate"><span class="pre">examination.py</span></code> and <code class="docutils literal notranslate"><span class="pre">patient.py</span></code>.</p></td>
+<td><p>Clarifies which endoreg routes remain part of the active frontend contract during dtypes migration; the separate classification island was later removed after audit.</p></td>
 <td><p>frontend/backend</p></td>
 </tr>
 <tr class="row-even"><td><p>2026-06-03</p></td>
@@ -610,6 +616,11 @@ env var is unset or invalid.</p></li>
 <td><p>Remove <code class="docutils literal notranslate"><span class="pre">VITE_FINDINGS_BACKEND</span></code> and the dead endoreg rollback paths.</p></td>
 <td><p>The referenced endoreg routes were already hard-cut; retaining the flag caused production 404s.</p></td>
 <td><p>frontend/backend</p></td>
+</tr>
+<tr class="row-even"><td><p>2026-08-04</p></td>
+<td><p>Remove the confirmed-dead NICE/PARIS classification island from endoreg_db and reconcile this guide.</p></td>
+<td><p>The URL module was never mounted, no lx-annotate consumer exists, and active PTS/frame/segment/HLS/storage paths are independent.</p></td>
+<td><p>endoreg_db/lx-annotate</p></td>
 </tr>
 </tbody>
 </table>
@@ -655,7 +666,7 @@ env var is unset or invalid.</p></li>
 <tr class="row-odd"><td><p>2026-06-03</p></td>
 <td><p>Frontend route audit against endoreg URL modules</p></td>
 <td><p>Completed</p></td>
-<td><p>Confirmed active use of selected <code class="docutils literal notranslate"><span class="pre">examination.py</span></code> and <code class="docutils literal notranslate"><span class="pre">patient.py</span></code> routes; <code class="docutils literal notranslate"><span class="pre">classification.py</span></code> has no active routes.</p></td>
+<td><p>Confirmed active use of selected <code class="docutils literal notranslate"><span class="pre">examination.py</span></code> and <code class="docutils literal notranslate"><span class="pre">patient.py</span></code> routes; no active NICE/PARIS classification consumer was found.</p></td>
 </tr>
 <tr class="row-even"><td><p>2026-06-03</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">frontend/src/api/findingsApi.ts</span></code> default backend mode</p></td>
@@ -666,6 +677,11 @@ env var is unset or invalid.</p></li>
 <td><p>Canonical findings cutover</p></td>
 <td><p>Completed</p></td>
 <td><p>Removed the dead global catalog request and all obsolete backend-mode branches; catalogs are examination-scoped.</p></td>
+</tr>
+<tr class="row-even"><td><p>2026-08-04</p></td>
+<td><p>NICE/PARIS classification island audit</p></td>
+<td><p>Completed</p></td>
+<td><p>No lx-annotate consumer or mounted URL was found; the upstream removal is compatibility-neutral for active frame, segment, HLS, import, and storage workflows.</p></td>
 </tr>
 </tbody>
 </table>
@@ -747,7 +763,7 @@ env var is unset or invalid.</p></li>
 </li>
 <li><a class="reference internal" href="#route-usage-audit-2026-06-03">Route Usage Audit (2026-06-03)</a><ul>
 <li><a class="reference internal" href="#examination-py"><code class="docutils literal notranslate"><span class="pre">examination.py</span></code></a></li>
-<li><a class="reference internal" href="#classification-py"><code class="docutils literal notranslate"><span class="pre">classification.py</span></code></a></li>
+<li><a class="reference internal" href="#removed-nice-paris-classification-island">Removed NICE/PARIS classification island</a></li>
 <li><a class="reference internal" href="#patient-py"><code class="docutils literal notranslate"><span class="pre">patient.py</span></code></a></li>
 <li><a class="reference internal" href="#legacy-residual-notes">Legacy/Residual Notes</a></li>
 </ul>
@@ -775,7 +791,7 @@ env var is unset or invalid.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=3c8ce70f"></script>
+</div><script src="../_static/documentation_options.js?v=af0ce97c"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

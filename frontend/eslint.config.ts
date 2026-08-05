@@ -9,7 +9,8 @@ import {
 import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
 
 configureVueProject({
-  scriptLangs: ['ts', 'js']
+  scriptLangs: ['ts', 'js'],
+  allowComponentTypeUnsafety: false
 })
 
 export default defineConfigWithVueTs(
@@ -26,14 +27,21 @@ export default defineConfigWithVueTs(
   },
   js.configs.recommended,
   pluginVue.configs['flat/recommended'],
-  vueTsConfigs.recommended,
+  vueTsConfigs.strictTypeChecked,
   {
     files: ['**/*.{ts,vue}'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: './tsconfig.eslint.json',
+        tsconfigRootDir: import.meta.dirname
+      }
+    },
     rules: {
       complexity: ['warn', 25],
       'vue/multi-word-component-names': 'off',
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -48,14 +56,19 @@ export default defineConfigWithVueTs(
     files: ['src/**/*.{ts,vue}'],
     languageOptions: {
       globals: globals.browser
+    },
+    rules: {
+      'no-console': 'error'
     }
   },
   {
-    files: [
-      'src/**/__tests__/**/*.ts',
-      'src/**/*.{test,spec}.ts',
-      'tests/**/*.ts'
-    ],
+    files: ['src/utils/runtimeLogger.ts'],
+    rules: {
+      'no-console': 'off'
+    }
+  },
+  {
+    files: ['src/**/__tests__/**/*.ts', 'src/**/*.{test,spec}.ts', 'tests/**/*.ts'],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -63,9 +76,6 @@ export default defineConfigWithVueTs(
         ...globals.jest,
         vi: 'readonly'
       }
-    },
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off'
     }
   },
   {
@@ -78,9 +88,6 @@ export default defineConfigWithVueTs(
         cy: 'readonly',
         Cypress: 'readonly'
       }
-    },
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off'
     }
   },
   {

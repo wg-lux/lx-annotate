@@ -121,7 +121,9 @@ jobs:
         run: npm --prefix frontend run test:unit -- --run
 
       - name: Run frontend type-check
-        run: npm --prefix frontend run type-check
+        run: |
+          npm --prefix frontend run type-check
+          npm --prefix frontend run type-check:component-tests
 
       - name: Run frontend lint
         run: npm --prefix frontend run lint

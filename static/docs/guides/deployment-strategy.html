@@ -288,6 +288,32 @@ the full <code class="docutils literal notranslate"><span class="pre">devenv</sp
 <li><p>virtual environment: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.venv</span></code> for the standalone deploy
 scripts, or under the service user home in LuxNix wheel mode</p></li>
 </ul>
+<section id="deployment-source-hygiene">
+<h3>Deployment Source Hygiene<a class="headerlink" href="#deployment-source-hygiene" title="Link to this heading">¶</a></h3>
+<p>Production hosts must consume an immutable, attributable wheel or Nix closure.
+A repository checkout, Git worktree, generated documentation tree, frontend
+build directory, smoke-test environment, or package cache below <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> is not a
+deployment source. This restriction matters especially in LuxNix because shared
+configuration can affect every machine in the clinical network.</p>
+<p>The approved boundaries are:</p>
+<ul class="simple">
+<li><p>a reviewed lx-annotate release artifact with its version and digest recorded;</p></li>
+<li><p>a reviewed LuxNix revision with its locked inputs recorded;</p></li>
+<li><p>a named, clean release worktree outside <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> when a worktree is required;</p></li>
+<li><p>the activated Nix closure rooted by the system profile and
+<code class="docutils literal notranslate"><span class="pre">/run/current-system</span></code>.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">/tmp</span></code> may hold a wheel briefly while an installation command consumes it. It
+may also hold disposable build, render, test, and diagnostic output. Such paths
+must not be referenced by persistent service configuration, used as an extra
+long-lived Nix GC root, or treated as release evidence. They must contain no
+secrets, master keys, clinical data, or durable audit logs.</p>
+<p>After a successful deployment, verify the active system generation, service
+entrypoints, installed lx-annotate version, and post-deployment acceptance gate
+before removing temporary artifacts. Preserve any unique commit with a durable
+branch or tag before removing its checkout. Never remove a Nix store path
+directly; remove only a redundant root after confirming that the active profile
+still protects the closure.</p>
 <p>Runtime services:</p>
 <ul class="simple">
 <li><p>ASGI app via Daphne</p></li>
@@ -296,6 +322,7 @@ scripts, or under the service user home in LuxNix wheel mode</p></li>
 <li><p>one-shot data recovery/migration unit during legacy-to-runtime data moves</p></li>
 <li><p>Nginx serving static and media paths directly</p></li>
 </ul>
+</section>
 </section>
 <section id="build-strategy">
 <h2>Build Strategy<a class="headerlink" href="#build-strategy" title="Link to this heading">¶</a></h2>
@@ -545,6 +572,9 @@ LuxNix topology described here, including the separate watcher, SAP-import,
 and data-recovery units, so operators should treat the wheel deployment docs
 plus active LuxNix host configuration as the current operational source of
 truth for multi-service production setups.</p>
+<p>The fleet-wide source-selection, release-worktree, temporary-file, and cleanup
+rules are documented in the LuxNix <code class="docutils literal notranslate"><span class="pre">docs/deployment-guide.md</span></code>. Application
+documentation does not override those host-level controls.</p>
 </section>
 <section id="runtime-schema-gate-and-feature-tracker-alignment">
 <h2>Runtime Schema Gate And Feature-Tracker Alignment<a class="headerlink" href="#runtime-schema-gate-and-feature-tracker-alignment" title="Link to this heading">¶</a></h2>
@@ -826,7 +856,10 @@ automated rollback path.</p></li>
             <ul>
 <li><a class="reference internal" href="#">Deployment Strategy</a><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#preferred-production-path">Preferred Production Path</a></li>
+<li><a class="reference internal" href="#preferred-production-path">Preferred Production Path</a><ul>
+<li><a class="reference internal" href="#deployment-source-hygiene">Deployment Source Hygiene</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#build-strategy">Build Strategy</a></li>
 <li><a class="reference internal" href="#runtime-strategy">Runtime Strategy</a></li>
 <li><a class="reference internal" href="#storage-recommendations">Storage Recommendations</a></li>
@@ -859,7 +892,7 @@ automated rollback path.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=3c8ce70f"></script>
+</div><script src="../_static/documentation_options.js?v=af0ce97c"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

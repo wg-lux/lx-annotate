@@ -1,6 +1,6 @@
 # Dtypes Findings Migration (Incremental, Endoreg-Safe)
 
-Last updated: 2026-07-22
+Last updated: 2026-08-04
 Owner: reporting/frontend/backend
 
 ## Scope
@@ -44,7 +44,6 @@ Question checked: are routes from these backend URL modules still used by the
 frontend?
 
 - `/home/admin/endoreg-db/endoreg_db/urls/examination.py`
-- `/home/admin/endoreg-db/endoreg_db/urls/classification.py`
 - `/home/admin/endoreg-db/endoreg_db/urls/patient.py`
 
 ### `examination.py`
@@ -64,13 +63,21 @@ frontend?
 | `/api/examinations/{exam_id}/interventions/` | Not found in current frontend source | No current source call site found. |
 | `/api/examinations/{exam_id}/findings/{finding_id}/interventions/` | Not found in current frontend source | `SimpleExaminationForm.vue` has stale legacy calls under `examination/...`, but that component is not routed and the paths do not match this backend route. |
 
-### `classification.py`
+### Removed NICE/PARIS classification island
 
-`classification.py` currently contributes an empty `url_patterns` list; the NICE,
-PARIS, batch, and status paths are commented out. No frontend source call sites
-for `/api/classifications/nice/`, `/api/classifications/paris/`,
-`/api/classifications/batch/`, or `/api/classifications/status/{video_id}/`
-were found.
+The confirmed-dead NICE/PARIS classification island was removed from
+`endoreg_db` on 2026-08-04. The removed files were
+`endoreg_db/urls/classification.py`,
+`endoreg_db/serializers/Frames_NICE_and_PARIS_classifications.py`, and the
+exclusive `endoreg_db/utils/extract_specific_frames.py` helper. The URL module
+had never been mounted and its `url_patterns` list was empty, so this is a
+compatibility cleanup rather than a route removal. No lx-annotate frontend or
+backend runtime consumer was found for the NICE, PARIS, batch, or status paths.
+
+This cleanup does not affect active PTS-based frame extraction, video segment
+APIs, HLS delivery, persisted frame coordinates, imports, or storage
+generations. The active finding/classification-choice routes documented above
+are separate dtypes-backed contracts and remain unchanged.
 
 ### `patient.py`
 
@@ -164,9 +171,10 @@ were found.
 | 2026-03-09 | Validate with dtypes but persist patient findings in existing endoreg tables for now. | Reduces schema/data migration risk while gaining validation parity. | backend |
 | 2026-03-09 | Keep explicit create-then-classification flow for endoreg-safe mode. | Matches existing behavior and prevents nested-write ambiguity. | frontend/backend |
 | 2026-03-09 | Pin pytest CI settings to a deterministic findings module (`report_template_examples`) when env var is unset. | Avoids environment-dependent `lx_knowledge_base` lookup failures in contract tests. | backend |
-| 2026-06-03 | Document frontend route usage against `examination.py`, `classification.py`, and `patient.py`. | Clarifies which endoreg routes remain part of the active frontend contract during dtypes migration. | frontend/backend |
+| 2026-06-03 | Document frontend route usage against `examination.py` and `patient.py`. | Clarifies which endoreg routes remain part of the active frontend contract during dtypes migration; the separate classification island was later removed after audit. | frontend/backend |
 | 2026-06-03 | Default unset/invalid `VITE_FINDINGS_BACKEND` to `dtypes`. | Moves active findings read/write traffic to the dtypes API while preserving explicit `endoreg` rollback. | frontend |
 | 2026-07-22 | Remove `VITE_FINDINGS_BACKEND` and the dead endoreg rollback paths. | The referenced endoreg routes were already hard-cut; retaining the flag caused production 404s. | frontend/backend |
+| 2026-08-04 | Remove the confirmed-dead NICE/PARIS classification island from endoreg_db and reconcile this guide. | The URL module was never mounted, no lx-annotate consumer exists, and active PTS/frame/segment/HLS/storage paths are independent. | endoreg_db/lx-annotate |
 
 ## Progress Log
 
@@ -177,9 +185,10 @@ were found.
 | 2026-03-09 | Working tree changes in `frontend/src/api/findingsApi.*` | Completed | Added unified service layer and backend mode switch. |
 | 2026-03-09 | Working tree changes in findings components/stores/reporting views | Completed | Removed duplicate reload triggers and migrated key calls to `findingsApi`. |
 | 2026-03-09 | Frontend validation (`vue-tsc`) + targeted vitest (`findingsApi`, requirement crash guard) | Completed | Type-check and targeted migration tests pass locally. |
-| 2026-06-03 | Frontend route audit against endoreg URL modules | Completed | Confirmed active use of selected `examination.py` and `patient.py` routes; `classification.py` has no active routes. |
+| 2026-06-03 | Frontend route audit against endoreg URL modules | Completed | Confirmed active use of selected `examination.py` and `patient.py` routes; no active NICE/PARIS classification consumer was found. |
 | 2026-06-03 | `frontend/src/api/findingsApi.ts` default backend mode | Completed | Missing or invalid `VITE_FINDINGS_BACKEND` now resolves to `dtypes`; focused routing tests updated. |
 | 2026-07-22 | Canonical findings cutover | Completed | Removed the dead global catalog request and all obsolete backend-mode branches; catalogs are examination-scoped. |
+| 2026-08-04 | NICE/PARIS classification island audit | Completed | No lx-annotate consumer or mounted URL was found; the upstream removal is compatibility-neutral for active frame, segment, HLS, import, and storage workflows. |
 
 ## Post-Cutover Follow-Up
 The explicit endoreg fallback is retired. Before removing compatibility aliases:

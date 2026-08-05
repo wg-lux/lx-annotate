@@ -1,6 +1,6 @@
 {
   "name": "lx-annotate",
-  "version": "0.9.56",
+  "version": "0.9.57",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,14 @@
     "type-check": "vue-tsc --build --force",
     "type-check:component-tests": "vue-tsc --noEmit -p tsconfig.component-tests.json",
     "lint": "eslint . --max-warnings 0",
+    "lint:async-inventory": "node scripts/async-lint-inventory.mjs",
+    "lint:condition-inventory": "node scripts/condition-lint-inventory.mjs",
+    "lint:console-inventory": "node scripts/console-lint-inventory.mjs",
+    "lint:strict-inventory": "node scripts/strict-lint-inventory.mjs",
+    "lint:string-inventory": "node scripts/string-lint-inventory.mjs",
+    "lint:unbound-inventory": "node scripts/unbound-method-lint-inventory.mjs",
     "lint:fix": "eslint . --fix",
+    "lint:prune": "eslint . --prune-suppressions --max-warnings 0",
     "format": "prettier --write src/"
   },
   "dependencies": {
