@@ -116,10 +116,18 @@ function parseExaminationStats(value: unknown): AnnotationSourceStats {
     draft: 0
   }
   for (const row of rows) {
-    if (!isRecord(row) || !isExaminationStatus(row.status)) {
+    if (!isRecord(row)) {
       throw new TypeError('Patient examination list contains an invalid status row')
     }
-    counts[row.status] += 1
+    const status = row.status as unknown
+    if (status == null || status === '') {
+      counts.draft += 1
+      continue
+    }
+    if (!isExaminationStatus(status)) {
+      throw new TypeError('Patient examination list contains an invalid status row')
+    }
+    counts[status] += 1
   }
   return {
     pending: counts.pending + counts.draft,
