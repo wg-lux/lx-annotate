@@ -63,8 +63,8 @@ type PersistedReportingFlowState = {
   selectedReportLanguage: ReportLanguageCode
   selectedTemplateName: string | null
   selectedTemplateIdentity: ReportTemplateIdentity | null
-  templateSectionDrafts: Record<string, ReportTemplateSectionDraft>
-  runtimeDraftsByPatientExaminationId: Record<string, ReportingRuntimeDraft>
+  templateSectionDrafts: Partial<Record<string, ReportTemplateSectionDraft>>
+  runtimeDraftsByPatientExaminationId: Partial<Record<string, ReportingRuntimeDraft>>
 }
 
 type PersistedReportingFlowEnvelope = {
@@ -81,7 +81,7 @@ let runtimeDraftEntityCounter = 0
 
 function nextRuntimeDraftEntityId(prefix: string): string {
   runtimeDraftEntityCounter += 1
-  return `${prefix}_${runtimeDraftEntityCounter}`
+  return `${prefix}_${String(runtimeDraftEntityCounter)}`
 }
 
 function normalizeRuntimeDescriptors(
@@ -159,22 +159,153 @@ function clearPersistedState() {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function isReportTemplateIdentity(value: unknown): value is ReportTemplateIdentity {
+  if (!isRecord(value)) return false
+  const readiness = value.readiness
+  const readinessIsValid =
+    readiness === null ||
+    (isRecord(readiness) &&
+      (readiness.canPublish === null || typeof readiness.canPublish === 'boolean') &&
+      Array.isArray(readiness.blockingIssues) &&
+      readiness.blockingIssues.every((item: unknown) => typeof item === 'string') &&
+      Array.isArray(readiness.warnings) &&
+      readiness.warnings.every((item: unknown) => typeof item === 'string') &&
+      isRecord(readiness.raw))
+  return (
+    isNullableString(value.moduleName) &&
+    isNullableString(value.knowledgeBaseVersion) &&
+    isNullableString(value.templateVersion) &&
+    isNullableString(value.templateHash) &&
+    (value.lifecycleStatus === null ||
+      value.lifecycleStatus === 'draft' ||
+      value.lifecycleStatus === 'published') &&
+    readinessIsValid
+  )
+}
+
+function isRuntimeDescriptor(value: unknown): value is ReportTemplateRuntimeDescriptorInput {
+  return (
+    isRecord(value) &&
+    (value.localId === undefined || typeof value.localId === 'string') &&
+    typeof value.classificationChoiceDescriptor === 'string' &&
+    'descriptorValue' in value
+  )
+}
+
+function isRuntimeClassificationChoice(
+  value: unknown
+): value is ReportTemplateRuntimeClassificationChoiceInput {
+  return (
+    isRecord(value) &&
+    (value.localId === undefined || typeof value.localId === 'string') &&
+    typeof value.classification === 'string' &&
+    typeof value.classificationChoice === 'string' &&
+    Array.isArray(value.descriptors) &&
+    value.descriptors.every(isRuntimeDescriptor)
+  )
+}
+
+function isRuntimePatientFinding(
+  value: unknown
+): value is ReportTemplateRuntimePatientFindingInput {
+  return (
+    isRecord(value) &&
+    (value.localId === undefined || typeof value.localId === 'string') &&
+    typeof value.finding === 'string' &&
+    Array.isArray(value.classificationChoices) &&
+    value.classificationChoices.every(isRuntimeClassificationChoice)
+  )
+}
+
+function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload {
+  return (
+    isRecord(value) &&
+    typeof value.patient === 'string' &&
+    Array.isArray(value.examiners) &&
+    value.examiners.every((examiner: unknown) => typeof examiner === 'string') &&
+    (value.date === undefined || isNullableString(value.date)) &&
+    typeof value.examination === 'string' &&
+    (value.knowledgeBaseModule === undefined || isNullableString(value.knowledgeBaseModule)) &&
+    (value.knowledgeBaseVersion === undefined || isNullableString(value.knowledgeBaseVersion)) &&
+    Array.isArray(value.patientFindings) &&
+    value.patientFindings.every(isRuntimePatientFinding)
+  )
+}
+
+function isReportingRuntimeDraft(value: unknown): value is ReportingRuntimeDraft {
+  if (!isRecord(value)) return false
+  const templateIdentity = value.templateIdentity
+  return (
+    typeof value.draftId === 'string' &&
+    typeof value.patientExaminationId === 'number' &&
+    Number.isSafeInteger(value.patientExaminationId) &&
+    value.patientExaminationId > 0 &&
+    typeof value.moduleName === 'string' &&
+    isNullableString(value.templateName) &&
+    (templateIdentity === undefined ||
+      templateIdentity === null ||
+      isReportTemplateIdentity(templateIdentity)) &&
+    (value.verificationStatus === undefined ||
+      value.verificationStatus === 'verified' ||
+      value.verificationStatus === 'unverified') &&
+    (value.persistencePolicy === undefined ||
+      value.persistencePolicy === 'persistable' ||
+      value.persistencePolicy === 'blocked_until_verified') &&
+    isRuntimePayload(value.payload) &&
+    (value.hydratedFrom === 'session_storage' ||
+      value.hydratedFrom === 'backend_context' ||
+      value.hydratedFrom === 'draft_api') &&
+    typeof value.updatedAt === 'string'
+  )
+}
+
 function normalizePersistedState(
-  parsed: Partial<PersistedReportingFlowState>
+  parsed: Record<string, unknown>
 ): PersistedReportingFlowState {
-  const runtimeDraftsByPatientExaminationId =
-    parsed.runtimeDraftsByPatientExaminationId &&
-    typeof parsed.runtimeDraftsByPatientExaminationId === 'object'
+  const runtimeDraftsByPatientExaminationId: Partial<Record<string, ReportingRuntimeDraft>> =
+    isRecord(parsed.runtimeDraftsByPatientExaminationId)
       ? Object.fromEntries(
-          Object.entries(parsed.runtimeDraftsByPatientExaminationId).filter(([, value]) => {
-            if (!value || typeof value !== 'object') return false
-            const draft = value as Partial<ReportingRuntimeDraft>
-            return (
-              typeof draft.draftId === 'string' &&
-              typeof draft.patientExaminationId === 'number' &&
-              !!draft.payload &&
-              typeof draft.payload === 'object'
-            )
+          Object.entries(parsed.runtimeDraftsByPatientExaminationId).filter(
+            (entry): entry is [string, ReportingRuntimeDraft] =>
+              isReportingRuntimeDraft(entry[1])
+          )
+        )
+      : {}
+
+  const indicationRows = Array.isArray(parsed.indications) ? parsed.indications : []
+  const indications = indicationRows.map((row: unknown): ReportingIndicationRow => {
+    const record = isRecord(row) ? row : {}
+    return {
+      examinationIndicationId:
+        typeof record.examinationIndicationId === 'number'
+          ? record.examinationIndicationId
+          : null,
+      indicationChoiceId:
+        typeof record.indicationChoiceId === 'number' ? record.indicationChoiceId : null
+    }
+  })
+
+  const templateSectionDrafts: Partial<Record<string, ReportTemplateSectionDraft>> =
+    isRecord(parsed.templateSectionDrafts)
+      ? Object.fromEntries(
+          Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
+            const draft = isRecord(value) ? value : {}
+            return [
+              key,
+              {
+                note: typeof draft.note === 'string' ? draft.note : '',
+                includePatientData: draft.includePatientData === true,
+                includeExaminationData: draft.includeExaminationData === true
+              }
+            ]
           })
         )
       : {}
@@ -189,14 +320,7 @@ function normalizePersistedState(
     selectedExaminationId:
       typeof parsed.selectedExaminationId === 'number' ? parsed.selectedExaminationId : null,
     activeReportId: typeof parsed.activeReportId === 'number' ? parsed.activeReportId : null,
-    indications: Array.isArray(parsed.indications)
-      ? parsed.indications.map((row) => ({
-          examinationIndicationId:
-            typeof row?.examinationIndicationId === 'number' ? row.examinationIndicationId : null,
-          indicationChoiceId:
-            typeof row?.indicationChoiceId === 'number' ? row.indicationChoiceId : null
-        }))
-      : [],
+    indications,
     selectedKbModule:
       typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
         ? parsed.selectedKbModule
@@ -210,29 +334,11 @@ function normalizePersistedState(
         ? parsed.selectedTemplateName
         : null,
     selectedTemplateIdentity:
-      parsed.selectedTemplateIdentity && typeof parsed.selectedTemplateIdentity === 'object'
+      isReportTemplateIdentity(parsed.selectedTemplateIdentity)
         ? parsed.selectedTemplateIdentity
         : null,
-    templateSectionDrafts:
-      parsed.templateSectionDrafts && typeof parsed.templateSectionDrafts === 'object'
-        ? Object.fromEntries(
-            Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
-              const draft = value as Partial<ReportTemplateSectionDraft> | undefined
-              return [
-                key,
-                {
-                  note: typeof draft?.note === 'string' ? draft.note : '',
-                  includePatientData: !!draft?.includePatientData,
-                  includeExaminationData: !!draft?.includeExaminationData
-                }
-              ]
-            })
-          )
-        : {},
-    runtimeDraftsByPatientExaminationId: runtimeDraftsByPatientExaminationId as Record<
-      string,
-      ReportingRuntimeDraft
-    >
+    templateSectionDrafts,
+    runtimeDraftsByPatientExaminationId
   }
 }
 
@@ -240,8 +346,8 @@ function loadPersistedState(ownerSub: string | null): PersistedReportingFlowStat
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<PersistedReportingFlowEnvelope>
-    if (!parsed || typeof parsed !== 'object') {
+    const parsed: unknown = JSON.parse(raw)
+    if (!isRecord(parsed)) {
       clearPersistedState()
       return null
     }
@@ -249,8 +355,7 @@ function loadPersistedState(ownerSub: string | null): PersistedReportingFlowStat
       typeof parsed.expiresAt !== 'number' ||
       parsed.expiresAt <= Date.now() ||
       parsed.ownerSub !== ownerSub ||
-      !parsed.state ||
-      typeof parsed.state !== 'object'
+      !isRecord(parsed.state)
     ) {
       clearPersistedState()
       return null
@@ -275,7 +380,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const selectedReportLanguage = ref<ReportLanguageCode>('de')
   const selectedTemplateName = ref<string | null>(null)
   const selectedTemplateIdentity = ref<ReportTemplateIdentity | null>(null)
-  const templateSectionDrafts = ref<Record<string, ReportTemplateSectionDraft>>({})
+  const templateSectionDrafts = ref<Partial<Record<string, ReportTemplateSectionDraft>>>({})
   const indications = ref<ReportingIndicationRow[]>([
     { examinationIndicationId: null, indicationChoiceId: null }
   ])
@@ -292,7 +397,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const mediaPreload = ref<TimelineLatestPayload | null>(null)
   const mediaPreloadStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const mediaPreloadError = ref<string | null>(null)
-  const runtimeDraftsByPatientExaminationId = ref<Record<string, ReportingRuntimeDraft>>({})
+  const runtimeDraftsByPatientExaminationId = ref<
+    Partial<Record<string, ReportingRuntimeDraft>>
+  >({})
   const draftPersistenceStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const draftPersistenceError = ref<string | null>(null)
   const lastPersistedDraftAt = ref<string | null>(null)
@@ -519,9 +626,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       runtimeDraftsByPatientExaminationId.value = {}
       return
     }
-    const next = { ...runtimeDraftsByPatientExaminationId.value }
-    delete next[String(targetPatientExaminationId)]
-    runtimeDraftsByPatientExaminationId.value = next
+    const targetKey = String(targetPatientExaminationId)
+    runtimeDraftsByPatientExaminationId.value = Object.fromEntries(
+      Object.entries(runtimeDraftsByPatientExaminationId.value).filter(
+        ([patientExaminationId]) => patientExaminationId !== targetKey
+      )
+    )
   }
 
   const currentDraftPersistencePayload = computed(() => {
@@ -718,7 +828,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedPatientId.value = persisted?.selectedPatientId ?? null
     selectedExaminationId.value = persisted?.selectedExaminationId ?? null
     activeReportId.value = persisted?.activeReportId ?? null
-    indications.value = persisted?.indications?.length
+    indications.value = persisted?.indications.length
       ? persisted.indications
       : [{ examinationIndicationId: null, indicationChoiceId: null }]
     applyPersistedReportConfiguration(persisted)

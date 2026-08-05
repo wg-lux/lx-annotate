@@ -1,18 +1,24 @@
 import { setActivePinia, createPinia } from 'pinia'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { backendSegmentToSegment, useVideoStore } from '@/stores/videoStore'
-import axiosInstance from '@/api/axiosInstance'
+
+type AxiosMockMethod = (url: string, ...args: unknown[]) => Promise<{ data: unknown }>
+
+const axiosMocks = vi.hoisted(() => ({
+  get: vi.fn<AxiosMockMethod>(),
+  post: vi.fn<AxiosMockMethod>(),
+  delete: vi.fn<AxiosMockMethod>(),
+  patch: vi.fn<AxiosMockMethod>()
+}))
 
 vi.mock('@/api/axiosInstance', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-    patch: vi.fn()
-  },
+  default: axiosMocks,
   r: (path: string) => path,
   a: (path: string) => path
 }))
+
+const axiosGet = axiosMocks.get
+const axiosPost = axiosMocks.post
 
 describe('VideoStore Performance Optimization', () => {
   beforeEach(() => {
@@ -59,8 +65,6 @@ describe('VideoStore Performance Optimization', () => {
       ]
     }
 
-    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
-
     axiosGet.mockResolvedValueOnce({ data: mockLabels })
     axiosGet.mockResolvedValueOnce({ data: mockVideosResponse })
 
@@ -87,7 +91,7 @@ describe('VideoStore Performance Optimization', () => {
     expect(axiosGet).toHaveBeenNthCalledWith(1, 'media/videos/labels/list/')
     expect(axiosGet).toHaveBeenNthCalledWith(2, 'media/videos/')
 
-    const calls = axiosGet.mock.calls.map((call) => call[0])
+    const calls = axiosGet.mock.calls.map(([url]) => url)
     const segmentCalls = calls.filter((url) => url.includes('/segments/'))
 
     expect(segmentCalls.length).toBe(0)
@@ -95,8 +99,6 @@ describe('VideoStore Performance Optimization', () => {
 
   it('reuses loaded labels when refreshing the video list', async () => {
     const store = useVideoStore()
-    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
-
     axiosGet
       .mockResolvedValueOnce({ data: [] })
       .mockResolvedValueOnce({ data: [] })
@@ -105,7 +107,7 @@ describe('VideoStore Performance Optimization', () => {
     await store.fetchAllVideos()
     await store.fetchAllVideos()
 
-    expect(axiosGet.mock.calls.map((call) => call[0])).toEqual([
+    expect(axiosGet.mock.calls.map(([url]) => url)).toEqual([
       'media/videos/labels/list/',
       'media/videos/',
       'media/videos/'
@@ -114,7 +116,6 @@ describe('VideoStore Performance Optimization', () => {
 
   it('starts the video-list request without waiting for labels to finish', async () => {
     const store = useVideoStore()
-    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
     let resolveLabels!: (value: { data: unknown[] }) => void
     const labelsResponse = new Promise<{ data: unknown[] }>((resolve) => {
       resolveLabels = resolve
@@ -226,18 +227,12 @@ describe('VideoStore Performance Optimization', () => {
       }
     })
 
-    expect(segment.frames).toEqual({
-      '100': expect.objectContaining({
-        frameId: 100,
-        frameFilename: 'frame_0100.jpg'
-      })
-    })
+    expect(segment.frames?.['100']?.frameId).toBe(100)
+    expect(segment.frames?.['100']?.frameFilename).toBe('frame_0100.jpg')
   })
 
   it('passes source_kind when loading a non-default segment source', async () => {
     const store = useVideoStore()
-    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
-
     axiosGet.mockResolvedValueOnce({
       data: [
         {
@@ -262,13 +257,11 @@ describe('VideoStore Performance Optimization', () => {
         params: { source_kind: 'prediction' }
       })
     )
-    expect(store.currentVideo?.segments?.[0]?.segmentOrigin).toBe('prediction')
+    expect(store.currentVideo?.segments[0].segmentOrigin).toBe('prediction')
   })
 
   it('loads prediction model options for KI reruns', async () => {
     const store = useVideoStore()
-    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
-
     axiosGet.mockResolvedValueOnce({
       data: {
         models: [
@@ -303,8 +296,6 @@ describe('VideoStore Performance Optimization', () => {
 
   it('reruns prediction segments and reloads prediction source rows', async () => {
     const store = useVideoStore()
-    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
-    const axiosPost = axiosInstance.post as unknown as ReturnType<typeof vi.fn>
     const payload = {
       hfModelId: 'wg-lux/custom-segmentation',
       labelsetName: 'colon-labels',
@@ -367,7 +358,7 @@ describe('VideoStore Performance Optimization', () => {
       })
     )
     expect(response.predictionSegmentsCount).toBe(1)
-    expect(store.currentVideo?.segments?.[0]?.predictionMetaId).toBe(7)
-    expect(store.currentVideo?.segments?.[0]?.segmentOrigin).toBe('prediction')
+    expect(store.currentVideo?.segments[0].predictionMetaId).toBe(7)
+    expect(store.currentVideo?.segments[0].segmentOrigin).toBe('prediction')
   })
 })

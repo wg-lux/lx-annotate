@@ -204,8 +204,28 @@ type NormalizedAnnotation = {
   modelMetaId?: number | null
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function createTaskId(frameId: number): string {
+  try {
+    const runtimeCrypto: unknown = Reflect.get(globalThis, 'crypto')
+    if (isRecord(runtimeCrypto)) {
+      const randomUUID: unknown = Reflect.get(runtimeCrypto, 'randomUUID')
+      if (typeof randomUUID === 'function') {
+        const generated: unknown = Reflect.apply(randomUUID, runtimeCrypto, [])
+        if (typeof generated === 'string' && generated) return generated
+      }
+    }
+  } catch {
+    // Runtime UUID support is optional; the deterministic frame fallback remains valid.
+  }
+  return `frame-task-${String(frameId)}`
+}
+
 function rawField(raw: RawTask, camelKey: string, snakeKey: string): unknown {
-  const nestedData = raw.data as Record<string, unknown> | undefined
+  const nestedData = isRecord(raw.data) ? raw.data : undefined
   return raw[camelKey] ?? raw[snakeKey] ?? nestedData?.[camelKey] ?? nestedData?.[snakeKey]
 }
 
@@ -316,8 +336,7 @@ function resolveTaskImageUrl(raw: RawTask, nestedData: Record<string, unknown>):
 }
 
 function coerceTask(raw: RawTask): AnnotationTask | null {
-  const nestedData =
-    raw.data && typeof raw.data === 'object' ? (raw.data as Record<string, unknown>) : {}
+  const nestedData = isRecord(raw.data) ? raw.data : {}
   const frameId = Number(rawField(raw, 'frameId', 'frame_id'))
   const imageUrlRaw = resolveTaskImageUrl(raw, nestedData)
   const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw : null
@@ -331,7 +350,7 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
     id:
       typeof idRaw === 'string' || typeof idRaw === 'number'
         ? String(idRaw)
-        : globalThis.crypto?.randomUUID?.() ?? `frame-task-${frameId}`,
+        : createTaskId(frameId),
     data: {
       frameId,
       videoId: optionalFiniteNumber(rawField(raw, 'videoId', 'video_id')),
@@ -418,9 +437,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     () =>
       `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${
         informationSource.value
-      }|${frameFileType.value}|${
-        allowRandomFallback.value ? '1' : '0'
-      }|${samplingStrategy.value}|${
+      }|${frameFileType.value}|${allowRandomFallback.value ? '1' : '0'}|${samplingStrategy.value}|${
         predictionSegmentsOnly.value ? '1' : '0'
       }|${aiDatasetId.value ?? ''}|${aiDatasetName.value ?? ''}|${
         aiDatasetType.value ?? ''
@@ -481,7 +498,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   function setAllowRandomFallback(enabled: boolean): void {
-    allowRandomFallback.value = !!enabled
+    allowRandomFallback.value = enabled
   }
 
   function setInformationSource(source: string | null): void {
@@ -497,7 +514,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   function setPredictionSegmentsOnly(enabled: boolean): void {
-    predictionSegmentsOnly.value = !!enabled
+    predictionSegmentsOnly.value = enabled
   }
 
   function setAiDataset(
@@ -506,7 +523,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     datasetId: number | string | null = null
   ): void {
     aiDatasetId.value =
-      datasetId !== null && datasetId !== undefined && String(datasetId).trim()
+      datasetId !== null && String(datasetId).trim()
         ? String(datasetId).trim()
         : null
     aiDatasetName.value = datasetName?.trim() || null
@@ -518,7 +535,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   async function hydrateAiDatasetDefaults(): Promise<void> {
-    if (aiDatasetId.value !== null || aiDatasetName.value !== null || aiDatasetType.value !== null) return
+    if (aiDatasetId.value !== null || aiDatasetName.value !== null || aiDatasetType.value !== null)
+      return
     try {
       const settings = await fetchApplicationSettings()
       aiDatasetName.value = settings.aiDatasetName?.trim() || null
@@ -604,10 +622,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     return generation === queueGeneration && signature === currentTaskRequestSignature()
   }
 
-  function enqueueDummyTaskWhenQueueEmpty(
-    generation: number,
-    signature: string
-  ): AnnotationTask[] {
+  function enqueueDummyTaskWhenQueueEmpty(generation: number, signature: string): AnnotationTask[] {
     if (!dummyTaskModeEnabled || taskQueue.value.length > 0) return []
     if (!isCurrentRequest(generation, signature)) return []
     const dummy = createDummyTask(selectedLabelGroupId.value)
@@ -630,15 +645,10 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   function getTaskBatchErrorMessage(error: unknown): string {
-    const failure = error as {
-      response?: { data?: { detail?: unknown; error?: unknown } }
-      message?: unknown
-    }
-    const candidates = [
-      failure?.response?.data?.detail,
-      failure?.response?.data?.error,
-      failure?.message
-    ]
+    const failure = isRecord(error) ? error : {}
+    const response = isRecord(failure.response) ? failure.response : {}
+    const data = isRecord(response.data) ? response.data : {}
+    const candidates = [data.detail, data.error, failure.message]
     const message = candidates.find(
       (candidate): candidate is string => typeof candidate === 'string' && Boolean(candidate)
     )
@@ -660,11 +670,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
       let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value)
       if (!isCurrentRequest(requestGeneration, requestSignature)) return []
 
-      if (
-        taskMode.value === 'filtered' &&
-        allowRandomFallback.value &&
-        parsed.length === 0
-      ) {
+      if (taskMode.value === 'filtered' && allowRandomFallback.value && parsed.length === 0) {
         parsed = await fetchTaskBatchFromApi(batchSize, 'random')
         if (!isCurrentRequest(requestGeneration, requestSignature)) return []
       }
@@ -676,11 +682,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     } catch (error: unknown) {
       if (!isCurrentRequest(requestGeneration, requestSignature)) return []
       if (taskMode.value === 'filtered' && allowRandomFallback.value) {
-        const fallback = await fetchRandomFallback(
-          batchSize,
-          requestGeneration,
-          requestSignature
-        )
+        const fallback = await fetchRandomFallback(batchSize, requestGeneration, requestSignature)
         if (!fallback.current) return []
         if (fallback.tasks.length > 0) return fallback.tasks
       }

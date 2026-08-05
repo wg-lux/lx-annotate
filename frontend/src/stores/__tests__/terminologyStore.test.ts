@@ -3,10 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useTerminologyStore } from '@/stores/terminologyStore'
 
+type CreateTerminologyBundleArchives =
+  typeof import('@/api/terminologyApi').createTerminologyBundleArchives
+type FetchTerminologyBundles = typeof import('@/api/terminologyApi').fetchTerminologyBundles
+type ImportTerminologyBundle = typeof import('@/api/terminologyApi').importTerminologyBundle
+
 const hoisted = vi.hoisted(() => ({
-  createTerminologyBundleArchives: vi.fn(),
-  fetchTerminologyBundles: vi.fn(),
-  importTerminologyBundle: vi.fn()
+  createTerminologyBundleArchives: vi.fn<CreateTerminologyBundleArchives>(),
+  fetchTerminologyBundles: vi.fn<FetchTerminologyBundles>(),
+  importTerminologyBundle: vi.fn<ImportTerminologyBundle>()
 }))
 
 vi.mock('@/api/terminologyApi', async (importOriginal) => {
@@ -95,16 +100,18 @@ describe('terminologyStore', () => {
       new File(['second'], 'second.zip', { type: 'application/zip' })
     ]
     hoisted.createTerminologyBundleArchives.mockResolvedValue(archives)
-    hoisted.importTerminologyBundle.mockImplementation(async (file: File) => ({
-      ok: true,
-      imported: {
-        moduleName: file.name.replace('.zip', ''),
-        version: '1.0',
-        medicalField: 'gastroenterology',
-        isActive: true
-      },
-      counts: {}
-    }))
+    hoisted.importTerminologyBundle.mockImplementation((file: File) =>
+      Promise.resolve({
+        ok: true,
+        imported: {
+          moduleName: file.name.replace('.zip', ''),
+          version: '1.0',
+          medicalField: 'gastroenterology',
+          isActive: true
+        },
+        counts: {}
+      })
+    )
     const terminology = useTerminologyStore()
 
     const result = await terminology.importBundleFolders(selectedFiles)

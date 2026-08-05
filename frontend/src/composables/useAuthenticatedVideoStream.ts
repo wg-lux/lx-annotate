@@ -109,7 +109,7 @@ function buildPlaylistError(error: unknown, url: string): AuthenticatedVideoStre
     'hls_playlist_request_failed',
     status === undefined
       ? 'HLS playlist could not be requested.'
-      : `HLS playlist request failed with status ${status}.`,
+      : `HLS playlist request failed with status ${String(status)}.`,
     { status, url, cause: error }
   )
 }

@@ -8,6 +8,9 @@ import {
 } from '@/api/findings.contract'
 import { findingsApi } from '@/api/findingsApi'
 import { usePatientFindingStore } from '@/stores/patientFindingStore'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('finding-selectors')
 
 type PatientFindingLike = Partial<PatientFindingRow> & {
   patientExamination?: number
@@ -55,7 +58,7 @@ export function useFindingSelectors() {
   const getFindingNameById = (findingId: number, fallbackName?: string): string => {
     if (fallbackName) return fallbackName
     return getFindingDisplayName(
-      getFindingById(findingId) ?? { id: findingId, name: `Befund ${findingId}` }
+      getFindingById(findingId) ?? { id: findingId, name: `Befund ${String(findingId)}` }
     )
   }
 
@@ -122,7 +125,7 @@ function useFindingCatalogState() {
       catalogExaminationIdState.value = null
       const message = error instanceof Error ? error.message : 'Unknown findings error'
       catalogErrorState.value = `Fehler beim Laden der Befunde: ${message}`
-      console.error('Fetch findings error:', error)
+      logger.error('catalog-load-failed', error)
       return []
     } finally {
       catalogLoadingState.value = false

@@ -3,9 +3,12 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 
+type SavePatientExaminationDraft =
+  typeof import('@/api/reportDraftApi').savePatientExaminationDraft
+
 const hoisted = vi.hoisted(() => ({
   reportDraftApi: {
-    savePatientExaminationDraft: vi.fn()
+    savePatientExaminationDraft: vi.fn<SavePatientExaminationDraft>()
   }
 }))
 
@@ -96,6 +99,68 @@ describe('reportingFlowStore template draft state', () => {
     expect(reloaded.selectedExaminationId).toBeNull()
   })
 
+  it('discards malformed persisted runtime drafts while retaining valid session context', () => {
+    sessionStorage.setItem(
+      'reportingFlowState.v2',
+      JSON.stringify({
+        ownerSub: 'oidc:user-1',
+        expiresAt: Date.now() + 60_000,
+        state: {
+          patientExaminationId: 42,
+          runtimeDraftsByPatientExaminationId: {
+            '-1': {
+              draftId: 'invalid-draft',
+              patientExaminationId: -1,
+              moduleName: 'report_template_examples',
+              templateName: null,
+              payload: {
+                patient: 'patient_7',
+                examiners: [],
+                examination: 'colonoscopy',
+                patientFindings: []
+              },
+              hydratedFrom: 'session_storage',
+              updatedAt: '2026-03-19T14:00:00.000Z'
+            }
+          }
+        }
+      })
+    )
+
+    const flow = useReportingFlowStore()
+    flow.bindAuthSubject('oidc:user-1')
+
+    expect(flow.patientExaminationId).toBe(42)
+    expect(flow.runtimeDraftsByPatientExaminationId).toEqual({})
+  })
+
+  it('clears only the requested runtime draft', () => {
+    const flow = useReportingFlowStore()
+    const makeDraft = (patientExaminationId: number) => ({
+      draftId: `draft_${String(patientExaminationId)}`,
+      patientExaminationId,
+      moduleName: 'report_template_examples',
+      templateName: 'star_upper_gi_main',
+      payload: {
+        patient: `patient_${String(patientExaminationId)}`,
+        examiners: [],
+        examination: 'colonoscopy',
+        patientFindings: []
+      },
+      hydratedFrom: 'backend_context' as const,
+      updatedAt: '2026-03-19T13:55:00.000Z'
+    })
+
+    flow.setRuntimeDraft(makeDraft(42))
+    flow.setRuntimeDraft(makeDraft(43))
+    flow.clearRuntimeDraft(42)
+
+    expect(flow.runtimeDraftsByPatientExaminationId).toMatchObject({
+      '43': makeDraft(43)
+    })
+    expect(flow.runtimeDraftsByPatientExaminationId['42']).toBeUndefined()
+  })
+
   it('autosaves the current runtime draft to the backend draft endpoint', async () => {
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
@@ -121,14 +186,13 @@ describe('reportingFlowStore template draft state', () => {
 
     await vi.advanceTimersByTimeAsync(1500)
 
-    expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith({
-      patientExaminationId: 42,
-      moduleName: 'report_template_examples',
-      templateName: 'star_upper_gi_main',
-      payload: expect.objectContaining({
-        patient: 'patient_7',
-        examination: 'colonoscopy'
-      })
+    const firstSave = hoisted.reportDraftApi.savePatientExaminationDraft.mock.calls[0][0]
+    expect(firstSave.patientExaminationId).toBe(42)
+    expect(firstSave.moduleName).toBe('report_template_examples')
+    expect(firstSave.templateName).toBe('star_upper_gi_main')
+    expect(firstSave.payload).toMatchObject({
+      patient: 'patient_7',
+      examination: 'colonoscopy'
     })
     expect(flow.draftPersistenceStatus).toBe('saved')
     expect(flow.lastPersistedDraftAt).toBe('2026-03-19T14:00:00.000Z')
@@ -189,16 +253,12 @@ describe('reportingFlowStore template draft state', () => {
 
     await flow.persistCurrentRuntimeDraft()
 
-    expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith(
-      expect.objectContaining({
-        patientExaminationId: 42,
-        moduleName: '',
-        templateName: null,
-        payload: expect.objectContaining({
-          patientFindings: [expect.objectContaining({ finding: 'colon_polyp' })]
-        })
-      })
-    )
+    const annotationSave = hoisted.reportDraftApi.savePatientExaminationDraft.mock.calls[0][0]
+    expect(annotationSave.patientExaminationId).toBe(42)
+    expect(annotationSave.moduleName).toBe('')
+    expect(annotationSave.templateName).toBeNull()
+    expect(annotationSave.payload.patientFindings).toHaveLength(1)
+    expect(annotationSave.payload.patientFindings[0]?.finding).toBe('colon_polyp')
 
     hoisted.reportDraftApi.savePatientExaminationDraft.mockClear()
     flow.setPatientExaminationContext({ patientExaminationId: 43 })
@@ -243,12 +303,14 @@ describe('reportingFlowStore template draft state', () => {
   it('drains edits made while an autosave request is still in flight', async () => {
     const firstSave = deferred<{
       patient_examination_id: number
+      draft: Record<string, never>
       updated_at: string
     }>()
     hoisted.reportDraftApi.savePatientExaminationDraft
       .mockImplementationOnce(() => firstSave.promise)
       .mockResolvedValueOnce({
         patient_examination_id: 42,
+        draft: {},
         updated_at: '2026-03-19T14:01:00.000Z'
       })
     const flow = useReportingFlowStore()
@@ -273,6 +335,7 @@ describe('reportingFlowStore template draft state', () => {
     flow.addFinding({ findingName: 'colon_polyp' })
     firstSave.resolve({
       patient_examination_id: 42,
+      draft: {},
       updated_at: '2026-03-19T14:00:00.000Z'
     })
     await persistence

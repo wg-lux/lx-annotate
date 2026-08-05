@@ -15,7 +15,7 @@ function createDirtyDraft(patientExaminationId: number) {
   const flow = useReportingFlowStore()
   flow.setPatientExaminationContext({ patientExaminationId })
   flow.setRuntimeDraft({
-    draftId: `draft_${patientExaminationId}`,
+    draftId: `draft_${String(patientExaminationId)}`,
     patientExaminationId,
     moduleName: 'report_template_examples',
     templateName: 'example',
@@ -56,6 +56,31 @@ describe('reporting routes', () => {
     await router.push(from)
 
     expect(router.currentRoute.value.path).toBe(expected)
+  })
+
+  it('rejects repeated patient-examination route parameters instead of joining them', async () => {
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/reporting/case-setup')
+    const route = router
+      .getRoutes()
+      .find(
+        (candidate) => candidate.path === '/reporting/:patient_examination_id/template-requirements'
+      )
+
+    if (!route || typeof route.redirect !== 'function') {
+      throw new Error('Expected the legacy template-requirements redirect route')
+    }
+
+    const resolved = router.resolve('/reporting/123/template-requirements')
+    expect(
+      route.redirect(
+        {
+          ...resolved,
+          params: { patient_examination_id: ['123', '456'] }
+        },
+        router.currentRoute.value
+      )
+    ).toBe('/reporting/case-setup')
   })
 
   it('keeps navigation within the same reporting draft without flushing', async () => {

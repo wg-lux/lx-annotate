@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 const mocks = vi.hoisted(() => ({
-  axiosGet: vi.fn(),
+  axiosGet: vi.fn<
+    (url: string, config?: { params: Record<string, string | number> }) => Promise<{ data: unknown }>
+  >(),
   fetchApplicationSettings: vi.fn()
 }))
 
@@ -18,6 +20,14 @@ vi.mock('@/api/applicationSettingsApi', () => ({
 }))
 
 import { useAnnotationQueueStore } from '@/stores/annotationQueue'
+
+function expectLastTaskRequest(expectedParams: Record<string, string | number>): void {
+  const call = mocks.axiosGet.mock.calls.at(-1)
+  if (call === undefined) throw new Error('Expected a frame-task request.')
+  const [url, config] = call
+  expect(url).toBe('/api/media/annotations/frames/random-task/')
+  expect(config?.params).toMatchObject(expectedParams)
+}
 
 describe('annotationQueue frame task normalization', () => {
   beforeEach(() => {
@@ -54,14 +64,12 @@ describe('annotationQueue frame task normalization', () => {
 
     const tasks = await store.fetchBatch(10)
 
-    expect(mocks.axiosGet).toHaveBeenCalledWith('/api/media/annotations/frames/random-task/', {
-      params: expect.objectContaining({
-        label_group_id: '3',
-        limit: 10,
-        task_mode: 'random',
-        target_label: 'Polyp',
-        frame_file_type: 'auto'
-      })
+    expectLastTaskRequest({
+      label_group_id: '3',
+      limit: 10,
+      task_mode: 'random',
+      target_label: 'Polyp',
+      frame_file_type: 'auto'
     })
     expect(tasks).toHaveLength(1)
     expect(tasks[0].data).toMatchObject({
@@ -101,18 +109,16 @@ describe('annotationQueue frame task normalization', () => {
 
     await store.fetchBatch(5)
 
-    expect(mocks.axiosGet).toHaveBeenCalledWith('/api/media/annotations/frames/random-task/', {
-      params: expect.objectContaining({
-        label_group_id: '3',
-        limit: 5,
-        task_mode: 'random',
-        target_label: 'Polyp',
-        ai_dataset_name: 'Dataset B',
-        ai_dataset_type: 'video',
-        dataset_frame_filter: 'segments',
-        prediction_segments_only: 'false',
-        frame_file_type: 'auto'
-      })
+    expectLastTaskRequest({
+      label_group_id: '3',
+      limit: 5,
+      task_mode: 'random',
+      target_label: 'Polyp',
+      ai_dataset_name: 'Dataset B',
+      ai_dataset_type: 'video',
+      dataset_frame_filter: 'segments',
+      prediction_segments_only: 'false',
+      frame_file_type: 'auto'
     })
   })
 
@@ -137,13 +143,11 @@ describe('annotationQueue frame task normalization', () => {
 
     await store.fetchBatch(1)
 
-    expect(mocks.axiosGet).toHaveBeenCalledWith('/api/media/annotations/frames/random-task/', {
-      params: expect.objectContaining({
-        label_group_id: '3',
-        limit: 1,
-        annotator: 'reviewer-two',
-        frame_file_type: 'auto'
-      })
+    expectLastTaskRequest({
+      label_group_id: '3',
+      limit: 1,
+      annotator: 'reviewer-two',
+      frame_file_type: 'auto'
     })
   })
 
@@ -163,12 +167,10 @@ describe('annotationQueue frame task normalization', () => {
 
     await store.fetchBatch(1)
 
-    expect(mocks.axiosGet).toHaveBeenCalledWith('/api/media/annotations/frames/random-task/', {
-      params: expect.objectContaining({
-        dataset_frame_filter: 'balanced',
-        prediction_segments_only: 'true',
-        frame_file_type: 'auto'
-      })
+    expectLastTaskRequest({
+      dataset_frame_filter: 'balanced',
+      prediction_segments_only: 'true',
+      frame_file_type: 'auto'
     })
   })
 
@@ -190,10 +192,8 @@ describe('annotationQueue frame task normalization', () => {
 
     await store.fetchBatch(1)
 
-    expect(mocks.axiosGet).toHaveBeenCalledWith('/api/media/annotations/frames/random-task/', {
-      params: expect.objectContaining({
-        frame_file_type: 'processed'
-      })
+    expectLastTaskRequest({
+      frame_file_type: 'processed'
     })
   })
 })

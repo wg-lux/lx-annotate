@@ -3,6 +3,10 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 
+function resolvedData<T>(data: T): Promise<{ data: T }> {
+  return Promise.resolve({ data })
+}
+
 const hoisted = vi.hoisted(() => ({
   get: vi.fn()
 }))
@@ -22,10 +26,9 @@ describe('anonymizationStore quarantine overview', () => {
   })
 
   it('merges quarantined files into the overview as read-only failed rows', async () => {
-    hoisted.get.mockImplementation(async (url: string) => {
+    hoisted.get.mockImplementation((url: string) => {
       if (url === 'api/anonymization/items/overview/') {
-        return {
-          data: [
+        return resolvedData([
             {
               id: 17,
               filename: 'processed-video.mp4',
@@ -35,12 +38,10 @@ describe('anonymizationStore quarantine overview', () => {
               createdAt: '2026-05-15T07:00:00Z',
               metadataImported: true
             }
-          ]
-        }
+          ])
       }
       if (url.includes('runtime/quarantine/')) {
-        return {
-          data: {
+        return resolvedData({
             count: 1,
             totalSize: 65011712,
             files: [
@@ -60,10 +61,9 @@ describe('anonymizationStore quarantine overview', () => {
                 orphaned: false
               }
             ]
-          }
-        }
+          })
       }
-      throw new Error(`Unexpected URL: ${url}`)
+      return Promise.reject(new Error(`Unexpected URL: ${url}`))
     })
 
     const store = useAnonymizationStore()
@@ -86,10 +86,9 @@ describe('anonymizationStore quarantine overview', () => {
   })
 
   it('preserves validated status for existing videos when a later duplicate import fails', async () => {
-    hoisted.get.mockImplementation(async (url: string) => {
+    hoisted.get.mockImplementation((url: string) => {
       if (url === 'api/anonymization/items/overview/') {
-        return {
-          data: [
+        return resolvedData([
             {
               id: 17,
               filename: 'previously-annotated.mp4',
@@ -106,19 +105,16 @@ describe('anonymizationStore quarantine overview', () => {
                 errorDetail: 'duplicate key value violates unique constraint "endoreg_db_videofile_video_hash_key"'
               }
             }
-          ]
-        }
+          ])
       }
       if (url.includes('runtime/quarantine/')) {
-        return {
-          data: {
+        return resolvedData({
             count: 0,
             totalSize: 0,
             files: []
-          }
-        }
+          })
       }
-      throw new Error(`Unexpected URL: ${url}`)
+      return Promise.reject(new Error(`Unexpected URL: ${url}`))
     })
 
     const store = useAnonymizationStore()

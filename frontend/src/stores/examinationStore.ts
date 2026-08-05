@@ -102,7 +102,7 @@ export const useExaminationStore = defineStore('examination', {
                 typeof row.name === 'string'
                   ? row.name
                   : typeof row.nameDe === 'string'
-                    ? String(row.nameDe)
+                    ? row.nameDe
                     : fallbackName
               const nameDe =
                 typeof row.nameDe === 'string'
@@ -118,9 +118,9 @@ export const useExaminationStore = defineStore('examination', {
                     : undefined
               const displayNameSource =
                 typeof row.displayName === 'string'
-                  ? String(row.displayName)
+                  ? row.displayName
                   : typeof row.display_name === 'string'
-                    ? String(row.display_name)
+                    ? row.display_name
                     : undefined
 
               return {
@@ -144,20 +144,38 @@ export const useExaminationStore = defineStore('examination', {
             .filter((entry) => entry && Number.isFinite(entry.id)) as Examination[]
         }
 
-        const dropdownPayload = await axiosInstance.get(
+        const dropdownPayload = await axiosInstance.get<unknown>(
           r(endpoints.examination.examinationsDropdown)
         )
-        const dropdownRows =
-          Array.isArray(dropdownPayload.data) ? dropdownPayload.data :
-            Array.isArray(dropdownPayload.data?.results)
-              ? dropdownPayload.data.results
-              : []
+        const dropdownData = dropdownPayload.data
+        const dropdownRows: unknown[] =
+          Array.isArray(dropdownData) ? dropdownData :
+            dropdownData && typeof dropdownData === 'object' &&
+              'results' in dropdownData && Array.isArray(dropdownData.results)
+              ? dropdownData.results
+              : (() => {
+                  throw new TypeError(
+                    'Examination dropdown response does not match the expected contract'
+                  )
+                })()
 
         normalizeRows(dropdownRows)
       } catch (e: unknown) {
         this.exams = []
-        const candidate = e as { response?: { data?: { detail?: string } }; message?: string }
-        this.error = candidate?.response?.data?.detail ?? candidate?.message ?? 'Unbekannter Fehler'
+        const candidate = e !== null && typeof e === 'object' ? e : {}
+        const response =
+          'response' in candidate && candidate.response !== null &&
+            typeof candidate.response === 'object'
+            ? candidate.response
+            : {}
+        const data =
+          'data' in response && response.data !== null && typeof response.data === 'object'
+            ? response.data
+            : {}
+        const detail = 'detail' in data && typeof data.detail === 'string' ? data.detail : null
+        const message =
+          'message' in candidate && typeof candidate.message === 'string' ? candidate.message : null
+        this.error = detail ?? message ?? 'Unbekannter Fehler'
       } finally {
         this.loading = false
       }

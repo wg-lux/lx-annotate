@@ -23,20 +23,20 @@ export type TerminologyBundleBatchImportResult = {
 }
 
 export function terminologyBatchImportMessage(result: TerminologyBundleBatchImportResult): string {
-  const installed = `${result.imported.length} Paket${result.imported.length === 1 ? '' : 'e'} installiert`
+  const installed = `${String(result.imported.length)} Paket${result.imported.length === 1 ? '' : 'e'} installiert`
   const activationHint =
     result.imported.length > 1 ? ' Bitte das gewünschte aktive Terminologiepaket auswählen.' : ''
   if (!result.failures.length) return `${installed}.${activationHint}`.trim()
   const failureDetails = result.failures
     .map((failure) => `${failure.sourceName}: ${failure.message}`)
     .join(' · ')
-  return `${installed}; ${result.failures.length} fehlgeschlagen: ${failureDetails}.${activationHint}`.trim()
+  return `${installed}; ${String(result.failures.length)} fehlgeschlagen: ${failureDetails}.${activationHint}`.trim()
 }
 
 const MEDICAL_FIELD_STORAGE_KEY = 'terminologyMedicalField.v1'
 function terminologyErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError<{ detail?: string }>(error)) {
-    const detail = error.response?.data?.detail || error.message || fallback
+    const detail = error.response?.data.detail || error.message || fallback
     const missingModule = detail.match(
       /Module '([^']+)' (?:is not loaded|is referenced but no configuration was loaded)/
     )
@@ -78,16 +78,8 @@ export const useTerminologyStore = defineStore('terminology', () => {
     if (!activeBundle.value) return 'Keine aktive Terminologie'
     return `${activeBundle.value.moduleName} · ${activeBundle.value.version}`
   })
-  const filteredBundles = computed(() =>
-    bundles.value.filter(
-      (bundle) => !bundle.medicalField || bundle.medicalField === selectedMedicalField.value
-    )
-  )
-  const medicalFieldLabel = computed(
-    () =>
-      MEDICAL_FIELD_OPTIONS.find((option) => option.value === selectedMedicalField.value)?.label ||
-      'Gastroenterologie'
-  )
+  const filteredBundles = computed(() => bundles.value)
+  const medicalFieldLabel = computed(() => 'Gastroenterologie')
 
   async function loadBundles() {
     loading.value = true
@@ -174,7 +166,7 @@ export const useTerminologyStore = defineStore('terminology', () => {
         isActive: activate
           ? false
           : candidate.moduleName === activeBundle.value?.moduleName &&
-            candidate.version === activeBundle.value?.version
+            candidate.version === activeBundle.value.version
       })),
       { ...imported, isActive: activate }
     ].sort((left, right) =>

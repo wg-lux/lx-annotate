@@ -99,7 +99,7 @@ function requireFrameWindow(value: unknown): VideoFrameBoundary[] {
   if (!Array.isArray(value) || value.length === 0) {
     throw new TypeError('Frame neighborhood window is missing')
   }
-  const frames = value.map((frame, index) => requireFrameBoundary(frame, `Window ${index}`))
+  const frames = value.map((frame, index) => requireFrameBoundary(frame, `Window ${String(index)}`))
   for (let index = 1; index < frames.length; index += 1) {
     const previous = frames[index - 1]
     const current = frames[index]
@@ -113,10 +113,7 @@ function requireFrameWindow(value: unknown): VideoFrameBoundary[] {
   return frames
 }
 
-function requireCurrentInWindow(
-  current: VideoFrameBoundary,
-  frames: VideoFrameBoundary[]
-): void {
+function requireCurrentInWindow(current: VideoFrameBoundary, frames: VideoFrameBoundary[]): void {
   const windowCurrent = frames.find((frame) => frame.frameNumber === current.frameNumber)
   if (!windowCurrent || windowCurrent.timestamp !== current.timestamp) {
     throw new TypeError('Current frame is not part of the neighborhood window')

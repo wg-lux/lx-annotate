@@ -4,6 +4,9 @@ import { endpoints } from '@/types/api/endpoints'
 import type { Patient } from '@/stores/patientStore'
 import type { Video } from '@/stores/videoStore'
 import type { Examination } from './examinationStore'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-examination-store')
 
 // --- Interfaces ---
 export interface PatientExamination {
@@ -11,6 +14,46 @@ export interface PatientExamination {
   examination: Examination
   video: Video | null
   id: number
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isPatient(value: unknown): value is Patient {
+  return isRecord(value) && typeof value.firstName === 'string' && typeof value.lastName === 'string'
+}
+
+function isExamination(value: unknown): value is Examination {
+  return isRecord(value) && typeof value.id === 'number' && typeof value.name === 'string'
+}
+
+function isVideo(value: unknown): value is Video {
+  return isRecord(value) && typeof value.id === 'number'
+}
+
+function isPatientExamination(value: unknown): value is PatientExamination {
+  return isRecord(value) && typeof value.id === 'number' && isPatient(value.patient) &&
+    isExamination(value.examination) && (value.video === null || isVideo(value.video))
+}
+
+function requirePatientExamination(value: unknown): PatientExamination {
+  if (!isPatientExamination(value)) {
+    throw new TypeError('Patient examination response does not match the expected contract')
+  }
+  return value
+}
+
+function requirePatientExaminationList(value: unknown): PatientExamination[] {
+  const rows = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value.results)
+      ? value.results
+      : null
+  if (!rows || !rows.every((row: unknown) => isPatientExamination(row))) {
+    throw new TypeError('Patient examination list response does not match the expected contract')
+  }
+  return rows.filter((row: unknown): row is PatientExamination => isPatientExamination(row))
 }
 
 function requestErrorMessage(error: unknown): string {
@@ -48,17 +91,27 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
       try {
         this.loading = true
         this.error = null
-        const response = await axiosInstance.get(r(endpoints.patient.checkPatientExaminationExists(id)))
-        if (response.status === 200 && typeof response.data.exists === 'boolean') {
+        const response = await axiosInstance.get<unknown>(
+          r(endpoints.patient.checkPatientExaminationExists(id))
+        )
+        if (
+          response.status === 200 && isRecord(response.data) &&
+          typeof response.data.exists === 'boolean'
+        ) {
           return response.data.exists
         }
 
-        return true
+        throw new TypeError(
+          'Patient examination existence response does not match the expected contract'
+        )
       } catch (err: unknown) {
         this.error =
           'Fehler beim Überprüfen der Patientenuntersuchung: ' +
           requestErrorMessage(err)
-        console.error('Check patient examination existence error:', err)
+        logger.error('existence-check-failed', err, {
+          operation: 'check',
+          outcome: 'rejected'
+        })
         return false
       } finally {
         this.loading = false
@@ -68,20 +121,23 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
       try {
         this.loading = true
         this.error = null
-        if ((await this.doesPatientExaminationExist(patientId)) === false) {
+        if (!(await this.doesPatientExaminationExist(patientId))) {
           this.patientExaminations = []
           return
         }
-        const response = await axiosInstance.get(
+        const response = await axiosInstance.get<unknown>(
           r(endpoints.examination.patientExaminationList),
           { params: { patient_id: patientId } }
         )
-        this.patientExaminations = response.data.results || response.data
+        this.patientExaminations = requirePatientExaminationList(response.data)
       } catch (err: unknown) {
         this.error =
           'Fehler beim Laden der Patientenuntersuchungen: ' +
           requestErrorMessage(err)
-        console.error('Fetch patient examinations error:', err)
+        logger.error('examination-list-load-failed', err, {
+          operation: 'list',
+          outcome: 'rejected'
+        })
       } finally {
         this.loading = false
       }
@@ -91,21 +147,24 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
       try {
         this.loading = true
         this.error = null
-        const response = await axiosInstance.get(r(endpoints.examination.patientExaminationLegacyDetail(id)))
-        const pe = response.data
-        if (pe) {
-          const index = this.patientExaminations.findIndex((existingPe) => existingPe.id === pe.id)
-          if (index !== -1) {
-            this.patientExaminations[index] = pe
-          } else {
-            this.patientExaminations.push(pe)
-          }
+        const response = await axiosInstance.get<unknown>(
+          r(endpoints.examination.patientExaminationLegacyDetail(id))
+        )
+        const pe = requirePatientExamination(response.data)
+        const index = this.patientExaminations.findIndex((existingPe) => existingPe.id === pe.id)
+        if (index !== -1) {
+          this.patientExaminations[index] = pe
+        } else {
+          this.patientExaminations.push(pe)
         }
       } catch (err: unknown) {
         this.error =
           'Fehler beim Laden der Patientenuntersuchung: ' +
           requestErrorMessage(err)
-        console.error('Fetch patient examination by ID error:', err)
+        logger.error('examination-detail-load-failed', err, {
+          operation: 'detail',
+          outcome: 'rejected'
+        })
       } finally {
         this.loading = false
       }

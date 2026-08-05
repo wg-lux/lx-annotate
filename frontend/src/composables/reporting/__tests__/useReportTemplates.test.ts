@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
+
+const apiMocks = vi.hoisted(() => ({
+  get: vi.fn()
+}))
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -12,9 +15,7 @@ function deferred<T>() {
 }
 
 vi.mock('@/api/axiosInstance', () => ({
-  default: {
-    get: vi.fn()
-  },
+  default: apiMocks,
   endoregApi: (path: string) => `/endoreg-api/${path.replace(/^\/+/, '')}`,
   dtypesApi: (path: string) => `/dtypes-api/${path.replace(/^\/+/, '')}`
 }))
@@ -25,7 +26,7 @@ describe('useReportTemplates', () => {
 
     expect(templates.moduleName.value).toBe('')
     await expect(templates.fetchTemplatesByExamination('colonoscopy')).resolves.toEqual([])
-    expect(axiosInstance.get).not.toHaveBeenCalled()
+    expect(apiMocks.get).not.toHaveBeenCalled()
 
     templates.setModuleName('  ')
     expect(templates.moduleName.value).toBe('')
@@ -36,7 +37,7 @@ describe('useReportTemplates', () => {
   })
 
   it('loads templates by examination without implicitly selecting a clinical template', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    apiMocks.get.mockResolvedValue({
       data: [
         {
           name: 'star_upper_gi_main',
@@ -54,7 +55,7 @@ describe('useReportTemplates', () => {
 
     await catalog.fetchTemplatesByExamination('star_upper_gi_endoscopy')
 
-    expect(axiosInstance.get).toHaveBeenCalledWith(
+    expect(apiMocks.get).toHaveBeenCalledWith(
       '/dtypes-api/report-templates/by-examination/report_template_examples/star_upper_gi_endoscopy'
     )
     expect(catalog.templateOptions.value.map((template) => template.name)).toEqual([
@@ -67,7 +68,7 @@ describe('useReportTemplates', () => {
   it('ignores an older response after the same module changes bundle version', async () => {
     const versionOne = deferred<{ data: unknown[] }>()
     const versionTwo = deferred<{ data: unknown[] }>()
-    vi.mocked(axiosInstance.get)
+    apiMocks.get
       .mockReturnValueOnce(versionOne.promise)
       .mockReturnValueOnce(versionTwo.promise)
     const catalog = useReportTemplates({ initialModuleName: 'clinical_reporting' })
@@ -102,7 +103,7 @@ describe('useReportTemplates', () => {
   })
 
   it('loads a template by explicit name endpoint when not in local options', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    apiMocks.get.mockResolvedValue({
       data: {
         name: 'custom_template',
         examination: 'star_upper_gi_endoscopy',
@@ -118,14 +119,14 @@ describe('useReportTemplates', () => {
 
     await catalog.selectTemplateByName('custom_template')
 
-    expect(axiosInstance.get).toHaveBeenCalledWith(
+    expect(apiMocks.get).toHaveBeenCalledWith(
       '/dtypes-api/report-templates/report_template_examples/custom_template'
     )
     expect(catalog.selectedTemplateName.value).toBe('custom_template')
   })
 
   it('normalizes malformed template payloads to stable defaults', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    apiMocks.get.mockResolvedValue({
       data: [
         {
           name: 'broken_template',
@@ -161,7 +162,7 @@ describe('useReportTemplates', () => {
   })
 
   it('derives validator descriptors with related sections', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    apiMocks.get.mockResolvedValue({
       data: {
         name: 'star_upper_gi_main',
         examination: 'star_upper_gi_endoscopy',

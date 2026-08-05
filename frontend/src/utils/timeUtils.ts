@@ -95,13 +95,13 @@ export function formatDuration(seconds: number): string {
   const parts: string[] = []
 
   if (hours > 0) {
-    parts.push(`${hours}h`)
+    parts.push(`${String(hours)}h`)
   }
   if (minutes > 0) {
-    parts.push(`${minutes}m`)
+    parts.push(`${String(minutes)}m`)
   }
   if (secs > 0 || parts.length === 0) {
-    parts.push(`${secs}s`)
+    parts.push(`${String(secs)}s`)
   }
 
   return parts.join(' ')

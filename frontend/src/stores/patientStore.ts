@@ -4,17 +4,91 @@ import type { Patient, PatientFormData, Gender, Center } from '@/api/patientServ
 import axiosInstance, { r } from '@/api/axiosInstance'
 import axios from 'axios'
 import { endpoints } from '@/types/api/endpoints'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-store')
 
 // Re-export types for easier access
 export type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isOptionalString(value: unknown): boolean {
+    return value === undefined || typeof value === 'string'
+}
+
+function isOptionalNullableString(value: unknown): boolean {
+    return value === undefined || value === null || typeof value === 'string'
+}
+
+function isPatient(value: unknown): value is Patient {
+    return isRecord(value) &&
+        typeof value.firstName === 'string' &&
+        typeof value.lastName === 'string' &&
+        (value.id === undefined || typeof value.id === 'number') &&
+        isOptionalNullableString(value.dob) &&
+        isOptionalNullableString(value.gender) &&
+        isOptionalNullableString(value.center) &&
+        isOptionalNullableString(value.centerKey) &&
+        isOptionalString(value.email) &&
+        isOptionalString(value.phone) &&
+        isOptionalNullableString(value.patientHash) &&
+        isOptionalString(value.comments) &&
+        (value.isRealPerson === undefined || typeof value.isRealPerson === 'boolean') &&
+        isOptionalNullableString(value.pseudonymFirstName) &&
+        isOptionalNullableString(value.pseudonymLastName) &&
+        (value.sensitiveMetaId === undefined || value.sensitiveMetaId === null ||
+            typeof value.sensitiveMetaId === 'number') &&
+        (value.age === undefined || value.age === null || typeof value.age === 'number') &&
+        isOptionalString(value.createdAt) &&
+        isOptionalString(value.updatedAt)
+}
+
+function isGender(value: unknown): value is Gender {
+    return isRecord(value) && typeof value.id === 'number' && typeof value.name === 'string' &&
+        isOptionalString(value.nameDe) && isOptionalString(value.nameEn) &&
+        isOptionalString(value.abbreviation) && isOptionalString(value.description)
+}
+
+function isCenter(value: unknown): value is Center {
+    return isRecord(value) && typeof value.id === 'number' && typeof value.name === 'string' &&
+        isOptionalString(value.centerKey) && isOptionalString(value.nameDe) &&
+        isOptionalString(value.nameEn) && isOptionalString(value.description)
+}
+
+function requireList<T>(
+    value: unknown,
+    guard: (candidate: unknown) => candidate is T,
+    contractName: string
+): T[] {
+    const rows = Array.isArray(value)
+        ? value
+        : isRecord(value) && Array.isArray(value.results)
+          ? value.results
+          : null
+    if (!rows || !rows.every((row: unknown) => guard(row))) {
+        throw new TypeError(`${contractName} response does not match the expected contract`)
+    }
+    return rows.filter((row: unknown): row is T => guard(row))
+}
+
+function requirePatient(value: unknown): Patient {
+    if (!isPatient(value)) {
+        throw new TypeError('Patient response does not match the expected contract')
+    }
+    return value
+}
+
 export const usePatientStore = defineStore('patient', () => {
-    const apiErrorDetail = (caught: unknown): string | null =>
-        axios.isAxiosError<{ detail?: string }>(caught)
-            ? caught.response?.data?.detail || caught.message
-            : caught instanceof Error
-              ? caught.message
-              : null
+    const apiErrorDetail = (caught: unknown): string | null => {
+        if (axios.isAxiosError<{ detail?: string }>(caught)) {
+            const response = caught.response
+            return response ? response.data.detail || caught.message : caught.message
+        }
+        return caught instanceof Error ? caught.message : null
+    }
     // State
     const patients = ref<Patient[]>([])
     const currentPatient = ref<Patient | null>(null)
@@ -37,7 +111,7 @@ export const usePatientStore = defineStore('patient', () => {
     const patientsWithDisplayName = computed(() => {
         return patients.value.map(patient => ({
             ...patient,
-            displayName: `${patient.firstName || ''} ${patient.lastName || ''} (ID: ${patient.id})`.trim()
+            displayName: `${patient.firstName || ''} ${patient.lastName || ''} (ID: ${String(patient.id)})`.trim()
         }));
     });
 
@@ -46,11 +120,14 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true
             error.value = null
-            const response = await axiosInstance.get(r(endpoints.patient.patients))
-            patients.value = response.data.results || response.data
+            const response = await axiosInstance.get<unknown>(r(endpoints.patient.patients))
+            patients.value = requireList(response.data, isPatient, 'Patient list')
         } catch (err: unknown) {
             error.value = 'Fehler beim Laden der Patienten: ' + (apiErrorDetail(err) || 'Unbekannter Fehler')
-            console.error('Fetch patients error:', err)
+            logger.error('patient-list-load-failed', err, {
+                operation: 'list',
+                outcome: 'rejected'
+            })
         } finally {
             loading.value = false
         }
@@ -58,20 +135,26 @@ export const usePatientStore = defineStore('patient', () => {
 
     const fetchGenders = async () => {
         try {
-            const response = await axiosInstance.get(r(endpoints.patient.genders))
-            genders.value = response.data.results || response.data
+            const response = await axiosInstance.get<unknown>(r(endpoints.patient.genders))
+            genders.value = requireList(response.data, isGender, 'Gender list')
         } catch (err: unknown) {
-            console.error('Fetch genders error:', err)
+            logger.error('gender-list-load-failed', err, {
+                operation: 'list',
+                outcome: 'rejected'
+            })
             error.value = 'Fehler beim Laden der Geschlechter'
         }
     }
 
     const fetchCenters = async () => {
         try {
-            const response = await axiosInstance.get(r(endpoints.patient.centers))
-            centers.value = response.data.results || response.data
+            const response = await axiosInstance.get<unknown>(r(endpoints.patient.centers))
+            centers.value = requireList(response.data, isCenter, 'Center list')
         } catch (err: unknown) {
-            console.error('Fetch centers error:', err)
+            logger.error('center-list-load-failed', err, {
+                operation: 'list',
+                outcome: 'rejected'
+            })
             error.value = 'Fehler beim Laden der Zentren'
         }
     }
@@ -87,8 +170,8 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true
             error.value = null
-            const response = await axiosInstance.post(r(endpoints.patient.patients), patientData)
-            const newPatient = response.data
+            const response = await axiosInstance.post<unknown>(r(endpoints.patient.patients), patientData)
+            const newPatient = requirePatient(response.data)
             patients.value.push(newPatient)
             return newPatient
         } catch (err: unknown) {
@@ -103,8 +186,8 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true
             error.value = null
-            const response = await axiosInstance.put(r(endpoints.patient.patientById(id)), patientData)
-            const updatedPatient = response.data
+            const response = await axiosInstance.put<unknown>(r(endpoints.patient.patientById(id)), patientData)
+            const updatedPatient = requirePatient(response.data)
             const index = patients.value.findIndex(p => p.id === id)
             if (index !== -1) {
                 patients.value[index] = updatedPatient
@@ -174,10 +257,10 @@ export const usePatientStore = defineStore('patient', () => {
     const validatePatientForm = (formData: PatientFormData) => {
         const errors: string[] = []
 
-        if (!formData.firstName?.trim()) {
+        if (!formData.firstName.trim()) {
             errors.push('Vorname ist erforderlich')
         }
-        if (!formData.lastName?.trim()) {
+        if (!formData.lastName.trim()) {
             errors.push('Nachname ist erforderlich')
         }
         if (formData.dob && new Date(formData.dob) > new Date()) {
@@ -196,16 +279,16 @@ export const usePatientStore = defineStore('patient', () => {
     const formatPatientForSubmission = (formData: PatientFormData): PatientFormData => {
         return {
             id: formData.id,
-            firstName: formData.firstName?.trim(),
-            lastName: formData.lastName?.trim(),
+            firstName: formData.firstName.trim(),
+            lastName: formData.lastName.trim(),
             dob: formData.dob || null,
             gender: formData.gender || null,
             center: formData.centerKey ? null : (formData.center || null),
             centerKey: formData.centerKey || null,
-            email: formData.email?.trim() || '',
-            phone: formData.phone?.trim() || '',
-            patientHash: formData.patientHash?.trim() || '',
-            comments: formData.comments?.trim() || '',
+            email: formData.email.trim() || '',
+            phone: formData.phone.trim() || '',
+            patientHash: formData.patientHash.trim() || '',
+            comments: formData.comments.trim() || '',
             isRealPerson: formData.isRealPerson ?? true
         }
     }

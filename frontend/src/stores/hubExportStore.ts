@@ -153,13 +153,13 @@ export const useHubExportStore = defineStore('hubExport', {
         this.items = data.items
         this.configReady = data.configReady
         this.configError = data.configError
-        this.privacySummary = data.privacySummary ?? null
+        this.privacySummary = data.privacySummary
         this.syncSummary = data.syncSummary
         return data
       } catch (error: unknown) {
         this.error =
           (axios.isAxiosError<{ detail?: string }>(error)
-            ? error.response?.data?.detail || error.message
+            ? error.response?.data.detail || error.message
             : error instanceof Error
               ? error.message
               : null) ||

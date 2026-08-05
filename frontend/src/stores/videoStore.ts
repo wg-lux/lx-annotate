@@ -16,6 +16,9 @@ import {
   type VideoFrameNeighborhood,
   requireSegmentTimestampRange
 } from '@/utils/segmentTimeline'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const log = createRuntimeLogger('video-store')
 
 // ===================================================================
 // TYPE DEFINITIONS
@@ -436,19 +439,27 @@ function normalizeSegmentList(data: SegmentListResponse | null | undefined): Bac
   return []
 }
 
-function readField(source: Record<string, unknown>, ...keys: string[]): unknown {
+function readField(source: object, ...keys: string[]): unknown {
   for (const key of keys) {
-    if (source[key] !== undefined && source[key] !== null) return source[key]
+    const value: unknown = Reflect.get(source, key)
+    if (value !== undefined && value !== null) return value
   }
   return undefined
 }
 
-function readStringField(source: Record<string, unknown>, ...keys: string[]): string | null {
+function requireObject(value: unknown, contractName: string): object {
+  if (value === null || typeof value !== 'object') {
+    throw new TypeError(`${contractName} response does not match the expected contract`)
+  }
+  return value
+}
+
+function readStringField(source: object, ...keys: string[]): string | null {
   const value = readField(source, ...keys)
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
-function readNumberField(source: Record<string, unknown>, ...keys: string[]): number | undefined {
+function readNumberField(source: object, ...keys: string[]): number | undefined {
   const value = readField(source, ...keys)
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
@@ -458,43 +469,50 @@ function numberWhenDefined(value: unknown): number | undefined {
   return value !== undefined ? Number(value) : undefined
 }
 
-function normalizeValidatedAnnotators(video: Record<string, unknown>): string[] {
-  const annotators = Array.isArray(video.validatedAnnotators)
-    ? video.validatedAnnotators
-    : Array.isArray(video.validated_annotators)
-      ? video.validated_annotators
+function normalizeValidatedAnnotators(video: object): string[] {
+  const camelCaseAnnotators = readField(video, 'validatedAnnotators')
+  const snakeCaseAnnotators = readField(video, 'validated_annotators')
+  const annotators = Array.isArray(camelCaseAnnotators)
+    ? camelCaseAnnotators
+    : Array.isArray(snakeCaseAnnotators)
+      ? snakeCaseAnnotators
       : []
   return annotators.filter((annotator): annotator is string => typeof annotator === 'string')
 }
 
-function normalizeVideoFrameCount(video: Record<string, unknown>): number | undefined {
-  return video.frameCount !== undefined
-    ? Number(video.frameCount)
-    : numberWhenDefined(video.frame_count)
+function normalizeVideoFrameCount(video: object): number | undefined {
+  const camelCaseFrameCount = readField(video, 'frameCount')
+  return camelCaseFrameCount !== undefined
+    ? Number(camelCaseFrameCount)
+    : numberWhenDefined(readField(video, 'frame_count'))
 }
 
-function normalizeVideoMetadataResponse(meta: Record<string, unknown>, fallbackId: number): VideoMeta {
-  const assignedUser = meta.assignedUser
+function normalizeVideoMetadataResponse(meta: object, fallbackId: number): VideoMeta {
+  const assignedUser = readStringField(meta, 'assignedUser')
+  const id = readField(meta, 'id')
+  const anonymized = readField(meta, 'anonymized')
+  const hasRoi = readField(meta, 'hasROI', 'has_roi')
+  const outsideFrameCount = readField(meta, 'outsideFrameCount', 'outside_frame_count')
+  const exportSegmentsByVideo = readField(
+    meta,
+    'exportSegmentsByVideo',
+    'export_segments_by_video'
+  )
   return {
-    id: Number(meta.id ?? fallbackId),
-    original_file_name: String(meta.original_file_name ?? meta.originalFileName ?? ''),
-    status: String(meta.status ?? 'available'),
+    id: Number(id ?? fallbackId),
+    original_file_name: readStringField(meta, 'original_file_name', 'originalFileName') ?? '',
+    status: readStringField(meta, 'status') ?? 'available',
     assignedUser:
-      assignedUser === 'BLANK' || assignedUser == null ? null : String(assignedUser),
-    anonymized: Boolean(meta.anonymized ?? false),
-    duration: numberWhenDefined(meta.duration),
-    fps: numberWhenDefined(meta.fps),
-    hasROI: Boolean(meta.hasROI ?? meta.has_roi ?? false),
-    outsideFrameCount: Number(meta.outsideFrameCount ?? meta.outside_frame_count ?? 0),
-    frameCount:
-      meta.frameCount !== undefined
-        ? Number(meta.frameCount)
-        : numberWhenDefined(meta.frame_count),
-    centerName: String(meta.centerName ?? meta.center_name ?? 'Unbekannt'),
-    processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt'),
-    exportSegmentsByVideo: Boolean(
-      meta.exportSegmentsByVideo ?? meta.export_segments_by_video ?? false
-    )
+      assignedUser === 'BLANK' || assignedUser === null ? null : assignedUser,
+    anonymized: Boolean(anonymized ?? false),
+    duration: numberWhenDefined(readField(meta, 'duration')),
+    fps: numberWhenDefined(readField(meta, 'fps')),
+    hasROI: Boolean(hasRoi ?? false),
+    outsideFrameCount: Number(outsideFrameCount ?? 0),
+    frameCount: normalizeVideoFrameCount(meta),
+    centerName: readStringField(meta, 'centerName', 'center_name') ?? 'Unbekannt',
+    processorName: readStringField(meta, 'processorName', 'processor_name') ?? 'Unbekannt',
+    exportSegmentsByVideo: Boolean(exportSegmentsByVideo ?? false)
   }
 }
 
@@ -516,7 +534,9 @@ function formatValidationErrorDetail(detail: unknown): string {
       .filter(Boolean)
       .join(' ')
   }
-  return String(detail)
+  return typeof detail === 'number' || typeof detail === 'boolean' || typeof detail === 'bigint'
+    ? String(detail)
+    : ''
 }
 
 function getBulkOperationErrorDetail(
@@ -524,7 +544,7 @@ function getBulkOperationErrorDetail(
   operation: 'creates' | 'updates' | 'deletes',
   identifier: number | string,
   index: number
-): unknown | null {
+): unknown {
   const details = (responseData as { details?: Record<string, unknown> } | undefined)?.details
   const operationDetails = details?.[operation]
   if (!operationDetails || typeof operationDetails !== 'object') return null
@@ -534,7 +554,7 @@ function getBulkOperationErrorDetail(
 }
 
 export function backendSegmentToSegment(backend: BackendSegment): Segment {
-  const backendRecord = backend as unknown as Record<string, unknown>
+  const backendRecord = backend
   const labelName =
     readStringField(backendRecord, 'labelName', 'labelDisplay', 'label_name', 'label_display') ??
     'unknown'
@@ -550,13 +570,13 @@ export function backendSegmentToSegment(backend: BackendSegment): Segment {
 
   // Optional: flatten timeSegments → frames map
   let framesMap: Record<string, TimeSegmentFrame> | undefined
-  if (timeSegments?.frames?.length) {
-    framesMap = timeSegments.frames.reduce(
+  if (timeSegments && timeSegments.frames.length > 0) {
+    framesMap = timeSegments.frames.reduce<Record<string, TimeSegmentFrame>>(
       (acc, frame) => {
         acc[String(frame.frameId)] = frame
         return acc
       },
-      {} as Record<string, TimeSegmentFrame>
+      {}
     )
   }
 
@@ -735,7 +755,7 @@ export const useVideoStore = defineStore('video', () => {
 
   const segments = computed<Segment[]>(() => currentVideo.value?.segments || [])
 
-  const labels = computed<LabelMeta[]>(() => videoList.value?.labels || [])
+  const labels = computed<LabelMeta[]>(() => videoList.value.labels)
 
   // ✅ NEW: Fast lookup table für Label-Namen zu IDs (wird nur einmal berechnet)
   // maps 'polyp' → 3  |  'blood' → 7 ...
@@ -749,7 +769,7 @@ export const useVideoStore = defineStore('video', () => {
   function ensureLabelId(segment: Segment): Segment {
     return {
       ...segment,
-      labelID: segment.labelID ?? labelIdMap.value[segment.label] ?? null
+      labelID: segment.labelID ?? labelIdMap.value[segment.label]
     }
   }
 
@@ -801,14 +821,14 @@ export const useVideoStore = defineStore('video', () => {
       videoId = currentVideo.value?.id || null
     }
     if (!videoId) {
-      console.error(`Invalid video ID: ${videoId}`)
+      log.warn('video-delete.video-missing')
       return false
     }
     try {
       await axiosInstance.delete(r(endpoints.mediaManagement.forceRemove(videoId)))
       return true
     } catch (error) {
-      console.error(`Failed to delete video ${videoId}:`, error)
+      log.error('video-delete.failed', error)
       return false
     }
   }
@@ -820,7 +840,9 @@ export const useVideoStore = defineStore('video', () => {
   function jumpToSegment(segment: Segment, videoElement: HTMLVideoElement | null): void {
     if (videoElement && segment.startTime) {
       videoElement.currentTime = segment.startTime
-      videoElement.play().catch(console.error)
+      videoElement.play().catch(() => {
+        log.warn('playback.start-rejected')
+      })
     }
   }
 
@@ -829,8 +851,8 @@ export const useVideoStore = defineStore('video', () => {
     const widthPercent = ((segment.endTime - segment.startTime) / videoDuration) * 100
 
     return {
-      left: `${startPercent}%`,
-      width: `${widthPercent}%`,
+      left: `${String(startPercent)}%`,
+      width: `${String(widthPercent)}%`,
       backgroundColor: getColorForLabel(segment.label)
     }
   }
@@ -863,7 +885,7 @@ export const useVideoStore = defineStore('video', () => {
 
     if (updates.label && oldLabel && updates.label !== oldLabel) {
       segmentsByLabel[oldLabel] = segmentsByLabel[oldLabel].filter((s) => s.id !== segmentId)
-      if (!segmentsByLabel[updates.label]) {
+      if (!(updates.label in segmentsByLabel)) {
         segmentsByLabel[updates.label] = []
       }
       segmentsByLabel[updates.label].push(foundSegment)
@@ -888,7 +910,7 @@ export const useVideoStore = defineStore('video', () => {
 
   function clearSegments(): void {
     Object.keys(segmentsByLabel).forEach((key) => {
-      delete segmentsByLabel[key]
+      Reflect.deleteProperty(segmentsByLabel, key)
     })
   }
 
@@ -915,7 +937,7 @@ export const useVideoStore = defineStore('video', () => {
         videoID: segment.videoID ?? videoId
       })
       const label = segmentWithVideoId.label
-      if (!segmentsByLabel[label]) {
+      if (!(label in segmentsByLabel)) {
         segmentsByLabel[label] = []
       }
       segmentsByLabel[label].push(segmentWithVideoId)
@@ -923,9 +945,7 @@ export const useVideoStore = defineStore('video', () => {
 
     if (currentVideo.value && currentVideo.value.id === videoId) {
       currentVideo.value.segments = Object.values(segmentsByLabel).flat()
-      console.log(
-        `[VideoStore] Cached timeline segments populated: ${currentVideo.value.segments.length} segments for video ${videoId}`
-      )
+      log.debug('segments.cache-applied', { count: currentVideo.value.segments.length })
     }
   }
 
@@ -934,7 +954,8 @@ export const useVideoStore = defineStore('video', () => {
     if (videoId !== undefined && currentVideo.value.id !== videoId) return
     const merged = Object.values(segmentsByLabel).flat()
     currentVideo.value.segments = merged
-    const listVideo = videoList.value.videos.find((video) => video.id === currentVideo.value?.id)
+    const currentVideoId = currentVideo.value.id
+    const listVideo = videoList.value.videos.find((video) => video.id === currentVideoId)
     if (listVideo) {
       listVideo.segments = merged
     }
@@ -966,7 +987,7 @@ export const useVideoStore = defineStore('video', () => {
     const normalized = ensureLabelId(segment)
     removeSegmentFromStore(normalized.id, false)
 
-    if (!segmentsByLabel[normalized.label]) {
+    if (!(normalized.label in segmentsByLabel)) {
       segmentsByLabel[normalized.label] = []
     }
     segmentsByLabel[normalized.label].push(normalized)
@@ -1013,11 +1034,11 @@ export const useVideoStore = defineStore('video', () => {
     forceRefresh = false,
     options: { sourceKind?: SegmentSourceKind } = {}
   ): Promise<void> {
-    console.log(`[VideoStore] fetchAllSegments called with video ID: ${id}`)
+    log.debug('segments.fetch-started')
 
     // Ensure currentVideo exists before loading segments
     if (!currentVideo.value || currentVideo.value.id !== id) {
-      console.log(`[VideoStore] No currentVideo found, creating basic video object for ID: ${id}`)
+      log.debug('video.placeholder-created')
       setCurrentVideo(id)
     }
 
@@ -1041,26 +1062,27 @@ export const useVideoStore = defineStore('video', () => {
       if (listVideo) {
         listVideo.segments = allSegmentsArray
       }
-      console.log(
-        `[VideoStore] Timeline segments populated: ${allSegmentsArray.length} segments for video ${id}`
-      )
+      log.debug('segments.fetch-completed', { count: allSegmentsArray.length })
     }
   }
 
   async function saveAnnotations(): Promise<void> {
-    console.log('Saving annotations...')
+    log.debug('annotations.save-started')
+    await Promise.resolve()
   }
 
   async function updateVideoStatus(status: VideoStatus): Promise<void> {
     if (currentVideo.value) {
       currentVideo.value.status = status
     }
+    await Promise.resolve()
   }
 
   async function assignUserToVideo(user: string): Promise<void> {
     if (currentVideo.value) {
       currentVideo.value.assignedUser = user
     }
+    await Promise.resolve()
   }
 
   /**
@@ -1070,7 +1092,7 @@ export const useVideoStore = defineStore('video', () => {
   // assuming: interface LabelMeta { id: number; name: string; color: string }
 
   async function fetchLabels(): Promise<LabelMeta[]> {
-    console.log('🏷️ [VideoStore] Fetching labels with high priority...')
+    log.debug('labels.fetch-started')
     try {
       // 🔹 NEW: use media/labels/ instead of deprecated videos/
       const response: AxiosResponse<unknown[]> = await axiosInstance.get(
@@ -1082,7 +1104,7 @@ export const useVideoStore = defineStore('video', () => {
           rawLabel && typeof rawLabel === 'object'
             ? (rawLabel as Record<string, unknown>)
             : {}
-        const name = String(label.name ?? '')
+        const name = readStringField(label, 'name') ?? ''
         return {
           id: Number(label.id),
           name,
@@ -1092,10 +1114,10 @@ export const useVideoStore = defineStore('video', () => {
 
       videoList.value.labels = processedLabels
       labelsLoaded = true
-      console.log(`✅ [VideoStore] Loaded ${processedLabels.length} labels`)
+      log.info('labels.fetch-completed', { count: processedLabels.length })
       return processedLabels
     } catch (error) {
-      console.error('❌ Error loading labels:', error)
+      log.error('labels.fetch-failed', error)
       labelsLoaded = false
       videoList.value.labels = []
       throw error
@@ -1106,7 +1128,7 @@ export const useVideoStore = defineStore('video', () => {
     const response: AxiosResponse<PredictionModelListResponse> = await axiosInstance.get(
       r(endpoints.media.videoPredictionModelsList)
     )
-    predictionModels.value = response.data.models || []
+    predictionModels.value = response.data.models
     defaultHuggingfaceModelId.value =
       response.data.defaultHuggingfaceModelId || defaultHuggingfaceModelId.value
     defaultPredictionLabelsetName.value =
@@ -1144,22 +1166,31 @@ export const useVideoStore = defineStore('video', () => {
 
   function normalizeVideoListEntry(video: Record<string, unknown>): VideoMeta {
     const videoId = Number(video.id)
-    const rawSegments: BackendSegment[] = Array.isArray(video.segments) ? video.segments : []
+    const rawSegmentValue: unknown = video.segments
+    const rawSegments = Array.isArray(rawSegmentValue)
+      ? rawSegmentValue.filter(
+          (segment: unknown): segment is BackendSegment =>
+            segment !== null &&
+            typeof segment === 'object' &&
+            readNumberField(segment, 'id') !== undefined
+        )
+      : []
     const segments = rawSegments.map((backendSegment) =>
       ensureLabelId(backendSegmentToSegment({ ...backendSegment, videoId }))
     )
-    const segmentAnnotationsValidated =
-      video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false
+    const segmentAnnotationsValidated = Boolean(
+      video.segmentAnnotationsValidated ?? video.segment_annotations_validated
+    )
 
     return {
       id: videoId,
       original_file_name:
-        String(video.originalFileName ?? video.original_file_name ?? '').trim() ||
-        `Video ${videoId}`,
+        readStringField(video, 'originalFileName', 'original_file_name') ??
+        `Video ${String(videoId)}`,
       status: typeof video.status === 'string' ? video.status : 'available',
       assignedUser: typeof video.assignedUser === 'string' ? video.assignedUser : null,
       anonymized: Boolean(video.anonymized),
-      segmentAnnotationsValidated: Boolean(segmentAnnotationsValidated),
+      segmentAnnotationsValidated,
       segmentAnnotationStatus:
         (video.segmentAnnotationStatus as SegmentAnnotationStatus | undefined) ??
         (video.segment_annotation_status as SegmentAnnotationStatus | undefined) ??
@@ -1174,12 +1205,12 @@ export const useVideoStore = defineStore('video', () => {
       duration: numberWhenDefined(video.duration),
       fps: numberWhenDefined(video.fps),
       frameCount: normalizeVideoFrameCount(video),
-      centerName: String(video.centerName || video.center_name || 'Unbekannt'),
+      centerName: readStringField(video, 'centerName', 'center_name') ?? 'Unbekannt',
       centerKey:
         typeof (video.centerKey ?? video.center_key) === 'string'
           ? String(video.centerKey ?? video.center_key)
           : undefined,
-      processorName: String(video.processorName || video.processor_name || 'Unbekannt'),
+      processorName: readStringField(video, 'processorName', 'processor_name') ?? 'Unbekannt',
       validatedAnnotators: normalizeValidatedAnnotators(video),
       exportSegmentsByVideo: Boolean(
         video.exportSegmentsByVideo ?? video.export_segments_by_video
@@ -1189,7 +1220,7 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   async function fetchAllVideos(options: { refreshLabels?: boolean } = {}): Promise<VideoList> {
-    console.log('Fetching all videos...')
+    log.debug('videos.fetch-started')
     try {
       const labelsRequest =
         options.refreshLabels || !labelsLoaded
@@ -1199,7 +1230,7 @@ export const useVideoStore = defineStore('video', () => {
         r(endpoints.media.videos)
       )
       const [, response] = await Promise.all([labelsRequest, videosRequest])
-      console.log('API Response:', response.data) //#TODO Add newly created assigned user from keycloak
+      log.debug('videos.response-received')
       const responseRecord =
         response.data && typeof response.data === 'object' && !Array.isArray(response.data)
           ? (response.data as Record<string, unknown>)
@@ -1227,10 +1258,10 @@ export const useVideoStore = defineStore('video', () => {
         labels: processedLabels
       }
 
-      console.log('✅ Processed videos with segments:', videoList.value)
+      log.info('videos.fetch-completed', { count: processedVideos.length })
       return videoList.value
     } catch (error) {
-      console.error('Error loading videos:', error)
+      log.error('videos.fetch-failed', error)
       videoList.value = { videos: [], labels: videoList.value.labels }
       throw error
     }
@@ -1295,7 +1326,7 @@ export const useVideoStore = defineStore('video', () => {
   async function fetchVideoFps(videoId?: number): Promise<number | null> {
     const id = videoId || currentVideo.value?.id
     if (!id) {
-      console.warn('No video ID available for fetching FPS')
+      log.warn('fps.video-missing')
       return null
     }
 
@@ -1304,12 +1335,9 @@ export const useVideoStore = defineStore('video', () => {
         r(endpoints.media.videoFps(id)),
         { headers: { Accept: 'application/json' } }
       )
-      const fps = normalizeFps(response.data?.fps)
+      const fps = normalizeFps(response.data.fps)
       if (fps === null) {
-        console.warn(
-          `[VideoStore] Invalid FPS payload from endpoint for video ${id}:`,
-          response.data
-        )
+        log.warn('fps.payload-invalid')
         return null
       }
       if (activeVideoId.value !== id || currentVideo.value?.id !== id) {
@@ -1320,7 +1348,7 @@ export const useVideoStore = defineStore('video', () => {
       if (videoMeta.value?.id === id) {
         videoMeta.value.fps = fps
       }
-      if (currentVideo.value?.id === id) {
+      if (currentVideo.value.id === id) {
         currentVideo.value.fps = fps
       }
       const listVideo = videoList.value.videos.find((video) => video.id === id)
@@ -1328,12 +1356,8 @@ export const useVideoStore = defineStore('video', () => {
         listVideo.fps = fps
       }
       return fps
-    } catch (error) {
-      const axiosError = error as AxiosError
-      console.warn(
-        `[VideoStore] FPS endpoint unavailable for video ${id}, falling back to metadata/default.`,
-        axiosError.response?.status ?? axiosError.message
-      )
+    } catch {
+      log.warn('fps.fetch-unavailable')
       return null
     }
   }
@@ -1384,20 +1408,18 @@ export const useVideoStore = defineStore('video', () => {
     if (resolvedVideoFps.value !== null) {
       videoMeta.value.fps = resolvedVideoFps.value
     }
-    if (currentVideo.value) {
-      if (normalizedMeta.duration !== undefined && normalizedMeta.duration > 0) {
-        currentVideo.value.duration = normalizedMeta.duration
-      }
-      if (
-        resolvedVideoFps.value === null &&
-        normalizedMeta.fps !== undefined &&
-        normalizedMeta.fps > 0
-      ) {
-        currentVideo.value.fps = normalizedMeta.fps
-      }
-      if (normalizedMeta.frameCount !== undefined && normalizedMeta.frameCount > 0) {
-        currentVideo.value.frameCount = normalizedMeta.frameCount
-      }
+    if (normalizedMeta.duration !== undefined && normalizedMeta.duration > 0) {
+      currentVideo.value.duration = normalizedMeta.duration
+    }
+    if (
+      resolvedVideoFps.value === null &&
+      normalizedMeta.fps !== undefined &&
+      normalizedMeta.fps > 0
+    ) {
+      currentVideo.value.fps = normalizedMeta.fps
+    }
+    if (normalizedMeta.frameCount !== undefined && normalizedMeta.frameCount > 0) {
+      currentVideo.value.frameCount = normalizedMeta.frameCount
     }
     return true
   }
@@ -1406,27 +1428,26 @@ export const useVideoStore = defineStore('video', () => {
     try {
       const id = videoId || currentVideo.value?.id
       if (!id) {
-        console.warn('No video ID available for fetching video metadata')
+        log.warn('metadata.video-missing')
         return
       }
 
-      const response: AxiosResponse = await axiosInstance.get(
+      const response: AxiosResponse<unknown> = await axiosInstance.get(
         r(endpoints.media.videoMetadata(id)),
         {
           headers: { Accept: 'application/json' }
         }
       )
 
-      const normalizedMeta = normalizeVideoMetadataResponse(response.data ?? {}, id)
+      const normalizedMeta = normalizeVideoMetadataResponse(
+        requireObject(response.data, 'Video metadata'),
+        id
+      )
       if (!applyVideoMetadata(id, normalizedMeta)) return
 
-      console.log('[VideoStore] Video metadata loaded:', normalizedMeta)
+      log.info('metadata.fetch-completed')
     } catch (error) {
-      const axiosError = error as AxiosError
-      console.error(
-        'Error loading video metadata:',
-        axiosError.response?.data || axiosError.message
-      )
+      log.error('metadata.fetch-failed', error)
     }
   }
 
@@ -1434,6 +1455,7 @@ export const useVideoStore = defineStore('video', () => {
     const id = videoId || currentVideo.value?.id
     if (!id) return
     videoUrl.value = buildVideoStreamUrl(id, 'processed')
+    await Promise.resolve()
   }
 
   const videoStreamUrl = computed(() =>
@@ -1448,15 +1470,20 @@ export const useVideoStore = defineStore('video', () => {
 
     const videoId = currentVideo.value.id
     axiosInstance
-      .get(r(endpoints.anonymization.hasRaw(videoId)))
+      .get<unknown>(r(endpoints.anonymization.hasRaw(videoId)))
       .then((response) => {
-        hasRawVideoFile.value = Boolean(
-          response.data?.hasRawFile ?? response.data?.has_raw_file ?? false
-        )
-        console.log(`Raw video file for ID ${videoId}:`, hasRawVideoFile.value)
+        const responseData = requireObject(response.data, 'Raw video availability')
+        const hasRawFile = readField(responseData, 'hasRawFile', 'has_raw_file')
+        if (typeof hasRawFile !== 'boolean') {
+          throw new TypeError('Raw video availability response contains an invalid value')
+        }
+        hasRawVideoFile.value = hasRawFile
+        log.debug('raw-video.check-completed', {
+          outcome: hasRawVideoFile.value ? 'available' : 'unavailable'
+        })
       })
-      .catch((error) => {
-        console.error('Error checking raw video file:', error)
+      .catch((error: unknown) => {
+        log.error('raw-video.check-failed', error)
         hasRawVideoFile.value = null
       })
   }
@@ -1483,11 +1510,7 @@ export const useVideoStore = defineStore('video', () => {
         currentVideo.value.segments = Object.values(segmentsByLabel).flat()
       }
     } catch (error) {
-      const axiosError = error as AxiosError
-      console.error(
-        'Error loading segments for label ' + label + ':',
-        axiosError.response?.data || axiosError.message
-      )
+      log.error('segments.label-load-failed', error)
       errorMessage.value = `Error loading segments for label ${label}. Please check the API endpoint or try again later.`
     }
   }
@@ -1520,34 +1543,27 @@ export const useVideoStore = defineStore('video', () => {
 
       // Clear existing segments
       Object.keys(segmentsByLabel).forEach((key) => {
-        delete segmentsByLabel[key]
+        Reflect.deleteProperty(segmentsByLabel, key)
       })
 
-      console.log(`[VideoStore] Loading ${rawSegments.length} segments for video ${videoId}`)
+      log.debug('segments.normalize-started', { count: rawSegments.length })
 
       rawSegments.forEach((backendSeg) => {
         const segmentWithVideoId: Segment = ensureLabelId(backendSegmentToSegment(backendSeg))
 
         const label = segmentWithVideoId.label
-        if (!segmentsByLabel[label]) {
+        if (!(label in segmentsByLabel)) {
           segmentsByLabel[label] = []
         }
 
         if (segmentWithVideoId.endTime - segmentWithVideoId.startTime < 0.1) {
-          console.warn(
-            `⚠️ Very short segment ${segmentWithVideoId.id}: ${
-              segmentWithVideoId.endTime - segmentWithVideoId.startTime
-            }s`
-          )
+          log.warn('segment.duration-short')
         }
 
         segmentsByLabel[label].push(segmentWithVideoId)
       })
 
-      console.log(
-        `[VideoStore] Processed segments by label:`,
-        Object.keys(segmentsByLabel).map((label) => `${label}: ${segmentsByLabel[label].length}`)
-      )
+      log.debug('segments.normalize-completed', { count: rawSegments.length })
       syncCurrentVideoSegments(videoId)
     } catch (error) {
       const axiosError = error as AxiosError
@@ -1555,10 +1571,7 @@ export const useVideoStore = defineStore('video', () => {
         return
       }
       if (token === _fetchToken.value) {
-        console.error(
-          'Error loading video segments:',
-          axiosError.response?.data || axiosError.message
-        )
+        log.error('segments.load-failed', error)
         errorMessage.value = 'Error loading video segments. Please try again later.'
       }
     } finally {
@@ -1590,7 +1603,7 @@ export const useVideoStore = defineStore('video', () => {
       // Get label ID from existing labels in store
       const labelMeta = videoList.value.labels.find((l) => l.name === label)
       if (!labelMeta) {
-        console.error(`Label ${label} not found in store`)
+        log.warn('label.lookup-missing')
         errorMessage.value = `Label ${label} nicht gefunden`
         return null
       }
@@ -1611,12 +1624,13 @@ export const useVideoStore = defineStore('video', () => {
       }
 
       upsertSegmentInStore(tempSegment)
+      const tempSegmentId = tempSegment.id
 
       const response = await bulkMutateSegments(videoId, {
         defer_annotation_sync: true,
         creates: [
           {
-            client_id: tempSegment.id,
+            client_id: tempSegmentId,
             label_id: labelId,
             ...buildSegmentTimestampPayload(
               timestampRange.startTime,
@@ -1629,10 +1643,10 @@ export const useVideoStore = defineStore('video', () => {
       })
 
       const created =
-        response.created.find((item) => (item.clientId ?? item.client_id) === tempSegment?.id) ??
-        response.created[0]
+        response.created.find((item) => (item.clientId ?? item.client_id) === tempSegmentId) ??
+        response.created.at(0)
 
-      if (!created?.segment) {
+      if (!created) {
         throw new Error('Backend returned no segment for created timeline item')
       }
 
@@ -1646,12 +1660,11 @@ export const useVideoStore = defineStore('video', () => {
         lastSyncError: null
       })
 
-      const newSegment = replaceSegmentInStore(tempSegment.id, persisted)
-      console.log('Created segment:', newSegment)
+      const newSegment = replaceSegmentInStore(tempSegmentId, persisted)
+      log.info('segment.create-completed')
       return newSegment
     } catch (error) {
-      const axiosError = error as AxiosError
-      console.error('Error creating segment:', axiosError.response?.data || axiosError.message)
+      log.error('segment.create-failed', error)
       errorMessage.value = 'Error creating segment. Please try again.'
       if (tempSegment) {
         removeSegmentFromStore(tempSegment.id)
@@ -1694,7 +1707,7 @@ export const useVideoStore = defineStore('video', () => {
     const fallbackStart = currentSegment?.startTime ?? 0
     const fallbackEnd = currentSegment?.endTime ?? 0
     if (!currentSegment && updates.startTime == null && updates.start_time == null) {
-      console.error('[VideoStore] Cannot infer segment times for update', segmentId)
+      log.warn('segment-update.timestamps-missing')
       return null
     }
 
@@ -1767,7 +1780,7 @@ export const useVideoStore = defineStore('video', () => {
 
     try {
       await updateSegmentWithPayload(job.videoId, job.segmentId, job.payload)
-      console.log(`[VideoStore] Queued update succeeded for segment ${job.segmentId}`)
+      log.debug('segment-update.queue-completed')
     } catch (error) {
       const axiosError = error as AxiosError
       job.attempts += 1
@@ -1782,10 +1795,7 @@ export const useVideoStore = defineStore('video', () => {
           void processSegmentUpdateQueue()
         }, delay)
       } else {
-        console.error(
-          '[VideoStore] Segment update failed after retries:',
-          axiosError.response?.data || axiosError.message
-        )
+        log.error('segment-update.queue-failed', error, { retryCount: job.attempts })
         getToastStore().error({
           text: 'Segment konnte nicht gespeichert werden. Bitte erneut speichern.'
         })
@@ -1806,7 +1816,7 @@ export const useVideoStore = defineStore('video', () => {
     try {
       const videoId = options.videoId ?? currentVideo.value?.id
       if (!videoId) {
-        console.error('[VideoStore] Cannot update segment without current video')
+        log.warn('segment-update.video-missing')
         return false
       }
 
@@ -1834,7 +1844,7 @@ export const useVideoStore = defineStore('video', () => {
         ]
       })
 
-      const updated = response.updated[0]
+      const updated = response.updated.at(0)
       if (updated) {
         applyPersistedSegment(updated)
       } else {
@@ -1849,13 +1859,13 @@ export const useVideoStore = defineStore('video', () => {
         )
       }
 
-      console.log(`[VideoStore] Successfully updated segment ${segmentId}`)
+      log.debug('segment-update.completed')
       return true
     } catch (error) {
       const axiosError = error as AxiosError
       const detail = getBulkOperationErrorDetail(axiosError.response?.data, 'updates', segmentId, 0)
       const errorText = formatValidationErrorDetail(detail) || axiosError.message
-      console.error('Error updating segment:', axiosError.response?.data || axiosError.message)
+      log.error('segment-update.failed', error)
       errorMessage.value = 'Error updating segment. Please try again.'
       updateSegmentInMemory(
         segmentId,
@@ -1882,29 +1892,30 @@ export const useVideoStore = defineStore('video', () => {
     exportSegmentsByVideo: boolean
   ): Promise<boolean> {
     try {
-      const response: AxiosResponse = await axiosInstance.patch(
+      const response: AxiosResponse<unknown> = await axiosInstance.patch(
         r(endpoints.media.videoDetail(videoId)),
         { export_segments_by_video: exportSegmentsByVideo }
       )
-      const updatedValue =
-        response.data?.exportSegmentsByVideo ??
-        response.data?.export_segments_by_video ??
-        exportSegmentsByVideo
+      const responseData = requireObject(response.data, 'Video export flag update')
+      const updatedValue = readField(
+        responseData,
+        'exportSegmentsByVideo',
+        'export_segments_by_video'
+      )
+      if (typeof updatedValue !== 'boolean') {
+        throw new TypeError('Video export flag update response contains an invalid value')
+      }
 
       const listVideo = videoList.value.videos.find((v) => v.id === videoId)
       if (listVideo) {
-        listVideo.exportSegmentsByVideo = Boolean(updatedValue)
+        listVideo.exportSegmentsByVideo = updatedValue
       }
       if (videoMeta.value?.id === videoId) {
-        videoMeta.value.exportSegmentsByVideo = Boolean(updatedValue)
+        videoMeta.value.exportSegmentsByVideo = updatedValue
       }
       return true
     } catch (error) {
-      const axiosError = error as AxiosError
-      console.error(
-        'Error updating video export flag:',
-        axiosError.response?.data || axiosError.message
-      )
+      log.error('video-export-flag.update-failed', error)
       return false
     }
   }
@@ -1914,7 +1925,7 @@ export const useVideoStore = defineStore('video', () => {
     try {
       const videoId = currentVideo.value?.id
       if (!videoId) {
-        console.error('[VideoStore] Kann Segment nicht löschen: Kein Video ausgewählt')
+        log.warn('segment-delete.video-missing')
         return false
       }
 
@@ -1942,7 +1953,7 @@ export const useVideoStore = defineStore('video', () => {
       return true
     } catch (error) {
       const axiosError = error as AxiosError
-      console.error('Error deleting segment:', axiosError.response?.data || axiosError.message)
+      log.error('segment-delete.failed', error)
       errorMessage.value = 'Error deleting segment. Please try again.'
       if (removedSnapshot) {
         restoreSegment({
@@ -1964,19 +1975,19 @@ export const useVideoStore = defineStore('video', () => {
   // ===================================================================
 
   function startDraft(label: string, startTime: number): void {
-    console.log(`[Draft] Starting draft: ${label} at ${formatTime(startTime)}`)
+    log.debug('draft.started')
     draftSegment.value = {
       id: nextDraftId--, // -1, -2, ...
       label,
       startTime,
       endTime: null
     }
-    console.log(`[Draft] Created draft segment:`, draftSegment.value)
+    log.debug('draft.created')
   }
 
   function updateDraftEnd(endTime: number): void {
     if (!draftSegment.value) {
-      console.warn('[Draft] Kein aktiver Draft gefunden zum Aktualisieren.')
+      log.warn('draft.update-missing')
       return
     }
 
@@ -1984,50 +1995,41 @@ export const useVideoStore = defineStore('video', () => {
 
     draftSegment.value.endTime = clampedEndTime
 
-    console.log(
-      `[Draft] Draft-Ende aktualisiert: ${formatTime(clampedEndTime)}, Duration: ${clampedEndTime - draftSegment.value.startTime}s`
-    )
+    log.debug('draft.end-updated')
   }
 
   async function commitDraft(): Promise<Segment | null> {
-    console.log(`[Draft] commitDraft() called, draftSegment:`, draftSegment.value)
-    console.log(`[Draft] currentVideo:`, currentVideo.value?.id)
+    log.debug('draft.commit-started')
+    log.debug('draft.video-state-checked')
 
     if (!draftSegment.value) {
-      console.warn(
-        '[Draft] Kein Draft zum Committen gefunden - draftSegment.value ist null/undefined'
-      )
+      log.warn('draft.commit-missing')
       return null
     }
 
     if (!currentVideo.value) {
       if (activeVideoId.value !== null) {
-        console.warn(
-          `[Draft] Kein currentVideo gefunden, setze activeVideoId ${activeVideoId.value} als Fallback`
-        )
+        log.warn('draft.video-fallback')
         setCurrentVideo(activeVideoId.value)
       }
     }
 
     if (!currentVideo.value) {
-      console.warn('[Draft] Kein currentVideo gefunden')
+      log.warn('draft.video-missing')
       return null
     }
 
     const draft = draftSegment.value
 
-    if (draft.endTime === null || draft.endTime === undefined) {
-      console.error(
-        '[Draft] Draft-Ende muss gesetzt sein vor dem Committen. Current endTime:',
-        draft.endTime
-      )
+    if (draft.endTime === null) {
+      log.warn('draft.end-missing')
       return null
     }
 
     try {
-      const videoId = currentVideo.value?.id
+      const videoId = currentVideo.value.id
       if (!videoId) {
-        console.error('[Draft] Cannot commit: no current video')
+        log.warn('draft.video-id-missing')
         return null
       }
 
@@ -2035,36 +2037,31 @@ export const useVideoStore = defineStore('video', () => {
       if (!newSegment) return null
 
       // Clear draft AFTER successful creation
-      const draftInfo = { ...draftSegment.value }
       draftSegment.value = null
-      console.log(
-        '[Draft] Draft erfolgreich committed und gecleared:',
-        draftInfo,
-        '-> New segment:',
-        newSegment
-      )
+      log.info('draft.commit-completed')
 
       return newSegment
     } catch (error) {
-      console.error('[Draft] Fehler beim Committen des Draft-Segments:', error)
-      if (error instanceof AxiosError && error.response?.data) {
-        console.error('[Draft] Backend error details:', error.response.data)
-      }
-      errorMessage.value =
-        error instanceof AxiosError
-          ? error.response?.data?.detail || error.message || 'Unbekannter Fehler beim Speichern'
-          : 'Unbekannter Fehler beim Speichern'
+      log.error('draft.commit-failed', error)
+      const responseData: unknown = error instanceof AxiosError ? error.response?.data : undefined
+      const responseDetail =
+        responseData !== null && typeof responseData === 'object'
+          ? readStringField(responseData, 'detail')
+          : null
+      errorMessage.value = responseDetail ?? (
+        error instanceof AxiosError ? error.message : 'Unbekannter Fehler beim Speichern'
+      )
       return null
     }
   }
 
   function cancelDraft(): void {
     if (!draftSegment.value) {
-      console.warn('[Draft] Kein Draft zum Abbrechen gefunden.')
+      log.warn('draft.cancel-missing')
       return
     }
 
-    console.log('[Draft] Draft abgebrochen:', draftSegment.value)
+    log.debug('draft.cancelled')
     draftSegment.value = null
   }
 
@@ -2089,11 +2086,11 @@ export const useVideoStore = defineStore('video', () => {
     // Filter for segments that have been moved/resized locally
     const dirtySegments = allSegments.value.filter((s) => s.isDirty && !s.isDraft && s.id > 0)
     if (dirtySegments.length === 0) {
-      console.log('[VideoStore] No dirty segments to persist.')
+      log.debug('segments.persist-skipped', { reasonCode: 'no-dirty-segments' })
       return
     }
 
-    console.log(`[VideoStore] Persisting ${dirtySegments.length} dirty segments...`)
+    log.debug('segments.persist-started', { count: dirtySegments.length })
 
     try {
       const videoId = currentVideo.value.id
@@ -2134,17 +2131,17 @@ export const useVideoStore = defineStore('video', () => {
         getToastStore().success({ text: 'Alle Änderungen gespeichert' })
       } else if (successCount > 0) {
         getToastStore().warning({
-          text: `${successCount} von ${dirtySegments.length} Segmenten gespeichert`
+          text: `${String(successCount)} von ${String(dirtySegments.length)} Segmenten gespeichert`
         })
       } else {
         getToastStore().error({ text: 'Speichern fehlgeschlagen' })
       }
 
-      if (successCount > 0 && currentVideo.value?.id) {
+      if (successCount > 0) {
         syncCurrentVideoSegments(currentVideo.value.id)
       }
     } catch (error) {
-      console.error('Save failed:', error)
+      log.error('segments.persist-failed', error)
       const axiosError = error as AxiosError
       let validationErrorCount = 0
       dirtySegments.forEach((segment, segmentIndex) => {
@@ -2168,13 +2165,13 @@ export const useVideoStore = defineStore('video', () => {
           false
         )
       })
-      syncCurrentVideoSegments(currentVideo.value?.id)
+      syncCurrentVideoSegments(currentVideo.value.id)
       if (validationErrorCount > 0) {
         getToastStore().error({
           text:
             validationErrorCount === 1
               ? 'Speichern blockiert: 1 Segment enthält Fehler.'
-              : `Speichern blockiert: ${validationErrorCount} Segmente enthalten Fehler.`
+              : `Speichern blockiert: ${String(validationErrorCount)} Segmente enthalten Fehler.`
         })
       } else {
         dirtySegments.forEach((segment) => {
@@ -2199,25 +2196,23 @@ export const useVideoStore = defineStore('video', () => {
     options: { sourceKind?: SegmentSourceKind; knownFps?: number } = {}
   ): Promise<void> {
     resetFrameNavigationCache()
-    console.log(`[VideoStore] loadVideo called with ID: ${videoId}`)
-    activeVideoId.value = Number(videoId)
+    log.debug('video.load-started')
+    activeVideoId.value = videoId
 
     // 1. Check Anonymization Status (Client-side pre-check)
     const anonStore = useAnonymizationStore()
 
     if (anonStore.overview.length === 0) {
-      console.log('[VideoStore] Anonymization overview empty, fetching...')
+      log.debug('anonymization-overview.fetch-started')
       try {
         await anonStore.fetchOverview()
       } catch {
-        console.warn(
-          '[VideoStore] Failed to fetch anonymization overview, proceeding with caution.'
-        )
+        log.warn('anonymization-overview.fetch-failed')
       }
     }
 
     const videoItem = anonStore.overview.find(
-      (f: FileItem) => f.id === Number(videoId) && f.mediaType === 'video'
+      (f: FileItem) => f.id === videoId && f.mediaType === 'video'
     )
 
     if (
@@ -2226,7 +2221,7 @@ export const useVideoStore = defineStore('video', () => {
       videoItem.anonymizationStatus !== 'validated'
     ) {
       throw new Error(
-        `Video ${videoId} darf nicht annotiert werden, ` +
+        `Video ${String(videoId)} darf nicht annotiert werden, ` +
           `solange die Anonymisierung nicht abgeschlossen ist. (Status: ${videoItem.anonymizationStatus})`
       )
     }
@@ -2256,18 +2251,9 @@ export const useVideoStore = defineStore('video', () => {
         fetchAllSegments(videoId, false, { sourceKind: options.sourceKind }) // Gets Segments
       ])
 
-      console.log(
-        `[VideoStore] Video ${videoId} loaded. ` +
-          `Duration: ${currentVideo.value?.duration}s, ` +
-          `FPS: ${currentVideo.value?.fps}, ` +
-          `Segments: ${currentVideo.value?.segments?.length}`
-      )
+      log.info('video.load-completed', { count: currentVideo.value.segments.length })
     } catch (error) {
-      const axiosError = error as AxiosError
-      console.error(
-        `[VideoStore] Error loading video ${videoId}:`,
-        axiosError.response?.data || axiosError.message
-      )
+      log.error('video.load-failed', error)
       errorMessage.value = 'Error loading video. Please try again.'
     }
   }

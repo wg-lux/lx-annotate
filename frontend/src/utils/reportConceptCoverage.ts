@@ -200,7 +200,7 @@ export function deriveReportConceptCoverage(params: {
   const items: ReportConceptCoverageItem[] = []
 
   for (const section of params.sections) {
-    for (const templateFinding of section.findings || []) {
+    for (const templateFinding of section.findings) {
       const findingId = normalizeKey(templateFinding.finding)
       const applicability = applicabilityStatus(templateFinding)
       const instances = findingInstances(params.payload, templateFinding.finding)
@@ -234,18 +234,18 @@ export function deriveReportConceptCoverage(params: {
         applicability,
         validation: validationStatus,
         validatorNames,
-        evidencePath: instances.length ? `patientFindings[${instances[0].index}]` : null,
+        evidencePath: instances.length ? `patientFindings[${String(instances[0].index)}]` : null,
         messages
       })
 
-      for (const classification of templateFinding.classifications || []) {
+      for (const classification of templateFinding.classifications) {
         const classificationId = `${findingId}.${normalizeKey(classification.classification)}`
         const classificationApplicability = applicability
         const choice = instances
           .flatMap(({ instance, index }) =>
             instance.classificationChoices.map((candidate, choiceIndex) => ({
               candidate,
-              path: `patientFindings[${index}].classificationChoices[${choiceIndex}]`
+              path: `patientFindings[${String(index)}].classificationChoices[${String(choiceIndex)}]`
             }))
           )
           .find(
@@ -328,12 +328,12 @@ export function mapServerReportConceptCoverage(
       : concept.label,
     status: serverStatus(concept.applicability, concept.validationStatus),
     required: concept.applicability.status === 'required',
-    documentation:
-      concept.validationStatus === 'present' ? 'recorded' : 'absent',
+    documentation: concept.validationStatus === 'present' ? 'recorded' : 'absent',
     applicability:
       concept.applicability.status === 'not_applicable'
         ? 'not_applicable'
-        : concept.applicability.status === 'unknown' || concept.applicability.status === 'conditional'
+        : concept.applicability.status === 'unknown' ||
+            concept.applicability.status === 'conditional'
           ? 'undetermined'
           : 'applicable',
     validation:

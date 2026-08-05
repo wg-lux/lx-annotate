@@ -11,11 +11,18 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import axios from 'axios'
 import { useAuthKcStore } from '@/stores/auth_kc'
 
+const mocks = vi.hoisted(() => ({
+  axiosGet: vi.fn<(url: string) => Promise<{ data: unknown }>>()
+}))
+
 // Mock axios globally for this test file
-vi.mock('axios')
+vi.mock('axios', () => ({
+  default: {
+    get: mocks.axiosGet
+  }
+}))
 
 vi.mock('@/api/axiosInstance', () => ({
   r: (path: string) => `/api/${path}`
@@ -37,7 +44,7 @@ describe('auth_kc store', () => {
       },
     }
 
-    ;(axios.get as unknown as vi.Mock).mockResolvedValueOnce({ data: mockData })
+    mocks.axiosGet.mockResolvedValueOnce({ data: mockData })
 
     const store = useAuthKcStore()
     await store.loadBootstrap()
@@ -62,7 +69,7 @@ describe('auth_kc store', () => {
       },
     }
 
-    ;(axios.get as unknown as vi.Mock).mockResolvedValueOnce({ data: mockData })
+    mocks.axiosGet.mockResolvedValueOnce({ data: mockData })
 
     const store = useAuthKcStore()
     await store.loadBootstrap()
@@ -71,5 +78,46 @@ describe('auth_kc store', () => {
     expect(store.user?.username).toBe('basic')
     expect(store.can('page.patients.view', 'GET')).toBe(false)
     expect(store.caps['page.patients.view:GET']).toBe(false)
+  })
+
+  it('fails closed for malformed users and capabilities', async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: {
+        user: { username: 'malformed', roles: 'admin' },
+        roles: ['admin'],
+        capabilities: {
+          'page.patients.view': { read: 'yes', write: true }
+        }
+      }
+    })
+
+    const store = useAuthKcStore()
+    await store.loadBootstrap()
+
+    expect(store.loaded).toBe(true)
+    expect(store.user).toBeNull()
+    expect(store.roles).toEqual([])
+    expect(store.caps).toEqual({})
+    expect(store.can('page.patients.view', 'GET')).toBe(false)
+  })
+
+  it('denies malformed capability entries for an otherwise valid user', async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: {
+        user: { username: 'editor', roles: ['data:read'] },
+        roles: ['data:read'],
+        capabilities: {
+          'page.patients.view': { read: 'yes', write: true }
+        }
+      }
+    })
+
+    const store = useAuthKcStore()
+    await store.loadBootstrap()
+
+    expect(store.user?.username).toBe('editor')
+    expect(store.caps).toEqual({})
+    expect(store.can('page.patients.view', 'GET')).toBe(false)
+    expect(store.can('page.patients.view', 'POST')).toBe(false)
   })
 })

@@ -39,7 +39,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
           {
             path: ':patient_examination_id/template-requirements',
             name: 'Reporting Template und Anforderungssets',
-            redirect: (to) => `/reporting/${to.params.patient_examination_id}/findings`
+            redirect: (to) => {
+              const patientExaminationId = to.params.patient_examination_id
+              if (typeof patientExaminationId !== 'string' || !patientExaminationId.trim()) {
+                return '/reporting/case-setup'
+              }
+              return `/reporting/${patientExaminationId}/findings`
+            }
           },
           {
             path: ':patient_examination_id/findings',
@@ -300,13 +306,14 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
   })
 
   // 🔐 Global auth guard: require Keycloak login + endoregdb_user for ALL routes
-  router.beforeEach(async (to, _from, next) => {
+  router.beforeEach((to, _from, next) => {
     const auth = useAuthKcStore()
 
     // If auth not bootstrapped yet, let the app decide (e.g. AuthCheck component),
     // just don't block navigation here.
     if (!auth.loaded) {
-      return next()
+      next()
+      return
     }
 
     // Not logged in → go to Keycloak login, not /login
@@ -335,10 +342,11 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
       })
 
       // Force logout and redirect to Keycloak login
-      await auth.logout() // <-- ENSURE this calls keycloak.logout()
+      auth.logout() // <-- ENSURE this calls keycloak.logout()
       auth.login() // <-- send to Keycloak login, not internal route
 
-      return next(false)
+      next(false)
+      return
     }
 
     // OK → continue to route
@@ -358,34 +366,46 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
     const hardProtect = !!meta.hardProtect // default false
 
     // No cap → no guard behaviour
-    if (!cap) return next()
+    if (!cap) {
+      next()
+      return
+    }
 
     const auth = useAuthKcStore()
 
     // If bootstrap not loaded yet, don't block navigation.
     // AuthCheck component will decide if user sees app or login.
-    if (!auth.loaded) return next()
+    if (!auth.loaded) {
+      next()
+      return
+    }
 
     // If route is NOT hard-protected → ALWAYS allow navigation
     // You can still use `v-can` inside the components to hide buttons, etc.
     if (!hardProtect) {
-      return next()
+      next()
+      return
     }
 
     // Only for hard-protected routes:
     if (auth.can(cap, 'GET')) {
-      return next()
+      next()
+      return
     }
 
     // User is logged in but missing capability → redirect away
-    return next({ path: '/', query: { denied: '1', from: to.path } })
+    next({ path: '/', query: { denied: '1', from: to.path } })
   })
 
   router.beforeEach((to, _from, next) => {
-    if (!to.path.startsWith('/reporting/')) return next()
+    if (!to.path.startsWith('/reporting/')) {
+      next()
+      return
+    }
     const peParam = to.params.patient_examination_id
     if (peParam === ':patient_examination_id') {
-      return next('/reporting/case-setup')
+      next('/reporting/case-setup')
+      return
     }
     next()
   })
@@ -404,30 +424,38 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
   router.beforeEach(async (to, from, next) => {
     const flow = useReportingFlowStore()
     const fromIsReporting = from.path.startsWith('/reporting/')
-    if (!fromIsReporting) return next()
-    if (flow.savingFinalReport) return next()
+    if (!fromIsReporting) {
+      next()
+      return
+    }
+    if (flow.savingFinalReport) {
+      next()
+      return
+    }
 
     const fromPeId = reportingPatientExaminationId(from)
     const toPeId = reportingPatientExaminationId(to)
     const stayingWithinSameReportingDraft = !!fromPeId && !!toPeId && fromPeId === toPeId
 
     if (stayingWithinSameReportingDraft) {
-      return next()
+      next()
+      return
     }
 
     if (!flow.hasUnpersistedDraftChanges) {
-      return next()
+      next()
+      return
     }
 
     try {
       await flow.flushDraftAutosave()
-      return next()
+      next()
     } catch {
       const toast = useToastStore()
       toast.error({
         text: 'Der Reporting-Entwurf konnte vor dem Verlassen nicht gespeichert werden.'
       })
-      return next(false)
+      next(false)
     }
   })
 

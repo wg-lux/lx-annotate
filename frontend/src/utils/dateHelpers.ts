@@ -28,7 +28,7 @@
  * @since Phase 2.1 - October 2025
  */
 
-export class DateConverter {
+export const DateConverter = {
   /**
    * Convert any supported date format to ISO (YYYY-MM-DD)
    *
@@ -47,7 +47,7 @@ export class DateConverter {
    * DateConverter.toISO('')              // null
    * DateConverter.toISO(null)            // null
    */
-  static toISO(input?: string | null): string | null {
+  toISO(input?: string | null): string | null {
     if (!input) return null
 
     const trimmed = input.trim().split(' ')[0] // Remove time if present
@@ -57,7 +57,7 @@ export class DateConverter {
     const isoMatch = isoPattern.exec(trimmed)
     if (isoMatch) {
       const [, year, month, day] = isoMatch
-      if (this._isValidDate(parseInt(year), parseInt(month), parseInt(day))) {
+      if (isValidDate(parseInt(year), parseInt(month), parseInt(day))) {
         return trimmed
       }
       return null
@@ -68,14 +68,14 @@ export class DateConverter {
     const germanMatch = germanPattern.exec(trimmed)
     if (germanMatch) {
       const [, day, month, year] = germanMatch
-      if (this._isValidDate(parseInt(year), parseInt(month), parseInt(day))) {
+      if (isValidDate(parseInt(year), parseInt(month), parseInt(day))) {
         return `${year}-${month}-${day}`
       }
       return null
     }
 
     return null
-  }
+  },
 
   /**
    * Convert ISO date (YYYY-MM-DD) to German format (DD.MM.YYYY)
@@ -88,7 +88,7 @@ export class DateConverter {
    * DateConverter.toGerman('invalid')     // ''
    * DateConverter.toGerman(null)          // ''
    */
-  static toGerman(iso?: string | null): string {
+  toGerman(iso?: string | null): string {
     if (!iso) return ''
 
     const trimmed = iso.trim()
@@ -100,12 +100,12 @@ export class DateConverter {
     const [, year, month, day] = match
 
     // Validate date before converting
-    if (!this._isValidDate(parseInt(year), parseInt(month), parseInt(day))) {
+    if (!isValidDate(parseInt(year), parseInt(month), parseInt(day))) {
       return ''
     }
 
     return `${day}.${month}.${year}`
-  }
+  },
 
   /**
    * Validate date string against specified format
@@ -120,7 +120,7 @@ export class DateConverter {
    * DateConverter.validate('32.13.2025', 'German')   // false (invalid day/month)
    * DateConverter.validate('2025-13-01', 'ISO')      // false (invalid month)
    */
-  static validate(date: string, format: 'ISO' | 'German'): boolean {
+  validate(date: string, format: 'ISO' | 'German'): boolean {
     if (!date) return false
 
     const trimmed = date.trim()
@@ -131,20 +131,16 @@ export class DateConverter {
       if (!match) return false
 
       const [, year, month, day] = match
-      return this._isValidDate(parseInt(year), parseInt(month), parseInt(day))
+      return isValidDate(parseInt(year), parseInt(month), parseInt(day))
     }
 
-    if (format === 'German') {
-      const germanPattern = /^(\d{2})\.(\d{2})\.(\d{4})$/
-      const match = germanPattern.exec(trimmed)
-      if (!match) return false
+    const germanPattern = /^(\d{2})\.(\d{2})\.(\d{4})$/
+    const match = germanPattern.exec(trimmed)
+    if (!match) return false
 
-      const [, day, month, year] = match
-      return this._isValidDate(parseInt(year), parseInt(month), parseInt(day))
-    }
-
-    return false
-  }
+    const [, day, month, year] = match
+    return isValidDate(parseInt(year), parseInt(month), parseInt(day))
+  },
 
   /**
    * Compare two ISO dates
@@ -159,8 +155,8 @@ export class DateConverter {
    * DateConverter.compare('2025-10-09', '1994-03-21')  // 1  (date1 later)
    * DateConverter.compare('invalid', '2025-10-09')     // null
    */
-  static compare(date1: string, date2: string): number | null {
-    if (!this.validate(date1, 'ISO') || !this.validate(date2, 'ISO')) {
+  compare(date1: string, date2: string): number | null {
+    if (!DateConverter.validate(date1, 'ISO') || !DateConverter.validate(date2, 'ISO')) {
       return null
     }
 
@@ -170,7 +166,7 @@ export class DateConverter {
     if (d1 < d2) return -1
     if (d1 > d2) return 1
     return 0
-  }
+  },
 
   /**
    * Check if date1 is before date2 (strict)
@@ -183,9 +179,9 @@ export class DateConverter {
    * DateConverter.isBefore('1994-03-21', '2025-10-09')  // true
    * DateConverter.isBefore('2025-10-09', '2025-10-09')  // false (equal)
    */
-  static isBefore(date1: string, date2: string): boolean {
-    return this.compare(date1, date2) === -1
-  }
+  isBefore(date1: string, date2: string): boolean {
+    return DateConverter.compare(date1, date2) === -1
+  },
 
   /**
    * Check if date1 is after date2 (strict)
@@ -198,9 +194,9 @@ export class DateConverter {
    * DateConverter.isAfter('2025-10-09', '1994-03-21')  // true
    * DateConverter.isAfter('2025-10-09', '2025-10-09')  // false (equal)
    */
-  static isAfter(date1: string, date2: string): boolean {
-    return this.compare(date1, date2) === 1
-  }
+  isAfter(date1: string, date2: string): boolean {
+    return DateConverter.compare(date1, date2) === 1
+  },
 
   /**
    * Check if date1 is before or equal to date2
@@ -209,10 +205,10 @@ export class DateConverter {
    * @param date2 - Second ISO date (YYYY-MM-DD)
    * @returns true if date1 <= date2, false otherwise
    */
-  static isBeforeOrEqual(date1: string, date2: string): boolean {
-    const result = this.compare(date1, date2)
+  isBeforeOrEqual(date1: string, date2: string): boolean {
+    const result = DateConverter.compare(date1, date2)
     return result === -1 || result === 0
-  }
+  },
 
   /**
    * Check if date1 is after or equal to date2
@@ -221,10 +217,10 @@ export class DateConverter {
    * @param date2 - Second ISO date (YYYY-MM-DD)
    * @returns true if date1 >= date2, false otherwise
    */
-  static isAfterOrEqual(date1: string, date2: string): boolean {
-    const result = this.compare(date1, date2)
+  isAfterOrEqual(date1: string, date2: string): boolean {
+    const result = DateConverter.compare(date1, date2)
     return result === 1 || result === 0
-  }
+  },
 
   /**
    * Get today's date in ISO format
@@ -234,13 +230,13 @@ export class DateConverter {
    * @example
    * DateConverter.today()  // '2025-10-09'
    */
-  static today(): string {
+  today(): string {
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const day = String(now.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
+    return `${String(year)}-${month}-${day}`
+  },
 
   /**
    * Get today's date in German format
@@ -250,31 +246,29 @@ export class DateConverter {
    * @example
    * DateConverter.todayGerman()  // '09.10.2025'
    */
-  static todayGerman(): string {
-    return this.toGerman(this.today())
-  }
+  todayGerman(): string {
+    return DateConverter.toGerman(DateConverter.today())
+  },
+}
 
-  /**
-   * Internal: Validate calendar date (checks for invalid dates like Feb 30)
-   *
-   * @param year - Year (1900-2100)
-   * @param month - Month (1-12)
-   * @param day - Day (1-31)
-   * @returns true if valid calendar date
-   *
-   * @private
-   */
-  private static _isValidDate(year: number, month: number, day: number): boolean {
-    // Basic range checks
-    if (year < 1900 || year > 2100) return false
-    if (month < 1 || month > 12) return false
-    if (day < 1 || day > 31) return false
+/**
+ * Internal: Validate calendar date (checks for invalid dates like Feb 30)
+ *
+ * @param year - Year (1900-2100)
+ * @param month - Month (1-12)
+ * @param day - Day (1-31)
+ * @returns true if valid calendar date
+ */
+function isValidDate(year: number, month: number, day: number): boolean {
+  // Basic range checks
+  if (year < 1900 || year > 2100) return false
+  if (month < 1 || month > 12) return false
+  if (day < 1 || day > 31) return false
 
-    // Use Date object to validate (catches Feb 30, etc.)
-    const date = new Date(year, month - 1, day)
+  // Use Date object to validate (catches Feb 30, etc.)
+  const date = new Date(year, month - 1, day)
 
-    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
-  }
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
 }
 
 /**
@@ -364,7 +358,7 @@ export class DateValidator {
     const count = this.errors.size
     if (count === 0) return 'Alle Datumsfelder sind gültig'
     if (count === 1) return '1 Datumsfehler gefunden'
-    return `${count} Datumsfehler gefunden`
+    return `${String(count)} Datumsfehler gefunden`
   }
 
   /**

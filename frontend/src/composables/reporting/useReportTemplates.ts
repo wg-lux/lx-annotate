@@ -20,13 +20,13 @@ function normalizeSections(
     .sort((a, b) => (a.position || 0) - (b.position || 0))
     .map((section) => {
       const findings = Array.isArray(section.findings) ? section.findings : []
-      const requiredFindingsCount = findings.filter((f) => !!f.required).length
+      const requiredFindingsCount = findings.filter((f) => f.required).length
       const optionalFindingsCount = Math.max(0, findings.length - requiredFindingsCount)
       const requiredClassificationsCount = findings.reduce(
         (acc, finding) =>
           acc +
           (Array.isArray(finding.classifications) ? finding.classifications : []).filter(
-            (classification) => !!classification.required
+            (classification) => classification.required
           ).length,
         0
       )
@@ -34,7 +34,7 @@ function normalizeSections(
         name: section.name,
         position: section.position,
         title: describeSectionTitle(section.name),
-        subtitle: `${findings.length} Befunde · ${requiredFindingsCount} erforderlich`,
+        subtitle: `${String(findings.length)} Befunde · ${String(requiredFindingsCount)} erforderlich`,
         findings,
         requiredFindingsCount,
         optionalFindingsCount,

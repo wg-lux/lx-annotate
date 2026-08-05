@@ -6,6 +6,9 @@ import {
   type AnonymizationStatusResponse,
   type ProcessingResponse
 } from '@/api/mediaManagement'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('polling-protection')
 
 export type ProtectedMediaType = 'video' | 'pdf'
 
@@ -22,7 +25,7 @@ export function usePollingProtection() {
 
   // Helper to create lock key
   const createLockKey = (fileId: number, mediaType: ProtectedMediaType): string => {
-    return `${mediaType}:${fileId}`
+    return `${mediaType}:${String(fileId)}`
   }
 
   // Remove expired locks
@@ -90,7 +93,7 @@ export function usePollingProtection() {
       const result = await getStatusSafe(fileId, mediaType)
       return result
     } catch (error: unknown) {
-      console.error(`Status check failed for ${mediaType}:${fileId}:`, error)
+      logger.error('status-check-failed', error, { mediaType })
       throw error
     }
   }
@@ -130,7 +133,7 @@ export function usePollingProtection() {
       const result = await validateAnonymizationSafe(fileId)
       return result
     } catch (error: unknown) {
-      console.error(`Validation failed for ${mediaType}:${fileId}:`, error)
+      logger.error('validation-failed', error, { mediaType })
       throw error
     } finally {
       releaseProcessingLock(fileId, mediaType)
@@ -143,7 +146,7 @@ export function usePollingProtection() {
   const clearAllLocalLocks = (): void => {
     const clearedCount = processingLocks.value.size
     processingLocks.value.clear()
-    console.log(`Cleared ${clearedCount} local processing locks`)
+    logger.debug('local-locks-cleared', { count: clearedCount })
   }
 
   /**
@@ -165,9 +168,9 @@ export function usePollingProtection() {
         clearAllLocalLocks()
       }
 
-      console.log('All processing locks cleared successfully')
+      logger.info('all-locks-cleared')
     } catch (error) {
-      console.error('Failed to clear processing locks:', error)
+      logger.error('clear-locks-failed', error)
       throw error
     }
   }

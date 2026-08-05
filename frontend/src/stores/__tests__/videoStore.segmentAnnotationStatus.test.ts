@@ -1,19 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import axiosInstance from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import { useVideoStore } from '@/stores/videoStore'
 
+function resolvedData<T>(data: T): Promise<{ data: T }> {
+  return Promise.resolve({ data })
+}
+
+const axiosMocks = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn()
+}))
+
 vi.mock('@/api/axiosInstance', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn()
-  },
+  default: axiosMocks,
   r: (path: string) => path
 }))
+
+const axiosGet = axiosMocks.get
+const axiosPost = axiosMocks.post
 
 describe('VideoStore segment annotation status mapping', () => {
   beforeEach(() => {
@@ -22,13 +30,12 @@ describe('VideoStore segment annotation status mapping', () => {
   })
 
   it('maps cleanup status fields from snake_case API responses', async () => {
-    vi.mocked(axiosInstance.get).mockImplementation(async (url: string) => {
+    axiosGet.mockImplementation((url: string) => {
       if (url === endpoints.media.videoLabelsList) {
-        return { data: [] }
+        return resolvedData([])
       }
       if (url === endpoints.media.videos) {
-        return {
-          data: [
+        return resolvedData([
             {
               id: 25,
               original_file_name: 'case-25.mp4',
@@ -43,10 +50,9 @@ describe('VideoStore segment annotation status mapping', () => {
                 details: 'extracting frames'
               }
             }
-          ]
-        }
+          ])
       }
-      return { data: {} }
+      return resolvedData({})
     })
 
     const store = useVideoStore()
@@ -67,22 +73,20 @@ describe('VideoStore segment annotation status mapping', () => {
   })
 
   it('defaults legacy validated videos to validated segment status', async () => {
-    vi.mocked(axiosInstance.get).mockImplementation(async (url: string) => {
+    axiosGet.mockImplementation((url: string) => {
       if (url === endpoints.media.videoLabelsList) {
-        return { data: [] }
+        return resolvedData([])
       }
       if (url === endpoints.media.videos) {
-        return {
-          data: [
+        return resolvedData([
             {
               id: 31,
               original_file_name: 'legacy-validated.mp4',
               segment_annotations_validated: true
             }
-          ]
-        }
+          ])
       }
-      return { data: {} }
+      return resolvedData({})
     })
 
     const store = useVideoStore()
@@ -96,11 +100,11 @@ describe('VideoStore segment annotation status mapping', () => {
   })
 
   it('adds the selected ai dataset id to segment bulk mutation payloads', async () => {
-    vi.mocked(axiosInstance.get).mockImplementation(async (url: string) => {
+    axiosGet.mockImplementation((url: string) => {
       if (url === endpoints.media.videoLabelsList) {
-        return { data: [{ id: 2, name: 'outside' }] }
+        return resolvedData([{ id: 2, name: 'outside' }])
       }
-      return { data: {} }
+      return resolvedData({})
     })
     const store = useVideoStore()
     await store.fetchLabels()
@@ -118,7 +122,7 @@ describe('VideoStore segment annotation status mapping', () => {
     })
     store.setSegmentAiDatasetId(300)
 
-    vi.mocked(axiosInstance.post).mockResolvedValue({
+    axiosPost.mockResolvedValue({
       data: {
         created: [
           {
@@ -142,7 +146,7 @@ describe('VideoStore segment annotation status mapping', () => {
 
     await store.createSegment(7, 'outside', 0, 1)
 
-    expect(axiosInstance.post).toHaveBeenCalledWith(
+    expect(axiosPost).toHaveBeenCalledWith(
       endpoints.media.videoSegmentsBulkMutation(7),
       expect.objectContaining({
         aiDatasetId: 300

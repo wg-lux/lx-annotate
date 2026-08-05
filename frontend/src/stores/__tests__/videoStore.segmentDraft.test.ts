@@ -1,20 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import axiosInstance from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import { useVideoStore } from '@/stores/videoStore'
 
+const axiosMocks = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  delete: vi.fn()
+}))
+
 vi.mock('@/api/axiosInstance', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn()
-  },
+  default: axiosMocks,
   r: (path: string) => path,
   a: (path: string) => path
 }))
+
+const axiosGet = axiosMocks.get
+const axiosPost = axiosMocks.post
 
 async function createStoreWithVideo() {
   const store = useVideoStore()
@@ -30,7 +34,7 @@ async function createStoreWithVideo() {
     fps: 30,
     frameCount: 1800
   })
-  vi.mocked(axiosInstance.get).mockResolvedValueOnce({
+  axiosGet.mockResolvedValueOnce({
     data: [{ id: 1, name: 'polyp', color: '#ff0000' }]
   })
   await store.fetchLabels()
@@ -67,7 +71,7 @@ describe('VideoStore segment drafts', () => {
 
   it('persists a complete draft through the bulk segment boundary', async () => {
     const store = await createStoreWithVideo()
-    vi.mocked(axiosInstance.post).mockResolvedValueOnce({
+    axiosPost.mockResolvedValueOnce({
       data: {
         created: [
           {
@@ -92,7 +96,7 @@ describe('VideoStore segment drafts', () => {
 
     const result = await store.commitDraft()
 
-    expect(axiosInstance.post).toHaveBeenCalledWith(
+    expect(axiosPost).toHaveBeenCalledWith(
       endpoints.media.videoSegmentsBulkMutation(123),
       expect.objectContaining({
         defer_annotation_sync: true,
@@ -119,7 +123,7 @@ describe('VideoStore segment drafts', () => {
 
   it('keeps the draft available for retry when persistence fails', async () => {
     const store = await createStoreWithVideo()
-    vi.mocked(axiosInstance.post).mockRejectedValueOnce(new Error('network unavailable'))
+    axiosPost.mockRejectedValueOnce(new Error('network unavailable'))
     store.startDraft('polyp', 10.5)
     store.updateDraftEnd(15)
 
@@ -139,11 +143,25 @@ describe('VideoStore segment drafts', () => {
 
     await expect(store.commitDraft()).resolves.toBeNull()
 
-    expect(axiosInstance.post).not.toHaveBeenCalled()
+    expect(axiosPost).not.toHaveBeenCalled()
     expect(store.draftSegment).toMatchObject({
       label: 'polyp',
       startTime: 10.5,
       endTime: null
     })
+  })
+
+  it('owns playback promise rejections when jumping to a segment', async () => {
+    const store = await createStoreWithVideo()
+    store.startDraft('polyp', 10.5)
+    const segment = store.allSegments[0]
+    const video = document.createElement('video')
+    const play = vi.spyOn(video, 'play').mockRejectedValue(new Error('playback unavailable'))
+
+    store.jumpToSegment(segment, video)
+    await Promise.resolve()
+
+    expect(video.currentTime).toBe(10.5)
+    expect(play).toHaveBeenCalledOnce()
   })
 })

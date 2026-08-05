@@ -1,21 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { findingsApi } from '@/api/findingsApi'
 import { usePatientFindingStore } from '@/stores/patientFindingStore'
+
+const findingsApiMocks = vi.hoisted(() => ({
+  listPatientFindings: vi.fn(),
+  createPatientFinding: vi.fn(),
+  updatePatientFinding: vi.fn(),
+  deletePatientFinding: vi.fn()
+}))
 
 vi.mock('@/api/findingsApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/findingsApi')>()
   return {
     ...actual,
-    findingsApi: {
-      listPatientFindings: vi.fn(),
-      createPatientFinding: vi.fn(),
-      updatePatientFinding: vi.fn(),
-      deletePatientFinding: vi.fn()
-    }
+    findingsApi: findingsApiMocks
   }
 })
+
+const listPatientFindings = findingsApiMocks.listPatientFindings
+const createPatientFinding = findingsApiMocks.createPatientFinding
+const updatePatientFinding = findingsApiMocks.updatePatientFinding
+const deletePatientFinding = findingsApiMocks.deletePatientFinding
 
 const finding = (id: number, findingId: number, isActive = true) => ({
   id,
@@ -32,18 +38,18 @@ describe('patientFindingStore', () => {
   })
 
   it('loads findings for the selected patient examination', async () => {
-    vi.mocked(findingsApi.listPatientFindings).mockResolvedValue([finding(1, 7)])
+    listPatientFindings.mockResolvedValue([finding(1, 7)])
     const store = usePatientFindingStore()
 
     await store.fetchPatientFindings(42)
 
-    expect(findingsApi.listPatientFindings).toHaveBeenCalledWith(42)
+    expect(listPatientFindings).toHaveBeenCalledWith(42)
     expect(store.patientFindings).toEqual([finding(1, 7)])
     expect(store.loading).toBe(false)
   })
 
   it('normalizes the create payload and appends the response', async () => {
-    vi.mocked(findingsApi.createPatientFinding).mockResolvedValue(finding(2, 8))
+    createPatientFinding.mockResolvedValue(finding(2, 8))
     const store = usePatientFindingStore()
 
     const created = await store.createPatientFinding({
@@ -52,7 +58,7 @@ describe('patientFindingStore', () => {
       classifications: [{ classification: 3, choice: 9 }]
     })
 
-    expect(findingsApi.createPatientFinding).toHaveBeenCalledWith({
+    expect(createPatientFinding).toHaveBeenCalledWith({
       patientExamination: 42,
       finding: 8,
       classifications: [{ classification: 3, choice: 9 }]
@@ -62,9 +68,9 @@ describe('patientFindingStore', () => {
   })
 
   it('updates and deletes the matching local finding', async () => {
-    vi.mocked(findingsApi.listPatientFindings).mockResolvedValue([finding(1, 7), finding(2, 8)])
-    vi.mocked(findingsApi.updatePatientFinding).mockResolvedValue(finding(1, 9, false))
-    vi.mocked(findingsApi.deletePatientFinding).mockResolvedValue(undefined)
+    listPatientFindings.mockResolvedValue([finding(1, 7), finding(2, 8)])
+    updatePatientFinding.mockResolvedValue(finding(1, 9, false))
+    deletePatientFinding.mockResolvedValue(undefined)
     const store = usePatientFindingStore()
     await store.fetchPatientFindings(42)
 
@@ -75,17 +81,17 @@ describe('patientFindingStore', () => {
     })
     await store.deletePatientFinding(2)
 
-    expect(findingsApi.updatePatientFinding).toHaveBeenCalledWith(1, {
+    expect(updatePatientFinding).toHaveBeenCalledWith(1, {
       finding: 9,
       isActive: false,
       classifications: []
     })
-    expect(findingsApi.deletePatientFinding).toHaveBeenCalledWith(2)
+    expect(deletePatientFinding).toHaveBeenCalledWith(2)
     expect(store.patientFindings).toEqual([finding(1, 9, false)])
   })
 
   it('preserves existing findings and exposes a typed API error when refresh fails', async () => {
-    vi.mocked(findingsApi.listPatientFindings)
+    listPatientFindings
       .mockResolvedValueOnce([finding(1, 7)])
       .mockRejectedValueOnce({
         response: {
@@ -110,7 +116,7 @@ describe('patientFindingStore', () => {
         data: { code: 'duplicate-finding', detail: 'Finding already exists' }
       }
     }
-    vi.mocked(findingsApi.createPatientFinding).mockRejectedValueOnce(apiError)
+    createPatientFinding.mockRejectedValueOnce(apiError)
     const store = usePatientFindingStore()
 
     await expect(store.createPatientFinding({ patientExamination: 42, finding: 8 })).rejects.toBe(

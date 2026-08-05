@@ -17,7 +17,7 @@ export function formatDateForMetricsInput(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return `${String(year)}-${month}-${day}`
 }
 
 export function buildDefaultAnonymizationMetricsFilters(
@@ -38,14 +38,19 @@ export function buildDefaultAnonymizationMetricsFilters(
 }
 
 function errorToMessage(error: unknown): string {
-  const failure = error as {
-    response?: { data?: { detail?: unknown; error?: unknown } }
-    message?: unknown
-  }
+  const failure = error !== null && typeof error === 'object' ? error : {}
+  const response =
+    'response' in failure && failure.response !== null && typeof failure.response === 'object'
+      ? failure.response
+      : {}
+  const data =
+    'data' in response && response.data !== null && typeof response.data === 'object'
+      ? response.data
+      : {}
   const candidates = [
-    failure?.response?.data?.detail,
-    failure?.response?.data?.error,
-    failure?.message
+    'detail' in data ? data.detail : undefined,
+    'error' in data ? data.error : undefined,
+    'message' in failure ? failure.message : undefined
   ]
   return (
     candidates.find(

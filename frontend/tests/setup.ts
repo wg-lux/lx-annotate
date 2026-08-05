@@ -4,7 +4,11 @@ import { createPinia, setActivePinia } from 'pinia'
 // Ensure Pinia exists before test modules import stores at file scope.
 setActivePinia(createPinia())
 
-if (!globalThis.ResizeObserver) {
+function hasCallableProperty(target: object, property: string): boolean {
+  return typeof Reflect.get(target, property) === 'function'
+}
+
+if (!hasCallableProperty(globalThis, 'ResizeObserver')) {
   class ResizeObserverMock {
     observe() {}
     unobserve() {}
@@ -13,7 +17,7 @@ if (!globalThis.ResizeObserver) {
   globalThis.ResizeObserver = ResizeObserverMock
 }
 
-if (!window.matchMedia) {
+if (!hasCallableProperty(window, 'matchMedia')) {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
@@ -29,7 +33,7 @@ if (!window.matchMedia) {
   })
 }
 
-if (!window.scrollTo) {
+if (!hasCallableProperty(window, 'scrollTo')) {
   Object.defineProperty(window, 'scrollTo', {
     writable: true,
     value: vi.fn()

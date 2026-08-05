@@ -4,7 +4,9 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useAnnotationQueueStore } from '@/stores/annotationQueue'
 
 const hoisted = vi.hoisted(() => ({
-  get: vi.fn(),
+  get: vi.fn<
+    (url: string, config?: { params: Record<string, string | number> }) => Promise<{ data: unknown }>
+  >(),
   fetchApplicationSettings: vi.fn()
 }))
 
@@ -21,9 +23,9 @@ vi.mock('@/api/applicationSettingsApi', () => ({
 
 function buildTask(frameId: number) {
   return {
-    id: `task-${frameId}`,
+    id: `task-${String(frameId)}`,
     frameId,
-    imageUrl: `/media/frame-${frameId}.jpg`,
+    imageUrl: `/media/frame-${String(frameId)}.jpg`,
     labelOptions: [{ id: 11, name: 'Polyp' }]
   }
 }
@@ -50,6 +52,13 @@ async function waitForGetCall(count: number): Promise<void> {
     await Promise.resolve()
   }
   expect(hoisted.get).toHaveBeenCalledTimes(count)
+}
+
+function expectLastTaskRequestParams(expected: Record<string, string | number>): void {
+  const call = hoisted.get.mock.calls.at(-1)
+  if (call === undefined) throw new Error('Expected a frame-task request.')
+  expect(call[0]).toBe('media/annotations/frames/random-task/')
+  expect(call[1]?.params).toMatchObject(expected)
 }
 
 describe('annotationQueue store', () => {
@@ -106,8 +115,8 @@ describe('annotationQueue store', () => {
 
     const freshBatch = await store.fetchBatch(10)
 
-    expect(hoisted.get.mock.calls[0][1].params.annotator).toBe('old-annotator')
-    expect(hoisted.get.mock.calls[1][1].params.annotator).toBe('new-annotator')
+    expect(hoisted.get.mock.calls[0]?.[1]?.params.annotator).toBe('old-annotator')
+    expect(hoisted.get.mock.calls[1]?.[1]?.params.annotator).toBe('new-annotator')
     expect(freshBatch.map((task) => task.data.frameId)).toEqual([303])
     expect(store.taskQueue.map((task) => task.data.frameId)).toEqual([303])
   })
@@ -183,17 +192,12 @@ describe('annotationQueue store', () => {
 
     await store.fetchBatch(1)
 
-    expect(hoisted.get).toHaveBeenCalledWith(
-      'media/annotations/frames/random-task/',
-      expect.objectContaining({
-        params: expect.objectContaining({
-          ai_dataset_id: '7',
-          ai_dataset_name: 'Dataset A',
-          ai_dataset_type: 'image',
-          frame_file_type: 'auto'
-        })
-      })
-    )
+    expectLastTaskRequestParams({
+      ai_dataset_id: '7',
+      ai_dataset_name: 'Dataset A',
+      ai_dataset_type: 'image',
+      frame_file_type: 'auto'
+    })
   })
 
   it('sends selected frame file type when requesting frame tasks', async () => {
@@ -205,14 +209,7 @@ describe('annotationQueue store', () => {
 
     await store.fetchBatch(1)
 
-    expect(hoisted.get).toHaveBeenCalledWith(
-      'media/annotations/frames/random-task/',
-      expect.objectContaining({
-        params: expect.objectContaining({
-          frame_file_type: 'processed'
-        })
-      })
-    )
+    expectLastTaskRequestParams({ frame_file_type: 'processed' })
   })
 
   it('deduplicates prefetched frames that are already active or queued', async () => {

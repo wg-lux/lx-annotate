@@ -29,8 +29,6 @@ function clearReportingSessionArtifacts() {
  *
  * This store normalizes both so `can(key, method)` just returns a boolean.
  */
-type RW = { read?: boolean; write?: boolean }
-type RawCaps = Record<string, boolean | RW>
 type CapMap = Record<string, boolean>
 
 export interface User {
@@ -40,28 +38,56 @@ export interface User {
   canOverrideAnnotationPrincipal?: boolean
 }
 
-interface Bootstrap {
-  user: User | null
-  roles?: string[]
-  capabilities?: RawCaps
-  sub?: string
-  oidcSub?: string
-  oidc_sub?: string
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+}
+
+function normalizeUser(value: unknown): User | null {
+  if (
+    !isRecord(value) ||
+    typeof value.username !== 'string' ||
+    !value.username.trim() ||
+    !isStringArray(value.roles)
+  ) {
+    return null
+  }
+  const sub = typeof value.sub === 'string' ? value.sub : undefined
+  const canOverrideAnnotationPrincipal =
+    typeof value.canOverrideAnnotationPrincipal === 'boolean'
+      ? value.canOverrideAnnotationPrincipal
+      : undefined
+  return {
+    username: value.username,
+    roles: value.roles,
+    ...(sub === undefined ? {} : { sub }),
+    ...(canOverrideAnnotationPrincipal === undefined ? {} : { canOverrideAnnotationPrincipal })
+  }
 }
 
 /** Normalize arbitrary capability payloads into a simple boolean map. */
-function normalizeCaps(raw: RawCaps | undefined): CapMap {
+function normalizeCaps(raw: unknown): CapMap {
   const out: CapMap = {}
-  if (!raw || typeof raw !== 'object') return out
+  if (!isRecord(raw)) return out
 
   for (const [key, val] of Object.entries(raw)) {
     if (typeof val === 'boolean') {
       out[key] = val
       continue
     }
+    if (!isRecord(val)) continue
+    if (
+      (val.read !== undefined && typeof val.read !== 'boolean') ||
+      (val.write !== undefined && typeof val.write !== 'boolean')
+    ) {
+      continue
+    }
     // Object form { read, write } → provide both a default and method-specific keys.
-    const r = !!val.read
-    const w = !!val.write
+    const r = val.read === true
+    const w = val.write === true
     // Default semantic: GET → read; others → write
     out[key] = r || w // truthy if either permitted; UI pieces can still use method-specific checks
 
@@ -80,7 +106,7 @@ function normalizeCaps(raw: RawCaps | undefined): CapMap {
 export const useAuthKcStore = defineStore('auth_kc', {
   state: () => ({
     /** Filled from backend bootstrap */
-    user: null as Bootstrap['user'],
+    user: null as User | null,
     roles: [] as string[],
 
     /** Capabilities normalized to simple booleans (see normalizeCaps) */
@@ -101,29 +127,30 @@ export const useAuthKcStore = defineStore('auth_kc', {
     async loadBootstrap() {
       if (this.loaded) return
       try {
-        let data: Bootstrap
+        let data: unknown
         try {
-          const res = await axios.get<Bootstrap>(r(endpoints.auth.bootstrap), {
+          const res = await axios.get<unknown>(r(endpoints.auth.bootstrap), {
             withCredentials: true
           })
           data = res.data
         } catch {
           // Fallback for older backend
-          const res = await axios.get<Bootstrap>(r(endpoints.auth.context), {
+          const res = await axios.get<unknown>(r(endpoints.auth.context), {
             withCredentials: true
           })
           data = res.data
         }
 
         // User & roles (support both shapes)
-        const rawUser = data && 'user' in data ? (data.user as Bootstrap['user']) : null
+        const bootstrap = isRecord(data) ? data : {}
+        const rawUser = normalizeUser(bootstrap.user)
         const fallbackSub =
-          typeof data?.sub === 'string'
-            ? data.sub
-            : typeof data?.oidcSub === 'string'
-              ? data.oidcSub
-              : typeof data?.oidc_sub === 'string'
-                ? data.oidc_sub
+          typeof bootstrap.sub === 'string'
+            ? bootstrap.sub
+            : typeof bootstrap.oidcSub === 'string'
+              ? bootstrap.oidcSub
+              : typeof bootstrap.oidc_sub === 'string'
+                ? bootstrap.oidc_sub
                 : null
         const user = rawUser
           ? {
@@ -134,11 +161,15 @@ export const useAuthKcStore = defineStore('auth_kc', {
                   : (fallbackSub ?? undefined)
             }
           : null
-        const roles = data?.roles && Array.isArray(data.roles) ? data.roles : (user?.roles ?? [])
+        const roles = user
+          ? isStringArray(bootstrap.roles)
+            ? bootstrap.roles
+            : user.roles
+          : []
 
         this.user = user
         this.roles = roles
-        this.caps = normalizeCaps(data?.capabilities)
+        this.caps = user ? normalizeCaps(bootstrap.capabilities) : {}
       } finally {
         // Even on failure we mark loaded so the UI can decide; middleware should redirect unauthenticated anyway
         this.loaded = true
@@ -156,8 +187,8 @@ export const useAuthKcStore = defineStore('auth_kc', {
       method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' = 'GET'
     ): boolean {
       const composite = `${key}:${method.toUpperCase()}`
-      if (Object.prototype.hasOwnProperty.call(this.caps, composite)) return !!this.caps[composite]
-      if (Object.prototype.hasOwnProperty.call(this.caps, key)) return !!this.caps[key]
+      if (Object.prototype.hasOwnProperty.call(this.caps, composite)) return this.caps[composite]
+      if (Object.prototype.hasOwnProperty.call(this.caps, key)) return this.caps[key]
       return false
     },
 

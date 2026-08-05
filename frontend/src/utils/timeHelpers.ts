@@ -64,6 +64,9 @@ export function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
+const isFiniteNumber = (value: number | undefined): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+
 /**
  * Calculate segment width percentage for timeline display
  * @param start Start time in seconds
@@ -73,15 +76,15 @@ export function formatTime(seconds: number): string {
  */
 export function calculateSegmentWidth(start?: number, end?: number, duration?: number): number {
   if (
-    !Number.isFinite(start) ||
-    !Number.isFinite(end) ||
-    !Number.isFinite(duration) ||
-    duration! <= 0 ||
-    end! <= start!
+    !isFiniteNumber(start) ||
+    !isFiniteNumber(end) ||
+    !isFiniteNumber(duration) ||
+    duration <= 0 ||
+    end <= start
   ) {
     return 0
   }
-  return ((end! - start!) / duration!) * 100
+  return ((end - start) / duration) * 100
 }
 
 /**
@@ -91,8 +94,8 @@ export function calculateSegmentWidth(start?: number, end?: number, duration?: n
  * @returns Position percentage (0-100)
  */
 export function calculateSegmentPosition(start?: number, duration?: number): number {
-  if (!Number.isFinite(start) || !Number.isFinite(duration) || duration! <= 0) {
+  if (!isFiniteNumber(start) || !isFiniteNumber(duration) || duration <= 0) {
     return 0
   }
-  return (start! / duration!) * 100
+  return (start / duration) * 100
 }

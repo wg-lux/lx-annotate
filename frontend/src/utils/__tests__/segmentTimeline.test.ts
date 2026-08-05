@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import axiosInstance from '@/api/axiosInstance'
 import { useVideoStore } from '@/stores/videoStore'
 import {
   buildSegmentTimestampPayload,
@@ -9,16 +8,21 @@ import {
   requireSegmentTimestampRange
 } from '@/utils/segmentTimeline'
 
+const axiosMocks = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  delete: vi.fn()
+}))
+
 vi.mock('@/api/axiosInstance', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn()
-  },
+  default: axiosMocks,
   r: (path: string) => path,
   a: (path: string) => path
 }))
+
+const axiosGet = axiosMocks.get
+const axiosPost = axiosMocks.post
 
 describe('segment timeline contract', () => {
   beforeEach(() => {
@@ -73,7 +77,7 @@ describe('segment timeline contract', () => {
 
   it('requests the canonical frame neighborhood without an FPS fallback', async () => {
     const store = useVideoStore()
-    vi.mocked(axiosInstance.get).mockResolvedValueOnce({
+    axiosGet.mockResolvedValueOnce({
       data: {
         videoId: 17,
         requestedTimestamp: 0.12,
@@ -94,11 +98,11 @@ describe('segment timeline contract', () => {
 
     await expect(store.resolveAdjacentFrameTimestamp(17, 0.12, 1)).resolves.toBe(0.16)
     await expect(store.resolveAdjacentFrameTimestamp(17, 0.16, 1)).resolves.toBe(0.24)
-    expect(axiosInstance.get).toHaveBeenCalledWith(
+    expect(axiosGet).toHaveBeenCalledWith(
       'media/videos/17/timeline/frame-neighborhood/',
       { params: { timestamp: 0.12, radius: 12 }, suppressErrorToast: true }
     )
-    expect(axiosInstance.get).toHaveBeenCalledTimes(1)
+    expect(axiosGet).toHaveBeenCalledTimes(1)
   })
 
   it('sends timestamps and adopts canonical PTS-derived boundaries from the backend', async () => {
@@ -116,12 +120,12 @@ describe('segment timeline contract', () => {
       frameCount: 60
     })
 
-    vi.mocked(axiosInstance.get).mockResolvedValueOnce({
+    axiosGet.mockResolvedValueOnce({
       data: [{ id: 4, name: 'polyp', color: '#ff0000' }]
     })
     await store.fetchLabels()
 
-    vi.mocked(axiosInstance.post).mockResolvedValueOnce({
+    axiosPost.mockResolvedValueOnce({
       data: {
         created: [
           {
@@ -144,7 +148,7 @@ describe('segment timeline contract', () => {
     })
 
     const created = await store.createSegment(17, 'polyp', 0.041, 0.109)
-    const payload = vi.mocked(axiosInstance.post).mock.calls[0][1] as {
+    const payload = axiosPost.mock.calls[0][1] as {
       creates: Array<Record<string, unknown>>
     }
 
@@ -169,7 +173,7 @@ describe('segment timeline contract', () => {
       endFrameNumber: 3
     })
 
-    vi.mocked(axiosInstance.post).mockResolvedValueOnce({
+    axiosPost.mockResolvedValueOnce({
       data: {
         created: [],
         updated: [
@@ -194,7 +198,7 @@ describe('segment timeline contract', () => {
       start_frame_number: 999,
       end_frame_number: 1000
     })
-    const updatePayload = vi.mocked(axiosInstance.post).mock.calls[1][1] as {
+    const updatePayload = axiosPost.mock.calls[1][1] as {
       updates: Array<Record<string, unknown>>
     }
 

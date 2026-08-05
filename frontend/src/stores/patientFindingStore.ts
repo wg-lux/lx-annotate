@@ -9,6 +9,9 @@ import type { Patient } from '@/stores/patientStore'
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 
 import { usePatientStore } from '@/stores/patientStore'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-finding-store')
 
 interface PatientFinding extends Partial<PatientFindingRow> {
   id: number
@@ -33,7 +36,10 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
 
   const fetchPatientFindings = async (patientExaminationId: number) => {
     if (!patientExaminationId) {
-      console.warn('fetchPatientFindings wurde ohne patientExaminationId aufgerufen.')
+      logger.warn('finding-list-skipped', {
+        operation: 'list',
+        reasonCode: 'missing-context'
+      })
       patientFindings.value = []
       return
     }
@@ -45,7 +51,10 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     } catch (err: unknown) {
       const parsed = parseFindingsApiError(err)
       error.value = `Fehler beim Laden der Patientenbefunde (${parsed.code}): ${parsed.message}`
-      console.error('Fetch patient findings error:', err)
+      logger.error('finding-list-load-failed', err, {
+        operation: 'list',
+        outcome: 'rejected'
+      })
     } finally {
       loading.value = false
     }
@@ -83,7 +92,10 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     } catch (err: unknown) {
       const parsed = parseFindingsApiError(err)
       error.value = `Fehler beim Erstellen des Patientenbefunds (${parsed.code}): ${parsed.message}`
-      console.error('Create patient finding error:', err)
+      logger.error('finding-create-failed', err, {
+        operation: 'create',
+        outcome: 'rejected'
+      })
       throw err
     } finally {
       loading.value = false
@@ -125,7 +137,10 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     } catch (err: unknown) {
       const parsed = parseFindingsApiError(err)
       error.value = `Fehler beim Aktualisieren des Patientenbefunds (${parsed.code}): ${parsed.message}`
-      console.error('Update patient finding error:', err)
+      logger.error('finding-update-failed', err, {
+        operation: 'update',
+        outcome: 'rejected'
+      })
       throw err
     } finally {
       loading.value = false
@@ -143,7 +158,10 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     } catch (err: unknown) {
       const parsed = parseFindingsApiError(err)
       error.value = `Fehler beim Löschen des Patientenbefunds (${parsed.code}): ${parsed.message}`
-      console.error('Delete patient finding error:', err)
+      logger.error('finding-delete-failed', err, {
+        operation: 'delete',
+        outcome: 'rejected'
+      })
       throw err
     } finally {
       loading.value = false

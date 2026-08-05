@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
-import axiosInstance from '@/api/axiosInstance'
 
 const hlsMock = vi.hoisted(() => {
   type ErrorHandler = (
@@ -72,6 +71,32 @@ interface HostVm {
   playbackSourceUrl: string
 }
 
+function isHostVm(value: unknown): value is HostVm {
+  if (typeof value !== 'object' || value === null) return false
+  if (
+    !('video' in value) ||
+    !('videoId' in value) ||
+    !('artifactKind' in value) ||
+    !('playbackMode' in value) ||
+    !('playbackSourceUrl' in value)
+  ) {
+    return false
+  }
+  return (
+    (value.video === null || value.video instanceof HTMLVideoElement) &&
+    (value.videoId === null || typeof value.videoId === 'number') &&
+    (value.artifactKind === 'raw' || value.artifactKind === 'processed') &&
+    typeof value.playbackMode === 'string' &&
+    typeof value.playbackSourceUrl === 'string'
+  )
+}
+
+function requireHostVm(wrapper: ReturnType<typeof mountHost>): HostVm {
+  const vm: unknown = wrapper.vm
+  if (!isHostVm(vm)) throw new Error('Authenticated video host fixture has an invalid shape.')
+  return vm
+}
+
 function mountHost(onFatalError = vi.fn(), artifactKind: 'raw' | 'processed' = 'processed') {
   const Host = defineComponent({
     setup() {
@@ -123,9 +148,9 @@ describe('useAuthenticatedVideoStream', () => {
 
     const urls = buildVideoPlaybackUrls(42)
     const instance = hlsMock.instances[0]
-    const vm = wrapper.vm as unknown as HostVm
+    const vm = requireHostVm(wrapper)
 
-    expect(axiosInstance.get).toHaveBeenCalledWith(
+    expect(axiosMock.get).toHaveBeenCalledWith(
       urls.hlsPlaylistUrl,
       expect.objectContaining({
         responseType: 'text',
@@ -162,9 +187,9 @@ describe('useAuthenticatedVideoStream', () => {
 
     const urls = buildVideoPlaybackUrls(42, 'raw')
     const instance = hlsMock.instances[0]
-    const vm = wrapper.vm as unknown as HostVm
+    const vm = requireHostVm(wrapper)
 
-    expect(axiosInstance.get).toHaveBeenCalledWith(
+    expect(axiosMock.get).toHaveBeenCalledWith(
       urls.hlsPlaylistUrl,
       expect.objectContaining({ withCredentials: true })
     )
@@ -177,13 +202,13 @@ describe('useAuthenticatedVideoStream', () => {
     await flushPromises()
 
     const firstInstance = hlsMock.instances[0]
-    ;(wrapper.vm as unknown as HostVm).artifactKind = 'raw'
+    requireHostVm(wrapper).artifactKind = 'raw'
     await flushPromises()
 
     const rawUrls = buildVideoPlaybackUrls(42, 'raw')
     const secondInstance = hlsMock.instances[1]
     expect(firstInstance.destroy).toHaveBeenCalled()
-    expect(axiosInstance.get).toHaveBeenLastCalledWith(
+    expect(axiosMock.get).toHaveBeenLastCalledWith(
       rawUrls.hlsPlaylistUrl,
       expect.objectContaining({ withCredentials: true })
     )
@@ -200,7 +225,7 @@ describe('useAuthenticatedVideoStream', () => {
     await flushPromises()
 
     const urls = buildVideoPlaybackUrls(42)
-    const vm = wrapper.vm as unknown as HostVm
+    const vm = requireHostVm(wrapper)
 
     expect(hlsMock.instances).toHaveLength(0)
     expect(vm.video?.crossOrigin).toBe('use-credentials')
@@ -215,7 +240,7 @@ describe('useAuthenticatedVideoStream', () => {
     const wrapper = mountHost(onFatalError)
     await flushPromises()
 
-    const vm = wrapper.vm as unknown as HostVm
+    const vm = requireHostVm(wrapper)
 
     expect(hlsMock.instances).toHaveLength(0)
     expect(vm.video?.getAttribute('src')).toBeNull()
@@ -238,7 +263,7 @@ describe('useAuthenticatedVideoStream', () => {
     const wrapper = mountHost(onFatalError)
     await flushPromises()
 
-    const vm = wrapper.vm as unknown as HostVm
+    const vm = requireHostVm(wrapper)
     expect(hlsMock.instances).toHaveLength(0)
     expect(vm.playbackMode).toBe('error')
     expect(onFatalError).toHaveBeenCalledWith(
@@ -254,7 +279,7 @@ describe('useAuthenticatedVideoStream', () => {
     await flushPromises()
 
     const urls = buildVideoPlaybackUrls(42)
-    const vm = wrapper.vm as unknown as HostVm
+    const vm = requireHostVm(wrapper)
 
     expect(vm.playbackMode).toBe('error')
     expect(vm.video?.src).not.toBe(urls.fallbackStreamUrl)
@@ -283,7 +308,7 @@ describe('useAuthenticatedVideoStream', () => {
     })
     await flushPromises()
 
-    const vm = wrapper.vm as unknown as HostVm
+    const vm = requireHostVm(wrapper)
     expect(instance.destroy).toHaveBeenCalled()
     expect(vm.playbackMode).toBe('error')
     expect(vm.video?.src).not.toBe(urls.fallbackStreamUrl)
@@ -334,7 +359,7 @@ describe('useAuthenticatedVideoStream', () => {
 
     const firstConfig = axiosMock.get.mock.calls[0]?.[1] as { signal?: AbortSignal }
     expect(firstConfig.signal?.aborted).toBe(false)
-    ;(wrapper.vm as unknown as HostVm).videoId = 43
+    requireHostVm(wrapper).videoId = 43
     await Promise.resolve()
     await Promise.resolve()
 

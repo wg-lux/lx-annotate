@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref, type ComputedRef } from 'vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('media-type-store')
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -26,7 +29,20 @@ type MediaTypeConfig = {
 }
 
 function makeKey(scope: MediaScope, id: number): MediaKey {
-  return `${scope}:${id}`
+  if (!Number.isSafeInteger(id) || id < 0) {
+    throw new TypeError('Media key requires a non-negative integer identifier')
+  }
+  const key = [scope, String(id)].join(':')
+  if (!isMediaKey(key)) throw new TypeError('Media key does not match the canonical format')
+  return key
+}
+
+function isMediaKey(value: string): value is MediaKey {
+  return /^(?:pdf|video|meta|unknown):\d+$/.test(value)
+}
+
+function isMediaType(value: unknown): value is MediaType {
+  return value === 'pdf' || value === 'video' || value === 'unknown'
 }
 
 /* ------------------------------------------------------------------ */
@@ -34,7 +50,6 @@ function makeKey(scope: MediaScope, id: number): MediaKey {
 /* ------------------------------------------------------------------ */
 
 export const useMediaTypeStore = defineStore('mediaType', () => {
-
   // Current “focused” item (usually set before navigating)
   const currentItem = ref<MediaItem | null>(null)
 
@@ -48,18 +63,15 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   function seedTypesFromOverview(items: Array<{ id: number; mediaType?: string }>) {
     for (const it of items) {
       const raw = (it.mediaType ?? '').toLowerCase()
-      const m: MediaType =
-        raw === 'pdf' ? 'pdf' :
-        raw === 'video' ? 'video' : 'unknown'
-      if (m !== 'unknown') rememberType(it.id, m, m as MediaScope)
+      const m: MediaType = raw === 'pdf' ? 'pdf' : raw === 'video' ? 'video' : 'unknown'
+      if (m !== 'unknown') rememberType(it.id, m, m)
     }
   }
-
 
   /* ------------------------- Type registry ------------------------- */
 
   function rememberType(id: number, type: MediaType, scope?: MediaScope) {
-    const s = scope ?? (type as MediaScope) ?? 'unknown'
+    const s: MediaScope = scope ?? type
     // allow storing by scope even if type is unknown (but don’t store an 'unknown' type value)
     if (s === 'unknown') return
 
@@ -77,16 +89,18 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
     }
   }
 
-
   function getType(id: number, scope?: MediaScope): MediaType {
     if (scope) {
       const key = makeKey(scope, id)
       const m = typeByKey.value.get(key)
       if (m) return m
       try {
-        const fromSession = sessionStorage.getItem(`mediaType:${key}`) as MediaType | null
-        console.log('from session storage:', fromSession)
-        if (fromSession) {
+        const fromSession: unknown = sessionStorage.getItem(`mediaType:${key}`)
+        logger.debug('session-type-read', {
+          operation: 'read',
+          outcome: isMediaType(fromSession) ? 'accepted' : 'ignored'
+        })
+        if (isMediaType(fromSession)) {
           typeByKey.value.set(key, fromSession)
           return fromSession
         }
@@ -94,8 +108,7 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
         // Missing or inaccessible session storage falls back to an unknown media type.
       }
       return 'unknown'
-    }
-    else {
+    } else {
       return 'unknown'
     }
   }
@@ -103,15 +116,19 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   function setCurrentByKey(scope: MediaScope, id: number) {
     const type = getType(id, scope)
     setCurrentItem({ id, scope, mediaType: type })
-    console.log(`MediaTypeStore: setCurrentByKey(${scope}, ${id}) → type=${type}`)
-    console.log(`CurrentItem:`, currentItem.value)
+    logger.debug('current-item-selected', {
+      operation: 'select',
+      mediaType: type
+    })
+    logger.debug('current-item-state-updated', { state: 'selected' })
   }
 
   function getAllTypes(id: number): MediaType[] {
     const out = new Set<MediaType>()
-    for (const s of ['video', 'pdf', 'meta'] as MediaScope[]) {
+    const scopes: MediaScope[] = ['video', 'pdf', 'meta']
+    for (const s of scopes) {
       const t = getType(id, s)
-      if (t && t !== 'unknown') out.add(t)
+      if (t !== 'unknown') out.add(t)
     }
     return [...out]
   }
@@ -149,9 +166,24 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   /* ---------------------------- Config ----------------------------- */
 
   const mediaTypeConfigs: Record<MediaType, MediaTypeConfig> = {
-    pdf: { icon: 'ni ni-single-copy-04 text-danger', badgeClass: 'bg-danger', displayName: 'PDF', supportedExtensions: ['.pdf'] },
-    video: { icon: 'ni ni-button-play text-primary', badgeClass: 'bg-primary', displayName: 'Video', supportedExtensions: ['.mp4', '.avi', '.mov', '.mkv', '.webm'] },
-    unknown: { icon: 'ni ni-user-run text-muted', badgeClass: 'bg-secondary', displayName: 'Unbekannt', supportedExtensions: [] }
+    pdf: {
+      icon: 'ni ni-single-copy-04 text-danger',
+      badgeClass: 'bg-danger',
+      displayName: 'PDF',
+      supportedExtensions: ['.pdf']
+    },
+    video: {
+      icon: 'ni ni-button-play text-primary',
+      badgeClass: 'bg-primary',
+      displayName: 'Video',
+      supportedExtensions: ['.mp4', '.avi', '.mov', '.mkv', '.webm']
+    },
+    unknown: {
+      icon: 'ni ni-user-run text-muted',
+      badgeClass: 'bg-secondary',
+      displayName: 'Unbekannt',
+      supportedExtensions: []
+    }
   }
 
   /* --------------------------- Computed ---------------------------- */
@@ -176,7 +208,10 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
     // 1) If scope is known, prefer the registry `(scope,id)`
     if (item.scope && item.scope !== 'unknown') {
       const byScoped = getType(item.id, item.scope)
-      console.log('Registry Value:', byScoped)
+      logger.debug('registry-type-resolved', {
+        operation: 'resolve',
+        mediaType: byScoped
+      })
       if (byScoped !== 'unknown') return byScoped
     }
 
@@ -191,8 +226,6 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
     // 3) Ambiguous registry lookup by id
     const remembered = getType(item.id)
     if (remembered !== 'unknown') return remembered
-
-
 
     return 'unknown'
   }
@@ -215,15 +248,15 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
 
   function isSupportedExtension(filename: string): boolean {
     const ext = `.${filename.toLowerCase().split('.').pop() || ''}`
-    return Object.values(mediaTypeConfigs).some(c => c.supportedExtensions.includes(ext))
+    return Object.values(mediaTypeConfigs).some((c) => c.supportedExtensions.includes(ext))
   }
 
   // Legacy compatibility (icons/badges)
   function getMediaTypeIcon(mediaType: MediaType): string {
-    return mediaTypeConfigs[mediaType]?.icon || mediaTypeConfigs.unknown.icon
+    return mediaTypeConfigs[mediaType].icon
   }
   function getMediaTypeBadgeClass(mediaType: MediaType): string {
-    return mediaTypeConfigs[mediaType]?.badgeClass || mediaTypeConfigs.unknown.badgeClass
+    return mediaTypeConfigs[mediaType].badgeClass
   }
 
   return {
@@ -259,6 +292,6 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
     getMediaTypeConfig,
     isSupportedExtension,
     getMediaTypeIcon,
-    getMediaTypeBadgeClass,
+    getMediaTypeBadgeClass
   }
 })
