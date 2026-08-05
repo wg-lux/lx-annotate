@@ -1071,6 +1071,19 @@ const getRequestErrorMessage = (error: unknown, fallback = 'Unbekannter Fehler')
   return typeof message === 'string' ? message : fallback
 }
 
+const stringValueOr = (value: unknown, fallback = ''): string =>
+  typeof value === 'string' ? value : fallback
+
+const displayValue = (value: unknown): string =>
+  typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : ''
+
+const rejectedUnknown = (error: unknown): Promise<never> =>
+  Promise.reject(
+    error instanceof Error ? error : new Error(getRequestErrorMessage(error))
+  )
+
 // Store setup
 const videoStore = useVideoStore()
 const mediaStore = useMediaTypeStore()
@@ -1078,9 +1091,15 @@ const authStore = useAuthKcStore()
 const videoStoreRefs = storeToRefs(videoStore)
 
 const { videoList } = videoStoreRefs
-const predictionModels = videoStoreRefs.predictionModels ?? ref<PredictionModelMeta[]>([])
-const defaultHuggingfaceModelId = videoStoreRefs.defaultHuggingfaceModelId ?? ref('')
-const defaultPredictionLabelsetName = videoStoreRefs.defaultPredictionLabelsetName ?? ref('')
+const predictionModels = Reflect.has(videoStoreRefs, 'predictionModels')
+  ? videoStoreRefs.predictionModels
+  : ref<PredictionModelMeta[]>([])
+const defaultHuggingfaceModelId = Reflect.has(videoStoreRefs, 'defaultHuggingfaceModelId')
+  ? videoStoreRefs.defaultHuggingfaceModelId
+  : ref('')
+const defaultPredictionLabelsetName = Reflect.has(videoStoreRefs, 'defaultPredictionLabelsetName')
+  ? videoStoreRefs.defaultPredictionLabelsetName
+  : ref('')
 
 const videos = computed(() => videoList.value.videos)
 
@@ -1092,7 +1111,7 @@ const { overview } = storeToRefs(anonymizationStore)
 
 // Use spread operator to convert readonly array to mutable array
 const timelineLabels = computed(() => {
-  const storeLabels = videoStore.labels || []
+  const storeLabels = videoStore.labels
   return [...storeLabels] // Convert readonly array to mutable array
 })
 
@@ -1125,7 +1144,11 @@ function isAnnotationFinished(videoId: number): boolean {
 
 function hasValidatedOutsideSegments(videoId: number): boolean {
   const summary = segmentValidationSummaryByVideoId.value[videoId]
-  return Boolean(summary?.validationComplete && summary.validatedOutsideSegmentCount > 0)
+  return (
+    videoId in segmentValidationSummaryByVideoId.value &&
+    summary.validationComplete &&
+    summary.validatedOutsideSegmentCount > 0
+  )
 }
 
 function getVideoSegmentAnnotationStatus(videoId: number): SegmentAnnotationStatus {
@@ -1260,7 +1283,7 @@ async function loadSelectedVideo(videoId: number | null = selectedVideoId.value)
     currentMarker.value = null
     selectedSegmentId.value = null
     showErrorMessage(
-      `Video ${videoId} kann noch nicht in der Segmentansicht geöffnet werden. Status: ${getStatusText(
+      `Video ${String(videoId)} kann noch nicht in der Segmentansicht geöffnet werden. Status: ${getStatusText(
         getVideoAnonymizationStatus(videoId)
       )}.`
     )
@@ -1289,7 +1312,7 @@ async function loadSelectedVideo(videoId: number | null = selectedVideoId.value)
     setVideoDetailContext(videoId)
     await guarded(loadSavedExaminations())
   } catch (err: unknown) {
-    await guarded(Promise.reject(err))
+    await guarded(rejectedUnknown(err))
   }
 }
 
@@ -1308,10 +1331,10 @@ type SegmentationFpsReadiness = {
 const normalizeFpsNormalizationState = (value: unknown): FpsNormalizationState => {
   const data = asRecord(value)
   return {
-    status: String(data.status ?? ''),
+    status: stringValueOr(data.status),
     fps: Number.isFinite(Number(data.fps)) ? Number(data.fps) : null,
     maxFps: Number(data.maxFps ?? data.max_fps ?? 50),
-    detail: String(data.detail ?? data.error ?? '')
+    detail: stringValueOr(data.detail ?? data.error)
   }
 }
 
@@ -1326,7 +1349,8 @@ const clearFpsNormalizationPolling = (): void => {
 const scheduleFpsNormalizationPoll = (videoId: number): void => {
   clearFpsNormalizationPolling()
   fpsNormalizationVideoId.value = videoId
-  fpsNormalizationPollTimer = setTimeout(async () => {
+  fpsNormalizationPollTimer = setTimeout(() => {
+    void (async () => {
     fpsNormalizationPollTimer = null
     if (selectedVideoId.value !== videoId) {
       fpsNormalizationVideoId.value = null
@@ -1340,7 +1364,7 @@ const scheduleFpsNormalizationPoll = (videoId: number): void => {
       if (state.status === 'ready') {
         fpsNormalizationVideoId.value = null
         showSuccessMessage(
-          `Video auf ${state.fps ?? state.maxFps} fps normalisiert. Segmentansicht wird geladen.`
+          `Video auf ${String(state.fps ?? state.maxFps)} fps normalisiert. Segmentansicht wird geladen.`
         )
         await loadSelectedVideo(videoId)
         return
@@ -1354,8 +1378,9 @@ const scheduleFpsNormalizationPoll = (videoId: number): void => {
       }
       scheduleFpsNormalizationPoll(videoId)
     } catch (error: unknown) {
-      await guarded(Promise.reject(error))
+      await guarded(rejectedUnknown(error))
     }
+    })()
   }, 5000)
 }
 
@@ -1395,7 +1420,7 @@ const ensureSegmentationFpsReady = async (videoId: number): Promise<Segmentation
     return { ready: false, fps: null }
   }
   showSuccessMessage(
-    `Quellvideo mit ${state.fps ?? 'mehr als 50'} fps wird automatisch auf maximal ${state.maxFps} fps normalisiert.`
+    `Quellvideo mit ${String(state.fps ?? 'mehr als 50')} fps wird automatisch auf maximal ${String(state.maxFps)} fps normalisiert.`
   )
   scheduleFpsNormalizationPoll(videoId)
   return { ready: false, fps: null }
@@ -1404,14 +1429,14 @@ const ensureSegmentationFpsReady = async (videoId: number): Promise<Segmentation
 function onVideoChange() {
   // handler for the <select>
   /** update the url so users can bookmark / refresh */
-  router.replace({ query: { video: selectedVideoId.value } })
+  void router.replace({ query: { video: selectedVideoId.value } })
 }
 
 function toggleVideoDropdown(): void {
   if (!hasVideos.value) return
   isVideoDropdownOpen.value = !isVideoDropdownOpen.value
   if (isVideoDropdownOpen.value) {
-    loadSensitiveMetaForVideos(videos.value.map((v) => v.id))
+    void loadSensitiveMetaForVideos(videos.value.map((v) => v.id))
   }
 }
 
@@ -1431,7 +1456,7 @@ function selectVideoFromDropdown(videoId: number): void {
 function enableSegmentEditing(): void {
   if (selectedVideoId.value === null) return
 
-  router.push({
+  void router.push({
     query: {
       ...route.query,
       video: String(selectedVideoId.value),
@@ -1450,12 +1475,18 @@ const handleDocumentClick = (event: MouseEvent): void => {
 }
 
 const getVideoPatientGender = (videoId: number): string => {
-  return normalizeGenderLabel(videoSensitiveMetaMap.value[videoId]?.patient_gender_name)
+  const meta = videoId in videoSensitiveMetaMap.value
+    ? videoSensitiveMetaMap.value[videoId]
+    : undefined
+  return normalizeGenderLabel(meta?.patient_gender_name)
 }
 
 const getVideoPatientAgeLabel = (videoId: number): string => {
-  const age = getAgeFromDob(videoSensitiveMetaMap.value[videoId]?.patient_dob)
-  return age == null ? 'Unbekannt' : `${age} J.`
+  const meta = videoId in videoSensitiveMetaMap.value
+    ? videoSensitiveMetaMap.value[videoId]
+    : undefined
+  const age = getAgeFromDob(meta?.patient_dob)
+  return age == null ? 'Unbekannt' : `${String(age)} J.`
 }
 
 const loadSensitiveMetaForVideos = async (videoIds: number[]): Promise<void> => {
@@ -1466,7 +1497,7 @@ const loadSensitiveMetaForVideos = async (videoIds: number[]): Promise<void> => 
     missingIds.map(async (id) => {
       try {
         const { data } = await axiosInstance.get<VideoSensitiveMeta>(
-          r(`media/videos/${id}/sensitive-metadata/`)
+          r(`media/videos/${String(id)}/sensitive-metadata/`)
         )
         return { id, data }
       } catch {
@@ -1478,8 +1509,8 @@ const loadSensitiveMetaForVideos = async (videoIds: number[]): Promise<void> => 
   const nextMap = { ...videoSensitiveMetaMap.value }
   results.forEach(({ id, data }) => {
     nextMap[id] = {
-      patient_dob: data?.patientDob ?? data?.patient_dob ?? null,
-      patient_gender_name: data?.patientGenderName ?? data?.patient_gender_name ?? null
+      patient_dob: data.patientDob ?? data.patient_dob ?? null,
+      patient_gender_name: data.patientGenderName ?? data.patient_gender_name ?? null
     }
   })
   videoSensitiveMetaMap.value = nextMap
@@ -1547,33 +1578,33 @@ const canBlackenOutsideSegments = computed(
 
 const videoDropdownFilterOptions = computed<Array<{ value: VideoDropdownFilter; label: string }>>(
   () => [
-    { value: 'all', label: `Alle (${videos.value.length})` },
-    { value: 'usable', label: `Nutzbar (${usableVideos.value.length})` },
+    { value: 'all', label: `Alle (${String(videos.value.length)})` },
+    { value: 'usable', label: `Nutzbar (${String(usableVideos.value.length)})` },
     {
       value: 'pending_anonymization_validation',
-      label: `Anonymisierung prüfen (${getVideoCountByDropdownStatus(
+      label: `Anonymisierung prüfen (${String(getVideoCountByDropdownStatus(
         'pending_anonymization_validation'
-      )})`
+      ))})`
     },
     {
       value: 'ready_for_annotation',
-      label: `Bereit (${getVideoCountByDropdownStatus('ready_for_annotation')})`
+      label: `Bereit (${String(getVideoCountByDropdownStatus('ready_for_annotation'))})`
     },
     {
       value: 'annotation_cleanup_pending',
-      label: `Validierung läuft (${getVideoCountByDropdownStatus('annotation_cleanup_pending')})`
+      label: `Validierung läuft (${String(getVideoCountByDropdownStatus('annotation_cleanup_pending'))})`
     },
     {
       value: 'annotation_cleanup_failed',
-      label: `Validierung prüfen (${getVideoCountByDropdownStatus('annotation_cleanup_failed')})`
+      label: `Validierung prüfen (${String(getVideoCountByDropdownStatus('annotation_cleanup_failed'))})`
     },
     {
       value: 'annotation_validated',
-      label: `Segmentvalidiert (${getVideoCountByDropdownStatus('annotation_validated')})`
+      label: `Segmentvalidiert (${String(getVideoCountByDropdownStatus('annotation_validated'))})`
     },
     {
       value: 'not_usable',
-      label: `Nicht nutzbar (${getVideoCountByDropdownStatus('not_usable')})`
+      label: `Nicht nutzbar (${String(getVideoCountByDropdownStatus('not_usable'))})`
     }
   ]
 )
@@ -1591,7 +1622,7 @@ const baseAnnotatorPrincipal = computed(() =>
   getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
 )
 const annotatorOverrideScope = computed(() =>
-  selectedVideoId.value == null ? 'video:none' : `video:${selectedVideoId.value}`
+  selectedVideoId.value == null ? 'video:none' : `video:${String(selectedVideoId.value)}`
 )
 const activeAnnotatorPrincipal = computed(
   () => annotatorOverride.value || baseAnnotatorPrincipal.value
@@ -1642,7 +1673,7 @@ const canMutateSelectedSegments = computed(
 type ReadonlyPredictionModelMeta = Readonly<PredictionModelMeta>
 
 const predictionModelOptions = computed<readonly ReadonlyPredictionModelMeta[]>(
-  () => predictionModels.value ?? []
+  () => predictionModels.value
 )
 
 const selectedPredictionModel = computed<ReadonlyPredictionModelMeta | null>(
@@ -1676,8 +1707,8 @@ const selectedVideoLabel = computed(() => {
   if (!selectableVideos.value.length) return 'Keine Videos verfügbar'
   if (selectedVideoId.value == null) return 'Bitte Video auswählen...'
   const video = selectableVideos.value.find((v) => v.id === selectedVideoId.value)
-  if (!video) return `Video ${selectedVideoId.value}`
-  return video.original_file_name || `Video Nr. ${video.id}`
+  if (!video) return `Video ${String(selectedVideoId.value)}`
+  return video.original_file_name || `Video Nr. ${String(video.id)}`
 })
 
 watch(
@@ -1866,7 +1897,10 @@ onUnmounted(() => {
 function isAbortLikeError(error: unknown): boolean {
   const errorRecord = asRecord(error)
   const targetError = asRecord(asRecord(errorRecord.target).error)
-  const message = String(errorRecord.message || targetError.message || error || '').toLowerCase()
+  const message = stringValueOr(
+    errorRecord.message,
+    stringValueOr(targetError.message, error instanceof Error ? error.message : '')
+  ).toLowerCase()
   const code = errorRecord.code || targetError.code
   const mediaAbortCode = typeof MediaError !== 'undefined' ? MediaError.MEDIA_ERR_ABORTED : 1
 
@@ -1890,7 +1924,7 @@ async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
     if (isAbortLikeError(e)) {
       return undefined
     }
-    showErrorMessage(getRequestErrorMessage(e, String(e)))
+    showErrorMessage(getRequestErrorMessage(e))
     return undefined
   }
 }
@@ -1940,7 +1974,7 @@ const setVideoDetailContext = (videoId: number): void => {
   if (!videoId) return
 
   const currentVideo = selectableVideos.value.find((video) => video.id === videoId)
-  const loadedDuration = Number(videoStore.currentVideo?.duration ?? currentVideo?.duration ?? 0)
+  const loadedDuration = videoStore.currentVideo?.duration ?? currentVideo?.duration ?? 0
   videoDetail.value = {}
   videoMeta.value = { duration: loadedDuration }
 
@@ -1966,6 +2000,7 @@ const loadSavedExaminations = async (): Promise<void> => {
   // optional legacy UI empty instead of issuing a guaranteed 404 request.
   savedExaminations.value = []
   examinationMarkers.value = []
+  await Promise.resolve()
 }
 
 async function loadSegmentValidationSummary(videoId: number): Promise<void> {
@@ -1973,13 +2008,14 @@ async function loadSegmentValidationSummary(videoId: number): Promise<void> {
     const response = await axiosInstance.get(
       r(endpoints.media.videoSegmentsValidationStatus(videoId))
     )
-    const byLabel = response.data?.byLabel ?? response.data?.by_label ?? {}
-    const outside = byLabel.outside ?? {}
+    const responseData = asRecord(response.data)
+    const byLabel = asRecord(responseData.byLabel ?? responseData.by_label)
+    const outside = asRecord(byLabel.outside)
     segmentValidationSummaryByVideoId.value = {
       ...segmentValidationSummaryByVideoId.value,
       [videoId]: {
         validationComplete: Boolean(
-          response.data?.validationComplete ?? response.data?.validation_complete
+          responseData.validationComplete ?? responseData.validation_complete
         ),
         validatedOutsideSegmentCount: Number(outside.validated ?? 0)
       }
@@ -2021,9 +2057,9 @@ const onVideoLoaded = (): void => {
     duration.value = videoRef.value.duration
 
     if (duration.value < 10) {
-      showErrorMessage(`Die Videodauer ist ungewöhnlich kurz (${Math.round(duration.value)}s).`)
+      showErrorMessage(`Die Videodauer ist ungewöhnlich kurz (${String(Math.round(duration.value))}s).`)
     } else {
-      showSuccessMessage(`Video geladen: ${Math.round(duration.value)}s Dauer`)
+      showSuccessMessage(`Video geladen: ${String(Math.round(duration.value))}s Dauer`)
     }
   }
 }
@@ -2171,7 +2207,7 @@ const handleTimeSelection = (...args: unknown[]): void => {
 
   // ✅ FIXED: Only create segment if we have a selected label type
   if (selectedLabelType.value && selectedVideoId.value) {
-    handleCreateSegment({
+    void handleCreateSegment({
       label: selectedLabelType.value,
       start: data.start,
       end: data.end
@@ -2195,7 +2231,7 @@ const handleCreateSegment = async (...args: unknown[]): Promise<void> => {
       return
     }
     if (selectedVideoId.value) {
-      await videoStore.createSegment?.(selectedVideoId.value, event.label, event.start, event.end)
+      await videoStore.createSegment(selectedVideoId.value, event.label, event.start, event.end)
       segmentValidationSummaryByVideoId.value = {
         ...segmentValidationSummaryByVideoId.value,
         [selectedVideoId.value]: {
@@ -2206,7 +2242,7 @@ const handleCreateSegment = async (...args: unknown[]): Promise<void> => {
       showSuccessMessage(`Segment erstellt: ${getTranslationForLabel(event.label)}`)
     }
   } catch (error: unknown) {
-    await guarded(Promise.reject(error))
+    await guarded(rejectedUnknown(error))
     throw error
   }
 }
@@ -2342,7 +2378,7 @@ const handleKeyDown = (event: KeyboardEvent): void => {
   if (isUnmodifiedKey(event, 'f')) {
     event.preventDefault()
     event.stopPropagation()
-    toggleFullscreen()
+    void toggleFullscreen()
     return
   }
 
@@ -2360,7 +2396,7 @@ const handleKeyDown = (event: KeyboardEvent): void => {
 
   if (isMinus) {
     event.preventDefault()
-    finishLabelMarking()
+    void finishLabelMarking()
   }
 }
 
@@ -2432,25 +2468,25 @@ const cancelLabelMarking = (): void => {
 const jumpToExamination = (examination: SavedExamination): void => {
   seekToTime(examination.timestamp)
   currentMarker.value =
-    examinationMarkers.value.find((m) => m.id === `exam-${examination.id}`) || null
+    examinationMarkers.value.find((m) => m.id === `exam-${String(examination.id)}`) || null
 }
 
 const deleteExamination = async (examinationId: number): Promise<void> => {
   try {
-    await axiosInstance.delete(r(`examinations/${examinationId}/`))
+    await axiosInstance.delete(r(`examinations/${String(examinationId)}/`))
 
     // Remove from local arrays
     savedExaminations.value = savedExaminations.value.filter((e) => e.id !== examinationId)
     examinationMarkers.value = examinationMarkers.value.filter(
-      (m) => m.id !== `exam-${examinationId}`
+      (m) => m.id !== `exam-${String(examinationId)}`
     )
 
     // Clear current marker if it was deleted
-    if (currentMarker.value?.id === `exam-${examinationId}`) {
+    if (currentMarker.value?.id === `exam-${String(examinationId)}`) {
       currentMarker.value = null
     }
 
-    showSuccessMessage(`Untersuchung ${examinationId} gelöscht`)
+    showSuccessMessage(`Untersuchung ${String(examinationId)} gelöscht`)
   } catch (error: unknown) {
     showErrorMessage(getRequestErrorMessage(error, String(error)), 'danger')
   }
@@ -2471,9 +2507,7 @@ const pollPredictionRerun = async (videoId: number, historyId: number): Promise<
       continue
     }
     if (history.status === 'success') return true
-    if (history.status === 'failure' || history.status === 'cancelled') {
-      throw new Error(history.details || 'Die KI-Segmentberechnung ist fehlgeschlagen.')
-    }
+    throw new Error(history.details || 'Die KI-Segmentberechnung ist fehlgeschlagen.')
   }
   throw new Error('Zeitüberschreitung bei der KI-Segmentberechnung.')
 }
@@ -2492,9 +2526,9 @@ const normalizeSegmentValidationResponse = (value: unknown): SegmentValidationRe
   const segmentAnnotationStatus =
     responseData.segmentAnnotationStatus ?? responseData.segment_annotation_status
   return {
-    jobStatus: String(postProcessingJob.status ?? responseData.status ?? ''),
+    jobStatus: stringValueOr(postProcessingJob.status ?? responseData.status),
     segmentAnnotationStatus: (segmentAnnotationStatus ?? 'not_started') as SegmentAnnotationStatus,
-    message: String(responseData.error ?? responseData.message ?? '')
+    message: stringValueOr(responseData.error ?? responseData.message)
   }
 }
 
@@ -2591,7 +2625,7 @@ const runSegmentValidationPollLoop = (): Promise<void> => {
   segmentValidationPollLoop = (async () => {
     while (!segmentValidationPollingStopped && segmentValidationPollEntries.size > 0) {
       await waitForSegmentValidationPoll(5000)
-      if (segmentValidationPollingStopped || segmentValidationPollEntries.size === 0) {
+      if (segmentValidationPollEntries.size === 0) {
         return
       }
       try {
@@ -2667,7 +2701,7 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
   }
 
   if (validationRequestVideoId.value !== null) {
-    showErrorMessage(`Validierung für Video ${validationRequestVideoId.value} läuft bereits.`)
+    showErrorMessage(`Validierung für Video ${String(validationRequestVideoId.value)} läuft bereits.`)
     return
   }
 
@@ -2684,7 +2718,7 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
   // Confirm with user before validation
   if (
     !confirm(
-      `Möchten Sie alle ${segmentCount} Segmentannotationen von Video ${videoId} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`
+      `Möchten Sie alle ${String(segmentCount)} Segmentannotationen von Video ${String(videoId)} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`
     )
   ) {
     validationRequestVideoId.value = null
@@ -2692,10 +2726,8 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
   }
 
   // Build payload including updated start/end times (in seconds)
-  const segmentPayload = segmentsForRequest
-    .filter((s) => typeof s.id === 'number')
-    .map((s) => ({
-      id: s.id as number,
+  const segmentPayload = segmentsForRequest.map((s) => ({
+      id: s.id,
       // assuming Segment has startTime/endTime in seconds
       start_time: s.startTime,
       end_time: s.endTime
@@ -2703,7 +2735,7 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
 
   try {
     const response = await axiosInstance.post(
-      r(`media/videos/${videoId}/segments/validate-bulk/`),
+      r(`media/videos/${String(videoId)}/segments/validate-bulk/`),
       {
         segmentIds: segmentPayload.map((s) => s.id),
         segments: segmentPayload,
@@ -2732,8 +2764,9 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
         'danger'
       )
     } else {
+      const responseData = asRecord(response.data)
       showSuccessMessage(
-        `Erfolgreich! ${response.data.updatedCount} von ${response.data.totalSegments ?? response.data.requestedCount} Segmenten validiert.`
+        `Erfolgreich! ${displayValue(responseData.updatedCount)} von ${displayValue(responseData.totalSegments ?? responseData.requestedCount)} Segmenten validiert.`
       )
       await videoStore.fetchAllVideos()
     }
@@ -2784,8 +2817,8 @@ const normalizeOutsideBlackeningResponse = (value: unknown): OutsideBlackeningRe
     outsideSegmentCount: Number(
       responseData.outsideSegmentCount ?? responseData.outside_segment_count ?? 0
     ),
-    jobStatus: String(postProcessingJob.status ?? responseData.status ?? ''),
-    message: String(responseData.error ?? responseData.message ?? '')
+    jobStatus: stringValueOr(postProcessingJob.status ?? responseData.status),
+    message: stringValueOr(responseData.error ?? responseData.message)
   }
 }
 
@@ -2798,13 +2831,13 @@ const handleOutsideBlackeningResponseState = (
   if (jobStatus === 'completed') {
     videoRef.value?.load()
     void videoStore.fetchAllVideos()
-    showSuccessMessage(`Außerhalb-Segmente geschwärzt (${outsideSegmentCount} Segmente).`)
+    showSuccessMessage(`Außerhalb-Segmente geschwärzt (${String(outsideSegmentCount)} Segmente).`)
     return true
   }
 
   if (jobStatus === 'queued') {
     showSuccessMessage(
-      `Schwärzung der Außerhalb-Segmente gestartet (${outsideSegmentCount} Segmente).`
+      `Schwärzung der Außerhalb-Segmente gestartet (${String(outsideSegmentCount)} Segmente).`
     )
     void pollSegmentValidationStatus(videoId, { showValidatedMessage: false })
     return true
@@ -2860,11 +2893,11 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
   }
 
   if (outsideBlackeningRequestVideoIds.value.has(videoId)) {
-    showErrorMessage(`Schwärzung für Video ${videoId} wird bereits gestartet.`)
+    showErrorMessage(`Schwärzung für Video ${String(videoId)} wird bereits gestartet.`)
     return
   }
 
-  if (!confirm(`Außerhalb-Segmente für Video ${videoId} erneut schwärzen?`)) {
+  if (!confirm(`Außerhalb-Segmente für Video ${String(videoId)} erneut schwärzen?`)) {
     return
   }
 
@@ -2897,7 +2930,7 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
     ) {
       return
     }
-    await guarded(Promise.reject(error))
+    await guarded(rejectedUnknown(error))
   } finally {
     setOutsideBlackeningRequestState(videoId, false)
   }
@@ -2916,7 +2949,7 @@ const saveSegmentChanges = async (): Promise<void> => {
     await videoStore.persistDirtySegments()
     showSuccessMessage('Segment-Änderungen gespeichert')
   } catch (error: unknown) {
-    await guarded(Promise.reject(error))
+    await guarded(rejectedUnknown(error))
   }
 }
 
@@ -2932,7 +2965,7 @@ const discardSegmentChanges = (): void => {
   }
   // simplest version: reload from backend
   if (!selectedVideoId.value) return
-  videoStore.fetchVideoSegments(selectedVideoId.value)
+  void videoStore.fetchVideoSegments(selectedVideoId.value)
   showSuccessMessage('Lokale Änderungen verworfen')
 }
 
@@ -2968,7 +3001,7 @@ const importPredictionSegmentsToCorrection = async (): Promise<void> => {
     await loadVideoSegments()
     showSuccessMessage('KI-Vorhersagen wurden als separater Korrektur-Track übernommen')
   } catch (error: unknown) {
-    await guarded(Promise.reject(error))
+    await guarded(rejectedUnknown(error))
   } finally {
     isImportingPredictionSegments.value = false
   }
@@ -3017,10 +3050,10 @@ const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
     segmentSourceMode.value = 'prediction'
     await loadVideoSegments()
     showSuccessMessage(
-      `KI-Vorhersagen neu berechnet (${timelineSegmentsForSelectedVideo.value.length} Segmente)`
+      `KI-Vorhersagen neu berechnet (${String(timelineSegmentsForSelectedVideo.value.length)} Segmente)`
     )
   } catch (error: unknown) {
-    await guarded(Promise.reject(error))
+    await guarded(rejectedUnknown(error))
   } finally {
     isRerunningPredictionSegments.value = false
   }
@@ -3155,9 +3188,6 @@ const isVideoValidated = (videoId: number): boolean => {
 watch(selectedVideoId, async (newId) => {
   if (typeof newId === 'number') {
     videoStore.setCurrentVideo(newId)
-  } else if (newId !== null) {
-    showErrorMessage('Invalid video ID')
-    return
   }
 
   await loadSelectedVideo(newId)

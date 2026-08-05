@@ -2,9 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { AxiosHeaders, type AxiosResponse } from 'axios'
-import type { ComponentPublicInstance } from 'vue'
 
-import axiosInstance from '@/api/axiosInstance'
 import VideoExaminationAnnotation from '../VideoExaminationAnnotation.vue'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useVideoStore } from '@/stores/videoStore'
@@ -23,8 +21,16 @@ interface MediaVideoFixture {
   }
 }
 
-type AnnotationComponentInstance = ComponentPublicInstance & {
-  selectedVideoId: number | null
+interface RouterMocks {
+  query: Record<string, string>
+  replace: ReturnType<typeof vi.fn>
+  push: ReturnType<typeof vi.fn>
+}
+
+interface ApiMocks {
+  get: ReturnType<typeof vi.fn>
+  post: ReturnType<typeof vi.fn>
+  delete: ReturnType<typeof vi.fn>
 }
 
 const apiResponse = <T>(data: T): AxiosResponse<T> => ({
@@ -37,18 +43,27 @@ const apiResponse = <T>(data: T): AxiosResponse<T> => ({
   }
 })
 
-const routerMocks = vi.hoisted(() => ({
-  query: {} as Record<string, string>,
-  replace: vi.fn(),
-  push: vi.fn()
-}))
+const resolvedApiResponse = <T>(data: T): Promise<AxiosResponse<T>> =>
+  Promise.resolve(apiResponse(data))
 
-vi.mock('@/api/axiosInstance', () => ({
-  default: {
+const routerMocks = vi.hoisted(
+  (): RouterMocks => ({
+    query: {},
+    replace: vi.fn(),
+    push: vi.fn()
+  })
+)
+
+const apiMocks = vi.hoisted(
+  (): ApiMocks => ({
     get: vi.fn(),
     post: vi.fn(),
     delete: vi.fn()
-  },
+  })
+)
+
+vi.mock('@/api/axiosInstance', () => ({
+  default: apiMocks,
   r: (path: string) => path
 }))
 
@@ -64,7 +79,7 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/utils/videoUtils', () => ({
   formatTime: (seconds: number) =>
-    `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`,
+    `${String(Math.floor(seconds / 60))}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`,
   getTranslationForLabel: (label: string) => label,
   getColorForLabel: () => '#ff0000'
 }))
@@ -159,10 +174,17 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       .findAll('.video-dropdown-filter-button')
       .find((button) => button.text().startsWith(labelPrefix))
 
+  const requireDefined = <Value>(value: Value | undefined, context: string): Value => {
+    if (value === undefined) {
+      throw new Error(`${context} was not rendered.`)
+    }
+    return value
+  }
+
   const chooseDropdownFilter = async (wrapper: ReturnType<typeof mount>, labelPrefix: string) => {
     const button = findDropdownFilterButton(wrapper, labelPrefix)
     expect(button).toBeTruthy()
-    await button!.trigger('click')
+    await requireDefined(button, `Dropdown filter "${labelPrefix}"`).trigger('click')
     await flushPromises()
   }
 
@@ -183,9 +205,10 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
   ) => {
     const item = getDropdownItems(wrapper).find((entry) => entry.text().includes(videoText))
     expect(item).toBeTruthy()
-    expect(item!.classes()).toContain(itemClass)
-    expect(item!.find('.video-dropdown-status-badge').classes()).toContain(badgeClass)
-    expect(item!.text()).toContain(statusText)
+    const renderedItem = requireDefined(item, `Dropdown item "${videoText}"`)
+    expect(renderedItem.classes()).toContain(itemClass)
+    expect(renderedItem.find('.video-dropdown-status-badge').classes()).toContain(badgeClass)
+    expect(renderedItem.text()).toContain(statusText)
   }
 
   const selectVideoFromDropdown = async (wrapper: ReturnType<typeof mount>, videoText: string) => {
@@ -194,7 +217,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       .findAll('.video-dropdown-item')
       .find((entry) => entry.text().includes(videoText))
     expect(item).toBeTruthy()
-    await item!.trigger('click')
+    await requireDefined(item, `Dropdown item "${videoText}"`).trigger('click')
     await flushPromises()
     await flushPromises()
   }
@@ -264,12 +287,12 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     ]
     anonymizationStore.fetchOverview = vi.fn().mockResolvedValue(undefined)
 
-    vi.mocked(axiosInstance.get).mockImplementation(async (url: string) => {
+    apiMocks.get.mockImplementation((url: string) => {
       if (url === 'media/videos/labels/list/') {
-        return apiResponse(videoLabelsFactory())
+        return resolvedApiResponse(videoLabelsFactory())
       }
       if (url === 'media/videos/prediction-models/list/') {
-        return apiResponse({
+        return resolvedApiResponse({
           models: [
             {
               id: 7,
@@ -291,7 +314,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         })
       }
       if (url === 'settings/application/dropdowns/ai_datasets/') {
-        return apiResponse([
+        return resolvedApiResponse([
           {
             id: 300,
             value: 'segment-study',
@@ -304,36 +327,36 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         ])
       }
       if (url === 'media/videos/') {
-        return apiResponse(mediaVideosFactory())
+        return resolvedApiResponse(mediaVideosFactory())
       }
       if (url.includes('/sensitive-metadata/')) {
-        return apiResponse({ patient_dob: null, patient_gender_name: null })
+        return resolvedApiResponse({ patient_dob: null, patient_gender_name: null })
       }
       if (url.includes('/examinations/')) {
-        return apiResponse([])
+        return resolvedApiResponse([])
       }
       if (url.includes('/details/')) {
-        return apiResponse({ duration: 90 })
+        return resolvedApiResponse({ duration: 90 })
       }
       if (url.includes('/metadata/')) {
-        return apiResponse({ duration: 90, fps: 25, frameCount: 2250 })
+        return resolvedApiResponse({ duration: 90, fps: 25, frameCount: 2250 })
       }
       const normalizationMatch = url.match(/media\/videos\/(\d+)\/segments\/normalize-fps\//)
       if (normalizationMatch) {
-        return apiResponse(fpsNormalizationStateFactory(Number(normalizationMatch[1])))
+        return resolvedApiResponse(fpsNormalizationStateFactory(Number(normalizationMatch[1])))
       }
       if (url.includes('/fps/')) {
-        return apiResponse({ fps: 25 })
+        return resolvedApiResponse({ fps: 25 })
       }
       if (url.includes('/segments/validation-status/')) {
-        return apiResponse({
+        return resolvedApiResponse({
           validationComplete: true,
           byLabel: { outside: { total: 1, validated: 1 } }
         })
       }
       const segmentMatch = url.match(/media\/videos\/(\d+)\/segments\//)
       if (segmentMatch) {
-        return apiResponse([
+        return resolvedApiResponse([
           {
             id: Number(segmentMatch[1]) * 100,
             videoId: Number(segmentMatch[1]),
@@ -345,13 +368,13 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
           }
         ])
       }
-      return apiResponse({})
+      return resolvedApiResponse({})
     })
   })
 
   it('starts FPS normalization automatically before loading segments', async () => {
     fpsNormalizationStateFactory = () => ({ status: 'required', fps: 60, maxFps: 50 })
-    vi.mocked(axiosInstance.post).mockResolvedValueOnce(
+    apiMocks.post.mockResolvedValueOnce(
       apiResponse({ status: 'queued', fps: 60, max_fps: 50 })
     )
 
@@ -359,7 +382,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await flushPromises()
     await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
 
-    expect(axiosInstance.post).toHaveBeenCalledWith('media/videos/8/segments/normalize-fps/', {})
+    expect(apiMocks.post).toHaveBeenCalledWith('media/videos/8/segments/normalize-fps/', {})
     expect(wrapper.text()).toContain('wird automatisch auf maximal 50 fps normalisiert')
     expect(wrapper.find('[data-cy="label-select"]').attributes('disabled')).toBeDefined()
     wrapper.unmount()
@@ -368,11 +391,11 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
   it('reuses normalization FPS while loading metadata and segments once', async () => {
     const wrapper = mountComponent()
     await flushPromises()
-    vi.mocked(axiosInstance.get).mockClear()
+    apiMocks.get.mockClear()
 
     await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
 
-    const urls = vi.mocked(axiosInstance.get).mock.calls.map(([url]) => String(url))
+    const urls = apiMocks.get.mock.calls.map(([url]) => String(url))
     expect(urls.filter((url) => url === 'media/videos/8/metadata/')).toHaveLength(1)
     expect(urls.filter((url) => url === 'media/videos/8/fps/')).toHaveLength(0)
     expect(urls.filter((url) => url === 'media/videos/8/segments/')).toHaveLength(1)
@@ -399,11 +422,9 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       const wrapper = mountComponent()
       await flushPromises()
       const mediaListCalls = () =>
-        vi.mocked(axiosInstance.get).mock.calls.filter(([url]) => url === 'media/videos/').length
+        apiMocks.get.mock.calls.filter(([url]) => url === 'media/videos/').length
       const labelCalls = () =>
-        vi
-          .mocked(axiosInstance.get)
-          .mock.calls.filter(([url]) => url === 'media/videos/labels/list/').length
+        apiMocks.get.mock.calls.filter(([url]) => url === 'media/videos/labels/list/').length
 
       expect(mediaListCalls()).toBe(1)
       expect(labelCalls()).toBe(1)
@@ -619,7 +640,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await filteredItems[0].trigger('click')
     await flushPromises()
 
-    expect((wrapper.vm as unknown as AnnotationComponentInstance).selectedVideoId).toBe(12)
+    expect(routerMocks.replace).toHaveBeenLastCalledWith({ query: { video: 12 } })
     expect(wrapper.text()).toContain('Dieses Video ist noch nicht für die Segmentansicht nutzbar')
     expect(wrapper.text()).not.toContain('Video löschen?')
   })
@@ -630,7 +651,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
     await selectVideoFromDropdown(wrapper, 'needs-validation.mp4')
 
-    expect((wrapper.vm as unknown as AnnotationComponentInstance).selectedVideoId).toBe(6)
+    expect(routerMocks.replace).toHaveBeenLastCalledWith({ query: { video: 6 } })
     const player = wrapper.find('[data-cy="video-player"]')
     expect(player.exists()).toBe(true)
     expect(player.attributes('crossorigin')).toBe('use-credentials')
@@ -650,7 +671,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
     await selectVideoFromDropdown(wrapper, 'cleanup-running.mp4')
 
-    expect((wrapper.vm as unknown as AnnotationComponentInstance).selectedVideoId).toBe(14)
+    expect(routerMocks.replace).toHaveBeenLastCalledWith({ query: { video: 14 } })
     expect(wrapper.text()).toContain('Außerhalb-Frames werden geschwärzt')
     expect(wrapper.find('[data-test="segment-cleanup-processing"]').exists()).toBe(true)
     expect(findButtonByText(wrapper, 'Alle Segmente validieren')).toBeUndefined()
@@ -683,7 +704,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       )
     }
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    vi.mocked(axiosInstance.post).mockResolvedValueOnce(
+    apiMocks.post.mockResolvedValueOnce(
       apiResponse({
         status: 'queued',
         outside_segment_count: 1,
@@ -705,7 +726,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       await vi.advanceTimersByTimeAsync(5000)
       await flushPromises()
 
-      expect(axiosInstance.post).toHaveBeenCalledWith('media/videos/16/segments/blacken-outside/', {
+      expect(apiMocks.post).toHaveBeenCalledWith('media/videos/16/segments/blacken-outside/', {
         onlyValidated: true
       })
       expect(wrapper.text()).toContain('Segmentvalidierung fehlgeschlagen: async frame failure')

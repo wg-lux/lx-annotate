@@ -232,6 +232,9 @@ import type {
   AnonymizationFieldQualityMetric,
   AnonymizationMetricsFilters
 } from '@/api/anonymizationMetricsApi'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const runtimeLogger = createRuntimeLogger('anonymization-metrics')
 
 type StatusRow = {
   status: string
@@ -328,13 +331,27 @@ function syncFilterForm(filters: AnonymizationMetricsFilters) {
 
 watch(
   () => metricsStore.filters,
-  (filters) => syncFilterForm(filters),
+  (filters) => {
+    syncFilterForm(filters)
+  },
   { deep: true }
 )
 
-onMounted(() => {
+async function runMetricsRequest(request: () => Promise<unknown>): Promise<void> {
+  try {
+    await request()
+  } catch (error: unknown) {
+    runtimeLogger.error('metrics-request-failed', error)
+    metricsStore.error =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Anonymisierungsmetriken konnten nicht geladen werden.'
+  }
+}
+
+onMounted(async () => {
   syncFilterForm(metricsStore.filters)
-  metricsStore.fetchMetrics()
+  await runMetricsRequest(() => metricsStore.fetchMetrics())
 })
 
 const workflow = computed(() => metricsStore.data?.workflow)
@@ -454,9 +471,9 @@ function formatPercent(value: number | null | undefined): string {
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return 'Keine Daten'
-  if (seconds < 60) return `${Math.round(seconds)} s`
+  if (seconds < 60) return `${String(Math.round(seconds))} s`
   const minutes = seconds / 60
-  if (minutes < 60) return `${Math.round(minutes)} min`
+  if (minutes < 60) return `${String(Math.round(minutes))} min`
   const hours = minutes / 60
   if (hours < 48) {
     const formattedHours = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace('.', ',')
@@ -474,17 +491,17 @@ function formatDateTime(date: Date): string {
 }
 
 async function applyFilters() {
-  await metricsStore.updateFilters({ ...filterForm })
+  await runMetricsRequest(() => metricsStore.updateFilters({ ...filterForm }))
 }
 
 async function resetFilters() {
   metricsStore.resetFilters()
   syncFilterForm(metricsStore.filters)
-  await metricsStore.fetchMetrics()
+  await runMetricsRequest(() => metricsStore.fetchMetrics())
 }
 
 async function refreshMetrics() {
-  await metricsStore.fetchMetrics()
+  await runMetricsRequest(() => metricsStore.fetchMetrics())
 }
 </script>
 

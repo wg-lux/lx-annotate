@@ -1,19 +1,23 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
 import { useVideoStore } from '@/stores/videoStore'
 
+const axiosMocks = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  delete: vi.fn(),
+  patch: vi.fn()
+}))
+
 vi.mock('@/api/axiosInstance', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-    patch: vi.fn()
-  },
+  default: axiosMocks,
   r: (path: string) => path,
   a: (path: string) => path
 }))
+
+const axiosGet = axiosMocks.get
+const axiosPost = axiosMocks.post
 
 describe('AI prediction segment acceptance', () => {
   beforeEach(() => {
@@ -23,8 +27,6 @@ describe('AI prediction segment acceptance', () => {
 
   it('keeps queued inference pending and does not reload stale prediction rows', async () => {
     const store = useVideoStore()
-    const axiosPost = axiosInstance.post as unknown as ReturnType<typeof vi.fn>
-    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
     axiosPost.mockResolvedValueOnce({
       data: {
         success: true,

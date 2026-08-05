@@ -860,6 +860,7 @@ import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideo
 import { buildPdfStreamUrl, buildVideoHlsPlaylistUrl } from '@/utils/mediaUrls';
 import {useRoute} from 'vue-router';
 import { useDebug } from '@/composables/useDebug';
+import { createRuntimeLogger } from '@/utils/runtimeLogger';
 
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { isAxiosError } from 'axios';
@@ -882,6 +883,7 @@ import {
 const toast = useToastStore();
 const router = useRouter();
 const { isDebug } = useDebug();
+const logger = createRuntimeLogger('anonymization-validation');
 const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation';
 const PHI_REGION_LABEL_NAME = 'sensitive_region';
 
@@ -922,8 +924,8 @@ const isLoadingVideoAnonymization = ref(false);
 const videoAnonymizationError = ref('');
 
 const videoAnonymizationReady = computed(() =>
-  videoAnonymizationStatus.value?.processedArtifact?.available === true &&
-  videoAnonymizationStatus.value?.reviewRequired === true
+  videoAnonymizationStatus.value?.processedArtifact.available === true &&
+  videoAnonymizationStatus.value.reviewRequired
 );
 
 const videoStrategyLabel = computed(() =>
@@ -941,7 +943,7 @@ const videoModelDisplay = computed(() => {
 });
 
 
-console.log("fileid and scope", fileId, scope)
+logger.debug('route-context-resolved');
 if (!Number.isFinite(fileId) || !scope) {
   const restored = restoreLast();
   if (restored.fileId !== undefined) fileId = restored.fileId;
@@ -952,7 +954,7 @@ if (!Number.isFinite(fileId) || !scope) {
 }
 
 if (!Number.isFinite(fileId) || !scope) {
-  console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.', { fileId, scope });
+  logger.error('route-context-invalid');
 } else {
   mediaStore.setCurrentByKey(scope, fileId);
   sourceFileId.value = fileId;
@@ -1017,7 +1019,7 @@ type CaseResolutionPayload = {
     id?: number | null;
     linkedPatientExaminationId?: number | null;
   } | null;
-  matchStatus?: 'linked' | 'deferred' | 'suggested' | 'unresolved' | string | null;
+  matchStatus?: string | null;
   suggestedMatchCount?: number | null;
   recommendedPatientExaminationId?: number | null;
   patientExaminationMatches?: CaseResolutionMatch[];
@@ -1032,18 +1034,39 @@ type ApiErrorPayload = {
   allowed_document_types?: unknown;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseApiErrorPayload(value: unknown): ApiErrorPayload | undefined {
+  if (!isRecord(value)) return undefined;
+  return {
+    detail: typeof value.detail === 'string' ? value.detail : undefined,
+    error: typeof value.error === 'string' ? value.error : undefined,
+    allowedDocumentTypes: value.allowedDocumentTypes,
+    allowed_document_types: value.allowed_document_types,
+  };
+}
+
 function getApiErrorPayload(error: unknown): ApiErrorPayload | undefined {
-  if (isAxiosError<ApiErrorPayload>(error)) return error.response?.data;
-  if (!error || typeof error !== 'object') return undefined;
-  const response = (error as Record<string, unknown>).response;
-  if (!response || typeof response !== 'object') return undefined;
-  const data = (response as Record<string, unknown>).data;
-  return data && typeof data === 'object' ? data as ApiErrorPayload : undefined;
+  if (isAxiosError<unknown>(error)) return parseApiErrorPayload(error.response?.data);
+  if (!isRecord(error) || !isRecord(error.response)) return undefined;
+  return parseApiErrorPayload(error.response.data);
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
   const payload = getApiErrorPayload(error);
   return payload?.detail || payload?.error || (error instanceof Error ? error.message : fallback);
+}
+
+function stringFromUnknown(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function rowsFromListResponse(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (isRecord(value) && Array.isArray(value.results)) return value.results;
+  throw new TypeError('List response must be an array or contain an array in "results".');
 }
 
 interface AnonymizationValidationPayload {
@@ -1255,7 +1278,7 @@ const validationErrorSummary = computed(() => {
   const count = validationErrors.value.length;
   if (count === 0) return 'Alle Felder sind gültig';
   if (count === 1) return '1 Validierungsfehler gefunden';
-  return `${count} Validierungsfehler gefunden`;
+  return `${String(count)} Validierungsfehler gefunden`;
 });
 
 // DOB must be present & valid
@@ -1358,7 +1381,7 @@ const approvalBlockReason = computed(() => {
     return videoAnonymizationError.value || 'Der Anonymisierungsstatus konnte nicht geprüft werden.';
   }
 
-  if (isVideo.value && !videoAnonymizationStatus.value?.processedArtifact?.available) {
+  if (isVideo.value && !videoAnonymizationStatus.value?.processedArtifact.available) {
     return 'Es ist noch keine anonymisierte Video-Fassung verfügbar.';
   }
 
@@ -1368,7 +1391,7 @@ const approvalBlockReason = computed(() => {
 
   if (isVideo.value && shouldShowOutsideTimeline.value) {
     const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value;
-    return `Bitte validieren Sie zuerst alle Outside-Segmente (${remaining} verbleibend)`;
+    return `Bitte validieren Sie zuerst alle Outside-Segmente (${String(remaining)} verbleibend)`;
   }
 
   return '';
@@ -1393,9 +1416,9 @@ const currentFileIdLabel = computed(() => {
   const targetFileId = resolveFileIdFromContext();
   if (targetFileId === null) return '';
 
-  if (sourceMediaScope.value === 'video') return `Video-ID: ${targetFileId}`;
-  if (sourceMediaScope.value === 'pdf') return `PDF-ID: ${targetFileId}`;
-  return `Datei-ID: ${targetFileId}`;
+  if (sourceMediaScope.value === 'video') return `Video-ID: ${String(targetFileId)}`;
+  if (sourceMediaScope.value === 'pdf') return `PDF-ID: ${String(targetFileId)}`;
+  return `Datei-ID: ${String(targetFileId)}`;
 });
 
 const patientHashDisplay = computed(
@@ -1458,7 +1481,7 @@ const caseResolutionRoute = computed(() => {
   };
 
   if (targetFileId !== null && targetScope) {
-    query.returnTo = `/anonymisierung/validierung?fileId=${targetFileId}&mediaType=${targetScope}`;
+    query.returnTo = `/anonymisierung/validierung?fileId=${String(targetFileId)}&mediaType=${targetScope}`;
   } else {
     query.returnTo = '/anonymisierung/validierung';
   }
@@ -1487,7 +1510,7 @@ const phiRegionFrameAnnotationRoute = computed(() => {
     query.mediaType = targetScope;
   }
   if (targetFileId !== null && targetScope) {
-    query.returnTo = `/anonymisierung/validierung?fileId=${targetFileId}&mediaType=${targetScope}`;
+    query.returnTo = `/anonymisierung/validierung?fileId=${String(targetFileId)}&mediaType=${targetScope}`;
   }
 
   return {
@@ -1513,8 +1536,8 @@ async function fetchCaseResolution(): Promise<void> {
   try {
     const { data } = await axiosInstance.get<CaseResolutionPayload>(r(endpoint));
     caseResolution.value = data;
-  } catch (error) {
-    console.warn('Case resolution lookup failed; falling back to sensitive metadata payload.', error);
+  } catch (_error) {
+    logger.warn('case-resolution-lookup-failed');
   }
 }
 
@@ -1628,31 +1651,31 @@ const {
 });
 
 // ✅ NEW: Video event handlers for raw video
-const onRawVideoError = (event: Event) => {
-  console.error('Raw video error:', event);
+const onRawVideoError = () => {
+  logger.error('raw-video-playback-failed');
   // Handle raw video errors gracefully
 };
 
 const onRawVideoLoadStart = () => {
-  console.log('Raw video load started');
+  logger.debug('raw-video-load-started');
 };
 
 const onRawVideoCanPlay = () => {
-  console.log('Raw video can play');
+  logger.debug('raw-video-ready');
 };
 
 // ✅ NEW: Video event handlers for anonymized video
-const onAnonymizedVideoError = (event: Event) => {
-  console.error('Anonymized video error:', event);
+const onAnonymizedVideoError = () => {
+  logger.error('anonymized-video-playback-failed');
   // Handle anonymized video errors gracefully
 };
 
 const onAnonymizedVideoLoadStart = () => {
-  console.log('Anonymized video load started');
+  logger.debug('anonymized-video-load-started');
 };
 
 const onAnonymizedVideoCanPlay = () => {
-  console.log('Anonymized video can play');
+  logger.debug('anonymized-video-ready');
 };
 
 // ✅ NEW: Video synchronization functions
@@ -1677,13 +1700,13 @@ const syncVideos = () => {
   rawVideoElement.value.currentTime = avgTime;
   anonymizedVideoElement.value.currentTime = avgTime;
 
-  console.log('Videos synchronized to time:', avgTime);
+  logger.debug('video-playback-synchronized');
 };
 
 const pauseAllVideos = () => {
   if (rawVideoElement.value) rawVideoElement.value.pause();
   if (anonymizedVideoElement.value) anonymizedVideoElement.value.pause();
-  console.log('All videos paused');
+  logger.debug('video-playback-paused');
 };
 
 const downloadRawPdf = () => {
@@ -1693,7 +1716,7 @@ const downloadRawPdf = () => {
   }
 
   window.open(rawPdfDownloadSrc.value, '_blank');
-  console.log('Downloading raw PDF:', rawPdfDownloadSrc.value);
+  logger.info('raw-pdf-download-opened');
 };
 
 const downloadAnonymizedPdf = () => {
@@ -1703,7 +1726,7 @@ const downloadAnonymizedPdf = () => {
   }
 
   window.open(anonymizedPdfDownloadSrc.value, '_blank');
-  console.log('Downloading anonymized PDF:', anonymizedPdfDownloadSrc.value);
+  logger.info('anonymized-pdf-download-opened');
 };
 
 const validateVideoForSegmentAnnotation = async () => {
@@ -1712,17 +1735,18 @@ const validateVideoForSegmentAnnotation = async () => {
     return;
   }
 
+  const videoId = currentItem.value.id;
   isValidatingVideo.value = true;
   shouldShowOutsideTimeline.value = false;
   videoValidationStatus.value = null;
 
   try {
-    console.log(`🔍 Validating video ${currentItem.value.id} for segment annotation...`);
+    logger.info('segment-validation-started');
 
-    await videoStore.fetchAllSegments(currentItem.value.id, true);
+    await videoStore.fetchAllSegments(videoId, true);
     const outsideSegments = videoStore.allSegments.filter(
       (segment) =>
-        segment.videoID === currentItem.value?.id && segment.label === 'outside'
+        segment.videoID === videoId && segment.label === 'outside'
     );
 
     totalOutsideSegments.value = outsideSegments.length;
@@ -1734,7 +1758,7 @@ const validateVideoForSegmentAnnotation = async () => {
         class: 'alert-warning',
         icon: 'ni ni-user-run',
         title: 'Segmentvalidierung erforderlich',
-        message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
+        message: `${String(outsideSegments.length)} "Outside"-Segmente gefunden, die validiert werden müssen.`,
         details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
       };
     } else {
@@ -1743,13 +1767,13 @@ const validateVideoForSegmentAnnotation = async () => {
         icon: 'ni ni-check-bold',
         title: 'Video bereit für Annotation',
         message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
-        details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
+        details: `Video ID: ${String(videoId)} - Alle Validierungen bestanden.`
       };
     }
 
-    toast.info({ text: `Video ${currentItem.value.id} validiert` });
+    toast.info({ text: `Video ${String(videoId)} validiert` });
   } catch (error: unknown) {
-    console.error('Error validating video for segment annotation:', error);
+    logger.error('segment-validation-failed', error);
     videoValidationStatus.value = {
       class: 'alert-danger',
       icon: 'ni ni-settings-gear-65',
@@ -1762,19 +1786,19 @@ const validateVideoForSegmentAnnotation = async () => {
   }
 };
 
-const onSegmentValidated = (segmentId: string | number) => {
+const onSegmentValidated = (_segmentId: string | number) => {
   outsideSegmentsValidated.value++;
-  console.log(`✅ Segment ${segmentId} validated. Progress: ${outsideSegmentsValidated.value}/${totalOutsideSegments.value}`);
+  logger.debug('outside-segment-validated', { count: outsideSegmentsValidated.value });
 
   // Update validation status
   if (videoValidationStatus.value) {
     videoValidationStatus.value.message =
-      `Fortschritt: ${outsideSegmentsValidated.value}/${totalOutsideSegments.value} Outside-Segmente validiert.`;
+      `Fortschritt: ${String(outsideSegmentsValidated.value)}/${String(totalOutsideSegments.value)} Outside-Segmente validiert.`;
   }
 };
 
 const onOutsideValidationComplete = () => {
-  console.log('🎉 All outside segments validated!');
+  logger.info('outside-segment-validation-complete');
   shouldShowOutsideTimeline.value = false;
 
   videoValidationStatus.value = {
@@ -1782,7 +1806,7 @@ const onOutsideValidationComplete = () => {
     icon: 'ni ni-check-bold',
     title: 'Validierung abgeschlossen',
     message: 'Alle Outside-Segmente wurden erfolgreich validiert.',
-    details: `Video ${currentItem.value?.id} ist jetzt bereit für die vollständige Segment-Annotation.`
+    details: `Video ${String(currentItem.value?.id ?? 'unbekannt')} ist jetzt bereit für die vollständige Segment-Annotation.`
   };
 
   toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
@@ -1815,7 +1839,7 @@ async function fetchDocumentTypeOptions(): Promise<void> {
       selectedDocumentType.value = '';
     }
   } catch (error: unknown) {
-    console.error('Error loading document type options:', error);
+    logger.error('document-types-load-failed', error);
     documentTypeOptions.value = [];
     documentTypeLoadError.value = getErrorMessage(
       error,
@@ -1860,8 +1884,10 @@ async function fetchPatientExaminationOptions(): Promise<void> {
   }
 
   try {
-    const pdfDetailResponse = await axiosInstance.get(r(endpoints.media.pdfDetail(pdfFileId)));
-    const pdfDetail = pdfDetailResponse?.data;
+    const pdfDetailResponse = await axiosInstance.get<unknown>(
+      r(endpoints.media.pdfDetail(pdfFileId))
+    );
+    const pdfDetail = pdfDetailResponse.data;
 
     const suggestedPatientExaminationId =
       extractPatientExaminationId(pdfDetail) ??
@@ -1869,21 +1895,17 @@ async function fetchPatientExaminationOptions(): Promise<void> {
     if (suggestedPatientExaminationId !== null) {
       addOrReplacePatientExaminationOption(options, {
         id: suggestedPatientExaminationId,
-        label: `#${suggestedPatientExaminationId} · Bereits zugeordnet`,
+        label: `#${String(suggestedPatientExaminationId)} · Bereits zugeordnet`,
       });
     }
 
     const patientId = extractPatientId(pdfDetail) ?? extractPatientId(currentItem.value);
     if (patientId !== null) {
-      const peResponse = await axiosInstance.get(
+      const peResponse = await axiosInstance.get<unknown>(
         r(endpoints.examination.patientExaminationList),
         { params: { patient_id: patientId } }
       );
-      const rows = Array.isArray(peResponse.data?.results)
-        ? peResponse.data.results
-        : Array.isArray(peResponse.data)
-          ? peResponse.data
-          : [];
+      const rows = rowsFromListResponse(peResponse.data);
       rows.forEach((row: unknown) => {
         const normalized = normalizePatientExaminationOption(row);
         if (normalized) {
@@ -1897,7 +1919,7 @@ async function fetchPatientExaminationOptions(): Promise<void> {
 
     patientExaminationOptions.value = options.sort((a, b) => b.id - a.id);
   } catch (error: unknown) {
-    console.error('Error loading patient examinations for validation:', error);
+    logger.error('patient-examinations-load-failed', error);
     patientExaminationOptions.value = options;
     patientExaminationLoadError.value = getErrorMessage(
       error,
@@ -1909,8 +1931,6 @@ async function fetchPatientExaminationOptions(): Promise<void> {
 }
 
 function loadCurrentItemData(item: SensitiveMeta) {
-  if (!item) return;
-
   // reset video validation state
   shouldShowOutsideTimeline.value = false;
   videoValidationStatus.value = null;
@@ -2017,7 +2037,7 @@ const fetchNextItem = async () => {
   try {
     await anonymizationStore.fetchNext();
   } catch (error) {
-    console.error('Error fetching next item:', error);
+    logger.error('next-item-load-failed', error);
   }
 };
 
@@ -2183,12 +2203,12 @@ const navigateToSegmentation = () => {
   }
 
   // Navigate with video ID as query parameter to ensure correct video selection
-  router.push({
+  void router.push({
     name: 'Video-Untersuchung',
     query: { video: String(videoFileId) }
   });
 
-  console.log(`🎯 Navigating to Video-Untersuchung with video ID: ${videoFileId}`);
+  logger.debug('video-examination-navigation-started');
 };
 
 function toPositiveInteger(value: unknown): number | null {
@@ -2300,7 +2320,7 @@ async function resolvePatientExaminationIdForPdf(
   }
 
   try {
-    const { data: pdfDetail } = await axiosInstance.get(
+    const { data: pdfDetail } = await axiosInstance.get<unknown>(
       r(endpoints.media.pdfDetail(pdfFileId))
     );
     const fromPdfDetail = extractPatientExaminationId(pdfDetail);
@@ -2314,18 +2334,17 @@ async function resolvePatientExaminationIdForPdf(
       return null;
     }
 
-    const { data: timeline } = await axiosInstance.get(
+    const { data: timeline } = await axiosInstance.get<unknown>(
       r(endpoints.media.patientTimeline(patientId))
     );
-    const results = Array.isArray(timeline?.results) ? timeline.results : [];
+    const results = rowsFromListResponse(timeline);
     const matchingItem = results.find((item: unknown) => {
-      if (!item || typeof item !== 'object') {
+      if (!isRecord(item)) {
         return false;
       }
-      const entry = item as Record<string, unknown>;
-      const mediaType = String(entry.media_type ?? '');
-      const entryId = toPositiveInteger(entry.id);
-      const rawPdfId = toPositiveInteger(entry.raw_pdf_id);
+      const mediaType = stringFromUnknown(item.media_type);
+      const entryId = toPositiveInteger(item.id);
+      const rawPdfId = toPositiveInteger(item.raw_pdf_id);
 
       return (
         (mediaType === 'pdf' && entryId === pdfFileId) ||
@@ -2334,8 +2353,8 @@ async function resolvePatientExaminationIdForPdf(
     });
 
     return extractPatientExaminationId(matchingItem);
-  } catch (error) {
-    console.warn('Could not resolve patient_examination_id for PDF deep-link.', error);
+  } catch (_error) {
+    logger.warn('pdf-examination-resolution-failed');
     return null;
   }
 }
@@ -2355,9 +2374,9 @@ const navigateAfterApproval = async (
       'last:patientExaminationId',
       String(explicitPatientExaminationId)
     );
-    await router.push(`/reporting/${explicitPatientExaminationId}/report-editor`);
+    await router.push(`/reporting/${String(explicitPatientExaminationId)}/report-editor`);
     toast.info({
-      text: `PDF validiert. Gewählte Untersuchung ${explicitPatientExaminationId} im Berichtseditor geöffnet.`,
+      text: `PDF validiert. Gewählte Untersuchung ${String(explicitPatientExaminationId)} im Berichtseditor geöffnet.`,
     });
     return;
   }
@@ -2372,9 +2391,9 @@ const navigateAfterApproval = async (
       'last:patientExaminationId',
       String(resolvedPatientExaminationId)
     );
-    await router.push(`/reporting/${resolvedPatientExaminationId}/report-editor`);
+    await router.push(`/reporting/${String(resolvedPatientExaminationId)}/report-editor`);
     toast.info({
-      text: `PDF validiert. Patientenfall ${resolvedPatientExaminationId} wurde automatisch zugeordnet und im Berichtseditor geöffnet.`,
+      text: `PDF validiert. Patientenfall ${String(resolvedPatientExaminationId)} wurde automatisch zugeordnet und im Berichtseditor geöffnet.`,
     });
     return;
   }
@@ -2462,14 +2481,14 @@ const approveItem = async () => {
   // Additional safety check: Prevent approval if outside segments not validated
   if (!canApprove.value) {
     const reason = approvalBlockReason.value;
-    console.warn(`❌ Approval blocked: ${reason}`);
+    logger.warn('approval-blocked');
     toast.warning({ text: reason });
     return;
   }
 
   // For videos with outside segments: Ensure validation was completed
   if (isVideo.value && shouldShowOutsideTimeline.value) {
-    console.warn('❌ Outside segments still pending validation');
+    logger.warn('outside-segments-pending');
     toast.error({
       text: 'Bitte validieren Sie zuerst alle Outside-Segmente, bevor Sie das Video bestätigen.'
     });
@@ -2495,20 +2514,20 @@ const approveItem = async () => {
   }
   isApproving.value = true;
   try {
-    console.log(`Validating anonymization for file ${validationFileId}...`);
+    logger.info('approval-started');
     const response = await axiosInstance.post(
       r(endpoints.anonymization.validate(validationFileId)),
       validationPayload
     );
-    persistApprovedReportFileId(response?.data);
+    persistApprovedReportFileId(response.data);
 
-    console.log(`Anonymization validated successfully for file ${validationFileId}`);
+    logger.info('approval-complete');
     toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
 
-    await navigateAfterApproval(mediaKind, response?.data);
+    await navigateAfterApproval(mediaKind, response.data);
 
   } catch (error: unknown) {
-    console.error('Error approving item:', error);
+    logger.error('approval-failed', error);
     applyApprovalErrorDetails(error);
   } finally {
     isApproving.value = false;
@@ -2561,7 +2580,7 @@ const _saveAnnotation = async () => {
     hasSuccessfulUpload.value = false;
     toast.success({ text: 'Annotation erfolgreich gespeichert' });
   } catch (error) {
-    console.error('Error saving annotation:', error);
+    logger.error('annotation-save-failed', error);
     toast.error({ text: 'Fehler beim Speichern der Annotation' });
   }
 };

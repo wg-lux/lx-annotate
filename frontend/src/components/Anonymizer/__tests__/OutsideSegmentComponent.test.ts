@@ -2,10 +2,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, reactive, ref } from 'vue'
 
-import axiosInstance from '@/api/axiosInstance'
 import OutsideSegmentComponent from '../OutsideSegmentComponent.vue'
 
 const hoisted = vi.hoisted(() => ({
+  axiosGet: vi.fn(),
+  axiosPost: vi.fn(),
   videoStoreRef: {
     current: {} as {
       allSegments: ReturnType<typeof buildSegment>[]
@@ -17,8 +18,8 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: vi.fn(),
-    post: vi.fn()
+    get: hoisted.axiosGet,
+    post: hoisted.axiosPost
   },
   r: (value: string) => value
 }))
@@ -26,10 +27,10 @@ vi.mock('@/api/axiosInstance', () => ({
 vi.mock('@/types/api/endpoints', () => ({
   endpoints: {
     media: {
-      videoDetail: (videoId: number) => `media/videos/${videoId}/details/`,
-      videoStream: (videoId: number) => `media/videos/${videoId}/stream/`,
+      videoDetail: (videoId: number) => `media/videos/${String(videoId)}/details/`,
+      videoStream: (videoId: number) => `media/videos/${String(videoId)}/stream/`,
       videoSegmentValidate: (videoId: number, segmentId: number) =>
-        `media/videos/${videoId}/segments/${segmentId}/validate/`
+        `media/videos/${String(videoId)}/segments/${String(segmentId)}/validate/`
     }
   }
 }))
@@ -75,7 +76,7 @@ describe('OutsideSegmentComponent', () => {
       fetchAllSegments: vi.fn().mockResolvedValue(undefined)
     })
 
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    hoisted.axiosGet.mockResolvedValue({
       data: {
         video_url: '/api/media/videos/7/stream/',
         duration: 12
@@ -97,7 +98,7 @@ describe('OutsideSegmentComponent', () => {
   })
 
   it('validates a single outside segment via the backend endpoint', async () => {
-    vi.mocked(axiosInstance.post).mockResolvedValue({ data: {} } as never)
+    hoisted.axiosPost.mockResolvedValue({ data: {} } as never)
 
     const wrapper = mount(OutsideSegmentComponent, {
       props: { videoId: 7 }
@@ -111,7 +112,7 @@ describe('OutsideSegmentComponent', () => {
     await buttons[0].trigger('click')
     await flushPromises()
 
-    expect(vi.mocked(axiosInstance.post)).toHaveBeenCalledWith(
+    expect(hoisted.axiosPost).toHaveBeenCalledWith(
       'media/videos/7/segments/11/validate/',
       {
         isValidated: true,
@@ -125,7 +126,7 @@ describe('OutsideSegmentComponent', () => {
   })
 
   it('shows an error and keeps the segment unvalidated when backend validation fails', async () => {
-    vi.mocked(axiosInstance.post).mockRejectedValue(new Error('boom'))
+    hoisted.axiosPost.mockRejectedValue(new Error('boom'))
 
     const wrapper = mount(OutsideSegmentComponent, {
       props: { videoId: 7 }
@@ -142,7 +143,7 @@ describe('OutsideSegmentComponent', () => {
   })
 
   it('emits validation-complete after all outside segments are validated', async () => {
-    vi.mocked(axiosInstance.post).mockResolvedValue({ data: {} } as never)
+    hoisted.axiosPost.mockResolvedValue({ data: {} } as never)
 
     const wrapper = mount(OutsideSegmentComponent, {
       props: { videoId: 7 }
@@ -154,7 +155,7 @@ describe('OutsideSegmentComponent', () => {
     await flushPromises()
     await nextTick()
 
-    expect(vi.mocked(axiosInstance.post)).toHaveBeenCalledTimes(2)
+    expect(hoisted.axiosPost).toHaveBeenCalledTimes(2)
     expect(wrapper.emitted('validation-complete')).toEqual([[]])
     expect(wrapper.text()).toContain('2 / 2 validiert')
   })

@@ -13,7 +13,7 @@ import {
 
 const ids = () => {
   let next = 0
-  return () => `generated-${++next}`
+  return () => `generated-${String(++next)}`
 }
 
 const boxFixture = (): FrameBoxAnnotationDraft => ({

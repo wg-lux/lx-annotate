@@ -1,24 +1,34 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AxiosResponse } from 'axios'
-import axiosInstance from '@/api/axiosInstance'
 import AnonymizationEvaluation from '../AnonymizationEvaluation.vue'
+
+function readContentType(config: unknown): unknown {
+  if (typeof config !== 'object' || config === null || !('params' in config)) return undefined
+  const { params } = config
+  if (typeof params !== 'object' || params === null || !('content_type' in params)) {
+    return undefined
+  }
+  return params.content_type
+}
+
+const axiosGet = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: vi.fn()
+    get: axiosGet
   },
   r: (path: string) => `/endoreg-api/${path}`
 }))
 
 describe('AnonymizationEvaluation', () => {
   beforeEach(() => {
-    vi.mocked(axiosInstance.get).mockReset()
+    axiosGet.mockReset()
   })
 
   it('loads and displays SensitiveMeta rows for videos and PDFs', async () => {
-    vi.mocked(axiosInstance.get).mockImplementation((_url, config) => {
-      const contentType = config?.params?.content_type
+    axiosGet.mockImplementation((_url, config) => {
+      const contentType = readContentType(config)
 
       if (contentType === 'video') {
         return Promise.resolve({
@@ -68,13 +78,13 @@ describe('AnonymizationEvaluation', () => {
     const wrapper = mount(AnonymizationEvaluation)
     await flushPromises()
 
-    expect(axiosInstance.get).toHaveBeenCalledWith('/endoreg-api/media/sensitive-metadata/', {
+    expect(axiosGet).toHaveBeenCalledWith('/endoreg-api/media/sensitive-metadata/', {
       params: {
         content_type: 'video',
         ordering: '-id'
       }
     })
-    expect(axiosInstance.get).toHaveBeenCalledWith('/endoreg-api/media/sensitive-metadata/', {
+    expect(axiosGet).toHaveBeenCalledWith('/endoreg-api/media/sensitive-metadata/', {
       params: {
         content_type: 'pdf',
         ordering: '-id'

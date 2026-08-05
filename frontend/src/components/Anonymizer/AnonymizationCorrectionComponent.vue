@@ -730,6 +730,7 @@ import { isAxiosError } from 'axios';
 import { endpoints } from '@/types/api/endpoints';
 import { buildPdfStreamUrl, type StreamableVideoFileType } from '@/utils/mediaUrls';
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream';
+import { createRuntimeLogger } from '@/utils/runtimeLogger';
 import type {
   VideoAnonymizationRequest,
   VideoAnonymizationStatus,
@@ -742,6 +743,7 @@ const router = useRouter();
 const route = useRoute();
 const anonymizationStore = useAnonymizationStore();
 const mediaStore = useMediaTypeStore();
+const logger = createRuntimeLogger('anonymization-correction');
 
 // Reactive state
 const loading = ref(false);
@@ -768,18 +770,68 @@ type ApiErrorPayload = { error?: string };
 
 const getApiErrorMessage = (error: unknown, fallback: string): string => {
   if (isAxiosError<ApiErrorPayload>(error)) {
-    return error.response?.data?.error || error.message || fallback;
+    return error.response?.data.error || error.message || fallback;
   }
   return error instanceof Error ? error.message : fallback;
 };
 
+const stringFromUnknown = (value: unknown, fallback = ''): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return fallback;
+};
+
 const currentVideo = ref<CorrectionMedia | null>(null);
-const videoMetadata = ref({
-  sensitiveFrameCount: null as number | null,
-  totalFrames: null as number | null,
-  sensitiveRatio: null as number | null,
-  duration: null as number | null,
-  resolution: null as string | null
+interface VideoMetadata {
+  sensitiveFrameCount: number | null;
+  totalFrames: number | null;
+  sensitiveRatio: number | null;
+  duration: number | null;
+  resolution: string | null;
+}
+
+interface PdfDetailsResponse {
+  filename?: string;
+  is_validated?: boolean;
+  file_size?: number | null;
+  uploaded_at?: string | null;
+}
+
+interface UploadResponse {
+  uploadId?: string | number;
+  upload_id?: string | number;
+}
+
+interface AnalysisResponse extends Partial<VideoMetadata> {
+  sensitiveFrameCount?: number;
+}
+
+interface CorrectionTaskResult {
+  output_path?: string;
+  summary?: string;
+}
+
+interface CorrectionTaskStatusResponse {
+  status?: string;
+  progress?: number;
+  message?: string;
+  result?: CorrectionTaskResult | null;
+}
+
+interface FrameRemovalResponse {
+  taskId?: string;
+  task_id?: string;
+  outputFile?: string;
+  output_file?: string;
+  message?: string;
+}
+
+const videoMetadata = ref<VideoMetadata>({
+  sensitiveFrameCount: null,
+  totalFrames: null,
+  sensitiveRatio: null,
+  duration: null,
+  resolution: null
 });
 const anonymizationStatus = ref<VideoAnonymizationStatus | null>(null);
 const selectedStrategy = ref<VideoAnonymizationStrategy>('detector_assisted');
@@ -822,11 +874,11 @@ const normalizeProcessingHistory = (raw: unknown) => {
     )
     .map((entry) => ({
       id: Number(entry.id),
-      timestamp: String(entry.timestamp || entry.created_at || entry.completed_at || ''),
-      operation: String(entry.operation || 'anonymization'),
-      status: String(entry.status || ''),
-      details: String(entry.details || entry.message || ''),
-      outputPath: String(entry.outputPath || entry.output_path || entry.output_file || '') || undefined,
+      timestamp: stringFromUnknown(entry.timestamp ?? entry.created_at ?? entry.completed_at),
+      operation: stringFromUnknown(entry.operation, 'anonymization'),
+      status: stringFromUnknown(entry.status),
+      details: stringFromUnknown(entry.details ?? entry.message),
+      outputPath: stringFromUnknown(entry.outputPath ?? entry.output_path ?? entry.output_file) || undefined,
     }));
 };
 
@@ -845,7 +897,7 @@ const isRenderingPdf = ref(false);
 const pdfPageCount = ref(0);
 const activePdfPage = ref(1);
 const pdfScale = ref(1.25);
-const pdfPageBoxes = ref<Record<number, PdfRedactionBox[]>>({});
+const pdfPageBoxes = ref<Partial<Record<number, PdfRedactionBox[]>>>({});
 const pdfSourceBytes = ref<Uint8Array | null>(null);
 const redactedPdfBytes = ref<Uint8Array | null>(null);
 const redactedPdfUrl = ref('');
@@ -868,10 +920,7 @@ const canApplyMask = computed(() => {
 
 const availableStrategies = computed<VideoAnonymizationStrategy[]>(() => {
   const configured = (anonymizationStatus.value?.strategies || [])
-    .map((strategy) => typeof strategy === 'string' ? strategy : strategy.id)
-    .filter((strategy): strategy is VideoAnonymizationStrategy =>
-      strategy === 'detector_assisted' || strategy === 'processor_region'
-    );
+    .map((strategy) => typeof strategy === 'string' ? strategy : strategy.id);
   return configured.length > 0
     ? configured
     : ['detector_assisted', 'processor_region'];
@@ -897,7 +946,7 @@ const canRemoveFrames = computed(() => {
 });
 
 const hasProcessedVersion = computed(() => {
-  return anonymizationStatus.value?.processedArtifact?.available === true ||
+  return anonymizationStatus.value?.processedArtifact.available === true ||
     processingHistory.value.some(entry =>
     entry.status === 'success' && entry.outputPath
   );
@@ -907,10 +956,7 @@ const correctionVideoId = computed<number | null>(() => currentVideo.value?.id ?
 const correctionArtifactKind = computed<StreamableVideoFileType>(() =>
   previewMode.value === 'processed' && hasProcessedVersion.value ? 'processed' : 'raw'
 );
-const {
-  playbackError: videoPlaybackError,
-  playbackSourceUrl: videoPlaybackSourceUrl
-} = useAuthenticatedVideoStream({
+const { playbackError: videoPlaybackError } = useAuthenticatedVideoStream({
   videoElement,
   videoId: correctionVideoId,
   artifactKind: correctionArtifactKind,
@@ -927,7 +973,7 @@ const props = defineProps<Props>();
 
 const resolvedMediaType = computed<CorrectionMediaType>(() => {
   const routeMediaType = String(route.query.mediaType || '').toLowerCase();
-  const propsMediaType = String(props.mediaType || '').toLowerCase();
+  const propsMediaType = (props.mediaType || '').toLowerCase();
   const explicit = propsMediaType || routeMediaType;
   if (explicit === 'pdf') return 'pdf';
   if (explicit === 'video') return 'video';
@@ -936,7 +982,7 @@ const resolvedMediaType = computed<CorrectionMediaType>(() => {
   if (fromOverview?.mediaType === 'pdf') return 'pdf';
   if (fromOverview?.mediaType === 'video') return 'video';
 
-  const currentFilename = String(currentVideo.value?.filename || '').toLowerCase();
+  const currentFilename = (currentVideo.value?.filename || '').toLowerCase();
   if (currentFilename.endsWith('.pdf')) return 'pdf';
   return 'video';
 });
@@ -944,12 +990,15 @@ const resolvedMediaType = computed<CorrectionMediaType>(() => {
 const isPdfCorrection = computed(() => resolvedMediaType.value === 'pdf');
 
 const totalPdfBoxCount = computed(() => {
-  return Object.values(pdfPageBoxes.value).reduce((acc, boxes) => acc + boxes.length, 0);
+  return Object.values(pdfPageBoxes.value).reduce(
+    (acc, boxes) => acc + (boxes?.length ?? 0),
+    0
+  );
 });
 
 // Methods
 const goBack = () => {
-  router.push('/anonymisierung/uebersicht');
+  void router.push('/anonymisierung/uebersicht');
 };
 
 const refreshCurrentVideo = async () => {
@@ -998,13 +1047,15 @@ const loadPdfDetails = async (pdfId: number) => {
   }
 
   try {
-    const response = await axiosInstance.get(r(`media/pdfs/${pdfId}/`));
-    const details = response.data || {};
+    const response = await axiosInstance.get<PdfDetailsResponse>(
+      r(`media/pdfs/${String(pdfId)}/`)
+    );
+    const details = response.data;
 
     currentVideo.value = {
       id: pdfId,
       mediaType: 'pdf',
-      filename: details.filename || `document_${pdfId}.pdf`,
+      filename: details.filename || `document_${String(pdfId)}.pdf`,
       anonymizationStatus: details.is_validated ? 'validated' : 'done_processing_anonymization',
       fileSize: details.file_size ?? null,
       createdAt: details.uploaded_at || null,
@@ -1014,7 +1065,7 @@ const loadPdfDetails = async (pdfId: number) => {
     await loadPdfDocument(pdfId);
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler beim Laden der PDF-Details');
-    console.error('Error loading pdf details:', err);
+    logger.error('pdf-details-load-failed', err);
   } finally {
     loading.value = false;
   }
@@ -1027,9 +1078,9 @@ const loadVideoDetails = async (videoId: number) => {
   try {
     // Load video metadata and processing history
     const [videoResponse, metadataResponse, historyResponse, anonymizationResponse] = await Promise.all([
-      axiosInstance.get(r(`media/videos/video-correction/${videoId}`)),
-      axiosInstance.get(r(`media/videos/${videoId}/metadata/`)),
-      axiosInstance.get(r(`media/videos/${videoId}/processing-history/`)),
+      axiosInstance.get<CorrectionMedia>(r(`media/videos/video-correction/${String(videoId)}`)),
+      axiosInstance.get<VideoMetadata>(r(`media/videos/${String(videoId)}/metadata/`)),
+      axiosInstance.get<unknown>(r(`media/videos/${String(videoId)}/processing-history/`)),
       axiosInstance.get<VideoAnonymizationStatus>(
         r(endpoints.media.videoCorrectionAnonymization(videoId))
       )
@@ -1041,22 +1092,19 @@ const loadVideoDetails = async (videoId: number) => {
     anonymizationStatus.value = anonymizationResponse.data;
     selectedStrategy.value =
       anonymizationResponse.data.selectedStrategy ||
-      anonymizationResponse.data.defaultStrategy ||
-      'detector_assisted';
+      anonymizationResponse.data.defaultStrategy;
 
     // Update MediaStore with current video for consistent type detection
-    if (currentVideo.value) {
-      mediaStore.setCurrentItem({
-        id: currentVideo.value.id,
-        filename: currentVideo.value.filename,
-        mediaType: currentVideo.value.mediaType,
-        scope: currentVideo.value.mediaType,
-      });
-    }
+    mediaStore.setCurrentItem({
+      id: currentVideo.value.id,
+      filename: currentVideo.value.filename,
+      mediaType: currentVideo.value.mediaType,
+      scope: currentVideo.value.mediaType,
+    });
 
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler beim Laden der Video-Details');
-    console.error('Error loading video details:', err);
+    logger.error('video-details-load-failed', err);
   } finally {
     loading.value = false;
   }
@@ -1077,7 +1125,7 @@ const loadPdfDocument = async (pdfId: number) => {
   pdfRenderError.value = '';
   try {
     await ensurePdfJs();
-    const response = await axiosInstance.get(buildPdfStreamUrl(pdfId, 'raw'), {
+    const response = await axiosInstance.get<ArrayBuffer>(buildPdfStreamUrl(pdfId, 'raw'), {
       responseType: 'arraybuffer',
     });
 
@@ -1091,7 +1139,7 @@ const loadPdfDocument = async (pdfId: number) => {
     await renderCurrentPdfPage();
   } catch (err: unknown) {
     pdfRenderError.value = 'PDF konnte nicht geladen werden.';
-    console.error('Error loading PDF document:', err);
+    logger.error('pdf-document-load-failed', err);
   } finally {
     isRenderingPdf.value = false;
   }
@@ -1103,7 +1151,7 @@ const reloadPdfDocument = async () => {
 };
 
 const getCurrentPageBoxCount = () => {
-  return (pdfPageBoxes.value[activePdfPage.value] || []).length;
+  return (pdfPageBoxes.value[activePdfPage.value] ?? []).length;
 };
 
 const normalizeRect = (start: { x: number; y: number }, end: { x: number; y: number }) => {
@@ -1123,7 +1171,7 @@ const drawPdfOverlay = () => {
   ctx.clearRect(0, 0, overlay.width, overlay.height);
   ctx.fillStyle = '#000000';
 
-  const boxes = pdfPageBoxes.value[activePdfPage.value] || [];
+  const boxes = pdfPageBoxes.value[activePdfPage.value] ?? [];
   for (const box of boxes) {
     ctx.fillRect(
       box.x * overlay.width,
@@ -1163,8 +1211,8 @@ const renderCurrentPdfPage = async () => {
 
     canvas.width = Math.floor(viewport.width);
     canvas.height = Math.floor(viewport.height);
-    canvas.style.width = `${viewport.width}px`;
-    canvas.style.height = `${viewport.height}px`;
+    canvas.style.width = `${String(viewport.width)}px`;
+    canvas.style.height = `${String(viewport.height)}px`;
 
     const renderContext = {
       canvasContext: context,
@@ -1180,7 +1228,7 @@ const renderCurrentPdfPage = async () => {
     drawPdfOverlay();
   } catch (err: unknown) {
     pdfRenderError.value = 'PDF-Seite konnte nicht gerendert werden.';
-    console.error('Error rendering PDF page:', err);
+    logger.error('pdf-page-render-failed', err);
   } finally {
     isRenderingPdf.value = false;
   }
@@ -1235,7 +1283,7 @@ const finishPdfBoxDrawing = () => {
       width: rect.width / overlay.width,
       height: rect.height / overlay.height,
     };
-    const existing = pdfPageBoxes.value[activePdfPage.value] || [];
+    const existing = pdfPageBoxes.value[activePdfPage.value] ?? [];
     pdfPageBoxes.value[activePdfPage.value] = [...existing, normalized];
   }
 
@@ -1267,7 +1315,7 @@ const nextPdfPage = async () => {
 };
 
 const undoLastPdfBox = () => {
-  const boxes = pdfPageBoxes.value[activePdfPage.value] || [];
+  const boxes = pdfPageBoxes.value[activePdfPage.value] ?? [];
   if (!boxes.length) return;
   pdfPageBoxes.value[activePdfPage.value] = boxes.slice(0, -1);
   drawPdfOverlay();
@@ -1297,6 +1345,7 @@ const generateRedactedPdf = async () => {
     const pages = doc.getPages();
 
     Object.entries(pdfPageBoxes.value).forEach(([pageNumber, boxes]) => {
+      if (!boxes) return;
       const index = Number(pageNumber) - 1;
       if (!Number.isInteger(index) || index < 0 || index >= pages.length) {
         return;
@@ -1333,11 +1382,11 @@ const generateRedactedPdf = async () => {
       timestamp: new Date().toISOString(),
       operation: 'pdf_redaction',
       status: 'success',
-      details: `${totalPdfBoxCount.value} Box(en) angewendet`,
+      details: `${String(totalPdfBoxCount.value)} Box(en) angewendet`,
     });
   } catch (err: unknown) {
     error.value = 'Fehler beim Erzeugen der anonymisierten PDF';
-    console.error('Error generating redacted PDF:', err);
+    logger.error('pdf-redaction-failed', err);
   } finally {
     isProcessing.value = false;
     currentOperation.value = '';
@@ -1346,7 +1395,7 @@ const generateRedactedPdf = async () => {
 
 const downloadRedactedPdf = () => {
   if (!redactedPdfBytes.value || !currentVideo.value) return;
-  const fileName = String(currentVideo.value.filename || `document_${currentVideo.value.id}.pdf`);
+  const fileName = currentVideo.value.filename || `document_${String(currentVideo.value.id)}.pdf`;
   const baseName = fileName.toLowerCase().endsWith('.pdf')
     ? fileName.slice(0, -4)
     : fileName;
@@ -1371,7 +1420,7 @@ const uploadRedactedPdf = async () => {
   processingStatus.value = 'Anonymisierte PDF wird hochgeladen...';
 
   try {
-    const originalName = String(currentVideo.value.filename || `document_${currentVideo.value.id}.pdf`);
+    const originalName = currentVideo.value.filename || `document_${String(currentVideo.value.id)}.pdf`;
     const uploadName = originalName.toLowerCase().endsWith('.pdf')
       ? `${originalName.slice(0, -4)}_anonymized.pdf`
       : `${originalName}_anonymized.pdf`;
@@ -1379,7 +1428,7 @@ const uploadRedactedPdf = async () => {
 
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axiosInstance.post(r('upload/'), formData, {
+    const response = await axiosInstance.post<UploadResponse>(r('upload/'), formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
@@ -1390,11 +1439,11 @@ const uploadRedactedPdf = async () => {
       timestamp: new Date().toISOString(),
       operation: 'pdf_upload',
       status: 'success',
-      details: `Upload-ID: ${response.data.uploadId ?? response.data.upload_id ?? 'n/a'}`,
+      details: `Upload-ID: ${String(response.data.uploadId ?? response.data.upload_id ?? 'n/a')}`,
     });
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler beim Upload der anonymisierten PDF');
-    console.error('Error uploading redacted PDF:', err);
+    logger.error('pdf-upload-failed', err);
   } finally {
     isProcessing.value = false;
     currentOperation.value = '';
@@ -1410,7 +1459,7 @@ const analyzeVideo = async () => {
   processingStatus.value = 'Video wird analysiert...';
 
   try {
-    const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/analyze/`), {
+    const response = await axiosInstance.post<AnalysisResponse>(r(`media/videos/${String(currentVideo.value.id)}/analyze/`), {
       use_minicpm: frameConfig.value.detectionEngine !== 'traditional',
       detailed_analysis: true
     });
@@ -1426,12 +1475,12 @@ const analyzeVideo = async () => {
       timestamp: new Date().toISOString(),
       operation: 'analysis',
       status: 'success',
-      details: `${response.data.sensitiveFrameCount || 0} sensible Frames gefunden`
+      details: `${String(response.data.sensitiveFrameCount ?? 0)} sensible Frames gefunden`
     });
 
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler bei der Video-Analyse');
-    console.error('Error analyzing video:', err);
+    logger.error('video-analysis-failed', err);
   } finally {
     isProcessing.value = false;
     currentOperation.value = '';
@@ -1489,7 +1538,7 @@ const applyMasking = async () => {
 
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler bei der Anonymisierung');
-    console.error('Error applying anonymization:', err);
+    logger.error('video-anonymization-failed', err);
     isProcessing.value = false;
     currentOperation.value = '';
   }
@@ -1546,8 +1595,8 @@ const removeFrames = async () => {
     };
 
     // Start frame removal operation
-    const response = await axiosInstance.post(
-      r(`media/videos/${currentVideo.value.id}/remove-frames/`),
+    const response = await axiosInstance.post<FrameRemovalResponse>(
+      r(`media/videos/${String(currentVideo.value.id)}/remove-frames/`),
       payload
     );
 
@@ -1563,7 +1612,7 @@ const removeFrames = async () => {
 
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler bei der Frame-Entfernung');
-    console.error('Error removing frames:', err);
+    logger.error('frame-removal-failed', err);
     isProcessing.value = false;
     currentOperation.value = '';
   }
@@ -1602,7 +1651,9 @@ const pollTaskProgress = async (
   const pollInterval = 5000;
   const maxPolls = 300;
   for (let polls = 0; polls < maxPolls && isProcessing.value; polls += 1) {
-    const response = await axiosInstance.get(r(`media/videos/task-status/${taskId}/`));
+    const response = await axiosInstance.get<CorrectionTaskStatusResponse>(
+      r(`media/videos/task-status/${taskId}/`)
+    );
     const { status, progress, message, result } = response.data;
     processingProgress.value = progress || 0;
     processingStatus.value = message || 'Verarbeitung läuft...';
@@ -1645,7 +1696,7 @@ const finalizeCorrectionProcessing = async (
   currentOperation.value = '';
 };
 
-const cancelProcessing = async () => {
+const cancelProcessing = () => {
   // Implementation depends on backend support for task cancellation
   isProcessing.value = false;
   currentOperation.value = '';
@@ -1657,11 +1708,11 @@ const reprocessVideo = async () => {
   if (!currentVideo.value) return;
 
   try {
-    await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/reprocess/`));
+    await axiosInstance.post(r(`media/videos/${String(currentVideo.value.id)}/reprocess/`));
     await refreshCurrentVideo();
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler bei der Neuverarbeitung');
-    console.error('Error reprocessing video:', err);
+    logger.error('video-reprocessing-failed', err);
   }
 };
 
@@ -1694,28 +1745,21 @@ const downloadResult = async (historyId: number) => {
 
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler beim Download');
-    console.error('Error downloading result:', err);
+    logger.error('result-download-failed', err);
   }
 };
 
 // Event handlers
-const onVideoError = (event: Event) => {
-  console.error('Video loading error:', event);
-  const video = event.target as HTMLVideoElement;
-  console.error('Video error details:', {
-    error: video.error,
-    networkState: video.networkState,
-    readyState: video.readyState,
-    currentSrc: video.currentSrc
-  });
+const onVideoError = () => {
+  logger.error('video-playback-failed');
 };
 
 const onVideoLoadStart = () => {
-  console.log('Video loading started for:', videoPlaybackSourceUrl.value);
+  logger.debug('video-load-started');
 };
 
 const onVideoCanPlay = () => {
-  console.log('Video can play, loaded successfully');
+  logger.debug('video-ready');
 };
 
 // Utility functions
@@ -1723,7 +1767,8 @@ const formatFileSize = (bytes: number | null) => {
   if (!bytes) return 'Unbekannt';
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  const amount = Math.round(bytes / Math.pow(1024, i) * 100) / 100;
+  return `${String(amount)} ${sizes[i] ?? 'Bytes'}`;
 };
 
 const formatDate = (dateString: string | null) => {
@@ -1738,7 +1783,7 @@ const formatDate = (dateString: string | null) => {
 };
 
 const formatPercentage = (ratio: number | null) => {
-  if (ratio === null || ratio === undefined) return 'Unbekannt';
+  if (ratio === null) return 'Unbekannt';
   return `${(ratio * 100).toFixed(1)}%`;
 };
 
@@ -1769,7 +1814,7 @@ const getStatusText = (status: string) => {
 };
 
 const getSensitivityBadgeClass = (ratio: number | null) => {
-  if (ratio === null || ratio === undefined) return 'badge bg-secondary';
+  if (ratio === null) return 'badge bg-secondary';
 
   if (ratio > 0.1) return 'badge bg-danger';
   if (ratio > 0.05) return 'badge bg-warning';

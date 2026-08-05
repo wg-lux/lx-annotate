@@ -435,6 +435,9 @@ import { useMediaTypeStore, type MediaItem } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 import { useMediaManagement } from '@/api/mediaManagement';
 import { type MediaType } from '../../stores/mediaTypeStore';
+import { createRuntimeLogger } from '@/utils/runtimeLogger';
+
+const runtimeLogger = createRuntimeLogger('anonymization-overview');
 
 // Composables
 const router = useRouter();
@@ -514,7 +517,7 @@ const startAnonymization = async (fileId: number) => {
   // Find the file to determine media type
   const file = availableFiles.value.find(f => f.id === fileId);
   if (!file) {
-    console.warn('File not found for anonymization:', fileId);
+    runtimeLogger.warn('anonymization-file-missing');
     return;
   }
 
@@ -526,27 +529,27 @@ const startAnonymization = async (fileId: number) => {
   if (result) {
     // Refresh overview to get updated status
     await refreshOverview();
-    console.log('Anonymization started successfully for file', fileId);
+    runtimeLogger.info('anonymization-start-completed', { fileType: file.mediaType });
   } else {
-    console.warn('startAnonymization failed - staying on current page');
+    runtimeLogger.warn('anonymization-start-rejected', { fileType: file.mediaType });
   }
 };
 
-const correctVideo = async (fileId: number) => {
+const correctVideo = (fileId: number) => {
   // Find the file to set it in MediaStore for consistency
   const file = availableFiles.value.find(f => f.id === fileId);
   if (file) {
     mediaStore.setCurrentItem(toMediaItem(file));
   }
   else {
-    console.warn('File not found for correction:', fileId);
+    runtimeLogger.warn('correction-file-missing');
     return;
   }
 
 
 
   // Navigate directly to the correction component with the video ID
-  router.push({
+  void router.push({
     name: 'Anonymisierung Korrektur',
     params: { fileId: String(fileId) },
     query: { mediaType: file.mediaType }
@@ -565,7 +568,7 @@ const isReadyForValidation = (fileId: number) => {
 const validateFile = async (fileId: number, mediaType: string) => {
   processingFiles.value.add(fileId);
   if (!fileId) {
-    console.warn('File not found for validation:', fileId);
+    runtimeLogger.warn('validation-file-missing');
     return;
   }
 
@@ -578,16 +581,16 @@ const validateFile = async (fileId: number, mediaType: string) => {
         f => f.id === fileId && f.mediaType === mediaType
       );
       if (!file) {
-        console.warn('File not found for validation with given mediaType:', { fileId, mediaType });
+        runtimeLogger.warn('validation-file-type-mismatch');
         return;
       }
       mediaStore.setCurrentItem(toMediaItem(file));
-      const kind = file.mediaType as MediaType;
+      const kind = file.mediaType;
 
       try {
         mediaStore.rememberType(fileId, kind, kind);
       } catch (e) {
-        console.error('Error remembering media type for file:', fileId, e);
+        runtimeLogger.error('media-type-memory-failed', e, { fileType: kind });
       }
 
       if (file.sensitiveMetaId) {
@@ -597,9 +600,9 @@ const validateFile = async (fileId: number, mediaType: string) => {
       sessionStorage.setItem('last:fileId', String(fileId));
       sessionStorage.setItem('last:scope', kind);
 
-      console.log('File set for validation:', fileId, 'file media type:', file.mediaType);
+      runtimeLogger.info('validation-selection-ready', { fileType: file.mediaType });
 
-      router.push({
+      await router.push({
         name: 'AnonymisierungValidierung',
         query: {
           fileId: String(fileId),
@@ -608,7 +611,7 @@ const validateFile = async (fileId: number, mediaType: string) => {
       });
     }
   } catch (error) {
-    console.error('Navigation to validation failed:', error);
+    runtimeLogger.error('validation-navigation-failed', error);
   } finally {
     processingFiles.value.delete(fileId);
   }
@@ -622,9 +625,9 @@ const reimportVideo = async (fileId: number) => {
       // Refresh overview to get updated status
       await refreshOverview();
 
-      console.log('Video re-imported successfully:', fileId);
+      runtimeLogger.info('media-reimport-completed', { fileType: 'video' });
     } else {
-      console.warn('Re-import failed - staying on current page');
+      runtimeLogger.warn('media-reimport-rejected', { fileType: 'video' });
     }
   } finally {
     processingFiles.value.delete(fileId);
@@ -639,12 +642,12 @@ const reimportPdf = async (fileId: number) => {
     if (success) {
       // Refresh overview to get updated status
       await refreshOverview();
-      console.log('PDF re-imported successfully:', fileId);
+      runtimeLogger.info('media-reimport-completed', { fileType: 'pdf' });
     } else {
-      console.warn('PDF re-import failed - staying on current page');
+      runtimeLogger.warn('media-reimport-rejected', { fileType: 'pdf' });
     }
   } catch (error) {
-    console.error('PDF re-import failed:', error);
+    runtimeLogger.error('media-reimport-failed', error, { fileType: 'pdf' });
   } finally {
     processingFiles.value.delete(fileId);
   }
@@ -664,7 +667,7 @@ const deleteFile = async (fileId: number) => {
   // Find the file for confirmation
   const file = availableFiles.value.find(f => f.id === fileId);
   if (!file) {
-    console.warn('File not found for deletion:', fileId);
+    runtimeLogger.warn('deletion-file-missing');
     return;
   }
 
@@ -681,12 +684,12 @@ const deleteFile = async (fileId: number) => {
     if (result) {
       // Refresh overview to remove the deleted file from the list
       await refreshOverview();
-      console.log('File deleted successfully:', fileId);
+      runtimeLogger.info('media-deletion-completed', { fileType: file.mediaType });
     } else {
-      console.warn('File deletion failed');
+      runtimeLogger.warn('media-deletion-rejected', { fileType: file.mediaType });
     }
   } catch (error) {
-    console.error('File deletion failed:', error);
+    runtimeLogger.error('media-deletion-failed', error, { fileType: file.mediaType });
   } finally {
     processingFiles.value.delete(fileId);
   }
@@ -709,7 +712,7 @@ const isProcessing = (fileId: number) => {
          isUploadJobActive(file) ||
          isHlsMaterializationActive(file) ||
          anonymizationStore.isVideoReimportQueued(fileId) ||
-         !pollingProtection.canProcessMedia.value(fileId, mediaType as 'video' | 'pdf');
+         !pollingProtection.canProcessMedia.value(fileId, mediaType);
 };
 
 const needsReimport = (file: FileItem) => {
@@ -729,7 +732,7 @@ const needsReimport = (file: FileItem) => {
 };
 
 const isUploadJobActive = (file: FileItem) => {
-  const status = String(file.uploadJob?.status || '').toLowerCase();
+  const status = (file.uploadJob?.status || '').toLowerCase();
   return status === 'pending' || status === 'processing' || status === 'retrying';
 };
 
@@ -778,7 +781,7 @@ const getDocumentTypeLabel = (documentType?: string | null) => {
 
 const getPdfPatientLabel = (file: FileItem) => {
   if (typeof file.pseudoPatientId === 'number') {
-    return `Pseudo-Patient ${file.pseudoPatientId}`;
+    return `Pseudo-Patient ${String(file.pseudoPatientId)}`;
   }
   if (file.patientHashDisplay) {
     return `Patient ${file.patientHashDisplay}`;
@@ -800,7 +803,7 @@ const getFileDisplayName = (file: FileItem) => {
     return labelParts.join(' - ');
   }
 
-  return file.filename || `PDF-ID: ${file.id}`;
+  return file.filename || `PDF-ID: ${String(file.id)}`;
 };
 
 const getFileIdLabel = (file: FileItem) => {
@@ -811,8 +814,8 @@ const getFileIdLabel = (file: FileItem) => {
     return `Import-ID: ${file.uploadJob.id}`;
   }
   return file.mediaType === 'video'
-    ? `Video-ID: ${file.id}`
-    : `PDF-ID: ${file.id}`;
+    ? `Video-ID: ${String(file.id)}`
+    : `PDF-ID: ${String(file.id)}`;
 };
 
 const getStatusBadgeClass = (status: string) => {
@@ -872,7 +875,7 @@ const DUPLICATE_IMPORT_NOTICE = 'Duplikat erkannt. Die vorhandene validierte Ann
 const IMPORT_ERROR_NOTICE = 'Importfehler. Details sind im Server-Log verfügbar.';
 
 const isUploadJobError = (uploadJob: UploadJobOverview) => {
-  const status = String(uploadJob.status || '').toLowerCase();
+  const status = uploadJob.status.toLowerCase();
   return status === 'error' || status === 'lost';
 };
 
@@ -895,7 +898,7 @@ const getUploadJobNotice = (file: FileItem) => {
     const schedule = file.uploadJob.nextRetryAt
       ? ` Nächster Versuch: ${formatDate(file.uploadJob.nextRetryAt)}.`
       : '';
-    return `Vorübergehender Importfehler. Versuch ${retryCount}/${maxRetries}.${schedule}`;
+    return `Vorübergehender Importfehler. Versuch ${String(retryCount)}/${String(maxRetries)}.${schedule}`;
   }
 
   if (isUploadJobError(file.uploadJob)) {
@@ -1084,15 +1087,18 @@ const hasActiveMonitoringState = () => availableFiles.value.some(file =>
 
 const scheduleMonitoringRefresh = () => {
   if (!hasActiveMonitoringState() || monitoringRefreshHandle.value) return;
-  monitoringRefreshHandle.value = setTimeout(async () => {
+  monitoringRefreshHandle.value = setTimeout(() => {
     monitoringRefreshHandle.value = null;
-    await refreshOverview();
-    scheduleMonitoringRefresh();
+    void refreshOverview()
+      .then(scheduleMonitoringRefresh)
+      .catch((refreshError: unknown) => {
+        runtimeLogger.error('monitoring-refresh-failed', refreshError);
+      });
   }, MONITORING_REFRESH_INTERVAL_MS);
 };
 
 const getTotalByStatus = (status: string) => {
-  const statusMap: { [key: string]: string[] } = {
+  const statusMap: Partial<Record<string, string[]>> = {
     'not_started': ['not_started'],
     'processing': ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
     'done_processing_anonymization': ['done_processing_anonymization', 'validated'],
@@ -1122,23 +1128,19 @@ onMounted(async () => {
       tableResizeObserver.observe(overviewTableElement.value);
     }
   }
-    console.table(
-      anonymizationStore.overview.map(f => ({
-        id: f.id,
-        fromOverview: f.mediaType,
-        remembered: mediaStore.getType(f.id) // scans both pdf/video scopes
-      }))
-    )
+    runtimeLogger.debug('media-type-seed-completed', {
+      count: anonymizationStore.overview.length
+    });
 
   // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
   const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
 
   anonymizationStore.overview.forEach((file: FileItem) => {
     if (processingStatuses.includes(file.anonymizationStatus)) {
-      console.log(`Starting polling for processing file ${file.id} (status: ${file.anonymizationStatus})`);
+      runtimeLogger.debug('processing-file-poll-started', { fileType: file.mediaType });
       anonymizationStore.startPolling(file.id);
     } else {
-      console.log(`Skipping polling for file ${file.id} (status: ${file.anonymizationStatus})`);
+      runtimeLogger.debug('processing-file-poll-skipped', { fileType: file.mediaType });
     }
   });
 

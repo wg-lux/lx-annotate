@@ -112,4 +112,13 @@ describe('AnonymizationMetricsComponent', () => {
     expect(wrapper.text()).not.toContain('Max Mustermann')
     expect(wrapper.text()).not.toContain('/raw/study-report.pdf')
   })
+
+  it('shows a rejected metrics request in the existing error alert', async () => {
+    hoisted.storeRef.current.fetchMetrics.mockRejectedValueOnce(new Error('Metrics unavailable'))
+
+    const wrapper = mount(AnonymizationMetricsComponent)
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('Metrics unavailable')
+  })
 })

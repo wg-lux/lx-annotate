@@ -203,14 +203,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, withDefaults } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
 import { formatTime as formatTimeHelper } from '@/utils/timeHelpers'
 import { useToastStore } from '@/stores/toastStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
 import { storeToRefs } from 'pinia'
-import { buildAnnotationExportRequest, type AnnotationExportResponse } from './annotationExport'
+import {
+  buildAnnotationExportRequest,
+  parseAnnotationBackfillResponse,
+  type AnnotationExportResponse
+} from './annotationExport'
+
+const log = createRuntimeLogger('export-annotations')
 
 const props = withDefaults(
   defineProps<{
@@ -232,15 +239,13 @@ const getTranslationForLabel = videoStore.getTranslationForLabel
 const updatingSegments = ref<Set<number>>(new Set())
 const isBulkUpdating = ref(false)
 
-const selectedVideoId = ref<number | null>(props.videoId ?? null)
-const isExternalSelection = computed(() => props.videoId !== null && props.videoId !== undefined)
+const selectedVideoId = ref<number | null>(props.videoId)
+const isExternalSelection = computed(() => props.videoId !== null)
 
 watch(
   () => props.videoId,
   (nextId) => {
-    if (nextId !== undefined) {
-      selectedVideoId.value = nextId ?? null
-    }
+    selectedVideoId.value = nextId
   }
 )
 
@@ -257,7 +262,7 @@ const noVideosMessage = computed(() => {
 })
 
 const effectiveSegments = computed<Segment[]>(() => {
-  if (props.videoId !== null && props.videoId !== undefined) {
+  if (props.videoId !== null) {
     return props.segments
   }
   if (!selectedVideoId.value) return []
@@ -313,7 +318,7 @@ const selectAllSegments = async (flag: boolean): Promise<boolean> => {
       updatingSegments.value.add(segment.id)
       const ok = await videoStore.setSegmentExportFlag(segment.id, flag)
       if (!ok) {
-        toast.error({ text: `Segment ${segment.id} konnte nicht aktualisiert werden.` })
+        toast.error({ text: `Segment ${String(segment.id)} konnte nicht aktualisiert werden.` })
         okAll = false
         break
       }
@@ -354,19 +359,19 @@ const loadSelectedVideo = async () => {
     // so the user doesn't have to manually toggle dozens of segment switches.
     await selectAllSegments(true)
   } catch (error) {
-    console.error('Fehler beim Laden der Segmente:', error)
+    log.error('segments.load-failed', error)
     toast.error({ text: 'Segmente konnten nicht geladen werden.' })
   }
 }
 
-const onVideoChange = () => {
-  loadSelectedVideo()
+const onVideoChange = async () => {
+  await loadSelectedVideo()
 }
 
 const autoSelectInitialVideo = async () => {
   if (isExternalSelection.value) return
   if (selectedVideoId.value) return
-  const firstVideo = annotatableVideos.value[0]
+  const firstVideo = annotatableVideos.value.at(0)
   if (firstVideo) {
     selectedVideoId.value = firstVideo.id
     await loadSelectedVideo()
@@ -378,7 +383,7 @@ onMounted(async () => {
     try {
       await videoStore.fetchAllVideos()
     } catch (error) {
-      console.error('Fehler beim Laden der Videos:', error)
+      log.error('videos.load-failed', error)
       toast.error({ text: 'Videos konnten nicht geladen werden.' })
     }
   }
@@ -387,7 +392,7 @@ onMounted(async () => {
     try {
       await anonymizationStore.fetchOverview()
     } catch (error) {
-      console.error('Fehler beim Laden der Anonymisierungsübersicht:', error)
+      log.error('anonymization-overview.load-failed', error)
     }
   }
 
@@ -404,20 +409,26 @@ const isExporting = ref(false)
 const exportMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const isBackfilling = ref(false)
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object'
+
 const exportBaseDir = computed(() => {
   // output_dir is interpreted on the backend filesystem. Prefer explicit config, otherwise
   // fall back to an app-local path that is typically writable in dev (`data/...`).
+  const configuredExportDir: unknown = import.meta.env.VITE_EXPORT_OUTPUT_DIR
+  const configuredStorageDir: unknown = import.meta.env.VITE_STORAGE_DIR
   const base =
-    import.meta.env.VITE_EXPORT_OUTPUT_DIR ||
-    (import.meta.env.VITE_STORAGE_DIR
-      ? `${import.meta.env.VITE_STORAGE_DIR}/export`
-      : 'data/export')
-  return String(base).replace(/\/+$/, '')
+    typeof configuredExportDir === 'string' && configuredExportDir
+      ? configuredExportDir
+      : typeof configuredStorageDir === 'string' && configuredStorageDir
+        ? `${configuredStorageDir}/export`
+        : 'data/export'
+  return base.replace(/\/+$/, '')
 })
 
 const exportOutputDir = computed(() => {
   if (!selectedVideoId.value) return exportBaseDir.value
-  return `${exportBaseDir.value}/video_${selectedVideoId.value}_annotated`
+  return `${exportBaseDir.value}/video_${String(selectedVideoId.value)}_annotated`
 })
 
 const exportSegmentIds = computed(() =>
@@ -443,15 +454,10 @@ const backfillButtonLabel = computed(() =>
 
 const getRequestErrorMessage = (error: unknown, fallback: string): string => {
   if (!error || typeof error !== 'object') return fallback
-  const errorRecord = error as Record<string, unknown>
+  const errorRecord = isRecord(error) ? error : {}
   const response =
-    errorRecord.response && typeof errorRecord.response === 'object'
-      ? (errorRecord.response as Record<string, unknown>)
-      : {}
-  const data =
-    response.data && typeof response.data === 'object'
-      ? (response.data as Record<string, unknown>)
-      : {}
+    isRecord(errorRecord.response) ? errorRecord.response : {}
+  const data = isRecord(response.data) ? response.data : {}
   const message = data.detail ?? data.error ?? errorRecord.message
   return typeof message === 'string' ? message : fallback
 }
@@ -465,18 +471,18 @@ const backfillAnnotations = async () => {
 
   isBackfilling.value = true
   try {
-    const resp = await axiosInstance.post(
-      r(`media/videos/${selectedVideoId.value}/ensure-segment-annotations/`),
+    const resp = await axiosInstance.post<unknown>(
+      r(`media/videos/${String(selectedVideoId.value)}/ensure-segment-annotations/`),
       { only_validated: true }
     )
 
-    const created = Number(resp?.data?.annotationsCreated ?? resp?.data?.annotations_created ?? 0)
+    const { annotationsCreated } = parseAnnotationBackfillResponse(resp.data)
     exportMessage.value = {
       type: 'success',
-      text: `Backfill abgeschlossen. Neu erzeugte Annotationen: ${created}.`
+      text: `Backfill abgeschlossen. Neu erzeugte Annotationen: ${String(annotationsCreated)}.`
     }
   } catch (error: unknown) {
-    console.error('Backfill request failed', error)
+    log.error('annotation-backfill.failed', error)
     exportMessage.value = {
       type: 'error',
       text: getRequestErrorMessage(error, 'Backfill fehlgeschlagen')
@@ -519,10 +525,10 @@ const startExport = async () => {
     const result = response.data
     exportMessage.value = {
       type: 'success',
-      text: `Export abgeschlossen: ${result.rowCount} Annotationen, ${result.exportedFrameCount} Frames. Datei: ${result.outputPath}`
+      text: `Export abgeschlossen: ${String(result.rowCount)} Annotationen, ${String(result.exportedFrameCount)} Frames. Datei: ${result.outputPath}`
     }
   } catch (error: unknown) {
-    console.error('Export request failed', error)
+    log.error('annotation-export.failed', error)
     exportMessage.value = {
       type: 'error',
       text: getRequestErrorMessage(error, 'Export fehlgeschlagen')

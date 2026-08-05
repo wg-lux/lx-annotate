@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { buildAnnotationExportRequest } from '../annotationExport'
+import {
+  buildAnnotationExportRequest,
+  parseAnnotationBackfillResponse
+} from '../annotationExport'
 
 const componentSource = readFileSync(
   resolve(process.cwd(), 'src/components/VideoExamination/ExportAnnotations.vue'),
@@ -40,5 +43,15 @@ describe('ExportAnnotations PTS contract', () => {
       transcodeExt: 'jpg'
     })
     expect(payload).not.toHaveProperty('segment_ids')
+  })
+
+  it('rejects malformed annotation-backfill responses instead of reporting zero work', () => {
+    expect(parseAnnotationBackfillResponse({ annotationsCreated: 3 })).toEqual({
+      annotationsCreated: 3
+    })
+    expect(() => parseAnnotationBackfillResponse({})).toThrow('annotationsCreated')
+    expect(() => parseAnnotationBackfillResponse({ annotationsCreated: '3' })).toThrow(
+      'annotationsCreated'
+    )
   })
 })

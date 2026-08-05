@@ -242,14 +242,15 @@ describe('FrameAnnotation usability audit', () => {
   })
 
   it('zeigt Backend-Fehler beim Task-Laden sichtbar an', async () => {
-    hoisted.queueStore = buildQueueStore({
-      fetchBatch: vi.fn().mockImplementation(async () => {
-        hoisted.queueStore!.lastError = 'Backend nicht erreichbar'
-        return []
-      }),
+    const queueStore = buildQueueStore({
       popNextTask: vi.fn(() => null),
       lastError: null
     })
+    queueStore.fetchBatch = vi.fn().mockImplementation(() => {
+      queueStore.lastError = 'Backend nicht erreichbar'
+      return Promise.resolve([])
+    })
+    hoisted.queueStore = queueStore
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()

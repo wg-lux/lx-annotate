@@ -351,10 +351,11 @@ import {
 } from '@/stores/videoStore'
 
 import { useToastStore } from '@/stores/toastStore'
-import { getRandomColor } from '@/utils/colorHelpers'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const toast = useToastStore()
 const videoStore = useVideoStore()
+const log = createRuntimeLogger('video-timeline')
 
 // Type definitions
 interface TimeMarker {
@@ -417,11 +418,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'seek', time: number): void
+  (e: 'seek' | 'segment-select', value: number): void
   (e: 'play-pause'): void
-  (e: 'segment-select', segmentId: number): void
-  (e: 'segment-edit', segment: Segment): void
-  (e: 'segment-delete', segment: Segment): void
+  (e: 'segment-edit' | 'segment-delete', segment: Segment): void
   (e: 'segment-label-change', segmentId: number, label: string, labelId: number | null): void
   (e: 'segment-create', data: { label: string; start: number; end: number }): void
   (e: 'segment-resize', segmentId: number, newStart: number, newEnd: number, mode: string, final?: boolean): void
@@ -562,10 +561,8 @@ const timeMarkers = computed((): TimeMarker[] => {
   }
 
   const lastMarker = markers[markers.length - 1]
-  const lastMarkerGapPx = lastMarker
-    ? ((totalTime - lastMarker.time) / totalTime) * availableWidth
-    : availableWidth
-  if (!lastMarker || (totalTime > lastMarker.time && lastMarkerGapPx >= minTimeMarkerGapPx * 0.75)) {
+  const lastMarkerGapPx = ((totalTime - lastMarker.time) / totalTime) * availableWidth
+  if (totalTime > lastMarker.time && lastMarkerGapPx >= minTimeMarkerGapPx * 0.75) {
     markers.push({
       time: totalTime,
       position: 100
@@ -585,14 +582,14 @@ const getTranslationForLabel = (label: string): string => {
 }
 
 const toCanonical = (s: Segment): CanonicalSegment => {
-  const color = s.color ?? getColorForLabel(s.label) ?? getRandomColor()
+  const color = s.color ?? getColorForLabel(s.label)
 
   return {
     ...s,
     start: s.startTime,
     end: s.endTime,
     color,
-    avgConfidence: s.avgConfidence ?? 0,
+    avgConfidence: s.avgConfidence,
   }
 }
 
@@ -629,8 +626,8 @@ const selectedLabel = ref<string | null>(null)
 // 4. Define selectSegment (Action)
 const selectSegment = (segment: CanonicalSegment): void => {
   selectedLabel.value = segment.label
-  emit('segment-select', Number(segment.id))
-  snapSegmentRowToTop(Number(segment.id))
+  emit('segment-select', segment.id)
+  snapSegmentRowToTop(segment.id)
 }
 
 const handleSegmentClick = (segment: CanonicalSegment, event: MouseEvent): void => {
@@ -709,12 +706,16 @@ const hideSegmentTooltip = (): void => {
 // 5. Define segmentRows THIRD (Computed)
 // This depends on the two computed properties above.
 const segmentRows = computed((): SegmentRow[] => {
-  const buckets: Record<string, CanonicalSegment[]> = {}
+  const buckets = new Map<string, CanonicalSegment[]>()
 
   // Group segments by label
   for (const s of displayedSegments.value) {
-    if (!s.label) continue
-    (buckets[s.label] ||= []).push(s)
+    const bucket = buckets.get(s.label)
+    if (bucket) {
+      bucket.push(s)
+    } else {
+      buckets.set(s.label, [s])
+    }
   }
 
   // Determine the order of rows based on selection + labelOrder
@@ -726,9 +727,7 @@ const segmentRows = computed((): SegmentRow[] => {
   
   // Create rows based on overlapping logic
   orderedLabels.forEach(label => {
-    if (!buckets[label]) return
-
-    const segs = buckets[label].sort((a, b) => a.start - b.start)
+    const segs = (buckets.get(label) ?? []).sort((a, b) => a.start - b.start)
     let physicalIdx = 0
     let currentRow: SegmentRow = {
       key: `${label}-0`,
@@ -743,7 +742,7 @@ const segmentRows = computed((): SegmentRow[] => {
         rows.push(currentRow)
         physicalIdx += 1
         currentRow = {
-          key: `${label}-${physicalIdx}`,
+          key: `${label}-${String(physicalIdx)}`,
           label,
           rowNumber: rows.length,
           segments: [],
@@ -761,7 +760,7 @@ const segmentRows = computed((): SegmentRow[] => {
 
 const getSegmentRowNumber = (segmentId: number): number | null => {
   const row = segmentRows.value.find(item =>
-    item.segments.some(segment => Number(segment.id) === Number(segmentId))
+    item.segments.some(segment => segment.id === segmentId)
   )
   return row?.rowNumber ?? null
 }
@@ -791,7 +790,7 @@ const scrollRowToTop = (rowNumber: number, behavior: ScrollBehavior = 'smooth'):
 }
 
 const snapSegmentRowToTop = (segmentId: number): void => {
-  nextTick(() => {
+  void nextTick(() => {
     const rowNumber = getSegmentRowNumber(segmentId)
     if (rowNumber === null) return
     scrollRowToTop(rowNumber)
@@ -854,11 +853,7 @@ const formatDuration = (startTime: number, endTime: number): string => {
 const getSegmentPosition = (startTime: number): number => {
   const position = calculateSegmentPosition(startTime, duration.value)
   if (!Number.isFinite(position) || position < 0) {
-    console.error('[Timeline] Invalid segment position calculated:', {
-      startTime,
-      duration: duration.value,
-      position
-    })
+    log.warn('segment-position.invalid')
     return 0
   }
   return position
@@ -867,12 +862,7 @@ const getSegmentPosition = (startTime: number): number => {
 const getSegmentWidth = (startTime: number, endTime: number): number => {
   const width = calculateSegmentWidth(startTime, endTime, duration.value)
   if (!Number.isFinite(width) || width <= 0) {
-    console.error('[Timeline] Invalid segment width calculated:', {
-      startTime,
-      endTime,
-      duration: duration.value,
-      width
-    })
+    log.warn('segment-width.invalid')
     return 0
   }
   return width
@@ -933,7 +923,7 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
         Math.max(0, startLeft + dx),
         opt.trackPx() - startWidth
       )
-      el.style.left = left + 'px'
+      el.style.left = `${String(left)}px`
       draftStart = left
       draftEnd = left + startWidth
     }
@@ -941,16 +931,16 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     if (mode === 'start') {
       const left = Math.min(startLeft + dx, startLeft + startWidth - 10)
       const width = startWidth + (startLeft - left)
-      el.style.left = left + 'px'
-      el.style.width = width + 'px'
+      el.style.left = `${String(left)}px`
+      el.style.width = `${String(width)}px`
       draftStart = left
       draftEnd = left + width
     }
 
     if (mode === 'end') {
       const width = Math.max(10, startWidth + dx)
-      el.style.width = width + 'px'
-      el.style.left = startLeft + 'px'
+      el.style.width = `${String(width)}px`
+      el.style.left = `${String(startLeft)}px`
       draftStart = startLeft
       draftEnd = startLeft + width
     }
@@ -965,7 +955,7 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     if (mode === 'drag') {
       opt.onMove(pxToTime(s), pxToTime(e))
     } else {
-      opt.onResize(pxToTime(s), pxToTime(e), mode as 'start' | 'end')
+      opt.onResize(pxToTime(s), pxToTime(e), mode)
     }
     mode = null
     el.releasePointerCapture(ev.pointerId)
@@ -989,19 +979,22 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
 }
 
 const initializeDragResize = () => {
-  cleanupFunctions.value.forEach(cleanup => cleanup())
+  cleanupFunctions.value.forEach(cleanup => {
+    cleanup()
+  })
   cleanupFunctions.value = []
 
   if (!timeline.value) return
 
-  nextTick(() => {
+  const timelineElement = timeline.value
+  void nextTick(() => {
     segmentRows.value.forEach(row => {
       row.segments.forEach(segment => {
-        const el = document.querySelector(`[data-id="${segment.id}"]`) as HTMLElement | null
+        const el = document.querySelector<HTMLElement>(`[data-id="${String(segment.id)}"]`)
         if (!el) return
 
         const cleanup = useDragResize(el, {
-          trackPx: () => timeline.value!.offsetWidth,
+          trackPx: () => timelineElement.offsetWidth,
           duration: () => duration.value,
           onMove: (startS: number, endS: number) => {
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
@@ -1011,7 +1004,7 @@ const initializeDragResize = () => {
               localSegment.startTime = startS
               localSegment.endTime = endS
             }
-            emit('segment-move', Number(segment.id), startS, endS)
+            emit('segment-move', segment.id, startS, endS)
           },
           onResize: (startS: number, endS: number, edge: 'start' | 'end') => {
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
@@ -1021,7 +1014,7 @@ const initializeDragResize = () => {
               localSegment.startTime = startS
               localSegment.endTime = endS
             }
-            emit('segment-resize', Number(segment.id), startS, endS, edge)
+            emit('segment-resize', segment.id, startS, endS, edge)
           },
           onDone: () => {
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
@@ -1073,7 +1066,7 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
 const deleteSelectedSegment = (): void => {
   if (props.activeSegmentId == null) return
   const segmentToDelete = displayedSegments.value.find(
-    segment => Number(segment.id) === Number(props.activeSegmentId)
+    segment => segment.id === props.activeSegmentId
   )
   if (!segmentToDelete) return
   rememberDeletedSegment(segmentToDelete)
@@ -1095,7 +1088,7 @@ const stepFrame = async (direction: -1 | 1): Promise<void> => {
     }
   } catch (error) {
     frameNavigationUnavailable.value = true
-    console.error('[Timeline] PTS frame navigation unavailable', error)
+    log.error('frame-navigation.failed', error)
     toast.error({ text: 'Framegenaue Navigation ist für dieses Video nicht verfügbar.' })
   } finally {
     frameStepPending.value = false
@@ -1111,9 +1104,8 @@ const seekBySeconds = (deltaSeconds: number): void => {
 
 
 const getSegmentRange = (segment: Segment | CanonicalSegment): { label: string; start: number; end: number } => {
-  const canonical = segment as CanonicalSegment
-  const start = Number.isFinite(canonical.start) ? canonical.start : segment.startTime ?? 0
-  const end = Number.isFinite(canonical.end) ? canonical.end : segment.endTime ?? start
+  const start = 'start' in segment ? segment.start : segment.startTime
+  const end = 'end' in segment ? segment.end : segment.endTime
   return { label: segment.label, start, end }
 }
 
@@ -1131,7 +1123,7 @@ const rememberDeletedSegment = (segment: Segment | CanonicalSegment): void => {
 const copySelectedSegment = (): boolean => {
   if (props.activeSegmentId == null) return false
   const segment = displayedSegments.value.find(
-    s => Number(s.id) === Number(props.activeSegmentId)
+    s => s.id === props.activeSegmentId
   )
   if (!segment) return false
   const range = getSegmentRange(segment)
@@ -1188,20 +1180,20 @@ const handleClipboardShortcut = (event: KeyboardEvent): boolean => {
 
 const handleNavigationShortcut = (event: KeyboardEvent): boolean => {
   if (event.ctrlKey || event.metaKey || event.altKey) return false
-  const navigationActions: Record<string, () => void> = {
-    ArrowLeft: () => seekBySeconds(-2),
-    ArrowRight: () => seekBySeconds(2),
-    ',': () => stepFrame(-1),
-    Comma: () => stepFrame(-1),
-    '.': () => stepFrame(1),
-    Period: () => stepFrame(1),
-    k: () => seekBySeconds(-2),
-    l: () => seekBySeconds(2)
-  }
+  const navigationActions = new Map<string, () => void>([
+    ['ArrowLeft', () => { seekBySeconds(-2) }],
+    ['ArrowRight', () => { seekBySeconds(2) }],
+    [',', () => { void stepFrame(-1) }],
+    ['Comma', () => { void stepFrame(-1) }],
+    ['.', () => { void stepFrame(1) }],
+    ['Period', () => { void stepFrame(1) }],
+    ['k', () => { seekBySeconds(-2) }],
+    ['l', () => { seekBySeconds(2) }]
+  ])
   const action =
-    navigationActions[event.key] ??
-    navigationActions[event.code] ??
-    navigationActions[event.key.toLowerCase()]
+    navigationActions.get(event.key) ??
+    navigationActions.get(event.code) ??
+    navigationActions.get(event.key.toLowerCase())
   if (!action) return false
   event.preventDefault()
   action()
@@ -1284,9 +1276,9 @@ const formatEditorTime = (timeInSeconds: number): string => {
   const seconds = timeInSeconds % 60
   const secStr = seconds.toFixed(3).replace(/\.?0+$/, '')
   if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${secStr.padStart(2, '0')}`
+    return `${String(hours)}:${String(minutes).padStart(2, '0')}:${secStr.padStart(2, '0')}`
   }
-  return `${minutes}:${secStr.padStart(2, '0')}`
+  return `${String(minutes)}:${secStr.padStart(2, '0')}`
 }
 
 const parseEditorTime = (value: string): number | null => {
@@ -1409,7 +1401,7 @@ const openSegmentTimeEditor = (segment: CanonicalSegment, event: MouseEvent): vo
     error: ''
   }
   selectSegment(segment)
-  nextTick(() => {
+  void nextTick(() => {
     timeEditorStartInput.value?.focus()
     timeEditorStartInput.value?.select()
   })
@@ -1569,10 +1561,11 @@ const initializeTimelineMetrics = (): void => {
 
 // Click outside
 const handleClickOutside = (event: Event): void => {
-  if (contextMenu.value.visible && !(event.target as Element)?.closest('.context-menu')) {
+  const target = event.target instanceof Element ? event.target : null
+  if (contextMenu.value.visible && !target?.closest('.context-menu')) {
     hideContextMenu()
   }
-  if (timeEditor.value.visible && !(event.target as Element)?.closest('.time-editor')) {
+  if (timeEditor.value.visible && !target?.closest('.time-editor')) {
     hideTimeEditor()
   }
 }
@@ -1580,7 +1573,7 @@ const handleClickOutside = (event: Event): void => {
 // Lifecycle
 watch(() => props.video, () => {
   if (props.showWaveform) {
-    nextTick(() => {
+    void nextTick(() => {
       initializeWaveform()
     })
   }
@@ -1588,7 +1581,7 @@ watch(() => props.video, () => {
 
 watch(
   segmentRows,
-  () => nextTick(initializeDragResize),
+  () => { void nextTick(initializeDragResize) },
   { immediate: true }
 )
 
@@ -1596,7 +1589,7 @@ watch(
   () => props.activeSegmentId,
   (segmentId) => {
     if (segmentId == null) return
-    snapSegmentRowToTop(Number(segmentId))
+    snapSegmentRowToTop(segmentId)
   }
 )
 
@@ -1604,7 +1597,7 @@ watch(
   segmentRows,
   () => {
     if (props.activeSegmentId == null) return
-    snapSegmentRowToTop(Number(props.activeSegmentId))
+    snapSegmentRowToTop(props.activeSegmentId)
   }
 )
 
@@ -1612,7 +1605,7 @@ watch(segmentRows, (rows: SegmentRow[]) => {
   rows.forEach(row => {
     row.segments.forEach(s => {
       if (getSegmentWidth(s.start, s.end) === 0) {
-        console.warn('[Timeline] Segment mit 0% Breite:', s)
+        log.warn('segment-width.zero')
       }
     })
   })
@@ -1622,13 +1615,13 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeyDown)
 
-  nextTick(() => {
+  void nextTick(() => {
     initializeTimelineMetrics()
     initializeDragResize()
   })
 
   if (props.showWaveform) {
-    nextTick(() => {
+    void nextTick(() => {
       initializeWaveform()
     })
   }
@@ -1645,7 +1638,9 @@ onUnmounted(() => {
     window.clearTimeout(scrollSnapTimer)
     scrollSnapTimer = null
   }
-  cleanupFunctions.value.forEach(cleanup => cleanup())
+  cleanupFunctions.value.forEach(cleanup => {
+    cleanup()
+  })
   cleanupFunctions.value = []
   document.removeEventListener('mousemove', onSelectionMouseMove)
   document.removeEventListener('mouseup', onSelectionMouseUp)
@@ -1653,8 +1648,8 @@ onUnmounted(() => {
 
 // Helper for numeric IDs
 const getNumericSegmentId = (segmentId: number): number | null => {
-  if (typeof segmentId === 'number' && Number.isFinite(segmentId)) return segmentId
-  console.error('[Timeline] Unexpected segment ID:', segmentId)
+  if (Number.isFinite(segmentId)) return segmentId
+  log.warn('segment-id.invalid')
   return null
 }
 </script>

@@ -2,20 +2,63 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { reactive, nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const testState = vi.hoisted(() => ({
-  videoStore: undefined as Record<string, unknown> | undefined,
-  anonymizationStore: undefined as Record<string, unknown> | undefined,
-  mediaStore: undefined as Record<string, unknown> | undefined,
-  toastStore: undefined as Record<string, unknown> | undefined,
-  route: { query: { video: null as string | null } },
-  router: {
-    replace: vi.fn(),
-    push: vi.fn()
-  },
-  axiosGet: vi.fn(),
-  axiosPost: vi.fn(),
-  outsideValidatedCount: 1
-}))
+type VideoStoreFixture = ReturnType<typeof makeVideoStore>
+type AnonymizationStoreFixture = {
+  overview: Array<{
+    id: number
+    mediaType: string
+    anonymizationStatus: string
+    annotationStatus: string
+  }>
+  fetchOverview: ReturnType<typeof vi.fn>
+}
+type MediaStoreFixture = {
+  rememberType: ReturnType<typeof vi.fn>
+  setCurrentItem: ReturnType<typeof vi.fn>
+}
+type ToastStoreFixture = {
+  success: ReturnType<typeof vi.fn>
+  info: ReturnType<typeof vi.fn>
+  warning: ReturnType<typeof vi.fn>
+  error: ReturnType<typeof vi.fn>
+}
+type FixtureRef<T> = {
+  current: T
+}
+
+const testState = vi.hoisted(() => {
+  const createFixtureRef = <T>(name: string, initialValue: T | undefined): FixtureRef<T> => {
+    let fixture = initialValue
+    return {
+      get current(): T {
+        if (fixture === undefined) throw new Error(`${name} fixture was not initialized.`)
+        return fixture
+      },
+      set current(value: T) {
+        fixture = value
+      }
+    }
+  }
+  const route: { query: { video: string | null } } = { query: { video: null } }
+
+  return {
+    videoStoreRef: createFixtureRef<VideoStoreFixture>('video store', undefined),
+    anonymizationStoreRef: createFixtureRef<AnonymizationStoreFixture>(
+      'anonymization store',
+      undefined
+    ),
+    mediaStoreRef: createFixtureRef<MediaStoreFixture>('media store', undefined),
+    toastStoreRef: createFixtureRef<ToastStoreFixture>('toast store', undefined),
+    route,
+    router: {
+      replace: vi.fn(),
+      push: vi.fn()
+    },
+    axiosGet: vi.fn<(...args: unknown[]) => unknown>(),
+    axiosPost: vi.fn<(...args: unknown[]) => unknown>(),
+    outsideValidatedCount: 1
+  }
+})
 
 vi.mock('@/components/VideoExamination/Timeline.vue', () => ({
   default: {
@@ -70,18 +113,19 @@ vi.mock('pinia', async (importOriginal) => {
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: (...args: unknown[]) => testState.axiosGet(...args),
-    post: (...args: unknown[]) => testState.axiosPost(...args),
+    get: (...args: unknown[]): unknown => testState.axiosGet(...args),
+    post: (...args: unknown[]): unknown => testState.axiosPost(...args),
     delete: vi.fn()
   },
   r: (path: string) => `/api/${path}`
 }))
 
 vi.mock('@/utils/mediaUrls', () => ({
-  buildVideoStreamUrl: (id: number) => `/api/media/videos/${id}/stream/processed/`,
+  buildVideoStreamUrl: (id: number) =>
+    `/api/media/videos/${String(id)}/stream/processed/`,
   buildVideoPlaybackUrls: (id: number) => ({
-    hlsPlaylistUrl: `/api/media/videos/${id}/hls/playlist/?type=processed`,
-    fallbackStreamUrl: `/api/media/videos/${id}/stream/processed/`
+    hlsPlaylistUrl: `/api/media/videos/${String(id)}/hls/playlist/?type=processed`,
+    fallbackStreamUrl: `/api/media/videos/${String(id)}/stream/processed/`
   })
 }))
 
@@ -96,19 +140,19 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('@/stores/videoStore', () => ({
-  useVideoStore: () => testState.videoStore
+  useVideoStore: () => requireVideoStore()
 }))
 
 vi.mock('@/stores/anonymizationStore', () => ({
-  useAnonymizationStore: () => testState.anonymizationStore
+  useAnonymizationStore: () => requireAnonymizationStore()
 }))
 
 vi.mock('@/stores/mediaTypeStore', () => ({
-  useMediaTypeStore: () => testState.mediaStore
+  useMediaTypeStore: () => testState.mediaStoreRef.current
 }))
 
 vi.mock('@/stores/toastStore', () => ({
-  useToastStore: () => testState.toastStore
+  useToastStore: () => testState.toastStoreRef.current
 }))
 
 vi.mock('@/stores/auth_kc', () => ({
@@ -150,10 +194,19 @@ const segments = [
   }
 ]
 
+interface CurrentVideoFixture {
+  id: number
+  duration: number
+}
+
+function noCurrentVideo(): CurrentVideoFixture | null {
+  return null
+}
+
 function makeVideoStore() {
   const store = reactive({
     videoList: { videos, labels: [] },
-    currentVideo: null as { id: number; duration: number } | null,
+    currentVideo: noCurrentVideo(),
     allSegments: segments,
     videoStreamUrl: '',
     timelineSegments: [],
@@ -175,10 +228,40 @@ function makeVideoStore() {
     commitDraft: vi.fn(),
     persistDirtySegments: vi.fn().mockResolvedValue(undefined)
   })
-  store.loadVideo.mockImplementation(async (videoId: number) => {
+  store.loadVideo.mockImplementation((videoId: number) => {
     store.currentVideo = { id: videoId, duration: 120 }
+    return Promise.resolve()
   })
   return store
+}
+
+function requireVideoStore(): VideoStoreFixture {
+  return testState.videoStoreRef.current
+}
+
+function requireAnonymizationStore(): AnonymizationStoreFixture {
+  return testState.anonymizationStoreRef.current
+}
+
+function requireDefined<Value>(value: Value | undefined, context: string): Value {
+  if (value === undefined) {
+    throw new Error(`${context} was not rendered.`)
+  }
+  return value
+}
+
+function isEventEmitter(value: unknown): value is (event: string, ...args: unknown[]) => void {
+  return typeof value === 'function'
+}
+
+function emitComponentEvent(wrapper: { vm: unknown }, event: string, ...args: unknown[]): void {
+  const vm = wrapper.vm
+  if (typeof vm !== 'object' || vm === null || !('$emit' in vm)) {
+    throw new Error(`Component cannot emit ${event}.`)
+  }
+  const emit = vm.$emit
+  if (!isEventEmitter(emit)) throw new Error(`Component cannot emit ${event}.`)
+  emit(event, ...args)
 }
 
 function mountComponent() {
@@ -212,15 +295,18 @@ function deferred<T>() {
 describe('VideoExaminationAnnotation functionality', () => {
   beforeEach(() => {
     localStorage.clear()
-    vi.stubGlobal('confirm', vi.fn(() => true))
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true)
+    )
     testState.route.query.video = null
     testState.router.replace.mockReset()
     testState.router.push.mockReset()
     testState.axiosGet.mockReset()
     testState.axiosPost.mockReset()
     testState.outsideValidatedCount = 1
-    testState.videoStore = makeVideoStore()
-    testState.anonymizationStore = reactive({
+    testState.videoStoreRef.current = makeVideoStore()
+    testState.anonymizationStoreRef.current = reactive({
       overview: videos.map((video) => ({
         id: video.id,
         mediaType: 'video',
@@ -229,11 +315,11 @@ describe('VideoExaminationAnnotation functionality', () => {
       })),
       fetchOverview: vi.fn().mockResolvedValue(undefined)
     })
-    testState.mediaStore = {
+    testState.mediaStoreRef.current = {
       rememberType: vi.fn(),
       setCurrentItem: vi.fn()
     }
-    testState.toastStore = {
+    testState.toastStoreRef.current = {
       success: vi.fn(),
       info: vi.fn(),
       warning: vi.fn(),
@@ -265,12 +351,10 @@ describe('VideoExaminationAnnotation functionality', () => {
   })
 
   it('communicates each dropdown loading stage without showing a false empty state', async () => {
-    const overviewRequest = deferred<void>()
+    const overviewRequest = deferred<undefined>()
     const videoListRequest = deferred<{ videos: typeof videos; labels: never[] }>()
-    const videoStore = testState.videoStore as ReturnType<typeof makeVideoStore>
-    const anonymizationStore = testState.anonymizationStore as {
-      fetchOverview: ReturnType<typeof vi.fn>
-    }
+    const videoStore = requireVideoStore()
+    const anonymizationStore = requireAnonymizationStore()
     videoStore.videoList = { videos: [], labels: [] }
     anonymizationStore.fetchOverview.mockReturnValueOnce(overviewRequest.promise)
     videoStore.fetchAllVideos.mockReturnValueOnce(videoListRequest.promise)
@@ -284,9 +368,11 @@ describe('VideoExaminationAnnotation functionality', () => {
     expect(wrapper.get('[data-test="video-dropdown-loading"]').text()).toContain(
       'Videoliste und Freigabestatus werden geladen'
     )
-    expect(wrapper.text()).not.toContain('Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.')
+    expect(wrapper.text()).not.toContain(
+      'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.'
+    )
 
-    overviewRequest.resolve()
+    overviewRequest.resolve(undefined)
     await settle()
 
     expect(wrapper.get('[data-test="video-dropdown-loading"]').text()).toContain(
@@ -304,13 +390,13 @@ describe('VideoExaminationAnnotation functionality', () => {
   })
 
   it('shows a focused dropdown error and recovers through its retry action', async () => {
-    const videoStore = testState.videoStore as ReturnType<typeof makeVideoStore>
+    const videoStore = requireVideoStore()
     videoStore.videoList = { videos: [], labels: [] }
     videoStore.fetchAllVideos
       .mockRejectedValueOnce(new Error('video list unavailable'))
-      .mockImplementationOnce(async () => {
+      .mockImplementationOnce(() => {
         videoStore.videoList = { videos, labels: [] }
-        return videoStore.videoList
+        return Promise.resolve(videoStore.videoList)
       })
 
     const wrapper = mountComponent()
@@ -358,11 +444,11 @@ describe('VideoExaminationAnnotation functionality', () => {
     expect(validatedOption).toBeTruthy()
     expect(validatedOption?.attributes('disabled')).toBeUndefined()
 
-    await validatedOption!.trigger('click')
+    await requireDefined(validatedOption, 'Validated video option').trigger('click')
     await settle()
 
     expect(testState.router.replace).toHaveBeenCalledWith({ query: { video: 2 } })
-    expect(testState.videoStore.loadVideo).toHaveBeenCalledWith(2, { sourceKind: 'manual' })
+    expect(requireVideoStore().loadVideo).toHaveBeenCalledWith(2, { sourceKind: 'manual' })
     expect(wrapper.text()).not.toContain('ist bereits vollständig annotiert')
 
     wrapper.unmount()
@@ -370,16 +456,14 @@ describe('VideoExaminationAnnotation functionality', () => {
 
   it('shows a disabled non-green waiting state after validation is submitted', async () => {
     const validationRequest = deferred<never>()
-    const videoStore = testState.videoStore as ReturnType<typeof makeVideoStore>
+    const videoStore = requireVideoStore()
     videoStore.videoList = {
       videos: videos.map((video) =>
         video.id === 2 ? { ...video, segmentAnnotationsValidated: false } : video
       ),
       labels: []
     }
-    const anonymizationStore = testState.anonymizationStore as {
-      overview: Array<{ id: number; anonymizationStatus: string }>
-    }
+    const anonymizationStore = requireAnonymizationStore()
     const selectedOverview = anonymizationStore.overview.find((item) => item.id === 2)
     if (selectedOverview) selectedOverview.anonymizationStatus = 'validated'
     testState.route.query.video = '2'
@@ -393,19 +477,21 @@ describe('VideoExaminationAnnotation functionality', () => {
       .find((button) => button.text().includes('Alle Segmente validieren'))
     expect(validateButton).toBeTruthy()
 
-    await validateButton!.trigger('click')
+    const renderedValidateButton = requireDefined(validateButton, 'Segment validation button')
+
+    await renderedValidateButton.trigger('click')
     await nextTick()
 
     const waitingMessage = wrapper.get('[data-test="segment-validation-waiting"]')
     expect(waitingMessage.text()).toContain('Validierung wurde gestartet')
     expect(waitingMessage.text()).toContain('drücken Sie den Button nicht erneut')
     expect(waitingMessage.text()).toContain('Status wird automatisch aktualisiert')
-    expect(validateButton!.text()).toContain('Übermittelt – bitte warten')
-    expect(validateButton!.classes()).toContain('validation-action-button-pending')
-    expect(validateButton!.attributes('disabled')).toBeDefined()
-    expect(validateButton!.attributes('aria-busy')).toBe('true')
+    expect(renderedValidateButton.text()).toContain('Übermittelt – bitte warten')
+    expect(renderedValidateButton.classes()).toContain('validation-action-button-pending')
+    expect(renderedValidateButton.attributes('disabled')).toBeDefined()
+    expect(renderedValidateButton.attributes('aria-busy')).toBe('true')
 
-    await validateButton!.trigger('click')
+    await renderedValidateButton.trigger('click')
     expect(testState.axiosPost).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
@@ -436,7 +522,7 @@ describe('VideoExaminationAnnotation functionality', () => {
 
   it('allows placing segments while the selected video is editable', async () => {
     testState.route.query.video = '1'
-    testState.anonymizationStore.overview[0].anonymizationStatus = 'validated'
+    requireAnonymizationStore().overview[0].anonymizationStatus = 'validated'
 
     const wrapper = mountComponent()
     await settle()
@@ -444,30 +530,31 @@ describe('VideoExaminationAnnotation functionality', () => {
     const timeline = wrapper.findComponent({ name: 'Timeline' })
     expect(timeline.props('selectionMode')).toBe(true)
 
-    timeline.vm.$emit('segment-create', {
+    emitComponentEvent(timeline, 'segment-create', {
       label: 'outside',
       start: 10,
       end: 14
     })
     await settle()
 
-    expect(testState.videoStore.createSegment).toHaveBeenCalledWith(1, 'outside', 10, 14)
+    expect(requireVideoStore().createSegment).toHaveBeenCalledWith(1, 'outside', 10, 14)
     wrapper.unmount()
   })
 
   it('saves corrected predictions as manual segments without mutating the prediction track', async () => {
     testState.route.query.video = '1'
-    testState.anonymizationStore.overview[0].anonymizationStatus = 'validated'
-    testState.videoStore.allSegments = [
+    requireAnonymizationStore().overview[0].anonymizationStatus = 'validated'
+    const videoStore = requireVideoStore()
+    videoStore.allSegments = [
       {
         ...segments[0],
         videoID: 1,
         segmentOrigin: 'prediction'
       }
     ]
-    testState.videoStore.patchSegmentLocally.mockImplementation(
+    videoStore.patchSegmentLocally.mockImplementation(
       (segmentId: number, patch: Record<string, unknown>) => {
-        const segment = testState.videoStore.allSegments.find(
+        const segment = videoStore.allSegments.find(
           (candidate: { id: number }) => candidate.id === segmentId
         )
         if (segment) Object.assign(segment, patch, { isDirty: true })
@@ -483,7 +570,8 @@ describe('VideoExaminationAnnotation functionality', () => {
     await wrapper.get('.source-select').setValue('prediction')
     await settle()
 
-    wrapper.findComponent({ name: 'Timeline' }).vm.$emit(
+    emitComponentEvent(
+      wrapper.findComponent({ name: 'Timeline' }),
       'segment-resize',
       11,
       5,
@@ -497,7 +585,7 @@ describe('VideoExaminationAnnotation functionality', () => {
       .findAll('button')
       .find((button) => button.text().includes('Segmentänderungen speichern'))
     expect(saveButton?.attributes('disabled')).toBeUndefined()
-    await saveButton!.trigger('click')
+    await requireDefined(saveButton, 'Segment changes save button').trigger('click')
     await settle()
 
     expect(testState.axiosPost).toHaveBeenCalledWith(
@@ -514,10 +602,7 @@ describe('VideoExaminationAnnotation functionality', () => {
         ]
       }
     )
-    expect(wrapper.get('.source-select').element).toHaveProperty(
-      'value',
-      'prediction_correction'
-    )
+    expect(wrapper.get('.source-select').element).toHaveProperty('value', 'prediction_correction')
     wrapper.unmount()
   })
 
@@ -546,17 +631,30 @@ describe('VideoExaminationAnnotation functionality', () => {
       .find((button) => button.text().includes('Annotation validieren'))
     expect(validateButton?.attributes('disabled')).toBeUndefined()
 
-    await validateButton!.trigger('click')
+    await requireDefined(validateButton, 'Annotator-scoped validation button').trigger('click')
     await settle()
 
-    expect(testState.axiosPost).toHaveBeenCalledWith('/api/media/videos/2/segments/validate-bulk/', {
+    const validationCall = testState.axiosPost.mock.calls.find(
+      ([url]) => url === '/api/media/videos/2/segments/validate-bulk/'
+    )
+    expect(validationCall?.[1]).toMatchObject({
       segmentIds: [11],
       segments: [{ id: 11, start_time: 4, end_time: 12 }],
       isValidated: true,
-      notes: expect.stringContaining('Vollständige Video-Review abgeschlossen am'),
       informationSourceName: 'manual_annotation',
       annotator: 'reviewer-two'
     })
+    const validationPayload = validationCall?.[1]
+    if (
+      typeof validationPayload !== 'object' ||
+      validationPayload === null ||
+      !('notes' in validationPayload)
+    ) {
+      throw new Error('Validation payload did not include notes.')
+    }
+    expect(validationPayload.notes).toEqual(
+      expect.stringContaining('Vollständige Video-Review abgeschlossen am')
+    )
 
     await wrapper.get('[data-test="video-annotator-override-revert"]').trigger('click')
     await settle()

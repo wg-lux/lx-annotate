@@ -26,6 +26,27 @@ export interface AnnotationExportResponse {
   frameOutputDir?: string | null
 }
 
+export interface AnnotationBackfillResponse {
+  annotationsCreated: number
+}
+
+export const parseAnnotationBackfillResponse = (value: unknown): AnnotationBackfillResponse => {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    !('annotationsCreated' in value) ||
+    typeof value.annotationsCreated !== 'number' ||
+    !Number.isInteger(value.annotationsCreated) ||
+    value.annotationsCreated < 0
+  ) {
+    throw new TypeError(
+      'Annotation backfill response must contain a non-negative integer annotationsCreated.'
+    )
+  }
+  return { annotationsCreated: value.annotationsCreated }
+}
+
 interface BuildAnnotationExportRequestOptions {
   outputDir: string
   outputFormat: AnnotationExportFormat

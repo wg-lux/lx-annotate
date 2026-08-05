@@ -6,6 +6,9 @@ import { endpoints } from '@/types/api/endpoints'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const runtimeLogger = createRuntimeLogger('outside-segment-validation')
 
 /**
  * Props: which video to display
@@ -52,8 +55,19 @@ const validationError = ref<string>('')
  * Fetch backend detail for metadata, but keep stream URLs centralized in mediaUrls.ts.
  */
 async function loadVideoDetail(videoId: number) {
-  const { data } = await axiosInstance.get(`/${r(endpoints.media.videoDetail(videoId))}`)
-  duration.value = Number(data.duration ?? 0)
+  const { data } = await axiosInstance.get<unknown>(
+    `/${r(endpoints.media.videoDetail(videoId))}`
+  )
+  const durationValue = isRecord(data) ? data.duration : undefined
+  const parsedDuration =
+    typeof durationValue === 'number' || typeof durationValue === 'string'
+      ? Number(durationValue)
+      : 0
+  duration.value = Number.isFinite(parsedDuration) && parsedDuration >= 0 ? parsedDuration : 0
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 /**
@@ -67,9 +81,8 @@ async function loadSegments(videoId: number) {
  * Filter to ONLY 'outside' segments (case-insensitive), clone to avoid readonly issues
  */
 const outsideSegments = computed<Segment[]>(() => {
-  const raw = videoStore.allSegments ?? []
-  return raw
-    .filter((s: Segment) => (s.label ?? '').toLowerCase() === 'outside')
+  return videoStore.allSegments
+    .filter((s: Segment) => s.label.toLowerCase() === 'outside')
     .map((s: Segment) => ({ ...s })) // shallow mutable copy (prevents readonly->mutable errors in child)
 })
 
@@ -114,7 +127,7 @@ async function validateSegment(segment: Segment) {
       emit('validation-complete')
     }
   } catch (error) {
-    console.error('Error validating segment:', error)
+    runtimeLogger.error('segment-validation-failed', error)
     validatedSegments.value.delete(segment.id)
     validationError.value = 'Segmentvalidierung fehlgeschlagen. Bitte erneut versuchen.'
   } finally {

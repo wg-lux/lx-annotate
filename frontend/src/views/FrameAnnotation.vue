@@ -673,7 +673,9 @@ interface FrameAnnotationApiError {
 
 function frameAnnotationErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError<FrameAnnotationApiError>(error)) {
-    return error.response?.data?.detail || error.response?.data?.error || error.message || fallback
+    const response = error.response
+    if (!response) return error.message || fallback
+    return response.data.detail || response.data.error || error.message || fallback
   }
   return error instanceof Error && error.message ? error.message : fallback
 }
@@ -792,27 +794,27 @@ let isBootstrappingAnnotationQueue = true
 
 const selectedLabelGroupId = computed({
   get: () => queueStore.selectedLabelGroupId ?? '',
-  set: (value: string) => queueStore.setSelectedLabelGroupId(value.trim() || null)
+  set: (value: string) => { queueStore.setSelectedLabelGroupId(value.trim() || null) }
 })
 
 const taskMode = computed({
   get: () => queueStore.taskMode,
-  set: (value: string) => queueStore.setTaskMode(value === 'filtered' ? 'filtered' : 'random')
+  set: (value: string) => { queueStore.setTaskMode(value === 'filtered' ? 'filtered' : 'random') }
 })
 
 const targetLabelName = computed({
   get: () => queueStore.targetLabelName,
-  set: (value: string) => queueStore.setTargetLabelName(value)
+  set: (value: string) => { queueStore.setTargetLabelName(value) }
 })
 
 const filterLabelName = computed({
   get: () => queueStore.filterLabelName ?? '',
-  set: (value: string) => queueStore.setFilterLabelName(value.trim() || null)
+  set: (value: string) => { queueStore.setFilterLabelName(value.trim() || null) }
 })
 
 const allowRandomFallback = computed({
   get: () => queueStore.allowRandomFallback,
-  set: (value: boolean) => queueStore.setAllowRandomFallback(value)
+  set: (value: boolean) => { queueStore.setAllowRandomFallback(value) }
 })
 
 const selectedAiDatasetId = computed({
@@ -846,12 +848,12 @@ const selectedAiDatasetId = computed({
 
 const informationSource = computed({
   get: () => queueStore.informationSource,
-  set: (value: string) => queueStore.setInformationSource(value)
+  set: (value: string) => { queueStore.setInformationSource(value) }
 })
 
 const frameFileType = computed({
-  get: () => queueStore.frameFileType ?? 'auto',
-  set: (value: string) => queueStore.setFrameFileType?.(value)
+  get: () => queueStore.frameFileType,
+  set: (value: string) => { queueStore.setFrameFileType(value) }
 })
 
 const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? [])
@@ -898,7 +900,7 @@ const canManuallyRetryFrameImage = computed(
 )
 const frameImageStatusMessage = computed(() => {
   if (frameImageLoadState.value === 'pending') {
-    return `Frame wird extrahiert... automatischer Versuch ${frameImageRetryCount.value}/${FRAME_IMAGE_RETRY_LIMIT}`
+    return `Frame wird extrahiert... automatischer Versuch ${String(frameImageRetryCount.value)}/${String(FRAME_IMAGE_RETRY_LIMIT)}`
   }
   if (frameImageLoadState.value === 'failed') {
     const detailMessage = errorMessage.value?.trim()
@@ -1223,8 +1225,8 @@ function readBlobText(blob: Blob): Promise<string> {
   if (typeof FileReader !== 'undefined') {
     return new Promise((resolve) => {
       const reader = new FileReader()
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
-      reader.onerror = () => resolve('')
+      reader.onload = () => { resolve(typeof reader.result === 'string' ? reader.result : '') }
+      reader.onerror = () => { resolve('') }
       reader.readAsText(blob)
     })
   }
@@ -1272,7 +1274,7 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
     })
     if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
 
-    const contentType = String(response.headers?.['content-type'] ?? '').toLowerCase()
+    const contentType = String(response.headers['content-type'] ?? '').toLowerCase()
     if (response.status === 200 && contentType.startsWith('image/')) {
       if (!(response.data instanceof Blob)) {
         errorMessage.value =
@@ -1302,13 +1304,13 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
     if (response.status === 409) {
       errorMessage.value =
         (response.data instanceof Blob ? await extractPendingMessage(response.data) : null) ??
-        `Frame-Anfrage fehlgeschlagen (HTTP ${response.status}).`
+        `Frame-Anfrage fehlgeschlagen (HTTP ${String(response.status)}).`
       frameImageLoadState.value = 'failed'
       return
     }
     errorMessage.value =
       (response.data instanceof Blob ? await extractPendingMessage(response.data) : null) ??
-      `Frame-Anfrage fehlgeschlagen (HTTP ${response.status}).`
+      `Frame-Anfrage fehlgeschlagen (HTTP ${String(response.status)}).`
     frameImageLoadState.value = 'failed'
   } catch (error: unknown) {
     if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
@@ -1355,7 +1357,7 @@ function startBoxDraft(event: PointerEvent): void {
   draftBox.value = buildBoxDraft(point, point)
   boxAnnotationError.value = null
   const target = event.currentTarget as HTMLElement | null
-  target?.setPointerCapture?.(event.pointerId)
+      if (target) target.setPointerCapture(event.pointerId)
   event.preventDefault()
 }
 
@@ -1374,7 +1376,7 @@ function finishBoxDraft(event?: PointerEvent): void {
   draftBox.value = null
   if (event) {
     const target = event.currentTarget as HTMLElement | null
-    target?.releasePointerCapture?.(event.pointerId)
+    if (target) target.releasePointerCapture(event.pointerId)
   }
   if (finishedBox.width < 3 || finishedBox.height < 3) return
   boxAnnotations.value = [...boxAnnotations.value, finishedBox]
@@ -1485,7 +1487,7 @@ async function submitBoxAnnotations(): Promise<void> {
       }
     }
     await submitLabelsWithSelection([...completedLabelIds])
-    if (currentTask.value?.id === task.id) {
+    if (currentTask.value.id === task.id) {
       await loadBoxAnnotationsForTask(task)
     }
   } catch (error: unknown) {
@@ -1500,7 +1502,7 @@ async function submitBoxAnnotations(): Promise<void> {
 
 function formatConfidence(value: number | null | undefined): string {
   if (typeof value !== 'number' || Number.isNaN(value)) return ''
-  return `${Math.round(value * 100)}%`
+  return `${String(Math.round(value * 100))}%`
 }
 
 function syncAnnotatorOverrideFromStorage(): void {
@@ -1518,7 +1520,7 @@ function syncAnnotatorOverrideFromStorage(): void {
 }
 
 function applyActiveAnnotatorToQueue(): void {
-  queueStore.setAnnotatorPrincipal?.(activeAnnotatorPrincipal.value)
+  queueStore.setAnnotatorPrincipal(activeAnnotatorPrincipal.value)
 }
 
 async function reloadAnnotationQueue(): Promise<void> {
@@ -1645,8 +1647,8 @@ function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null
     ])
   )
   const displayParts = [name]
-  if (version !== null) displayParts.push(`v${version}`)
-  if (labelCount !== null) displayParts.push(`${labelCount} Labels`)
+  if (version !== null) displayParts.push(`v${String(version)}`)
+  if (labelCount !== null) displayParts.push(`${String(labelCount)} Labels`)
 
   return { id, name, version, labelCount, displayName: displayParts.join(' - ') }
 }
@@ -1756,7 +1758,7 @@ async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
         externalAnnotationId:
           existingManual?.externalAnnotationId ||
           (task.data.existingExternalId && task.data.existingExternalId.trim()
-            ? `${task.data.existingExternalId}:${label.id}`
+            ? `${task.data.existingExternalId}:${String(label.id)}`
             : uuidv7()),
         modelMetaId: null
       }

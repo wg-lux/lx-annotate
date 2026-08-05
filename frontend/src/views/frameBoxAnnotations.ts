@@ -73,19 +73,19 @@ export const frameBoxStyle = (box: FrameBoxAnnotationDraft): Record<string, stri
   const imageWidth = box.imageWidth || 1
   const imageHeight = box.imageHeight || 1
   return {
-    left: `${(box.x / imageWidth) * 100}%`,
-    top: `${(box.y / imageHeight) * 100}%`,
-    width: `${(box.width / imageWidth) * 100}%`,
-    height: `${(box.height / imageHeight) * 100}%`
+    left: `${String((box.x / imageWidth) * 100)}%`,
+    top: `${String((box.y / imageHeight) * 100)}%`,
+    width: `${String((box.width / imageWidth) * 100)}%`,
+    height: `${String((box.height / imageHeight) * 100)}%`
   }
 }
 
 export const formatFrameBox = (box: FrameBoxAnnotationDraft): string =>
   [
-    `x ${Math.round(box.x)}`,
-    `y ${Math.round(box.y)}`,
-    `w ${Math.round(box.width)}`,
-    `h ${Math.round(box.height)}`
+    `x ${String(Math.round(box.x))}`,
+    `y ${String(Math.round(box.y))}`,
+    `w ${String(Math.round(box.width))}`,
+    `h ${String(Math.round(box.height))}`
   ].join(' / ')
 
 export const extractFrameBoxRecords = (payload: unknown): Array<Record<string, unknown>> => {
@@ -139,7 +139,7 @@ export const parseFrameBoxRecord = (
   const annotatorRaw = raw.annotator
   return {
     id,
-    clientId: id !== null ? `box-${id}` : context.createId(),
+    clientId: id !== null ? `box-${String(id)}` : context.createId(),
     frameId,
     labelId,
     labelName,

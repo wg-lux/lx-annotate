@@ -47,7 +47,9 @@ export const normalizePatientExaminationOption = (
   const dateStart = dateStartRaw ? dateStartRaw.split('T')[0] : ''
   return {
     id,
-    label: dateStart ? `#${id} · ${examinationName} · ${dateStart}` : `#${id} · ${examinationName}`
+    label: dateStart
+      ? `#${String(id)} · ${examinationName} · ${dateStart}`
+      : `#${String(id)} · ${examinationName}`
   }
 }
 
@@ -117,16 +119,16 @@ export const caseLinkageStatusDescription = (
 export const formatPseudoPatient = (id: number | null, matchCount?: number | null): string => {
   if (id === null) return 'Nicht verknuepft'
   return typeof matchCount === 'number' && matchCount > 0
-    ? `#${id} (${matchCount} Treffer)`
-    : `#${id}`
+    ? `#${String(id)} (${String(matchCount)} Treffer)`
+    : `#${String(id)}`
 }
 
 export const formatPatientExamination = (
   linkedId: number | null,
   recommendedId?: number | null
 ): string => {
-  if (linkedId !== null) return `#${linkedId}`
+  if (linkedId !== null) return `#${String(linkedId)}`
   return typeof recommendedId === 'number' && recommendedId > 0
-    ? `Vorschlag: #${recommendedId}`
+    ? `Vorschlag: #${String(recommendedId)}`
     : 'Noch keine Zuordnung'
 }
