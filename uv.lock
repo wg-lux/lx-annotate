@@ -1129,7 +1129,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.8.6"
+version = "1.0.8.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1198,9 +1198,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/63/30/d6e8bdd8db0822afc806d1989668659546d37846dcd953aae5805661cce1/endoreg_db-1.0.8.6.tar.gz", hash = "sha256:86d0db3559f719e5c90b3c080b6fbc446644e24b9f49581d695b290a7a008db4", size = 1230629, upload-time = "2026-08-04T14:55:16.683Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/4d/3d3c02bb87f2e65bdae62ebca4e469e23818ef48b2f93b7d3e480fa7e537/endoreg_db-1.0.8.7.tar.gz", hash = "sha256:ba26be6b017f843f46937370c5064a7c91e758e377e93bd326761f790d792d3b", size = 1222452, upload-time = "2026-08-05T08:07:00.559Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/be/c9047b467fe44a9af7c49bbc2a61464b5076432c243e22c4e8dce13b4e63/endoreg_db-1.0.8.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4e938f917c140bbe266772ca5edf34a826bc9033b0807cf92f84b08249ee4fc9", size = 2181234, upload-time = "2026-08-04T14:55:12.881Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/76/89e93367d7fd69fb7cdfd2897ee419cb887ca12c8ac32a9822817e080c07/endoreg_db-1.0.8.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:647ccf530a93efe0c7493e246c824e4f797706c6804273d185b1d6ccda368534", size = 2170190, upload-time = "2026-08-05T08:06:57.412Z" },
 ]
 
 [[package]]
@@ -2049,7 +2049,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.9.57"
+version = "0.9.56"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
@@ -2140,7 +2140,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.8.6" },
+    { name = "endoreg-db", specifier = "==1.0.8.7" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2155,6 +2155,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.21.0" },
     { name = "pillow", specifier = ">=9.0.0" },
     { name = "pip", marker = "extra == 'dev'", specifier = ">=25.2" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = "==4.6.1" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.5.0" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2.12" },
     { name = "pydantic", specifier = ">=2.12.5" },
@@ -3134,7 +3135,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/01/cd/f4f2b79d20a10563d
 
 [[package]]
 name = "pre-commit"
-version = "4.6.0"
+version = "4.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cfgv" },
@@ -3143,9 +3144,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/22/2de9408ac81acbb8a7d05d4cc064a152ccf33b3d480ebe0cd292153db239/pre_commit-4.6.0.tar.gz", hash = "sha256:718d2208cef53fdc38206e40524a6d4d9576d103eb16f0fec11c875e7716e9d9", size = 198525, upload-time = "2026-04-21T20:31:41.613Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/3a/ddb78f32a0814e66b18a099377a106a2dcdce92d86a034d69d65df9b256e/pre_commit-4.6.1.tar.gz", hash = "sha256:03e809865c7d178b9979d06c761fcbfe6808fdaded8581a745bb110e52050421", size = 198646, upload-time = "2026-07-21T20:56:58.225Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/6e/4b28b62ecb6aae56769c34a8ff1d661473ec1e9519e2d5f8b2c150086b26/pre_commit-4.6.0-py2.py3-none-any.whl", hash = "sha256:e2cf246f7299edcabcf15f9b0571fdce06058527f0a06535068a86d38089f29b", size = 226472, upload-time = "2026-04-21T20:31:40.092Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/49/bc925106abcdac498074f2cbe6137e94e09f418dd2b7775df5b577dc0313/pre_commit-4.6.1-py2.py3-none-any.whl", hash = "sha256:0e3b2942510d1fb34eec167a3ec57331bf8442122f1153a9fb8b58f5c49b2717", size = 226186, upload-time = "2026-07-21T20:56:57.064Z" },
 ]
 
 [[package]]
