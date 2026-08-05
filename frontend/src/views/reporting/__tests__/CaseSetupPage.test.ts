@@ -3,18 +3,40 @@ import { reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import CaseSetupPage from '../CaseSetupPage.vue'
+import type { CreateCaseWithExaminationResponse } from '@/api/casesApi'
+
+function requireDefined<T>(value: T | undefined, description: string): T {
+  if (value === undefined) throw new Error(`Expected ${description}.`)
+  return value
+}
+
+type CreateCasePayload = {
+  admissionDate: string
+  patientExamination: {
+    patient: string
+    examination: string
+  }
+}
+
+type CreateCaseResponse = {
+  data: CreateCaseWithExaminationResponse
+}
 
 const hoisted = vi.hoisted(() => {
-  const createFixtureRef = <T>(name: string) => {
-    let fixture: T | undefined
-    return {
-      get current(): T {
-        if (fixture === undefined) throw new Error(`${name} fixture was not initialized.`)
-        return fixture
-      },
-      set current(value: T) {
-        fixture = value
+  class FixtureRef<T> {
+    private fixture: T | undefined
+
+    constructor(private readonly name: string) {}
+
+    get current(): T {
+      if (this.fixture === undefined) {
+        throw new Error(`${this.name} fixture was not initialized.`)
       }
+      return this.fixture
+    }
+
+    set current(value: T) {
+      this.fixture = value
     }
   }
 
@@ -24,14 +46,14 @@ const hoisted = vi.hoisted(() => {
         query: {}
       }
     },
-    flowRef: createFixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
-    patientStoreRef: createFixtureRef<PatientStoreStub>('patient store'),
-    examinationStoreRef: createFixtureRef<ExaminationStoreStub>('examination store'),
-    patientExaminationStoreRef: createFixtureRef<PatientExaminationStoreStub>(
+    flowRef: new FixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
+    patientStoreRef: new FixtureRef<PatientStoreStub>('patient store'),
+    examinationStoreRef: new FixtureRef<ExaminationStoreStub>('examination store'),
+    patientExaminationStoreRef: new FixtureRef<PatientExaminationStoreStub>(
       'patient examination store'
     ),
     axiosApi: {
-      post: vi.fn()
+      post: vi.fn<(url: string, payload: CreateCasePayload) => Promise<CreateCaseResponse>>()
     }
   }
 })
@@ -69,8 +91,8 @@ type PatientStoreStub = {
   loading: boolean
   patientsWithDisplayName: Array<{ id: number; displayName: string }>
   getPatientById: (id: number) => {
-    id: number
-    patientHash: string
+    id?: number
+    patientHash?: string | null
     dob: string
     gender: string
   } | null
@@ -177,10 +199,26 @@ describe('CaseSetupPage draft-first setup', () => {
     }
     hoisted.axiosApi.post.mockImplementation((url: string) => {
       if (url === 'cases/create-with-examination/') {
+        const patientExamination = { id: 42 }
         return Promise.resolve({
           data: {
-            case: { id: 5, caseId: 'case-uuid-5' },
-            patientExamination: { id: 42 }
+            case: {
+              id: 5,
+              caseId: 'case-uuid-5',
+              patient: 7,
+              admissionDate: '2026-08-04T10:00:00.000Z',
+              leaveDate: null,
+              isActive: true,
+              isClosed: false,
+              isDeleted: false,
+              patientExaminations: [patientExamination],
+              documents: [],
+              patientMedications: [],
+              patientMedicationSchedules: [],
+              patientLabSamples: [],
+              patientLabValues: []
+            },
+            patientExamination
           }
         })
       }
@@ -192,25 +230,24 @@ describe('CaseSetupPage draft-first setup', () => {
     const wrapper = mount(CaseSetupPage)
     await flushPromises()
 
-    const createButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Patientenuntersuchung anlegen'))
-    expect(createButton).toBeTruthy()
+    const createButton = requireDefined(
+      wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Patientenuntersuchung anlegen')),
+      'the create-examination button'
+    )
 
-    await createButton!.trigger('click')
+    await createButton.trigger('click')
     await flushPromises()
 
     expect(hoisted.axiosApi.post).toHaveBeenCalledTimes(1)
-    expect(hoisted.axiosApi.post).toHaveBeenCalledWith(
-      'cases/create-with-examination/',
-      expect.objectContaining({
-        admissionDate: expect.any(String),
-        patientExamination: expect.objectContaining({
-          patient: 'patient_7',
-          examination: 'gastroscopy'
-        })
-      })
-    )
+    const createCall = hoisted.axiosApi.post.mock.calls[0]
+    expect(createCall[0]).toBe('cases/create-with-examination/')
+    expect(createCall[1].admissionDate).toEqual(expect.any(String))
+    expect(createCall[1].patientExamination).toMatchObject({
+      patient: 'patient_7',
+      examination: 'gastroscopy'
+    })
     expect(hoisted.flowRef.current.setPatientExaminationContext).toHaveBeenCalledWith({
       patientExaminationId: 42,
       selectedPatientId: 7,
@@ -221,6 +258,33 @@ describe('CaseSetupPage draft-first setup', () => {
       caseId: 'case-uuid-5',
       selectedPatientId: 7
     })
+  })
+
+  it('uses the selected patient id when the optional patient hash is absent', async () => {
+    hoisted.patientStoreRef.current.getPatientById = (id: number) =>
+      id === 7
+        ? {
+            patientHash: null,
+            dob: '1980-01-01',
+            gender: 'f'
+          }
+        : null
+
+    const wrapper = mount(CaseSetupPage)
+    await flushPromises()
+
+    const createButton = requireDefined(
+      wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Patientenuntersuchung anlegen')),
+      'the create-examination button'
+    )
+    await createButton.trigger('click')
+    await flushPromises()
+
+    const createCall = hoisted.axiosApi.post.mock.calls[0]
+    expect(createCall[0]).toBe('cases/create-with-examination/')
+    expect(createCall[1].patientExamination.patient).toBe('patient_7')
   })
 
   it('preserves validation return links and preselects the requested examination', async () => {
@@ -241,18 +305,18 @@ describe('CaseSetupPage draft-first setup', () => {
       selectedExaminationId: 13
     })
 
-    const backLink = wrapper
-      .findAll('a')
-      .find((link) => link.text().includes('Zurück zur Validierung'))
-    expect(backLink).toBeTruthy()
-    expect(backLink!.attributes('data-to')).toBe(
+    const backLink = requireDefined(
+      wrapper.findAll('a').find((link) => link.text().includes('Zurück zur Validierung')),
+      'the validation return link'
+    )
+    expect(backLink.attributes('data-to')).toBe(
       '/anonymisierung/validierung?fileId=5&mediaType=pdf'
     )
 
-    const nextLink = wrapper
-      .findAll('a')
-      .find((link) => link.text().includes('Zur klinischen Dokumentation'))
-    expect(nextLink).toBeTruthy()
-    expect(nextLink!.attributes('data-to')).toBe('/reporting/case-setup')
+    const nextLink = requireDefined(
+      wrapper.findAll('a').find((link) => link.text().includes('Zur klinischen Dokumentation')),
+      'the clinical documentation link'
+    )
+    expect(nextLink.attributes('data-to')).toBe('/reporting/case-setup')
   })
 })

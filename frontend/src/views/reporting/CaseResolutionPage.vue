@@ -218,11 +218,15 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useExaminationStore } from '@/stores/examinationStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
+import type { PatientExamination } from '@/stores/patientExaminationStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { endpoints } from '@/types/api/endpoints'
 import { DateConverter } from '@/utils/dateHelpers'
 import { reportingApiErrorMessage } from './reportingError'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('case-resolution')
 
 type MediaScope = 'pdf' | 'video'
 
@@ -249,7 +253,7 @@ type CaseResolutionPayload = {
     id?: number | null
     linkedPatientExaminationId?: number | null
   } | null
-  matchStatus?: 'linked' | 'deferred' | 'suggested' | 'unresolved' | string | null
+  matchStatus?: string | null
   suggestedMatchCount?: number | null
   recommendedPatientExaminationId?: number | null
   patientExaminationMatches?: CaseResolutionMatch[]
@@ -286,7 +290,7 @@ const isCaseDataLoading = computed(() => patientStore.loading || examinationStor
 const currentItem = computed(() => anonymizationStore.current)
 const availablePatientOptions = computed(() => patientStore.patientsWithDisplayName)
 const availableExaminationOptions = computed(() => examinationStore.examinationsDropdown)
-const availableCenterOptions = computed(() => patientStore.centers ?? [])
+const availableCenterOptions = computed(() => patientStore.centers)
 const selectedCasePatientIdNumber = computed(() => toPositiveInteger(selectedCasePatientId.value))
 
 const caseResolutionSuggestedPatientExaminationOptions = computed<PatientExaminationOption[]>(() => {
@@ -299,7 +303,9 @@ const caseResolutionSuggestedPatientExaminationOptions = computed<PatientExamina
       const dateStart = normalizeDateInputToGerman(match.dateStart)
       return {
         id,
-        label: dateStart ? `#${id} · ${examName} · ${dateStart}` : `#${id} · ${examName}`
+        label: dateStart
+          ? `#${String(id)} · ${examName} · ${dateStart}`
+          : `#${String(id)} · ${examName}`
       }
     })
     .filter((entry): entry is PatientExaminationOption => entry !== null)
@@ -364,13 +370,13 @@ const linkageStatusDescription = computed(() => {
   }
   if (
     caseResolution.value?.matchStatus === 'suggested' &&
-    (caseResolution.value?.suggestedMatchCount ?? 0) > 1
+    (caseResolution.value.suggestedMatchCount ?? 0) > 1
   ) {
     return 'Mehrere passende PatientExaminations wurden gefunden. Eine explizite Auswahl ist erforderlich.'
   }
   if (
     caseResolution.value?.matchStatus === 'suggested' &&
-    (caseResolution.value?.suggestedMatchCount ?? 0) === 1
+    (caseResolution.value.suggestedMatchCount ?? 0) === 1
   ) {
     return 'Eine passende PatientExamination wurde vorgeschlagen, ist aber noch nicht final bestätigt.'
   }
@@ -392,16 +398,17 @@ const pseudoPatientDisplay = computed(() => {
   if (pseudoPatientId.value !== null) {
     const matchCount = caseResolution.value?.pseudoPatient?.matchCount
     return typeof matchCount === 'number' && matchCount > 0
-      ? `#${pseudoPatientId.value} (${matchCount} Treffer)`
-      : `#${pseudoPatientId.value}`
+      ? `#${String(pseudoPatientId.value)} (${String(matchCount)} Treffer)`
+      : `#${String(pseudoPatientId.value)}`
   }
   return 'Nicht verknüpft'
 })
 const patientExaminationDisplay = computed(() => {
-  if (linkedPatientExaminationId.value !== null) return `#${linkedPatientExaminationId.value}`
+  if (linkedPatientExaminationId.value !== null)
+    return `#${String(linkedPatientExaminationId.value)}`
   const suggestedId = caseResolution.value?.recommendedPatientExaminationId
   return typeof suggestedId === 'number' && suggestedId > 0
-    ? `Vorschlag: #${suggestedId}`
+    ? `Vorschlag: #${String(suggestedId)}`
     : 'Noch keine Zuordnung'
 })
 const selectedCasePatientLabel = computed(() => {
@@ -409,16 +416,16 @@ const selectedCasePatientLabel = computed(() => {
   if (patientId === null) return 'Kein Patient ausgewählt'
   const patient = patientStore.getPatientById(patientId)
   return patient
-    ? `${patient.firstName || ''} ${patient.lastName || ''} (ID: ${patient.id})`.trim()
-    : `Patient #${patientId}`
+    ? `${patient.firstName || ''} ${patient.lastName || ''} (ID: ${String(patient.id)})`.trim()
+    : `Patient #${String(patientId)}`
 })
 const selectedCasePatientExaminationLabel = computed(() => {
   const selectedId = toPositiveInteger(selectedExistingPatientExaminationId.value)
   if (selectedId !== null) {
     const option = casePatientExaminationDropdownOptions.value.find((entry) => entry.id === selectedId)
-    return option?.label ?? `#${selectedId}`
+    return option?.label ?? `#${String(selectedId)}`
   }
-  if (flow.patientExaminationId) return `#${flow.patientExaminationId}`
+  if (flow.patientExaminationId) return `#${String(flow.patientExaminationId)}`
   return 'Keine Patientenuntersuchung vorgemerkt'
 })
 const patientDraftAvailable = computed(() => {
@@ -437,13 +444,32 @@ const caseSetupRoute = computed(() => ({
 }))
 const nextRoute = computed(() =>
   flow.patientExaminationId
-    ? `/reporting/${flow.patientExaminationId}/findings`
+    ? `/reporting/${String(flow.patientExaminationId)}/findings`
     : '/reporting/case-setup'
 )
 
 function toPositiveInteger(value: unknown): number | null {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value)
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {}
+}
+
+function readListPayload(value: unknown): unknown[] {
+  if (isUnknownArray(value)) return value
+  const results = readRecord(value).results
+  if (isUnknownArray(results)) return results
+  throw new TypeError('Patient examination list response must contain an array.')
 }
 
 function clearMessages(): void {
@@ -457,8 +483,7 @@ function normalizeDateInputToGerman(value?: string | null): string {
 }
 
 function normalizePatientExaminationOption(raw: unknown): PatientExaminationOption | null {
-  if (!raw || typeof raw !== 'object') return null
-  const row = raw as Record<string, unknown>
+  const row = readRecord(raw)
   const id = toPositiveInteger(row.id)
   if (id === null) return null
   const examinationName =
@@ -469,7 +494,9 @@ function normalizePatientExaminationOption(raw: unknown): PatientExaminationOpti
   const dateStart = normalizeDateInputToGerman(dateStartRaw)
   return {
     id,
-    label: dateStart ? `#${id} · ${examinationName} · ${dateStart}` : `#${id} · ${examinationName}`
+    label: dateStart
+      ? `#${String(id)} · ${examinationName} · ${dateStart}`
+      : `#${String(id)} · ${examinationName}`
   }
 }
 
@@ -507,8 +534,8 @@ async function fetchCaseResolution(): Promise<void> {
   try {
     const { data } = await axiosInstance.get<CaseResolutionPayload>(r(endpoint))
     caseResolution.value = data
-  } catch (error) {
-    console.warn('Case resolution lookup failed.', error)
+  } catch (_error) {
+    logger.warn('lookup-failed')
   }
 }
 
@@ -520,14 +547,11 @@ async function fetchCasePatientExaminations(patientId: number): Promise<void> {
   isLoadingCasePatientExaminations.value = true
   clearMessages()
   try {
-    const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList), {
-      params: { patient_id: patientId }
-    })
-    const rows = Array.isArray(response.data?.results)
-      ? response.data.results
-      : Array.isArray(response.data)
-        ? response.data
-        : []
+    const response = await axiosInstance.get<unknown>(
+      r(endpoints.examination.patientExaminationList),
+      { params: { patient_id: patientId } }
+    )
+    const rows = readListPayload(response.data)
     casePatientExaminationOptions.value = rows
       .map((row: unknown) => normalizePatientExaminationOption(row))
       .filter((entry: PatientExaminationOption | null): entry is PatientExaminationOption => entry !== null)
@@ -556,7 +580,7 @@ function applySelectedPatientExamination(patientExaminationId: number): void {
   const option =
     casePatientExaminationDropdownOptions.value.find((entry) => entry.id === normalizedId) ?? {
       id: normalizedId,
-      label: `#${normalizedId}`
+      label: `#${String(normalizedId)}`
     }
   addOrReplacePatientExaminationOption(casePatientExaminationOptions.value, option)
   selectedExistingPatientExaminationId.value = String(normalizedId)
@@ -568,7 +592,7 @@ function applySelectedPatientExamination(patientExaminationId: number): void {
   patientExaminationStore.setCurrentPatientExaminationId(normalizedId)
 }
 
-async function useSelectedExistingPatientExamination(): Promise<void> {
+function useSelectedExistingPatientExamination(): void {
   clearMessages()
   const patientExaminationId = toPositiveInteger(selectedExistingPatientExaminationId.value)
   const patientId = selectedCasePatientIdNumber.value
@@ -595,11 +619,11 @@ function resolveCenterKeyFromMetadataCenterName(centerName?: string | null): str
   if (!normalizedCenterName) return null
 
   const match = availableCenterOptions.value.find((center) => {
-    const name = typeof center?.name === 'string' ? center.name.trim() : ''
+    const name = typeof center.name === 'string' ? center.name.trim() : ''
     const displayName =
-      typeof center?.nameDe === 'string'
+      typeof center.nameDe === 'string'
         ? center.nameDe.trim()
-        : typeof center?.nameEn === 'string'
+        : typeof center.nameEn === 'string'
           ? center.nameEn.trim()
           : ''
     return (
@@ -618,7 +642,7 @@ async function createPatientFromMetadata(): Promise<void> {
   clearMessages()
   const item = currentItem.value
   const patientDob = item?.patientDob ? DateConverter.toISO(item.patientDob) : null
-  if (!item?.patientFirstName || !item?.patientLastName || !patientDob) {
+  if (!item?.patientFirstName || !item.patientLastName || !patientDob) {
     errorMessage.value =
       'Für einen neuen Patienten werden mindestens Vorname, Nachname und ein gültiges Geburtsdatum benötigt.'
     return
@@ -631,7 +655,7 @@ async function createPatientFromMetadata(): Promise<void> {
   }
   isCreatingPatientFromMetadata.value = true
   try {
-    const createdPatient = await patientStore.createPatient({
+    const createdPatient: unknown = await patientStore.createPatient({
       firstName: item.patientFirstName.trim(),
       lastName: item.patientLastName.trim(),
       dob: patientDob,
@@ -643,7 +667,7 @@ async function createPatientFromMetadata(): Promise<void> {
       comments: '',
       isRealPerson: true
     })
-    const patientId = toPositiveInteger(createdPatient.id)
+    const patientId = toPositiveInteger(readRecord(createdPatient).id)
     if (patientId !== null) {
       selectedCasePatientId.value = String(patientId)
       syncFlowPatientSelection(patientId)
@@ -684,21 +708,27 @@ async function createPatientExaminationFromSelection(): Promise<void> {
   }
   isCreatingPatientExamination.value = true
   try {
-    const response = await axiosInstance.post(r(endpoints.examination.patientExaminationCreate), {
-      patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
-      examination: selectedExam.name,
-      dateStart: formatDateOnly(currentItem.value?.examinationDate) || formatDateOnly(new Date().toISOString()) || '',
-      patientBirthDate: formatDateOnly(selectedPatient.dob),
-      patientGender: selectedPatient.gender || null
-    })
-    const createdPatientExaminationId = toPositiveInteger(response.data?.id)
+    const response = await axiosInstance.post<PatientExamination>(
+      r(endpoints.examination.patientExaminationCreate),
+      {
+        patient: selectedPatient.patientHash || `patient_${String(selectedPatient.id)}`,
+        examination: selectedExam.name,
+        dateStart:
+          formatDateOnly(currentItem.value?.examinationDate) ||
+          formatDateOnly(new Date().toISOString()) ||
+          '',
+        patientBirthDate: formatDateOnly(selectedPatient.dob),
+        patientGender: selectedPatient.gender || null
+      }
+    )
+    const createdPatientExaminationId = toPositiveInteger(response.data.id)
     if (createdPatientExaminationId === null) {
       throw new Error('Die neue Patientenuntersuchung konnte nicht identifiziert werden.')
     }
     syncFlowPatientSelection(patientId, examinationId)
     addOrReplacePatientExaminationOption(casePatientExaminationOptions.value, {
       id: createdPatientExaminationId,
-      label: `#${createdPatientExaminationId} · ${selectedExam.displayName || selectedExam.name}`
+      label: `#${String(createdPatientExaminationId)} · ${selectedExam.displayName || selectedExam.name}`
     })
     patientExaminationStore.addPatientExamination(response.data)
     applySelectedPatientExamination(createdPatientExaminationId)

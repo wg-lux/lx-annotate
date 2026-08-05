@@ -580,7 +580,7 @@ function captureEditorContext(): EditorContext | null {
 }
 
 function isEditorContextCurrent(context?: EditorContext): boolean {
-  return Boolean(
+  return (
     !context ||
       (context.generation === editorContextGeneration &&
         context.patientExaminationId === flow.patientExaminationId &&
@@ -591,6 +591,11 @@ function isEditorContextCurrent(context?: EditorContext): boolean {
 
 function isReportSaveOperationCurrent(context: EditorContext, generation: number): boolean {
   return generation === reportSaveGeneration && isEditorContextCurrent(context)
+}
+
+function requireReportSubmissionStatus(value: string): ReportSubmissionStatus {
+  if (value === 'draft' || value === 'final') return value
+  throw new Error(`Unbekannter Berichtstatus: ${value || '(leer)'}`)
 }
 
 function refreshTemplatesForCurrentContext() {
@@ -625,8 +630,8 @@ const draftMatchesSelectedTemplate = computed(() => {
     draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
   if (draft.moduleName !== activeBundle.moduleName) return false
   if (draftKnowledgeBaseVersion !== activeBundle.version) return false
-  const currentTemplateHash = template.identity?.templateHash || null
-  const currentTemplateVersion = template.identity?.templateVersion || null
+  const currentTemplateHash = template.identity.templateHash || null
+  const currentTemplateVersion = template.identity.templateVersion || null
   return !(
     (currentTemplateHash && draft.templateIdentity?.templateHash !== currentTemplateHash) ||
     (currentTemplateVersion && draft.templateIdentity?.templateVersion !== currentTemplateVersion)
@@ -654,7 +659,7 @@ const reportPatientLabel = computed(() => {
   if (!patient) return 'Nicht gewählt'
   const name = [patient.firstName, patient.lastName].filter(Boolean).join(' ').trim()
   const details = [patient.gender, formatDateOnly(patient.dob)].filter(Boolean)
-  return [name || `Patient #${patient.id}`, ...details].join(' · ')
+  return [name || `Patient #${String(patient.id)}`, ...details].join(' · ')
 })
 
 const normalizedIndications = computed<SaveReportSubmissionRequest['indications']>(() =>
@@ -678,12 +683,12 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     if (!existing) {
       optionsById.set(option.id, {
         id: option.id,
-        label: option.label || `Indikation #${option.id}`,
+        label: option.label || `Indikation #${String(option.id)}`,
         choices: option.choices.slice()
       })
       return
     }
-    existing.label = existing.label || option.label || `Indikation #${option.id}`
+    existing.label = existing.label || option.label || `Indikation #${String(option.id)}`
     const choiceById = new Map<number, IndicationChoiceOption>()
     for (const choice of existing.choices) {
       choiceById.set(choice.id, choice)
@@ -691,7 +696,7 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     for (const choice of option.choices) {
       choiceById.set(choice.id, {
         id: choice.id,
-        label: choice.label || `Auswahl #${choice.id}`
+        label: choice.label || `Auswahl #${String(choice.id)}`
       })
     }
     existing.choices = Array.from(choiceById.values())
@@ -711,7 +716,7 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     if (!optionsById.has(indicationId)) {
       upsert({
         id: indicationId,
-        label: `Unbekannte Indikation (#${indicationId})`,
+        label: `Unbekannte Indikation (#${String(indicationId)})`,
         choices: []
       })
     }
@@ -721,7 +726,7 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     if (!option) continue
     if (!option.choices.some((choice) => choice.id === choiceId)) {
       option.choices = [
-        { id: choiceId, label: `Unbekannte Auswahl (#${choiceId})` },
+        { id: choiceId, label: `Unbekannte Auswahl (#${String(choiceId)})` },
         ...option.choices
       ]
     }
@@ -738,7 +743,7 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
 })
 
 const sectionDraftPreview = computed(() =>
-  JSON.stringify(flow.templateSectionDrafts || {}, null, 2)
+  JSON.stringify(flow.templateSectionDrafts, null, 2)
 )
 const runtimeFindingsPreview = computed(() =>
   JSON.stringify(currentPayload.value?.patientFindings || [], null, 2)
@@ -856,6 +861,42 @@ function normalizePositiveId(value: unknown): number | null {
   return id > 0 ? id : null
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value)
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {}
+}
+
+function readListPayload(value: unknown): unknown[] {
+  if (isUnknownArray(value)) return value
+  const results = readRecord(value).results
+  if (isUnknownArray(results)) return results
+  throw new TypeError('Reporting list response must contain an array.')
+}
+
+function requireReportListItem(value: unknown): PatientExaminationReportListItem {
+  const row = readRecord(value)
+  const id = normalizePositiveId(row.id)
+  const version = normalizePositiveId(row.version)
+  if (id === null || version === null || typeof row.status !== 'string') {
+    throw new Error('Die Berichtsliste enthält einen ungültigen Eintrag.')
+  }
+  return {
+    id,
+    version,
+    status: row.status,
+    ...(typeof row.templateName === 'string' ? { templateName: row.templateName } : {}),
+    ...(typeof row.updatedAt === 'string' ? { updatedAt: row.updatedAt } : {}),
+    ...(typeof row.renderedText === 'string' ? { renderedText: row.renderedText } : {})
+  }
+}
+
 function normalizeDisplayLabel(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim()
@@ -879,13 +920,13 @@ function normalizeChoiceOptions(value: unknown): IndicationChoiceOption[] {
       const label =
         normalizeDisplayLabel(
           row.label ?? row.name ?? row.displayName ?? row.name_de ?? row.nameDe
-        ) || `Auswahl #${id}`
+        ) || `Auswahl #${String(id)}`
       choiceById.set(id, { id, label })
       continue
     }
     const id = normalizePositiveId(entry)
     if (id == null) continue
-    choiceById.set(id, { id, label: `Auswahl #${id}` })
+    choiceById.set(id, { id, label: `Auswahl #${String(id)}` })
   }
   return Array.from(choiceById.values())
 }
@@ -922,7 +963,7 @@ function normalizeIndicationOptions(value: unknown): IndicationOption[] {
       const label =
         normalizeDisplayLabel(
           row.label ?? row.name ?? row.displayName ?? row.name_de ?? row.nameDe
-        ) || `Indikation #${id}`
+        ) || `Indikation #${String(id)}`
       const choices = [
         ...normalizeChoiceOptions(row.choices),
         ...normalizeChoiceOptions(row.indicationChoices),
@@ -944,7 +985,7 @@ function normalizeIndicationOptions(value: unknown): IndicationOption[] {
     if (id == null) continue
     indicationById.set(id, {
       id,
-      label: `Indikation #${id}`,
+      label: `Indikation #${String(id)}`,
       choices: []
     })
   }
@@ -959,14 +1000,14 @@ function upsertIndicationOption(
   if (!existing) {
     optionsById.set(option.id, {
       id: option.id,
-      label: option.label || `Indikation #${option.id}`,
+      label: option.label || `Indikation #${String(option.id)}`,
       choices: option.choices.slice()
     })
     return
   }
 
   if (!existing.label || existing.label.startsWith('Unbekannte')) {
-    existing.label = option.label || existing.label || `Indikation #${option.id}`
+    existing.label = option.label || existing.label || `Indikation #${String(option.id)}`
   }
 
   const choiceById = new Map<number, IndicationChoiceOption>()
@@ -976,7 +1017,7 @@ function upsertIndicationOption(
   for (const choice of option.choices) {
     choiceById.set(choice.id, {
       id: choice.id,
-      label: choice.label || `Auswahl #${choice.id}`
+      label: choice.label || `Auswahl #${String(choice.id)}`
     })
   }
   existing.choices = Array.from(choiceById.values())
@@ -1016,7 +1057,7 @@ function extractChoiceRow(
   const label =
     normalizeDisplayLabel(
       value.label ?? value.name ?? value.displayName ?? value.name_de ?? value.nameDe
-    ) || `Auswahl #${choiceId}`
+    ) || `Auswahl #${String(choiceId)}`
   return { indicationId, choice: { id: choiceId, label } }
 }
 
@@ -1110,7 +1151,7 @@ async function loadIndicationCatalog(context?: EditorContext) {
   if (selectedExaminationId) {
     try {
       const examRes = await axiosInstance.get(
-        r(`${endpoints.router.examinations}${selectedExaminationId}/`)
+        r(`${endpoints.router.examinations}${String(selectedExaminationId)}/`)
       )
       extractOptionsFromPayload(examRes.data, optionsById)
     } catch {
@@ -1120,18 +1161,11 @@ async function loadIndicationCatalog(context?: EditorContext) {
 
   if (selectedExaminationId && !optionsById.size) {
     try {
-      const listRes = await axiosInstance.get(r(endpoints.router.examinations))
-      const rows = (
-        Array.isArray(listRes.data?.results) ? listRes.data.results : listRes.data
-      ) as unknown[]
-      const selectedRow = Array.isArray(rows)
-        ? rows.find(
-            (entry) =>
-              !!entry &&
-              typeof entry === 'object' &&
-              normalizePositiveId((entry as Record<string, unknown>).id) === selectedExaminationId
-          )
-        : null
+      const listRes = await axiosInstance.get<unknown>(r(endpoints.router.examinations))
+      const rows = readListPayload(listRes.data)
+      const selectedRow = rows.find(
+        (entry) => normalizePositiveId(readRecord(entry).id) === selectedExaminationId
+      )
       if (selectedRow) {
         extractOptionsFromPayload(selectedRow, optionsById)
       }
@@ -1165,7 +1199,7 @@ function clearMessages() {
 
 function getSectionDraft(sectionName: string): ReportTemplateSectionDraft {
   return (
-    flow.templateSectionDrafts[sectionName] || {
+    flow.templateSectionDrafts[sectionName] ?? {
       note: '',
       includePatientData: false,
       includeExaminationData: false
@@ -1229,7 +1263,7 @@ function buildExaminationContextText(): string {
   const examinationName = selectedExaminationName.value
   if (!examinationName) return ''
   const label = localizedConceptLabel(coreConcepts.value?.examination, examinationName)
-  return `${localizedStaticText('examination')}: ${label || selectedExaminationDisplayName.value}`
+  return `${localizedStaticText('examination')}: ${label || selectedExaminationDisplayName.value || ''}`
 }
 
 function localizedStaticText(
@@ -1419,10 +1453,10 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
   }
   const examName = selectedExaminationName.value
   if (!examName) return
-  const templates = (await fetchTemplatesByExamination(examName)) || []
+  const templates = await fetchTemplatesByExamination(examName)
   if (!isEditorContextCurrent(context)) return
   if (templates.length) {
-    templateStatusMessage.value = `${templates.length} Vorlage(n) für "${examName}" geladen.`
+    templateStatusMessage.value = `${String(templates.length)} Vorlage(n) für "${examName}" geladen.`
   } else {
     templateStatusMessage.value = `Keine Vorlagen für "${examName}" gefunden.`
   }
@@ -1444,7 +1478,7 @@ function buildDraftFindingsPayload(): SaveReportSubmissionRequest['findings'] {
 function buildEditorPayload(): Record<string, unknown> {
   return {
     source: 'reporting_route_report_editor',
-    routePatientExaminationId: route.params.patient_examination_id ?? null,
+    routePatientExaminationId: route.params.patient_examination_id,
     indications: normalizedIndications.value,
     template: {
       moduleName: selectedKbModule.value,
@@ -1505,14 +1539,11 @@ async function loadLatestReportMeta(context?: EditorContext) {
   loading.value = true
   clearMessages()
   try {
-    const res = await axiosInstance.get(
+    const res = await axiosInstance.get<unknown>(
       r(endpoints.report.patientExaminationReportsByPatientExamination(patientExaminationId))
     )
     if (!isEditorContextCurrent(context)) return
-    const rows = (
-      Array.isArray(res.data?.results) ? res.data.results : res.data
-    ) as PatientExaminationReportListItem[]
-    const items = Array.isArray(rows) ? rows : []
+    const items = readListPayload(res.data).map(requireReportListItem)
     if (!items.length) {
       flow.setActiveReportId(null)
       currentReportVersion.value = null
@@ -1522,7 +1553,7 @@ async function loadLatestReportMeta(context?: EditorContext) {
     }
     const latest = items[0]
     flow.setActiveReportId(latest.id)
-    currentReportVersion.value = latest.version ?? null
+    currentReportVersion.value = latest.version
     if (latest.templateName) {
       await selectTemplateByName(latest.templateName)
       if (!isEditorContextCurrent(context)) return
@@ -1531,7 +1562,7 @@ async function loadLatestReportMeta(context?: EditorContext) {
       manuallyEditedReportText.value = latest.renderedText
       reportTextManuallyEdited.value = true
     }
-    successMessage.value = `Bericht #${latest.id} (Version ${latest.version}) geladen.`
+    successMessage.value = `Bericht #${String(latest.id)} (Version ${String(latest.version)}) geladen.`
   } catch (e: unknown) {
     if (!isEditorContextCurrent(context)) return
     errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden bestehender Berichte.')
@@ -1602,14 +1633,14 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
 
     flow.setActiveReportId(data.report.id)
     currentReportVersion.value = data.report.version
-    lastSaveStatus.value = (data.report.status as ReportSubmissionStatus) || status
+    lastSaveStatus.value = requireReportSubmissionStatus(data.report.status)
     saveWarnings.value = Array.isArray(data.warnings) ? data.warnings : []
-    historyContext.value = (data.historyContext || null) as Record<string, unknown> | null
+    historyContext.value = data.historyContext || null
     persistedArtifacts.value = data.persistedArtifacts || null
 
     successMessage.value = data.created
-      ? `Bericht wurde erstellt (ID ${data.report.id}, Version ${data.report.version}).`
-      : `Bericht wurde aktualisiert (ID ${data.report.id}, Version ${data.report.version}).`
+      ? `Bericht wurde erstellt (ID ${String(data.report.id)}, Version ${String(data.report.version)}).`
+      : `Bericht wurde aktualisiert (ID ${String(data.report.id)}, Version ${String(data.report.version)}).`
   } catch (e: unknown) {
     if (!isReportSaveOperationCurrent(context, operationGeneration)) return
     const versionConflict = reportingApiError(e).response?.data?.expectedVersion
@@ -1646,7 +1677,7 @@ async function initializeEditorContext() {
     selectedExaminationId: flow.selectedExaminationId,
     bundleKey: terminology.activeBundleKey
   }
-  const contextKey = `${context.patientExaminationId}:${context.selectedExaminationId || ''}:${context.bundleKey}`
+  const contextKey = `${String(context.patientExaminationId)}:${String(context.selectedExaminationId || '')}:${context.bundleKey}`
   if (initializedContextKey === contextKey || initializationInFlightKey === contextKey) return
   initializationInFlightKey = contextKey
   errorMessage.value = null
@@ -1690,7 +1721,7 @@ watch(
     pendingSaveStatus.value = null
     initializedContextKey = null
     setRequestContext(
-      `${terminology.activeBundleKey}:${flow.patientExaminationId || ''}:${flow.selectedExaminationId || ''}`
+      `${terminology.activeBundleKey}:${String(flow.patientExaminationId || '')}:${String(flow.selectedExaminationId || '')}`
     )
     void initializeEditorContext()
   },

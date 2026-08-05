@@ -94,7 +94,7 @@ vi.mock('@/stores/toastStore', () => ({
 
 vi.mock('@/stores/terminologyStore', () => ({
   terminologyBatchImportMessage: (result: { imported: unknown[]; failures: unknown[] }) =>
-    `${result.imported.length} Pakete installiert`,
+    `${String(result.imported.length)} Pakete installiert`,
   useTerminologyStore: () => hoisted.terminologyStore
 }))
 
@@ -309,6 +309,20 @@ describe('ApplicationSettingsPage', () => {
     expect(wrapper.get('[data-test="summary-report-template"]').text()).toContain('Template B')
     expect(wrapper.get('[data-test="summary-ai-dataset"]').text()).toContain('dataset_beta')
     expect(wrapper.get('[data-test="summary-ai-dataset-type"]').text()).toContain('Video')
+  })
+
+  it('shows a terminology loading failure while keeping application settings usable', async () => {
+    hoisted.terminologyStore.loadBundles.mockRejectedValueOnce(
+      new Error('Terminology service unavailable')
+    )
+
+    const wrapper = mount(ApplicationSettingsPage)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(
+      'Terminologiepakete konnten nicht geladen werden. Bitte erneut versuchen.'
+    )
+    expect(wrapper.get('[data-test="summary-center"]').text()).toContain('Center Alpha')
   })
 
   it('imports multiple local or cloud-backed terminology ZIPs from settings', async () => {

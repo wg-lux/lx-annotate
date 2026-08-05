@@ -149,7 +149,7 @@ const returnToPath = computed(() => {
 
 const nextRoute = computed(() =>
   flow.patientExaminationId
-    ? `/reporting/${flow.patientExaminationId}/findings`
+    ? `/reporting/${String(flow.patientExaminationId)}/findings`
     : '/reporting/case-setup'
 )
 
@@ -233,7 +233,7 @@ async function createPatientExaminationContext() {
     const result = await createCaseWithExamination({
       admissionDate: new Date().toISOString(),
       patientExamination: {
-        patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
+        patient: selectedPatient.patientHash || `patient_${String(flow.selectedPatientId)}`,
         examination: selectedExam.name,
         dateStart: formattedDate,
         patientBirthDate: formatDateOnly(selectedPatient.dob),

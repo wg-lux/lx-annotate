@@ -111,7 +111,7 @@ const statusMessage = computed(() => {
 
 const validationTarget = computed(() =>
   completedReportId.value
-    ? `/anonymisierung/validierung?fileId=${completedReportId.value}&mediaType=pdf`
+    ? `/anonymisierung/validierung?fileId=${String(completedReportId.value)}&mediaType=pdf`
     : '/anonymisierung/validierung'
 )
 

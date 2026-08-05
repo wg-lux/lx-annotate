@@ -629,6 +629,9 @@ import type { MedicalField } from '@/api/terminologyApi'
 import { terminologyBatchImportMessage, useTerminologyStore } from '@/stores/terminologyStore'
 import { useToastStore } from '@/stores/toastStore'
 import { computed, onMounted, reactive, ref } from 'vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('application-settings')
 
 interface ApplicationSettingsErrorPayload {
   detail?: string
@@ -668,10 +671,11 @@ const aiDatasetExportScope = ref<'center' | 'all'>('center')
 const aiDatasetExportCenterKey = ref('')
 const videoDimensionBackfillInProgress = ref(false)
 const videoDimensionBackfillDryRun = ref(true)
-const videoDimensionBackfillLimit = ref('')
+const videoDimensionBackfillLimit = ref<string | number>('')
 const videoDimensionBackfillRun = ref<ApplicationVideoDimensionBackfillRun | null>(null)
 const videoDimensionBackfillError = ref('')
 const selectedTerminologyKey = ref('')
+const terminologyLoadError = ref('')
 const terminologyFolderInput = ref<HTMLInputElement | null>(null)
 const terminologyZipInput = ref<HTMLInputElement | null>(null)
 
@@ -728,7 +732,7 @@ const selectedAiDatasetOption = computed(() => {
 
 const selectedAiDatasetLabel = computed(() => {
   if (selectedAiDatasetOption.value) {
-    return `${selectedAiDatasetOption.value.label} (ID ${selectedAiDatasetOption.value.id})`
+    return `${selectedAiDatasetOption.value.label} (ID ${String(selectedAiDatasetOption.value.id)})`
   }
   return form.aiDatasetName || 'Kein KI-Datensatz'
 })
@@ -782,17 +786,18 @@ const videoDimensionBackfillMessage = computed(() => {
 
   const repaired = run.result.summary.repaired ?? 0
   const wouldRepair = run.result.summary.would_repair ?? run.result.summary.wouldRepair ?? 0
-  return `Lauf ${run.status}: ${run.result.count} Videos geprüft, ${repaired} repariert, ${wouldRepair} würden repariert.`
+  return `Lauf ${run.status}: ${String(run.result.count)} Videos geprüft, ${String(repaired)} repariert, ${String(wouldRepair)} würden repariert.`
 })
 
 const terminologyStatusMessage = computed(() => {
+  if (terminologyLoadError.value) return terminologyLoadError.value
   if (terminology.error) return terminology.error
   if (terminology.lastSelectionCounts) {
     const total = Object.values(terminology.lastSelectionCounts).reduce(
-      (sum, count) => sum + Number(count || 0),
+      (sum, count) => sum + (count || 0),
       0
     )
-    return `Terminologie aktiviert: ${total} Einträge geladen.`
+    return `Terminologie aktiviert: ${String(total)} Einträge geladen.`
   }
   if (!terminology.activeBundle) {
     return 'Noch kein Terminologiepaket aktiv. Annotationen können unabhängig davon fortgesetzt werden.'
@@ -880,7 +885,7 @@ async function loadSettings() {
     aiDatasetExportError.value = ''
     videoDimensionBackfillError.value = ''
   } catch (error) {
-    console.error('Failed to load application settings:', error)
+    logger.error('settings-load-failed', error)
     errorMessage.value =
       'Die Anwendungseinstellungen konnten nicht geladen werden. Bitte erneut versuchen.'
   } finally {
@@ -889,13 +894,16 @@ async function loadSettings() {
 }
 
 async function loadTerminologyBundles() {
+  terminologyLoadError.value = ''
   try {
     await terminology.loadBundles()
     selectedTerminologyKey.value =
       terminology.activeBundleKey ||
       (terminology.filteredBundles[0] ? terminology.bundleKey(terminology.filteredBundles[0]) : '')
   } catch (error) {
-    console.error('Failed to load terminology bundles:', error)
+    logger.error('terminology-load-failed', error)
+    terminologyLoadError.value =
+      'Terminologiepakete konnten nicht geladen werden. Bitte erneut versuchen.'
   }
 }
 
@@ -914,7 +922,7 @@ async function activateTerminologyBundle() {
     selectedTerminologyKey.value = terminology.activeBundleKey
     toast.success({ text: 'Terminologiepaket geladen.' })
   } catch (error) {
-    console.error('Failed to activate terminology bundle:', error)
+    logger.error('terminology-activation-failed', error)
   }
 }
 
@@ -930,7 +938,7 @@ async function importTerminologyFolder(event: Event) {
     if (result.failures.length) toast.warning(message)
     else toast.success(message)
   } catch (error) {
-    console.error('Failed to import terminology folder:', error)
+    logger.error('terminology-folder-import-failed', error)
   } finally {
     input.value = ''
   }
@@ -948,7 +956,7 @@ async function importTerminologyZip(event: Event) {
     if (result.failures.length) toast.warning(message)
     else toast.success(message)
   } catch (error) {
-    console.error('Failed to import terminology ZIP:', error)
+    logger.error('terminology-archive-import-failed', error)
   } finally {
     input.value = ''
   }
@@ -972,7 +980,7 @@ async function saveSettings() {
     applySettings(updated)
     toast.success({ text: 'Anwendungseinstellungen gespeichert.' })
   } catch (error) {
-    console.error('Failed to save application settings:', error)
+    logger.error('settings-save-failed', error)
   } finally {
     saving.value = false
   }
@@ -983,7 +991,7 @@ async function runVideoDimensionBackfill() {
   videoDimensionBackfillError.value = ''
   videoDimensionBackfillRun.value = null
 
-  const limit = String(videoDimensionBackfillLimit.value ?? '').trim()
+  const limit = String(videoDimensionBackfillLimit.value).trim()
 
   try {
     const result = await triggerApplicationVideoDimensionBackfill({
@@ -1001,7 +1009,7 @@ async function runVideoDimensionBackfill() {
       payload.errors?.limit ||
       payload.detail ||
       'Video-Dimensionsprüfung konnte nicht gestartet werden.'
-    console.error('Failed to run video dimension backfill:', error)
+    logger.error('video-dimension-backfill-failed', error)
   } finally {
     videoDimensionBackfillInProgress.value = false
   }
@@ -1043,7 +1051,7 @@ async function runBackup() {
     const payload = applicationSettingsErrorPayload(error)
     backupError.value =
       payload.detail || payload.errors?.targetPath || 'Backup konnte nicht gestartet werden.'
-    console.error('Failed to run application backup:', error)
+    logger.error('backup-start-failed', error)
   } finally {
     backupInProgress.value = false
   }
@@ -1079,7 +1087,7 @@ async function runAiDatasetExport() {
       payload.errors?.aiDatasetType ||
       payload.detail ||
       'KI-Datensatz konnte nicht exportiert werden.'
-    console.error('Failed to export AI dataset:', error)
+    logger.error('dataset-export-failed', error)
   } finally {
     aiDatasetExportInProgress.value = false
   }
@@ -1097,9 +1105,8 @@ function formatBytes(value: number): string {
   return `${amount.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
 }
 
-onMounted(() => {
-  loadSettings()
-  loadTerminologyBundles()
+onMounted(async () => {
+  await Promise.all([loadSettings(), loadTerminologyBundles()])
 })
 </script>
 

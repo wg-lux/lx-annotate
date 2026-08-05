@@ -4,6 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ReportEditorPage from '../ReportEditorPage.vue'
 import type { ReportTemplateSectionDraft } from '@/types/reportTemplate'
+import type { SaveReportSubmissionRequest } from '@/types/api/reportSubmission'
+
+function requireDefined<T>(value: T | undefined, description: string): T {
+  if (value === undefined) throw new Error(`Expected ${description}.`)
+  return value
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -30,7 +36,9 @@ const hoisted = vi.hoisted(() => {
     debugRef: { current: false },
     axiosApi: {
       get: vi.fn(),
-      post: vi.fn()
+      post: vi.fn<
+        (url: string, payload: SaveReportSubmissionRequest) => Promise<{ data: unknown }>
+      >()
     },
     templateControls: {
       setModuleName: vi.fn(),
@@ -380,37 +388,35 @@ describe('ReportEditorPage draft-driven workflow', () => {
     )
 
     const buttons = wrapper.findAll('button')
-    const draftSaveButton = buttons.find((button) => button.text().includes('Entwurf speichern'))
-    expect(draftSaveButton).toBeTruthy()
+    const draftSaveButton = requireDefined(
+      buttons.find((button) => button.text().includes('Entwurf speichern')),
+      'the draft-save button'
+    )
 
-    await draftSaveButton!.trigger('click')
+    await draftSaveButton.trigger('click')
     await flushPromises()
 
-    expect(hoisted.axiosApi.post).toHaveBeenCalledWith(
-      'patient-examination-reports/save-submission/',
-      expect.objectContaining({
-        patientExaminationId: 42,
-        templateName: 'star_upper_gi_main',
-        templateVersion: '1',
-        templateHash: 'hash-1',
-        findings: [
+    const saveCall = hoisted.axiosApi.post.mock.calls[0]
+    expect(saveCall[0]).toBe('patient-examination-reports/save-submission/')
+    const savePayload = saveCall[1]
+    expect(savePayload.patientExaminationId).toBe(42)
+    expect(savePayload.templateName).toBe('star_upper_gi_main')
+    expect(savePayload.templateVersion).toBe('1')
+    expect(savePayload.templateHash).toBe('hash-1')
+    expect(savePayload.findings).toEqual([
+      {
+        finding: 'esophagus_polyp',
+        classifications: [
           {
-            finding: 'esophagus_polyp',
-            classifications: [
-              {
-                classification: 'size_mm',
-                classificationChoice: 'size_mm'
-              }
-            ],
-            interventions: []
+            classification: 'size_mm',
+            classificationChoice: 'size_mm'
           }
         ],
-        editorPayload: expect.objectContaining({
-          reportLanguage: 'de'
-        }),
-        renderedText: expect.stringContaining('Ösophaguspolyp: Größe: Millimeter')
-      })
-    )
+        interventions: []
+      }
+    ])
+    expect(savePayload.editorPayload).toMatchObject({ reportLanguage: 'de' })
+    expect(savePayload.renderedText).toContain('Ösophaguspolyp: Größe: Millimeter')
   })
 
   it('renders the active knowledge-base module as read-only context', async () => {
@@ -447,11 +453,11 @@ describe('ReportEditorPage draft-driven workflow', () => {
     expect(wrapper.text()).toContain('Examination Baseline')
     expect(wrapper.text()).toContain('Klassifikationen fehlen: Ösophaguspolyp: Größe')
 
-    const finalSaveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Final speichern'))
-    expect(finalSaveButton).toBeTruthy()
-    expect(finalSaveButton!.attributes('disabled')).toBeUndefined()
+    const finalSaveButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Final speichern')),
+      'the final-save button'
+    )
+    expect(finalSaveButton.attributes('disabled')).toBeUndefined()
   })
 
   it('saves freely edited report text while keeping section notes editable', async () => {
@@ -461,31 +467,29 @@ describe('ReportEditorPage draft-driven workflow', () => {
     const reportTextEditor = wrapper.get('[data-testid="report-text-editor"]')
     await reportTextEditor.setValue('Manuell bearbeiteter deutscher Befundtext.')
 
-    const sectionNote = wrapper
-      .findAll('textarea')
-      .find((textarea) => textarea.attributes('data-testid') !== 'report-text-editor')
-    expect(sectionNote).toBeTruthy()
-    await sectionNote!.setValue('Geänderte Abschnittsnotiz')
+    const sectionNote = requireDefined(
+      wrapper
+        .findAll('textarea')
+        .find((textarea) => textarea.attributes('data-testid') !== 'report-text-editor'),
+      'the editable section note'
+    )
+    await sectionNote.setValue('Geänderte Abschnittsnotiz')
 
-    const draftSaveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Entwurf speichern'))
-    await draftSaveButton!.trigger('click')
+    const draftSaveButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Entwurf speichern')),
+      'the draft-save button'
+    )
+    await draftSaveButton.trigger('click')
     await flushPromises()
 
     expect(hoisted.flowRef.current.setTemplateSectionDraft).toHaveBeenCalledWith(
       'examination_baseline',
       { note: 'Geänderte Abschnittsnotiz' }
     )
-    expect(hoisted.axiosApi.post).toHaveBeenCalledWith(
-      'patient-examination-reports/save-submission/',
-      expect.objectContaining({
-        renderedText: 'Manuell bearbeiteter deutscher Befundtext.',
-        editorPayload: expect.objectContaining({
-          reportTextMode: 'manual'
-        })
-      })
-    )
+    const manualSaveCall = hoisted.axiosApi.post.mock.calls[0]
+    expect(manualSaveCall[0]).toBe('patient-examination-reports/save-submission/')
+    expect(manualSaveCall[1].renderedText).toBe('Manuell bearbeiteter deutscher Befundtext.')
+    expect(manualSaveCall[1].editorPayload).toMatchObject({ reportTextMode: 'manual' })
   })
 
   it('shows technical metadata only inside the debug details panel', async () => {
@@ -512,10 +516,11 @@ describe('ReportEditorPage draft-driven workflow', () => {
     const wrapper = mountPage()
     await flushPromises()
 
-    const saveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Entwurf speichern'))
-    await saveButton!.trigger('click')
+    const saveButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Entwurf speichern')),
+      'the pending draft-save button'
+    )
+    await saveButton.trigger('click')
     await Promise.resolve()
     expect(hoisted.axiosApi.post).toHaveBeenCalledTimes(1)
 
@@ -552,10 +557,13 @@ describe('ReportEditorPage draft-driven workflow', () => {
       return Promise.resolve({ data: [] })
     })
 
-    const refreshButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Letzten Bericht laden'))
-    await refreshButton!.trigger('click')
+    const refreshButton = requireDefined(
+      wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Letzten Bericht laden')),
+      'the report-refresh button'
+    )
+    await refreshButton.trigger('click')
     await Promise.resolve()
 
     hoisted.flowRef.current.patientExaminationId = 43

@@ -332,7 +332,7 @@ interface AdministrationErrorPayload {
 
 function administrationErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError<AdministrationErrorPayload>(error)) {
-    return error.response?.data?.detail || error.message || fallback
+    return error.response?.data.detail || error.message || fallback
   }
   return error instanceof Error && error.message ? error.message : fallback
 }

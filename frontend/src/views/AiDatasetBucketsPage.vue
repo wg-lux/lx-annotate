@@ -226,6 +226,9 @@ import {
   type AiDatasetOption
 } from '@/api/aiDatasetApi'
 import { computed, onMounted, ref, watch } from 'vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('ai-dataset-buckets')
 
 type BucketName = AiDatasetFrameBucketCount['bucket']
 
@@ -258,7 +261,7 @@ const selectedDataset = computed(() =>
 const selectedDatasetLabel = computed(() => {
   const dataset = selectedDataset.value
   if (!dataset) return 'Kein Datensatz ausgewählt'
-  return `${dataset.label} (ID ${dataset.id})`
+  return `${dataset.label} (ID ${String(dataset.id)})`
 })
 
 const selectedLabelSet = computed(() =>
@@ -332,7 +335,7 @@ const mergedRows = computed<LabelBucketRow[]>(() => {
           annotation?.labelName ||
           segment?.labelName ||
           labelDistribution?.labelName ||
-          `Label ${labelId}`,
+          `Label ${String(labelId)}`,
         mergedFrames: merged?.frameCount ?? 0,
         annotationFrames: annotation?.frameCount ?? 0,
         segmentFrames: segment?.frameCount ?? 0,
@@ -359,11 +362,11 @@ async function loadOptions(): Promise<void> {
     datasetOptions.value = datasets
     labelSetOptions.value = labelSets
     if (!selectedDatasetId.value) {
-      const activeDataset = datasets.find((dataset) => dataset.isActive) ?? datasets[0]
+      const activeDataset = datasets.find((dataset) => dataset.isActive) ?? datasets.at(0)
       selectedDatasetId.value = activeDataset ? String(activeDataset.id) : ''
     }
   } catch (error) {
-    console.error('Failed to load AI dataset distribution options:', error)
+    logger.error('options-load-failed', error)
     errorMessage.value = 'Die Datensatz- oder Label-Optionen konnten nicht geladen werden.'
   } finally {
     loadingOptions.value = false
@@ -385,7 +388,7 @@ async function loadDistribution(): Promise<void> {
       predictionSegmentsOnly: predictionSegmentsOnly.value
     })
   } catch (error) {
-    console.error('Failed to load AI dataset frame bucket distribution:', error)
+    logger.error('distribution-load-failed', error)
     distribution.value = null
     errorMessage.value = 'Die Bucket-Verteilung konnte nicht geladen werden.'
   } finally {
@@ -413,7 +416,7 @@ function aiModelTypeLabel(aiModelType: string): string {
 
 function bucketWidth(value: number, maxValue: number): string {
   const ratio = maxValue > 0 ? value / maxValue : 0
-  return `${Math.max(0, Math.min(100, ratio * 100))}%`
+  return `${String(Math.max(0, Math.min(100, ratio * 100)))}%`
 }
 
 function formatNumber(value: number): string {

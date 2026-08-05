@@ -6,7 +6,11 @@
           <h5 class="mb-0">Finalisierung / Artefakte</h5>
           <small class="text-muted">Finalen Bericht laden, PDF öffnen und Timeline aufrufen.</small>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="loadLatestFinalizedState">
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          :disabled="loading"
+          @click="loadLatestFinalizedState"
+        >
           Aktualisieren
         </button>
       </div>
@@ -33,7 +37,11 @@
           <div class="row g-3 mb-3">
             <div class="col-md-3">
               <div class="small text-muted">Status</div>
-              <div><span class="badge" :class="statusClass">{{ latestReport.status || 'unknown' }}</span></div>
+              <div>
+                <span class="badge" :class="statusClass">{{
+                  latestReport.status || 'unknown'
+                }}</span>
+              </div>
             </div>
             <div class="col-md-3">
               <div class="small text-muted">Version</div>
@@ -50,7 +58,13 @@
           </div>
 
           <div class="d-flex flex-wrap gap-2">
-            <a v-if="pdfViewUrl" class="btn btn-outline-dark btn-sm" :href="pdfViewUrl" target="_blank" rel="noopener">
+            <a
+              v-if="pdfViewUrl"
+              class="btn btn-outline-dark btn-sm"
+              :href="pdfViewUrl"
+              target="_blank"
+              rel="noopener"
+            >
               PDF öffnen
             </a>
             <a
@@ -73,7 +87,10 @@
             </a>
           </div>
 
-          <div v-if="!pdfViewUrl && !pdfDownloadUrl && !patientTimelineUrl" class="alert alert-warning mt-3 mb-0">
+          <div
+            v-if="!pdfViewUrl && !pdfDownloadUrl && !patientTimelineUrl"
+            class="alert alert-warning mt-3 mb-0"
+          >
             Es sind noch keine Artefakt-Links verfügbar.
           </div>
         </template>
@@ -81,7 +98,8 @@
     </div>
 
     <div class="alert alert-secondary mb-0">
-      Alternativ kann der Bericht im Editor unter <code>/reporting/&lt;id&gt;/report-editor</code> erneut gespeichert werden.
+      Alternativ kann der Bericht im Editor unter
+      <code>/reporting/&lt;id&gt;/report-editor</code> erneut gespeichert werden.
     </div>
   </div>
 </template>
@@ -94,14 +112,7 @@ import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { endpoints } from '@/types/api/endpoints'
 import { buildPdfStreamUrl } from '@/utils/mediaUrls'
 import { reportingApiErrorMessage } from './reportingError'
-
-type ReportListRow = {
-  id: number
-  status?: string | null
-  version?: number | null
-  createdAt?: string | null
-  updatedAt?: string | null
-}
+import { parseReportListPayload, type ReportListRow } from './reportListPayload'
 
 type ReportDetailRow = {
   id: number
@@ -145,12 +156,21 @@ const persistedArtifacts = computed(() => latestReportDetail.value?.persistedArt
 
 const reportDocumentType = computed<string | null>(() => {
   const fromArtifacts =
-    (persistedArtifacts.value as { documentType?: string | null; document_type?: string | null } | null)
-      ?.documentType ||
-    (persistedArtifacts.value as { documentType?: string | null; document_type?: string | null } | null)
-      ?.document_type
+    (
+      persistedArtifacts.value as {
+        documentType?: string | null
+        document_type?: string | null
+      } | null
+    )?.documentType ||
+    (
+      persistedArtifacts.value as {
+        documentType?: string | null
+        document_type?: string | null
+      } | null
+    )?.document_type
   if (typeof fromArtifacts === 'string' && fromArtifacts.trim().length > 0) return fromArtifacts
-  const fromDetail = latestReportDetail.value?.documentType || latestReportDetail.value?.document_type
+  const fromDetail =
+    latestReportDetail.value?.documentType || latestReportDetail.value?.document_type
   if (typeof fromDetail === 'string' && fromDetail.trim().length > 0) return fromDetail
   return null
 })
@@ -179,7 +199,7 @@ function withPatientExaminationFilter(url: string): string {
   if (!patientExaminationId.value) return url
   if (url.includes('patient_examination_id=')) return url
   const separator = url.includes('?') ? '&' : '?'
-  return `${url}${separator}patient_examination_id=${patientExaminationId.value}`
+  return `${url}${separator}patient_examination_id=${String(patientExaminationId.value)}`
 }
 
 const patientTimelineUrl = computed(() => {
@@ -187,7 +207,9 @@ const patientTimelineUrl = computed(() => {
     return withPatientExaminationFilter(persistedArtifacts.value.patientTimelineUrl)
   }
   if (flow.selectedPatientId) {
-    return withPatientExaminationFilter(`/${r(endpoints.media.patientTimeline(flow.selectedPatientId))}`)
+    return withPatientExaminationFilter(
+      `/${r(endpoints.media.patientTimeline(flow.selectedPatientId))}`
+    )
   }
   return null
 })
@@ -212,11 +234,10 @@ async function loadLatestFinalizedState() {
   latestReportDetail.value = null
 
   try {
-    const listRes = await axiosInstance.get(
+    const listRes = await axiosInstance.get<unknown>(
       r(endpoints.report.patientExaminationReportsByPatientExamination(patientExaminationId.value))
     )
-    const rows = (Array.isArray(listRes.data?.results) ? listRes.data.results : listRes.data) as ReportListRow[]
-    const items = Array.isArray(rows) ? rows : []
+    const items = parseReportListPayload(listRes.data)
     if (!items.length) {
       successMessage.value = 'Es ist noch kein Bericht vorhanden.'
       return
@@ -229,12 +250,9 @@ async function loadLatestFinalizedState() {
       r(endpoints.report.patientExaminationReportById(items[0].id))
     )
     latestReportDetail.value = (detailRes.data || null) as ReportDetailRow | null
-    successMessage.value = `Bericht #${items[0].id} geladen.`
+    successMessage.value = `Bericht #${String(items[0].id)} geladen.`
   } catch (e: unknown) {
-    errorMessage.value = reportingApiErrorMessage(
-      e,
-      'Fehler beim Laden der Finalisierungsdaten.'
-    )
+    errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden der Finalisierungsdaten.')
   } finally {
     loading.value = false
   }

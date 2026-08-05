@@ -5,7 +5,8 @@
         <div class="small text-uppercase text-muted fw-semibold">Patientenakte</div>
         <h1 class="h3 mb-1">Dokumente von {{ patientName }}</h1>
         <p class="text-muted mb-0">
-          Alle PDF-Dokumente, Textberichte und Videos – auch wiederholte Aufnahmen derselben Untersuchung.
+          Alle PDF-Dokumente, Textberichte und Videos – auch wiederholte Aufnahmen derselben
+          Untersuchung.
         </p>
       </div>
       <nav class="d-flex flex-wrap align-items-start gap-2" aria-label="Patientennavigation">
@@ -57,9 +58,9 @@
               </div>
             </div>
             <a
-              v-if="preferredStream(document)"
+              v-if="document.preferredStreamUrl"
               class="btn btn-outline-primary btn-sm align-self-start"
-              :href="preferredStream(document)!"
+              :href="document.preferredStreamUrl"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -93,11 +94,14 @@ const cases = ref<PatientCase[]>([])
 const patientName = computed(() => {
   const patient = timeline.value?.patient
   const name = [patient?.firstName, patient?.lastName].filter(Boolean).join(' ')
-  return name || `Patient #${props.patientId}`
+  return name || `Patient #${String(props.patientId)}`
 })
 
 const documents = computed(() =>
-  timeline.value?.results || []
+  (timeline.value?.results || []).map((document) => ({
+    ...document,
+    preferredStreamUrl: preferredStream(document)
+  }))
 )
 
 function preferredStream(document: PatientTimelineItem): string | null {
@@ -110,9 +114,9 @@ function documentTitle(document: PatientTimelineItem): string {
   if (document.documentType) return document.documentType
   if (document.mediaType === 'full_report') return 'Untersuchungsbericht'
   if (document.mediaType === 'video') {
-    return document.fileName?.split('/').pop() || `Video #${document.id}`
+    return document.fileName?.split('/').pop() || `Video #${String(document.id)}`
   }
-  return document.fileName?.split('/').pop() || `PDF #${document.id}`
+  return document.fileName?.split('/').pop() || `PDF #${String(document.id)}`
 }
 
 function caseLabel(document: PatientTimelineItem): string | null {

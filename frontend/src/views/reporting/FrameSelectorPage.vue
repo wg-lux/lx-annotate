@@ -243,7 +243,7 @@ type SegmentFrameItem = {
   startFrameNumber: number
   endFrameNumber: number
   segmentDurationSeconds?: number | null
-  selectedFrameNumber?: number | null
+  selectedFrameNumber: number | null | undefined
   selectedFrame?: {
     frameId?: number | null
     frameNumber?: number | null
@@ -269,7 +269,7 @@ type SegmentFrameItem = {
 
 type SegmentFrameSelectorState = {
   patientExaminationId: number
-  reportId: number
+  reportId: number | null | undefined
   reportStatus?: string
   reportTemplateName?: string
   autoCreatedReport?: boolean
@@ -340,7 +340,7 @@ function syncSelectionDefaults() {
   const seg = selectedSegment.value
   if (!seg) return
   manualFrameNumber.value =
-    seg.selectedFrameNumber ?? latest_frames.value[0]?.frameNumber ?? seg.startFrameNumber
+    seg.selectedFrameNumber ?? latest_frames.value.at(0)?.frameNumber ?? seg.startFrameNumber
   selectedFindingIdForSegment.value = seg.attachedFinding?.findingId ?? null
 }
 
@@ -355,9 +355,10 @@ async function loadFrameSelectorState() {
   clearMessages()
   try {
     const res = await axiosInstance.get(url)
-    frameSelectorState.value = res.data as SegmentFrameSelectorState
-    if (frameSelectorState.value?.reportId) {
-      flow.setActiveReportId(frameSelectorState.value.reportId)
+    const state = res.data as SegmentFrameSelectorState
+    frameSelectorState.value = state
+    if (state.reportId) {
+      flow.setActiveReportId(state.reportId)
     }
     syncSelectionDefaults()
     successMessage.value = 'Segment-Frame-Status geladen.'
@@ -401,9 +402,10 @@ async function patchSegmentAction(action: 'random' | 'step' | 'clear', step?: nu
   clearMessages()
   try {
     const res = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body)
-    frameSelectorState.value = res.data as SegmentFrameSelectorState
-    if (frameSelectorState.value?.reportId) {
-      flow.setActiveReportId(frameSelectorState.value.reportId)
+    const state = res.data as SegmentFrameSelectorState
+    frameSelectorState.value = state
+    if (state.reportId) {
+      flow.setActiveReportId(state.reportId)
     }
     syncSelectionDefaults()
     successMessage.value = 'Segment aktualisiert.'
@@ -435,9 +437,10 @@ async function setFrameManual() {
   clearMessages()
   try {
     const res = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body)
-    frameSelectorState.value = res.data as SegmentFrameSelectorState
-    if (frameSelectorState.value?.reportId) {
-      flow.setActiveReportId(frameSelectorState.value.reportId)
+    const state = res.data as SegmentFrameSelectorState
+    frameSelectorState.value = state
+    if (state.reportId) {
+      flow.setActiveReportId(state.reportId)
     }
     syncSelectionDefaults()
     successMessage.value = 'Frame manuell gesetzt.'

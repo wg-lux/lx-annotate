@@ -4,17 +4,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import CaseResolutionPage from '../CaseResolutionPage.vue'
 
+function requireDefined<T>(value: T | undefined, description: string): T {
+  if (value === undefined) throw new Error(`Expected ${description}.`)
+  return value
+}
+
 const hoisted = vi.hoisted(() => {
-  const createFixtureRef = <T>(name: string) => {
-    let fixture: T | undefined
-    return {
-      get current(): T {
-        if (fixture === undefined) throw new Error(`${name} fixture was not initialized.`)
-        return fixture
-      },
-      set current(value: T) {
-        fixture = value
+  class FixtureRef<T> {
+    private fixture: T | undefined
+
+    constructor(private readonly name: string) {}
+
+    get current(): T {
+      if (this.fixture === undefined) {
+        throw new Error(`${this.name} fixture was not initialized.`)
       }
+      return this.fixture
+    }
+
+    set current(value: T) {
+      this.fixture = value
     }
   }
 
@@ -24,13 +33,13 @@ const hoisted = vi.hoisted(() => {
         query: {}
       }
     },
-    flowRef: createFixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
-    patientStoreRef: createFixtureRef<PatientStoreStub>('patient store'),
-    examinationStoreRef: createFixtureRef<ExaminationStoreStub>('examination store'),
-    patientExaminationStoreRef: createFixtureRef<PatientExaminationStoreStub>(
+    flowRef: new FixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
+    patientStoreRef: new FixtureRef<PatientStoreStub>('patient store'),
+    examinationStoreRef: new FixtureRef<ExaminationStoreStub>('examination store'),
+    patientExaminationStoreRef: new FixtureRef<PatientExaminationStoreStub>(
       'patient examination store'
     ),
-    anonymizationStoreRef: createFixtureRef<AnonymizationStoreStub>('anonymization store'),
+    anonymizationStoreRef: new FixtureRef<AnonymizationStoreStub>('anonymization store'),
     axiosApi: {
       get: vi.fn(),
       post: vi.fn()
@@ -210,11 +219,17 @@ describe('CaseResolutionPage workflow linking', () => {
       selectedExaminationId: 13
     })
 
-    const setupLink = wrapper
-      .findAll('a')
-      .find((link) => link.text().includes('Im Fall-Setup Fallkontext starten'))
-    expect(setupLink).toBeTruthy()
-    expect(JSON.parse(setupLink!.attributes('data-to')!)).toEqual({
+    const setupLink = requireDefined(
+      wrapper
+        .findAll('a')
+        .find((link) => link.text().includes('Im Fall-Setup Fallkontext starten')),
+      'the case setup link'
+    )
+    const setupDestination = requireDefined(
+      setupLink.attributes('data-to'),
+      'the case setup destination'
+    )
+    expect(JSON.parse(setupDestination)).toEqual({
       path: '/reporting/case-setup',
       query: {
         returnTo: '/anonymisierung/validierung?fileId=5&mediaType=pdf',
@@ -222,19 +237,21 @@ describe('CaseResolutionPage workflow linking', () => {
       }
     })
 
-    const backLink = wrapper
-      .findAll('a')
-      .find((link) => link.text().includes('Zurück zur Validierung'))
-    expect(backLink).toBeTruthy()
-    expect(backLink!.attributes('data-to')).toBe(
+    const backLink = requireDefined(
+      wrapper.findAll('a').find((link) => link.text().includes('Zurück zur Validierung')),
+      'the validation return link'
+    )
+    expect(backLink.attributes('data-to')).toBe(
       '/anonymisierung/validierung?fileId=5&mediaType=pdf'
     )
 
-    const nextLink = wrapper
-      .findAll('a')
-      .find((link) => link.text().includes('Zur klinischen Dokumentation'))
-    expect(nextLink).toBeTruthy()
-    expect(nextLink!.attributes('data-to')).toBe('/reporting/314/findings')
+    const nextLink = requireDefined(
+      wrapper
+        .findAll('a')
+        .find((link) => link.text().includes('Zur klinischen Dokumentation')),
+      'the clinical documentation link'
+    )
+    expect(nextLink.attributes('data-to')).toBe('/reporting/314/findings')
   })
 
   it('resolves center names to center keys before creating a patient from metadata', async () => {
@@ -253,12 +270,14 @@ describe('CaseResolutionPage workflow linking', () => {
     const wrapper = mount(CaseResolutionPage)
     await flushPromises()
 
-    const createButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Patienten aus Metadaten anlegen'))
-    expect(createButton).toBeTruthy()
+    const createButton = requireDefined(
+      wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Patienten aus Metadaten anlegen')),
+      'the create-patient button'
+    )
 
-    await createButton!.trigger('click')
+    await createButton.trigger('click')
     await flushPromises()
 
     expect(hoisted.patientStoreRef.current.fetchCenters).toHaveBeenCalledTimes(1)

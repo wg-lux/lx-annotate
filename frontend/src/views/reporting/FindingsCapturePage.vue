@@ -535,6 +535,11 @@ function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
 }
 
+function stringListForKey(record: Record<string, string[]>, key: string): string[] {
+  const value: unknown = Reflect.get(record, key)
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+}
+
 function findingAnchorId(findingName: string): string {
   return `finding-${normalizeKey(findingName)}`
 }
@@ -547,9 +552,9 @@ function clearMessages() {
 function formatFindingsEvent(event: NonNullable<typeof flow.lastFindingsEvent>) {
   const time = new Date(event.at).toLocaleTimeString('de-DE')
   if (event.type === 'finding_added') {
-    return `${time}: Befund ${event.findingId} hinzugefügt`
+    return `${time}: Befund ${String(event.findingId)} hinzugefügt`
   }
-  return `${time}: Klassifikation ${event.classificationId} für Befund ${event.findingId} aktualisiert`
+  return `${time}: Klassifikation ${String(event.classificationId)} für Befund ${String(event.findingId)} aktualisiert`
 }
 
 function fieldKey(findingLocalId: string, classificationName: string): string {
@@ -595,7 +600,7 @@ function templateFindingForName(findingName: string): ReportTemplateFinding | nu
 function visibleClassificationsForFinding(findingName: string): FindingClassification[] {
   const definitions = allDefinitionClassificationsForFinding(findingName)
   const extraRequired =
-    backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []
+    stringListForKey(backendMissingClassificationsByFinding.value, normalizeKey(findingName))
   const byKey = new Map<string, FindingClassification>()
 
   for (const classification of definitions) {
@@ -692,7 +697,7 @@ function isClassificationRequired(findingName: string, classificationName: strin
       )?.required || false
 
   const fromValidation = (
-    backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []
+    stringListForKey(backendMissingClassificationsByFinding.value, normalizeKey(findingName))
   ).some((classification) => normalizeKey(classification) === normalizeKey(classificationName))
 
   return fromTemplate || fromValidation
@@ -794,7 +799,10 @@ function descriptorValue(
     classificationChoiceState(instance, classificationName)?.descriptors.find(
       (entry) => entry.classificationChoiceDescriptor === descriptorKey
     ) || null
-  return descriptor?.descriptorValue == null ? '' : String(descriptor.descriptorValue)
+  const value = descriptor?.descriptorValue
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : ''
 }
 
 function descriptorLabel(descriptorKey: string): string {
@@ -873,7 +881,10 @@ function hasFieldError(
       touchedFields.value[fieldKey(instance.localId || '', classificationName)])
 
   const hasBackendMissing =
-    (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some(
+    stringListForKey(
+      backendMissingClassificationsByFinding.value,
+      normalizeKey(findingName)
+    ).some(
       (classification) => normalizeKey(classification) === normalizeKey(classificationName)
     ) &&
     (showValidationFeedback.value ||
@@ -898,7 +909,10 @@ function fieldMessages(
   }
 
   if (
-    (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some(
+    stringListForKey(
+      backendMissingClassificationsByFinding.value,
+      normalizeKey(findingName)
+    ).some(
       (classification) => normalizeKey(classification) === normalizeKey(classificationName)
     )
   ) {
@@ -909,7 +923,7 @@ function fieldMessages(
 }
 
 function findingLevelMessages(findingName: string): string[] {
-  const messages = backendMessagesByFinding.value[normalizeKey(findingName)] || []
+  const messages = stringListForKey(backendMessagesByFinding.value, normalizeKey(findingName))
   return Array.from(new Set(messages.filter(Boolean)))
 }
 
@@ -924,7 +938,7 @@ async function refreshTemplatesForExamination() {
   if (!examName) return
   const templates = await fetchTemplatesByExamination(examName)
   if (templates.length) {
-    templateStatusMessage.value = `${templates.length} Template(s) fuer "${examName}" geladen.`
+    templateStatusMessage.value = `${String(templates.length)} Template(s) fuer "${examName}" geladen.`
   } else {
     templateStatusMessage.value = `Keine Templates fuer "${examName}" gefunden.`
   }
@@ -1063,7 +1077,6 @@ function scheduleRuntimeValidation() {
 function handleBeforeUnload(event: BeforeUnloadEvent) {
   if (!dirtySinceMount.value) return
   event.preventDefault()
-  event.returnValue = ''
 }
 
 watch(

@@ -293,6 +293,9 @@ import { usePatientStore, type Patient } from '@/stores/patientStore'
 import { patientService, type PatientFormData } from '@/api/patientService'
 import { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-edit-form')
 
 interface PatientDeletionInfo {
   examinations: number
@@ -391,6 +394,14 @@ const errors = reactive({
 const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
+const resolveRequiredPatientId = (): number => {
+  const patientId = props.patient.id
+  if (typeof patientId !== 'number' || !Number.isSafeInteger(patientId) || patientId <= 0) {
+    throw new Error('Kein Patient ausgewählt – patientId konnte nicht ermittelt werden.')
+  }
+  return patientId
+}
+
 const maxDate = computed(() => {
   const today = new Date()
   return today.toISOString().split('T')[0]
@@ -449,11 +460,14 @@ const handleSubmit = async () => {
     generalError.value = ''
 
     const patientData = patientService.formatPatientData(form)
-    const updatedPatient = await patientService.updatePatient(props.patient.id!, patientData)
+    const updatedPatient = await patientService.updatePatient(resolveRequiredPatientId(), patientData)
 
     emit('patient-updated', updatedPatient)
   } catch (err: unknown) {
-    console.error('Error updating patient:', err)
+    logger.error('update-failed', err, {
+      operation: 'update',
+      outcome: 'rejected'
+    })
 
     if (isAxiosError<PatientUpdateErrorPayload>(err) && err.response?.data) {
       // Handle validation errors from backend
@@ -484,13 +498,17 @@ const confirmDelete = async () => {
   try {
     deleting.value = true
     
-    await patientService.deletePatient(props.patient.id!)
+    const patientId = resolveRequiredPatientId()
+    await patientService.deletePatient(patientId)
     
-    emit('patient-deleted', props.patient.id!)
+    emit('patient-deleted', patientId)
     showDeleteModal.value = false
     
   } catch (err: unknown) {
-    console.error('Error deleting patient:', err)
+    logger.error('delete-failed', err, {
+      operation: 'delete',
+      outcome: 'rejected'
+    })
     generalError.value =
       err instanceof Error && err.message ? err.message : 'Fehler beim Löschen des Patienten'
     showDeleteModal.value = false
@@ -502,18 +520,30 @@ const confirmDelete = async () => {
 const loadDeletionInfo = async () => {
   try {
     // This would call the safety check endpoint to get deletion impact
-    const response = await fetch(r(endpoints.patient.patientDeletionSafety(props.patient.id!)))
-    if (response.ok) {
-      deletionInfo.value = parseDeletionInfo(await response.json())
+    const response = await fetch(r(endpoints.patient.patientDeletionSafety(resolveRequiredPatientId())))
+    if (!response.ok) {
+      throw new Error(`Löschprüfung fehlgeschlagen (HTTP ${String(response.status)}).`)
     }
-  } catch (error) {
-    console.error('Error loading deletion info:', error)
+    const parsedDeletionInfo = parseDeletionInfo(await response.json())
+    if (parsedDeletionInfo === null) {
+      throw new Error('Löschprüfung lieferte ungültige Daten.')
+    }
+    deletionInfo.value = parsedDeletionInfo
+  } catch (error: unknown) {
+    logger.error('deletion-impact-load-failed', error, {
+      operation: 'check',
+      outcome: 'rejected'
+    })
+    generalError.value =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Auswirkungen der Löschung konnten nicht geladen werden.'
   }
 }
 
 // Lifecycle
-onMounted(() => {
-  loadDeletionInfo()
+onMounted(async () => {
+  await loadDeletionInfo()
 })
 </script>
 

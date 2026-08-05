@@ -84,17 +84,7 @@ import { computed, onMounted, ref } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import { reportingApiErrorMessage } from './reportingError'
-
-type ReportListRow = {
-  id: number
-  status?: string | null
-  version?: number | null
-  updatedAt?: string | null
-  createdAt?: string | null
-  patientExaminationId?: number | null
-  patientExamination?: number | { id?: number } | null
-  patientExaminationFk?: number | null
-}
+import { parseReportListPayload, type ReportListRow } from './reportListPayload'
 
 const items = ref<ReportListRow[]>([])
 const loading = ref(false)
@@ -135,9 +125,8 @@ async function loadReports() {
   loading.value = true
   errorMessage.value = null
   try {
-    const res = await axiosInstance.get(r(endpoints.report.patientExaminationReports))
-    const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as ReportListRow[]
-    items.value = Array.isArray(rows) ? rows : []
+    const res = await axiosInstance.get<unknown>(r(endpoints.report.patientExaminationReports))
+    items.value = parseReportListPayload(res.data)
   } catch (e: unknown) {
     errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden der Arbeitsliste.')
   } finally {

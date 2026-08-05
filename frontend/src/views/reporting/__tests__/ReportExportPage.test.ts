@@ -1,7 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
 import { makeReport } from '@/api/reportExportApi'
 import ReportExportPage from '../ReportExportPage.vue'
 
@@ -27,9 +26,11 @@ const hoisted = vi.hoisted(() => ({
   }
 }))
 
+const axiosGet = vi.hoisted(() => vi.fn())
+
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: vi.fn()
+    get: axiosGet
   },
   r: (path: string) => `api/${path}`
 }))
@@ -75,7 +76,7 @@ describe('ReportExportPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     hoisted.flow.currentRuntimeDraft.verificationStatus = 'verified'
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    axiosGet.mockResolvedValue({
       data: [{ id: 88, status: 'draft', version: 3 }]
     })
     vi.mocked(makeReport).mockResolvedValue({

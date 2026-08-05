@@ -136,6 +136,40 @@ describe('patient resource pages', () => {
     expect(wrapper.text()).toContain('Fall case-repeat')
   })
 
+  it('renders timeline entries safely when the backend omits stream options', async () => {
+    mocks.fetchTimeline.mockResolvedValue({
+      patient: {
+        id: 7,
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        dob: null,
+        isRealPerson: true,
+        patientHash: null
+      },
+      count: 1,
+      results: [
+        {
+          mediaType: 'pdf',
+          id: 1,
+          timestamp: '2026-07-01T10:00:00Z',
+          examinationDate: '2026-07-01',
+          documentType: 'Arztbrief',
+          fileName: 'report.pdf',
+          patientExaminationId: 11
+        }
+      ]
+    })
+
+    const wrapper = mount(PatientDocumentsPage, {
+      props: { patientId: 7 },
+      global: { stubs: { RouterLink: RouterLinkStub } }
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="patient-document"]').text()).toContain('Arztbrief')
+    expect(wrapper.find('a[target="_blank"]').exists()).toBe(false)
+  })
+
   it('offers patient-scoped links from the selected patient details', () => {
     const wrapper = mount(PatientDetailView, {
       props: {

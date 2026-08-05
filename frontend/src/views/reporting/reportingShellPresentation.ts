@@ -120,7 +120,9 @@ export const normalizePatientExaminationOption = (
   const dateLabel = dateStartRaw ? new Date(dateStartRaw).toLocaleDateString('de-DE') : ''
   return {
     id,
-    label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
+    label: dateLabel
+      ? `#${String(id)} · ${examinationName} · ${dateLabel}`
+      : `#${String(id)} · ${examinationName}`,
     examinationName,
     patientId: toPositiveInteger(
       patient.id ?? patientData.id ?? camelPatientData.id ?? row.patient_id ?? row.patientId

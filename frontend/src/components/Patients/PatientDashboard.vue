@@ -154,6 +154,9 @@ import { usePatientStore, type Patient } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
 import PatientCreateForm from './PatientCreateForm.vue'
 import PatientDetailView from './PatientDetailView.vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-dashboard')
 
 // Composables
 const patientStore = usePatientStore()
@@ -176,8 +179,8 @@ const filteredPatients = computed(() => {
   
   const term = searchTerm.value.toLowerCase()
   return patients.value.filter(patient => 
-    patient.firstName?.toLowerCase().includes(term) ||
-    patient.lastName?.toLowerCase().includes(term) ||
+    patient.firstName.toLowerCase().includes(term) ||
+    patient.lastName.toLowerCase().includes(term) ||
     patient.email?.toLowerCase().includes(term) ||
     `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(term)
   )
@@ -197,7 +200,10 @@ const loadData = async () => {
   } catch (err: unknown) {
     error.value =
       err instanceof Error && err.message ? err.message : 'Fehler beim Laden der Daten'
-    console.error('Error loading dashboard data:', err)
+    logger.error('dashboard-load-failed', err, {
+      operation: 'load',
+      outcome: 'rejected'
+    })
   } finally {
     loading.value = false
   }
@@ -208,21 +214,15 @@ const loadPatients = async () => {
   patientStore.patients = patientsData
 }
 const loadLookupData = async () => {
-  try {
-    // Load genders and centers if not already loaded
-    if (genders.value.length === 0) {
-      const gendersData = await patientService.getGenders()
-      patientStore.genders = gendersData
-    }
-    
-    if (centers.value.length === 0) {
-      const centersData = await patientService.getCenters()
-      patientStore.centers = centersData
-    }
-  } catch (error) {
-    console.error('Error loading lookup data:', error)
-    // Either re-throw to show error to user or implement fallback
-    // throw new Error('Fehler beim Laden der Nachschlagedaten')
+  // Lookup failures propagate to loadData so the dashboard's visible error state owns them.
+  if (genders.value.length === 0) {
+    const gendersData = await patientService.getGenders()
+    patientStore.genders = gendersData
+  }
+
+  if (centers.value.length === 0) {
+    const centersData = await patientService.getCenters()
+    patientStore.centers = centersData
   }
 }
 
@@ -302,8 +302,8 @@ const getCenterName = (centerValue?: string | null) => {
 }
 
 // Lifecycle
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadData()
 })
 </script>
 

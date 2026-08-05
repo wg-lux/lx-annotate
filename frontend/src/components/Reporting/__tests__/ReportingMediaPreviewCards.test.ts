@@ -75,11 +75,11 @@ describe('ReportingMediaPreviewCards', () => {
 
     buildPdfStreamUrl.mockImplementation(
       (fileId: number, type: 'raw' | 'processed') =>
-        `/rebuilt/pdfs/${fileId}/${type}`
+        `/rebuilt/pdfs/${String(fileId)}/${type}`
     )
     buildVideoStreamUrl.mockImplementation(
       (fileId: number, type: 'raw' | 'processed') =>
-        `/rebuilt/videos/${fileId}/${type}`
+        `/rebuilt/videos/${String(fileId)}/${type}`
     )
   })
 

@@ -148,6 +148,27 @@ describe('FrameSelectorPage', () => {
     )
   })
 
+  it('does not replace the active report when the selector response omits its report id', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        ...buildFrameSelectorState(),
+        reportId: undefined
+      }
+    })
+
+    const wrapper = mount(FrameSelectorPage, {
+      global: {
+        stubs: {
+          LookupStatusPanel: true
+        }
+      }
+    })
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.setActiveReportId).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Antrum')
+  })
+
   it('patches segment actions and manual frame selection through the reporting route', async () => {
     hoisted.get.mockResolvedValue({ data: buildFrameSelectorState() })
     hoisted.patch.mockResolvedValueOnce({ data: buildFrameSelectorState() }).mockResolvedValueOnce({

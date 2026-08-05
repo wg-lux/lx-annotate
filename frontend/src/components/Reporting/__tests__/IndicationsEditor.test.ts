@@ -55,9 +55,11 @@ describe('IndicationsEditor', () => {
     const refreshButton = wrapper
       .findAll('button')
       .find((button) => button.text().includes('Optionen laden'))
-    expect(refreshButton).toBeTruthy()
+    if (!refreshButton) {
+      throw new Error('Expected the options refresh button to be rendered.')
+    }
 
-    await refreshButton!.trigger('click')
+    await refreshButton.trigger('click')
     expect(wrapper.emitted('refresh-options')).toHaveLength(1)
   })
 })

@@ -1,4 +1,4 @@
-import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub, type DOMWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import router from '@/router'
@@ -22,6 +22,14 @@ function toPathValue(target: unknown): string | null {
   if (!target || typeof target !== 'object') return null
   const path = (target as { path?: unknown }).path
   return typeof path === 'string' ? path : null
+}
+
+function getNodeByText(nodes: DOMWrapper<Element>[], text: string): DOMWrapper<Element> {
+  const node = nodes.find((candidate) => candidate.text().includes(text))
+  if (!node) {
+    throw new Error(`Expected rendered node containing "${text}".`)
+  }
+  return node
 }
 
 async function getRouteImportError(path: string): Promise<string | null> {
@@ -152,17 +160,17 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
-    const reportingLink = wrapper
-      .findAll('.nav-link')
-      .find((node) => node.text().includes('Befundung: Übersicht'))
-    expect(reportingLink).toBeTruthy()
-    expect(reportingLink!.classes()).toContain('active')
+    const reportingLink = getNodeByText(
+      wrapper.findAll('.nav-link'),
+      'Befundung: Übersicht'
+    )
+    expect(reportingLink.classes()).toContain('active')
 
-    const caseSetupLink = wrapper
-      .findAll('.nav-link')
-      .find((node) => node.text().includes('3. Befundung starten'))
-    expect(caseSetupLink).toBeTruthy()
-    expect(caseSetupLink!.classes()).not.toContain('active')
+    const caseSetupLink = getNodeByText(
+      wrapper.findAll('.nav-link'),
+      '3. Befundung starten'
+    )
+    expect(caseSetupLink.classes()).not.toContain('active')
 
     wrapper.unmount()
   })
@@ -186,17 +194,17 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
-    const caseSetupLink = wrapper
-      .findAll('.nav-link')
-      .find((node) => node.text().includes('3. Befundung starten'))
-    expect(caseSetupLink).toBeTruthy()
-    expect(caseSetupLink!.classes()).toContain('active')
+    const caseSetupLink = getNodeByText(
+      wrapper.findAll('.nav-link'),
+      '3. Befundung starten'
+    )
+    expect(caseSetupLink.classes()).toContain('active')
 
-    const reportingLink = wrapper
-      .findAll('.nav-link')
-      .find((node) => node.text().includes('Befundung: Übersicht'))
-    expect(reportingLink).toBeTruthy()
-    expect(reportingLink!.classes()).toContain('active')
+    const reportingLink = getNodeByText(
+      wrapper.findAll('.nav-link'),
+      'Befundung: Übersicht'
+    )
+    expect(reportingLink.classes()).toContain('active')
 
     wrapper.unmount()
   })
@@ -220,11 +228,11 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
-    const metricsLink = wrapper
-      .findAll('.nav-link')
-      .find((node) => node.text().includes('Anonymisierungsmetriken'))
-    expect(metricsLink).toBeTruthy()
-    expect(metricsLink!.classes()).toContain('active')
+    const metricsLink = getNodeByText(
+      wrapper.findAll('.nav-link'),
+      'Anonymisierungsmetriken'
+    )
+    expect(metricsLink.classes()).toContain('active')
 
     wrapper.unmount()
   })
@@ -248,11 +256,11 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
-    const evaluationLink = wrapper
-      .findAll('.nav-link')
-      .find((node) => node.text().includes('Anonymisierungsevaluation'))
-    expect(evaluationLink).toBeTruthy()
-    expect(evaluationLink!.classes()).toContain('active')
+    const evaluationLink = getNodeByText(
+      wrapper.findAll('.nav-link'),
+      'Anonymisierungsevaluation'
+    )
+    expect(evaluationLink.classes()).toContain('active')
 
     wrapper.unmount()
   })

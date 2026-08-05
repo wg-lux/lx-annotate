@@ -9,7 +9,11 @@
           </small>
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" :disabled="catalogLoading" @click="reloadWorkspace">
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="catalogLoading"
+            @click="reloadWorkspace"
+          >
             Arbeitsbereich neu laden
           </button>
           <button class="btn btn-success btn-sm" :disabled="saving" @click="showSavePrompt = true">
@@ -17,7 +21,12 @@
           </button>
           <button
             class="btn btn-outline-success btn-sm"
-            :disabled="lifecycleLoading || !templateName || !builderReadiness?.canPublish || lifecycleStatus === 'published'"
+            :disabled="
+              lifecycleLoading ||
+              !templateName ||
+              !builderReadiness?.canPublish ||
+              lifecycleStatus === 'published'
+            "
             @click="publishTemplate"
           >
             Veröffentlichen
@@ -63,7 +72,11 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label">Gespeicherte Vorlage</label>
-                <select v-model="templateName" class="form-select" :disabled="templatesLoading || !templateOptions.length">
+                <select
+                  v-model="templateName"
+                  class="form-select"
+                  :disabled="templatesLoading || !templateOptions.length"
+                >
                   <option value="" disabled>Vorlage wählen</option>
                   <option v-for="item in templateOptions" :key="item.name" :value="item.name">
                     {{ item.name }}
@@ -71,10 +84,18 @@
                 </select>
               </div>
               <div class="col-12 d-flex flex-wrap gap-2">
-                <button class="btn btn-outline-primary btn-sm" :disabled="templatesLoading || !examination" @click="refreshTemplateOptions">
+                <button
+                  class="btn btn-outline-primary btn-sm"
+                  :disabled="templatesLoading || !examination"
+                  @click="refreshTemplateOptions"
+                >
                   Templates laden
                 </button>
-                <button class="btn btn-primary btn-sm" :disabled="templateLoading || !templateName" @click="loadSelectedTemplate">
+                <button
+                  class="btn btn-primary btn-sm"
+                  :disabled="templateLoading || !templateName"
+                  @click="loadSelectedTemplate"
+                >
                   Template laden
                 </button>
                 <button
@@ -97,8 +118,7 @@
             <div class="mt-4">
               <h6 class="text-uppercase text-muted small mb-2">Verfügbare Inhalte</h6>
               <div class="small text-muted">
-                {{ examinationOptions.length }} Untersuchungen,
-                {{ findingOptions.length }} Befunde,
+                {{ examinationOptions.length }} Untersuchungen, {{ findingOptions.length }} Befunde,
                 {{ classificationOptions.length }} Klassifikationen
               </div>
             </div>
@@ -114,7 +134,11 @@
                 </span>
               </div>
               <ul class="list-group list-group-flush small">
-                <li v-for="section in selectedTemplate.reportSections" :key="section.name" class="list-group-item px-0">
+                <li
+                  v-for="section in selectedTemplate.reportSections"
+                  :key="section.name"
+                  class="list-group-item px-0"
+                >
                   <div class="d-flex justify-content-between gap-2">
                     <span>{{ section.position }}. {{ section.name }}</span>
                     <span class="text-muted">{{ section.findings.length }} Befunde</span>
@@ -128,7 +152,10 @@
               <div class="mt-3 border rounded p-2 small" data-testid="template-readiness">
                 <div class="d-flex justify-content-between align-items-center">
                   <strong>Readiness</strong>
-                  <span class="badge" :class="builderReadiness?.canPublish ? 'text-bg-success' : 'text-bg-warning'">
+                  <span
+                    class="badge"
+                    :class="builderReadiness?.canPublish ? 'text-bg-success' : 'text-bg-warning'"
+                  >
                     {{ builderReadiness?.canPublish ? 'bereit zur Veröffentlichung' : 'offen' }}
                   </span>
                 </div>
@@ -147,10 +174,14 @@
 
       <div class="col-xl-7">
         <div class="card shadow-sm h-100">
-          <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div
+            class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+          >
             <div>
               <h6 class="mb-0">Laufende Prüfung</h6>
-              <small class="text-muted">Prüft die aktuelle Eingabe gegen die ausgewählte Vorlage.</small>
+              <small class="text-muted"
+                >Prüft die aktuelle Eingabe gegen die ausgewählte Vorlage.</small
+              >
             </div>
             <button
               class="btn btn-success btn-sm"
@@ -168,7 +199,11 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label">Vorlagenversion</label>
-                <input v-model="runtimeKnowledgeBaseVersion" class="form-control" placeholder="optional" />
+                <input
+                  v-model="runtimeKnowledgeBaseVersion"
+                  class="form-control"
+                  placeholder="optional"
+                />
               </div>
               <div class="col-12">
                 <label class="form-label">Untersuchende</label>
@@ -182,24 +217,35 @@
 
             <div class="mt-4 d-flex justify-content-between align-items-center">
               <h6 class="mb-0">Patientenbefunde</h6>
-              <button class="btn btn-outline-secondary btn-sm" @click="addRuntimeFinding">Befund hinzufügen</button>
+              <button class="btn btn-outline-secondary btn-sm" @click="addRuntimeFinding">
+                Befund hinzufügen
+              </button>
             </div>
 
             <div v-if="!runtimeFindings.length" class="text-muted small mt-2">
               Noch keine Befunde für die Prüfung erfasst.
             </div>
 
-            <div v-for="(finding, findingIndex) in runtimeFindings" :key="finding.id" class="border rounded p-3 mt-3">
+            <div
+              v-for="(finding, findingIndex) in runtimeFindings"
+              :key="finding.id"
+              class="border rounded p-3 mt-3"
+            >
               <div class="row g-3">
                 <div class="col-md-8">
                   <label class="form-label form-label-sm">Befund</label>
                   <select v-model="finding.finding" class="form-select form-select-sm">
                     <option value="" disabled>Befund wählen</option>
-                    <option v-for="item in findingOptions" :key="item" :value="item">{{ item }}</option>
+                    <option v-for="item in findingOptions" :key="item" :value="item">
+                      {{ item }}
+                    </option>
                   </select>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
-                  <button class="btn btn-outline-danger btn-sm w-100" @click="removeRuntimeFinding(findingIndex)">
+                  <button
+                    class="btn btn-outline-danger btn-sm w-100"
+                    @click="removeRuntimeFinding(findingIndex)"
+                  >
                     Entfernen
                   </button>
                 </div>
@@ -208,7 +254,10 @@
               <div class="mt-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <h6 class="text-uppercase text-muted small mb-0">Klassifikationswerte</h6>
-                  <button class="btn btn-outline-secondary btn-sm" @click="addRuntimeClassificationChoice(findingIndex)">
+                  <button
+                    class="btn btn-outline-secondary btn-sm"
+                    @click="addRuntimeClassificationChoice(findingIndex)"
+                  >
                     Wert hinzufügen
                   </button>
                 </div>
@@ -222,23 +271,40 @@
                     <label class="form-label form-label-sm">Klassifikation</label>
                     <select v-model="choice.classification" class="form-select form-select-sm">
                       <option value="" disabled>Klassifikation waehlen</option>
-                      <option v-for="item in classificationOptions" :key="item" :value="item">{{ item }}</option>
+                      <option v-for="item in classificationOptions" :key="item" :value="item">
+                        {{ item }}
+                      </option>
                     </select>
                   </div>
                   <div class="col-md-3">
                     <label class="form-label form-label-sm">Wertname</label>
-                    <input v-model="choice.classificationChoice" class="form-control form-control-sm" placeholder="z. B. Größe_mm" />
+                    <input
+                      v-model="choice.classificationChoice"
+                      class="form-control form-control-sm"
+                      placeholder="z. B. Größe_mm"
+                    />
                   </div>
                   <div class="col-md-2">
                     <label class="form-label form-label-sm">Zusatzfeld</label>
-                    <input v-model="choice.descriptorName" class="form-control form-control-sm" placeholder="optional" />
+                    <input
+                      v-model="choice.descriptorName"
+                      class="form-control form-control-sm"
+                      placeholder="optional"
+                    />
                   </div>
                   <div class="col-md-2">
                     <label class="form-label form-label-sm">Wert</label>
-                    <input v-model="choice.descriptorValue" class="form-control form-control-sm" placeholder="optional" />
+                    <input
+                      v-model="choice.descriptorValue"
+                      class="form-control form-control-sm"
+                      placeholder="optional"
+                    />
                   </div>
                   <div class="col-md-1 d-flex align-items-end">
-                    <button class="btn btn-outline-danger btn-sm w-100" @click="removeRuntimeClassificationChoice(findingIndex, choiceIndex)">
+                    <button
+                      class="btn btn-outline-danger btn-sm w-100"
+                      @click="removeRuntimeClassificationChoice(findingIndex, choiceIndex)"
+                    >
                       ×
                     </button>
                   </div>
@@ -262,12 +328,15 @@
             <h6 class="mb-0">Strukturvalidierung</h6>
           </div>
           <div class="card-body">
-              <div v-if="!definitionValidationResult" class="text-muted small">
+            <div v-if="!definitionValidationResult" class="text-muted small">
               Noch keine Strukturprüfung ausgeführt.
             </div>
             <template v-else>
               <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="badge" :class="definitionValidationResult.ok ? 'text-bg-success' : 'text-bg-danger'">
+                <span
+                  class="badge"
+                  :class="definitionValidationResult.ok ? 'text-bg-success' : 'text-bg-danger'"
+                >
                   {{ definitionValidationResult.ok ? 'OK' : 'Fehler' }}
                 </span>
                 <small class="text-muted">
@@ -279,10 +348,17 @@
                 Keine Strukturprobleme gemeldet.
               </div>
               <ul v-else class="list-group list-group-flush small">
-                <li v-for="(issue, index) in definitionValidationResult.issues" :key="`def-issue-${index}`" class="list-group-item px-0">
+                <li
+                  v-for="(issue, index) in definitionValidationResult.issues"
+                  :key="`def-issue-${index}`"
+                  class="list-group-item px-0"
+                >
                   <div class="d-flex justify-content-between gap-2">
                     <span>{{ issue.message }}</span>
-                    <span class="badge" :class="issue.level === 'warning' ? 'text-bg-warning' : 'text-bg-danger'">
+                    <span
+                      class="badge"
+                      :class="issue.level === 'warning' ? 'text-bg-warning' : 'text-bg-danger'"
+                    >
                       {{ issue.level === 'warning' ? 'Warnung' : 'Fehler' }}
                     </span>
                   </div>
@@ -297,7 +373,7 @@
       <div class="col-xl-7">
         <div class="card shadow-sm h-100">
           <div class="card-header">
-              <h6 class="mb-0">Ergebnis der Eingabeprüfung</h6>
+            <h6 class="mb-0">Ergebnis der Eingabeprüfung</h6>
           </div>
           <div class="card-body">
             <div v-if="!runtimeValidationResult" class="text-muted small">
@@ -305,7 +381,10 @@
             </div>
             <template v-else>
               <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-                <span class="badge" :class="runtimeValidationResult.ok ? 'text-bg-success' : 'text-bg-danger'">
+                <span
+                  class="badge"
+                  :class="runtimeValidationResult.ok ? 'text-bg-success' : 'text-bg-danger'"
+                >
                   {{ runtimeValidationResult.ok ? 'Validiert' : 'Fehlgeschlagen' }}
                 </span>
                 <span class="text-muted small">
@@ -316,15 +395,28 @@
               <div v-if="runtimeValidationResult.issues.length" class="mb-3">
                 <h6 class="text-uppercase text-muted small mb-2">Hinweise</h6>
                 <ul class="list-group list-group-flush small">
-                  <li v-for="(issue, index) in runtimeValidationResult.issues" :key="`rt-issue-${index}`" class="list-group-item px-0">
+                  <li
+                    v-for="(issue, index) in runtimeValidationResult.issues"
+                    :key="`rt-issue-${index}`"
+                    class="list-group-item px-0"
+                  >
                     <div class="d-flex justify-content-between gap-2">
                       <span>{{ issue.message }}</span>
-                      <span class="badge" :class="issue.level === 'warning' ? 'text-bg-warning' : 'text-bg-danger'">
+                      <span
+                        class="badge"
+                        :class="issue.level === 'warning' ? 'text-bg-warning' : 'text-bg-danger'"
+                      >
                         {{ issue.code }}
                       </span>
                     </div>
                     <div v-if="issue.validatorName" class="text-muted">
-                      {{ issue.validatorKind === 'template' ? 'Vorlage' : issue.validatorKind === 'examination_validator' ? 'Untersuchungsregel' : 'Befundregel' }}: {{ issue.validatorName }}
+                      {{
+                        issue.validatorKind === 'template'
+                          ? 'Vorlage'
+                          : issue.validatorKind === 'examination_validator'
+                            ? 'Untersuchungsregel'
+                            : 'Befundregel'
+                      }}: {{ issue.validatorName }}
                     </div>
                   </li>
                 </ul>
@@ -333,7 +425,10 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <h6 class="text-uppercase text-muted small mb-2">Befundregeln</h6>
-                  <div v-if="!runtimeValidationResult.findingsValidators.length" class="text-muted small">
+                  <div
+                    v-if="!runtimeValidationResult.findingsValidators.length"
+                    class="text-muted small"
+                  >
                     Keine Befundregeln ausgewertet.
                   </div>
                   <div
@@ -343,22 +438,30 @@
                   >
                     <div class="d-flex justify-content-between gap-2">
                       <strong>{{ validator.name }}</strong>
-                      <span class="badge" :class="validator.ok ? 'text-bg-success' : 'text-bg-danger'">
+                      <span
+                        class="badge"
+                        :class="validator.ok ? 'text-bg-success' : 'text-bg-danger'"
+                      >
                         {{ validator.ok ? 'OK' : 'Fehler' }}
                       </span>
                     </div>
                     <div class="text-muted">
-                      {{ validator.finding }} · {{ validator.operator }} · Treffer {{ validator.matchedOccurrences }}
+                      {{ validator.finding }} · {{ validator.operator }} · Treffer
+                      {{ validator.matchedOccurrences }}
                     </div>
                     <div v-if="validator.missingRequiredClassifications.length" class="text-danger">
-                      Fehlende Klassifikationen: {{ validator.missingRequiredClassifications.join(', ') }}
+                      Fehlende Klassifikationen:
+                      {{ validator.missingRequiredClassifications.join(', ') }}
                     </div>
                   </div>
                 </div>
 
                 <div class="col-md-6">
                   <h6 class="text-uppercase text-muted small mb-2">Untersuchungsregeln</h6>
-                  <div v-if="!runtimeValidationResult.examinationValidators.length" class="text-muted small">
+                  <div
+                    v-if="!runtimeValidationResult.examinationValidators.length"
+                    class="text-muted small"
+                  >
                     Keine Untersuchungsregeln ausgewertet.
                   </div>
                   <div
@@ -368,7 +471,10 @@
                   >
                     <div class="d-flex justify-content-between gap-2">
                       <strong>{{ validator.name }}</strong>
-                      <span class="badge" :class="validator.ok ? 'text-bg-success' : 'text-bg-danger'">
+                      <span
+                        class="badge"
+                        :class="validator.ok ? 'text-bg-success' : 'text-bg-danger'"
+                      >
                         {{ validator.ok ? 'OK' : 'Fehler' }}
                       </span>
                     </div>
@@ -389,21 +495,30 @@
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
           <h6 class="mb-0">Vorlage bearbeiten</h6>
-          <small class="text-muted">Hier können Aufbau, Sektionen und Regeln einer Berichtsvorlage bearbeitet werden.</small>
+          <small class="text-muted"
+            >Hier können Aufbau, Sektionen und Regeln einer Berichtsvorlage bearbeitet
+            werden.</small
+          >
         </div>
-        <div class="small text-muted">
-          {{ sections.length }} Sektion(en)
-        </div>
+        <div class="small text-muted">{{ sections.length }} Sektion(en)</div>
       </div>
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-4">
-              <label class="form-label">Vorlagenname</label>
-            <input v-model="templateName" class="form-control" placeholder="z. B. colonoscopy_clinic_standard" />
+            <label class="form-label">Vorlagenname</label>
+            <input
+              v-model="templateName"
+              class="form-control"
+              placeholder="z. B. colonoscopy_clinic_standard"
+            />
           </div>
           <div class="col-md-4">
-              <label class="form-label">Dateiname</label>
-            <input v-model="fileName" class="form-control" placeholder="z. B. clinic_colonoscopy_template_v1" />
+            <label class="form-label">Dateiname</label>
+            <input
+              v-model="fileName"
+              class="form-control"
+              placeholder="z. B. clinic_colonoscopy_template_v1"
+            />
           </div>
           <div class="col-md-4">
             <label class="form-label">Beschreibung</label>
@@ -422,7 +537,11 @@
                 </option>
               </select>
             </div>
-            <button class="btn btn-outline-primary btn-sm" :disabled="!pendingSectionType" @click="addSection">
+            <button
+              class="btn btn-outline-primary btn-sm"
+              :disabled="!pendingSectionType"
+              @click="addSection"
+            >
               Sektion hinzufügen
             </button>
           </div>
@@ -432,14 +551,22 @@
           Noch keine Sektionen angelegt.
         </div>
 
-        <div v-for="(section, sectionIndex) in sections" :key="section.id" class="border rounded p-3 mt-3">
+        <div
+          v-for="(section, sectionIndex) in sections"
+          :key="section.id"
+          class="border rounded p-3 mt-3"
+        >
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
             <div>
               <strong>{{ sectionTitle(section) }}</strong>
               <div class="small text-muted">{{ sectionExampleLabel(section) }}</div>
             </div>
             <div class="d-flex gap-2">
-              <button class="btn btn-outline-secondary btn-sm" :disabled="sectionIndex === 0" @click="moveSection(sectionIndex, -1)">
+              <button
+                class="btn btn-outline-secondary btn-sm"
+                :disabled="sectionIndex === 0"
+                @click="moveSection(sectionIndex, -1)"
+              >
                 Hoch
               </button>
               <button
@@ -449,7 +576,9 @@
               >
                 Runter
               </button>
-              <button class="btn btn-outline-danger btn-sm" @click="removeSection(section.id)">Entfernen</button>
+              <button class="btn btn-outline-danger btn-sm" @click="removeSection(section.id)">
+                Entfernen
+              </button>
             </div>
           </div>
 
@@ -477,7 +606,10 @@
             <div class="mt-4">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Patientenfelder</h6>
-                <button class="btn btn-outline-secondary btn-sm" @click="addPatientField(section.id)">
+                <button
+                  class="btn btn-outline-secondary btn-sm"
+                  @click="addPatientField(section.id)"
+                >
                   Feld hinzufügen
                 </button>
               </div>
@@ -528,7 +660,9 @@
                     <label class="form-label form-label-sm">Befund</label>
                     <select v-model="finding.finding" class="form-select form-select-sm">
                       <option value="" disabled>Befund wählen</option>
-                      <option v-for="item in findingOptions" :key="item" :value="item">{{ item }}</option>
+                      <option v-for="item in findingOptions" :key="item" :value="item">
+                        {{ item }}
+                      </option>
                     </select>
                   </div>
                   <div class="col-md-3">
@@ -546,7 +680,10 @@
                     </select>
                   </div>
                   <div class="col-md-2 d-flex align-items-end">
-                    <button class="btn btn-outline-danger btn-sm w-100" @click="removeFinding(section.id, findingIndex)">
+                    <button
+                      class="btn btn-outline-danger btn-sm w-100"
+                      @click="removeFinding(section.id, findingIndex)"
+                    >
                       Entfernen
                     </button>
                   </div>
@@ -555,9 +692,12 @@
                 <div class="mt-3">
                   <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0 small text-uppercase text-muted">Klassifikationen</h6>
-                  <button class="btn btn-outline-secondary btn-sm" @click="addClassification(section.id, findingIndex)">
+                    <button
+                      class="btn btn-outline-secondary btn-sm"
+                      @click="addClassification(section.id, findingIndex)"
+                    >
                       Klassifikation hinzufügen
-                  </button>
+                    </button>
                   </div>
 
                   <div
@@ -567,9 +707,14 @@
                   >
                     <div class="col-md-8">
                       <label class="form-label form-label-sm">Klassifikation</label>
-                      <select v-model="classification.classification" class="form-select form-select-sm">
+                      <select
+                        v-model="classification.classification"
+                        class="form-select form-select-sm"
+                      >
                         <option value="" disabled>Klassifikation waehlen</option>
-                        <option v-for="item in classificationOptions" :key="item" :value="item">{{ item }}</option>
+                        <option v-for="item in classificationOptions" :key="item" :value="item">
+                          {{ item }}
+                        </option>
                       </select>
                     </div>
                     <div class="col-md-3">
@@ -592,18 +737,28 @@
 
                 <div class="mt-3">
                   <div class="form-check mb-2">
-                    <input v-model="finding.validator.enabled" class="form-check-input" type="checkbox" />
+                    <input
+                      v-model="finding.validator.enabled"
+                      class="form-check-input"
+                      type="checkbox"
+                    />
                     <label class="form-check-label">Regel für diesen Befund aktivieren</label>
                   </div>
 
                   <div v-if="finding.validator.enabled" class="row g-3">
                     <div class="col-md-4">
                       <label class="form-label form-label-sm">Regelname</label>
-                      <input v-model="finding.validator.name" class="form-control form-control-sm" />
+                      <input
+                        v-model="finding.validator.name"
+                        class="form-control form-control-sm"
+                      />
                     </div>
                     <div class="col-md-4">
                       <label class="form-label form-label-sm">Bedingung</label>
-                      <select v-model="finding.validator.operator" class="form-select form-select-sm">
+                      <select
+                        v-model="finding.validator.operator"
+                        class="form-select form-select-sm"
+                      >
                         <option value="exists">muss vorhanden sein</option>
                         <option value="missing">darf nicht vorhanden sein</option>
                         <option value="condition">abhängig von Bedingung</option>
@@ -612,32 +767,56 @@
                     <template v-if="finding.validator.operator === 'condition'">
                       <div class="col-md-4">
                         <label class="form-label form-label-sm">Bedingungs-Klassifikation</label>
-                        <select v-model="finding.validator.condition.classification" class="form-select form-select-sm">
+                        <select
+                          v-model="finding.validator.condition.classification"
+                          class="form-select form-select-sm"
+                        >
                           <option value="" disabled>Klassifikation wählen</option>
-                          <option v-for="item in classificationOptions" :key="item" :value="item">{{ item }}</option>
+                          <option v-for="item in classificationOptions" :key="item" :value="item">
+                            {{ item }}
+                          </option>
                         </select>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label form-label-sm">Vergleich</label>
-                        <select v-model="finding.validator.condition.comparator" class="form-select form-select-sm">
-                          <option v-for="item in comparatorOptions" :key="item" :value="item">{{ item }}</option>
+                        <select
+                          v-model="finding.validator.condition.comparator"
+                          class="form-select form-select-sm"
+                        >
+                          <option v-for="item in comparatorOptions" :key="item" :value="item">
+                            {{ item }}
+                          </option>
                         </select>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label form-label-sm">Wert</label>
-                        <input v-model="finding.validator.condition.value" class="form-control form-control-sm" />
+                        <input
+                          v-model="finding.validator.condition.value"
+                          class="form-control form-control-sm"
+                        />
                       </div>
                       <div class="col-md-6">
                         <label class="form-label form-label-sm">Dann erforderlich</label>
                         <select
                           class="form-select form-select-sm"
-                          @change="appendThenRequire(finding.validator.condition.thenRequires, ($event.target as HTMLSelectElement).value)"
+                          @change="
+                            appendThenRequire(
+                              finding.validator.condition.thenRequires,
+                              ($event.target as HTMLSelectElement).value
+                            )
+                          "
                         >
                           <option value="">Klassifikation anhängen</option>
-                          <option v-for="item in classificationOptions" :key="item" :value="item">{{ item }}</option>
+                          <option v-for="item in classificationOptions" :key="item" :value="item">
+                            {{ item }}
+                          </option>
                         </select>
                         <div class="d-flex flex-wrap gap-2 mt-2">
-                          <span v-for="item in finding.validator.condition.thenRequires" :key="item" class="badge bg-secondary">
+                          <span
+                            v-for="item in finding.validator.condition.thenRequires"
+                            :key="item"
+                            class="badge bg-secondary"
+                          >
                             {{ item }}
                           </span>
                         </div>
@@ -657,7 +836,12 @@
       </div>
     </div>
 
-    <div v-if="showSavePrompt" class="modal d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.35);">
+    <div
+      v-if="showSavePrompt"
+      class="modal d-block"
+      tabindex="-1"
+      style="background: rgba(0, 0, 0, 0.35)"
+    >
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -667,12 +851,12 @@
           <div class="modal-body">
             <label class="form-label">Dateiname</label>
             <input v-model="fileName" class="form-control" />
-            <div class="form-text">
-              Die Datei wird im ausgewählten Vorlagenmodul gespeichert.
-            </div>
+            <div class="form-text">Die Datei wird im ausgewählten Vorlagenmodul gespeichert.</div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-outline-secondary" @click="showSavePrompt = false">Abbrechen</button>
+            <button class="btn btn-outline-secondary" @click="showSavePrompt = false">
+              Abbrechen
+            </button>
             <button class="btn btn-success" :disabled="saving || !canSave" @click="saveTemplate">
               <span v-if="saving" class="spinner-border spinner-border-sm me-1" />
               Speichern
@@ -772,24 +956,28 @@ const availablePresets = computed(() => {
     { type: 'patient_info', label: 'Patienteninfo' },
     { type: 'clinic_address', label: 'Klinikadresse' },
     { type: 'findings', label: 'Findings-Section' }
-  ].filter((preset) => preset.type === 'findings' || !taken.has(preset.type as ReportTemplateBuilderSection['sectionType']))
+  ].filter(
+    (preset) =>
+      preset.type === 'findings' ||
+      !taken.has(preset.type as ReportTemplateBuilderSection['sectionType'])
+  )
 })
 
 const examinationOptions = computed(() =>
   (coreConcepts.value.examination || [])
-    .map((entry) => String(entry?.name || '').trim())
+    .map((entry) => (entry.name || '').trim())
     .filter(Boolean)
 )
 
 const findingOptions = computed(() =>
   (coreConcepts.value.finding || [])
-    .map((entry) => String(entry?.name || '').trim())
+    .map((entry) => (entry.name || '').trim())
     .filter(Boolean)
 )
 
 const classificationOptions = computed(() =>
   (coreConcepts.value.classification || [])
-    .map((entry) => String(entry?.name || '').trim())
+    .map((entry) => (entry.name || '').trim())
     .filter(Boolean)
 )
 
@@ -850,7 +1038,9 @@ function defaultFinding(): ReportTemplateBuilderFinding {
   }
 }
 
-function createSection(sectionType: ReportTemplateBuilderSection['sectionType']): ReportTemplateBuilderSection {
+function createSection(
+  sectionType: ReportTemplateBuilderSection['sectionType']
+): ReportTemplateBuilderSection {
   if (sectionType === 'logo') {
     return {
       id: uid('section'),
@@ -883,7 +1073,8 @@ function createSection(sectionType: ReportTemplateBuilderSection['sectionType'])
       id: uid('section'),
       sectionType,
       name: 'clinic_address',
-      description: 'Universitätsklinikum Musterstadt\nKlinik für Endoskopie\nMusterstraße 1\n97070 Würzburg',
+      description:
+        'Universitätsklinikum Musterstadt\nKlinik für Endoskopie\nMusterstraße 1\n97070 Würzburg',
       fields: [],
       findings: []
     }
@@ -892,7 +1083,7 @@ function createSection(sectionType: ReportTemplateBuilderSection['sectionType'])
   return {
     id: uid('section'),
     sectionType: 'findings',
-    name: `findings_section_${sections.value.filter((item) => item.sectionType === 'findings').length + 1}`,
+    name: `findings_section_${String(sections.value.filter((item) => item.sectionType === 'findings').length + 1)}`,
     description: 'Klinische Befunde und zugehörige Prüfregeln',
     fields: [],
     findings: [defaultFinding()]
@@ -942,7 +1133,11 @@ function addClassification(sectionId: string, findingIndex: number) {
   section.findings[findingIndex]?.classifications.push(defaultClassification())
 }
 
-function removeClassification(sectionId: string, findingIndex: number, classificationIndex: number) {
+function removeClassification(
+  sectionId: string,
+  findingIndex: number,
+  classificationIndex: number
+) {
   const section = sections.value.find((item) => item.id === sectionId)
   if (!section) return
   section.findings[findingIndex]?.classifications.splice(classificationIndex, 1)
@@ -959,7 +1154,7 @@ function sectionTitle(section: ReportTemplateBuilderSection): string {
 
 function sectionExampleLabel(section: ReportTemplateBuilderSection): string {
   if (section.sectionType === 'findings') {
-    return `${section.findings.length} Befund(e) konfiguriert`
+    return `${String(section.findings.length)} Befund(e) konfiguriert`
   }
   return `Typ: ${section.sectionType}`
 }
@@ -967,7 +1162,8 @@ function sectionExampleLabel(section: ReportTemplateBuilderSection): string {
 function sectionDescriptionPlaceholder(section: ReportTemplateBuilderSection): string {
   if (section.sectionType === 'logo') return 'Logo-URL oder Pfad'
   if (section.sectionType === 'clinic_address') return 'Klinikadresse oder Briefkopftext'
-  if (section.sectionType === 'patient_info') return 'Optionaler Einführungstext für die Patientensektion'
+  if (section.sectionType === 'patient_info')
+    return 'Optionaler Einführungstext für die Patientensektion'
   return 'Beschreibung der Befundsektion'
 }
 
@@ -978,7 +1174,9 @@ function renderSectionPreview(section: ReportTemplateBuilderSection): string {
   if (section.sectionType === 'patient_info') {
     return [
       'Patient',
-      ...section.fields.map((field) => `- ${field.label || field.key}: {{ ${field.source}.${field.key} }}`)
+      ...section.fields.map(
+        (field) => `- ${field.label || field.key}: {{ ${field.source}.${field.key} }}`
+      )
     ].join('\n')
   }
   if (section.sectionType === 'clinic_address') {
@@ -1022,7 +1220,9 @@ function removeRuntimeFinding(index: number) {
 }
 
 function addRuntimeClassificationChoice(findingIndex: number) {
-  runtimeFindings.value[findingIndex]?.classificationChoices.push(defaultRuntimeClassificationChoice())
+  runtimeFindings.value[findingIndex]?.classificationChoices.push(
+    defaultRuntimeClassificationChoice()
+  )
 }
 
 function removeRuntimeClassificationChoice(findingIndex: number, choiceIndex: number) {
@@ -1075,7 +1275,9 @@ const runtimePayloadPreview = computed(() => JSON.stringify(runtimePayload.value
 async function loadCoreConcepts() {
   catalogLoading.value = true
   try {
-    const response = await axiosInstance.get(dtypesApi(`core-concepts/${encodeURIComponent(moduleName.value)}`))
+    const response = await axiosInstance.get(
+      dtypesApi(`core-concepts/${encodeURIComponent(moduleName.value)}`)
+    )
     coreConcepts.value = response.data as CoreConceptPayload
     if (!examination.value && examinationOptions.value.length) {
       examination.value = examinationOptions.value[0]
@@ -1096,7 +1298,10 @@ async function refreshTemplateOptions() {
 
   templatesLoading.value = true
   try {
-    templateOptions.value = await fetchBuilderReportTemplatesByExamination(moduleName.value, examination.value)
+    templateOptions.value = await fetchBuilderReportTemplatesByExamination(
+      moduleName.value,
+      examination.value
+    )
     if (!templateName.value && templateOptions.value.length) {
       templateName.value = templateOptions.value[0].name
     }
@@ -1111,9 +1316,10 @@ async function loadSelectedTemplate() {
   if (!templateName.value) return
   templateLoading.value = true
   try {
-    const fetchTemplate = lifecycleStatus.value === 'draft'
-      ? fetchReportTemplatePreviewByName
-      : fetchReportTemplateByName
+    const fetchTemplate =
+      lifecycleStatus.value === 'draft'
+        ? fetchReportTemplatePreviewByName
+        : fetchReportTemplateByName
     const template = await fetchTemplate(moduleName.value, templateName.value)
     if (!template) {
       throw new Error('Ungültiges Format der Berichtsvorlage.')
@@ -1143,7 +1349,10 @@ async function runDefinitionValidation() {
   if (!templateName.value) return
   definitionLoading.value = true
   try {
-    definitionValidationResult.value = await validateReportTemplateDefinition(moduleName.value, templateName.value)
+    definitionValidationResult.value = await validateReportTemplateDefinition(
+      moduleName.value,
+      templateName.value
+    )
     successMessage.value = `Strukturprüfung für "${templateName.value}" abgeschlossen.`
   } catch (error: unknown) {
     setError(reportingApiErrorMessage(error, 'Strukturprüfung fehlgeschlagen.'))
@@ -1156,7 +1365,10 @@ async function refreshReadiness() {
   if (!templateName.value) return
   definitionLoading.value = true
   try {
-    builderReadiness.value = await fetchReportTemplateReadiness(moduleName.value, templateName.value)
+    builderReadiness.value = await fetchReportTemplateReadiness(
+      moduleName.value,
+      templateName.value
+    )
     lifecycleStatus.value = builderReadiness.value.lifecycleStatus
   } catch (error: unknown) {
     setError(reportingApiErrorMessage(error, 'Readiness-Prüfung fehlgeschlagen.'))

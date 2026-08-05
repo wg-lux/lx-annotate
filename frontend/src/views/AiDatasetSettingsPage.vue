@@ -349,6 +349,9 @@ import {
 } from '@/api/aiDatasetApi'
 import { isAxiosError } from 'axios'
 import { computed, onMounted, reactive, ref } from 'vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('ai-dataset-settings')
 
 interface AiDatasetValidationErrors {
   name?: string
@@ -371,7 +374,7 @@ interface AiDatasetErrorPayload {
 }
 
 function aiDatasetValidationErrors(error: unknown): AiDatasetValidationErrors {
-  return isAxiosError<AiDatasetErrorPayload>(error) ? error.response?.data?.errors || {} : {}
+  return isAxiosError<AiDatasetErrorPayload>(error) ? error.response?.data.errors || {} : {}
 }
 
 const datasetOptions = ref<AiDatasetOption[]>([])
@@ -452,7 +455,7 @@ const frameFormatDetail = computed(() => {
   if (!frameFormat || frameFormat.status === 'not_checked') return 'Nicht geprüft'
   const dimensions =
     frameFormat.expectedWidth && frameFormat.expectedHeight
-      ? `${frameFormat.expectedWidth} x ${frameFormat.expectedHeight}`
+      ? `${String(frameFormat.expectedWidth)} x ${String(frameFormat.expectedHeight)}`
       : 'Unbekannte Dimensionen'
   return `${frameFormat.expectedImageFormat || 'Unbekanntes Format'} - ${dimensions} - ${
     frameFormat.expectedMode || 'Unbekannter Modus'
@@ -474,10 +477,8 @@ function strategyLabel(strategy: AiDatasetFrameFormatStrategy): string {
   return 'Dimensionen mit schwarzer Maske beibehalten'
 }
 
-function datasetTypeLabel(datasetType: AiDatasetType | string): string {
-  if (datasetType === 'image') return 'Bild'
-  if (datasetType === 'video') return 'Video'
-  return datasetType
+function datasetTypeLabel(datasetType: AiDatasetType): string {
+  return datasetType === 'image' ? 'Bild' : 'Video'
 }
 
 function aiModelTypeForDatasetType(datasetType: AiDatasetType): AiDatasetModelType {
@@ -507,11 +508,11 @@ async function loadOptions(): Promise<void> {
       const imageDataset =
         datasets.find((dataset) => dataset.datasetType === 'image' && dataset.isActive) ??
         datasets.find((dataset) => dataset.datasetType === 'image') ??
-        datasets[0]
+        datasets.at(0)
       selectedDatasetId.value = imageDataset ? String(imageDataset.id) : ''
     }
   } catch (error) {
-    console.error('Failed to load AI dataset manifest options:', error)
+    logger.error('options-load-failed', error)
     errorMessage.value = 'Datensatz-Optionen konnten nicht geladen werden.'
   } finally {
     loadingOptions.value = false
@@ -538,13 +539,13 @@ async function createDataset(): Promise<void> {
     createdDatasetMessage.value = `Datensatz "${createdDataset.label}" wurde erstellt und ausgewählt.`
     resetManifest()
   } catch (error: unknown) {
-    console.error('Failed to create AI dataset:', error)
+    logger.error('dataset-create-failed', error)
     const errors = aiDatasetValidationErrors(error)
-    if (errors?.name) {
+    if (errors.name) {
       errorMessage.value = 'Bitte geben Sie einen gültigen Namen für den Datensatz ein.'
-    } else if (errors?.datasetType) {
+    } else if (errors.datasetType) {
       errorMessage.value = 'Bitte wählen Sie einen gültigen Datensatztyp aus.'
-    } else if (errors?.aiModelType) {
+    } else if (errors.aiModelType) {
       errorMessage.value = 'Der Modelltyp passt nicht zum ausgewählten Datensatztyp.'
     } else {
       errorMessage.value = 'Der Datensatz konnte nicht erstellt werden.'
@@ -562,7 +563,7 @@ async function attachExistingAnnotations(): Promise<void> {
   createdDatasetMessage.value = ''
   attachmentMessage.value = ''
   attachmentResult.value = null
-  manifestPreview.value = null
+    manifestPreview.value = null
   try {
     attachmentResult.value = await attachAiDatasetAnnotations(selectedDatasetId.value, {
       includeAllAnnotations: true,
@@ -570,18 +571,18 @@ async function attachExistingAnnotations(): Promise<void> {
       includeVideoAnnotations: attachForm.includeVideoAnnotations
     })
     attachmentMessage.value =
-      `Datensatz enthält ${attachmentResult.value.frameAnnotationCount} Frame-Annotationen ` +
-      `und ${attachmentResult.value.videoAnnotationCount} Video-Segmente.`
+      `Datensatz enthält ${String(attachmentResult.value.frameAnnotationCount)} Frame-Annotationen ` +
+      `und ${String(attachmentResult.value.videoAnnotationCount)} Video-Segmente.`
   } catch (error: unknown) {
-    console.error('Failed to attach existing AI dataset annotations:', error)
+    logger.error('annotations-attach-failed', error)
     const errors = aiDatasetValidationErrors(error)
     errorMessage.value =
-      errors?.includeAllAnnotations ||
-      errors?.include_all_annotations ||
-      errors?.includeFrameAnnotations ||
-      errors?.include_frame_annotations ||
-      errors?.includeVideoAnnotations ||
-      errors?.include_video_annotations ||
+      errors.includeAllAnnotations ||
+      errors.include_all_annotations ||
+      errors.includeFrameAnnotations ||
+      errors.include_frame_annotations ||
+      errors.includeVideoAnnotations ||
+      errors.include_video_annotations ||
       'Die Annotationen konnten nicht hinzugefügt werden.'
   } finally {
     attachingAnnotations.value = false
@@ -603,13 +604,13 @@ async function buildManifest(): Promise<void> {
       informationSourceNames: normalizedInformationSourceNames()
     })
   } catch (error: unknown) {
-    console.error('Failed to build AI dataset training manifest:', error)
+    logger.error('manifest-build-failed', error)
     const errors = aiDatasetValidationErrors(error)
     errorMessage.value =
-      errors?.manifest ||
-      errors?.labelSetId ||
-      errors?.preprocessingStrategy ||
-      errors?.recommendedModelInputStrategy ||
+      errors.manifest ||
+      errors.labelSetId ||
+      errors.preprocessingStrategy ||
+      errors.recommendedModelInputStrategy ||
       'Das Manifest konnte mit dieser Konfiguration nicht erstellt werden.'
   } finally {
     buildingManifest.value = false

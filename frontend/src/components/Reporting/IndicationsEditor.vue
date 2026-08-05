@@ -122,11 +122,11 @@ function parseOptionalInt(value: string): number | null {
 function dedupeChoiceOptions(options: IndicationChoiceOption[]): IndicationChoiceOption[] {
   const byId = new Map<number, IndicationChoiceOption>()
   for (const option of options) {
-    const id = Number(option?.id)
+    const id = option.id
     if (!Number.isFinite(id)) continue
     byId.set(id, {
       id,
-      label: String(option?.label || `Auswahl #${id}`)
+      label: option.label || `Auswahl #${String(id)}`
     })
   }
   return Array.from(byId.values())
@@ -134,20 +134,20 @@ function dedupeChoiceOptions(options: IndicationChoiceOption[]): IndicationChoic
 
 const baseIndicationOptions = computed<IndicationOption[]>(() => {
   const byId = new Map<number, IndicationOption>()
-  for (const entry of props.indicationOptions || []) {
-    const id = Number(entry?.id)
+  for (const entry of props.indicationOptions) {
+    const id = entry.id
     if (!Number.isFinite(id)) continue
     const current = byId.get(id)
     const mergedChoices = dedupeChoiceOptions([
       ...(current?.choices || []),
-      ...((entry?.choices || []).map((choice) => ({
-        id: Number(choice?.id),
-        label: String(choice?.label || '')
-      })) as IndicationChoiceOption[])
+      ...(entry.choices || []).map((choice) => ({
+        id: choice.id,
+        label: choice.label || ''
+      }))
     ])
     byId.set(id, {
       id,
-      label: String(entry?.label || `Indikation #${id}`),
+      label: entry.label || `Indikation #${String(id)}`,
       choices: mergedChoices
     })
   }
@@ -167,7 +167,10 @@ function resolveIndicationOptionsForRow(row: ReportingIndicationRow): Indication
   if (existingId == null || options.some((option) => option.id === existingId)) {
     return options
   }
-  return [{ id: existingId, label: `Unbekannte Indikation (#${existingId})`, choices: [] }, ...options]
+  return [
+    { id: existingId, label: `Unbekannte Indikation (#${String(existingId)})`, choices: [] },
+    ...options
+  ]
 }
 
 function resolveChoiceOptionsForRow(row: ReportingIndicationRow): IndicationChoiceOption[] {
@@ -176,7 +179,7 @@ function resolveChoiceOptionsForRow(row: ReportingIndicationRow): IndicationChoi
   if (existingId == null || options.some((option) => option.id === existingId)) {
     return options
   }
-  return [{ id: existingId, label: `Unbekannte Auswahl (#${existingId})` }, ...options]
+  return [{ id: existingId, label: `Unbekannte Auswahl (#${String(existingId)})` }, ...options]
 }
 
 function onIndicationChanged(index: number, rawValue: string) {

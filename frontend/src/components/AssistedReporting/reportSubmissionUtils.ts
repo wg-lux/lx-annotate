@@ -24,7 +24,7 @@ export function formatDateOnly(value?: string | null): string | null {
 export function mergeClassificationSelections(
   findingId: number,
   apiClassifications: Array<number | PatientFindingApiClassification> | undefined,
-  localSelectionsByFinding: Record<number, Record<number, number>>
+  localSelectionsByFinding: Partial<Record<number, Record<number, number>>>
 ): Array<{ classification: number; classificationChoice: number }> {
   const merged = new Map<number, number>()
 
@@ -39,7 +39,7 @@ export function mergeClassificationSelections(
     }
   }
 
-  const localSelections = localSelectionsByFinding[findingId] || {}
+  const localSelections = localSelectionsByFinding[findingId] ?? {}
   for (const [classificationId, choiceId] of Object.entries(localSelections)) {
     const cId = Number(classificationId)
     if (Number.isFinite(cId) && Number.isFinite(choiceId)) {

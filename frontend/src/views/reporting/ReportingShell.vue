@@ -802,6 +802,9 @@ import { fetchPatientTimelineLatest, pickPreferredReportStream } from '@/api/rep
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('reporting-shell')
 import {
   conceptCoverageStatusLabel,
   conceptCoverageStatusTone,
@@ -927,8 +930,9 @@ const routePatientExaminationId = computed<number | null>(() => {
   return parsed > 0 ? parsed : null
 })
 const routePatientId = computed<number | null>(() => {
-  const query = route.query || {}
-  const value = Array.isArray(query.patient_id) ? query.patient_id[0] : query.patient_id
+  const query = readRecord(route.query)
+  const rawPatientId = query.patient_id
+  const value = isUnknownArray(rawPatientId) ? rawPatientId[0] : rawPatientId
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 })
@@ -964,27 +968,31 @@ const navItems = computed(() => [
   },
   { label: 'Arbeitsliste', to: '/reporting', requiresPatientExamination: false },
   { label: 'Falldaten', to: '/reporting/case-setup', requiresPatientExamination: false },
-  { label: 'Befunde', to: `/reporting/${pe.value}/findings`, requiresPatientExamination: true },
+  {
+    label: 'Befunde',
+    to: `/reporting/${String(pe.value)}/findings`,
+    requiresPatientExamination: true
+  },
   {
     label: 'Bericht schreiben',
-    to: `/reporting/${pe.value}/report-editor`,
+    to: `/reporting/${String(pe.value)}/report-editor`,
     requiresPatientExamination: true,
     requiresVerifiedTemplate: true
   },
   {
     label: 'Bilder auswählen',
-    to: `/reporting/${pe.value}/frame-selector`,
+    to: `/reporting/${String(pe.value)}/frame-selector`,
     requiresPatientExamination: true
   },
   {
     label: 'Report export',
-    to: `/reporting/${pe.value}/report-export`,
+    to: `/reporting/${String(pe.value)}/report-export`,
     requiresPatientExamination: true,
     requiresVerifiedTemplate: true
   },
   {
     label: 'Abschluss',
-    to: `/reporting/${pe.value}/finalized`,
+    to: `/reporting/${String(pe.value)}/finalized`,
     requiresPatientExamination: true,
     requiresVerifiedTemplate: true
   }
@@ -1059,7 +1067,9 @@ const selectedPatientExaminationLabel = computed(() => {
     patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
     null
   if (selected) return selected.label
-  return flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt'
+  return flow.patientExaminationId
+    ? `#${String(flow.patientExaminationId)}`
+    : 'Noch nicht gewählt'
 })
 
 const selectedTemplateLabel = computed(() =>
@@ -1152,13 +1162,13 @@ const patientHeaderLabel = computed(() => {
   const detailHash = readString(detailPatient, 'patientHash', 'patient_hash', 'hash', 'pseudonym')
   if (detailHash) return detailHash
   if (currentPayload.value?.patient) return currentPayload.value.patient
-  return flow.selectedPatientId ? `Patient #${flow.selectedPatientId}` : 'Nicht gewählt'
+  return flow.selectedPatientId ? `Patient #${String(flow.selectedPatientId)}` : 'Nicht gewählt'
 })
 
 const patientBirthDateLabel = computed(() => {
   const detailPatient = readRecord(patientExaminationDetail.value?.patient)
   const value =
-    flow.mediaPreload?.patient?.dob ||
+    flow.mediaPreload?.patient.dob ||
     readString(
       detailPatient,
       'dob',
@@ -1254,9 +1264,10 @@ const conceptCoverageSubtitle = computed(() => {
 const conceptCoverageSummaryLabel = computed(() => {
   const counts = conceptCoverage.value.counts
   if (!conceptCoverage.value.items.length) return 'ungeprüft'
-  if (counts.invalid || counts.missing) return `${counts.invalid + counts.missing} offen`
-  if (counts.unknown) return `${counts.unknown} ungeklärt`
-  return `${counts.present} nachgewiesen`
+  if (counts.invalid || counts.missing)
+    return `${String(counts.invalid + counts.missing)} offen`
+  if (counts.unknown) return `${String(counts.unknown)} ungeklärt`
+  return `${String(counts.present)} nachgewiesen`
 })
 
 const conceptCoveragePillClass = computed(() => {
@@ -1314,13 +1325,13 @@ const findingStatusRows = computed<FindingStatusRow[]>(() => {
   for (const section of templateSectionsForReference.value) {
     const sectionKey = normalizeKey(section.name)
     const sectionTitle = formatKnowledgeName(section.name)
-    for (const templateFinding of section.findings || []) {
+    for (const templateFinding of section.findings) {
       rows.push(
         buildFindingStatusRow({
           findingName: templateFinding.finding,
           sectionKey,
           sectionTitle,
-          required: !!templateFinding.required,
+          required: templateFinding.required,
           templateFinding
         })
       )
@@ -1361,8 +1372,8 @@ const findingProgressSummary = computed(() => {
   const complete = rows.filter((row) => row.status === 'complete').length
   const open = rows.filter((row) => row.status === 'warning' || row.status === 'missing').length
   return open
-    ? `${complete}/${rows.length} vollständig · ${open} offen`
-    : `${complete}/${rows.length} vollständig`
+    ? `${String(complete)}/${String(rows.length)} vollständig · ${String(open)} offen`
+    : `${String(complete)}/${String(rows.length)} vollständig`
 })
 
 const routeReferenceFindingKey = computed(() => {
@@ -1406,7 +1417,7 @@ const activeFindingCatalogDefinition = computed(() => {
 })
 
 const activeFindingDescription = computed(() => {
-  const description = activeFindingCatalogDefinition.value?.description?.trim()
+  const description = activeFindingCatalogDefinition.value?.description.trim()
   return description || 'Keine Beschreibung in der geladenen KB-Definition.'
 })
 
@@ -1430,13 +1441,13 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
       ? templateClassifications.map((classification) => ({
           key: normalizeKey(classification.classification),
           name: classification.classification,
-          required: !!classification.required,
+          required: classification.required,
           input: classification.input
         }))
       : catalogClassifications.map((classification) => ({
           key: normalizeKey(classification.name),
           name: classification.name,
-          required: !!classification.required,
+          required: classification.required,
           input: null
         }))
 
@@ -1617,9 +1628,22 @@ async function importTerminologyZip(event: Event) {
 }
 
 function readRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {}
+  return isRecord(value) ? value : {}
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value)
+}
+
+function readListPayload(value: unknown): unknown[] {
+  if (isUnknownArray(value)) return value
+  const results = readRecord(value).results
+  if (isUnknownArray(results)) return results
+  throw new TypeError('Patient examination list response must contain an array.')
 }
 
 function readString(
@@ -1744,7 +1768,7 @@ function findingStatusTarget(row: FindingStatusRow) {
   const patientExaminationId = flow.patientExaminationId || routePatientExaminationId.value
   if (!patientExaminationId) return { path: route.path, hash: `#${row.anchorId}` }
   return {
-    path: `/reporting/${patientExaminationId}/findings`,
+    path: `/reporting/${String(patientExaminationId)}/findings`,
     hash: `#${row.anchorId}`
   }
 }
@@ -1801,12 +1825,19 @@ function collectValidatorSuggestions(
   validators: Array<{ hint: Record<string, unknown>; issues: RuntimeValidationIssue[] }>
 ): string[] {
   return validators.flatMap((validator) => [
-    ...extractStringList(validator.hint?.suggestedActions),
-    ...extractStringList(validator.hint?.suggested_actions),
-    ...extractStringList(validator.hint?.suggestions),
-    ...extractStringList(validator.hint?.recommendations),
+    ...extractStringList(validator.hint.suggestedActions),
+    ...extractStringList(validator.hint.suggested_actions),
+    ...extractStringList(validator.hint.suggestions),
+    ...extractStringList(validator.hint.recommendations),
     ...collectIssueSuggestions(validator.issues)
   ])
+}
+
+function formatDescriptorValue(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return '[Ungültiger Deskriptorwert]'
 }
 
 function formatRuntimeFindingInstance(instance: ReportTemplateRuntimePatientFindingInput): string {
@@ -1816,7 +1847,7 @@ function formatRuntimeFindingInstance(instance: ReportTemplateRuntimePatientFind
       const descriptors = choice.descriptors
         .map(
           (descriptor) =>
-            `${formatKnowledgeName(descriptor.classificationChoiceDescriptor)}: ${descriptor.descriptorValue}`
+            `${formatKnowledgeName(descriptor.classificationChoiceDescriptor)}: ${formatDescriptorValue(descriptor.descriptorValue)}`
         )
         .join(', ')
       const base = `${formatKnowledgeName(choice.classification)} = ${formatKnowledgeName(choice.classificationChoice)}`
@@ -1916,8 +1947,8 @@ function ensureTerminologyBundlesLoaded(): Promise<void> {
     .then(() => {
       clearInactiveTerminologySelection()
     })
-    .catch((error) => {
-      console.error('Failed to load terminology bundles:', error)
+    .catch((error: unknown) => {
+      logger.error('terminology-load-failed', error)
     })
     .finally(() => {
       terminologyLoadPromise.value = null
@@ -1996,13 +2027,15 @@ function toPositiveInteger(value: unknown): number | null {
 function resolvePatientKey(raw: Record<string, unknown>, patientExaminationId: number): string {
   const patient = readRecord(raw.patient)
   const patientHash =
-    (typeof patient?.patient_hash === 'string' && patient.patient_hash.trim()) ||
-    (typeof patient?.patientHash === 'string' && patient.patientHash.trim()) ||
+    (typeof patient.patient_hash === 'string' && patient.patient_hash.trim()) ||
+    (typeof patient.patientHash === 'string' && patient.patientHash.trim()) ||
     (typeof raw.patient_hash === 'string' && raw.patient_hash.trim()) ||
     (typeof raw.patientHash === 'string' && raw.patientHash.trim())
   if (patientHash) return patientHash
-  const patientId = toPositiveInteger(patient?.id ?? raw.patient_id ?? raw.patientId)
-  return patientId ? `patient_${patientId}` : `patient_examination_${patientExaminationId}`
+  const patientId = toPositiveInteger(patient.id ?? raw.patient_id ?? raw.patientId)
+  return patientId
+    ? `patient_${String(patientId)}`
+    : `patient_examination_${String(patientExaminationId)}`
 }
 
 function firstTrimmedString(record: Record<string, unknown>, keys: string[]): string | null {
@@ -2037,7 +2070,7 @@ function normalizeExaminer(entry: unknown): string | null {
   if (fullName) return fullName
 
   const examinerId = toPositiveInteger(row.id)
-  return examinerId ? `examiner_${examinerId}` : null
+  return examinerId ? `examiner_${String(examinerId)}` : null
 }
 
 function extractExaminers(raw: Record<string, unknown>): string[] {
@@ -2071,7 +2104,6 @@ function extractExaminationName(raw: Record<string, unknown>): string {
 
 function isPatientExaminationAllowedForMedicalField(option: PatientExaminationOption): boolean {
   if (!terminology.activeBundle) return true
-  if (terminology.selectedMedicalField !== 'gastroenterology') return true
   return isGastroenterologyExaminationName(option.examinationName)
 }
 
@@ -2149,7 +2181,7 @@ function extractIndicationRows(raw: Record<string, unknown>) {
 
   const seen = new Set<string>()
   return rows.filter((row) => {
-    const key = `${row.examinationIndicationId}:${row.indicationChoiceId ?? 'null'}`
+    const key = `${String(row.examinationIndicationId)}:${String(row.indicationChoiceId ?? 'null')}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -2157,13 +2189,12 @@ function extractIndicationRows(raw: Record<string, unknown>) {
 }
 
 function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload {
-  if (!value || typeof value !== 'object') return false
-  const payload = value as Record<string, unknown>
+  if (!isRecord(value)) return false
   return (
-    typeof payload.patient === 'string' &&
-    Array.isArray(payload.examiners) &&
-    typeof payload.examination === 'string' &&
-    Array.isArray(payload.patientFindings)
+    typeof value.patient === 'string' &&
+    Array.isArray(value.examiners) &&
+    typeof value.examination === 'string' &&
+    Array.isArray(value.patientFindings)
   )
 }
 
@@ -2268,7 +2299,7 @@ async function onCaseSelect(caseId: string): Promise<void> {
     return
   }
 
-  const firstExamination = caseExaminationOptions(patientCase)[0]
+  const firstExamination = caseExaminationOptions(patientCase).at(0)
   if (!(await flushDraftBeforeContextSwitch(firstExamination?.id ?? null))) return
   activateCase(patientCase)
   if (!firstExamination) {
@@ -2305,20 +2336,17 @@ async function fetchPatientExaminationOptions(patientId: number) {
   patientExaminationOptionsLoading.value = true
   patientExaminationOptionsError.value = null
   try {
-    const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList), {
-      params: { patient_id: patientId }
-    })
+    const response = await axiosInstance.get<unknown>(
+      r(endpoints.examination.patientExaminationList),
+      { params: { patient_id: patientId } }
+    )
     if (
       requestGeneration !== patientOptionsRequestGeneration ||
       patientId !== flow.selectedPatientId
     ) {
       return
     }
-    const rows = Array.isArray(response.data?.results)
-      ? response.data.results
-      : Array.isArray(response.data)
-        ? response.data
-        : []
+    const rows = readListPayload(response.data)
     patientExaminationOptions.value = rows
       .map(normalizePatientExaminationOption)
       .filter(
@@ -2369,8 +2397,8 @@ async function ensureCurrentPatientExaminationOption(patientExaminationId: numbe
 function getNavigationTargetForPatientExamination(patientExaminationId: number): string {
   const match = route.path.match(/^\/reporting\/[^/]+\/(.+)$/)
   return match
-    ? `/reporting/${patientExaminationId}/${match[1]}`
-    : `/reporting/${patientExaminationId}/findings`
+    ? `/reporting/${String(patientExaminationId)}/${match[1]}`
+    : `/reporting/${String(patientExaminationId)}/findings`
 }
 
 async function flushDraftBeforeContextSwitch(
@@ -2412,7 +2440,7 @@ async function onPatientExaminationSelect(rawValue: string) {
 function draftHasRuntimeContent(): boolean {
   return Boolean(
     flow.currentRuntimeDraft?.payload.patientFindings.length ||
-      (flow.templateSectionDrafts && Object.keys(flow.templateSectionDrafts).length) ||
+      Object.keys(readRecord(flow.templateSectionDrafts)).length ||
       flow.activeReportId ||
       flow.findingsRevision > 0
   )
@@ -2467,9 +2495,9 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
     }
     flow.setTemplateSelection({
       moduleName:
-        (selected.identity || emptyTemplateIdentity).moduleName || originContext.moduleName,
+        selected.identity.moduleName || originContext.moduleName,
       templateName: selected.name,
-      templateIdentity: selected.identity || emptyTemplateIdentity
+      templateIdentity: selected.identity
     })
     await bootstrapRuntimeDraft(originContext.patientExaminationId, option, attemptedContext, false)
     flow.clearTemplateSectionDrafts()
@@ -2569,14 +2597,14 @@ async function bootstrapRuntimeDraft(
     setAnnotationOnlyRuntimeDraft(patientExaminationId, detail, context)
     return
   }
-  const selectedTemplateIdentity = selectedTemplate.identity || emptyTemplateIdentity
+  const selectedTemplateIdentity = selectedTemplate.identity
 
   const payload = await buildReportTemplateRuntimePayload({
     moduleName,
     patientExaminationId,
     patient: resolvePatientKey(detail, patientExaminationId),
     examiners: extractExaminers(detail),
-    examination: selectedTemplate?.examination || examinationName,
+    examination: selectedTemplate.examination || examinationName,
     knowledgeBaseVersion: terminology.activeBundle?.version || null,
     getFindingById: (findingId) => findingsById.get(findingId)
   })
@@ -2589,7 +2617,7 @@ async function bootstrapRuntimeDraft(
   })
   flow.setIndications(extractIndicationRows(detail))
   flow.setRuntimeDraft({
-    draftId: `draft_${patientExaminationId}`,
+    draftId: `draft_${String(patientExaminationId)}`,
     patientExaminationId,
     moduleName,
     templateName: selectedTemplate.name,
@@ -2611,14 +2639,14 @@ async function hydrateRuntimeDraftFromDraftApi(
 ): Promise<boolean> {
   const response = await fetchPatientExaminationDraft(patientExaminationId)
   assertBootstrapContextCurrent(context)
-  const draft = response?.draft && typeof response.draft === 'object' ? response.draft : {}
+  const draft = response.draft
   const draftModuleName = stringField(draft, 'moduleName', 'module_name') || activeKbModule.value
   const draftTemplateName = stringField(draft, 'templateName', 'template_name')
   const draftTemplateIdentity =
     draft.templateIdentity && typeof draft.templateIdentity === 'object'
-      ? (draft.templateIdentity as ReportTemplateIdentity)
+      ? draft.templateIdentity
       : null
-  const updatedAt = response?.updatedAt ?? response?.updated_at ?? null
+  const updatedAt = response.updatedAt ?? response.updated_at ?? null
   if (!isRuntimePayload(draft.payload)) {
     flow.markDraftPersistenceHydrated(updatedAt)
     return false
@@ -2630,7 +2658,7 @@ async function hydrateRuntimeDraftFromDraftApi(
     templateIdentity: null
   })
   flow.setRuntimeDraft({
-    draftId: `draft_${patientExaminationId}`,
+    draftId: `draft_${String(patientExaminationId)}`,
     patientExaminationId,
     moduleName: draftModuleName,
     templateName: draftTemplateName,
@@ -2656,7 +2684,7 @@ function restoredDraftMatchesContext(
     return false
 
   const examinationName = extractExaminationName(detail)
-  const draftExamination = draft.payload.examination?.trim().toLowerCase()
+  const draftExamination = draft.payload.examination.trim().toLowerCase()
   if (
     draftExamination &&
     examinationName &&
@@ -2719,7 +2747,7 @@ function restoredDraftMatchesActiveTemplate(
   context: DraftBootstrapContext
 ): boolean {
   if (!selected) return false
-  const selectedIdentity = selected.identity || emptyTemplateIdentity
+  const selectedIdentity = selected.identity
   return (
     restoredDraftMatchesContext(detail, draft, context) &&
     restoredDraftMatchesKnowledgeBase(draft, selectedIdentity, context) &&
@@ -2803,7 +2831,7 @@ function setAnnotationOnlyRuntimeDraft(
     templateIdentity: null
   })
   flow.setRuntimeDraft({
-    draftId: `draft_${patientExaminationId}`,
+    draftId: `draft_${String(patientExaminationId)}`,
     patientExaminationId,
     moduleName: context.moduleName,
     templateName: null,
@@ -2826,8 +2854,13 @@ function setAnnotationOnlyRuntimeDraft(
 }
 
 async function ensureRuntimeDraft(patientExaminationId: number, context: DraftBootstrapContext) {
-  const existingDraft =
-    flow.runtimeDraftsByPatientExaminationId[String(patientExaminationId)] || null
+  const draftKey = String(patientExaminationId)
+  const existingDraft = Object.prototype.hasOwnProperty.call(
+    flow.runtimeDraftsByPatientExaminationId,
+    draftKey
+  )
+    ? flow.runtimeDraftsByPatientExaminationId[draftKey]
+    : null
   if (existingDraft) {
     flow.setRuntimeDraft({
       ...existingDraft,
@@ -2871,7 +2904,7 @@ async function ensureRuntimeDraft(patientExaminationId: number, context: DraftBo
 
 async function hydrateDraftForRoutePatientExamination(patientExaminationId: number) {
   if (patientExaminationId !== routePatientExaminationId.value) return
-  const requestedKey = `${patientExaminationId}:${activeBundleIdentityKey.value || 'loading'}`
+  const requestedKey = `${String(patientExaminationId)}:${activeBundleIdentityKey.value || 'loading'}`
   if (draftBootstrapInFlight.value?.key === requestedKey) {
     await draftBootstrapInFlight.value.promise
     return
@@ -3088,7 +3121,7 @@ watch(
 )
 
 onMounted(() => {
-  ensureTerminologyBundlesLoaded()
+  void ensureTerminologyBundlesLoaded()
   void loadReportingLanguages()
 })
 </script>

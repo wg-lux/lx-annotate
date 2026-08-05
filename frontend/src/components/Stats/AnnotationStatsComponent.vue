@@ -12,8 +12,58 @@
       <p class="mt-3 text-muted">Statistiken werden geladen...</p>
     </div>
 
+    <div
+      v-else-if="hasBlockingError"
+      class="alert alert-danger annotation-stats-unavailable"
+      data-test="annotation-stats-unavailable"
+      role="alert"
+    >
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <strong>Statistiken sind derzeit nicht verfügbar.</strong>
+          <div class="mt-1">
+            Es werden keine Zähler angezeigt, bis eine vollständige Aktualisierung erfolgreich war.
+          </div>
+          <small class="d-block mt-2">{{ annotationStatsStore.error }}</small>
+        </div>
+        <button
+          type="button"
+          class="btn btn-outline-light btn-sm"
+          :disabled="annotationStatsStore.isLoading"
+          @click="refreshStats"
+        >
+          Erneut versuchen
+        </button>
+      </div>
+    </div>
+
     <!-- Main Content -->
     <div v-else>
+      <div
+        v-if="navigationError"
+        class="alert alert-danger"
+        data-test="annotation-stats-navigation-error"
+        role="alert"
+      >
+        {{ navigationError }}
+      </div>
+      <div
+        v-if="hasStaleError"
+        class="alert alert-warning annotation-stats-stale"
+        data-test="annotation-stats-stale"
+        role="status"
+      >
+        <strong>Die Statistik konnte nicht aktualisiert werden.</strong>
+        Angezeigt wird der letzte erfolgreiche Stand ({{ lastUpdateText }}).
+        <button
+          type="button"
+          class="btn btn-outline-dark btn-sm ms-2"
+          :disabled="annotationStatsStore.isLoading"
+          @click="refreshStats"
+        >
+          Erneut versuchen
+        </button>
+      </div>
       <!-- Header with overall stats -->
       <div class="row mb-4">
         <div class="col-12">
@@ -425,45 +475,21 @@
       </div>
     </div>
 
-    <!-- Error Alert -->
-    <div v-if="annotationStatsStore.hasError" class="alert alert-danger mt-3">
-      <i class="ni ni-user-run me-2"></i>
-      <strong>Fehler beim Laden der Statistiken:</strong>
-      {{ annotationStatsStore.error }}
-      <button 
-        type="button" 
-        class="btn-close" 
-        @click="annotationStatsStore.clearError()"
-      ></button>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
+import { createRuntimeLogger } from '@/utils/runtimeLogger';
 
 const router = useRouter();
 const annotationStatsStore = useAnnotationStatsStore();
+const logger = createRuntimeLogger('annotation-stats-component');
+const navigationError = ref<string | null>(null);
 
-const emptyStats = {
-  segmentPending: 0,
-  segmentInProgress: 0,
-  segmentCompleted: 0,
-  examinationPending: 0,
-  examinationInProgress: 0,
-  examinationCompleted: 0,
-  sensitiveMetaPending: 0,
-  sensitiveMetaInProgress: 0,
-  sensitiveMetaCompleted: 0,
-  totalPending: 0,
-  totalInProgress: 0,
-  totalCompleted: 0,
-  totalAnnotations: 0
-}
-
-const stats = computed(() => annotationStatsStore.stats || emptyStats)
+const stats = computed(() => annotationStatsStore.stats)
 
 // Enhanced computed properties with fallback values
 const segmentStats = computed(() => ({
@@ -544,7 +570,7 @@ const overallStatusItems = computed(() => [
 
 const completedOfTotalText = computed(() => {
   if (totalAnnotations.value === 0) return 'Keine Annotationen gezählt'
-  return `${totalCompleted.value} von ${totalAnnotations.value} Annotationen abgeschlossen`
+  return `${String(totalCompleted.value)} von ${String(totalAnnotations.value)} Annotationen abgeschlossen`
 })
 
 const overallStatusDescription = computed(() => {
@@ -557,14 +583,14 @@ const overallStatusDescription = computed(() => {
   }
 
   if (totalInProgress.value > 0 && totalPending.value > 0) {
-    return `${openAnnotationCount.value} Annotationen sind noch offen: ${totalInProgress.value} in Bearbeitung, ${totalPending.value} ausstehend.`
+    return `${String(openAnnotationCount.value)} Annotationen sind noch offen: ${String(totalInProgress.value)} in Bearbeitung, ${String(totalPending.value)} ausstehend.`
   }
 
   if (totalInProgress.value > 0) {
-    return `${totalInProgress.value} Annotationen sind aktuell in Bearbeitung.`
+    return `${String(totalInProgress.value)} Annotationen sind aktuell in Bearbeitung.`
   }
 
-  return `${totalPending.value} Annotationen warten noch auf Bearbeitung.`
+  return `${String(totalPending.value)} Annotationen warten noch auf Bearbeitung.`
 })
 
 const topOpenAreaText = computed(() => {
@@ -586,8 +612,8 @@ const topOpenAreaText = computed(() => {
   ]
 
   const top = areas.sort((a, b) => b.open - a.open)[0]
-  if (!top || top.open === 0) return ''
-  return `${top.label} (${top.open} offen)`
+  if (top.open === 0) return ''
+  return `${top.label} (${String(top.open)} offen)`
 })
 
 const points = computed(() => {
@@ -651,7 +677,7 @@ const focusMission = computed(() => {
   ]
 
   const top = candidates.sort((a, b) => b.pending - a.pending)[0]
-  if (!top || top.pending <= 0) {
+  if (top.pending <= 0) {
     return {
       title: 'Stabil halten',
       description: 'Alles sieht gut aus. Heute Fokus auf Qualitätskontrolle und Feinschliff.',
@@ -661,11 +687,16 @@ const focusMission = computed(() => {
   return top
 })
 
-// Check if we have any data to show
-const hasAnyData = computed(() => {
-  return stats.value.totalAnnotations > 0 || 
-         annotationStatsStore.lastUpdated !== null;
-});
+const hasSuccessfulSnapshot = computed(() => annotationStatsStore.lastUpdated !== null)
+
+// Loading and error presentation must follow successful snapshot provenance, not count values.
+const hasAnyData = computed(() => hasSuccessfulSnapshot.value)
+const hasBlockingError = computed(
+  () => annotationStatsStore.hasError && !hasSuccessfulSnapshot.value
+)
+const hasStaleError = computed(
+  () => annotationStatsStore.hasError && hasSuccessfulSnapshot.value
+)
 
 const lastUpdateText = computed(() => {
   if (!annotationStatsStore.lastUpdated) return 'Nie';
@@ -675,13 +706,13 @@ const lastUpdateText = computed(() => {
   const minutes = Math.floor(diff / 60000);
   
   if (minutes < 1) return 'Gerade eben';
-  if (minutes < 60) return `vor ${minutes} Min.`;
+  if (minutes < 60) return `vor ${String(minutes)} Min.`;
   
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `vor ${hours} Std.`;
+  if (hours < 24) return `vor ${String(hours)} Std.`;
   
   const days = Math.floor(hours / 24);
-  return `vor ${days} Tag(en)`;
+  return `vor ${String(days)} Tag(en)`;
 });
 
 // Helper methods
@@ -695,33 +726,41 @@ const refreshStats = async (): Promise<void> => {
       await annotationStatsStore.forceRefresh();
     }
   } catch (error) {
-    console.error('Failed to refresh stats:', error);
+    logger.error('refresh-failed', error);
   }
 };
 
 // Navigation methods
+const navigateTo = (path: string): void => {
+  navigationError.value = null;
+  router.push(path).catch((error: unknown) => {
+    logger.error('navigation-failed', error);
+    navigationError.value = 'Die gewünschte Seite konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.';
+  });
+};
+
 const navigateToSegments = (): void => {
-  router.push('/video-untersuchung')
+  navigateTo('/video-untersuchung');
 };
 
 const navigateToExaminations = (): void => {
-  router.push('/reporting/case-setup')
+  navigateTo('/reporting/case-setup');
 };
 
 const navigateToSensitiveMeta = (): void => {
-  router.push('/anonymisierung/validierung')
+  navigateTo('/anonymisierung/validierung');
 };
 
 const navigateToFrameAnnotation = (): void => {
-  router.push('/frame-annotation');
+  navigateTo('/frame-annotation');
 };
 
 const navigateToExamination = (): void => {
-  router.push('/reporting/case-setup')
+  navigateTo('/reporting/case-setup');
 };
 
 const navigateToValidation = (): void => {
-  router.push('/anonymisierung/validierung')
+  navigateTo('/anonymisierung/validierung');
 };
 
 // Load stats on component mount and watch for changes

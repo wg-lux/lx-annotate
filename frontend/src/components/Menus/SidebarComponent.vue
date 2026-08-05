@@ -295,6 +295,9 @@
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import coloRegLogo from '@/assets/ColoReg.png'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('sidebar')
 
 export default {
   name: 'SidebarComponent',
@@ -398,7 +401,7 @@ export default {
           ].includes(item?.anonymizationStatus)
         }).length
       } catch (error) {
-        console.error('Failed to refresh workflow counts in sidebar:', error)
+        logger.error('workflow-count-refresh-failed', error)
       }
     },
     handleToggleSidebarEvent() {

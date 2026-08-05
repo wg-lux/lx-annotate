@@ -1,15 +1,15 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import FinalizedResultPage from '../FinalizedResultPage.vue'
 
 const setActiveReportId = vi.fn()
+const axiosGet = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: vi.fn()
+    get: axiosGet
   },
   r: (path: string) => `api/${path}`
 }))
@@ -40,7 +40,7 @@ describe('FinalizedResultPage', () => {
   })
 
   it('loads latest report and displays artifact links', async () => {
-    vi.mocked(axiosInstance.get)
+    axiosGet
       .mockResolvedValueOnce({
         data: [{ id: 88, status: 'final', version: 4, updatedAt: '2026-02-27T08:00:00Z' }]
       })
@@ -68,7 +68,7 @@ describe('FinalizedResultPage', () => {
   })
 
   it('builds fallback timeline link with patient_examination_id filter', async () => {
-    vi.mocked(axiosInstance.get)
+    axiosGet
       .mockResolvedValueOnce({
         data: [{ id: 88, status: 'final', version: 4, updatedAt: '2026-02-27T08:00:00Z' }]
       })

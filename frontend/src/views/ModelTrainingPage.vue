@@ -5,8 +5,8 @@
         <p class="training-eyebrow">AI Training</p>
         <h1 class="training-title">Model Training Control Pane</h1>
         <p class="training-intro">
-          Start image classification runs or train the lx-anonymizer PHI-region detector
-          from the frontend.
+          Start image classification runs or train the lx-anonymizer PHI-region detector from the
+          frontend.
         </p>
       </div>
       <div class="training-status-chip" :class="statusChipClass">
@@ -76,9 +76,9 @@
                   </option>
                 </select>
                 <small class="text-muted mt-1">
-                  Training nutzt die Annotationen, die am AI Dataset hängen.
-                  Segment-Labels werden zur Laufzeit in bestehende Frames expandiert
-                  und nicht als Frame-Annotationen gespeichert.
+                  Training nutzt die Annotationen, die am AI Dataset hängen. Segment-Labels werden
+                  zur Laufzeit in bestehende Frames expandiert und nicht als Frame-Annotationen
+                  gespeichert.
                 </small>
               </label>
 
@@ -90,7 +90,9 @@
                     :key="option.value"
                     type="button"
                     class="annotation-source-button"
-                    :class="{ 'annotation-source-button-active': form.annotationSourceScope === option.value }"
+                    :class="{
+                      'annotation-source-button-active': form.annotationSourceScope === option.value
+                    }"
                     :data-test="`annotation-source-${option.value}`"
                     :disabled="runPolling"
                     @click="form.annotationSourceScope = option.value"
@@ -143,11 +145,7 @@
                     <strong>{{ datasetSummary.summary.labelCount }}</strong>
                   </div>
                 </div>
-                <div
-                  v-if="selectedScopeHasNoFrames"
-                  class="dataset-summary-error"
-                  role="alert"
-                >
+                <div v-if="selectedScopeHasNoFrames" class="dataset-summary-error" role="alert">
                   Der ausgewählte Annotation Source enthält keine trainierbaren Frames.
                 </div>
               </div>
@@ -160,7 +158,11 @@
                   data-test="training-backbone-select"
                   :disabled="runPolling"
                 >
-                  <option v-for="option in backboneOptions" :key="option.value" :value="option.value">
+                  <option
+                    v-for="option in backboneOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
                     {{ option.label }}
                   </option>
                 </select>
@@ -482,9 +484,7 @@
       <div class="col-12 col-xl-5">
         <aside class="training-card training-card-contrast">
           <h2>Run Status</h2>
-          <p class="status-intro">
-            Current state of the latest run started from this page.
-          </p>
+          <p class="status-intro">Current state of the latest run started from this page.</p>
 
           <dl v-if="currentRun" class="training-summary">
             <div>
@@ -580,8 +580,10 @@ import {
 } from '@/api/modelTrainingApi'
 import { useToastStore } from '@/stores/toastStore'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const toast = useToastStore()
+const logger = createRuntimeLogger('model-training')
 
 const loading = ref(true)
 const runPolling = ref(false)
@@ -639,21 +641,26 @@ const form = reactive({
 })
 
 const selectedBackboneDescription = computed(() => {
-  return backboneOptions.value.find((option) => option.value === form.backboneName)?.description ?? ''
+  return (
+    backboneOptions.value.find((option) => option.value === form.backboneName)?.description ?? ''
+  )
 })
 
 const selectedFeatureModeDescription = computed(() => {
-  return featureModeOptions.value.find((option) => option.value === form.featureMode)?.description ?? ''
+  return (
+    featureModeOptions.value.find((option) => option.value === form.featureMode)?.description ?? ''
+  )
 })
 
 const selectedPhiBaseModelDescription = computed(() => {
-  return phiBaseModelOptions.value.find((option) => option.value === form.baseModel)?.description ?? ''
+  return (
+    phiBaseModelOptions.value.find((option) => option.value === form.baseModel)?.description ?? ''
+  )
 })
 
 function isImageMultilabelDataset(dataset: ModelTrainingDatasetOption): boolean {
   return (
-    dataset.datasetType === 'image' &&
-    dataset.aiModelType === 'image_multilabel_classification'
+    dataset.datasetType === 'image' && dataset.aiModelType === 'image_multilabel_classification'
   )
 }
 
@@ -662,7 +669,9 @@ const trainingDatasetOptions = computed(() => {
 })
 
 const selectedDataset = computed(() => {
-  return trainingDatasetOptions.value.find((dataset) => String(dataset.id) === form.datasetId) ?? null
+  return (
+    trainingDatasetOptions.value.find((dataset) => String(dataset.id) === form.datasetId) ?? null
+  )
 })
 
 const effectiveTrainingFrameCount = computed(() => {
@@ -714,7 +723,10 @@ const statusChipClass = computed(() => {
 const artifactEntries = computed(() => {
   const entries = Object.entries(currentRun.value?.artifactPaths ?? {})
   return entries.filter(([key]) => {
-    return !['model_path', 'meta_path', 'modelPath', 'metaPath'].includes(key) || !currentRun.value?.result
+    return (
+      !['model_path', 'meta_path', 'modelPath', 'metaPath'].includes(key) ||
+      !currentRun.value?.result
+    )
   })
 })
 
@@ -750,20 +762,32 @@ function annotationSourceLabel(scope: AnnotationSourceScope): string {
 
 function runDatasetLabel(run: ModelTrainingRunRecord): string {
   if (run.datasetName) return run.datasetName
-  if (run.datasetId) return `ID ${run.datasetId}`
+  if (run.datasetId) return `ID ${String(run.datasetId)}`
   return 'External dataset'
 }
 
-function fieldErrorMessage(error: unknown, fallback: string): string {
-  const responseError = error as {
-    response?: { data?: { errors?: Record<string, unknown> } }
-  }
-  const errors = responseError.response?.data?.errors
-  if (!errors) return fallback
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
 
-  const messages = Object.values(errors)
-    .flatMap((value) => (Array.isArray(value) ? value : [value]))
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+function fieldErrorMessage(error: unknown, fallback: string): string {
+  if (!isRecord(error)) return fallback
+  const response = error.response
+  if (!isRecord(response)) return fallback
+  const data = response.data
+  if (!isRecord(data)) return fallback
+  const errors = data.errors
+  if (!isRecord(errors)) return fallback
+
+  const messages: string[] = []
+  for (const value of Object.values(errors)) {
+    const entries: unknown[] = Array.isArray(value) ? Array.from<unknown>(value) : [value]
+    for (const entry of entries) {
+      if (typeof entry === 'string' && entry.trim().length > 0) {
+        messages.push(entry)
+      }
+    }
+  }
 
   return messages.length ? messages.join(' ') : fallback
 }
@@ -785,7 +809,7 @@ function stopPolling(): void {
 function applyDefaults(): void {
   const preferredDataset =
     trainingDatasetOptions.value.find((dataset) => dataset.isActive) ??
-    trainingDatasetOptions.value[0]
+    trainingDatasetOptions.value.at(0)
   const currentDatasetIsTrainable = trainingDatasetOptions.value.some(
     (dataset) => String(dataset.id) === form.datasetId
   )
@@ -810,7 +834,7 @@ async function loadDatasetSummary(datasetId: string): Promise<void> {
       datasetSummary.value = summary
     }
   } catch (error) {
-    console.error('Failed to load AI dataset training summary:', error)
+    logger.error('dataset-summary-load-failed', error)
     if (requestId === datasetSummaryRequestId) {
       datasetSummaryError.value = 'Die Datensatz-Zusammenfassung konnte nicht geladen werden.'
     }
@@ -831,7 +855,10 @@ function applyImageTrainingDefaults(defaults: ModelTrainingOptionsResponse['defa
   form.treatUnlabeledAsNegative = defaults.treatUnlabeledAsNegative
 }
 
-function applyPhiDefaults(defaults: PhiRegionDetectorTrainingDefaults, includeShared = false): void {
+function applyPhiDefaults(
+  defaults: PhiRegionDetectorTrainingDefaults,
+  includeShared = false
+): void {
   form.datasetYaml = defaults.datasetYaml
   form.outputDir = defaults.outputDir
   form.baseModel = defaults.baseModel
@@ -887,19 +914,21 @@ async function loadPage(): Promise<void> {
       void loadDatasetSummary(form.datasetId)
     }
     applyPhiDefaults(options.phiRegionDetector.defaults)
-    const activeRun = runs.find(isRunActive) ?? runs[0] ?? null
+    const activeRun = runs.find(isRunActive) ?? runs.at(0) ?? null
+    const shouldPoll = activeRun !== null && isRunActive(activeRun)
     currentRun.value = activeRun
     runErrorMessage.value =
-      activeRun && (activeRun.status === 'failed' || activeRun.status === 'lost')
+      activeRun !== null && (activeRun.status === 'failed' || activeRun.status === 'lost')
         ? activeRun.error || 'Training fehlgeschlagen.'
         : ''
-    runPolling.value = activeRun ? isRunActive(activeRun) : false
-    if (activeRun && isRunActive(activeRun)) {
+    runPolling.value = shouldPoll
+    if (shouldPoll) {
       startPolling(activeRun.runId)
     }
   } catch (error) {
-    console.error('Failed to load model training page:', error)
-    errorMessage.value = 'Die Trainingsoptionen oder gespeicherten Läufe konnten nicht geladen werden.'
+    logger.error('page-load-failed', error)
+    errorMessage.value =
+      'Die Trainingsoptionen oder gespeicherten Läufe konnten nicht geladen werden.'
   } finally {
     loading.value = false
   }
@@ -919,10 +948,12 @@ async function refreshRun(runId: string): Promise<void> {
       runPolling.value = false
       stopPolling()
       runErrorMessage.value = run.error || 'Training fehlgeschlagen.'
-      toast.error({ text: run.status === 'lost' ? 'Trainingsergebnis verloren.' : 'Training fehlgeschlagen.' })
+      toast.error({
+        text: run.status === 'lost' ? 'Trainingsergebnis verloren.' : 'Training fehlgeschlagen.'
+      })
     }
   } catch (error) {
-    console.error('Failed to refresh training run:', error)
+    logger.error('run-refresh-failed', error)
     runPolling.value = false
     stopPolling()
     runErrorMessage.value = 'Der Trainingsstatus konnte nicht aktualisiert werden.'
@@ -991,7 +1022,7 @@ async function startTraining(): Promise<void> {
     startPolling(run.runId)
     void refreshRun(run.runId)
   } catch (error) {
-    console.error('Failed to start training run:', error)
+    logger.error('run-start-failed', error)
     const message = fieldErrorMessage(error, 'Der Trainingslauf konnte nicht gestartet werden.')
     runErrorMessage.value = message
     toast.error({ text: message })

@@ -379,7 +379,7 @@ interface PatientDetailErrorPayload {
 }
 
 function patientDetailErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError<PatientDetailErrorPayload>(error)) {
+  if (isAxiosError<PatientDetailErrorPayload | undefined>(error)) {
     return error.response?.data?.detail || error.message || fallback
   }
   return error instanceof Error && error.message ? error.message : fallback
@@ -416,6 +416,13 @@ const generatingPseudonym = ref<boolean>(false)
 const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
+const resolveRequiredPatientId = (candidate?: number): number => {
+  if (typeof candidate !== 'number' || !Number.isSafeInteger(candidate) || candidate <= 0) {
+    throw new Error('Kein Patient ausgewählt – patientId konnte nicht ermittelt werden.')
+  }
+  return candidate
+}
+
 
 // Methods
 const checkDeletionSafety = async () => {
@@ -428,7 +435,7 @@ const checkDeletionSafety = async () => {
     if (!currentPatient || !currentPatient.id) {
       throw new Error('Aktueller Patient nicht gefunden')
     }
-    const patientId = patientStore.resolveCurrentPatientId(currentPatient.id, true)!
+    const patientId = resolveRequiredPatientId(currentPatient.id)
     
     // Use axiosInstance instead of fetch
     const response = await axiosInstance.get<PatientDeletionCheck>(
@@ -449,11 +456,12 @@ const confirmDeletion = async () => {
   try {
     deleting.value = true
     
-    await patientService.deletePatient(props.patient.id!)
+    const patientId = resolveRequiredPatientId(props.patient.id)
+    await patientService.deletePatient(patientId)
     
     successMessage.value = `Patient "${props.patient.firstName} ${props.patient.lastName}" wurde erfolgreich gelöscht.`
     
-    emit('patient-deleted', props.patient.id!)
+    emit('patient-deleted', patientId)
     closeDeletionModal()
     
   } catch (err: unknown) {
@@ -529,7 +537,7 @@ const generatePseudonym = async (): Promise<void> => {
     generatingPseudonym.value = true
     error.value = ''
     
-    const id = patientStore.resolveCurrentPatientId(props.patient?.id, true)!
+    const id = resolveRequiredPatientId(props.patient.id)
     const data = await generatePatientPseudonym(id)
 
     // Map snake_case → camelCase locally
@@ -545,7 +553,7 @@ const generatePseudonym = async (): Promise<void> => {
     setTimeout(() => { successMessage.value = '' }, 3000)
   } catch (caughtError: unknown) {
     const detail = patientDetailErrorMessage(caughtError, 'Unbekannter Fehler')
-    const missing = isAxiosError<PatientDetailErrorPayload>(caughtError)
+    const missing = isAxiosError<PatientDetailErrorPayload | undefined>(caughtError)
       ? caughtError.response?.data?.missingFields
       : undefined
     error.value = missing?.length

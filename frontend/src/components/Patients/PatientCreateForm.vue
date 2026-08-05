@@ -221,8 +221,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { usePatientStore, type Patient, type PatientFormData } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
-import { r } from '@/api/axiosInstance'
-import { endpoints } from '@/types/api/endpoints'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-create-form')
 
 // Emits
 const emit = defineEmits<{
@@ -286,11 +287,11 @@ const validateForm = () => {
   errors.value = {}
   
   // Required fields
-  if (!form.value.firstName?.trim()) {
+  if (!form.value.firstName.trim()) {
     errors.value.firstName = 'Vorname ist erforderlich'
   }
   
-  if (!form.value.lastName?.trim()) {
+  if (!form.value.lastName.trim()) {
     errors.value.lastName = 'Nachname ist erforderlich'
   }
   
@@ -313,38 +314,34 @@ const validateForm = () => {
 }
 
 const handleSubmit = async () => {
-  console.log('=== FORM SUBMIT START ===')
-  console.log('handleSubmit aufgerufen!', { 
-    formValid: isFormValid.value, 
-    loading: loading.value,
-    formData: form.value 
+  logger.debug('submission-started', { operation: 'create' })
+  logger.debug('submission-state-checked', {
+    operation: 'create',
+    state: loading.value ? 'loading' : 'idle'
   })
   
   if (!validateForm()) {
-    console.log('❌ Validierung fehlgeschlagen:', errors.value)
+    logger.info('validation-rejected', {
+      operation: 'create',
+      outcome: 'rejected',
+      count: Object.keys(errors.value).length
+    })
     return
   }
-  
-  let formattedData: PatientFormData | null = null
-  
+
   try {
     loading.value = true
     errors.value = {} // Reset errors
-    console.log('✅ Validation passed, sende Daten:', form.value)
+    logger.debug('validation-accepted', { operation: 'create', outcome: 'accepted' })
     
     // Format data for submission using patientStore method
-    formattedData = patientStore.formatPatientForSubmission(form.value)
-    console.log('📋 Formatierte Daten für API:', formattedData)
-    
-    // Log the exact URL that will be called
-    const patientCreatePath = r(endpoints.patient.patients)
-    console.log('🌐 API-Aufruf wird gestartet...')
-    console.log('URL:', patientCreatePath)
-    console.log('Full URL wird zu:', `${window.location.origin}${patientCreatePath}`)
+    const formattedData = patientStore.formatPatientForSubmission(form.value)
+    logger.debug('payload-normalized', { operation: 'create' })
+    logger.debug('request-started', { operation: 'create' })
     
     // Use patientStore instead of patientService for consistency
     const newPatient = await patientStore.createPatient(formattedData)
-    console.log('🎉 Patient erfolgreich erstellt:', newPatient)
+    logger.debug('request-completed', { operation: 'create', outcome: 'accepted' })
     
     // Reset form
     form.value = {
@@ -364,17 +361,16 @@ const handleSubmit = async () => {
     
     // Emit event with the created patient
     emit('patient-created', newPatient)
-    console.log('📤 Event patient-created ausgelöst mit:', newPatient)
-    console.log('=== FORM SUBMIT SUCCESS ===')
+    logger.debug('created-event-emitted', { operation: 'create' })
+    logger.info('submission-completed', { operation: 'create', outcome: 'accepted' })
     
   } catch (error: unknown) {
     const caughtError =
       error instanceof Error ? error : new Error('Unbekannter Fehler beim Erstellen des Patienten')
-    console.log('=== FORM SUBMIT ERROR ===')
-    console.error('❌ KOMPLETTES ERROR-OBJEKT:', error)
-    console.error('❌ ERROR STACK:', caughtError.stack)
-    console.error('❌ ERROR NAME:', caughtError.name)
-    console.error('❌ ERROR MESSAGE:', caughtError.message)
+    logger.error('submission-failed', error, {
+      operation: 'create',
+      outcome: 'rejected'
+    })
     
     // Handle different error types
     if (caughtError.message.includes('HTTP error!')) {
@@ -384,20 +380,12 @@ const handleSubmit = async () => {
       errors.value.general = caughtError.message
     }
     
-    // Zusätzliche Debugging-Informationen
-    console.error('🔍 Zusätzliche Debug-Infos:', {
-      errorName: caughtError.name,
-      errorMessage: caughtError.message,
-      errorStack: caughtError.stack,
-      formattedData: formattedData,
-      timestamp: new Date().toISOString()
-    })
   } finally {
     loading.value = false
-    console.log('🏁 Loading beendet, finaler Zustand:', { 
-      loading: loading.value, 
-      errors: errors.value,
-      hasErrors: Object.keys(errors.value).length > 0
+    logger.debug('submission-settled', {
+      operation: 'create',
+      state: 'idle',
+      count: Object.keys(errors.value).length
     })
   }
 }
@@ -415,14 +403,20 @@ const loadLookupData = async () => {
       patientStore.centers = centersData
     }
   } catch (error) {
-    console.error('Error loading lookup data:', error)
+    logger.error('lookup-load-failed', error, {
+      operation: 'list',
+      outcome: 'rejected'
+    })
+    errors.value.general =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Geschlechter und Zentren konnten nicht geladen werden.'
   }
 }
 
 // Lifecycle
-onMounted(() => {
-
-  loadLookupData()
+onMounted(async () => {
+  await loadLookupData()
 })
 </script>
 

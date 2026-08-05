@@ -35,23 +35,34 @@
             <router-link 
               to="/annotationen" 
               class="btn btn-outline-primary btn-sm mb-0 me-3"
-              :class="{ 'btn-warning': totalPendingAnnotations > 0 }"
+              :class="{ 'btn-warning': showPendingCount, 'stats-unavailable': annotationStatsStore.hasError }"
+              :title="annotationStatsStatusTitle"
             >
               <i class="ni ni-single-copy-04 me-1"></i>
               Annotationen
               <span 
-                v-if="totalPendingAnnotations > 0" 
-                class="badge bg-danger ms-1"
-                :title="`${totalPendingAnnotations} ausstehende Annotationen`"
-              >
-                {{ totalPendingAnnotations }}
-              </span>
-              <span 
-                v-else-if="annotationStatsStore.isLoading"
+                v-if="annotationStatsStore.isLoading"
                 class="spinner-border spinner-border-sm ms-1"
                 role="status"
+                data-test="annotation-stats-loading"
               >
                 <span class="visually-hidden">Laden...</span>
+              </span>
+              <span
+                v-else-if="annotationStatsStore.hasError"
+                class="badge bg-warning text-dark ms-1"
+                data-test="annotation-stats-unavailable"
+                aria-label="Annotationsstatistik nicht verfügbar"
+              >
+                !
+              </span>
+              <span
+                v-else-if="showPendingCount"
+                class="badge bg-danger ms-1"
+                :title="`${totalPendingAnnotations} ausstehende Annotationen`"
+                data-test="annotation-pending-count"
+              >
+                {{ totalPendingAnnotations }}
               </span>
             </router-link>
           </li>
@@ -80,14 +91,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthKcStore } from '@/stores/auth_kc'             //  NEW store
 import { useAnnotationStatsStore } from '@/stores/annotationStats'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('navbar')
 
 const route = useRoute()
 const authStore = useAuthKcStore()                            //  use Keycloak store
 const annotationStatsStore = useAnnotationStatsStore()
+let annotationStatsRefreshTimer: ReturnType<typeof setInterval> | null = null
+let isUnmounted = false
 
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated)
@@ -106,6 +122,22 @@ const currentRouteName = computed(() => {
 
 const totalPendingAnnotations = computed(() => {
   return annotationStatsStore.stats.totalPending
+})
+
+const showPendingCount = computed(
+  () =>
+    !annotationStatsStore.isLoading &&
+    !annotationStatsStore.hasError &&
+    totalPendingAnnotations.value > 0
+)
+
+const annotationStatsStatusTitle = computed(() => {
+  if (annotationStatsStore.isLoading) return 'Annotationsstatistik wird aktualisiert'
+  if (annotationStatsStore.hasError) return 'Annotationsstatistik ist derzeit nicht verfügbar'
+  if (totalPendingAnnotations.value > 0) {
+    return `${String(totalPendingAnnotations.value)} ausstehende Annotationen`
+  }
+  return 'Keine ausstehenden Annotationen'
 })
 
 // Methods
@@ -134,12 +166,24 @@ const toggleSidebar = () => {
 onMounted(async () => {
   await annotationStatsStore.fetchAnnotationStats()
 
+  if (isUnmounted) return
+
   // Auto-refresh every 5 minutes
-  setInterval(async () => {
+  annotationStatsRefreshTimer = setInterval(() => {
     if (annotationStatsStore.needsRefresh) {
-      await annotationStatsStore.refreshIfNeeded()
+      annotationStatsStore.refreshIfNeeded().catch((error: unknown) => {
+        logger.error('annotation-stats-refresh-failed', error)
+      })
     }
   }, 5 * 60 * 1000)
+})
+
+onUnmounted(() => {
+  isUnmounted = true
+  if (annotationStatsRefreshTimer !== null) {
+    clearInterval(annotationStatsRefreshTimer)
+    annotationStatsRefreshTimer = null
+  }
 })
 </script>
 

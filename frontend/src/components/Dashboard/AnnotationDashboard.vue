@@ -334,7 +334,9 @@ import AnnotationStatsComponent from '@/components/Stats/AnnotationStatsComponen
 import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
+import { createRuntimeLogger } from '@/utils/runtimeLogger';
 
+const logger = createRuntimeLogger('annotation-dashboard');
 
 const toast = useToastStore(); // Use your notification system here
 const router = useRouter();
@@ -356,7 +358,10 @@ const MAX_SEGMENTS_IN_OVERVIEW = 500;
 // Add at the top of script setup
 const showError = (message) => {
   // Use your notification system here
-  console.error(message);
+  logger.warn('user-notification-displayed', {
+    outcome: 'rejected',
+    source: 'dashboard'
+  });
   toast.error(message) 
 };
 
@@ -407,8 +412,11 @@ const refreshExaminations = async () => {
   try {
     const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList));
     examinations.value = response.data.results || response.data || [];
-  } catch {
-    console.error('Fehler beim Laden der Untersuchungen:', error);
+  } catch (error) {
+    logger.error('examination-list-load-failed', error, {
+      operation: 'list',
+      outcome: 'rejected'
+    });
     examinations.value = [];
   } finally {
     loadingExaminations.value = false;
@@ -443,9 +451,16 @@ const refreshSensitiveMeta = async () => {
     pdfData.forEach(item => item.content_type = 'pdf');
 
     sensitiveMetaData.value = [...videoData, ...pdfData];
-    console.log('Loaded sensitive metadata:', sensitiveMetaData.value.length, 'items');
+    logger.debug('sensitive-metadata-load-completed', {
+      operation: 'list',
+      count: sensitiveMetaData.value.length,
+      outcome: 'accepted'
+    });
   } catch (error) {
-    console.error('Fehler beim Laden der Patientendaten:', error);
+    logger.error('sensitive-metadata-load-failed', error, {
+      operation: 'list',
+      outcome: 'rejected'
+    });
     sensitiveMetaData.value = [];
   } finally {
     loadingSensitiveMeta.value = false;
@@ -540,7 +555,10 @@ const markSegmentComplete = async (segment) => {
     annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
     await refreshSegments();
   } catch (error) {
-    console.error('Fehler beim Markieren des Segments als abgeschlossen:', error);
+    logger.error('segment-completion-failed', error, {
+      operation: 'update',
+      outcome: 'rejected'
+    });
   }
 };
 
@@ -560,7 +578,10 @@ const markExaminationComplete = async (examination) => {
     annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
     await refreshExaminations();
   } catch (error) {
-    console.error('Fehler beim Markieren der Untersuchung als abgeschlossen:', error);
+    logger.error('examination-completion-failed', error, {
+      operation: 'update',
+      outcome: 'rejected'
+    });
   }
 };
 
@@ -587,7 +608,10 @@ const markSensitiveMetaComplete = async (meta) => {
     annotationStatsStore.updateAnnotationStatus('sensitive_meta', 'pending', 'completed');
     await refreshSensitiveMeta();
   } catch (error) {
-    console.error('Fehler beim Markieren der Patientendaten als validiert:', error);
+    logger.error('sensitive-metadata-validation-failed', error, {
+      operation: 'validate',
+      outcome: 'rejected'
+    });
   }
 };
 

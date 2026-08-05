@@ -10,24 +10,33 @@ import type {
   ReportTemplateRuntimeValidationResult
 } from '@/types/reportTemplate'
 
+function requireDefined<T>(value: T | undefined, description: string): T {
+  if (value === undefined) throw new Error(`Expected ${description}.`)
+  return value
+}
+
 const hoisted = vi.hoisted(() => {
-  const createFixtureRef = <T>(name: string) => {
-    let fixture: T | undefined
-    return {
-      get current(): T {
-        if (fixture === undefined) throw new Error(`${name} fixture was not initialized.`)
-        return fixture
-      },
-      set current(value: T) {
-        fixture = value
+  class FixtureRef<T> {
+    private fixture: T | undefined
+
+    constructor(private readonly name: string) {}
+
+    get current(): T {
+      if (this.fixture === undefined) {
+        throw new Error(`${this.name} fixture was not initialized.`)
       }
+      return this.fixture
+    }
+
+    set current(value: T) {
+      this.fixture = value
     }
   }
 
   return {
-    flowRef: createFixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
+    flowRef: new FixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
     findingSelectorsRef:
-      createFixtureRef<ReturnType<typeof buildFindingSelectors>>('finding selectors'),
+      new FixtureRef<ReturnType<typeof buildFindingSelectors>>('finding selectors'),
     validateRuntime: vi.fn(),
     templateControls: {
       annotationOnly: false,
@@ -201,7 +210,7 @@ function buildFlowStore() {
     }),
     persistCurrentRuntimeDraft: vi.fn().mockResolvedValue(undefined),
     addFinding: vi.fn(({ findingName }: { findingName: string }) => {
-      const localId: string = `finding_${flow.currentRuntimeDraft.payload.patientFindings.length + 1}`
+      const localId: string = `finding_${String(flow.currentRuntimeDraft.payload.patientFindings.length + 1)}`
       flow.currentRuntimeDraft.payload.patientFindings.push({
         localId,
         finding: findingName,
@@ -373,12 +382,12 @@ describe('FindingsCapturePage runtime draft flow', () => {
       'finding-esophagus_polyp'
     )
 
-    const addButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Befund hinzufügen'))
-    expect(addButton).toBeTruthy()
+    const addButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Befund hinzufügen')),
+      'the add-finding button'
+    )
 
-    await addButton!.trigger('click')
+    await addButton.trigger('click')
     await flushPromises()
 
     expect(hoisted.flowRef.current.addFinding).toHaveBeenCalledWith({
@@ -412,11 +421,11 @@ describe('FindingsCapturePage runtime draft flow', () => {
     expect(wrapper.find('[data-testid="validation-panel-stub"]').exists()).toBe(false)
     expect(hoisted.validateRuntime).not.toHaveBeenCalled()
 
-    const addButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Befund hinzufügen'))
-    expect(addButton).toBeTruthy()
-    await addButton!.trigger('click')
+    const addButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Befund hinzufügen')),
+      'the annotation-only add-finding button'
+    )
+    await addButton.trigger('click')
     expect(hoisted.flowRef.current.addFinding).toHaveBeenCalledWith({
       findingName: 'esophagus_polyp'
     })

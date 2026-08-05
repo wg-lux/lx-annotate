@@ -1,12 +1,23 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref, type Ref } from 'vue'
 
 import ReportingShell from '../ReportingShell.vue'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import type { TerminologyBundleVersion } from '@/api/terminologyApi'
+import type { PatientCase } from '@/api/casesApi'
 import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
 import type { ReportingRuntimeDraft } from '@/stores/reportingFlowStore'
+import type { UseAuthenticatedVideoStreamOptions } from '@/composables/useAuthenticatedVideoStream'
+import type { StreamableVideoFileType } from '@/utils/mediaUrls'
+
+type UseAuthenticatedVideoStream =
+  typeof import('@/composables/useAuthenticatedVideoStream').useAuthenticatedVideoStream
+
+function requireDefined<T>(value: T | undefined, description: string): T {
+  if (value === undefined) throw new Error(`Expected ${description}.`)
+  return value
+}
 
 const hoisted = vi.hoisted(() => {
   let flowFixture: ReturnType<typeof buildFlowStore> | undefined
@@ -34,7 +45,7 @@ const hoisted = vi.hoisted(() => {
       }
     },
     axiosApi: {
-      get: vi.fn()
+      get: vi.fn<(url: string, ...args: unknown[]) => unknown>()
     },
     findingsApi: {
       getExaminationFindings: vi.fn()
@@ -83,7 +94,7 @@ const hoisted = vi.hoisted(() => {
         return options.find((option) => option.type === 'processed')?.url ?? null
       })
     },
-    useAuthenticatedVideoStream: vi.fn()
+    useAuthenticatedVideoStream: vi.fn<UseAuthenticatedVideoStream>()
   }
 })
 
@@ -111,7 +122,7 @@ vi.mock('@/stores/terminologyStore', async () => {
   const terminologyStore = makeReactive(hoisted.terminologyStore)
   return {
     terminologyBatchImportMessage: (result: { imported: unknown[]; failures: unknown[] }) =>
-      `${result.imported.length} Pakete installiert`,
+      `${String(result.imported.length)} Pakete installiert`,
     useTerminologyStore: () => terminologyStore
   }
 })
@@ -281,6 +292,17 @@ function mountShell() {
   return wrapper
 }
 
+function hasMutableArtifactKind(
+  options: UseAuthenticatedVideoStreamOptions
+): options is UseAuthenticatedVideoStreamOptions & {
+  artifactKind: Ref<StreamableVideoFileType>
+} {
+  return (
+    typeof options.artifactKind === 'object' &&
+    'value' in options.artifactKind
+  )
+}
+
 describe('ReportingShell media preload', () => {
   afterEach(() => {
     for (const wrapper of mountedShells.splice(0)) wrapper.unmount()
@@ -296,7 +318,7 @@ describe('ReportingShell media preload', () => {
       playbackError: ref(null),
       playbackSourceUrl: ref(''),
       playbackMode: ref('idle'),
-      isHlsPlayback: ref(false)
+      isHlsPlayback: computed(() => false)
     })
     hoisted.terminologyStore.activeBundle = {
       moduleName: 'report_template_examples',
@@ -355,37 +377,37 @@ describe('ReportingShell media preload', () => {
     })
     hoisted.axiosApi.get.mockImplementation((url: string) => {
       if (url === 'cases/') {
-        return Promise.resolve({
-          data: [
+        const caseResponse: PatientCase = {
+          id: 5,
+          caseId: 'case-uuid-314',
+          patient: 42,
+          admissionDate: '2026-03-10T08:00:00Z',
+          leaveDate: null,
+          isActive: true,
+          isClosed: false,
+          isDeleted: false,
+          patientExaminations: [
             {
-              id: 5,
-              caseId: 'case-uuid-314',
-              patient: 42,
-              admissionDate: '2026-03-10T08:00:00Z',
-              leaveDate: null,
-              isActive: true,
-              isClosed: false,
-              isDeleted: false,
-              patientExaminations: [
-                {
-                  id: 314,
-                  examination: { id: 9, name: 'colonoscopy' },
-                  patientData: { id: 42 },
-                  dateStart: '2026-03-10'
-                },
-                {
-                  id: 315,
-                  examination: { id: 10, name: 'gastroscopy' },
-                  patientData: { id: 42 },
-                  dateStart: '2026-03-11'
-                }
-              ],
-              patientMedications: [],
-              patientMedicationSchedules: [],
-              patientLabSamples: [],
-              patientLabValues: []
+              id: 314,
+              examination: { id: 9, name: 'colonoscopy' },
+              patientData: { id: 42 },
+              dateStart: '2026-03-10'
+            },
+            {
+              id: 315,
+              examination: { id: 10, name: 'gastroscopy' },
+              patientData: { id: 42 },
+              dateStart: '2026-03-11'
             }
-          ]
+          ],
+          documents: [],
+          patientMedications: [],
+          patientMedicationSchedules: [],
+          patientLabSamples: [],
+          patientLabValues: []
+        }
+        return Promise.resolve({
+          data: [caseResponse]
         })
       }
       if (url === 'patient-examinations/314/') {
@@ -532,7 +554,7 @@ describe('ReportingShell media preload', () => {
     await flushPromises()
 
     const verifiedDraftCalls = hoisted.flowRef.current.setRuntimeDraft.mock.calls
-      .map(([draft]) => draft as ReportingRuntimeDraft)
+      .map(([draft]) => draft)
       .filter((draft) => draft.verificationStatus === 'verified')
     expect(verifiedDraftCalls.some((draft) => draft.patientExaminationId === 315)).toBe(true)
     expect(verifiedDraftCalls.some((draft) => draft.patientExaminationId === 314)).toBe(false)
@@ -664,7 +686,7 @@ describe('ReportingShell media preload', () => {
       latestVideo: null,
       latestFrames: []
     })
-    hoisted.terminologyStore.importBundleFolders.mockImplementation(async function (
+    hoisted.terminologyStore.importBundleFolders.mockImplementation(function (
       this: typeof hoisted.terminologyStore
     ) {
       const imported = {
@@ -676,7 +698,7 @@ describe('ReportingShell media preload', () => {
       this.activeBundle = imported
       this.activeModuleName = imported.moduleName
       this.activeBundleKey = `${imported.moduleName}@@${imported.version}`
-      return { imported: [imported], failures: [] }
+      return Promise.resolve({ imported: [imported], failures: [] })
     })
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
       {
@@ -991,7 +1013,7 @@ describe('ReportingShell media preload', () => {
     expect(statusRows).toHaveLength(1)
     expect(statusRows[0].classes()).toContain('is-warning')
 
-    hoisted.flowRef.current.currentRuntimeDraft?.payload.patientFindings[0].classificationChoices[0].descriptors.push(
+    hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings[0].classificationChoices[0].descriptors.push(
       {
         classificationChoiceDescriptor: 'propofol_dose_mg_value',
         descriptorValue: 120
@@ -1001,7 +1023,7 @@ describe('ReportingShell media preload', () => {
 
     expect(statusRows[0].classes()).toContain('is-warning')
 
-    hoisted.flowRef.current.currentRuntimeDraft?.payload.patientFindings[0].classificationChoices[1].descriptors.push(
+    hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings[0].classificationChoices[1].descriptors.push(
       {
         classificationChoiceDescriptor: 'medication_administration_time_value',
         descriptorValue: '10:30'
@@ -1063,18 +1085,17 @@ describe('ReportingShell media preload', () => {
 
     expect(hoisted.reportDraftApi.fetchPatientExaminationDraft).toHaveBeenCalledWith(314)
     expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
-    expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalledWith(
-      expect.objectContaining({
-        patientExaminationId: 314,
-        moduleName: 'report_template_examples',
-        templateName: 'persisted_template',
-        hydratedFrom: 'draft_api',
-        payload: expect.objectContaining({
-          patient: 'patient_42',
-          examination: 'colonoscopy'
-        })
-      })
-    )
+    const restoredDraft = hoisted.flowRef.current.setRuntimeDraft.mock.calls[0][0]
+    expect(restoredDraft).toMatchObject({
+      patientExaminationId: 314,
+      moduleName: 'report_template_examples',
+      templateName: 'persisted_template',
+      hydratedFrom: 'draft_api'
+    })
+    expect(restoredDraft.payload).toMatchObject({
+      patient: 'patient_42',
+      examination: 'colonoscopy'
+    })
     expect(hoisted.flowRef.current.markDraftPersistenceHydrated).toHaveBeenCalledWith(
       '2026-03-19T13:00:00.000Z'
     )
@@ -1133,13 +1154,18 @@ describe('ReportingShell media preload', () => {
     expect(video.exists()).toBe(true)
     expect(video.attributes('src')).toBeUndefined()
     const streamOptions = hoisted.useAuthenticatedVideoStream.mock.calls[0][0]
+    if (!hasMutableArtifactKind(streamOptions)) {
+      throw new Error('Expected a reactive artifact-kind option.')
+    }
     expect(streamOptions.videoId.value).toBe(999)
     expect(streamOptions.artifactKind.value).toBe('processed')
 
-    const rawButton = wrapper.findAll('button').find((button) => button.text().trim() === 'raw')
-    expect(rawButton).toBeTruthy()
+    const rawButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().trim() === 'raw'),
+      'the raw-stream button'
+    )
 
-    await rawButton!.trigger('click')
+    await rawButton.trigger('click')
     await flushPromises()
 
     expect(streamOptions.artifactKind.value).toBe('raw')
@@ -1190,18 +1216,21 @@ describe('ReportingShell media preload', () => {
     await flushPromises()
 
     const streamOptions = hoisted.useAuthenticatedVideoStream.mock.calls[0][0]
+    if (!hasMutableArtifactKind(streamOptions)) {
+      throw new Error('Expected a reactive artifact-kind option.')
+    }
     expect(streamOptions.videoId.value).toBe(100)
     expect(streamOptions.artifactKind.value).toBe('processed')
     const initialFramePreview = wrapper.find('img[alt="Selected frame stream preview"]')
     expect(initialFramePreview.exists()).toBe(true)
     expect(initialFramePreview.attributes('src')).toBe('/timeline/frame/v1')
 
-    const refreshButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Medien aktualisieren'))
-    expect(refreshButton).toBeTruthy()
+    const refreshButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Medien aktualisieren')),
+      'the media-refresh button'
+    )
 
-    await refreshButton!.trigger('click')
+    await refreshButton.trigger('click')
     await flushPromises()
 
     expect(hoisted.timelineApi.fetchPatientTimelineLatest).toHaveBeenLastCalledWith({

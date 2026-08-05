@@ -1,12 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
 import ReportingWorklistPage from '../ReportingWorklistPage.vue'
+
+const axiosGet = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: vi.fn()
+    get: axiosGet
   },
   r: (path: string) => `api/${path}`
 }))
@@ -17,7 +18,7 @@ describe('ReportingWorklistPage', () => {
   })
 
   it('loads reports and filters by status', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    axiosGet.mockResolvedValue({
       data: [
         { id: 101, status: 'final', version: 3, patientExaminationId: 44 },
         { id: 102, status: 'draft', version: 1, patientExaminationId: 45 }

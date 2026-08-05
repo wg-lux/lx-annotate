@@ -499,7 +499,7 @@ interface TransferStage {
   barClass: string
 }
 
-const TRANSFER_STAGES: Record<string, TransferStage> = {
+const TRANSFER_STAGES: Partial<Record<string, TransferStage>> = {
   marked: { progress: 10, label: 'Vorgemerkt', barClass: 'bg-info' },
   queued: { progress: 25, label: 'Eingeplant', barClass: 'bg-info' },
   pending: { progress: 35, label: 'Wird vorbereitet', barClass: 'bg-info' },
@@ -512,7 +512,7 @@ const TRANSFER_STAGES: Record<string, TransferStage> = {
   inconsistent: { progress: 20, label: 'Prüfung erforderlich', barClass: 'bg-warning' }
 }
 
-const selectionKey = (item: HubExportItem) => `${item.resourceKind}:${item.id}`
+const selectionKey = (item: HubExportItem) => `${item.resourceKind}:${String(item.id)}`
 
 const requirementLabel = (reason?: string) => {
   const labels: Record<string, string> = {
@@ -522,17 +522,14 @@ const requirementLabel = (reason?: string) => {
     'segment cleanup pending': 'Die Segmentbereinigung läuft noch.',
     'segment cleanup failed': 'Die Segmentbereinigung wartet auf eine erneute Ausführung.'
   }
-  const normalized = String(reason || '').trim()
+  const normalized = (reason || '').trim()
   return labels[normalized] || normalized
 }
 
 const transferStage = (item: HubExportItem): TransferStage => {
-  const normalizedStatus = String(item.outboundStatus || '')
-    .trim()
-    .toLowerCase()
-  if (normalizedStatus && TRANSFER_STAGES[normalizedStatus]) {
-    return TRANSFER_STAGES[normalizedStatus]
-  }
+  const normalizedStatus = item.outboundStatus.trim().toLowerCase()
+  const knownStage = TRANSFER_STAGES[normalizedStatus]
+  if (knownStage) return knownStage
   if (!item.eligible) {
     return { progress: 0, label: 'Voraussetzung offen', barClass: 'bg-secondary' }
   }
@@ -604,7 +601,7 @@ const overallTransferProgress = computed(() => {
 })
 
 const privacySummary = computed(() => hubExportStore.privacySummary)
-const currentUsername = computed(() => authStore.user?.username?.trim() || 'nicht verfügbar')
+const currentUsername = computed(() => authStore.user?.username.trim() || 'nicht verfügbar')
 const privacyVerificationLabel = computed(() => {
   if (!privacySummary.value) return 'nicht verfügbar'
   return privacyStatusLabel(privacySummary.value.status)

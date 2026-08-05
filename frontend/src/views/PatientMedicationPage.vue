@@ -53,7 +53,10 @@
                 data-testid="patient-medication-record"
               >
                 <strong>
-                  {{ medicationRecord(medicationId)?.medication ?? `Medikationsdatensatz #${medicationId}` }}
+                  {{
+                    medicationRecord(medicationId)?.medication ??
+                    `Medikationsdatensatz #${medicationId}`
+                  }}
                 </strong>
                 <template v-if="medicationRecord(medicationId)">
                   <span
@@ -77,7 +80,9 @@
                     </span>
                   </div>
                 </template>
-                <div v-else class="small text-muted">Details sind für diesen Datensatz nicht verfügbar.</div>
+                <div v-else class="small text-muted">
+                  Details sind für diesen Datensatz nicht verfügbar.
+                </div>
               </div>
             </div>
             <span v-else class="text-muted">Keine Medikation zugeordnet</span>
@@ -92,10 +97,7 @@
                 data-testid="patient-medication-schedule"
               >
                 <strong>Medikationsplan #{{ scheduleId }}</strong>
-                <div
-                  v-if="scheduleRecord(scheduleId)"
-                  class="small text-muted mt-1"
-                >
+                <div v-if="scheduleRecord(scheduleId)" class="small text-muted mt-1">
                   {{
                     scheduleRecord(scheduleId)
                       ?.medications.map((medication) => medication.medication)
@@ -136,11 +138,11 @@ const ledgerWarning = ref('')
 
 const patientName = computed(() => {
   const name = [patient.value?.firstName, patient.value?.lastName].filter(Boolean).join(' ')
-  return name || `Patient #${props.patientId}`
+  return name || `Patient #${String(props.patientId)}`
 })
 
 function endoregRecordKey(modelName: string, id: number): string {
-  return `${modelName}:${id}`
+  return `${modelName}:${String(id)}`
 }
 
 const medicationById = computed(() => {
@@ -169,14 +171,16 @@ function formatDosage(value: MedicalLedgerJsonValue | undefined): string | null 
 
 onMounted(async () => {
   try {
-    const ledgerRequest = patientService.getMedicalLedger(props.patientId).catch((caught: unknown) => {
-      if (isMedicalLedgerContractUnavailable(caught)) {
-        ledgerWarning.value =
-          'Medikationsdetails sind bis zur Aktualisierung des medizinischen Datenvertrags nicht verfügbar.'
-        return null
-      }
-      throw caught
-    })
+    const ledgerRequest = patientService
+      .getMedicalLedger(props.patientId)
+      .catch((caught: unknown) => {
+        if (isMedicalLedgerContractUnavailable(caught)) {
+          ledgerWarning.value =
+            'Medikationsdetails sind bis zur Aktualisierung des medizinischen Datenvertrags nicht verfügbar.'
+          return null
+        }
+        throw caught
+      })
     const [patientData, caseData, ledgerData] = await Promise.all([
       patientService.getPatient(props.patientId),
       fetchPatientCases({ patientId: props.patientId }),

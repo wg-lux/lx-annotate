@@ -6,7 +6,11 @@
           <h5 class="mb-0">Report export</h5>
           <small class="text-muted">PDF-Bericht mit ausgewählten Bildern erstellen.</small>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" :disabled="loadingReport" @click="loadLatestReport">
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          :disabled="loadingReport"
+          @click="loadLatestReport"
+        >
           Aktualisieren
         </button>
       </div>
@@ -46,13 +50,19 @@
           <div class="col-md-4">
             <div class="small text-muted">Status</div>
             <div>
-              <span class="badge" :class="reportStatusClass">{{ latestReport?.status || 'n/a' }}</span>
+              <span class="badge" :class="reportStatusClass">{{
+                latestReport?.status || 'n/a'
+              }}</span>
             </div>
           </div>
         </div>
 
         <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-primary" :disabled="!canMakeReport || generating" @click="onMakeReport">
+          <button
+            class="btn btn-primary"
+            :disabled="!canMakeReport || generating"
+            @click="onMakeReport"
+          >
             <span v-if="generating" class="spinner-border spinner-border-sm me-1" />
             Make report
           </button>
@@ -113,9 +123,7 @@
           </a>
         </div>
 
-        <div class="small text-muted">
-          {{ includedFrameCount }} Bild(er) im PDF berücksichtigt.
-        </div>
+        <div class="small text-muted">{{ includedFrameCount }} Bild(er) im PDF berücksichtigt.</div>
       </div>
     </div>
   </div>
@@ -126,20 +134,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { makeReport, type PersistedReportArtifacts } from '@/api/reportExportApi'
-import {
-  isVerifiedRuntimeDraftForBundle,
-  useReportingFlowStore
-} from '@/stores/reportingFlowStore'
+import { isVerifiedRuntimeDraftForBundle, useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useTerminologyStore } from '@/stores/terminologyStore'
 import { endpoints } from '@/types/api/endpoints'
 import { reportingApiErrorMessage } from './reportingError'
-
-type ReportListRow = {
-  id: number
-  status?: string | null
-  version?: number | null
-  updatedAt?: string | null
-}
+import { parseReportListPayload, type ReportListRow } from './reportListPayload'
 
 const route = useRoute()
 const flow = useReportingFlowStore()
@@ -197,7 +196,7 @@ const timelineUrl = computed<string | undefined>(() => {
   if (!url) return undefined
   if (!patientExaminationId.value || url.includes('patient_examination_id=')) return url
   const separator = url.includes('?') ? '&' : '?'
-  return `${url}${separator}patient_examination_id=${patientExaminationId.value}`
+  return `${url}${separator}patient_examination_id=${String(patientExaminationId.value)}`
 })
 
 function clearMessages() {
@@ -215,13 +214,12 @@ async function loadLatestReport() {
   loadingReport.value = true
   clearMessages()
   try {
-    const res = await axiosInstance.get(
+    const res = await axiosInstance.get<unknown>(
       r(endpoints.report.patientExaminationReportsByPatientExamination(patientExaminationId.value))
     )
-    const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as ReportListRow[]
-    const items = Array.isArray(rows) ? rows : []
-    latestReport.value = items[0] || null
-    if (latestReport.value?.id) {
+    const items = parseReportListPayload(res.data)
+    latestReport.value = items.at(0) ?? null
+    if (latestReport.value !== null) {
       flow.setActiveReportId(latestReport.value.id)
     }
     if (!latestReport.value) {
@@ -269,7 +267,7 @@ async function onMakeReport() {
     persistedArtifacts.value = data.persistedArtifacts || null
     includedFrameCount.value = data.includedFrameCount || 0
     warnings.value = Array.isArray(data.warnings) ? data.warnings : []
-    successMessage.value = `PDF-Bericht #${data.report.id} wurde erstellt.`
+    successMessage.value = `PDF-Bericht #${String(data.report.id)} wurde erstellt.`
   } catch (e: unknown) {
     errorMessage.value = reportingApiErrorMessage(e, 'PDF-Bericht konnte nicht erstellt werden.')
   } finally {
