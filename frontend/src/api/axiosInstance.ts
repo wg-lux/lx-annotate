@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios'
+import axios, { AxiosError, type AxiosResponse } from 'axios'
 import Cookies from 'js-cookie'
 import camelcaseKeys from 'camelcase-keys'
 import { useToastStore } from '@/stores/toastStore'
@@ -35,27 +35,20 @@ function shouldSuppressErrorToast(url: string, explicitlySuppressed: boolean): b
   )
 }
 
-type ApiErrorPayload = {
-  detail?: string
-  error?: string
-}
-
-function getResponseErrorMessage(err: AxiosError<ApiErrorPayload>): string {
-  return (
-    err?.response?.data?.detail ||
-    err?.response?.data?.error ||
-    err?.message ||
-    'Unbekannter Netzwerk- oder Serverfehler'
-  )
+function getResponseErrorMessage(err: AxiosError): string {
+  const data = err.response?.data
+  const detail = isPlainJsonObject(data) && typeof data.detail === 'string' ? data.detail : ''
+  const apiError = isPlainJsonObject(data) && typeof data.error === 'string' ? data.error : ''
+  return detail || apiError || err.message || 'Unbekannter Netzwerk- oder Serverfehler'
 }
 
 function handleResponseError(error: unknown): Promise<never> {
-  const err: AxiosError<ApiErrorPayload> = axios.isAxiosError<ApiErrorPayload>(error)
+  const err: AxiosError = axios.isAxiosError(error)
     ? error
-    : new AxiosError<ApiErrorPayload>(error instanceof Error ? error.message : undefined)
+    : new AxiosError(error instanceof Error ? error.message : undefined)
   const toast = useToastStore()
   const auth = useAuthKcStore()
-  const status = err?.response?.status
+  const status = err.response?.status
   const config = err.config as
     | (NonNullable<typeof err.config> & { suppressErrorToast?: boolean })
     | undefined
@@ -123,7 +116,7 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     delete config.headers['Content-Type']
     // Don't set it back! The browser will add the correct boundary automatically
   }
-  if (csrftoken && config.headers) {
+  if (csrftoken) {
     config.headers['X-CSRFToken'] = csrftoken
   }
   return config
@@ -133,21 +126,21 @@ function localSnakecaseKeys(obj: unknown, options: { deep?: boolean } = {}): unk
   const isPlainObject = (v: unknown): v is Record<string, unknown> => {
     if (!v || typeof v !== 'object') return false
     if (Object.prototype.toString.call(v) !== '[object Object]') return false
-    const proto = Object.getPrototypeOf(v)
+    const proto = Reflect.getPrototypeOf(v)
     return proto === Object.prototype || proto === null
   }
 
   if (Array.isArray(obj)) {
     // Keep arrays of primitives intact; recurse only when elements are arrays/objects.
     if (!options.deep) return obj
-    return obj.map((item) =>
+    return obj.map((item: unknown) =>
       Array.isArray(item) || isPlainObject(item) ? localSnakecaseKeys(item, options) : item
     )
   }
 
   if (!isPlainObject(obj)) return obj
 
-  return Object.keys(obj).reduce(
+  return Object.keys(obj).reduce<Record<string, unknown>>(
     (acc, key) => {
       const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`)
       const value = obj[key]
@@ -157,7 +150,7 @@ function localSnakecaseKeys(obj: unknown, options: { deep?: boolean } = {}): unk
           : value
       return acc
     },
-    {} as Record<string, unknown>
+    {}
   )
 }
 
@@ -173,16 +166,17 @@ axiosInstance.interceptors.request.use((config) => {
 // ─── Convert incoming payload from snake_case → camelCase ───────────
 function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
   if (!value || Object.prototype.toString.call(value) !== '[object Object]') return false
-  const prototype = Object.getPrototypeOf(value)
+  const prototype = Reflect.getPrototypeOf(value)
   return prototype === Object.prototype || prototype === null
 }
 
 export function convertIncomingResponseData(data: unknown): unknown {
-  if (!Array.isArray(data) && !isPlainJsonObject(data)) return data
+  if (Array.isArray(data)) return data.map((item: unknown) => convertIncomingResponseData(item))
+  if (!isPlainJsonObject(data)) return data
   return camelcaseKeys(data, { deep: true })
 }
 
-axiosInstance.interceptors.response.use((response) => {
+axiosInstance.interceptors.response.use((response: AxiosResponse<unknown>) => {
   response.data = convertIncomingResponseData(response.data)
   return response
 })

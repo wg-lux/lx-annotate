@@ -75,6 +75,14 @@ function asStringArray(value: unknown): string[] {
   return value.map((entry) => asString(entry)).filter((entry): entry is string => entry !== null)
 }
 
+function formatConditionValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'boolean') return String(value)
+  if (value === null) return 'null'
+  return 'ungültiger Wert'
+}
+
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
 }
@@ -87,7 +95,9 @@ function titleFromSectionName(name: string): string {
     .join(' ')
 }
 
-function normalizeClassificationInput(value: unknown): ReportTemplateFinding['classifications'][number]['input'] {
+function normalizeClassificationInput(
+  value: unknown
+): ReportTemplateFinding['classifications'][number]['input'] {
   if (!isRecordLike(value) || !Array.isArray(value.choices)) return null
   return {
     choices: value.choices
@@ -96,9 +106,8 @@ function normalizeClassificationInput(value: unknown): ReportTemplateFinding['cl
         name: asString(choice.name) || '',
         descriptors: Array.isArray(choice.descriptors)
           ? choice.descriptors
-              .filter(
-                (descriptor): descriptor is Record<string, unknown> =>
-                  isRecordLike(descriptor)
+              .filter((descriptor): descriptor is Record<string, unknown> =>
+                isRecordLike(descriptor)
               )
               .map((descriptor) => ({
                 name: asString(descriptor.name) || '',
@@ -441,9 +450,9 @@ function buildFindingValidatorSummary(
 
   const clauses = [...condition.any, ...condition.all].map((clause) => {
     const right = Array.isArray(clause.values)
-      ? clause.values.join(', ')
+      ? clause.values.map(formatConditionValue).join(', ')
       : clause.value !== undefined
-        ? String(clause.value)
+        ? formatConditionValue(clause.value)
         : 'gesetzt'
     return `${clause.classification} ${clause.comparator} ${right}`
   })
@@ -513,10 +522,10 @@ function buildExaminationValidatorSummary(
 ): string {
   const parts: string[] = []
   if (findingValidators.length) {
-    parts.push(`abhängig von ${findingValidators.length} Finding-Validator(en)`)
+    parts.push(`abhängig von ${String(findingValidators.length)} Finding-Validator(en)`)
   }
   if (examinationValidators.length) {
-    parts.push(`abhängig von ${examinationValidators.length} Examination-Validator(en)`)
+    parts.push(`abhängig von ${String(examinationValidators.length)} Examination-Validator(en)`)
   }
   return parts.length ? parts.join(', ') : 'Keine weiteren Abhängigkeiten.'
 }
@@ -1062,7 +1071,7 @@ function serializeRuntimeDescriptors(
     descriptor_value: descriptor.descriptorValue,
     classification_choice_descriptor: descriptor.classificationChoiceDescriptor,
     patient_finding_classification_choice: `${choiceKey}_descriptor_parent`,
-    uuid: descriptor.localId || `${choiceKey}_descriptor_${descriptorIndex + 1}`
+    uuid: descriptor.localId || `${choiceKey}_descriptor_${String(descriptorIndex + 1)}`
   }))
 }
 
@@ -1072,7 +1081,7 @@ function serializeRuntimeClassificationChoices(
 ) {
   return classificationChoices.map((classificationChoice, choiceIndex) => {
     const choiceKey =
-      classificationChoice.localId || `${classificationsKey}_choice_${choiceIndex + 1}`
+      classificationChoice.localId || `${classificationsKey}_choice_${String(choiceIndex + 1)}`
     return {
       classification: classificationChoice.classification,
       classification_choice: classificationChoice.classificationChoice,
@@ -1092,7 +1101,7 @@ function serializeRuntimePatientFindings(
   const patientExaminationKey = 'frontend_runtime_exam'
   return patientFindings.map((patientFinding, findingIndex) => {
     const findingKey =
-      patientFinding.localId || `${patientExaminationKey}_finding_${findingIndex + 1}`
+      patientFinding.localId || `${patientExaminationKey}_finding_${String(findingIndex + 1)}`
     const classificationsKey = `${findingKey}_classifications_1`
     return {
       finding: patientFinding.finding,
@@ -1147,7 +1156,7 @@ async function buildRuntimeValidationFindings(
   const findingsPayload: ReportTemplateRuntimePatientFindingInput[] = []
 
   for (const row of rows) {
-    if (row.isActive === false) continue
+    if (!row.isActive) continue
     const findingId = extractFindingId(row.finding)
     if (findingId == null) continue
 
@@ -1157,7 +1166,7 @@ async function buildRuntimeValidationFindings(
     const findingDefinitions = await getFindingDefinitions(findingId)
     const classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[] =
       row.classifications
-        .filter((classification) => classification.isActive !== false)
+        .filter((classification) => classification.isActive)
         .map((classification) => {
           const classificationName =
             classification.classificationName ||
@@ -1169,7 +1178,7 @@ async function buildRuntimeValidationFindings(
             classificationName,
             classification.numericalDescriptors
           )
-          const descriptors = Object.entries(classification.numericalDescriptors || {})
+          const descriptors = Object.entries(classification.numericalDescriptors)
             .map((entry) => descriptorFromEntry(entry))
             .filter((entry): entry is ReportTemplateRuntimeDescriptorInput => entry !== null)
           const choiceName =
@@ -1239,7 +1248,7 @@ export async function buildReportTemplateRuntimePayload(params: {
   )
 
   return {
-    patient: params.patient?.trim() || `patient_examination_${params.patientExaminationId}`,
+    patient: params.patient?.trim() || `patient_examination_${String(params.patientExaminationId)}`,
     examiners: Array.isArray(params.examiners) ? params.examiners.filter(Boolean) : [],
     examination: params.examination,
     knowledgeBaseModule: params.moduleName,

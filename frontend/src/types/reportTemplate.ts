@@ -1,6 +1,6 @@
 export type ReportTemplateClassificationDescriptorInput = {
   name: string
-  type: 'numeric' | 'text' | 'boolean' | 'selection' | string
+  type: string
   unit: string | null
   unitAbbreviation: string | null
   numericMin: number | null

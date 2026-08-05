@@ -81,7 +81,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
+}
+
+function responseString(value: unknown, fallback: string, fieldName: string): string {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === 'string') return value
+  throw new Error(`Ungültiges Textfeld in Template-Antwort: ${fieldName}.`)
 }
 
 export function normalizeBuilderReadiness(value: unknown): ReportTemplateBuilderReadiness | null {
@@ -120,15 +128,28 @@ function normalizeLifecycleResponse(value: unknown): ReportTemplateLifecycleResp
 export async function saveReportTemplateDefinition(
   payload: SaveReportTemplateDefinitionRequest
 ): Promise<SaveReportTemplateDefinitionResponse> {
-  const response = await axiosInstance.post(dtypesApi('report-templates/builder/templates'), payload)
+  const response = await axiosInstance.post(
+    dtypesApi('report-templates/builder/templates'),
+    payload
+  )
   const data = response.data as Record<string, unknown>
   return {
-    moduleName: String(data.moduleName ?? data.module_name ?? payload.moduleName),
-    fileName: String(data.fileName ?? data.file_name ?? payload.fileName),
-    path: String(data.path ?? ''),
-    templateName: String(data.templateName ?? data.template_name ?? payload.templateName),
+    moduleName: responseString(
+      data.moduleName ?? data.module_name,
+      payload.moduleName,
+      'moduleName'
+    ),
+    fileName: responseString(data.fileName ?? data.file_name, payload.fileName, 'fileName'),
+    path: responseString(data.path, '', 'path'),
+    templateName: responseString(
+      data.templateName ?? data.template_name,
+      payload.templateName,
+      'templateName'
+    ),
     recordsWritten: Number(data.recordsWritten ?? data.records_written ?? 0),
-    lifecycleStatus: (data.lifecycleStatus ?? data.lifecycle_status ?? 'draft') as ReportTemplateLifecycleStatus,
+    lifecycleStatus: (data.lifecycleStatus ??
+      data.lifecycle_status ??
+      'draft') as ReportTemplateLifecycleStatus,
     readiness: normalizeBuilderReadiness(data.readiness)
   }
 }

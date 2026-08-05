@@ -1,6 +1,9 @@
 import axiosInstance, { r, silentRequestConfig } from './axiosInstance';
 import axios, { type AxiosResponse } from 'axios';
 import { endpoints } from '@/types/api/endpoints'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-service')
 
 // Shape returned by backend (snake_case); we'll map in the component
 export type GeneratePseudonymResponse = {
@@ -12,10 +15,97 @@ export type GeneratePseudonymResponse = {
   missingFields?: string[]
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === 'string'
+}
+
+function isOptionalNullableString(value: unknown): boolean {
+  return value === undefined || value === null || typeof value === 'string'
+}
+
+function isOptionalNumber(value: unknown): boolean {
+  return value === undefined || (typeof value === 'number' && Number.isFinite(value))
+}
+
+function isOptionalNullableNumber(value: unknown): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === 'number' && Number.isFinite(value))
+  )
+}
+
+function isPatient(value: unknown): value is Patient {
+  return (
+    isRecord(value) &&
+    typeof value.firstName === 'string' &&
+    typeof value.lastName === 'string' &&
+    isOptionalNumber(value.id) &&
+    isOptionalNullableString(value.dob) &&
+    isOptionalNullableString(value.gender) &&
+    isOptionalNullableString(value.center) &&
+    isOptionalNullableString(value.centerKey) &&
+    isOptionalString(value.email) &&
+    isOptionalString(value.phone) &&
+    isOptionalNullableString(value.patientHash) &&
+    isOptionalString(value.comments) &&
+    (value.isRealPerson === undefined || typeof value.isRealPerson === 'boolean') &&
+    isOptionalNullableString(value.pseudonymFirstName) &&
+    isOptionalNullableString(value.pseudonymLastName) &&
+    isOptionalNullableNumber(value.sensitiveMetaId) &&
+    isOptionalNullableNumber(value.age) &&
+    isOptionalString(value.createdAt) &&
+    isOptionalString(value.updatedAt)
+  )
+}
+
+function requirePatientList(value: unknown): Patient[] {
+  const rows = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value.results)
+      ? value.results
+      : null
+  if (!rows || !rows.every(isPatient)) {
+    throw new TypeError('Patient list response does not match the expected contract')
+  }
+  return rows
+}
+
 export async function generatePatientPseudonym(id: number): Promise<GeneratePseudonymResponse> {
   if (!Number.isFinite(id) || id <= 0) throw new Error('Ungültige patientId')
-  const { data } = await axiosInstance.post(r(endpoints.patient.patientPseudonym(id)))
-  return data as GeneratePseudonymResponse
+  const { data } = await axiosInstance.post<unknown>(r(endpoints.patient.patientPseudonym(id)))
+  if (
+    !isRecord(data) ||
+    typeof data.patientId !== 'number' ||
+    typeof data.patientHash !== 'string' ||
+    typeof data.persisted !== 'boolean' ||
+    data.source !== 'server'
+  ) {
+    throw new TypeError('Patient pseudonym response does not match the expected contract')
+  }
+  const message = data.message
+  const missingFields = data.missingFields
+  if (message !== undefined && typeof message !== 'string') {
+    throw new TypeError('Patient pseudonym response contains an invalid message')
+  }
+  if (
+    missingFields !== undefined &&
+    (!Array.isArray(missingFields) || !missingFields.every((field) => typeof field === 'string'))
+  ) {
+    throw new TypeError('Patient pseudonym response contains invalid missing fields')
+  }
+  return {
+    patientId: data.patientId,
+    patientHash: data.patientHash,
+    persisted: data.persisted,
+    source: 'server',
+    ...(message === undefined ? {} : { message }),
+    ...(missingFields === undefined ? {} : { missingFields })
+  }
 }
 
 // TypeScript Interfaces für Patient-bezogene Daten
@@ -217,9 +307,10 @@ export interface PatientMedicalLedger extends MedicalLedgerIdentity {
 
 export function isMedicalLedgerContractUnavailable(error: unknown): boolean {
   return (
-    axios.isAxiosError<{ code?: string }>(error) &&
+    axios.isAxiosError<unknown>(error) &&
     error.response?.status === 503 &&
-    error.response.data?.code === 'medical-ledger-contract-unavailable'
+    isRecord(error.response.data) &&
+    error.response.data.code === 'medical-ledger-contract-unavailable'
   )
 }
 
@@ -289,42 +380,31 @@ export const patientService = {
 
   async getPatients(): Promise<Patient[]> {
     try {
-      const response: AxiosResponse<Patient[] | PatientListResponse> = await axiosInstance.get(r(endpoints.patient.patients));
-      
-      // Handle both array response and paginated response
-      if (Array.isArray(response.data)) {
-        return response.data;
-      } else {
-        return response.data.results || [];
-      }
+      const response: AxiosResponse<unknown> = await axiosInstance.get(r(endpoints.patient.patients));
+      return requirePatientList(response.data)
     } catch (error) {
-      console.error('Error getting patients:', error);
+      logger.error('patient-list-request-failed', error, {
+        operation: 'list',
+        outcome: 'rejected'
+      })
       throw error;
     }
   },
 
   async addPatient(patientData: PatientCreateData): Promise<Patient> {
     try {
-      console.log('PatientService: Sende Patientendaten an API:', patientData);
+      logger.debug('patient-create-request-started', { operation: 'create' })
       const response: AxiosResponse<Patient> = await axiosInstance.post(r(endpoints.patient.patients), patientData);
-      console.log('PatientService: Erfolgreiche Antwort erhalten:', response.data);
+      logger.debug('patient-create-request-completed', {
+        operation: 'create',
+        outcome: 'accepted'
+      })
       return response.data;
     } catch (error: unknown) {
-      console.error('PatientService: Fehler beim Hinzufügen des Patienten:', error);
-      
-      // Detaillierte Fehleranalyse
-      if (axios.isAxiosError(error) && error.response) {
-        console.error('Response Error:', {
-          status: error.response.status,
-          statusText: error.response.statusText,
-          data: error.response.data
-        });
-      } else if (axios.isAxiosError(error) && error.request) {
-        console.error('Request Error:', error.request);
-      } else {
-        console.error('General Error:', error instanceof Error ? error.message : String(error));
-      }
-      
+      logger.error('patient-create-request-failed', error, {
+        operation: 'create',
+        outcome: 'rejected'
+      })
       throw error;
     }
   },
@@ -334,7 +414,10 @@ export const patientService = {
       const response: AxiosResponse<Patient> = await axiosInstance.put(r(endpoints.patient.patientById(patientId)), patientData);
       return response.data;
     } catch (error) {
-      console.error('Error updating patient:', error);
+      logger.error('patient-update-request-failed', error, {
+        operation: 'update',
+        outcome: 'rejected'
+      })
       throw error;
     }
   },
@@ -343,7 +426,10 @@ export const patientService = {
     try {
       await axiosInstance.delete(r(endpoints.patient.patientById(patientId)));
     } catch (error) {
-      console.error('Error deleting patient:', error);
+      logger.error('patient-delete-request-failed', error, {
+        operation: 'delete',
+        outcome: 'rejected'
+      })
       throw error;
     }
   },
@@ -355,7 +441,10 @@ export const patientService = {
       const response: AxiosResponse<Gender[]> = await axiosInstance.get(r(endpoints.patient.genders));
       return response.data;
     } catch (error) {
-      console.error('Error getting genders:', error);
+      logger.error('gender-list-request-failed', error, {
+        operation: 'list',
+        outcome: 'fallback'
+      })
       // Fallback Gender-Optionen
       return [
         { id: 1, name: 'female', nameDe: 'Weiblich' },
@@ -371,7 +460,10 @@ export const patientService = {
       const response: AxiosResponse<Center[]> = await axiosInstance.get(r(endpoints.patient.centers));
       return response.data;
     } catch (error) {
-      console.error('Error getting centers:', error);
+      logger.error('center-list-request-failed', error, {
+        operation: 'list',
+        outcome: 'fallback'
+      })
       // Fallback Center-Optionen
       return [
         { id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }

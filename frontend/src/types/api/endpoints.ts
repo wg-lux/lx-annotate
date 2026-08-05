@@ -10,6 +10,8 @@
 export type Id = number | string
 export type UUID = string
 
+const pathId = (id: Id): string => String(id)
+
 export const endpoints = {
   auth: {
     bootstrap: 'auth/bootstrap',
@@ -22,7 +24,7 @@ export const endpoints = {
 
   router: {
     examinations: 'examinations/',
-    examinationById: (id: Id) => `examinations/${id}/`,
+    examinationById: (id: Id) => `examinations/${pathId(id)}/`,
     findings: 'findings/',
     classifications: 'classifications/',
     patientFindings: 'patient-findings/',
@@ -31,21 +33,21 @@ export const endpoints = {
 
   patient: {
     patients: 'patients/',
-    patientById: (id: Id) => `patients/${id}/`,
-    patientMedicalLedger: (id: Id) => `patients/${id}/medical-ledger/`,
-    patientMedications: (id: Id) => `patients/${id}/medications/`,
+    patientById: (id: Id) => `patients/${pathId(id)}/`,
+    patientMedicalLedger: (id: Id) => `patients/${pathId(id)}/medical-ledger/`,
+    patientMedications: (id: Id) => `patients/${pathId(id)}/medications/`,
     patientMedicationById: (id: Id, medicationId: Id) =>
-      `patients/${id}/medications/${medicationId}/`,
-    patientMedicationSchedules: (id: Id) => `patients/${id}/medication-schedules/`,
+      `patients/${pathId(id)}/medications/${pathId(medicationId)}/`,
+    patientMedicationSchedules: (id: Id) => `patients/${pathId(id)}/medication-schedules/`,
     patientMedicationScheduleById: (id: Id, scheduleId: Id) =>
-      `patients/${id}/medication-schedules/${scheduleId}/`,
-    patientPseudonym: (id: Id) => `patients/${id}/pseudonym/`,
-    patientDeletionSafety: (id: Id) => `patients/${id}/check_deletion_safety/`,
+      `patients/${pathId(id)}/medication-schedules/${pathId(scheduleId)}/`,
+    patientPseudonym: (id: Id) => `patients/${pathId(id)}/pseudonym/`,
+    patientDeletionSafety: (id: Id) => `patients/${pathId(id)}/check_deletion_safety/`,
     centers: 'centers/',
     genders: 'genders/',
     patientFindings: 'patient-findings/',
-    patientFindingById: (id: Id) => `patient-findings/${id}/`,
-    checkPatientExaminationExists: (id: Id) => `check_pe_exist/${id}/`
+    patientFindingById: (id: Id) => `patient-findings/${pathId(id)}/`,
+    checkPatientExaminationExists: (id: Id) => `check_pe_exist/${pathId(id)}/`
   },
 
   case: {
@@ -57,37 +59,38 @@ export const endpoints = {
 
   examination: {
     examinationsDropdown: 'patient-examinations/examinations_dropdown/',
-    examinationFindings: (examinationId: Id) => `examinations/${examinationId}/findings/`,
-    findingClassifications: (findingId: Id) => `findings/${findingId}/classifications/`,
-    classificationChoices: (classificationId: Id) => `classifications/${classificationId}/choices/`,
+    examinationFindings: (examinationId: Id) => `examinations/${pathId(examinationId)}/findings/`,
+    findingClassifications: (findingId: Id) => `findings/${pathId(findingId)}/classifications/`,
+    classificationChoices: (classificationId: Id) =>
+      `classifications/${pathId(classificationId)}/choices/`,
 
     patientExaminationCreate: 'patient-examinations/create/',
-    patientExaminationDetail: (id: Id) => `patient-examinations/${id}/`,
-    patientExaminationDraft: (id: Id) => `patient-examinations/${id}/draft/`,
+    patientExaminationDetail: (id: Id) => `patient-examinations/${pathId(id)}/`,
+    patientExaminationDraft: (id: Id) => `patient-examinations/${pathId(id)}/draft/`,
     patientExaminationList: 'patient-examinations/list/',
-    patientExaminationLegacyDetail: (id: Id) => `get_patient_examination/${id}/`,
+    patientExaminationLegacyDetail: (id: Id) => `get_patient_examination/${pathId(id)}/`,
     patientExaminationClassifications: (examId: Id) =>
-      `patient-examinations/${examId}/classifications/`,
+      `patient-examinations/${pathId(examId)}/classifications/`,
     patientExaminationFindings: (examinationId: Id) =>
-      `patient-examinations/${examinationId}/findings/`
+      `patient-examinations/${pathId(examinationId)}/findings/`
   },
 
   report: {
     patientExaminationReports: 'patient-examination-reports/',
-    patientExaminationReportById: (id: Id) => `patient-examination-reports/${id}/`,
+    patientExaminationReportById: (id: Id) => `patient-examination-reports/${pathId(id)}/`,
     patientExaminationReportsByPatientExamination: (patientExaminationId: Id) =>
-      `patient-examination-reports/?patient_examination_id=${patientExaminationId}`,
+      `patient-examination-reports/?patient_examination_id=${pathId(patientExaminationId)}`,
     saveReportSubmission: 'patient-examination-reports/save-submission/',
     makeReport: 'patient-examination-reports/make-report/',
     segmentFrameSelectorBase: 'patient-examination-reports/segment-frame-selector/',
     segmentFrameSelector: (patientExaminationId: Id, reportId?: Id) =>
       reportId == null
-        ? `patient-examination-reports/segment-frame-selector/?patient_examination_id=${patientExaminationId}`
-        : `patient-examination-reports/segment-frame-selector/?patient_examination_id=${patientExaminationId}&report_id=${reportId}`,
+        ? `patient-examination-reports/segment-frame-selector/?patient_examination_id=${pathId(patientExaminationId)}`
+        : `patient-examination-reports/segment-frame-selector/?patient_examination_id=${pathId(patientExaminationId)}&report_id=${pathId(reportId)}`,
     reportHistoryContext: (patientExaminationId: Id, limit?: number) =>
       limit == null
-        ? `patient-examination-reports/history-context/?patient_examination_id=${patientExaminationId}`
-        : `patient-examination-reports/history-context/?patient_examination_id=${patientExaminationId}&limit=${limit}`
+        ? `patient-examination-reports/history-context/?patient_examination_id=${pathId(patientExaminationId)}`
+        : `patient-examination-reports/history-context/?patient_examination_id=${pathId(patientExaminationId)}&limit=${pathId(limit)}`
   },
 
   annotation: {
@@ -123,7 +126,7 @@ export const endpoints = {
   administration: {
     overview: 'administration/overview/',
     centerScopes: 'administration/center-scopes/',
-    centerScope: (userId: Id) => `administration/center-scopes/${userId}/`
+    centerScope: (userId: Id) => `administration/center-scopes/${pathId(userId)}/`
   },
 
   runtime: {
@@ -136,82 +139,89 @@ export const endpoints = {
 
   anonymization: {
     itemsOverview: 'anonymization/items/overview/',
-    retryUploadJob: (jobId: UUID) =>
-      `anonymization/upload-jobs/${jobId}/retry/`,
+    retryUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${jobId}/retry/`,
     documentTypesDropdown: 'anonymization/document-types/dropdown/',
-    current: (fileId: Id) => `anonymization/${fileId}/current/`,
-    start: (fileId: Id) => `anonymization/${fileId}/start/`,
-    status: (fileId: Id) => `anonymization/${fileId}/status/`,
-    validate: (fileId: Id) => `anonymization/${fileId}/validate/`,
+    current: (fileId: Id) => `anonymization/${pathId(fileId)}/current/`,
+    start: (fileId: Id) => `anonymization/${pathId(fileId)}/start/`,
+    status: (fileId: Id) => `anonymization/${pathId(fileId)}/status/`,
+    validate: (fileId: Id) => `anonymization/${pathId(fileId)}/validate/`,
     pollingInfo: 'anonymization/polling-info/',
     clearLocks: 'anonymization/clear-locks/',
-    hasRaw: (fileId: Id) => `anonymization/${fileId}/has-raw/`
+    hasRaw: (fileId: Id) => `anonymization/${pathId(fileId)}/has-raw/`
   },
 
   mediaManagement: {
     status: 'media-management/status/',
     cleanup: 'media-management/cleanup/',
-    forceRemove: (fileId: Id) => `media-management/force-remove/${fileId}/`,
-    resetStatus: (fileId: Id) => `media-management/reset-status/${fileId}/`
+    forceRemove: (fileId: Id) => `media-management/force-remove/${pathId(fileId)}/`,
+    resetStatus: (fileId: Id) => `media-management/reset-status/${pathId(fileId)}/`
   },
 
   media: {
-    patientTimeline: (patientId: Id) => `media/patients/${patientId}/timeline/`,
-    sensitiveMediaId: (pk: Id, mediaType: string) => `media/sensitive-media-id/${pk}/${mediaType}/`,
+    patientTimeline: (patientId: Id) => `media/patients/${pathId(patientId)}/timeline/`,
+    sensitiveMediaId: (pk: Id, mediaType: string) =>
+      `media/sensitive-media-id/${pathId(pk)}/${mediaType}/`,
 
     videos: 'media/videos/',
-    videoDetail: (pk: Id) => `media/videos/${pk}/details/`,
-    videoStream: (pk: Id) => `media/videos/${pk}/stream/`,
-    videoHlsPlaylist: (pk: Id) => `media/videos/${pk}/hls/playlist/`,
-    videoReimport: (pk: Id) => `media/videos/${pk}/reimport/`,
+    videoDetail: (pk: Id) => `media/videos/${pathId(pk)}/details/`,
+    videoStream: (pk: Id) => `media/videos/${pathId(pk)}/stream/`,
+    videoHlsPlaylist: (pk: Id) => `media/videos/${pathId(pk)}/hls/playlist/`,
+    videoReimport: (pk: Id) => `media/videos/${pathId(pk)}/reimport/`,
     exportAnnotated: 'media/videos/export-annotated/',
 
-    videoCorrection: (pk: Id) => `media/videos/video-correction/${pk}`,
-    videoCorrectionAnonymization: (pk: Id) => `media/videos/video-correction/${pk}/anonymization/`,
-    videoMetadata: (pk: Id) => `media/videos/${pk}/metadata/`,
-    videoProcessingHistory: (pk: Id) => `media/videos/${pk}/processing-history/`,
-    videoFps: (pk: Id) => `media/videos/${pk}/fps/`,
-    videoFrameNeighborhood: (pk: Id) => `media/videos/${pk}/timeline/frame-neighborhood/`,
-    videoSegmentsNormalizeFps: (pk: Id) => `media/videos/${pk}/segments/normalize-fps/`,
-    videoApplyMask: (pk: Id) => `media/videos/${pk}/apply-mask/`,
-    videoRemoveFrames: (pk: Id) => `media/videos/${pk}/remove-frames/`,
+    videoCorrection: (pk: Id) => `media/videos/video-correction/${pathId(pk)}`,
+    videoCorrectionAnonymization: (pk: Id) =>
+      `media/videos/video-correction/${pathId(pk)}/anonymization/`,
+    videoMetadata: (pk: Id) => `media/videos/${pathId(pk)}/metadata/`,
+    videoProcessingHistory: (pk: Id) => `media/videos/${pathId(pk)}/processing-history/`,
+    videoFps: (pk: Id) => `media/videos/${pathId(pk)}/fps/`,
+    videoFrameNeighborhood: (pk: Id) => `media/videos/${pathId(pk)}/timeline/frame-neighborhood/`,
+    videoSegmentsNormalizeFps: (pk: Id) => `media/videos/${pathId(pk)}/segments/normalize-fps/`,
+    videoApplyMask: (pk: Id) => `media/videos/${pathId(pk)}/apply-mask/`,
+    videoRemoveFrames: (pk: Id) => `media/videos/${pathId(pk)}/remove-frames/`,
     videoLabelsList: 'media/videos/labels/list/',
     videoLabelSetsList: 'media/videos/label-sets/list/',
     videoPredictionModelsList: 'media/videos/prediction-models/list/',
 
     segmentsCollection: 'media/videos/segments/',
     segmentsStats: 'media/videos/segments/stats/',
-    videoSegments: (pk: Id) => `media/videos/${pk}/segments/`,
-    videoSegmentsBulkMutation: (pk: Id) => `media/videos/${pk}/segments/bulk/`,
-    videoSegmentDetail: (pk: Id, segmentId: Id) => `media/videos/${pk}/segments/${segmentId}/`,
-    videoSegmentsImportPredictions: (pk: Id) => `media/videos/${pk}/segments/import-predictions/`,
-    videoSegmentsRerunPredictions: (pk: Id) => `media/videos/${pk}/segments/rerun-predictions/`,
+    videoSegments: (pk: Id) => `media/videos/${pathId(pk)}/segments/`,
+    videoSegmentsBulkMutation: (pk: Id) => `media/videos/${pathId(pk)}/segments/bulk/`,
+    videoSegmentDetail: (pk: Id, segmentId: Id) =>
+      `media/videos/${pathId(pk)}/segments/${pathId(segmentId)}/`,
+    videoSegmentsImportPredictions: (pk: Id) =>
+      `media/videos/${pathId(pk)}/segments/import-predictions/`,
+    videoSegmentsRerunPredictions: (pk: Id) =>
+      `media/videos/${pathId(pk)}/segments/rerun-predictions/`,
     videoSegmentValidate: (pk: Id, segmentId: Id) =>
-      `media/videos/${pk}/segments/${segmentId}/validate/`,
-    videoSegmentsValidateBulk: (pk: Id) => `media/videos/${pk}/segments/validate-bulk/`,
-    videoSegmentsValidationStatus: (pk: Id) => `media/videos/${pk}/segments/validation-status/`,
-    videoSegmentsBlackenOutside: (pk: Id) => `media/videos/${pk}/segments/blacken-outside/`,
+      `media/videos/${pathId(pk)}/segments/${pathId(segmentId)}/validate/`,
+    videoSegmentsValidateBulk: (pk: Id) => `media/videos/${pathId(pk)}/segments/validate-bulk/`,
+    videoSegmentsValidationStatus: (pk: Id) =>
+      `media/videos/${pathId(pk)}/segments/validation-status/`,
+    videoSegmentsBlackenOutside: (pk: Id) => `media/videos/${pathId(pk)}/segments/blacken-outside/`,
 
-    ensureSegmentAnnotationsForVideo: (pk: Id) => `media/videos/${pk}/ensure-segment-annotations/`,
+    ensureSegmentAnnotationsForVideo: (pk: Id) =>
+      `media/videos/${pathId(pk)}/ensure-segment-annotations/`,
     ensureSegmentAnnotationsBulk: 'media/videos/ensure-segment-annotations/',
 
-    videoSensitiveMetadata: (pk: Id) => `media/videos/${pk}/sensitive-metadata/`,
-    videoSensitiveMetadataVerify: (pk: Id) => `media/videos/${pk}/sensitive-metadata/verify/`,
-    videoCaseResolution: (pk: Id) => `media/videos/${pk}/case-resolution/`,
+    videoSensitiveMetadata: (pk: Id) => `media/videos/${pathId(pk)}/sensitive-metadata/`,
+    videoSensitiveMetadataVerify: (pk: Id) =>
+      `media/videos/${pathId(pk)}/sensitive-metadata/verify/`,
+    videoCaseResolution: (pk: Id) => `media/videos/${pathId(pk)}/case-resolution/`,
 
-    pdfSensitiveMetadata: (pk: Id) => `media/pdfs/${pk}/sensitive-metadata/`,
-    pdfSensitiveMetadataVerify: (pk: Id) => `media/pdfs/${pk}/sensitive-metadata/verify/`,
-    pdfCaseResolution: (pk: Id) => `media/pdfs/${pk}/case-resolution/`,
+    pdfSensitiveMetadata: (pk: Id) => `media/pdfs/${pathId(pk)}/sensitive-metadata/`,
+    pdfSensitiveMetadataVerify: (pk: Id) => `media/pdfs/${pathId(pk)}/sensitive-metadata/verify/`,
+    pdfCaseResolution: (pk: Id) => `media/pdfs/${pathId(pk)}/case-resolution/`,
     sensitiveMetadataList: 'media/sensitive-metadata/',
     pdfSensitiveMetadataList: 'media/pdfs/sensitive-metadata/',
     anonymizationMetrics: 'media/anonymization/metrics/',
 
     pdfs: 'media/pdfs/',
-    pdfDetail: (pk: Id) => `media/pdfs/${pk}/`,
-    pdfStream: (pk: Id) => `media/pdfs/${pk}/stream/`,
-    pdfReimport: (pk: Id) => `media/pdfs/${pk}/reimport/`,
+    pdfDetail: (pk: Id) => `media/pdfs/${pathId(pk)}/`,
+    pdfStream: (pk: Id) => `media/pdfs/${pathId(pk)}/stream/`,
+    pdfReimport: (pk: Id) => `media/pdfs/${pathId(pk)}/reimport/`,
     processedVideoDownload: (videoId: Id, historyId: Id) =>
-      `media/processed-videos/${videoId}/${historyId}/`
+      `media/processed-videos/${pathId(videoId)}/${pathId(historyId)}/`
   }
 } as const
 

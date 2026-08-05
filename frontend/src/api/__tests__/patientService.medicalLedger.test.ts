@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const hoisted = vi.hoisted(() => ({
   axios: {
@@ -14,7 +14,7 @@ vi.mock('@/api/axiosInstance', () => ({
   silentRequestConfig: () => ({ suppressErrorToast: true })
 }))
 
-import { patientService } from '@/api/patientService'
+import { isMedicalLedgerContractUnavailable, patientService } from '@/api/patientService'
 
 const medicationRecord = {
   uuid: 'medication-21',
@@ -32,6 +32,11 @@ const medicationRecord = {
 describe('patientService medical ledger writes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
   })
 
   it('creates and patches medication records through patient-scoped routes', async () => {
@@ -82,6 +87,57 @@ describe('patientService medical ledger writes', () => {
     expect(hoisted.axios.patch).toHaveBeenCalledWith(
       '/endoreg-api/patients/7/medication-schedules/31/',
       { medicationIds: [21] }
+    )
+  })
+
+  it('accepts array and paginated patient-list contracts', async () => {
+    const patient = { id: 7, firstName: 'Ada', lastName: 'Lovelace' }
+    hoisted.axios.get
+      .mockResolvedValueOnce({ data: [patient] })
+      .mockResolvedValueOnce({ data: { count: 1, results: [patient] } })
+
+    await expect(patientService.getPatients()).resolves.toEqual([patient])
+    await expect(patientService.getPatients()).resolves.toEqual([patient])
+  })
+
+  it('rejects malformed patient lists instead of treating them as empty', async () => {
+    vi.stubEnv('VITE_ENABLE_TEST_LOGS', 'true')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    hoisted.axios.get.mockResolvedValue({ data: { count: 1, results: [{ id: 7 }] } })
+
+    await expect(patientService.getPatients()).rejects.toThrow(
+      'Patient list response does not match the expected contract'
+    )
+    expect(consoleError).toHaveBeenCalledOnce()
+    const serialized = String(consoleError.mock.calls[0][0])
+    expect(JSON.parse(serialized)).toMatchObject({
+      severity: 'error',
+      scope: 'patient-service',
+      event: 'patient-list-request-failed',
+      errorType: 'TypeError',
+      context: {
+        operation: 'list',
+        outcome: 'rejected'
+      }
+    })
+    expect(serialized).not.toContain('Patient list response does not match')
+  })
+
+  it('recognizes only the explicit medical-ledger unavailability contract', () => {
+    const error = (data: unknown) =>
+      Object.assign(new Error('unavailable'), {
+        isAxiosError: true,
+        response: { status: 503, data }
+      })
+
+    expect(
+      isMedicalLedgerContractUnavailable(
+        error({ code: 'medical-ledger-contract-unavailable' })
+      )
+    ).toBe(true)
+    expect(isMedicalLedgerContractUnavailable(error(null))).toBe(false)
+    expect(isMedicalLedgerContractUnavailable(error('medical-ledger-contract-unavailable'))).toBe(
+      false
     )
   })
 })

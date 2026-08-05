@@ -93,7 +93,7 @@ export interface ApplicationVideoDimensionBackfillRun {
   finishedAt: string | null
   result: {
     count: number
-    summary: Record<string, number>
+    summary: Partial<Record<string, number>>
     items: Array<{
       videoId: number | null
       status: string

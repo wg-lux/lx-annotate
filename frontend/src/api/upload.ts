@@ -55,6 +55,87 @@ export interface UploadPollingOptions {
   onProgress?: (status: UploadStatusResponse) => void
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isUploadStatus(value: unknown): value is UploadStatus {
+  return value === 'pending' || value === 'processing' || value === 'anonymized' ||
+    value === 'error' || value === 'lost'
+}
+
+function requireUploadResponse(value: unknown): UploadResponse {
+  if (!isRecord(value) || typeof value.uploadId !== 'string' || typeof value.statusUrl !== 'string') {
+    throw new TypeError('Upload response does not match the expected contract')
+  }
+  return { uploadId: value.uploadId, statusUrl: value.statusUrl }
+}
+
+function optionalString(value: unknown, fieldName: string): string | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string') {
+    throw new TypeError(`Upload response contains an invalid ${fieldName}`)
+  }
+  return value
+}
+
+function optionalNumber(value: unknown, fieldName: string): number | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'number') {
+    throw new TypeError(`Upload response contains an invalid ${fieldName}`)
+  }
+  return value
+}
+
+function optionalNullableString(value: unknown, fieldName: string): string | null | undefined {
+  if (value === undefined || value === null || typeof value === 'string') return value
+  throw new TypeError(`Upload response contains an invalid ${fieldName}`)
+}
+
+function requireUploadReportLlmJob(value: unknown): UploadReportLlmJob {
+  if (!isRecord(value) || typeof value.status !== 'string' || !isRecord(value.result)) {
+    throw new TypeError('Upload status response contains an invalid reportLlmJob')
+  }
+  const pdfId = optionalNumber(value.result.pdfId, 'reportLlmJob.result.pdfId')
+  const result: UploadReportLlmJobResult = { ...value.result, ...(pdfId === undefined ? {} : { pdfId }) }
+  return {
+    status: value.status,
+    result,
+    operation: optionalString(value.operation, 'reportLlmJob.operation'),
+    jobId: optionalString(value.jobId, 'reportLlmJob.jobId'),
+    taskId: optionalString(value.taskId, 'reportLlmJob.taskId'),
+    queue: optionalString(value.queue, 'reportLlmJob.queue'),
+    reportId: optionalNumber(value.reportId, 'reportLlmJob.reportId'),
+    pollUrl: optionalString(value.pollUrl, 'reportLlmJob.pollUrl'),
+    error: optionalString(value.error, 'reportLlmJob.error'),
+    createdAt: optionalString(value.createdAt, 'reportLlmJob.createdAt'),
+    startedAt: optionalString(value.startedAt, 'reportLlmJob.startedAt'),
+    completedAt: optionalString(value.completedAt, 'reportLlmJob.completedAt')
+  }
+}
+
+function requireUploadStatusResponse(value: unknown): UploadStatusResponse {
+  if (!isRecord(value)) throw new TypeError('Upload status response must be an object')
+  if (!isUploadStatus(value.status)) {
+    throw new TypeError('Upload status response contains an invalid status')
+  }
+  const status = value.status
+  return {
+    status,
+    id: optionalString(value.id, 'id'),
+    detail: optionalString(value.detail, 'detail'),
+    errorDetail: optionalString(value.errorDetail, 'errorDetail'),
+    sensitiveMetaId: optionalNumber(value.sensitiveMetaId, 'sensitiveMetaId'),
+    sourceCenterKey: optionalNullableString(value.sourceCenterKey, 'sourceCenterKey'),
+    sourceSystem: optionalString(value.sourceSystem, 'sourceSystem'),
+    ingestMode: optionalString(value.ingestMode, 'ingestMode'),
+    text: optionalString(value.text, 'text'),
+    anonymizedText: optionalString(value.anonymizedText, 'anonymizedText'),
+    reportLlmJob:
+      value.reportLlmJob === undefined ? undefined : requireUploadReportLlmJob(value.reportLlmJob)
+  }
+}
+
 /**
  * Upload files to the anonymization backend
  * @param files - FileList or File array containing exactly one file
@@ -84,14 +165,14 @@ export const uploadFiles = async (
     formData.append('source_system', options.sourceSystem)
   }
 
-  const response = await axiosInstance.post(endoregApi(endpoints.upload.upload), formData, {
+  const response = await axiosInstance.post<unknown>(endoregApi(endpoints.upload.upload), formData, {
     headers: options.idempotencyKey
       ? {
           'Idempotency-Key': options.idempotencyKey
         }
       : undefined
   })
-  return response.data
+  return requireUploadResponse(response.data)
 }
 
 /**
@@ -104,13 +185,13 @@ export const checkUploadStatus = async (
   signal?: AbortSignal
 ): Promise<UploadStatusResponse> => {
   const response = signal
-    ? await axiosInstance.get(statusUrl, { signal })
-    : await axiosInstance.get(statusUrl)
-  return response.data
+    ? await axiosInstance.get<unknown>(statusUrl, { signal })
+    : await axiosInstance.get<unknown>(statusUrl)
+  return requireUploadStatusResponse(response.data)
 }
 
 export function resolveUploadedReportId(status: UploadStatusResponse): number | null {
-  const candidates = [status.reportLlmJob?.reportId, status.reportLlmJob?.result?.pdfId]
+  const candidates = [status.reportLlmJob?.reportId, status.reportLlmJob?.result.pdfId]
   return (
     candidates.find(
       (candidate): candidate is number =>

@@ -1,9 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { UploadStatusResponse } from '@/api/upload'
+
+type UploadPostResponse = {
+  uploadId: string
+  statusUrl: string
+}
+
 const hoisted = vi.hoisted(() => ({
   axios: {
-    get: vi.fn(),
-    post: vi.fn()
+    get: vi.fn<(url: string) => Promise<{ data: UploadStatusResponse }>>(),
+    post: vi.fn<
+      (
+        url: string,
+        data: FormData,
+        config?: { headers: Record<string, string> }
+      ) => Promise<{ data: UploadPostResponse }>
+    >()
   }
 }))
 
@@ -15,8 +28,7 @@ vi.mock('@/api/axiosInstance', () => ({
 import {
   pollUploadStatus,
   resolveUploadedReportId,
-  uploadFiles,
-  type UploadStatusResponse
+  uploadFiles
 } from '@/api/upload'
 
 describe('upload API', () => {
@@ -41,9 +53,9 @@ describe('upload API', () => {
     const [url, formData, config] = hoisted.axios.post.mock.calls[0]
     expect(url).toBe('/endoreg/upload/')
     expect(formData).toBeInstanceOf(FormData)
-    expect((formData as FormData).get('file')).toBe(file)
-    expect((formData as FormData).get('source_system')).toBe('reporting-ui')
-    expect((formData as FormData).get('center_key')).toBe('center-a')
+    expect(formData.get('file')).toBe(file)
+    expect(formData.get('source_system')).toBe('reporting-ui')
+    expect(formData.get('center_key')).toBe('center-a')
     expect(config).toEqual({ headers: { 'Idempotency-Key': 'request-1' } })
   })
 
@@ -70,7 +82,7 @@ describe('upload API', () => {
       }
     ]
     states.forEach((state) => hoisted.axios.get.mockResolvedValueOnce({ data: state }))
-    const onProgress = vi.fn()
+    const onProgress = vi.fn<(state: UploadStatusResponse) => void>()
 
     const completed = await pollUploadStatus('/status/upload-1', {
       pollIntervalMs: 0,

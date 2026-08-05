@@ -20,6 +20,9 @@ import { initHttpKC } from '@/utils/http_kc'
 import canKc from '@/directives/can_kc'
 import { useAuthKcStore } from '@/stores/auth_kc'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('application')
 
 // 1. Axios / auth plumbing
 initHttpKC()
@@ -47,8 +50,8 @@ app.use(router)
 app.use(VueVirtualScroller)
 
 // 7. Error handler
-app.config.errorHandler = (err, _vm, info) => {
-  console.error('Global error handler:', err, info)
+app.config.errorHandler = (err) => {
+  logger.error('vue-error', err)
 }
 
 // 8. Mount

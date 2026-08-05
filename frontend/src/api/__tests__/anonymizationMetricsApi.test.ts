@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   buildAnonymizationMetricsQueryParams,
-  fetchAnonymizationMetrics
+  fetchAnonymizationMetrics,
+  sanitizeAnonymizationMetricsResponse
 } from '@/api/anonymizationMetricsApi'
-import axiosInstance from '@/api/axiosInstance'
 
 const hoisted = vi.hoisted(() => ({
   get: vi.fn()
@@ -105,16 +105,13 @@ describe('anonymizationMetricsApi', () => {
       mediaType: 'pdf'
     })
 
-    expect(vi.mocked(axiosInstance.get)).toHaveBeenCalledWith(
-      'api/media/anonymization/metrics/',
-      {
-        params: {
-          date_from: '2026-04-19',
-          date_to: '2026-05-19',
-          media_type: 'pdf'
-        }
+    expect(hoisted.get).toHaveBeenCalledWith('api/media/anonymization/metrics/', {
+      params: {
+        date_from: '2026-04-19',
+        date_to: '2026-05-19',
+        media_type: 'pdf'
       }
-    )
+    })
     expect(result.workflow.pendingValidation).toBe(3)
     expect(result.fieldQuality[0]).toEqual({
       fieldName: 'patient_first_name',
@@ -126,5 +123,18 @@ describe('anonymizationMetricsApi', () => {
     })
     expect(result).not.toHaveProperty('rawText')
     expect(result.fieldQuality[0]).not.toHaveProperty('rawText')
+  })
+
+  it('does not stringify malformed object values into metric identifiers or schema versions', () => {
+    const result = sanitizeAnonymizationMetricsResponse({
+      schema_version: { unexpected: true },
+      filters: { media_type: 'unsupported-media' },
+      field_quality: [{ field_name: { unexpected: true } }]
+    })
+
+    expect(result.schemaVersion).toBe('1')
+    expect(result.filters.mediaType).toBeUndefined()
+    expect(result.fieldQuality[0]?.fieldName).toBe('unknown')
+    expect(JSON.stringify(result)).not.toContain('[object Object]')
   })
 })

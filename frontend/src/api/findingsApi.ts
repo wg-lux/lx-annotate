@@ -42,20 +42,74 @@ export interface UpdatePatientFindingPayload {
 
 const DTYPES_PATHS = {
   examinationFindings: (examinationId: number) =>
-    dtypesApi(`examinations/${examinationId}/findings/`),
+    dtypesApi(`examinations/${String(examinationId)}/findings/`),
   findingClassifications: (findingId: number) =>
-    dtypesApi(`findings/${findingId}/classifications/`),
+    dtypesApi(`findings/${String(findingId)}/classifications/`),
   classificationChoices: (classificationId: number) =>
-    dtypesApi(`classifications/${classificationId}/choices/`),
+    dtypesApi(`classifications/${String(classificationId)}/choices/`),
   patientFindings: dtypesApi('patient-findings/'),
   patientFindingById: (patientFindingId: number) =>
-    dtypesApi(`patient-findings/${patientFindingId}/`),
+    dtypesApi(`patient-findings/${String(patientFindingId)}/`),
   patientFindingClassifications: (patientFindingId: number) =>
-    dtypesApi(`patient-findings/${patientFindingId}/classifications/`)
+    dtypesApi(`patient-findings/${String(patientFindingId)}/classifications/`)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+const FINDINGS_API_ERROR_CODES: readonly FindingsApiErrorCode[] = [
+  'required-finding',
+  'duplicate-finding',
+  'invalid-choice',
+  'invalid-finding',
+  'bad-request',
+  'not-found',
+  'unknown'
+]
+
+function isFindingsApiErrorCode(value: unknown): value is FindingsApiErrorCode {
+  return typeof value === 'string' && FINDINGS_API_ERROR_CODES.some((code) => code === value)
+}
+
+function requirePositiveRequestId(value: unknown, path: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    throw new TypeError(`${path} must be a positive integer.`)
+  }
+  return value
+}
+
+function optionalBoolean(value: unknown, path: string): boolean | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'boolean') throw new TypeError(`${path} must be a boolean.`)
+  return value
+}
+
+function requireSelection(
+  selection: ClassificationSelection,
+  index: number
+): ClassificationSelection {
+  return {
+    classification: requirePositiveRequestId(
+      selection.classification,
+      `classifications[${String(index)}].classification`
+    ),
+    choice: requirePositiveRequestId(selection.choice, `classifications[${String(index)}].choice`)
+  }
+}
+
+function normalizeSelections(
+  selections: ClassificationSelection[] | undefined
+): ClassificationSelection[] | undefined {
+  if (selections === undefined) return undefined
+  if (!Array.isArray(selections)) throw new TypeError('classifications must be an array.')
+  return selections.map(requireSelection)
+}
+
+function requireArrayPayload(value: unknown, path: string): unknown[] {
+  if (Array.isArray(value)) return value
+  if (isRecord(value) && Array.isArray(value.results)) return value.results
+  throw new TypeError(`${path} must be an array or an object with a results array.`)
 }
 
 function parseMessages(data: unknown): string[] {
@@ -99,10 +153,7 @@ function classifyBadRequest(
   lowerMessage: string,
   context: FindingsApiErrorContext
 ): FindingsApiError {
-  if (
-    lowerMessage.includes('required finding') ||
-    lowerMessage.includes('erforderliche finding')
-  ) {
+  if (lowerMessage.includes('required finding') || lowerMessage.includes('erforderliche finding')) {
     return buildFindingsApiError('required-finding', 'Erforderlicher Befund fehlt.', context)
   }
   if (
@@ -130,19 +181,18 @@ export function parseFindingsApiError(error: unknown): FindingsApiError {
   const response = isRecord(errorRecord.response) ? errorRecord.response : {}
   const data = response.data
   const dataRecord = isRecord(data) ? data : {}
-  const status = Number(response.status || 0) || undefined
-  const explicitCode = String(dataRecord.code || '').trim() as FindingsApiErrorCode
+  const status =
+    typeof response.status === 'number' && Number.isInteger(response.status)
+      ? response.status
+      : undefined
+  const explicitCode = isFindingsApiErrorCode(dataRecord.code) ? dataRecord.code : undefined
   const errorMessage =
     typeof errorRecord.message === 'string' ? errorRecord.message : 'Unbekannter Fehler'
   const messages = parseMessages(data)
   const context: FindingsApiErrorContext = { data, messages, status }
 
-  if (explicitCode) {
-    return buildFindingsApiError(
-      explicitCode,
-      errorMessage,
-      context
-    )
+  if (explicitCode !== undefined) {
+    return buildFindingsApiError(explicitCode, errorMessage, context)
   }
 
   if (status === 404) {
@@ -158,36 +208,63 @@ export function parseFindingsApiError(error: unknown): FindingsApiError {
 
 export const findingsApi = {
   async getExaminationFindings(examinationId: number): Promise<Finding[]> {
-    const response = await axiosInstance.get(DTYPES_PATHS.examinationFindings(examinationId))
+    const validExaminationId = requirePositiveRequestId(examinationId, 'examinationId')
+    const response = await axiosInstance.get<unknown>(
+      DTYPES_PATHS.examinationFindings(validExaminationId)
+    )
     return normalizeFindings(response.data)
   },
 
   async getFindingClassifications(findingId: number): Promise<FindingClassification[]> {
-    const response = await axiosInstance.get(DTYPES_PATHS.findingClassifications(findingId))
-    if (!Array.isArray(response.data)) return []
-    return response.data.map(normalizeFindingClassification)
+    const validFindingId = requirePositiveRequestId(findingId, 'findingId')
+    const response = await axiosInstance.get<unknown>(
+      DTYPES_PATHS.findingClassifications(validFindingId)
+    )
+    return requireArrayPayload(response.data, 'Finding classifications response').map(
+      (classification, index) =>
+        normalizeFindingClassification(classification, `findingClassifications[${String(index)}]`)
+    )
   },
 
   async getClassificationChoices(classificationId: number): Promise<FindingChoice[]> {
-    const response = await axiosInstance.get(DTYPES_PATHS.classificationChoices(classificationId))
+    const validClassificationId = requirePositiveRequestId(classificationId, 'classificationId')
+    const response = await axiosInstance.get<unknown>(
+      DTYPES_PATHS.classificationChoices(validClassificationId)
+    )
     const payload = response.data
-    if (Array.isArray(payload)) return payload.map(normalizeFindingChoice)
-    return Array.isArray(payload?.choices) ? payload.choices.map(normalizeFindingChoice) : []
+    if (Array.isArray(payload)) {
+      return payload.map((choice, index) =>
+        normalizeFindingChoice(choice, `classificationChoices[${String(index)}]`)
+      )
+    }
+    if (!isRecord(payload) || !Array.isArray(payload.choices)) {
+      throw new TypeError('Classification choices response does not match the expected contract')
+    }
+    return payload.choices.map((choice, index) =>
+      normalizeFindingChoice(choice, `classificationChoices[${String(index)}]`)
+    )
   },
 
   async listPatientFindings(patientExaminationId: number): Promise<PatientFindingRow[]> {
-    const response = await axiosInstance.get(DTYPES_PATHS.patientFindings, {
-      params: { patient_examination: patientExaminationId }
+    const validPatientExaminationId = requirePositiveRequestId(
+      patientExaminationId,
+      'patientExaminationId'
+    )
+    const response = await axiosInstance.get<unknown>(DTYPES_PATHS.patientFindings, {
+      params: { patient_examination: validPatientExaminationId }
     })
     return normalizePatientFindingRows(response.data)
   },
 
   async createPatientFinding(payload: CreatePatientFindingPayload): Promise<PatientFindingRow> {
-    const classifications = Array.isArray(payload.classifications) ? payload.classifications : []
-    const response = await axiosInstance.post(DTYPES_PATHS.patientFindings, {
-      patient_examination: payload.patientExamination,
-      finding: payload.finding,
-      classifications
+    const classifications = normalizeSelections(payload.classifications) ?? []
+    const response = await axiosInstance.post<unknown>(DTYPES_PATHS.patientFindings, {
+      patientExamination: requirePositiveRequestId(
+        payload.patientExamination,
+        'payload.patientExamination'
+      ),
+      finding: requirePositiveRequestId(payload.finding, 'payload.finding'),
+      classifications: classifications
     })
     return normalizePatientFindingRow(response.data)
   },
@@ -196,28 +273,38 @@ export const findingsApi = {
     patientFindingId: number,
     payload: UpdatePatientFindingPayload
   ): Promise<PatientFindingRow> {
-    const classifications = Array.isArray(payload.classifications)
-      ? payload.classifications
-      : undefined
-    const response = await axiosInstance.patch(DTYPES_PATHS.patientFindingById(patientFindingId), {
-      finding: payload.finding,
-      is_active: payload.isActive,
-      classifications
-    })
+    const validPatientFindingId = requirePositiveRequestId(patientFindingId, 'patientFindingId')
+    const classifications = normalizeSelections(payload.classifications)
+    const response = await axiosInstance.patch<unknown>(
+      DTYPES_PATHS.patientFindingById(validPatientFindingId),
+      {
+        finding:
+          payload.finding === undefined
+            ? undefined
+            : requirePositiveRequestId(payload.finding, 'payload.finding'),
+        isActive: optionalBoolean(payload.isActive, 'payload.isActive'),
+        classifications
+      }
+    )
     return normalizePatientFindingRow(response.data)
   },
 
   async deletePatientFinding(patientFindingId: number): Promise<void> {
-    await axiosInstance.delete(DTYPES_PATHS.patientFindingById(patientFindingId))
+    await axiosInstance.delete(
+      DTYPES_PATHS.patientFindingById(
+        requirePositiveRequestId(patientFindingId, 'patientFindingId')
+      )
+    )
   },
 
   async replacePatientFindingClassifications(
     patientFindingId: number,
     classifications: ClassificationSelection[]
-  ): Promise<PatientFindingRow | null> {
-    const response = await axiosInstance.post(
-      DTYPES_PATHS.patientFindingClassifications(patientFindingId),
-      { replace: true, classifications }
+  ): Promise<PatientFindingRow> {
+    const validPatientFindingId = requirePositiveRequestId(patientFindingId, 'patientFindingId')
+    const response = await axiosInstance.post<unknown>(
+      DTYPES_PATHS.patientFindingClassifications(validPatientFindingId),
+      { replace: true, classifications: normalizeSelections(classifications) }
     )
     return normalizePatientFindingRow(response.data)
   }

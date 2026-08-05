@@ -33,7 +33,7 @@ describe('API prefix contract', () => {
         const source = readFileSync(path, 'utf8')
         return Array.from(source.matchAll(DIRECT_COMPATIBILITY_PREFIX), (match) => {
           const line = source.slice(0, match.index).split('\n').length
-          return `${relative(SOURCE_ROOT, path)}:${line}:${match[0]}`
+          return `${relative(SOURCE_ROOT, path)}:${String(line)}:${match[0]}`
         })
       })
 

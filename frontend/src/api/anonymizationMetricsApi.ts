@@ -1,7 +1,7 @@
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 
-export type AnonymizationMetricsMediaType = '' | 'all' | 'pdf' | 'video' | string
+export type AnonymizationMetricsMediaType = '' | 'all' | 'pdf' | 'video'
 
 export interface AnonymizationMetricsFilters {
   dateFrom?: string
@@ -101,11 +101,25 @@ function nullableNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function scalarStringOr(value: unknown, fallback: string): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return fallback
+}
+
+function metricsMediaTypeOrUndefined(value: unknown): AnonymizationMetricsMediaType | undefined {
+  return value === '' || value === 'all' || value === 'pdf' || value === 'video'
+    ? value
+    : undefined
+}
+
 function sanitizeKey(value: unknown): string {
-  return String(value ?? 'unknown')
-    .trim()
-    .replace(/[^a-zA-Z0-9_:-]/g, '')
-    .slice(0, 80) || 'unknown'
+  return (
+    scalarStringOr(value, 'unknown')
+      .trim()
+      .replace(/[^a-zA-Z0-9_:-]/g, '')
+      .slice(0, 80) || 'unknown'
+  )
 }
 
 function sanitizeNumberRecord(value: unknown): Record<string, number> {
@@ -122,7 +136,7 @@ function sanitizeFilters(value: unknown): AnonymizationMetricsFilters {
   return {
     dateFrom: firstValue(record, ['dateFrom', 'date_from']) as string | undefined,
     dateTo: firstValue(record, ['dateTo', 'date_to']) as string | undefined,
-    mediaType: firstValue(record, ['mediaType', 'media_type']) as string | undefined,
+    mediaType: metricsMediaTypeOrUndefined(firstValue(record, ['mediaType', 'media_type'])),
     centerId: firstValue(record, ['centerId', 'center_id']) as number | string | null | undefined,
     documentType: firstValue(record, ['documentType', 'document_type']) as string | undefined,
     sourceSystem: firstValue(record, ['sourceSystem', 'source_system']) as string | undefined
@@ -171,7 +185,7 @@ function sanitizeFieldQuality(value: unknown): AnonymizationFieldQualityMetric[]
     ? value
     : Object.entries(asRecord(value)).map(([fieldName, metric]) => ({
         fieldName,
-        ...(asRecord(metric))
+        ...asRecord(metric)
       }))
 
   return rawRows.map((row) => {
@@ -207,7 +221,7 @@ export function sanitizeAnonymizationMetricsResponse(
 ): AnonymizationMetricsResponse {
   const record = asRecord(payload)
   return {
-    schemaVersion: String(firstValue(record, ['schemaVersion', 'schema_version']) ?? '1'),
+    schemaVersion: scalarStringOr(firstValue(record, ['schemaVersion', 'schema_version']), '1'),
     filters: sanitizeFilters(firstValue(record, ['filters'])),
     workflow: sanitizeWorkflow(firstValue(record, ['workflow'])),
     fieldQuality: sanitizeFieldQuality(firstValue(record, ['fieldQuality', 'field_quality'])),

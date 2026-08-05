@@ -70,7 +70,7 @@ describe('casesApi', () => {
     const result = await createPatientCase(payload)
 
     expect(hoisted.axios.post).toHaveBeenCalledWith('/endoreg-api/cases/', payload)
-    expect(result).toBe(patientCase)
+    expect(result).toEqual(patientCase)
   })
 
   it('creates a case and its first examination atomically', async () => {
@@ -96,7 +96,7 @@ describe('casesApi', () => {
       '/endoreg-api/cases/create-with-examination/',
       payload
     )
-    expect(result).toBe(response)
+    expect(result).toEqual(response)
   })
 
   it('attaches one existing document through the case-scoped API', async () => {
@@ -113,6 +113,46 @@ describe('casesApi', () => {
       `/endoreg-api/cases/${patientCase.caseId}/documents/`,
       payload
     )
-    expect(result).toBe(patientCase)
+    expect(result).toEqual(patientCase)
+  })
+
+  it('preserves future document media kinds after validating the wire shape', async () => {
+    const document = {
+      mediaType: 'future_document_kind',
+      id: 88,
+      patientExaminationId: 314,
+      occurrenceAt: '2026-07-23T08:00:00Z'
+    }
+    hoisted.axios.get.mockResolvedValue({
+      data: { results: [{ ...patientCase, documents: [document] }] }
+    })
+
+    const result = await fetchPatientCases({ patientId: 42 })
+
+    expect(result[0]?.documents[0]?.mediaType).toBe('future_document_kind')
+  })
+
+  it('rejects non-string document media kinds at the API boundary', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: {
+        results: [
+          {
+            ...patientCase,
+            documents: [
+              {
+                mediaType: 7,
+                id: 88,
+                patientExaminationId: 314,
+                occurrenceAt: '2026-07-23T08:00:00Z'
+              }
+            ]
+          }
+        ]
+      }
+    })
+
+    await expect(fetchPatientCases({ patientId: 42 })).rejects.toThrow(
+      'cases[0].documents[0].mediaType'
+    )
   })
 })

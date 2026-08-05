@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
 import {
   fetchReportTemplatesByExamination,
   fetchBuilderReportTemplatesByExamination,
@@ -13,10 +12,15 @@ import {
   validateReportTemplateRuntime
 } from '@/api/reportTemplatesApi'
 
+const hoisted = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn()
+}))
+
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: vi.fn(),
-    post: vi.fn()
+    get: hoisted.get,
+    post: hoisted.post
   },
   endoregApi: (path: string) => `/endoreg-api/${path.replace(/^\/+/, '')}`,
   dtypesApi: (path: string) => `/dtypes-api/${path.replace(/^\/+/, '')}`
@@ -81,8 +85,74 @@ describe('reportTemplatesApi', () => {
     ])
   })
 
+  it('uses an explicit fallback for malformed condition values in summaries', () => {
+    const payload = normalizeTemplatePayload({
+      name: 'safe_summary',
+      examination: 'upper_gi_endoscopy',
+      validators: {
+        findingsValidators: [
+          {
+            name: 'malformed_value',
+            finding: 'esophagus_polyp',
+            operator: 'condition',
+            query: {
+              condition: {
+                any: [
+                  {
+                    classification: 'size_mm',
+                    comparator: 'gt',
+                    value: { unexpected: true }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    })
+
+    const summary = payload?.validators.findingsValidators[0]?.summary
+    expect(summary).toContain('ungültiger Wert')
+    expect(summary).not.toContain('[object Object]')
+  })
+
+  it('preserves validated custom descriptor kinds from the knowledge base', () => {
+    const payload = normalizeTemplatePayload({
+      name: 'custom_descriptor_template',
+      examination: 'upper_gi_endoscopy',
+      report_sections: [
+        {
+          name: 'baseline',
+          findings: [
+            {
+              finding: 'esophagus_polyp',
+              classifications: [
+                {
+                  classification: 'custom_measurement',
+                  input: {
+                    choices: [
+                      {
+                        name: 'measurement_choice',
+                        descriptors: [{ name: 'measurement_value', type: 'custom_measurement' }]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    })
+
+    expect(
+      payload?.reportSections[0]?.findings[0]?.classifications[0]?.input?.choices[0]
+        ?.descriptors[0]?.type
+    ).toBe('custom_measurement')
+  })
+
   it('loads draft templates through the preview endpoint', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    hoisted.get.mockResolvedValue({
       data: {
         name: 'draft_template',
         examination: 'colonoscopy',
@@ -94,13 +164,13 @@ describe('reportTemplatesApi', () => {
     await expect(
       fetchReportTemplatePreviewByName('report_template_examples', 'draft_template')
     ).resolves.toMatchObject({ name: 'draft_template', examination: 'colonoscopy' })
-    expect(axiosInstance.get).toHaveBeenCalledWith(
+    expect(hoisted.get).toHaveBeenCalledWith(
       '/dtypes-api/report-templates/report_template_examples/draft_template/preview'
     )
   })
 
   it('uses the builder list endpoint so drafts remain outside clinical selection', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    hoisted.get.mockResolvedValue({
       data: [
         {
           name: 'draft_template',
@@ -115,7 +185,7 @@ describe('reportTemplatesApi', () => {
     await expect(
       fetchBuilderReportTemplatesByExamination('module', 'colonoscopy')
     ).resolves.toMatchObject([{ name: 'draft_template' }])
-    expect(axiosInstance.get).toHaveBeenCalledWith(
+    expect(hoisted.get).toHaveBeenCalledWith(
       '/dtypes-api/report-templates/builder/by-examination/module/colonoscopy'
     )
   })
@@ -198,8 +268,7 @@ describe('reportTemplatesApi', () => {
     ])
     expect(payload?.reportSections[1].findings[0].multipleAllowed).toBe(true)
     expect(
-      payload?.reportSections[1].findings[0].classifications[0].input?.choices[0]
-        .descriptors[0]
+      payload?.reportSections[1].findings[0].classifications[0].input?.choices[0].descriptors[0]
     ).toEqual({
       name: 'propofol_dose_mg_value',
       type: 'numeric',
@@ -298,7 +367,7 @@ describe('reportTemplatesApi', () => {
   })
 
   it('normalizes runtime validation responses', async () => {
-    vi.mocked(axiosInstance.post).mockResolvedValue({
+    hoisted.post.mockResolvedValue({
       data: {
         templateName: 'star_upper_gi_main',
         ok: false,
@@ -416,7 +485,7 @@ describe('reportTemplatesApi', () => {
       }
     )
 
-    expect(axiosInstance.post).toHaveBeenCalledWith(
+    expect(hoisted.post).toHaveBeenCalledWith(
       '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate',
       {
         patient: 'test_patient',
@@ -484,7 +553,7 @@ describe('reportTemplatesApi', () => {
   })
 
   it('calls validate-from-ledger endpoint for runtime validation', async () => {
-    vi.mocked(axiosInstance.post).mockResolvedValue({
+    hoisted.post.mockResolvedValue({
       data: {
         templateName: 'star_upper_gi_main',
         ok: true,
@@ -501,7 +570,7 @@ describe('reportTemplatesApi', () => {
       42
     )
 
-    expect(axiosInstance.post).toHaveBeenCalledWith(
+    expect(hoisted.post).toHaveBeenCalledWith(
       '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42'
     )
     expect(result.templateName).toBe('star_upper_gi_main')
@@ -509,7 +578,7 @@ describe('reportTemplatesApi', () => {
   })
 
   it('throws on invalid runtime validation payloads', async () => {
-    vi.mocked(axiosInstance.post).mockResolvedValue({
+    hoisted.post.mockResolvedValue({
       data: {
         ok: true
       }
@@ -527,7 +596,7 @@ describe('reportTemplatesApi', () => {
   })
 
   it('fails closed when the canonical ledger validation endpoint is unavailable', async () => {
-    vi.mocked(axiosInstance.post).mockRejectedValueOnce({
+    hoisted.post.mockRejectedValueOnce({
       response: {
         status: 404,
         data: { detail: 'Not Found' }
@@ -542,11 +611,11 @@ describe('reportTemplatesApi', () => {
       })
     ).rejects.toMatchObject({ response: { status: 404 } })
 
-    expect(axiosInstance.post).toHaveBeenCalledTimes(1)
+    expect(hoisted.post).toHaveBeenCalledTimes(1)
   })
 
   it('preserves specific ledger validation errors', async () => {
-    vi.mocked(axiosInstance.post).mockRejectedValueOnce({
+    hoisted.post.mockRejectedValueOnce({
       response: {
         status: 404,
         data: { detail: 'Template not found for module' }
@@ -567,7 +636,7 @@ describe('reportTemplatesApi', () => {
   })
 
   it('fetchReportTemplatesByExamination returns empty array for non-array payloads', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    hoisted.get.mockResolvedValue({
       data: { results: [] }
     })
 

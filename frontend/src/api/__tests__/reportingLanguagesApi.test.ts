@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
 import {
   fetchReportingLanguages,
   normalizeReportingLanguages
 } from '@/api/reportingLanguagesApi'
 
+const hoisted = vi.hoisted(() => ({
+  get: vi.fn()
+}))
+
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: vi.fn()
+    get: hoisted.get
   },
   dtypesApi: (path: string) => `/dtypes-api/${path}`
 }))
@@ -19,7 +22,7 @@ describe('reportingLanguagesApi', () => {
   })
 
   it('loads the language contract from lx-dtypes-api', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    hoisted.get.mockResolvedValue({
       data: {
         defaultLanguage: 'de',
         languages: [
@@ -36,7 +39,7 @@ describe('reportingLanguagesApi', () => {
         { code: 'en', label: 'English' }
       ]
     })
-    expect(axiosInstance.get).toHaveBeenCalledWith('/dtypes-api/reporting/languages')
+    expect(hoisted.get).toHaveBeenCalledWith('/dtypes-api/reporting/languages')
   })
 
   it('rejects unsupported language codes at the API boundary', () => {

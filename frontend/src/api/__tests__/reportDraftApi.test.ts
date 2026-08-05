@@ -43,6 +43,26 @@ describe('reportDraftApi', () => {
     expect(result.draft.template_name ?? result.draft.templateName).toBe('star_upper_gi_main')
   })
 
+  it('normalizes a missing draft to an empty draft', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: { patient_examination_id: 314, updated_at: null }
+    })
+
+    await expect(fetchPatientExaminationDraft(314)).resolves.toMatchObject({
+      patient_examination_id: 314,
+      draft: {},
+      updated_at: null
+    })
+  })
+
+  it('rejects malformed draft payloads at the API boundary', async () => {
+    hoisted.axios.get.mockResolvedValue({ data: { draft: 'not-an-object' } })
+
+    await expect(fetchPatientExaminationDraft(314)).rejects.toThrow(
+      'Report draft response contains an invalid draft'
+    )
+  })
+
   it('persists unvalidated runtime draft state without reshaping the payload', async () => {
     hoisted.axios.put.mockResolvedValue({
       data: {

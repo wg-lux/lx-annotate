@@ -6,7 +6,7 @@ export interface AiDatasetOption {
   value: string
   label: string
   datasetType: AiDatasetType
-  aiModelType: AiDatasetModelType | string
+  aiModelType: string
   isActive: boolean
   nameCount: number
 }
@@ -160,20 +160,67 @@ export interface AiDatasetAttachmentResult {
 
 const AI_DATASETS_DROPDOWN_PATH = 'settings/application/dropdowns/ai_datasets/'
 const frameBucketDistributionPath = (datasetId: number | string) =>
-  `settings/application/ai_datasets/${datasetId}/frame_bucket_distribution/`
+  `settings/application/ai_datasets/${String(datasetId)}/frame_bucket_distribution/`
 const trainingManifestPath = (datasetId: number | string) =>
-  `settings/application/ai_datasets/${datasetId}/training_manifest/`
+  `settings/application/ai_datasets/${String(datasetId)}/training_manifest/`
 const attachmentsPath = (datasetId: number | string) =>
-  `settings/application/ai_datasets/${datasetId}/attachments/`
+  `settings/application/ai_datasets/${String(datasetId)}/attachments/`
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== 'string') {
+    throw new TypeError(`AI dataset response contains an invalid ${field}`)
+  }
+  return value
+}
+
+function requireInteger(value: unknown, field: string, minimum: number): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum) {
+    throw new TypeError(`AI dataset response contains an invalid ${field}`)
+  }
+  return value
+}
+
+function requireAiDatasetType(value: unknown): AiDatasetType {
+  if (value !== 'image' && value !== 'video') {
+    throw new TypeError('AI dataset response contains an invalid datasetType')
+  }
+  return value
+}
+
+function requireAiDatasetOption(value: unknown, index?: number): AiDatasetOption {
+  const prefix = index === undefined ? '' : `[${String(index)}].`
+  if (!isRecord(value)) {
+    throw new TypeError(`AI dataset response contains an invalid option${prefix}`)
+  }
+  if (typeof value.isActive !== 'boolean') {
+    throw new TypeError(`AI dataset response contains an invalid ${prefix}isActive`)
+  }
+  return {
+    id: requireInteger(value.id, `${prefix}id`, 1),
+    value: requireString(value.value, `${prefix}value`),
+    label: requireString(value.label, `${prefix}label`),
+    datasetType: requireAiDatasetType(value.datasetType),
+    aiModelType: requireString(value.aiModelType, `${prefix}aiModelType`),
+    isActive: value.isActive,
+    nameCount: requireInteger(value.nameCount, `${prefix}nameCount`, 1)
+  }
+}
 
 export async function fetchAiDatasetOptions(): Promise<AiDatasetOption[]> {
-  const { data } = await axiosInstance.get<AiDatasetOption[]>(r(AI_DATASETS_DROPDOWN_PATH))
-  return data
+  const { data } = await axiosInstance.get<unknown>(r(AI_DATASETS_DROPDOWN_PATH))
+  if (!Array.isArray(data)) {
+    throw new TypeError('AI dataset response must be an array')
+  }
+  return data.map((option, index) => requireAiDatasetOption(option, index))
 }
 
 export async function createAiDataset(payload: CreateAiDatasetPayload): Promise<AiDatasetOption> {
-  const { data } = await axiosInstance.post<AiDatasetOption>(r(AI_DATASETS_DROPDOWN_PATH), payload)
-  return data
+  const { data } = await axiosInstance.post<unknown>(r(AI_DATASETS_DROPDOWN_PATH), payload)
+  return requireAiDatasetOption(data)
 }
 
 export async function fetchAiDatasetLabelSets(): Promise<AiDatasetLabelSetOption[]> {
