@@ -17,7 +17,7 @@ repos:
         pass_filenames: false
       - id: pytest
         name: pytest suite
-        entry: devenv shell -- pytest
+        entry: devenv shell -- pytest tests
         language: system
         pass_filenames: false
 

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import Any
+from typing import TYPE_CHECKING
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -128,7 +129,9 @@ class OutboundHubTransferJob(models.Model):
     last_error: Any = models.TextField(blank=True, default="")
     remote_transfer_id: Any = models.CharField(max_length=64, blank=True, default="")
     remote_transfer_status: Any = models.CharField(
-        max_length=32, blank=True, default=""
+        max_length=32,
+        blank=True,
+        default="",
     )
     remote_processing_decision: Any = models.CharField(
         max_length=48,
@@ -174,7 +177,7 @@ class OutboundHubTransferJob(models.Model):
         has_report = self.raw_pdf_file_id is not None
         if has_video == has_report:
             raise ValidationError(
-                "Exactly one of video_file or raw_pdf_file must be set."
+                "Exactly one of video_file or raw_pdf_file must be set.",
             )
 
         if self.resource_kind == self.ResourceKind.VIDEO:
@@ -183,16 +186,16 @@ class OutboundHubTransferJob(models.Model):
                     {
                         "video_file": (
                             "video_file is required when resource_kind='video'."
-                        )
-                    }
+                        ),
+                    },
                 )
             if has_report:
                 raise ValidationError(
                     {
                         "raw_pdf_file": (
                             "raw_pdf_file must be empty for video transfers."
-                        )
-                    }
+                        ),
+                    },
                 )
 
         if self.resource_kind == self.ResourceKind.REPORT:
@@ -201,17 +204,17 @@ class OutboundHubTransferJob(models.Model):
                     {
                         "raw_pdf_file": (
                             "raw_pdf_file is required when resource_kind='report'."
-                        )
-                    }
+                        ),
+                    },
                 )
             if has_video:
                 raise ValidationError(
-                    {"video_file": "video_file must be empty for report transfers."}
+                    {"video_file": ("video_file must be empty for report transfers.")},
                 )
 
         if self.target_node.role != "central_hub":
             raise ValidationError(
-                {"target_node": "target_node must have role='central_hub'."}
+                {"target_node": "target_node must have role='central_hub'."},
             )
 
         if self.transfer_mode != self.TransferMode.METADATA_AND_PROCESSED_MEDIA:
@@ -220,8 +223,8 @@ class OutboundHubTransferJob(models.Model):
                     "transfer_mode": (
                         "Only metadata_and_processed_media is permitted for "
                         "outbound hub transfer."
-                    )
-                }
+                    ),
+                },
             )
 
     def save(self, *args: Any, **kwargs: Any) -> None:

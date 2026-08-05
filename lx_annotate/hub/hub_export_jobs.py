@@ -1,38 +1,39 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import date, datetime
-from typing import Any, Literal, TypedDict
+from datetime import date
+from datetime import datetime
+from typing import Any
+from typing import Literal
+from typing import TypedDict
 
 from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
+from endoreg_db.models import Center
+from endoreg_db.models import NetworkNode
+from endoreg_db.models import RawPdfFile
+from endoreg_db.models import VideoFile
 
-from endoreg_db.models import Center, NetworkNode, RawPdfFile, VideoFile
-
-from .hub_export_contracts import (
-    HubCenterSyncState,
-    HubExportDuplicateReason,
-    HubExportOverview,
-    HubExportRejectionReason,
-    HubExportResourceKind,
-    HubFileSyncSummary,
-    HubProcessedFile,
-    HubSyncDuplicate,
-    HubSyncRejection,
-)
+from ..models import OutboundHubTransferJob
 from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_cleanup import configured_local_cleanup_policy
-from .hub_export_state import (
-    has_usable_processed_artifact,
-    hub_export_auto_queue_enabled,
-    is_report_hub_export_eligible,
-    is_video_hub_export_eligible,
-    queue_outbound_job,
-    report_hub_export_blocked_reason,
-    video_hub_export_blocked_reason,
-)
-from ..models import OutboundHubTransferJob
+from .hub_export_contracts import HubCenterSyncState
+from .hub_export_contracts import HubExportDuplicateReason
+from .hub_export_contracts import HubExportOverview
+from .hub_export_contracts import HubExportRejectionReason
+from .hub_export_contracts import HubExportResourceKind
+from .hub_export_contracts import HubFileSyncSummary
+from .hub_export_contracts import HubProcessedFile
+from .hub_export_contracts import HubSyncDuplicate
+from .hub_export_contracts import HubSyncRejection
+from .hub_export_state import has_usable_processed_artifact
+from .hub_export_state import hub_export_auto_queue_enabled
+from .hub_export_state import is_report_hub_export_eligible
+from .hub_export_state import is_video_hub_export_eligible
+from .hub_export_state import queue_outbound_job
+from .hub_export_state import report_hub_export_blocked_reason
+from .hub_export_state import video_hub_export_blocked_reason
 
 HUB_EXPORT_PRIVACY_MIN_K = 5
 
@@ -98,7 +99,8 @@ def get_default_source_node() -> NetworkNode | None:
 
 
 def resolve_target_hub_node(
-    *, target_node_key: str | None = None
+    *,
+    target_node_key: str | None = None,
 ) -> NetworkNode | None:
     normalized = str(target_node_key or "").strip()
     if normalized:
@@ -112,7 +114,7 @@ def require_normal_sender_target_hub() -> NetworkNode:
         raise ValueError("No active central hub node is configured.")
     if len(hub_nodes) != 1:
         raise ValueError(
-            "Normal sender mode requires exactly one active central hub node."
+            "Normal sender mode requires exactly one active central hub node.",
         )
     return hub_nodes[0]
 
@@ -141,7 +143,9 @@ def _privacy_exam_year(sensitive_meta: Any | None) -> str:
 def _privacy_age_band(sensitive_meta: Any | None) -> str:
     pseudo_patient = getattr(sensitive_meta, "pseudo_patient", None)
     dob = getattr(pseudo_patient, "dob", None) or getattr(
-        sensitive_meta, "patient_dob", None
+        sensitive_meta,
+        "patient_dob",
+        None,
     )
     birth_year = _year_from_date(dob)
     if birth_year is None:
@@ -171,7 +175,7 @@ def _privacy_gender(sensitive_meta: Any | None) -> str:
 def _privacy_case_identity(record: HubExportPrivacyRecord) -> str:
     sensitive_meta = record.get("sensitive_meta")
     examination_hash = _normalized_text(
-        getattr(sensitive_meta, "examination_hash", None)
+        getattr(sensitive_meta, "examination_hash", None),
     )
     if examination_hash:
         return f"examination_hash:{examination_hash}"
@@ -282,7 +286,7 @@ def build_hub_export_privacy_summary(
     )
 
 
-def _sync_rejection_reason(blocked_reason: str) -> HubExportRejectionReason: 
+def _sync_rejection_reason(blocked_reason: str) -> HubExportRejectionReason:
     reasons = {
         "source center missing": HubExportRejectionReason.MISSING_CENTER,
         "processed media missing": HubExportRejectionReason.MISSING_PROCESSED_FILE,
@@ -294,7 +298,7 @@ def _sync_rejection_reason(blocked_reason: str) -> HubExportRejectionReason:
         return reasons[blocked_reason]
     except KeyError as exc:
         raise ValueError(
-            f"Unsupported hub export blocked reason: {blocked_reason}"
+            f"Unsupported hub export blocked reason: {blocked_reason}",
         ) from exc
 
 
@@ -409,7 +413,7 @@ def _append_sync_outcomes(
                 center_key=source_center_key,
                 reason=_sync_rejection_reason(blocked_reason),
                 detail=blocked_reason,
-            )
+            ),
         )
     if job is not None:
         duplicates.append(
@@ -422,7 +426,7 @@ def _append_sync_outcomes(
                 transfer_key=job.transfer_key,
                 transfer_status=job.local_status,
                 target_node_key=job.target_node.node_key,
-            )
+            ),
         )
 
 
@@ -453,7 +457,7 @@ def _append_privacy_record(
             "eligible": eligible,
             "marked_for_upload": marked_for_upload,
             "sensitive_meta": sensitive_meta,
-        }
+        },
     )
 
 
@@ -594,7 +598,7 @@ def _collect_video_overview(
                 selected_target=selected_target,
                 eligible=eligible,
                 blocked_reason=blocked_reason,
-            )
+            ),
         )
         processed_file = _video_processed_file(
             video,
@@ -666,7 +670,7 @@ def _collect_report_overview(
                 selected_target=selected_target,
                 eligible=eligible,
                 blocked_reason=blocked_reason,
-            )
+            ),
         )
         processed_file = _report_processed_file(
             report,
@@ -702,7 +706,7 @@ def _active_node_keys_by_center() -> dict[str, list[str]]:
     for node in nodes:
         if node.owning_center is not None:
             active_nodes_by_center.setdefault(node.owning_center.center_key, []).append(
-                node.node_key
+                node.node_key,
             )
     return active_nodes_by_center
 
@@ -881,7 +885,7 @@ def mark_resources_for_hub_upload(
 def _authenticated_marker(marked_by: Any) -> Any:
     if not getattr(marked_by, "is_authenticated", False):
         raise ValueError(
-            "An authenticated operator is required for hub export marking."
+            "An authenticated operator is required for hub export marking.",
         )
     return marked_by
 
