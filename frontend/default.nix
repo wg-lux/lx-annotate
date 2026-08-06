@@ -9,13 +9,16 @@ buildNpmPackage rec {
 
   src = ./.;
 
-
-  npmDepsHash = "sha256-T9uNPiv/qNGn72WWsxchv1EFK4PNnHGpHj65byNkqkY=";
+# TODO: On npm deps change, run make packages once with npmDepsHash = lib.fakeHash; 
+# then replace lib.fakeHash with the returned "hash in quotes" in specified SHA-AA... 
+# (fake) got (your real hash)
+  npmDepsHash = "sha256-kPYE/gQMnjnlpp/5cCJWwI/Cb1foqPcOE21UUkvIlO0=";
 
   npmBuildScript = "build";
   doCheck = false;
 
   installPhase = ''
+    # NEVER CHANGE THIS UNLESS YOU KNOW WHAT YOUR DOING: IT IS NEEDED IN WHEEL DEPLOYMENTS
     runHook preInstall
 
     mkdir -p "$out/dist"

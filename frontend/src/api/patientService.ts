@@ -527,20 +527,18 @@ export const patientService = {
   // Hilfsmethoden
   formatPatientData(patientForm: PatientFormData): PatientCreateData {
     const formattedData: PatientCreateData = {
-      firstName: patientForm.firstName,
-      lastName: patientForm.lastName,
+      firstName: patientForm.firstName.trim(),
+      lastName: patientForm.lastName.trim(),
       dob: patientForm.dob || null,
       gender: patientForm.gender || null,
       center: patientForm.centerKey ? null : (patientForm.center || null),
       centerKey: patientForm.centerKey || null,
-      email: patientForm.email || undefined,
-      phone: patientForm.phone || undefined,
+      email: patientForm.email ?? "",
+      phone: patientForm.phone ?? "",
       patientHash: patientForm.patientHash || null,
       isRealPerson: patientForm.isRealPerson ?? true
     };
 
-    if (formattedData.email === '') delete formattedData.email;
-    if (formattedData.phone === '') delete formattedData.phone;
     if (formattedData.gender === '') delete formattedData.gender;
     if (formattedData.patientHash === '') delete formattedData.patientHash;
     if (formattedData.center === '') delete formattedData.center;

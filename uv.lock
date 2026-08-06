@@ -1129,7 +1129,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.8.8"
+version = "1.0.8.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1198,9 +1198,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/7e/a93125212933b3602157b72d505ee17fccaf808daec699bb422e80702114/endoreg_db-1.0.8.8.tar.gz", hash = "sha256:f531a567ee48f1dabbadfde24a839e6d2c72d0814938998c15c57b66618d0a61", size = 1222651, upload-time = "2026-08-05T16:14:18.97Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/73/e298ebd56145b6c46e6719b058db5d51ac25b9dd8f1c604508f5baa23a79/endoreg_db-1.0.8.9.tar.gz", hash = "sha256:9d94703483a196e2bb149fb57f8656bab173e24072ac6abc03c1cfe1aeb74bc5", size = 1222682, upload-time = "2026-08-06T08:10:37.286Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/49/4df1af8e197e9cabe075ce5102d33001d2f3f2bf9c57f9cd4b38f9d59c26/endoreg_db-1.0.8.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:604cf05c2f147a19b2d4866d01b71d23714d4c95fd1ffb44ceb3bf4332ac7ced", size = 2170184, upload-time = "2026-08-05T16:14:15.539Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/4c/06622605794bcea7f9b6cebc58a935801ede27aca812a3e099c68af4939a/endoreg_db-1.0.8.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f8d91f8c4e1c216f422ef76738d6d2d0e227106d0cd99e9956fd9df9711f0eed", size = 2170295, upload-time = "2026-08-06T08:10:33.885Z" },
 ]
 
 [[package]]
@@ -2049,7 +2049,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.9.56"
+version = "0.9.59"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
@@ -2072,6 +2072,7 @@ dependencies = [
     { name = "mozilla-django-oidc" },
     { name = "numpy" },
     { name = "pillow" },
+    { name = "pre-commit" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -2140,7 +2141,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.8.8" },
+    { name = "endoreg-db", specifier = "==1.0.8.9" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2157,6 +2158,7 @@ requires-dist = [
     { name = "pip", marker = "extra == 'dev'", specifier = ">=25.2" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = "==4.6.1" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.5.0" },
+    { name = "pre-commit", extras = ["dev"], specifier = ">=4.6.1" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2.12" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
@@ -2261,6 +2263,7 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/e7/c7/f8fe4171cdbd687892da3dacafa768416dbb3e41ec63c8e42417d49b2cf0/lx_dtypes-0.2.12.tar.gz", hash = "sha256:890f2fe5508cf145adc918325114e1d0093fbd2ce43696cf1743803462ea007f", size = 2534349, upload-time = "2026-08-05T16:16:06.807Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cf/f9/65f2b54ce934ef4ea98029cd1270f2a8c7a326523ae5ea0e96e26447ec13/lx_dtypes-0.2.12-py3-none-any.whl", hash = "sha256:53a9da0ef725937eeb6460c408072c50f602e5c54daad5b85b6930a3e0d0e073", size = 732935, upload-time = "2026-08-05T16:16:01.399Z" },
 ]
