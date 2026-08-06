@@ -71,6 +71,17 @@ function requireResponseRows(value: unknown, contractName: string): unknown[] {
   throw new TypeError(`${contractName} response does not match the expected contract`)
 }
 
+function formatSnippet(value: unknown): string {
+  if (!value || typeof value !== 'object') {
+    return String(value)
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
 function requireSensitiveMetadataRows(value: unknown): SensitiveMetadataVerification[] {
   const rows = requireResponseRows(value, 'Sensitive metadata list')
   if (
@@ -117,7 +128,9 @@ function parseExaminationStats(value: unknown): AnnotationSourceStats {
   }
   for (const row of rows) {
     if (!isRecord(row)) {
-      throw new TypeError('Patient examination list contains an invalid status row')
+      throw new TypeError(
+        `Patient examination list contains an invalid status row: row is not an object (snippet: ${formatSnippet(row)})`
+      )
     }
     const status = row.status as unknown
     if (status == null || status === '') {
@@ -125,7 +138,9 @@ function parseExaminationStats(value: unknown): AnnotationSourceStats {
       continue
     }
     if (!isExaminationStatus(status)) {
-      throw new TypeError('Patient examination list contains an invalid status row')
+      throw new TypeError(
+        `Patient examination list contains an invalid status row: expected status in ["pending","in_progress","completed","draft"], got ${formatSnippet(status)}`
+      )
     }
     counts[status] += 1
   }
@@ -197,6 +212,11 @@ function errorMessage(error: unknown, fallback: string): string {
   const responseData = response && isRecord(response.data) ? response.data : null
   const responseError = responseData?.error
   if (typeof responseError === 'string' && responseError) return responseError
+  const responseCode = responseData?.code
+  if (typeof responseCode === 'string' && responseCode) {
+    const detail = typeof responseData.detail === 'string' ? responseData.detail : null
+    return detail ? `${responseCode}: ${detail}` : responseCode
+  }
   return typeof error.message === 'string' && error.message ? error.message : fallback
 }
 

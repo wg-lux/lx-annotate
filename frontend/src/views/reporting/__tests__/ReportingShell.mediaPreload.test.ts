@@ -62,7 +62,7 @@ const hoisted = vi.hoisted(() => {
       fetchReportingLanguages: vi.fn()
     },
     terminologyStore: {
-      bundles: [],
+      bundles: [] as TerminologyBundleVersion[],
       activeBundle: null as TerminologyBundleVersion | null,
       loading: false,
       selecting: false,
@@ -72,7 +72,7 @@ const hoisted = vi.hoisted(() => {
       activeModuleName: 'report_template_examples',
       activeBundleKey: '',
       activeBundleLabel: 'Standard-Terminologie',
-      filteredBundles: [],
+      filteredBundles: [] as TerminologyBundleVersion[],
       medicalFieldLabel: 'Gastroenterologie',
       medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
       bundleKey: vi.fn(
@@ -571,12 +571,15 @@ describe('ReportingShell media preload', () => {
     hoisted.flowRef.current.hasUnpersistedDraftChanges = true
     const wrapper = mountShell()
     await flushPromises()
+    const flushCountBeforeSwitch = hoisted.flowRef.current.flushDraftAutosave.mock.calls.length
     hoisted.flowRef.current.setPatientExaminationContext.mockClear()
 
     await wrapper.get('[data-testid="patient-examination-select"]').setValue('315')
     await flushPromises()
 
-    expect(hoisted.flowRef.current.flushDraftAutosave).toHaveBeenCalledTimes(1)
+    expect(hoisted.flowRef.current.flushDraftAutosave).toHaveBeenCalledTimes(
+      flushCountBeforeSwitch + 1
+    )
     expect(hoisted.flowRef.current.setPatientExaminationContext).toHaveBeenCalledWith({
       patientExaminationId: 315,
       selectedPatientId: 42,
@@ -595,7 +598,9 @@ describe('ReportingShell media preload', () => {
       latestFrames: []
     })
     hoisted.flowRef.current.hasUnpersistedDraftChanges = true
-    hoisted.flowRef.current.flushDraftAutosave.mockRejectedValueOnce(new Error('save unavailable'))
+    hoisted.flowRef.current.flushDraftAutosave
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('save unavailable'))
     const wrapper = mountShell()
     await flushPromises()
     hoisted.flowRef.current.setPatientExaminationContext.mockClear()
@@ -1334,7 +1339,9 @@ describe('ReportingShell media preload', () => {
 
   it('does not import terminology when dirty annotation state cannot be saved', async () => {
     hoisted.flowRef.current.hasUnpersistedDraftChanges = true
-    hoisted.flowRef.current.flushDraftAutosave.mockRejectedValueOnce(new Error('save unavailable'))
+    hoisted.flowRef.current.flushDraftAutosave
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('save unavailable'))
     const wrapper = mountShell()
     await flushPromises()
     const folderInput = wrapper.get('input[webkitdirectory]')
@@ -1401,5 +1408,270 @@ describe('ReportingShell media preload', () => {
 
     expect(hoisted.terminologyStore.importBundles).toHaveBeenCalledWith([firstZip, secondZip])
     expect(wrapper.text()).toContain('2 Pakete installiert')
+  })
+
+  it('renders available terminology bundles while keeping fallback state when no active bundle exists', async () => {
+    const backendActiveNullBundles: TerminologyBundleVersion[] = [
+      {
+        moduleName: 'gastro_legacy',
+        version: '1.0.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      },
+      {
+        moduleName: 'gastro_v2',
+        version: '2.0.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      }
+    ]
+    hoisted.terminologyStore.activeBundle = null
+    hoisted.terminologyStore.activeModuleName = ''
+    hoisted.terminologyStore.activeBundleKey = ''
+    hoisted.terminologyStore.bundles = backendActiveNullBundles
+    hoisted.terminologyStore.filteredBundles = backendActiveNullBundles
+    hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined)
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const bundleSelect = wrapper.get('[data-testid="terminology-bundle-select"]')
+    expect((bundleSelect.element as HTMLSelectElement).value).toBe('')
+    const bundleOptions = bundleSelect.findAll('option').map((option) => option.text())
+    expect(bundleOptions).toContain('gastro_legacy · 1.0.0')
+    expect(bundleOptions).toContain('gastro_v2 · 2.0.0')
+    expect(wrapper.text()).toContain('Keine aktive Terminologie')
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
+  })
+
+  it('uses backend-reported active bundle identity for template context bootstrap', async () => {
+    const backendBundle = {
+      moduleName: 'gastro_v2',
+      version: '2.0.0',
+      medicalField: 'gastroenterology' as const,
+      isActive: true
+    }
+    hoisted.terminologyStore.bundles = [
+      {
+        moduleName: 'gastro_legacy',
+        version: '1.0.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      },
+      backendBundle
+    ]
+    hoisted.terminologyStore.filteredBundles = [
+      {
+        moduleName: 'gastro_legacy',
+        version: '1.0.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      },
+      backendBundle
+    ]
+    hoisted.terminologyStore.activeBundle = backendBundle
+    hoisted.terminologyStore.activeModuleName = backendBundle.moduleName
+    hoisted.terminologyStore.activeBundleKey = `${backendBundle.moduleName}@@${backendBundle.version}`
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
+      {
+        name: 'colonoscopy_published',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'gastro_v2',
+          knowledgeBaseVersion: '2.0.0',
+          templateVersion: null,
+          templateHash: null,
+          lifecycleStatus: 'published',
+          readiness: null
+        }
+      }
+    ])
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
+      'gastro_v2',
+      'colonoscopy'
+    )
+    const bundleSelect = wrapper.get('[data-testid="terminology-bundle-select"]')
+    expect((bundleSelect.element as HTMLSelectElement).value).toBe('gastro_v2@@2.0.0')
+  })
+
+  it('preserves a user-selected bundle across page reload and keeps it as primary context', async () => {
+    const availableBundles: TerminologyBundleVersion[] = [
+      {
+        moduleName: 'gastro_legacy',
+        version: '1.0.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      },
+      {
+        moduleName: 'gastro_v2',
+        version: '2.0.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      }
+    ]
+    hoisted.terminologyStore.bundles = availableBundles
+    hoisted.terminologyStore.filteredBundles = availableBundles
+    hoisted.terminologyStore.activeBundle = {
+      moduleName: 'gastro_legacy',
+      version: '1.0.0',
+      medicalField: 'gastroenterology',
+      isActive: true
+    }
+    hoisted.terminologyStore.activeModuleName = 'gastro_legacy'
+    hoisted.terminologyStore.activeBundleKey = 'gastro_legacy@@1.0.0'
+    hoisted.terminologyStore.findBundleByKey.mockImplementation(
+      (key: string) => availableBundles.find((bundle) => `${bundle.moduleName}@@${bundle.version}` === key) || null
+    )
+    hoisted.terminologyStore.selectBundle.mockImplementation(async (bundle: TerminologyBundleVersion) => {
+      hoisted.terminologyStore.activeBundle = {
+        moduleName: bundle.moduleName,
+        version: bundle.version,
+        medicalField: 'gastroenterology',
+        isActive: true
+      }
+      hoisted.terminologyStore.activeModuleName = bundle.moduleName
+      hoisted.terminologyStore.activeBundleKey = `${bundle.moduleName}@@${bundle.version}`
+      hoisted.terminologyStore.bundles = availableBundles
+      return { active: hoisted.terminologyStore.activeBundle, counts: {} }
+    })
+
+    const initial = mountShell()
+    await flushPromises()
+    const initialBundleSelect = initial.get('[data-testid="terminology-bundle-select"]')
+    await initialBundleSelect.setValue('gastro_v2@@2.0.0')
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.selectBundle).toHaveBeenCalledWith(
+      expect.objectContaining({ moduleName: 'gastro_v2', version: '2.0.0' })
+    )
+    expect(hoisted.terminologyStore.activeBundle).toEqual(
+      expect.objectContaining({ moduleName: 'gastro_v2', version: '2.0.0' })
+    )
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockClear()
+
+    const restored = mountShell()
+    await flushPromises()
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
+      'gastro_v2',
+      'colonoscopy'
+    )
+    const rehydratedSelect = restored.get('[data-testid="terminology-bundle-select"]')
+    expect((rehydratedSelect.element as HTMLSelectElement).value).toBe('gastro_v2@@2.0.0')
+  })
+
+  it('keeps the selected active bundle on import conflict errors', async () => {
+    const selectedBundle: TerminologyBundleVersion = {
+      moduleName: 'gastro_active',
+      version: '1.0.0',
+      medicalField: 'gastroenterology',
+      isActive: true
+    }
+    hoisted.terminologyStore.activeBundle = selectedBundle
+    hoisted.terminologyStore.activeModuleName = selectedBundle.moduleName
+    hoisted.terminologyStore.activeBundleKey = 'gastro_active@@1.0.0'
+    hoisted.terminologyStore.selectBundle.mockResolvedValue({
+      active: selectedBundle,
+      counts: {}
+    })
+    hoisted.terminologyStore.importBundles.mockRejectedValue({
+      response: { status: 409, data: { detail: 'Version 1.0.0 already exists.' } }
+    })
+
+    const wrapper = mountShell()
+    await flushPromises()
+    const zipInput = wrapper.get('input[accept=".zip,application/zip"]')
+    const conflictingZip = new File(['editor export'], 'v1-terminology.zip', {
+      type: 'application/zip'
+    })
+    Object.defineProperty(zipInput.element, 'files', { value: [conflictingZip], configurable: true })
+
+    await zipInput.trigger('change')
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.activeBundle).toEqual(
+      expect.objectContaining({ moduleName: 'gastro_active', version: '1.0.0' })
+    )
+    expect(wrapper.text()).toContain('Version 1.0.0 already exists')
+  })
+
+  it('maps import transport and auth errors to explicit user messaging', async () => {
+    hoisted.terminologyStore.importBundles.mockRejectedValueOnce({
+      message: 'request timed out'
+    })
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const zipInput = wrapper.get('input[accept=".zip,application/zip"]')
+    const firstZip = new File(['editor export'], 'timeout.zip', { type: 'application/zip' })
+    Object.defineProperty(zipInput.element, 'files', {
+      value: [firstZip],
+      configurable: true
+    })
+
+    await zipInput.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('request timed out')
+
+    hoisted.terminologyStore.importBundles.mockRejectedValueOnce({
+      response: { status: 401, data: { detail: 'Unauthorized' } }
+    })
+
+    const unauthorizedZip = new File(['editor export'], 'unauthorized.zip', { type: 'application/zip' })
+    Object.defineProperty(zipInput.element, 'files', {
+      value: [unauthorizedZip],
+      configurable: true
+    })
+
+    await zipInput.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Unauthorized')
+  })
+
+  it('shows explicit not provisioned state and disables dependent actions when no bundles are available', async () => {
+    hoisted.terminologyStore.bundles = []
+    hoisted.terminologyStore.activeBundle = null
+    hoisted.terminologyStore.activeModuleName = ''
+    hoisted.terminologyStore.activeBundleKey = ''
+    hoisted.terminologyStore.filteredBundles = []
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const bundleSelect = wrapper.get('[data-testid="terminology-bundle-select"]')
+    const templateSelect = wrapper.get('[data-testid="report-template-select"]')
+    expect(bundleSelect.attributes('disabled')).toBeDefined()
+    expect(templateSelect.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Keine aktive Terminologie')
+    expect(wrapper.text()).toContain(
+      'Keine aktive Terminologie. Befunde und Medien bleiben verfügbar; Vorlagenprüfung, Finalisierung und templateabhängiger Export werden nach Paketaktivierung ergänzt.'
+    )
+  })
+
+  it('keeps catalog-based finding rendering isolated to the selected examination context', async () => {
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([])
+    hoisted.terminologyStore.filteredBundles = [
+      {
+        moduleName: 'report_template_examples',
+        version: '1.0.0',
+        medicalField: 'gastroenterology',
+        isActive: true
+      }
+    ]
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const contextSensitiveCall = hoisted.findingsApi.getExaminationFindings.mock.calls.some(
+      ([id]) => typeof id === 'number' && id > 0
+    )
+    expect(contextSensitiveCall).toBe(true)
+
+    const bundle = wrapper.get('[data-testid="terminology-bundle-select"]')
+    expect((bundle.element as HTMLSelectElement).value).toBe('report_template_examples@@1.0.0')
   })
 })

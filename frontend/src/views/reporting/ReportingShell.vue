@@ -64,14 +64,14 @@
             <select
               class="form-select"
               data-testid="terminology-bundle-select"
-              :value="terminology.activeBundleKey"
-              :disabled="terminology.selecting || !terminology.filteredBundles.length"
+              :value="activeBundleIdentityKey"
+              :disabled="terminology.selecting || !visibleTerminologyBundles.length"
               aria-label="Terminologiepaket auswählen"
               @change="onTerminologyBundleSelect(($event.target as HTMLSelectElement).value)"
             >
               <option value="">Keine aktive Terminologie</option>
               <option
-                v-for="bundle in terminology.filteredBundles"
+                v-for="bundle in visibleTerminologyBundles"
                 :key="terminology.bundleKey(bundle)"
                 :value="terminology.bundleKey(bundle)"
               >
@@ -1091,6 +1091,12 @@ const selectedReportLanguageLabel = computed(
     reportLanguageOptions.value.find((option) => option.code === flow.selectedReportLanguage)
       ?.label || flow.selectedReportLanguage.toUpperCase()
 )
+
+const visibleTerminologyBundles = computed(() => {
+  return terminology.filteredBundles.length
+    ? terminology.filteredBundles
+    : terminology.bundles
+})
 
 async function loadReportingLanguages() {
   reportLanguagesLoading.value = true
@@ -3083,7 +3089,7 @@ watch(activeBundleIdentityKey, async (nextKey, previousKey) => {
   if (nextKey === previousKey) return
   if (terminology.importing) return
   await reconcileActiveTerminology()
-})
+}, { immediate: true })
 
 watch(
   [

@@ -541,4 +541,48 @@ describe('FindingsCapturePage runtime draft flow', () => {
       ]
     })
   })
+
+  it('loads catalog rows for the active examination before allowing finding capture', async () => {
+    const ensureCatalogLoaded = vi.fn().mockResolvedValue([
+      {
+        id: 11,
+        name: 'esophagus_polyp',
+        displayName: 'Oesophagus Polyp',
+        descriptions: '',
+        examinations: ['gastroscopy'],
+        classifications: [],
+        locationClassifications: [],
+        morphologyClassifications: [],
+        FindingClassifications: [],
+        findingTypes: [],
+        findingInterventions: []
+      }
+    ])
+    const legacyCatalog = buildFindingSelectors()
+    legacyCatalog.ensureCatalogLoaded = ensureCatalogLoaded
+
+    hoisted.findingSelectorsRef.current = legacyCatalog
+    hoisted.findingSelectorsRef.current.catalogFindings = computed(() => [
+      {
+        id: 11,
+        name: 'esophagus_polyp',
+        displayName: 'Oesophagus Polyp',
+        descriptions: '',
+        examinations: ['gastroscopy'],
+        classifications: [],
+        locationClassifications: [],
+        morphologyClassifications: [],
+        FindingClassifications: [],
+        findingTypes: [],
+        findingInterventions: []
+      }
+    ])
+    hoisted.flowRef.current.selectedExaminationId = 7
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(ensureCatalogLoaded).toHaveBeenCalledWith(7)
+    expect(wrapper.text()).toContain('Oesophagus Polyp')
+  })
 })

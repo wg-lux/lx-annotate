@@ -10,6 +10,7 @@ GIT_URL ?= https://github.com/wg-lux/lx-annotate.git
 REMOTE ?= origin
 
 # Tooling
+DEVENV_PROFILE ?=
 DEVENV ?= devenv
 GIT ?= git
 MKDIR_P ?= mkdir -p
@@ -17,12 +18,13 @@ CACHE_DIR ?= $(REPO_DIR)/.make-cache
 FRONTEND_HASH_FILE ?= $(CACHE_DIR)/frontend-src.sha256
 MIGRATIONS_HASH_FILE ?= $(CACHE_DIR)/migrations.sha256
 
-# Helper: run commands inside the devenv environment
-ifneq ($(DEVENV_PROFILE),)
+# Helper: run commands directly if inside an active devenv shell, otherwise wrap in subshell
+ifneq ($(strip $(DEVENV_PROFILE)$(DEVENV_ROOT)$(DEVENV_STATE)),)
 DEVENV_RUN ?=
 else
 DEVENV_RUN ?= $(DEVENV) shell --
 endif
+
 
 .PHONY: help doctor check-tools check-repo ensure-repo-dir ensure-git-repo \
 	setup bootstrap update submodules reset-branch migrate load-base-data static \

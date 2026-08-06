@@ -39,6 +39,49 @@ function isOptionalNullableNumber(value: unknown): boolean {
   )
 }
 
+function formatSnippet(value: unknown): string {
+  if (!value || typeof value !== 'object') {
+    return String(value)
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function describeInvalidPatientRow(row: unknown): string {
+  if (!isRecord(row)) return 'row is not an object'
+  const reasons: string[] = []
+  if (typeof row.firstName !== 'string') reasons.push('firstName must be a string')
+  if (typeof row.lastName !== 'string') reasons.push('lastName must be a string')
+  if (!isOptionalNumber(row.id)) reasons.push('id must be a finite number if provided')
+  if (!isOptionalNullableString(row.dob)) reasons.push('dob must be string|null')
+  if (!isOptionalNullableString(row.gender)) reasons.push('gender must be string|null')
+  if (!isOptionalNullableString(row.center)) reasons.push('center must be string|null')
+  if (!isOptionalNullableString(row.centerKey)) reasons.push('centerKey must be string|null')
+  if (!isOptionalString(row.email)) reasons.push('email must be a string')
+  if (!isOptionalString(row.phone)) reasons.push('phone must be a string')
+  if (!isOptionalNullableString(row.patientHash)) reasons.push('patientHash must be string|null')
+  if (!isOptionalString(row.comments)) reasons.push('comments must be a string')
+  if (row.isRealPerson !== undefined && typeof row.isRealPerson !== 'boolean') {
+    reasons.push('isRealPerson must be boolean')
+  }
+  if (!isOptionalNullableString(row.pseudonymFirstName)) {
+    reasons.push('pseudonymFirstName must be string|null')
+  }
+  if (!isOptionalNullableString(row.pseudonymLastName)) {
+    reasons.push('pseudonymLastName must be string|null')
+  }
+  if (!isOptionalNullableNumber(row.sensitiveMetaId)) {
+    reasons.push('sensitiveMetaId must be number|null')
+  }
+  if (reasons.length > 0) {
+    return reasons.join(', ')
+  }
+  return `row keys: ${formatSnippet(row)}`
+}
+
 function isPatient(value: unknown): value is Patient {
   return (
     isRecord(value) &&
@@ -69,8 +112,18 @@ function requirePatientList(value: unknown): Patient[] {
     : isRecord(value) && Array.isArray(value.results)
       ? value.results
       : null
-  if (!rows || !rows.every(isPatient)) {
-    throw new TypeError('Patient list response does not match the expected contract')
+  if (!rows) {
+    throw new TypeError(
+      `Patient list response does not match the expected contract: no array-like payload (snippet: ${formatSnippet(value)})`
+    )
+  }
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index]
+    if (!isPatient(row)) {
+      throw new TypeError(
+        `Patient list response does not match the expected contract at index ${index}: ${describeInvalidPatientRow(row)}`
+      )
+    }
   }
   return rows
 }
