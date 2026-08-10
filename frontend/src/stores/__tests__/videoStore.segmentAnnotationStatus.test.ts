@@ -40,7 +40,9 @@ describe('VideoStore segment annotation status mapping', () => {
               id: 25,
               original_file_name: 'case-25.mp4',
               center_name: 'Center A',
+              status: 'completed',
               segment_annotations_validated: false,
+              processor_name: 'processor-x',
               segment_annotation_status: 'cleanup_running',
               outside_segments_removed: false,
               post_validation_rebuild: {
@@ -82,6 +84,9 @@ describe('VideoStore segment annotation status mapping', () => {
             {
               id: 31,
               original_file_name: 'legacy-validated.mp4',
+              center_name: 'Center B',
+              status: 'available',
+              processor_name: 'processor-x',
               segment_annotations_validated: true
             }
           ])
@@ -152,5 +157,84 @@ describe('VideoStore segment annotation status mapping', () => {
         aiDatasetId: 300
       })
     )
+  })
+
+  it('maps metadata anonymization statuses to compatible frontend status enum', async () => {
+    const store = useVideoStore()
+
+    store.setVideo({
+      id: 7,
+      isAnnotated: false,
+      errorMessage: '',
+      segments: [],
+      videoUrl: '',
+      status: 'available',
+      assignedUser: null,
+      duration: 10,
+      fps: 50,
+      frameCount: 500
+    })
+
+    axiosGet.mockResolvedValueOnce({
+      data: {
+        id: 7,
+        original_file_name: 'meta.mp4',
+        center_name: 'Center A',
+        processor_name: 'processor-x',
+        status: 'done_processing_anonymization',
+        anonymized: true,
+        assigned_user: 'BLANK',
+        has_roi: false,
+        outside_frame_count: 0,
+        duration: 12.5,
+        fps: 25,
+        total_frames: 1200,
+        sensitive_ratio: 0.2,
+        resolution: '1280x720'
+      }
+    })
+
+    await store.fetchVideoMetadata()
+
+    expect(store.currentVideo?.status).toBe('completed')
+    expect(store.currentVideo?.assignedUser).toBeNull()
+  })
+
+  it('maps metadata status not_started to in_progress', async () => {
+    const store = useVideoStore()
+
+    store.setVideo({
+      id: 8,
+      isAnnotated: false,
+      errorMessage: '',
+      segments: [],
+      videoUrl: '',
+      status: 'available',
+      assignedUser: null,
+      duration: 10,
+      fps: 50,
+      frameCount: 500
+    })
+
+    axiosGet.mockResolvedValueOnce({
+      data: {
+        id: 8,
+        original_file_name: 'meta-not-started.mp4',
+        center_name: 'Center B',
+        processor_name: 'processor-y',
+        status: 'not_started',
+        anonymized: false,
+        assigned_user: 'BLANK',
+        has_roi: false,
+        outside_frame_count: 2,
+        duration: 8,
+        fps: 50,
+        resolution: '1280x720'
+      }
+    })
+
+    await store.fetchVideoMetadata()
+
+    expect(store.currentVideo?.status).toBe('in_progress')
   })
 })

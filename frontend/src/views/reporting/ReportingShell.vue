@@ -468,16 +468,18 @@
                     </div>
                   </div>
                   <div v-else class="small text-muted">Kein Bericht verfügbar.</div>
-                  <RouterLink
+                  <button
                     class="btn btn-primary btn-sm w-100 mt-2"
-                    :to="`/reporting/${pe}/report-editor`"
+                    type="button"
+                    :disabled="!canNavigateToReportEditor"
+                    @click="navigateToReportEditor"
                   >
                     {{
                       flow.mediaPreload.latestReport
                         ? 'Befundbericht bearbeiten'
                         : 'Befundbericht erstellen'
                     }}
-                  </RouterLink>
+                  </button>
                 </div>
               </div>
               <div class="col-md-4">
@@ -939,6 +941,37 @@ const routePatientId = computed<number | null>(() => {
 const selectedPatientExaminationId = computed(
   () => routePatientExaminationId.value ?? flow.patientExaminationId ?? ''
 )
+const activePatientExaminationId = computed(() =>
+  routePatientExaminationId.value ?? flow.patientExaminationId
+)
+const findingsStepTarget = computed(() =>
+  activePatientExaminationId.value ? `/reporting/${String(activePatientExaminationId.value)}/findings` : '/reporting/case-setup'
+)
+const reportEditorStepTarget = computed(() =>
+  activePatientExaminationId.value
+    ? `/reporting/${String(activePatientExaminationId.value)}/report-editor`
+    : '/reporting/case-setup'
+)
+const frameSelectorStepTarget = computed(() =>
+  activePatientExaminationId.value
+    ? `/reporting/${String(activePatientExaminationId.value)}/frame-selector`
+    : '/reporting/case-setup'
+)
+const reportExportStepTarget = computed(() =>
+  activePatientExaminationId.value
+    ? `/reporting/${String(activePatientExaminationId.value)}/report-export`
+    : '/reporting/case-setup'
+)
+const finalizedStepTarget = computed(() =>
+  activePatientExaminationId.value
+    ? `/reporting/${String(activePatientExaminationId.value)}/finalized`
+    : '/reporting/case-setup'
+)
+const reportEditorTarget = computed(() => {
+  if (!activePatientExaminationId.value) return null
+  return `/reporting/${String(activePatientExaminationId.value)}/report-editor`
+})
+const canNavigateToReportEditor = computed(() => Boolean(reportEditorTarget.value))
 
 watch(
   routePatientId,
@@ -958,8 +991,6 @@ watch(
   { immediate: true }
 )
 
-const pe = computed(() => flow.patientExaminationId || ':patient_examination_id')
-
 const navItems = computed(() => [
   {
     label: 'Berichtsvorlagen',
@@ -970,29 +1001,29 @@ const navItems = computed(() => [
   { label: 'Falldaten', to: '/reporting/case-setup', requiresPatientExamination: false },
   {
     label: 'Befunde',
-    to: `/reporting/${String(pe.value)}/findings`,
+    to: findingsStepTarget.value,
     requiresPatientExamination: true
   },
   {
     label: 'Bericht schreiben',
-    to: `/reporting/${String(pe.value)}/report-editor`,
+    to: reportEditorStepTarget.value,
     requiresPatientExamination: true,
     requiresVerifiedTemplate: true
   },
   {
     label: 'Bilder auswählen',
-    to: `/reporting/${String(pe.value)}/frame-selector`,
+    to: frameSelectorStepTarget.value,
     requiresPatientExamination: true
   },
   {
     label: 'Report export',
-    to: `/reporting/${String(pe.value)}/report-export`,
+    to: reportExportStepTarget.value,
     requiresPatientExamination: true,
     requiresVerifiedTemplate: true
   },
   {
     label: 'Abschluss',
-    to: `/reporting/${String(pe.value)}/finalized`,
+    to: finalizedStepTarget.value,
     requiresPatientExamination: true,
     requiresVerifiedTemplate: true
   }
@@ -1562,6 +1593,11 @@ function openTerminologyFolderPicker() {
 function openTerminologyZipPicker() {
   terminologyImportMessage.value = ''
   terminologyZipInput.value?.click()
+}
+
+function navigateToReportEditor() {
+  if (!reportEditorTarget.value) return
+  void router.push(reportEditorTarget.value)
 }
 
 async function onTerminologyBundleSelect(bundleKey: string) {

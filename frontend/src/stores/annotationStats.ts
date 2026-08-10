@@ -72,13 +72,23 @@ function requireResponseRows(value: unknown, contractName: string): unknown[] {
 }
 
 function formatSnippet(value: unknown): string {
-  if (!value || typeof value !== 'object') {
+  if (value === null || value === undefined) {
+    return String(value)
+  }
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint' ||
+    typeof value === 'symbol' ||
+    typeof value === 'function'
+  ) {
     return String(value)
   }
   try {
     return JSON.stringify(value)
   } catch {
-    return String(value)
+    return '[object value]'
   }
 }
 
@@ -132,7 +142,7 @@ function parseExaminationStats(value: unknown): AnnotationSourceStats {
         `Patient examination list contains an invalid status row: row is not an object (snippet: ${formatSnippet(row)})`
       )
     }
-    const status = row.status as unknown
+    const status = row.status
     if (status == null || status === '') {
       counts.draft += 1
       continue

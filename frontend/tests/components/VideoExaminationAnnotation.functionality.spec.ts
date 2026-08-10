@@ -171,12 +171,16 @@ const videos = [
     id: 1,
     original_file_name: 'pending-video.mp4',
     centerName: 'Center A',
+    status: 'available',
+    processorName: 'processor-x',
     segmentAnnotationsValidated: false
   },
   {
     id: 2,
     original_file_name: 'validated-video.mp4',
     centerName: 'Center B',
+    status: 'available',
+    processorName: 'processor-y',
     segmentAnnotationsValidated: true
   }
 ]

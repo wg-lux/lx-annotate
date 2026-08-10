@@ -61,6 +61,7 @@ export type LabelKey =
  * Video status types
  */
 export type VideoStatus = 'in_progress' | 'available' | 'completed'
+  | 'failed'
 
 /**
  * Backend frame prediction structure (from API responses)
@@ -228,8 +229,8 @@ export interface PostValidationRebuildSummary {
 export interface VideoMeta {
   id: number
   original_file_name: string
-  status: string
-  assignedUser?: string | null
+  status: VideoStatus
+  assignedUser: string | null
   anonymized: boolean
   segmentAnnotationsValidated?: boolean
   segmentAnnotationStatus?: SegmentAnnotationStatus
@@ -459,6 +460,83 @@ function readStringField(source: object, ...keys: string[]): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
+function readRequiredStringField(source: object, ...keys: string[]): string {
+  const value = readStringField(source, ...keys)
+  if (value === null) {
+    throw new TypeError(
+      `Contract mismatch: missing required string field(s): ${keys.join(' / ')}`
+    )
+  }
+  return value
+}
+
+function readVideoStatus(source: object, ...keys: string[]): VideoStatus {
+  const value = readStringField(source, ...keys)
+  if (
+    value === 'in_progress' ||
+    value === 'available' ||
+    value === 'completed' ||
+    value === 'failed'
+  ) {
+    return value
+  }
+  throw new TypeError(
+    `Contract mismatch: invalid status value: ${value ?? 'undefined/null'} (${keys.join(' / ')})`
+  )
+}
+
+function mapVideoMetadataStatus(value: string | null | undefined): VideoStatus {
+  const normalized = value?.trim().toLowerCase()
+  if (
+    normalized === 'in_progress' ||
+    normalized === 'available' ||
+    normalized === 'completed' ||
+    normalized === 'failed'
+  ) {
+    return normalized
+  }
+
+  if (normalized === 'not_started' || normalized === 'extracting_frames') {
+    return 'in_progress'
+  }
+  if (normalized === 'processing_anonymization') {
+    return 'in_progress'
+  }
+  if (normalized === 'done_processing_anonymization') {
+    return 'completed'
+  }
+  if (normalized === 'validated') {
+    return 'completed'
+  }
+  if (normalized === 'anonymized') {
+    return 'completed'
+  }
+  if (normalized === 'started') {
+    return 'in_progress'
+  }
+  if (normalized === 'blank') {
+    return 'in_progress'
+  }
+
+  throw new TypeError(`Contract mismatch: invalid metadata status value: ${value ?? 'undefined/null'}`)
+}
+
+function readNullableAssignedUserField(
+  source: object,
+  ...keys: string[]
+): string | null {
+  const value = readField(source, ...keys)
+  if (value === null || value === undefined) return null
+  if (typeof value !== 'string') {
+    throw new TypeError(
+      `Contract mismatch: invalid assigned user field(s): ${keys.join(' / ')}`
+    )
+  }
+  const normalized = value.trim()
+  if (!normalized || normalized === 'BLANK') return null
+  return normalized
+}
+
 function readNumberField(source: object, ...keys: string[]): number | undefined {
   const value = readField(source, ...keys)
   const parsed = Number(value)
@@ -488,7 +566,6 @@ function normalizeVideoFrameCount(video: object): number | undefined {
 }
 
 function normalizeVideoMetadataResponse(meta: object, fallbackId: number): VideoMeta {
-  const assignedUser = readStringField(meta, 'assignedUser')
   const id = readField(meta, 'id')
   const anonymized = readField(meta, 'anonymized')
   const hasRoi = readField(meta, 'hasROI', 'has_roi')
@@ -500,18 +577,25 @@ function normalizeVideoMetadataResponse(meta: object, fallbackId: number): Video
   )
   return {
     id: Number(id ?? fallbackId),
-    original_file_name: readStringField(meta, 'original_file_name', 'originalFileName') ?? '',
-    status: readStringField(meta, 'status') ?? 'available',
-    assignedUser:
-      assignedUser === 'BLANK' || assignedUser === null ? null : assignedUser,
+    original_file_name: readRequiredStringField(
+      meta,
+      'original_file_name',
+      'originalFileName'
+    ),
+    status: mapVideoMetadataStatus(readStringField(meta, 'status')),
+    assignedUser: readNullableAssignedUserField(
+      meta,
+      'assignedUser',
+      'assigned_user'
+    ),
     anonymized: Boolean(anonymized ?? false),
     duration: numberWhenDefined(readField(meta, 'duration')),
     fps: numberWhenDefined(readField(meta, 'fps')),
     hasROI: Boolean(hasRoi ?? false),
     outsideFrameCount: Number(outsideFrameCount ?? 0),
     frameCount: normalizeVideoFrameCount(meta),
-    centerName: readStringField(meta, 'centerName', 'center_name') ?? 'Unbekannt',
-    processorName: readStringField(meta, 'processorName', 'processor_name') ?? 'Unbekannt',
+    centerName: readRequiredStringField(meta, 'centerName', 'center_name'),
+    processorName: readRequiredStringField(meta, 'processorName', 'processor_name'),
     exportSegmentsByVideo: Boolean(exportSegmentsByVideo ?? false)
   }
 }
@@ -1184,11 +1268,17 @@ export const useVideoStore = defineStore('video', () => {
 
     return {
       id: videoId,
-      original_file_name:
-        readStringField(video, 'originalFileName', 'original_file_name') ??
-        `Video ${String(videoId)}`,
-      status: typeof video.status === 'string' ? video.status : 'available',
-      assignedUser: typeof video.assignedUser === 'string' ? video.assignedUser : null,
+      original_file_name: readRequiredStringField(
+        video,
+        'originalFileName',
+        'original_file_name'
+      ),
+      status: readVideoStatus(video, 'status'),
+      assignedUser: readNullableAssignedUserField(
+        video,
+        'assignedUser',
+        'assigned_user'
+      ),
       anonymized: Boolean(video.anonymized),
       segmentAnnotationsValidated,
       segmentAnnotationStatus:
@@ -1205,12 +1295,12 @@ export const useVideoStore = defineStore('video', () => {
       duration: numberWhenDefined(video.duration),
       fps: numberWhenDefined(video.fps),
       frameCount: normalizeVideoFrameCount(video),
-      centerName: readStringField(video, 'centerName', 'center_name') ?? 'Unbekannt',
+      centerName: readRequiredStringField(video, 'centerName', 'center_name'),
       centerKey:
         typeof (video.centerKey ?? video.center_key) === 'string'
           ? String(video.centerKey ?? video.center_key)
           : undefined,
-      processorName: readStringField(video, 'processorName', 'processor_name') ?? 'Unbekannt',
+      processorName: readRequiredStringField(video, 'processorName', 'processor_name'),
       validatedAnnotators: normalizeValidatedAnnotators(video),
       exportSegmentsByVideo: Boolean(
         video.exportSegmentsByVideo ?? video.export_segments_by_video
@@ -1297,8 +1387,8 @@ export const useVideoStore = defineStore('video', () => {
         errorMessage: '',
         segments: cachedSegments ?? [],
         videoUrl: buildVideoStreamUrl(video.id, 'processed'),
-        status: video.status as VideoStatus,
-        assignedUser: video.assignedUser || null,
+        status: video.status,
+        assignedUser: video.assignedUser,
         duration: video.duration,
         fps: undefined,
         frameCount: video.frameCount
@@ -1402,24 +1492,30 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   function applyVideoMetadata(id: number, normalizedMeta: VideoMeta): boolean {
-    if (activeVideoId.value !== id || currentVideo.value?.id !== id) return false
+    const currentVideoRecord = currentVideo.value
+    if (!currentVideoRecord || currentVideoRecord.id !== id) return false
+    if (activeVideoId.value !== id) {
+      activeVideoId.value = id
+    }
 
     videoMeta.value = normalizedMeta
+    currentVideoRecord.status = normalizedMeta.status
+    currentVideoRecord.assignedUser = normalizedMeta.assignedUser
     if (resolvedVideoFps.value !== null) {
       videoMeta.value.fps = resolvedVideoFps.value
     }
     if (normalizedMeta.duration !== undefined && normalizedMeta.duration > 0) {
-      currentVideo.value.duration = normalizedMeta.duration
+      currentVideoRecord.duration = normalizedMeta.duration
     }
     if (
       resolvedVideoFps.value === null &&
       normalizedMeta.fps !== undefined &&
       normalizedMeta.fps > 0
     ) {
-      currentVideo.value.fps = normalizedMeta.fps
+      currentVideoRecord.fps = normalizedMeta.fps
     }
     if (normalizedMeta.frameCount !== undefined && normalizedMeta.frameCount > 0) {
-      currentVideo.value.frameCount = normalizedMeta.frameCount
+      currentVideoRecord.frameCount = normalizedMeta.frameCount
     }
     return true
   }
@@ -2328,6 +2424,7 @@ export const useVideoStore = defineStore('video', () => {
     deleteVideo,
     setVideo,
     loadVideo, // Added missing loadVideo export
+    fetchVideoMetadata,
     fetchVideoFps,
     resolveAdjacentFrameTimestamp,
     fetchVideoUrl,

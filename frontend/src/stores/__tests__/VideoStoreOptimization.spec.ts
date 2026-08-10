@@ -42,6 +42,7 @@ describe('VideoStore Performance Optimization', () => {
           center_key: 'north',
           center_name: 'Center North',
           status: 'available',
+          processor_name: 'processor-x',
           validated_annotators: ['reviewer-one'],
           segments: [
             {
@@ -57,9 +58,11 @@ describe('VideoStore Performance Optimization', () => {
         },
         {
           id: 102,
+          original_file_name: 'Video 102',
           center_key: 'south',
           center_name: 'Center South',
           status: 'available',
+          processor_name: 'processor-y',
           segments: []
         }
       ]

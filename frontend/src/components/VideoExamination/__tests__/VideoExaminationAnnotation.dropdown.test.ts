@@ -12,6 +12,8 @@ interface MediaVideoFixture {
   original_file_name: string
   centerName: string
   segmentAnnotationsValidated: boolean
+  status: string
+  processorName: string
   validatedAnnotators?: string[]
   segmentAnnotationStatus?: string
   outsideSegmentsRemoved?: boolean
@@ -103,18 +105,24 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       id: 6,
       original_file_name: 'needs-validation.mp4',
       centerName: 'Center A',
+      status: 'available',
+      processorName: 'processor-a',
       segmentAnnotationsValidated: false
     },
     {
       id: 8,
       original_file_name: 'ready-for-reporting.mp4',
       centerName: 'Center B',
+      status: 'available',
+      processorName: 'processor-b',
       segmentAnnotationsValidated: false
     },
     {
       id: 10,
       original_file_name: 'already-segment-validated.mp4',
       centerName: 'Center C',
+      status: 'available',
+      processorName: 'processor-b',
       segmentAnnotationsValidated: true,
       validatedAnnotators: ['oidc:reviewer-previous']
     },
@@ -122,6 +130,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       id: 14,
       original_file_name: 'cleanup-running.mp4',
       centerName: 'Center E',
+      status: 'available',
+      processorName: 'processor-c',
       segmentAnnotationsValidated: false,
       segmentAnnotationStatus: 'cleanup_running'
     },
@@ -129,6 +139,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       id: 16,
       original_file_name: 'cleanup-failed.mp4',
       centerName: 'Center F',
+      status: 'available',
+      processorName: 'processor-c',
       segmentAnnotationsValidated: true,
       segmentAnnotationStatus: 'cleanup_failed',
       outsideSegmentsRemoved: true,
@@ -141,6 +153,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       id: 12,
       original_file_name: 'still-processing.mp4',
       centerName: 'Center D',
+      status: 'in_progress',
+      processorName: 'processor-d',
       segmentAnnotationsValidated: false
     }
   ]

@@ -40,13 +40,23 @@ function isOptionalNullableNumber(value: unknown): boolean {
 }
 
 function formatSnippet(value: unknown): string {
-  if (!value || typeof value !== 'object') {
+  if (value === null || value === undefined) {
+    return String(value)
+  }
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint' ||
+    typeof value === 'symbol' ||
+    typeof value === 'function'
+  ) {
     return String(value)
   }
   try {
     return JSON.stringify(value)
   } catch {
-    return String(value)
+    return '[object value]'
   }
 }
 
@@ -107,25 +117,29 @@ function isPatient(value: unknown): value is Patient {
 }
 
 function requirePatientList(value: unknown): Patient[] {
-  const rows = Array.isArray(value)
+  const rows: unknown[] | null = Array.isArray(value)
     ? value
     : isRecord(value) && Array.isArray(value.results)
       ? value.results
       : null
-  if (!rows) {
+  if (rows === null) {
     throw new TypeError(
       `Patient list response does not match the expected contract: no array-like payload (snippet: ${formatSnippet(value)})`
     )
   }
+  const patients: Patient[] = []
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index]
     if (!isPatient(row)) {
       throw new TypeError(
-        `Patient list response does not match the expected contract at index ${index}: ${describeInvalidPatientRow(row)}`
+        `Patient list response does not match the expected contract at index ${String(
+          index
+        )}: ${describeInvalidPatientRow(row)}`
       )
     }
+    patients.push(row)
   }
-  return rows
+  return patients
 }
 
 export async function generatePatientPseudonym(id: number): Promise<GeneratePseudonymResponse> {
@@ -533,8 +547,8 @@ export const patientService = {
       gender: patientForm.gender || null,
       center: patientForm.centerKey ? null : (patientForm.center || null),
       centerKey: patientForm.centerKey || null,
-      email: patientForm.email ?? "",
-      phone: patientForm.phone ?? "",
+      email: patientForm.email,
+      phone: patientForm.phone,
       patientHash: patientForm.patientHash || null,
       isRealPerson: patientForm.isRealPerson ?? true
     };

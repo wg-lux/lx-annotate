@@ -445,7 +445,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import axiosInstance, { r } from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi, r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
 import {
   getFindingDisplayName,
@@ -904,7 +904,24 @@ function normalizeDisplayLabel(value: unknown): string | null {
 }
 
 function normalizeChoiceOptions(value: unknown): IndicationChoiceOption[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    if (!value || typeof value !== 'object') return []
+    const row = value as Record<string, unknown>
+    const id = normalizePositiveId(
+      row.choiceId ??
+        row.choice_id ??
+        row.indicationChoiceId ??
+        row.indication_choice_id ??
+        row.id ??
+        (row as Record<string, unknown>).value
+    )
+    if (id == null) return []
+    const label =
+      normalizeDisplayLabel(
+        row.label ?? row.name ?? row.displayName ?? row.name_de ?? row.nameDe
+      ) || `Auswahl #${String(id)}`
+    return [{ id, label }]
+  }
   const choiceById = new Map<number, IndicationChoiceOption>()
   for (const entry of value) {
     if (entry && typeof entry === 'object') {
@@ -947,6 +964,34 @@ function normalizeChoiceOptionsFromClassifications(value: unknown): IndicationCh
 }
 
 function normalizeIndicationOptions(value: unknown): IndicationOption[] {
+  if (!value || typeof value !== 'object') return []
+  if (!Array.isArray(value)) {
+    const rows: unknown[] = []
+    const candidate = value as Record<string, unknown>
+    const directId = normalizePositiveId(
+      candidate.id ??
+        candidate.indicationId ??
+        candidate.indication_id ??
+        candidate.examinationIndicationId ??
+        candidate.examination_indication_id
+    )
+    if (directId != null) {
+      rows.push(candidate)
+    } else {
+      for (const [rawKey, rawValue] of Object.entries(candidate)) {
+        if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+          rows.push({ ...(rawValue as Record<string, unknown>), id: normalizePositiveId(rawKey) })
+        } else {
+          rows.push({
+            id: rawKey,
+            choices: rawValue
+          } as Record<string, unknown>)
+        }
+      }
+    }
+    value = rows
+  }
+
   if (!Array.isArray(value)) return []
   const indicationById = new Map<number, IndicationOption>()
   for (const entry of value) {
@@ -989,6 +1034,7 @@ function normalizeIndicationOptions(value: unknown): IndicationOption[] {
       choices: []
     })
   }
+
   return Array.from(indicationById.values())
 }
 
@@ -1095,10 +1141,18 @@ function extractOptionsFromPayload(payload: unknown, optionsById: Map<number, In
     data.indications,
     data.examinationIndications,
     data.examination_indications,
+    data.indicationOptions,
+    data.indication_options,
+    data.examinationIndicationOptions,
     data.examination_indication_options,
+    data.indicationChoices,
+    data.indication_choices,
     nestedExamination?.indications,
     nestedExamination?.examinationIndications,
     nestedExamination?.examination_indications,
+    nestedExamination?.indicationOptions,
+    nestedExamination?.indication_options,
+    nestedExamination?.examinationIndicationOptions,
     nestedExamination?.examination_indication_options
   ]
 
@@ -1149,6 +1203,16 @@ async function loadIndicationCatalog(context?: EditorContext) {
   }
 
   if (selectedExaminationId) {
+    try {
+      const pathSuffix = patientExaminationId
+        ? `examinations/${selectedExaminationId}/indications/?patient_examination_id=${patientExaminationId}`
+        : `examinations/${selectedExaminationId}/indications/`
+      const indicationRes = await axiosInstance.get<unknown>(dtypesApi(pathSuffix))
+      extractOptionsFromPayload(indicationRes.data, optionsById)
+    } catch {
+      loadErrors.push('indication-catalog')
+    }
+
     try {
       const examRes = await axiosInstance.get(
         r(`${endpoints.router.examinations}${String(selectedExaminationId)}/`)

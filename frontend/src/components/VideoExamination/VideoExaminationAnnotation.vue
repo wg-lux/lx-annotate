@@ -461,9 +461,9 @@
               </div>
             </div>
             <!-- Enhanced Timeline Component -->
-            <div v-if="duration > 0" class="timeline-wrapper mt-3">
+            <div v-if="selectedVideoId && isSelectedVideoViewable" class="timeline-wrapper mt-3">
               <Timeline
-                :video="{ duration }"
+                :video="{ duration: duration || 1 }"
                 :segments="timelineSegmentsForSelectedVideo"
                 :labels="timelineLabels"
                 :current-time="currentTime"
@@ -716,7 +716,7 @@
         </div>
 
         <!-- ✅ Enhanced Validation Button with Status -->
-        <div v-if="selectedVideoId && canAnnotateSelectedVideo" class="mt-3">
+        <div v-if="selectedVideoId && isSelectedVideoViewable" class="mt-3">
           <!-- Show different button based on annotation status -->
           <div
             v-if="isAnnotationFinished(selectedVideoId)"
@@ -812,7 +812,8 @@
             v-if="
               selectedVideoId !== null &&
               !isSegmentCleanupPending(selectedVideoId) &&
-              !isAnnotationFinished(selectedVideoId)
+              !isAnnotationFinished(selectedVideoId) &&
+              canMutateSelectedSegments
             "
             class="d-flex flex-column align-items-center"
           >
@@ -974,7 +975,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import {
   useVideoStore,
   type PredictionModelMeta,
@@ -1125,10 +1126,22 @@ function getVideoAnonymizationStatus(videoId: number): string {
 
 function canViewProcessedVideo(videoId: number): boolean {
   const item = getVideoOverviewItem(videoId)
-  return (
+  if (
     item?.anonymizationStatus === 'done_processing_anonymization' ||
     item?.anonymizationStatus === 'validated'
-  )
+  ) {
+    return true
+  }
+  if (item) {
+    return false
+  }
+
+  const video = selectableVideos.value.find((v) => v.id === videoId)
+  if (!video) return false
+  const status = video.status?.trim().toLowerCase()
+  if (!status) return false
+
+  return status !== 'in_progress'
 }
 
 function canAnnotateSegments(videoId: number): boolean {
@@ -1213,6 +1226,9 @@ const segmentValidationSummaryByVideoId = ref<Record<number, SegmentValidationSu
 const fpsNormalizationVideoId = ref<number | null>(null)
 let fpsNormalizationPollTimer: ReturnType<typeof setTimeout> | null = null
 let selectedVideoLoadSerial = 0
+
+const waitForLoadingOrder = (): Promise<void> => nextTick()
+
 const isBlackeningOutsideSegments = computed(
   () =>
     selectedVideoId.value !== null &&
@@ -1662,13 +1678,21 @@ const isSegmentReadOnlyByValidation = computed(() => isSelectedVideoValidated.va
 const hasSegmentEditOverride = computed(
   () => isSegmentEditingUnlocked.value || isAnnotatorOverrideActive.value
 )
-const canMutateSelectedSegments = computed(
-  () =>
-    canAnnotateSelectedVideo.value &&
-    fpsNormalizationVideoId.value === null &&
-    (selectedVideoId.value === null || !isSegmentCleanupPending(selectedVideoId.value)) &&
-    (!isSegmentReadOnlyByValidation.value || hasSegmentEditOverride.value)
-)
+const canMutateSelectedSegments = computed(() => {
+  if (selectedVideoId.value === null) return false
+  if (!canViewProcessedVideo(selectedVideoId.value)) return false
+  if (fpsNormalizationVideoId.value !== null) return false
+  if (isSegmentCleanupPending(selectedVideoId.value)) return false
+
+  const videoId = selectedVideoId.value
+  const segmentAnnotationStatus = getVideoSegmentAnnotationStatus(videoId)
+  if (segmentAnnotationStatus === 'validated') {
+    return hasSegmentEditOverride.value
+  }
+
+  const anonymizationItem = getVideoOverviewItem(videoId)
+  return anonymizationItem?.anonymizationStatus === 'validated'
+})
 
 type ReadonlyPredictionModelMeta = Readonly<PredictionModelMeta>
 
@@ -1805,7 +1829,6 @@ const canStartLabeling = computed(() => {
     hasStreamableVideo.value &&
     selectedLabelType.value &&
     !isMarkingLabel.value &&
-    duration.value > 0 &&
     canMutateSelectedSegments.value
   )
 })
@@ -1874,6 +1897,7 @@ onMounted(async () => {
 
       if (selectedVideoId.value !== null) {
         videoStore.setCurrentVideo(selectedVideoId.value)
+        await waitForLoadingOrder()
         await loadSelectedVideo(selectedVideoId.value)
       }
     }
@@ -3186,6 +3210,7 @@ const isVideoValidated = (videoId: number): boolean => {
 // Fire loader whenever selectedVideoId changes programmatically.
 // Keep this after all setup bindings it can call; immediate watchers run during setup.
 watch(selectedVideoId, async (newId) => {
+  await waitForLoadingOrder()
   if (typeof newId === 'number') {
     videoStore.setCurrentVideo(newId)
   }

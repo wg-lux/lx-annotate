@@ -10,7 +10,6 @@ import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
 import type { ReportingRuntimeDraft } from '@/stores/reportingFlowStore'
 import type { UseAuthenticatedVideoStreamOptions } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
-
 type UseAuthenticatedVideoStream =
   typeof import('@/composables/useAuthenticatedVideoStream').useAuthenticatedVideoStream
 
@@ -303,7 +302,7 @@ function hasMutableArtifactKind(
   )
 }
 
-describe('ReportingShell media preload', () => {
+describe('ReportingShell media preload', async () => {
   afterEach(() => {
     for (const wrapper of mountedShells.splice(0)) wrapper.unmount()
   })
@@ -1531,7 +1530,7 @@ describe('ReportingShell media preload', () => {
         moduleName: bundle.moduleName,
         version: bundle.version,
         medicalField: 'gastroenterology',
-        isActive: true
+        isActive: true,
       }
       hoisted.terminologyStore.activeModuleName = bundle.moduleName
       hoisted.terminologyStore.activeBundleKey = `${bundle.moduleName}@@${bundle.version}`

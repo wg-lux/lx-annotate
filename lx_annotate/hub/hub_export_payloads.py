@@ -1,33 +1,32 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Literal, TypedDict, cast
+from typing import Any
+from typing import cast
+from typing import Literal
+from typing import TypedDict
 
-from endoreg_db.models import (
-    Center,
-    ImageClassificationAnnotation,
-    LabelVideoSegment,
-    NetworkNode,
-    PatientExamination,
-    PatientExaminationReport,
-    RawPdfFile,
-    SensitiveMeta,
-    TransferJob,
-    VideoFile,
-)
+from endoreg_db.models import Center
+from endoreg_db.models import ImageClassificationAnnotation
+from endoreg_db.models import LabelVideoSegment
+from endoreg_db.models import NetworkNode
+from endoreg_db.models import PatientExamination
+from endoreg_db.models import PatientExaminationReport
+from endoreg_db.models import RawPdfFile
+from endoreg_db.models import SensitiveMeta
+from endoreg_db.models import TransferJob
+from endoreg_db.models import VideoFile
 from endoreg_db.models.state.anonymization import AnonymizationState
 from endoreg_db.utils.file_operations import sha256_file
-from lx_dtypes.models.contracts import (
-    validate_hub_transfer_report_payload,
-    validate_hub_transfer_video_payload,
-)
+from lx_dtypes.models.contracts import JsonValue
+from lx_dtypes.models.contracts import validate_hub_transfer_report_payload
+from lx_dtypes.models.contracts import validate_hub_transfer_video_payload
 
-from .hub_export_state import (
-    has_usable_processed_artifact,
-    is_report_hub_export_eligible,
-    is_video_hub_export_eligible,
-)
 from ..models import OutboundHubTransferJob
+from .hub_export_state import has_usable_processed_artifact
+from .hub_export_state import is_report_hub_export_eligible
+from .hub_export_state import is_video_hub_export_eligible
 
 
 class VideoFilePayload(TypedDict, total=False):
@@ -135,12 +134,14 @@ def _require_processed_file(resource, *, field_name: str) -> None:
     if field_name != "processed_file" or not has_usable_processed_artifact(resource):
         raise ValueError(
             f"{type(resource).__name__}.{field_name} must exist and be non-empty "
-            "for outbound hub transfer."
+            "for outbound hub transfer.",
         )
 
 
 def _require_eligible_anonymization_status(
-    status: AnonymizationState, *, kind: str
+    status: AnonymizationState,
+    *,
+    kind: str,
 ) -> None:
     if status not in {
         AnonymizationState.ANONYMIZED,
@@ -149,7 +150,7 @@ def _require_eligible_anonymization_status(
     }:
         raise ValueError(
             f"{kind} transfer requires anonymized state. "
-            f"Current anonymization_status={status.value!r} is not eligible."
+            f"Current anonymization_status={status.value!r} is not eligible.",
         )
 
 
@@ -159,7 +160,7 @@ def _build_sensitive_meta_payload(
     if sensitive_meta is None:
         raise ValueError(
             "SensitiveMeta with patient_hash and examination_hash is required "
-            "for hub transfer."
+            "for hub transfer.",
         )
 
     patient_hash = str(sensitive_meta.patient_hash or "").strip()
@@ -167,7 +168,7 @@ def _build_sensitive_meta_payload(
     if not patient_hash or not examination_hash:
         raise ValueError(
             "SensitiveMeta must include patient_hash and examination_hash for "
-            "hub transfer."
+            "hub transfer.",
         )
 
     return {
@@ -189,7 +190,7 @@ def _validated_video_hashes(video: VideoFile) -> tuple[Any, str, str]:
         raise ValueError("VideoFile.state must exist for outbound hub transfer.")
     if not is_video_hub_export_eligible(video):
         raise ValueError(
-            f"video transfer requires anonymized processed state. Current anonymization_status={state.anonymization_status.value!r} is not eligible."
+            f"video transfer requires anonymized processed state. Current anonymization_status={state.anonymization_status.value!r} is not eligible.",
         )
     _require_eligible_anonymization_status(state.anonymization_status, kind="video")
     processed_video_hash = str(video.processed_video_hash or "").strip()
@@ -197,17 +198,17 @@ def _validated_video_hashes(video: VideoFile) -> tuple[Any, str, str]:
     if not processed_video_hash or not state_processed_hash:
         raise ValueError(
             "VideoFile.processed_video_hash and VideoState.processed_file_sha256 "
-            "must exist for processed-media transfer."
+            "must exist for processed-media transfer.",
         )
     if processed_video_hash != state_processed_hash:
         raise ValueError(
-            "Processed video hash metadata is inconsistent; refusing outbound transfer."
+            "Processed video hash metadata is inconsistent; refusing outbound transfer.",
         )
     actual_processed_hash = sha256_file(video.processed_file)
     if actual_processed_hash != processed_video_hash:
         raise ValueError(
             "Processed video file hash does not match persisted hash metadata; "
-            "refusing outbound transfer."
+            "refusing outbound transfer.",
         )
     return state, processed_video_hash, state_processed_hash
 
@@ -224,7 +225,8 @@ def _video_file_payload(
         "fps": _require_value(video.fps, field_name="VideoFile.fps"),
         "duration": _require_value(video.duration, field_name="VideoFile.duration"),
         "frame_count": _require_value(
-            video.frame_count, field_name="VideoFile.frame_count"
+            video.frame_count,
+            field_name="VideoFile.frame_count",
         ),
         "width": _require_value(video.width, field_name="VideoFile.width"),
         "height": _require_value(video.height, field_name="VideoFile.height"),
@@ -237,7 +239,7 @@ def _video_state_payload(state: Any, *, state_processed_hash: str) -> VideoState
         "frames_extracted": bool(state.frames_extracted),
         "processing_started": bool(state.processing_started),
         "frame_annotations_generated": bool(
-            getattr(state, "segment_annotations_created", False)
+            getattr(state, "segment_annotations_created", False),
         ),
         "anonymized": bool(state.anonymized),
         "anonymization_validated": bool(state.anonymization_validated),
@@ -276,15 +278,15 @@ def _build_video_rows(video: VideoFile, *, source_node_key: str) -> dict[str, An
 def _validated_report_processed_hash(report: RawPdfFile, *, state: Any) -> str:
     actual_processed_hash = sha256_file(report.processed_file)
     state_processed_hash = str(
-        getattr(state, "processed_file_sha256", "") or ""
+        getattr(state, "processed_file_sha256", "") or "",
     ).strip()
     if state_processed_hash and state_processed_hash != actual_processed_hash:
         raise ValueError(
-            "Processed report hash metadata is inconsistent; refusing outbound transfer."
+            "Processed report hash metadata is inconsistent; refusing outbound transfer.",
         )
     if hasattr(state, "processed_file_sha256") and not state_processed_hash:
         raise ValueError(
-            "RawPdfState.processed_file_sha256 must exist for outbound hub transfer."
+            "RawPdfState.processed_file_sha256 must exist for outbound hub transfer.",
         )
     return state_processed_hash or actual_processed_hash
 
@@ -296,14 +298,14 @@ def _validated_report_fields(report: RawPdfFile) -> tuple[Any, str, str]:
         raise ValueError("RawPdfFile.state must exist for outbound hub transfer.")
     if not is_report_hub_export_eligible(report):
         raise ValueError(
-            f"report transfer requires anonymized processed state. Current anonymization_status={state.anonymization_status.value!r} is not eligible."
+            f"report transfer requires anonymized processed state. Current anonymization_status={state.anonymization_status.value!r} is not eligible.",
         )
     _require_eligible_anonymization_status(state.anonymization_status, kind="report")
 
     anonymized_text = str(report.anonymized_text or "").strip()
     if not anonymized_text:
         raise ValueError(
-            "RawPdfFile.anonymized_text must exist for outbound hub transfer."
+            "RawPdfFile.anonymized_text must exist for outbound hub transfer.",
         )
     processed_file_sha256 = _validated_report_processed_hash(report, state=state)
     return state, anonymized_text, processed_file_sha256
@@ -399,7 +401,7 @@ def _build_frame_annotation_rows(video: VideoFile) -> list[FrameAnnotationPayloa
                 "value": True,
                 "float_value": annotation.float_value,
                 "information_source_name": information_source.name,
-            }
+            },
         )
     return rows
 
@@ -410,7 +412,7 @@ def _segment_identity(segment: LabelVideoSegment) -> tuple[int, str]:
         raise ValueError("LabelVideoSegment must be persisted before hub transfer.")
     if segment.label is None:
         raise ValueError(
-            f"LabelVideoSegment {segment_id} requires a label for hub transfer."
+            f"LabelVideoSegment {segment_id} requires a label for hub transfer.",
         )
     return int(segment_id), segment.label.name
 
@@ -490,7 +492,7 @@ def _build_video_segment_rows(
                 segment,
                 video_hash=video.video_hash,
                 source_node_key=source_node_key,
-            )
+            ),
         )
     return rows
 
@@ -593,10 +595,14 @@ def _validate_transfer_contract(
 
     resource_kind = str(payload.get("resource_kind") or "")
     if resource_kind == TransferJob.ResourceKind.VIDEO.value:
-        video_payload = validate_hub_transfer_video_payload(payload)
+        video_payload = validate_hub_transfer_video_payload(
+            cast(Mapping[str, JsonValue], payload),
+        )
         return resource_kind, cast(dict[str, Any], video_payload)
     if resource_kind == TransferJob.ResourceKind.REPORT.value:
-        report_payload = validate_hub_transfer_report_payload(payload)
+        report_payload = validate_hub_transfer_report_payload(
+            cast(Mapping[str, JsonValue], payload),
+        )
         return resource_kind, cast(dict[str, Any], report_payload)
     raise ValueError(f"Unsupported outbound resource_kind: {resource_kind!r}.")
 
@@ -620,7 +626,7 @@ def _validated_processing_snapshot(payload: TransferPayload) -> dict[str, Any]:
     processing_snapshot = payload.get("processing_snapshot", {})
     if processing_snapshot != {"sender_processing_success": True}:
         raise ValueError(
-            "processing_snapshot must declare sender_processing_success=true."
+            "processing_snapshot must declare sender_processing_success=true.",
         )
     return cast(dict[str, Any], processing_snapshot)
 
@@ -640,7 +646,7 @@ def _validated_resource_hash(
         cast(dict[str, Any], resource_rows.get(nested_row_name, {})).get(
             nested_hash_name,
             "",
-        )
+        ),
     ).strip()
     if not resource_hash or nested_resource_hash != resource_hash:
         raise ValueError("resource_hash must match the transferred resource row.")
@@ -661,7 +667,7 @@ def _resolve_transfer_parties(
         is_active=True,
     )
     source_center = Center.objects.get(
-        center_key=str(payload.get("source_center_key") or "").strip()
+        center_key=str(payload.get("source_center_key") or "").strip(),
     )
     return source_node, target_node, source_center
 
@@ -679,7 +685,7 @@ def _validate_transfer_identity(
         raise ValueError("source_node must have an owning center for sender export.")
     if owning_center_id != source_center.pk:
         raise ValueError(
-            "source_center_key must match the source node owning center before transfer."
+            "source_center_key must match the source node owning center before transfer.",
         )
     expected_transfer_key = (
         f"{source_node.node_key}__{resource_kind}__{resource_hash}__processed_v1"
@@ -687,7 +693,7 @@ def _validate_transfer_identity(
     if str(payload.get("transfer_key") or "") != expected_transfer_key:
         raise ValueError(
             "transfer_key must match the immutable source node, resource kind, "
-            "resource hash, and processed-media transfer identity."
+            "resource hash, and processed-media transfer identity.",
         )
 
 
@@ -699,7 +705,7 @@ def _validate_segment_source_node(
     for segment in resource_rows.get("video_segments", []):
         if cast(dict[str, Any], segment).get("source_node_key") != source_node.node_key:
             raise ValueError(
-                "video segment source_node_key must match transfer source_node_key."
+                "video segment source_node_key must match transfer source_node_key.",
             )
 
 
@@ -752,11 +758,11 @@ def _require_exact_keys(
     missing = sorted(required - keys)
     if forbidden:
         raise ValueError(
-            f"{field_name} contains prohibited fields: {', '.join(forbidden)}"
+            f"{field_name} contains prohibited fields: {', '.join(forbidden)}",
         )
     if missing:
         raise ValueError(
-            f"{field_name} is missing required fields: {', '.join(missing)}"
+            f"{field_name} is missing required fields: {', '.join(missing)}",
         )
 
 
@@ -998,7 +1004,7 @@ def _validate_segment_model_metadata(segment_payload: dict[str, Any]) -> None:
         or segment_payload.get("export_segment") is not True
     ):
         raise ValueError(
-            "video segment model metadata is permitted only for exported predictions."
+            "video segment model metadata is permitted only for exported predictions.",
         )
 
 
@@ -1066,10 +1072,10 @@ def _validate_video_segment(
 
 def _validate_video_segments(resource_rows: dict[str, Any]) -> None:
     video_hash = str(
-        cast(dict[str, Any], resource_rows.get("video_file", {})).get("video_hash", "")
+        cast(dict[str, Any], resource_rows.get("video_file", {})).get("video_hash", ""),
     ).strip()
     frame_count = cast(dict[str, Any], resource_rows.get("video_file", {})).get(
-        "frame_count"
+        "frame_count",
     )
     for segment in resource_rows.get("video_segments", []):
         _validate_video_segment(

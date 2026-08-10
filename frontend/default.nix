@@ -12,7 +12,7 @@ buildNpmPackage rec {
 # TODO: On npm deps change, run make packages once with npmDepsHash = lib.fakeHash; 
 # then replace lib.fakeHash with the returned "hash in quotes" in specified SHA-AA... 
 # (fake) got (your real hash)
-  npmDepsHash = lib.fakeHash;
+  npmDepsHash = "sha256-c4YMsqhLrdy99Ws6RJKit7Ex5ljyRw2CyJ+60tAwNdU=";
 
   npmBuildScript = "build";
   doCheck = false;
