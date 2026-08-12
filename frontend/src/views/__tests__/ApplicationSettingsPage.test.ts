@@ -138,6 +138,8 @@ describe('ApplicationSettingsPage', () => {
       aiDatasetId: 100,
       aiDatasetName: 'dataset_alpha',
       aiDatasetType: 'image',
+      primaryAnnotationDatasetValid: true,
+      primaryAnnotationDatasetError: null,
       updatedAt: '2026-03-26T12:30:00Z',
       backupStatus: {
         ready: true,
@@ -186,6 +188,15 @@ describe('ApplicationSettingsPage', () => {
           aiModelType: 'video_segment_classification',
           isActive: true,
           nameCount: 1
+        },
+        {
+          id: 102,
+          value: 'dataset_labels_beta',
+          label: 'dataset_labels_beta',
+          datasetType: 'image',
+          aiModelType: 'image_multilabel_classification',
+          isActive: true,
+          nameCount: 1
         }
       ]
     })
@@ -199,9 +210,11 @@ describe('ApplicationSettingsPage', () => {
       processorName: 'Processor Two',
       annotatorName: 'annotator_b',
       reportTemplateName: 'template_b',
-      aiDatasetId: 101,
-      aiDatasetName: 'dataset_beta',
-      aiDatasetType: 'video',
+      aiDatasetId: 102,
+      aiDatasetName: 'dataset_labels_beta',
+      aiDatasetType: 'image',
+      primaryAnnotationDatasetValid: true,
+      primaryAnnotationDatasetError: null,
       updatedAt: '2026-03-26T13:15:00Z',
       backupStatus: {
         ready: true,
@@ -287,7 +300,8 @@ describe('ApplicationSettingsPage', () => {
     await wrapper.get('[data-test="processor-select"]').setValue('11')
     await wrapper.get('[data-test="annotator-select"]').setValue('annotator_b')
     await wrapper.get('[data-test="report-template-select"]').setValue('template_b')
-    await wrapper.get('[data-test="ai-dataset-select"]').setValue('101')
+    expect(wrapper.get('[data-test="ai-dataset-select"]').text()).not.toContain('dataset_beta')
+    await wrapper.get('[data-test="ai-dataset-select"]').setValue('102')
     await wrapper.get('[data-test="save-settings"]').trigger('click')
     await flushPromises()
 
@@ -296,9 +310,9 @@ describe('ApplicationSettingsPage', () => {
       processorId: 11,
       annotatorName: 'annotator_b',
       reportTemplateName: 'template_b',
-      aiDatasetId: 101,
-      aiDatasetName: 'dataset_beta',
-      aiDatasetType: 'video'
+      aiDatasetId: 102,
+      aiDatasetName: 'dataset_labels_beta',
+      aiDatasetType: 'image'
     })
     expect(hoisted.toastSuccess).toHaveBeenCalledWith({
       text: 'Anwendungseinstellungen gespeichert.'
@@ -307,8 +321,10 @@ describe('ApplicationSettingsPage', () => {
     expect(wrapper.get('[data-test="summary-processor"]').text()).toContain('Processor Two')
     expect(wrapper.get('[data-test="summary-annotator"]').text()).toContain('annotator_b')
     expect(wrapper.get('[data-test="summary-report-template"]').text()).toContain('Template B')
-    expect(wrapper.get('[data-test="summary-ai-dataset"]').text()).toContain('dataset_beta')
-    expect(wrapper.get('[data-test="summary-ai-dataset-type"]').text()).toContain('Video')
+    expect(wrapper.get('[data-test="summary-ai-dataset"]').text()).toContain(
+      'dataset_labels_beta'
+    )
+    expect(wrapper.get('[data-test="summary-ai-dataset-type"]').text()).toContain('Image')
   })
 
   it('shows a terminology loading failure while keeping application settings usable', async () => {

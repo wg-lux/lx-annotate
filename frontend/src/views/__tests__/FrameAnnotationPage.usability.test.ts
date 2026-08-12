@@ -195,6 +195,7 @@ describe('FrameAnnotation usability audit', () => {
   it('zeigt zentrale UI-Texte und Primäraktionen auf Deutsch', async () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await wrapper.get('img[alt="Zu annotierender Frame"]').trigger('load')
 
     const text = wrapper.text()
     expect(text).toContain('Frame-Annotation')
@@ -228,6 +229,7 @@ describe('FrameAnnotation usability audit', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await wrapper.get('img[alt="Zu annotierender Frame"]').trigger('load')
 
     await wrapper.get('[data-test="positive-example-button"]').trigger('click')
     await flushPromises()

@@ -70,8 +70,8 @@ function describeInvalidPatientRow(row: unknown): string {
   if (!isOptionalNullableString(row.gender)) reasons.push('gender must be string|null')
   if (!isOptionalNullableString(row.center)) reasons.push('center must be string|null')
   if (!isOptionalNullableString(row.centerKey)) reasons.push('centerKey must be string|null')
-  if (!isOptionalString(row.email)) reasons.push('email must be a string')
-  if (!isOptionalString(row.phone)) reasons.push('phone must be a string')
+  if (!isOptionalNullableString(row.email)) reasons.push('email must be a string|null')
+  if (!isOptionalNullableString(row.phone)) reasons.push('phone must be a string|null')
   if (!isOptionalNullableString(row.patientHash)) reasons.push('patientHash must be string|null')
   if (!isOptionalString(row.comments)) reasons.push('comments must be a string')
   if (row.isRealPerson !== undefined && typeof row.isRealPerson !== 'boolean') {
@@ -102,8 +102,8 @@ function isPatient(value: unknown): value is Patient {
     isOptionalNullableString(value.gender) &&
     isOptionalNullableString(value.center) &&
     isOptionalNullableString(value.centerKey) &&
-    isOptionalString(value.email) &&
-    isOptionalString(value.phone) &&
+    isOptionalNullableString(value.email) &&
+    isOptionalNullableString(value.phone) &&
     isOptionalNullableString(value.patientHash) &&
     isOptionalString(value.comments) &&
     (value.isRealPerson === undefined || typeof value.isRealPerson === 'boolean') &&
@@ -202,8 +202,8 @@ export interface Patient {
   gender?: string | null;  // Changed to string to match backend
   center?: string | null;  // Changed to string to match backend
   centerKey?: string | null;
-  email?: string;
-  phone?: string;
+  email?: string | null;
+  phone?: string | null;
   patientHash?: string | null;
   comments?: string;
   isRealPerson?: boolean;  // Added missing property

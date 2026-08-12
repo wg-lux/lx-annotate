@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -7,22 +8,46 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.db.models import Q
+from django.http import FileResponse
+from endoreg_db.models import NetworkNode
+from pydantic import ValidationError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from endoreg_db.models import NetworkNode
 from lx_annotate.hub.hub_export_jobs import (
     get_active_hub_nodes,
     get_default_source_node,
 )
+from lx_annotate.hub.storage_balance_worker import StorageBalanceWorkerConfig
+from lx_annotate.hub.storage_orchestration import (
+    StorageActionConflict,
+    StorageActionRequest,
+    StorageContractUnavailable,
+    StorageOperatorControlRequest,
+    StoragePlanningRejected,
+    StoragePlanPreviewRequest,
+    StorageWorkCancellationRequest,
+    apply_storage_action,
+    apply_storage_operator_control,
+    build_storage_overview,
+    cancel_storage_work,
+    preview_storage_placement,
+    storage_access_denied_overview,
+)
+from lx_annotate.hub.storage_resolver import (
+    fetch_committed_storage_artifact,
+    resolve_committed_storage_artifact,
+)
+from lx_annotate.hub.storage_transfer_client import StorageTransferClient
 from lx_annotate.models import OutboundHubTransferJob
 from lx_annotate.permissions import (
     CENTER_SCOPE_ADMIN_ROLE,
     GLOBAL_CENTER_SCOPE_ADMIN_ROLE,
     ExactCenterScopeAdminPermission,
     user_can_administer_center_scope,
+    user_has_exact_group,
     user_has_global_center_scope_admin,
 )
 from lx_annotate.services.access_management import (
@@ -38,6 +63,13 @@ from lx_annotate.services.access_management import (
 )
 
 
+def _user_can_monitor_storage(user: Any) -> bool:
+    return user_has_global_center_scope_admin(user) or user_has_exact_group(
+        user,
+        "storage:monitor",
+    )
+
+
 def _configured_readable_file(setting_name: str) -> tuple[bool, bool]:
     value = str(getattr(settings, setting_name, "") or "").strip()
     if not value:
@@ -51,13 +83,13 @@ def _configured_readable_file(setting_name: str) -> tuple[bool, bool]:
 
 def _transport_health() -> dict[str, Any]:
     cert_configured, cert_readable = _configured_readable_file(
-        "LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE"
+        "LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE",
     )
     key_configured, key_readable = _configured_readable_file(
-        "LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE"
+        "LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE",
     )
     ca_configured, ca_readable = _configured_readable_file(
-        "LX_ANNOTATE_HUB_EXPORT_CA_FILE"
+        "LX_ANNOTATE_HUB_EXPORT_CA_FILE",
     )
     require_mtls = bool(getattr(settings, "LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS", True))
     mtls_ready = (cert_readable and key_readable) if require_mtls else True
@@ -91,7 +123,8 @@ def _hub_node_health(node: NetworkNode) -> dict[str, Any]:
 @permission_classes([IsAuthenticated])
 def administration_overview(request):
     jobs = OutboundHubTransferJob.objects.select_related(
-        "target_node", "source_center"
+        "target_node",
+        "source_center",
     ).order_by("-updated_at")
     portal_info = get_portal_info_for_user(request.user)
     if not bool(getattr(request.user, "is_superuser", False)):
@@ -110,13 +143,14 @@ def administration_overview(request):
                 OutboundHubTransferJob.LocalStatus.REGISTERING,
                 OutboundHubTransferJob.LocalStatus.AWAITING_MEDIA,
                 OutboundHubTransferJob.LocalStatus.UPLOADING,
-            ]
-        )
+            ],
+        ),
     )[:25]
     source_node = get_default_source_node()
     hub_nodes = list(get_active_hub_nodes().select_related("owning_center"))
     roles = sorted(request.user.groups.values_list("name", flat=True))
     current_access = serialize_user_access(request.user, portal_info)
+    storage_monitor_read = _user_can_monitor_storage(request.user)
     transport = _transport_health()
     target_nodes_ready = bool(hub_nodes) and all(
         _hub_node_health(node)["https_configured"] for node in hub_nodes
@@ -134,7 +168,7 @@ def administration_overview(request):
                 "hub_nodes": [_hub_node_health(node) for node in hub_nodes],
                 "transport": transport,
                 "auto_queue_enabled": bool(
-                    getattr(settings, "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE", False)
+                    getattr(settings, "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE", False),
                 ),
             },
             "transfer_monitoring": {
@@ -166,6 +200,11 @@ def administration_overview(request):
                     for job in recent_jobs
                 ],
             },
+            "storage_balancing": (
+                build_storage_overview()
+                if storage_monitor_read
+                else storage_access_denied_overview()
+            ),
             "effective_permissions": {
                 "username": str(request.user.username),
                 "roles": roles,
@@ -177,9 +216,10 @@ def administration_overview(request):
                 ),
                 "centers": current_access["centers"],
                 "hub_monitor_read": True,
+                "storage_monitor_read": storage_monitor_read,
                 "center_scope_admin": user_can_administer_center_scope(request.user),
                 "center_scope_global_admin": user_has_global_center_scope_admin(
-                    request.user
+                    request.user,
                 ),
                 "center_scope_roles": {
                     "delegated": CENTER_SCOPE_ADMIN_ROLE,
@@ -188,8 +228,173 @@ def administration_overview(request):
                 "membership_authority": "keycloak_groups",
                 "keycloak_role_mutation": False,
             },
-        }
+        },
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def storage_artifact_stream(request, placement_id: uuid.UUID):
+    if not user_has_global_center_scope_admin(request.user):
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        resolution = resolve_committed_storage_artifact(placement_id=placement_id)
+        staging = StorageBalanceWorkerConfig.from_environment().staging_directory
+        destination = staging / f"serve-{uuid.uuid4()}.artifact"
+        fetch_committed_storage_artifact(
+            resolution=resolution,
+            destination=destination,
+            client_factory=StorageTransferClient.from_environment,
+        )
+        handle = destination.open("rb")
+        destination.unlink()
+    except (OSError, ValueError) as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+    response = FileResponse(handle, content_type="application/octet-stream")
+    response["Content-Disposition"] = (
+        f'inline; filename="storage-artifact-{placement_id}"'
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def storage_balancing_action(request):
+    if not user_has_global_center_scope_admin(request.user):
+        return Response(
+            {"detail": "Global center-scope administration is required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    try:
+        mutation = StorageActionRequest.model_validate(request.data or {})
+        correlation_id = str(
+            request.headers.get("X-Request-ID") or uuid.uuid4(),
+        ).strip()
+        result = apply_storage_action(
+            request=mutation,
+            actor=request.user,
+            correlation_id=correlation_id,
+        )
+    except ValidationError as exc:
+        return Response(
+            {"errors": exc.errors(include_url=False)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except StorageActionConflict as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+    except StorageContractUnavailable as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def storage_placement_preview(request):
+    if not _user_can_monitor_storage(request.user):
+        return Response(
+            {"detail": "Explicit storage monitoring permission is required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    try:
+        preview_request = StoragePlanPreviewRequest.model_validate(request.data or {})
+        result = preview_storage_placement(request=preview_request)
+    except ValidationError as exc:
+        return Response(
+            {"errors": exc.errors(include_url=False)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except StoragePlanningRejected as exc:
+        return Response(
+            {"code": exc.code, "detail": str(exc)},
+            status=status.HTTP_409_CONFLICT,
+        )
+    except StorageContractUnavailable as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def storage_balance_work_cancel(request, work_item_id: uuid.UUID):
+    if not user_has_global_center_scope_admin(request.user):
+        return Response(
+            {"detail": "Global center-scope administration is required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    try:
+        mutation = StorageWorkCancellationRequest.model_validate(
+            {**(request.data or {}), "work_item_id": work_item_id},
+        )
+        correlation_id = str(
+            request.headers.get("X-Request-ID") or uuid.uuid4(),
+        ).strip()
+        result = cancel_storage_work(
+            request=mutation,
+            actor=request.user,
+            correlation_id=correlation_id,
+        )
+    except ValidationError as exc:
+        return Response(
+            {"errors": exc.errors(include_url=False)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except StorageActionConflict as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+    except StorageContractUnavailable as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def storage_operator_control(request):
+    if not user_has_global_center_scope_admin(request.user):
+        return Response(
+            {"detail": "Global center-scope administration is required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    try:
+        mutation = StorageOperatorControlRequest.model_validate(request.data or {})
+        correlation_id = str(
+            request.headers.get("X-Request-ID") or uuid.uuid4(),
+        ).strip()
+        result = apply_storage_operator_control(
+            request=mutation,
+            actor=request.user,
+            correlation_id=correlation_id,
+        )
+        from lx_annotate.tasks import dispatch_storage_operator_control_receipt_task
+
+        try:
+            dispatch_storage_operator_control_receipt_task.delay(result["receipt_id"])
+            result["dispatch_queued"] = True
+        except Exception:
+            # The intent and local pending outbox row are committed atomically.
+            # The bounded periodic dispatcher retries broker submission.
+            result["dispatch_queued"] = False
+    except ValidationError as exc:
+        return Response(
+            {"errors": exc.errors(include_url=False)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except StorageActionConflict as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+    except StorageContractUnavailable as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return Response(result, status=status.HTTP_202_ACCEPTED)
 
 
 def _positive_int(raw: Any, *, default: int, maximum: int) -> int:
@@ -205,11 +410,15 @@ def _positive_int(raw: Any, *, default: int, maximum: int) -> int:
 def center_scope_users(request):
     page = _positive_int(request.query_params.get("page"), default=1, maximum=100000)
     page_size = _positive_int(
-        request.query_params.get("page_size"), default=25, maximum=100
+        request.query_params.get("page_size"),
+        default=25,
+        maximum=100,
     )
     try:
         payload = list_delegated_users(
-            actor=request.user, page=page, page_size=page_size
+            actor=request.user,
+            page=page,
+            page_size=page_size,
         )
     except AccessManagementForbidden as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)

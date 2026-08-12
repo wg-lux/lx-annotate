@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Django's command-line utility for administrative tasks."""
+from __future__ import annotations
+
 import importlib.util
 import os
 import sys
 from pathlib import Path
+
+from lx_annotate.settings.settings_base import BASE_DIR
 
 DEV_SETTINGS_MODULE = "lx_annotate.settings.settings_dev"
 PROD_SETTINGS_MODULE = "lx_annotate.settings.settings_prod"
@@ -31,7 +35,11 @@ def _select_settings_module(argv: list[str]) -> str:
     force_prod_for_runserver = _is_truthy(os.getenv("LX_ANNOTATE_RUNSERVER_USE_PROD"))
     is_production_env = os.getenv("DJANGO_ENV", "").strip().lower() == "production"
 
-    if command == "runserver" and not force_prod_for_runserver and not is_production_env:
+    if (
+        command == "runserver"
+        and not force_prod_for_runserver
+        and not is_production_env
+    ):
         if not current or current == PROD_SETTINGS_MODULE:
             return DEV_SETTINGS_MODULE
 
@@ -46,13 +54,12 @@ def _ensure_required_runtime_packages() -> None:
         raise ImportError(
             "Required package 'endoreg_db' is not installed in the active Python "
             "environment. Install the packaged dependency instead of relying on a "
-            "repo-local checkout."
+            "repo-local checkout.",
         )
 
 
 os.environ["DJANGO_SETTINGS_MODULE"] = _select_settings_module(sys.argv)
 
-from lx_annotate.settings.settings_base import BASE_DIR
 
 default_data_dir = os.environ.get(
     "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
@@ -60,7 +67,9 @@ default_data_dir = os.environ.get(
 )
 if not default_data_dir:
     default_data_dir = str(Path(BASE_DIR) / "data")
-default_storage_dir = os.environ.get("STORAGE_DIR", str(Path(default_data_dir) / "storage"))
+default_storage_dir = os.environ.get(
+    "STORAGE_DIR", str(Path(default_data_dir) / "storage"),
+)
 os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", default_data_dir)
 os.environ.setdefault("LX_ANNOTATE_DATA_DIR", default_data_dir)
 os.environ.setdefault("DATA_DIR", default_data_dir)
@@ -77,10 +86,10 @@ def main():
         raise ImportError(
             "Failed to start management command because a required runtime "
             "dependency is missing. Ensure Django and endoreg_db are installed "
-            "in the active environment rather than imported from a repo-local checkout."
+            "in the active environment rather than imported from a repo-local checkout.",
         ) from exc
     execute_from_command_line(sys.argv)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

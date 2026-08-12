@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Validate, display, verify, and update production feature readiness."""
-
 from __future__ import annotations
 
 import argparse
@@ -10,11 +9,19 @@ import re
 import shlex
 import subprocess
 import sys
+from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Callable, Literal, Sequence, cast
+from typing import Annotated, Literal, cast
 from uuid import uuid4
+
+from endoreg_db.utils.file_operations import (
+    advisory_file_lock,
+    atomic_create_file,
+    atomic_write_file,
+    safe_unlink_file,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 _VENV_ROOT = _REPOSITORY_ROOT / ".devenv/state/venv"
@@ -38,15 +45,9 @@ except ModuleNotFoundError as exc:
         )
     raise RuntimeError(
         "Feature-Tracker-Abhängigkeiten fehlen. Zuerst "
-        "'devenv tasks run agent:sync' ausführen."
+        "'devenv tasks run agent:sync' ausführen.",
     ) from exc
 
-from endoreg_db.utils.file_operations import (
-    advisory_file_lock,
-    atomic_create_file,
-    atomic_write_file,
-    safe_unlink_file,
-)
 
 TRACKING_DIR = Path(__file__).resolve().parent
 REPOSITORY_ROOT = _REPOSITORY_ROOT
@@ -128,7 +129,7 @@ class FeatureTrackingEvent(BaseModel):
     note: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_timestamp(self) -> "FeatureTrackingEvent":
+    def validate_timestamp(self) -> FeatureTrackingEvent:
         if self.changed_at.tzinfo is None:
             raise ValueError("tracking event changed_at must include a timezone")
         return self
@@ -141,7 +142,7 @@ class FeatureTracking(BaseModel):
     history: tuple[FeatureTrackingEvent, ...] = ()
 
     @model_validator(mode="after")
-    def validate_history(self) -> "FeatureTracking":
+    def validate_history(self) -> FeatureTracking:
         if not self.history:
             if self.state is FeatureTrackingState.DONE:
                 raise ValueError("done tracking state requires a completion event")
@@ -187,7 +188,7 @@ class Assessment(BaseModel):
     assessed_at: datetime | None = None
 
     @model_validator(mode="after")
-    def validate_assessment(self) -> "Assessment":
+    def validate_assessment(self) -> Assessment:
         references = tuple(item.reference for item in self.evidence)
         if len(references) != len(set(references)):
             raise ValueError("assessment evidence references must be unique")
@@ -199,7 +200,7 @@ class Assessment(BaseModel):
                 or self.assessed_at is not None
             ):
                 raise ValueError(
-                    "not_assessed criteria cannot contain evidence or assessment metadata"
+                    "not_assessed criteria cannot contain evidence or assessment metadata",
                 )
             return self
 
@@ -223,13 +224,13 @@ class Verification(BaseModel):
     timeout_seconds: int = Field(default=300, ge=1, le=3600)
 
     @model_validator(mode="after")
-    def validate_verification(self) -> "Verification":
+    def validate_verification(self) -> Verification:
         if self.kind is VerificationKind.COMMAND:
             if self.command is None:
                 raise ValueError("command verification requires command")
             if self.instructions is not None:
                 raise ValueError(
-                    "command verification cannot also define manual instructions"
+                    "command verification cannot also define manual instructions",
                 )
         else:
             if self.instructions is None:
@@ -251,7 +252,7 @@ class DoneCriterion(BaseModel):
     assessment: Assessment = Field(default_factory=Assessment)
 
     @model_validator(mode="after")
-    def validate_acceptance(self) -> "DoneCriterion":
+    def validate_acceptance(self) -> DoneCriterion:
         if len(self.acceptance) != len(set(self.acceptance)):
             raise ValueError(f"acceptance statements for {self.id} must be unique")
         return self
@@ -271,7 +272,7 @@ class FeatureDefinition(BaseModel):
     definition_of_done: tuple[DoneCriterion, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_feature(self) -> "FeatureDefinition":
+    def validate_feature(self) -> FeatureDefinition:
         criterion_ids = tuple(item.id for item in self.definition_of_done)
         if len(criterion_ids) != len(set(criterion_ids)):
             raise ValueError(f"criterion ids for {self.id} must be unique")
@@ -294,11 +295,11 @@ class ReadinessPolicy(BaseModel):
     migrated_markdown_trackers: tuple[str, ...] = ()
 
     @model_validator(mode="after")
-    def validate_policy(self) -> "ReadinessPolicy":
+    def validate_policy(self) -> ReadinessPolicy:
         if len(self.required_categories) != len(set(self.required_categories)):
             raise ValueError("required_categories must be unique")
         if len(self.migrated_markdown_trackers) != len(
-            set(self.migrated_markdown_trackers)
+            set(self.migrated_markdown_trackers),
         ):
             raise ValueError("migrated_markdown_trackers must be unique")
         return self
@@ -330,7 +331,7 @@ class FeatureLock(BaseModel):
     note: str | None = Field(default=None, min_length=1)
 
     @model_validator(mode="after")
-    def validate_lock(self) -> "FeatureLock":
+    def validate_lock(self) -> FeatureLock:
         if self.acquired_at.tzinfo is None or self.expires_at.tzinfo is None:
             raise ValueError("feature lock timestamps must include a timezone")
         if self.expires_at <= self.acquired_at:
@@ -389,11 +390,13 @@ class AgentMessage(BaseModel):
     @classmethod
     def reject_terminal_control_characters(cls, value: str) -> str:
         if any(ord(character) < 32 and character not in "\n\t" for character in value):
-            raise ValueError("agent messages cannot contain terminal control characters")
+            raise ValueError(
+                "agent messages cannot contain terminal control characters",
+            )
         return value
 
     @model_validator(mode="after")
-    def validate_message(self) -> "AgentMessage":
+    def validate_message(self) -> AgentMessage:
         if self.created_at.tzinfo is None or self.expires_at.tzinfo is None:
             raise ValueError("agent message timestamps must include a timezone")
         if self.expires_at <= self.created_at:
@@ -494,7 +497,7 @@ class WorkerResult(BaseModel):
     gaps: tuple[str, ...] = ()
 
     @model_validator(mode="after")
-    def validate_result(self) -> "WorkerResult":
+    def validate_result(self) -> WorkerResult:
         if self.task_status == "complete" and not self.findings:
             raise ValueError("complete worker results require at least one finding")
         if self.task_status == "blocked" and not self.gaps:
@@ -523,12 +526,12 @@ class WorkUnit(BaseModel):
     def enforce_single_responsibility(cls, value: str) -> str:
         if re.search(r"\band\b", value, flags=re.IGNORECASE):
             raise ValueError(
-                "work unit responsibility must describe one job; split conjunctions"
+                "work unit responsibility must describe one job; split conjunctions",
             )
         return value
 
     @model_validator(mode="after")
-    def validate_checkpoint(self) -> "WorkUnit":
+    def validate_checkpoint(self) -> WorkUnit:
         if len(self.depends_on) != len(set(self.depends_on)):
             raise ValueError(f"work unit {self.id} dependencies must be unique")
         if self.id in self.depends_on:
@@ -536,11 +539,11 @@ class WorkUnit(BaseModel):
         if self.status in {WorkUnitStatus.COMPLETE, WorkUnitStatus.BLOCKED}:
             if self.result is None or self.result.task_status != self.status.value:
                 raise ValueError(
-                    f"{self.status.value} work unit {self.id} requires a matching result"
+                    f"{self.status.value} work unit {self.id} requires a matching result",
                 )
         elif self.result is not None:
             raise ValueError(
-                f"{self.status.value} work unit {self.id} cannot contain a result"
+                f"{self.status.value} work unit {self.id} cannot contain a result",
             )
         return self
 
@@ -562,7 +565,7 @@ class OrchestrationContract(BaseModel):
     work_units: tuple[WorkUnit, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_orchestration(self) -> "OrchestrationContract":
+    def validate_orchestration(self) -> OrchestrationContract:
         units_by_id = {unit.id: unit for unit in self.work_units}
         if len(units_by_id) != len(self.work_units):
             raise ValueError("work unit ids must be unique")
@@ -575,14 +578,14 @@ class OrchestrationContract(BaseModel):
         if unknown_dependencies:
             raise ValueError(
                 "unknown work unit dependencies: "
-                + ", ".join(sorted(unknown_dependencies))
+                + ", ".join(sorted(unknown_dependencies)),
             )
         _validate_acyclic_work_units(self.work_units)
         allocated_tokens = sum(unit.token_budget for unit in self.work_units)
         if allocated_tokens > self.total_token_budget:
             raise ValueError(
                 f"work units allocate {allocated_tokens} tokens, exceeding the "
-                f"{self.total_token_budget} token budget"
+                f"{self.total_token_budget} token budget",
             )
 
         if self.topology is TaskTopology.SEQUENTIAL_INTERDEPENDENT:
@@ -603,19 +606,19 @@ class OrchestrationContract(BaseModel):
             roots = tuple(unit for unit in self.work_units if not unit.depends_on)
             if len(roots) < 2:
                 raise ValueError(
-                    "parallel topology requires at least two non-blocking root work units"
+                    "parallel topology requires at least two non-blocking root work units",
                 )
             if self.execution_mode is not ExecutionMode.CENTRALIZED_MULTI_AGENT:
                 raise ValueError(
-                    "parallel topology requires centralized_multi_agent mode"
+                    "parallel topology requires centralized_multi_agent mode",
                 )
             if self.agent_backend is None:
                 raise ValueError(
-                    "centralized_multi_agent mode requires an explicit agent backend"
+                    "centralized_multi_agent mode requires an explicit agent backend",
                 )
             if not 2 <= self.max_workers <= min(4, len(self.work_units)):
                 raise ValueError(
-                    "parallel max_workers must be between 2 and the work unit count"
+                    "parallel max_workers must be between 2 and the work unit count",
                 )
         return self
 
@@ -625,9 +628,7 @@ def _validate_acyclic_work_units(work_units: Sequence[WorkUnit]) -> None:
     remaining = set(dependencies)
     while remaining:
         ready = {
-            unit_id
-            for unit_id in remaining
-            if not (dependencies[unit_id] & remaining)
+            unit_id for unit_id in remaining if not (dependencies[unit_id] & remaining)
         }
         if not ready:
             raise ValueError("work unit dependency graph must be acyclic")
@@ -678,7 +679,7 @@ def _validate_feature_payload(
     if file_id != feature_id:
         raise TrackerError(
             "Dateiname und Feature-ID stimmen nicht überein: "
-            f"{file_stem} != {feature.id}"
+            f"{file_stem} != {feature.id}",
         )
     return feature
 
@@ -699,7 +700,7 @@ def validate_feature_against_policy(
     if len(required) < policy.minimum_required_criteria:
         raise TrackerError(
             f"{feature.id}: mindestens {policy.minimum_required_criteria} "
-            f"Pflichtkriterien erforderlich, gefunden: {len(required)}"
+            f"Pflichtkriterien erforderlich, gefunden: {len(required)}",
         )
     categories = {item.category for item in required}
     missing = set(policy.required_categories) - categories
@@ -716,14 +717,14 @@ def validate_feature_against_policy(
         ):
             raise TrackerError(
                 f"{feature.id}/{criterion.id}: mindestens "
-                f"{policy.verified_evidence_minimum} Evidenznachweise erforderlich"
+                f"{policy.verified_evidence_minimum} Evidenznachweise erforderlich",
             )
     if feature.tracking.state is FeatureTrackingState.DONE and any(
         criterion.assessment.status is not AssessmentStatus.VERIFIED
         for criterion in required
     ):
         raise TrackerError(
-            f"{feature.id}: done ist nur mit vollständig verifizierter DoD zulässig"
+            f"{feature.id}: done ist nur mit vollständig verifizierter DoD zulässig",
         )
 
 
@@ -748,7 +749,7 @@ def _validate_registry(
     )
     if len(migrated_sources) != len(set(migrated_sources)):
         raise TrackerError(
-            "Migrierte Markdown-Tracker dürfen nur einem Feature zugeordnet sein"
+            "Migrierte Markdown-Tracker dürfen nur einem Feature zugeordnet sein",
         )
     expected_sources = set(policy.migrated_markdown_trackers)
     actual_sources = set(migrated_sources)
@@ -805,7 +806,7 @@ def _run_git(
     if result.returncode != 0 and not allow_failure:
         detail = result.stderr.strip() or result.stdout.strip()
         raise TrackerError(
-            f"Git-Befehl fehlgeschlagen ({shlex.join(arguments)}): {detail}"
+            f"Git-Befehl fehlgeschlagen ({shlex.join(arguments)}): {detail}",
         )
     return result
 
@@ -833,11 +834,11 @@ def load_registry_from_git_index(
             _load_yaml_text(
                 _load_index_text(repository_root, policy_path),
                 f"Git-Index:{policy_path}",
-            )
+            ),
         )
     except ValidationError as exc:
         raise TrackerError(
-            f"Ungültige Readiness-Policy im Git-Index:{policy_path}:\n{exc}"
+            f"Ungültige Readiness-Policy im Git-Index:{policy_path}:\n{exc}",
         ) from exc
 
     listed = _run_git(
@@ -891,7 +892,7 @@ def derive_readiness(feature: FeatureDefinition) -> FeatureReadiness:
 
 
 def find_feature(
-    features: Sequence[FeatureDefinition], feature_id: str
+    features: Sequence[FeatureDefinition], feature_id: str,
 ) -> FeatureDefinition:
     normalized = feature_id.casefold()
     for feature in features:
@@ -909,7 +910,7 @@ def find_criterion(feature: FeatureDefinition, criterion_id: str) -> DoneCriteri
     available = ", ".join(item.id for item in feature.definition_of_done)
     raise TrackerError(
         f"Unbekanntes Kriterium '{criterion_id}' für {feature.id}. "
-        f"Verfügbar: {available}"
+        f"Verfügbar: {available}",
     )
 
 
@@ -929,7 +930,7 @@ def _load_feature_lock(path: Path) -> FeatureLock:
     if path.stem != lock.lock_id:
         raise TrackerError(
             "Lock-Dateiname und Lock-ID stimmen nicht überein: "
-            f"{path.stem} != {lock.lock_id}"
+            f"{path.stem} != {lock.lock_id}",
         )
     return lock
 
@@ -942,7 +943,7 @@ def _load_feature_locks(directory: Path) -> tuple[FeatureLock, ...]:
 
 
 def _remove_expired_feature_locks(
-    locks: Sequence[FeatureLock], *, directory: Path, now: datetime
+    locks: Sequence[FeatureLock], *, directory: Path, now: datetime,
 ) -> tuple[FeatureLock, ...]:
     active: list[FeatureLock] = []
     for lock in locks:
@@ -954,18 +955,18 @@ def _remove_expired_feature_locks(
 
 
 def active_feature_locks(
-    directory: Path = TRACKING_DIR, *, now: datetime | None = None
+    directory: Path = TRACKING_DIR, *, now: datetime | None = None,
 ) -> tuple[FeatureLock, ...]:
     current_time = now or datetime.now(timezone.utc)
     mutex_path = _lock_directory(directory) / LOCK_MUTEX_FILE_NAME
     with advisory_file_lock(lock_path=mutex_path, timeout_seconds=10):
         return _remove_expired_feature_locks(
-            _load_feature_locks(directory), directory=directory, now=current_time
+            _load_feature_locks(directory), directory=directory, now=current_time,
         )
 
 
 def _normalize_locked_files(
-    values: Sequence[str], *, repository_root: Path
+    values: Sequence[str], *, repository_root: Path,
 ) -> tuple[str, ...]:
     root = repository_root.resolve()
     normalized: list[str] = []
@@ -980,11 +981,11 @@ def _normalize_locked_files(
             relative = resolved.relative_to(root)
         except ValueError as exc:
             raise TrackerError(
-                f"Lock-Datei liegt außerhalb des Repositorys: {value}"
+                f"Lock-Datei liegt außerhalb des Repositorys: {value}",
             ) from exc
         relative_path = relative.as_posix()
         if relative_path == "." or relative_path.startswith(
-            f"feature-tracking/{LOCK_DIRECTORY_NAME}/"
+            f"feature-tracking/{LOCK_DIRECTORY_NAME}/",
         ):
             raise TrackerError(f"Ungültiger Datei-Scope für Feature-Lock: {value}")
         normalized.append(relative_path)
@@ -1006,7 +1007,7 @@ def _locks_conflict(first: FeatureLock, second: FeatureLock) -> bool:
 def _validate_lock_ttl(ttl_minutes: int) -> None:
     if not 1 <= ttl_minutes <= MAXIMUM_LOCK_TTL_MINUTES:
         raise TrackerError(
-            f"--ttl-minutes muss zwischen 1 und {MAXIMUM_LOCK_TTL_MINUTES} liegen"
+            f"--ttl-minutes muss zwischen 1 und {MAXIMUM_LOCK_TTL_MINUTES} liegen",
         )
 
 
@@ -1044,7 +1045,7 @@ def acquire_feature_lock(
     mutex_path = _lock_directory(directory) / LOCK_MUTEX_FILE_NAME
     with advisory_file_lock(lock_path=mutex_path, timeout_seconds=10):
         active = _remove_expired_feature_locks(
-            _load_feature_locks(directory), directory=directory, now=current_time
+            _load_feature_locks(directory), directory=directory, now=current_time,
         )
         conflicting = tuple(lock for lock in active if _locks_conflict(lock, requested))
         if conflicting:
@@ -1082,13 +1083,13 @@ def renew_feature_lock(
         current = _load_feature_lock(path)
         if current.owner != owner:
             raise TrackerError(
-                f"Feature-Lock {lock_id} gehört '{current.owner}', nicht '{owner}'"
+                f"Feature-Lock {lock_id} gehört '{current.owner}', nicht '{owner}'",
             )
         if current.expires_at <= current_time:
             safe_unlink_file(path)
             raise TrackerError(f"Feature-Lock {lock_id} ist bereits abgelaufen")
         renewed = current.model_copy(
-            update={"expires_at": current_time + timedelta(minutes=ttl_minutes)}
+            update={"expires_at": current_time + timedelta(minutes=ttl_minutes)},
         )
         serialized = renewed.model_dump_json(indent=2).encode("utf-8") + b"\n"
         atomic_write_file(
@@ -1101,7 +1102,7 @@ def renew_feature_lock(
 
 
 def release_feature_lock(
-    lock_id: str, *, owner: str, directory: Path = TRACKING_DIR
+    lock_id: str, *, owner: str, directory: Path = TRACKING_DIR,
 ) -> FeatureLock:
     mutex_path = _lock_directory(directory) / LOCK_MUTEX_FILE_NAME
     with advisory_file_lock(lock_path=mutex_path, timeout_seconds=10):
@@ -1111,7 +1112,7 @@ def release_feature_lock(
         lock = _load_feature_lock(path)
         if lock.owner != owner:
             raise TrackerError(
-                f"Feature-Lock {lock_id} gehört '{lock.owner}', nicht '{owner}'"
+                f"Feature-Lock {lock_id} gehört '{lock.owner}', nicht '{owner}'",
             )
         safe_unlink_file(path)
     return lock
@@ -1122,7 +1123,7 @@ def print_feature_locks(locks: Sequence[FeatureLock]) -> None:
         print("Keine aktiven Feature-Locks.")
         return
     rows: list[tuple[str, ...]] = [
-        ("Lock-ID", "Feature", "Kriterium", "Dateien", "Owner", "Läuft ab")
+        ("Lock-ID", "Feature", "Kriterium", "Dateien", "Owner", "Läuft ab"),
     ]
     for lock in locks:
         rows.append(
@@ -1133,7 +1134,7 @@ def print_feature_locks(locks: Sequence[FeatureLock]) -> None:
                 ", ".join(lock.files) or "-",
                 lock.owner,
                 lock.expires_at.isoformat(),
-            )
+            ),
         )
     print(_render_table(rows))
 
@@ -1150,13 +1151,15 @@ def _message_path(directory: Path, message_id: str) -> Path:
 
 def _load_agent_message(path: Path) -> AgentMessage:
     try:
-        message = AgentMessage.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        message = AgentMessage.model_validate(
+            json.loads(path.read_text(encoding="utf-8")),
+        )
     except (OSError, json.JSONDecodeError, ValidationError) as exc:
         raise TrackerError(f"Ungültige Agentennachricht in {path}: {exc}") from exc
     if path.stem != message.message_id:
         raise TrackerError(
             "Nachrichten-Dateiname und Nachrichten-ID stimmen nicht überein: "
-            f"{path.stem} != {message.message_id}"
+            f"{path.stem} != {message.message_id}",
         )
     return message
 
@@ -1169,7 +1172,7 @@ def _load_agent_messages(directory: Path) -> tuple[AgentMessage, ...]:
 
 
 def _remove_expired_agent_messages(
-    messages: Sequence[AgentMessage], *, directory: Path, now: datetime
+    messages: Sequence[AgentMessage], *, directory: Path, now: datetime,
 ) -> tuple[AgentMessage, ...]:
     active: list[AgentMessage] = []
     for message in messages:
@@ -1187,7 +1190,7 @@ def _serialize_agent_message(message: AgentMessage) -> bytes:
 def _validate_message_ttl(ttl_hours: int) -> None:
     if not 1 <= ttl_hours <= MAXIMUM_MESSAGE_TTL_HOURS:
         raise TrackerError(
-            f"--ttl-hours muss zwischen 1 und {MAXIMUM_MESSAGE_TTL_HOURS} liegen"
+            f"--ttl-hours muss zwischen 1 und {MAXIMUM_MESSAGE_TTL_HOURS} liegen",
         )
 
 
@@ -1224,7 +1227,7 @@ def send_agent_message(
 ) -> AgentMessage:
     _validate_message_ttl(ttl_hours)
     normalized_feature_id, normalized_criterion_id = _validate_message_feature_context(
-        features, feature_id=feature_id, criterion_id=criterion_id
+        features, feature_id=feature_id, criterion_id=criterion_id,
     )
     current_time = now or datetime.now(timezone.utc)
     message = AgentMessage(
@@ -1242,7 +1245,7 @@ def send_agent_message(
     mutex_path = _message_directory(directory) / MESSAGE_MUTEX_FILE_NAME
     with advisory_file_lock(lock_path=mutex_path, timeout_seconds=10):
         _remove_expired_agent_messages(
-            _load_agent_messages(directory), directory=directory, now=current_time
+            _load_agent_messages(directory), directory=directory, now=current_time,
         )
         serialized = _serialize_agent_message(message)
         atomic_create_file(
@@ -1266,7 +1269,7 @@ def agent_inbox(
     mutex_path = _message_directory(directory) / MESSAGE_MUTEX_FILE_NAME
     with advisory_file_lock(lock_path=mutex_path, timeout_seconds=10):
         active = _remove_expired_agent_messages(
-            _load_agent_messages(directory), directory=directory, now=current_time
+            _load_agent_messages(directory), directory=directory, now=current_time,
         )
     selected = tuple(
         message
@@ -1296,7 +1299,7 @@ def acknowledge_agent_message(
             raise TrackerError(f"Agentennachricht {message_id} ist bereits abgelaufen")
         if message.recipient != owner:
             raise TrackerError(
-                f"Agentennachricht {message_id} gehört '{message.recipient}', nicht '{owner}'"
+                f"Agentennachricht {message_id} gehört '{message.recipient}', nicht '{owner}'",
             )
         if message.acknowledged_at is not None:
             return message
@@ -1305,7 +1308,7 @@ def acknowledge_agent_message(
                 **message.model_dump(mode="python"),
                 "acknowledged_at": current_time,
                 "acknowledged_by": owner,
-            }
+            },
         )
         serialized = _serialize_agent_message(acknowledged)
         atomic_write_file(
@@ -1341,10 +1344,10 @@ def reply_to_agent_message(
             raise TrackerError(f"Agentennachricht {message_id} ist bereits abgelaufen")
         if source.recipient != sender:
             raise TrackerError(
-                f"Nur Empfänger '{source.recipient}' darf auf {message_id} antworten"
+                f"Nur Empfänger '{source.recipient}' darf auf {message_id} antworten",
             )
         _validate_message_feature_context(
-            features, feature_id=source.feature_id, criterion_id=source.criterion_id
+            features, feature_id=source.feature_id, criterion_id=source.criterion_id,
         )
         reply = AgentMessage(
             message_id=uuid4().hex,
@@ -1375,7 +1378,7 @@ def reply_to_agent_message(
 
 
 def print_agent_messages(
-    messages: Sequence[AgentMessage], *, as_json: bool = False
+    messages: Sequence[AgentMessage], *, as_json: bool = False,
 ) -> None:
     if as_json:
         print(
@@ -1383,7 +1386,7 @@ def print_agent_messages(
                 [message.model_dump(mode="json") for message in messages],
                 ensure_ascii=False,
                 indent=2,
-            )
+            ),
         )
         return
     if not messages:
@@ -1398,7 +1401,7 @@ def print_agent_messages(
             f"[{message.severity.value}] {message.message_id} von {message.sender} "
             f"({context}, {acknowledgement})\n"
             f"  {message.subject}\n"
-            f"  {message.body}"
+            f"  {message.body}",
         )
 
 
@@ -1407,7 +1410,9 @@ def load_orchestration_contract(path: Path) -> OrchestrationContract:
         payload = json.loads(path.read_text(encoding="utf-8"))
         return OrchestrationContract.model_validate(payload)
     except (OSError, json.JSONDecodeError, ValidationError) as exc:
-        raise TrackerError(f"Ungültiger Orchestrierungsvertrag in {path}: {exc}") from exc
+        raise TrackerError(
+            f"Ungültiger Orchestrierungsvertrag in {path}: {exc}",
+        ) from exc
 
 
 def load_worker_result(path: Path) -> WorkerResult:
@@ -1424,9 +1429,7 @@ def validate_orchestration_against_registry(
 ) -> None:
     feature = find_feature(features, contract.feature_id)
     if feature.tracking.state is FeatureTrackingState.DONE:
-        raise TrackerError(
-            f"{feature.id} ist done und kann nicht orchestriert werden"
-        )
+        raise TrackerError(f"{feature.id} ist done und kann nicht orchestriert werden")
     for work_unit in contract.work_units:
         find_criterion(feature, work_unit.criterion_id)
 
@@ -1439,12 +1442,12 @@ def checkpoint_orchestration(
     result: WorkerResult | None = None,
 ) -> OrchestrationContract:
     selected = next(
-        (unit for unit in contract.work_units if unit.id == work_unit_id), None
+        (unit for unit in contract.work_units if unit.id == work_unit_id), None,
     )
     if selected is None:
         available = ", ".join(unit.id for unit in contract.work_units)
         raise TrackerError(
-            f"Unbekannte Work-Unit '{work_unit_id}'. Verfügbar: {available}"
+            f"Unbekannte Work-Unit '{work_unit_id}'. Verfügbar: {available}",
         )
     if selected.status is status and selected.result == result:
         return contract
@@ -1461,7 +1464,7 @@ def checkpoint_orchestration(
     if status not in allowed_transitions[selected.status]:
         raise TrackerError(
             f"Ungültiger Checkpoint-Übergang für {work_unit_id}: "
-            f"{selected.status.value} -> {status.value}"
+            f"{selected.status.value} -> {status.value}",
         )
     try:
         updated_unit = WorkUnit.model_validate(
@@ -1469,7 +1472,7 @@ def checkpoint_orchestration(
                 **selected.model_dump(mode="python"),
                 "status": status,
                 "result": result,
-            }
+            },
         )
         updated_units = tuple(
             updated_unit if unit.id == work_unit_id else unit
@@ -1479,7 +1482,7 @@ def checkpoint_orchestration(
             {
                 **contract.model_dump(mode="python"),
                 "work_units": updated_units,
-            }
+            },
         )
     except ValidationError as exc:
         raise TrackerError(f"Ungültiger Checkpoint für {work_unit_id}: {exc}") from exc
@@ -1510,7 +1513,7 @@ def update_assessment(
 ) -> FeatureDefinition:
     if feature.tracking.state is FeatureTrackingState.DONE:
         raise TrackerError(
-            f"{feature.id} ist done; vor Bewertungsänderungen zuerst reopen ausführen"
+            f"{feature.id} ist done; vor Bewertungsänderungen zuerst reopen ausführen",
         )
     current = find_criterion(feature, criterion_id)
     if status is AssessmentStatus.NOT_ASSESSED:
@@ -1570,7 +1573,7 @@ def mark_feature_done(
     if readiness.status is not ReadinessStatus.PRODUCTION_READY:
         raise TrackerError(
             f"{feature.id} kann nicht done gesetzt werden: "
-            f"{readiness.verified_required}/{readiness.required_total} Pflichtkriterien verifiziert"
+            f"{readiness.verified_required}/{readiness.required_total} Pflichtkriterien verifiziert",
         )
     event = FeatureTrackingEvent(
         action=FeatureTrackingAction.DONE,
@@ -1645,7 +1648,7 @@ def save_feature(feature: FeatureDefinition, directory: Path = TRACKING_DIR) -> 
         matching_paths[0] if matching_paths else directory / f"{feature.id}.yml"
     )
     payload = cast(
-        dict[str, object], feature.model_dump(mode="json", exclude_none=True)
+        dict[str, object], feature.model_dump(mode="json", exclude_none=True),
     )
     serialized = yaml.safe_dump(
         payload,
@@ -1683,7 +1686,7 @@ def _render_table(rows: Sequence[Sequence[str]]) -> str:
     rendered: list[str] = []
     for row_number, row in enumerate(rows):
         rendered.append(
-            "  ".join(value.ljust(widths[index]) for index, value in enumerate(row))
+            "  ".join(value.ljust(widths[index]) for index, value in enumerate(row)),
         )
         if row_number == 0:
             rendered.append("  ".join("─" * width for width in widths))
@@ -1708,7 +1711,7 @@ def print_overview(
     visible = tuple(features) if include_done else actively_tracked_features(features)
     readiness = tuple(derive_readiness(feature) for feature in visible)
     rows: list[tuple[str, ...]] = [
-        ("Feature", "Evaluiert", "Reife", "Erfüllt", "Score", "Owner")
+        ("Feature", "Evaluiert", "Reife", "Erfüllt", "Score", "Owner"),
     ]
     for item in readiness:
         display_status = (
@@ -1724,7 +1727,7 @@ def print_overview(
                 f"{item.verified_required}/{item.required_total}",
                 f"{item.score_percent}%",
                 ", ".join(item.feature.owners),
-            )
+            ),
         )
     print("Production readiness – lx-annotate and LuxNix\n")
     if readiness:
@@ -1739,10 +1742,10 @@ def print_overview(
     )
     print(f"\nProduktionsreif: {ready_count}/{len(readiness)} sichtbaren Features")
     print(
-        f"Aktiv getrackt: {len(actively_tracked_features(features))}; Done: {done_count}"
+        f"Aktiv getrackt: {len(actively_tracked_features(features))}; Done: {done_count}",
     )
     print(
-        "Ein Score ersetzt nicht das Gate: Alle Pflichtkriterien müssen verifiziert sein."
+        "Ein Score ersetzt nicht das Gate: Alle Pflichtkriterien müssen verifiziert sein.",
     )
 
 
@@ -1754,14 +1757,14 @@ def print_feature(feature: FeatureDefinition) -> None:
     print(f"Status: {STATUS_LABELS[readiness.status]}")
     print(
         f"Pflichtkriterien: {readiness.verified_required}/{readiness.required_total} "
-        f"({readiness.score_percent}%)"
+        f"({readiness.score_percent}%)",
     )
     print(f"Owner: {', '.join(feature.owners)}")
     if feature.tracking.history:
         latest = feature.tracking.history[-1]
         print(
             f"Letzte Tracking-Aktion: {latest.action.value} durch "
-            f"{latest.changed_by} am {latest.changed_at.isoformat()}"
+            f"{latest.changed_by} am {latest.changed_at.isoformat()}",
         )
         print(f"Tracking-Hinweis: {latest.note}")
     if feature.source_documents:
@@ -1773,7 +1776,7 @@ def print_feature(feature: FeatureDefinition) -> None:
         optional = " (optional)" if not criterion.required else ""
         print(
             f"[{criterion.category.value}] {criterion.id}{optional}: "
-            f"{ASSESSMENT_LABELS[criterion.assessment.status]}"
+            f"{ASSESSMENT_LABELS[criterion.assessment.status]}",
         )
         print(f"  {criterion.title}")
         for acceptance in criterion.acceptance:
@@ -1808,7 +1811,7 @@ def run_verification(criterion: DoneCriterion) -> tuple[bool, str]:
         or verification.command is None
     ):
         raise TrackerError(
-            f"{criterion.id} ist eine manuelle Prüfung: {verification.instructions}"
+            f"{criterion.id} ist eine manuelle Prüfung: {verification.instructions}",
         )
     command = verification.command
     display = shlex.join(command)
@@ -1830,7 +1833,7 @@ def run_verification(criterion: DoneCriterion) -> tuple[bool, str]:
 
 
 def _selected_features(
-    features: Sequence[FeatureDefinition], feature_ids: Sequence[str]
+    features: Sequence[FeatureDefinition], feature_ids: Sequence[str],
 ) -> tuple[FeatureDefinition, ...]:
     if not feature_ids:
         return tuple(features)
@@ -1927,7 +1930,7 @@ def guard_commit_message(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Manage production readiness for lx-annotate and LuxNix features."
+        description="Manage production readiness for lx-annotate and LuxNix features.",
     )
     parser.set_defaults(include_done=False)
     parser.add_argument(
@@ -1953,7 +1956,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("feature_ids", nargs="*")
 
     check = subparsers.add_parser(
-        "check", help="Nur bei vollständiger Produktionsreife erfolgreich beenden"
+        "check", help="Nur bei vollständiger Produktionsreife erfolgreich beenden",
     )
     check.add_argument("feature_ids", nargs="*")
 
@@ -1972,7 +1975,7 @@ def build_parser() -> argparse.ArgumentParser:
     update.add_argument("--clear-evidence", action="store_true")
 
     verify = subparsers.add_parser(
-        "verify", help="Automatisierte Prüfkommandos ausführen"
+        "verify", help="Automatisierte Prüfkommandos ausführen",
     )
     verify.add_argument("feature_id")
     verify.add_argument("criterion_ids", nargs="*")
@@ -1997,11 +2000,11 @@ def build_parser() -> argparse.ArgumentParser:
     reopen.add_argument("--note", required=True)
 
     lock = subparsers.add_parser(
-        "lock", help="Zeitlich begrenzte Arbeits-Locks für Agenten verwalten"
+        "lock", help="Zeitlich begrenzte Arbeits-Locks für Agenten verwalten",
     )
     lock_subparsers = lock.add_subparsers(dest="lock_command", required=True)
     lock_acquire = lock_subparsers.add_parser(
-        "acquire", help="Scope prüfen und atomar sperren"
+        "acquire", help="Scope prüfen und atomar sperren",
     )
     lock_acquire.add_argument("feature_id")
     lock_acquire.add_argument("--owner", required=True)
@@ -2009,14 +2012,14 @@ def build_parser() -> argparse.ArgumentParser:
     lock_acquire.add_argument("--file", action="append", default=[])
     lock_acquire.add_argument("--note")
     lock_acquire.add_argument(
-        "--ttl-minutes", type=int, default=DEFAULT_LOCK_TTL_MINUTES
+        "--ttl-minutes", type=int, default=DEFAULT_LOCK_TTL_MINUTES,
     )
     lock_status = lock_subparsers.add_parser(
-        "status", help="Aktive Locks anzeigen und abgelaufene entfernen"
+        "status", help="Aktive Locks anzeigen und abgelaufene entfernen",
     )
     lock_status.add_argument("feature_id", nargs="?")
     lock_renew = lock_subparsers.add_parser(
-        "renew", help="Eigenen aktiven Lock verlängern"
+        "renew", help="Eigenen aktiven Lock verlängern",
     )
     lock_renew.add_argument("lock_id")
     lock_renew.add_argument("--owner", required=True)
@@ -2026,13 +2029,11 @@ def build_parser() -> argparse.ArgumentParser:
     lock_release.add_argument("--owner", required=True)
 
     message = subparsers.add_parser(
-        "message", help="Lokale Nachrichten zwischen Codex-CLI-Agenten verwalten"
+        "message", help="Lokale Nachrichten zwischen Codex-CLI-Agenten verwalten",
     )
-    message_subparsers = message.add_subparsers(
-        dest="message_command", required=True
-    )
+    message_subparsers = message.add_subparsers(dest="message_command", required=True)
     message_send = message_subparsers.add_parser(
-        "send", help="Owner-adressierte Nachricht atomar zustellen"
+        "send", help="Owner-adressierte Nachricht atomar zustellen",
     )
     message_send.add_argument("--from", dest="sender", required=True)
     message_send.add_argument("--to", dest="recipient", required=True)
@@ -2046,30 +2047,30 @@ def build_parser() -> argparse.ArgumentParser:
     message_send.add_argument("--feature")
     message_send.add_argument("--criterion")
     message_send.add_argument(
-        "--ttl-hours", type=int, default=DEFAULT_MESSAGE_TTL_HOURS
+        "--ttl-hours", type=int, default=DEFAULT_MESSAGE_TTL_HOURS,
     )
     message_inbox = message_subparsers.add_parser(
-        "inbox", help="Postfach eines Owners abrufen"
+        "inbox", help="Postfach eines Owners abrufen",
     )
     message_inbox.add_argument("--owner", required=True)
     message_inbox.add_argument(
-        "--all", action="store_true", dest="include_acknowledged"
+        "--all", action="store_true", dest="include_acknowledged",
     )
     message_inbox.add_argument("--json", action="store_true", dest="as_json")
     message_ack = message_subparsers.add_parser(
-        "ack", help="Nachricht als ihr Empfänger bestätigen"
+        "ack", help="Nachricht als ihr Empfänger bestätigen",
     )
     message_ack.add_argument("message_id")
     message_ack.add_argument("--owner", required=True)
     message_reply = message_subparsers.add_parser(
-        "reply", help="Als Empfänger auf eine Nachricht antworten"
+        "reply", help="Als Empfänger auf eine Nachricht antworten",
     )
     message_reply.add_argument("message_id")
     message_reply.add_argument("--from", dest="sender", required=True)
     message_reply.add_argument("--body", required=True)
     message_reply.add_argument("--severity", choices=tuple(AgentMessageSeverity))
     message_reply.add_argument(
-        "--ttl-hours", type=int, default=DEFAULT_MESSAGE_TTL_HOURS
+        "--ttl-hours", type=int, default=DEFAULT_MESSAGE_TTL_HOURS,
     )
 
     orchestration = subparsers.add_parser(
@@ -2077,19 +2078,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Typisierte Topologie-, Budget- und Checkpoint-Verträge verwalten",
     )
     orchestration_subparsers = orchestration.add_subparsers(
-        dest="orchestration_command", required=True
+        dest="orchestration_command", required=True,
     )
     orchestration_validate = orchestration_subparsers.add_parser(
-        "validate", help="Orchestrierungsvertrag gegen Schema und Registry prüfen"
+        "validate", help="Orchestrierungsvertrag gegen Schema und Registry prüfen",
     )
     orchestration_validate.add_argument("contract_file", type=Path)
     orchestration_checkpoint = orchestration_subparsers.add_parser(
-        "checkpoint", help="Work-Unit atomar und idempotent fortschreiben"
+        "checkpoint", help="Work-Unit atomar und idempotent fortschreiben",
     )
     orchestration_checkpoint.add_argument("contract_file", type=Path)
     orchestration_checkpoint.add_argument("work_unit_id")
     orchestration_checkpoint.add_argument(
-        "--status", required=True, choices=tuple(WorkUnitStatus)
+        "--status", required=True, choices=tuple(WorkUnitStatus),
     )
     orchestration_checkpoint.add_argument("--result-file", type=Path)
 
@@ -2224,13 +2225,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         if orchestration_command == "validate":
             print(
                 f"OK: Orchestrierungsvertrag {contract.run_id} ist gültig "
-                f"({contract.execution_mode.value}, {len(contract.work_units)} Work-Units)."
+                f"({contract.execution_mode.value}, {len(contract.work_units)} Work-Units).",
             )
             return 0
         if orchestration_command == "checkpoint":
             status = WorkUnitStatus(cast(str, args.status))
             result_path = cast(Path | None, args.result_file)
-            result = load_worker_result(result_path) if result_path is not None else None
+            result = (
+                load_worker_result(result_path) if result_path is not None else None
+            )
             updated = checkpoint_orchestration(
                 contract,
                 work_unit_id=cast(str, args.work_unit_id),
@@ -2240,11 +2243,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             save_orchestration_contract(updated, contract_path)
             print(
                 f"Checkpoint gespeichert: {contract.run_id}/"
-                f"{cast(str, args.work_unit_id)} -> {status.value}"
+                f"{cast(str, args.work_unit_id)} -> {status.value}",
             )
             return 0
         raise TrackerError(
-            f"Unbekannter Orchestrierungs-Befehl: {orchestration_command}"
+            f"Unbekannter Orchestrierungs-Befehl: {orchestration_command}",
         )
     if command == "validate":
         selected = _selected_features(features, cast(Sequence[str], args.feature_ids))
@@ -2298,7 +2301,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             and feature.tracking.state is FeatureTrackingState.DONE
         ):
             raise TrackerError(
-                f"{feature.id} ist done; vor Bewertungsänderungen zuerst reopen ausführen"
+                f"{feature.id} ist done; vor Bewertungsänderungen zuerst reopen ausführen",
             )
         if cast(bool, args.update) and cast(str | None, args.assessed_by) is None:
             raise TrackerError("verify --update erfordert --assessed-by")

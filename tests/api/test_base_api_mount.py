@@ -1,17 +1,28 @@
 from __future__ import annotations
 
-import importlib
 import importlib.resources
 import json
 import sys
+from pathlib import Path
 
 import pytest
 from django.test import Client, override_settings
 from django.urls import clear_url_caches, set_urlconf
 
 
-def _reload_urls_with_dtypes_api(monkeypatch, tmp_path):
-    package_data_root = importlib.resources.files("lx_dtypes").joinpath("data")
+def _reload_urls_with_dtypes_api(
+    monkeypatch,
+    tmp_path,
+    *,
+    knowledge_base_root: Path | None = None,
+):
+    from lx_dtypes.models.interface.KnowledgeBaseResolver import (
+        clear_knowledge_base_resolver_caches,
+    )
+
+    resolved_knowledge_base_root = knowledge_base_root or Path(
+        str(importlib.resources.files("lx_dtypes").joinpath("data")),
+    )
     registry_path = tmp_path / "kb_registry.json"
     registry_path.write_text(
         json.dumps(
@@ -22,10 +33,10 @@ def _reload_urls_with_dtypes_api(monkeypatch, tmp_path):
                 },
                 "modules": {
                     "report_template_examples": {
-                        "0.1.0": {"input_dirs": [str(package_data_root)]}
-                    }
+                        "0.1.0": {"input_dirs": [str(resolved_knowledge_base_root)]},
+                    },
                 },
-            }
+            },
         ),
         encoding="utf-8",
     )
@@ -34,6 +45,7 @@ def _reload_urls_with_dtypes_api(monkeypatch, tmp_path):
         "importlib.metadata.version",
         lambda name: "0.1.1" if name == "lx-dtypes" else None,
     )
+    clear_knowledge_base_resolver_caches()
 
     sys.modules.pop("lx_annotate.urls", None)
     sys.modules.pop("lx_annotate.dtypes_api_urls", None)
@@ -110,9 +122,9 @@ def test_repo_urls_expose_live_report_template_generation_routes(monkeypatch, tm
                         "patient_examination": "test_exam",
                         "patient_finding_classifications": [],
                         "patient_finding_interventions": [],
-                    }
+                    },
                 ],
-            }
+            },
         ),
         content_type="application/json",
         secure=True,

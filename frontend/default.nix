@@ -10,9 +10,11 @@ buildNpmPackage rec {
   src = ./.;
 
 # TODO: On npm deps change, run make packages once with npmDepsHash = lib.fakeHash; 
-# then replace lib.fakeHash with the returned "hash in quotes" in specified SHA-AA... 
+# then replace lib.fakeHash with the returned "hash in quotes". You can find the hash in the section of the error message:
+# specified: the SHA-AA... default
 # (fake) got (your real hash)
-  npmDepsHash = "sha256-c4YMsqhLrdy99Ws6RJKit7Ex5ljyRw2CyJ+60tAwNdU=";
+# Replace lib.fakeHash with the returned hash in default.nix
+  npmDepsHash = "sha256-P/eSSXaxmG+lsqTgQPyhPgxf7yQjnjjd/JDKSHN/L8E=";
 
   npmBuildScript = "build";
   doCheck = false;

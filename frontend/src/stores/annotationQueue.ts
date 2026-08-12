@@ -539,12 +539,23 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
       return
     try {
       const settings = await fetchApplicationSettings()
+      if (!settings.primaryAnnotationDatasetValid) {
+        throw new Error(
+          settings.primaryAnnotationDatasetError ||
+            'No valid primary annotation dataset is configured.'
+        )
+      }
+      if (settings.aiDatasetId === null) {
+        throw new Error('No primary annotation dataset is configured.')
+      }
+      aiDatasetId.value = String(settings.aiDatasetId)
       aiDatasetName.value = settings.aiDatasetName?.trim() || null
       aiDatasetType.value = settings.aiDatasetType?.trim() || null
-    } catch {
+    } catch (error) {
       aiDatasetId.value = null
       aiDatasetName.value = null
       aiDatasetType.value = null
+      throw error
     }
   }
 

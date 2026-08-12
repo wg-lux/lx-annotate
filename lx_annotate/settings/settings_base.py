@@ -2,6 +2,8 @@
 Base Django settings.
 """
 
+from __future__ import annotations
+
 import os
 from importlib.util import find_spec
 from logging import getLogger
@@ -15,6 +17,15 @@ from kombu import Exchange, Queue
 from lx_annotate.settings.config import load_config
 
 logger = getLogger(__name__)
+
+LX_ANNOTATE_FRAME_DECODE_MAX_CONCURRENCY = max(
+    1,
+    int(os.getenv("LX_ANNOTATE_FRAME_DECODE_MAX_CONCURRENCY", "2")),
+)
+LX_ANNOTATE_FRAME_DECODE_RETRY_AFTER_SECONDS = max(
+    1,
+    int(os.getenv("LX_ANNOTATE_FRAME_DECODE_RETRY_AFTER_SECONDS", "1")),
+)
 # -----------------------------------------------------------------------------
 # 1. PATH CONFIGURATION
 # -----------------------------------------------------------------------------
@@ -47,7 +58,7 @@ PROTECTED_MEDIA_URL = (
     or "/protected_media/"
 )
 _configured_protected_media_root = str(
-    os.getenv("PROTECTED_MEDIA_ROOT", str(APP_STORAGE_DIR)) or ""
+    os.getenv("PROTECTED_MEDIA_ROOT", str(APP_STORAGE_DIR)) or "",
 ).strip() or str(APP_STORAGE_DIR)
 PROTECTED_MEDIA_ROOT = Path(_configured_protected_media_root).expanduser().resolve()
 try:
@@ -68,7 +79,7 @@ STREAMABLE_VIDEO_ROOT = (
         os.getenv(
             "LX_ANNOTATE_STREAMABLE_VIDEO_ROOT",
             str(APP_STORAGE_DIR / "streamable_videos"),
-        )
+        ),
     )
     .expanduser()
     .resolve()
@@ -78,7 +89,7 @@ STREAMABLE_RAW_VIDEO_ROOT = (
         os.getenv(
             "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT",
             str(STREAMABLE_VIDEO_ROOT / "raw"),
-        )
+        ),
     )
     .expanduser()
     .resolve()
@@ -88,7 +99,7 @@ STREAMABLE_PROCESSED_VIDEO_ROOT = (
         os.getenv(
             "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT",
             str(STREAMABLE_VIDEO_ROOT / "processed"),
-        )
+        ),
     )
     .expanduser()
     .resolve()
@@ -133,7 +144,7 @@ if not _is_dev_settings:
         [
             APP_DATA_DIR / ".env.systemd",
             BASE_DIR / ".env.systemd",
-        ]
+        ],
     )
     _env_path = next(
         (candidate for candidate in _env_candidates if candidate.exists()),
@@ -189,7 +200,7 @@ if not SECRET_KEY:
     else:
         raise RuntimeError(
             "DJANGO_SECRET_KEY is missing. Set DJANGO_SECRET_KEY or "
-            "DJANGO_SECRET_KEY_FILE in the environment or .env file."
+            "DJANGO_SECRET_KEY_FILE in the environment or .env file.",
         )
 
 DEBUG = config.debug
@@ -205,46 +216,60 @@ _deployment_role_raw = (
 if _deployment_role_raw and _deployment_role_raw not in ENDOREG_DEPLOYMENT_ROLE_VALUES:
     raise RuntimeError(
         "ENDOREG_DEPLOYMENT_ROLE must be one of: "
-        f"{', '.join(ENDOREG_DEPLOYMENT_ROLE_VALUES)}"
+        f"{', '.join(ENDOREG_DEPLOYMENT_ROLE_VALUES)}",
     )
 if _deployment_role_raw:
     ENDOREG_DEPLOYMENT_ROLE = _deployment_role_raw
 else:
     ENDOREG_DEPLOYMENT_ROLE = "standalone"
 ENDOREG_ENABLE_HUB_TRANSFERS = os.getenv(
-    "ENDOREG_ENABLE_HUB_TRANSFERS", "0"
+    "ENDOREG_ENABLE_HUB_TRANSFERS",
+    "0",
 ).strip().lower() in {"1", "true", "yes", "on"}
+ENDOREG_ENABLE_STORAGE_BALANCING = os.getenv(
+    "ENDOREG_ENABLE_STORAGE_BALANCING",
+    "0",
+).strip().lower() in {"1", "true", "yes", "on"}
+HUB_STORAGE_POLICY_VERSION = str(
+    os.getenv("HUB_STORAGE_POLICY_VERSION", "") or "",
+).strip()
+HUB_STORAGE_TELEMETRY_MAX_AGE_SECONDS = int(
+    str(os.getenv("HUB_STORAGE_TELEMETRY_MAX_AGE_SECONDS", "0") or "0").strip(),
+)
 ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT = os.getenv(
-    "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT", "1"
+    "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT",
+    "1",
 ).strip().lower() in {"1", "true", "yes", "on"}
 ENDOREG_HUB_TRANSFER_REQUIRE_MTLS = os.getenv(
     "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS",
     "1" if ENDOREG_DEPLOYMENT_ROLE == "central_hub" else "0",
 ).strip().lower() in {"1", "true", "yes", "on"}
 ENDOREG_HUB_TRANSFER_MTLS_META_KEY = str(
-    os.getenv("ENDOREG_HUB_TRANSFER_MTLS_META_KEY", "") or ""
+    os.getenv("ENDOREG_HUB_TRANSFER_MTLS_META_KEY", "") or "",
 ).strip()
 ENDOREG_HUB_TRANSFER_MTLS_META_VALUE = str(
-    os.getenv("ENDOREG_HUB_TRANSFER_MTLS_META_VALUE", "") or ""
+    os.getenv("ENDOREG_HUB_TRANSFER_MTLS_META_VALUE", "") or "",
 ).strip()
 ENDOREG_HUB_TRANSFER_MAX_UPLOAD_BYTES = max(
     int(os.getenv("ENDOREG_HUB_TRANSFER_MAX_UPLOAD_BYTES", str(50 * 1024**3))),
     1,
 )
 LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE = os.getenv(
-    "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE", "0"
+    "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE",
+    "0",
 ).strip().lower() in {"1", "true", "yes", "on"}
 LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS = os.getenv(
-    "LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS", "1"
+    "LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS",
+    "1",
 ).strip().lower() in {"1", "true", "yes", "on"}
 LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE = str(
-    os.getenv("LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE", "") or ""
+    os.getenv("LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE", "") or "",
 ).strip()
 LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE = str(
-    os.getenv("LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE", "") or ""
+    os.getenv("LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE", "") or "",
 ).strip()
 LX_ANNOTATE_HUB_EXPORT_CA_FILE = str(
-    os.getenv("LX_ANNOTATE_HUB_EXPORT_CA_FILE", "") or ""
+    os.getenv("LX_ANNOTATE_HUB_EXPORT_CA_FILE", "") or "",
 ).strip()
 LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS = max(
     int(os.getenv("LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS", "1800")),
@@ -259,7 +284,7 @@ LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY = str(
         "LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY",
         "retain_processed_media",
     )
-    or "retain_processed_media"
+    or "retain_processed_media",
 ).strip()
 CELERY_BROKER_URL = str(os.getenv("CELERY_BROKER_URL", "") or "").strip()
 CELERY_RESULT_BACKEND = None
@@ -371,6 +396,66 @@ CELERY_TASK_ROUTES = {
         "queue": CELERY_HUB_TRANSFER_QUEUE,
         "routing_key": CELERY_HUB_TRANSFER_QUEUE,
     },
+    "lx_annotate.execute_storage_balance_work_item": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.reconcile_storage_balancing": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.recover_storage_balance_work_items": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.dispatch_storage_operator_control_receipt": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.dispatch_pending_storage_operator_controls": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.ingest_processed_storage_artifact": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.publish_storage_artifact": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.dispatch_pending_storage_publications": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.execute_storage_rotation_cleanup": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.reconcile_storage_rotation_cleanup": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.sync_storage_node_telemetry": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.reconcile_storage_inventories": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.expire_storage_reservations": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.cleanup_retired_storage_envelope": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
+    "lx_annotate.reconcile_retired_storage_envelopes": {
+        "queue": CELERY_HUB_TRANSFER_QUEUE,
+        "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+    },
 }
 CELERY_BEAT_SCHEDULE = {
     "retry-due-upload-jobs": {
@@ -381,8 +466,101 @@ CELERY_BEAT_SCHEDULE = {
             "routing_key": CELERY_MAINTENANCE_QUEUE,
             "expires": 55,
         },
-    }
+    },
 }
+if os.getenv("ENDOREG_ENABLE_STORAGE_BALANCING", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}:
+    ENDOREG_REMOTE_PROCESSED_VIDEO_PROVIDER = (
+        "lx_annotate.hub.storage_provider.materialize_current_processed_video"
+    )
+    ENDOREG_REMOTE_PROCESSED_REPORT_PROVIDER = (
+        "lx_annotate.hub.storage_report_provider.materialize_current_processed_report"
+    )
+    CELERY_BEAT_SCHEDULE["reconcile-storage-balancing"] = {
+        "task": "lx_annotate.reconcile_storage_balancing",
+        "schedule": 60.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 55,
+        },
+    }
+    CELERY_BEAT_SCHEDULE["recover-storage-balance-work-items"] = {
+        "task": "lx_annotate.recover_storage_balance_work_items",
+        "schedule": 60.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 55,
+        },
+    }
+    CELERY_BEAT_SCHEDULE["sync-storage-node-telemetry"] = {
+        "task": "lx_annotate.sync_storage_node_telemetry",
+        "schedule": 30.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 25,
+        },
+    }
+    CELERY_BEAT_SCHEDULE["reconcile-storage-inventories"] = {
+        "task": "lx_annotate.reconcile_storage_inventories",
+        "schedule": 300.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 295,
+        },
+    }
+    CELERY_BEAT_SCHEDULE["expire-storage-reservations"] = {
+        "task": "lx_annotate.expire_storage_reservations",
+        "schedule": 60.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 55,
+        },
+    }
+    CELERY_BEAT_SCHEDULE["reconcile-retired-storage-envelopes"] = {
+        "task": "lx_annotate.reconcile_retired_storage_envelopes",
+        "schedule": 300.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 295,
+        },
+    }
+    CELERY_BEAT_SCHEDULE["reconcile-storage-rotation-cleanup"] = {
+        "task": "lx_annotate.reconcile_storage_rotation_cleanup",
+        "schedule": 60.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 55,
+        },
+    }
+    CELERY_BEAT_SCHEDULE["dispatch-pending-storage-operator-controls"] = {
+        "task": "lx_annotate.dispatch_pending_storage_operator_controls",
+        "schedule": 30.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 25,
+        },
+    }
+    CELERY_BEAT_SCHEDULE["dispatch-pending-storage-publications"] = {
+        "task": "lx_annotate.dispatch_pending_storage_publications",
+        "schedule": 30.0,
+        "options": {
+            "queue": CELERY_HUB_TRANSFER_QUEUE,
+            "routing_key": CELERY_HUB_TRANSFER_QUEUE,
+            "expires": 25,
+        },
+    }
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 60 * 60 * 6
@@ -402,7 +580,7 @@ def _require_env_var(*names: str) -> None:
         return
     joined = " or ".join(names)
     raise RuntimeError(
-        f"{joined} must be set when ENDOREG_DEPLOYMENT_ROLE=central_hub."
+        f"{joined} must be set when ENDOREG_DEPLOYMENT_ROLE=central_hub.",
     )
 
 
@@ -410,19 +588,25 @@ def _validate_hub_transfer_security_contract() -> None:
     if ENDOREG_ENABLE_HUB_TRANSFERS and ENDOREG_DEPLOYMENT_ROLE != "central_hub":
         raise RuntimeError(
             "ENDOREG_ENABLE_HUB_TRANSFERS=true requires "
-            "ENDOREG_DEPLOYMENT_ROLE=central_hub."
+            "ENDOREG_DEPLOYMENT_ROLE=central_hub.",
+        )
+    if ENDOREG_ENABLE_STORAGE_BALANCING and (
+        ENDOREG_DEPLOYMENT_ROLE != "central_hub" or not ENDOREG_ENABLE_HUB_TRANSFERS
+    ):
+        raise RuntimeError(
+            "ENDOREG_ENABLE_STORAGE_BALANCING=true requires an enabled central_hub transfer profile.",
         )
     if ENDOREG_DEPLOYMENT_ROLE != "central_hub":
         return
     if not ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT:
         raise RuntimeError(
             "ENDOREG_DEPLOYMENT_ROLE=central_hub requires "
-            "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=true."
+            "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=true.",
         )
     if not ENDOREG_HUB_TRANSFER_REQUIRE_MTLS:
         raise RuntimeError(
             "ENDOREG_DEPLOYMENT_ROLE=central_hub requires "
-            "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=true."
+            "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=true.",
         )
     if (
         not ENDOREG_HUB_TRANSFER_MTLS_META_KEY
@@ -431,8 +615,22 @@ def _validate_hub_transfer_security_contract() -> None:
         raise RuntimeError(
             "ENDOREG_DEPLOYMENT_ROLE=central_hub requires "
             "ENDOREG_HUB_TRANSFER_MTLS_META_KEY and "
-            "ENDOREG_HUB_TRANSFER_MTLS_META_VALUE."
+            "ENDOREG_HUB_TRANSFER_MTLS_META_VALUE.",
         )
+    if ENDOREG_ENABLE_STORAGE_BALANCING:
+        for variable in (
+            "HUB_STORAGE_NODES_FILE",
+            "HUB_STORAGE_STAGING_DIRECTORY",
+            "HUB_STORAGE_POLICY_VERSION",
+            "HUB_STORAGE_TELEMETRY_MAX_AGE_SECONDS",
+            "HUB_STORAGE_SAFETY_MARGIN_BYTES",
+            "HUB_STORAGE_RESERVATION_TTL_SECONDS",
+            "HUB_STORAGE_CAPACITY_PRESSURE_BASIS_POINTS",
+            "HUB_STORAGE_CAPACITY_TARGET_BASIS_POINTS",
+            "HUB_STORAGE_MINIMUM_FILESYSTEM_HEADROOM_BYTES",
+            "HUB_STORAGE_MAX_WORK_ITEMS",
+        ):
+            _require_env_var(variable)
 
 
 _validate_hub_transfer_security_contract()
@@ -451,12 +649,12 @@ if not SECRET_KEY:
         SECRET_KEY = "django-insecure-dev-only-change-me-000000000000"
         print(
             "WARNING: Using fallback SECRET_KEY for development. "
-            "Set DJANGO_SECRET_KEY in .env for a stable value."
+            "Set DJANGO_SECRET_KEY in .env for a stable value.",
         )
     else:
         raise RuntimeError(
             "DJANGO_SECRET_KEY is missing. Set DJANGO_SECRET_KEY or "
-            "DJANGO_SECRET_KEY_FILE in the environment or .env file."
+            "DJANGO_SECRET_KEY_FILE in the environment or .env file.",
         )
 DEBUG = config.debug
 ALLOWED_HOSTS = config.allowed_hosts
@@ -490,13 +688,16 @@ INSTALLED_APPS = [
 for _field_cls in (models.ManyToManyField, models.ForeignKey, models.OneToOneField):
     field_cls: Any = _field_cls
     if not hasattr(field_cls, "__class_getitem__"):
-        field_cls.__class_getitem__ = classmethod(lambda cls, item: cls)  # type: ignore[attr-defined]
+        field_cls.__class_getitem__ = classmethod(
+            lambda cls, item: cls,
+        )  # type: ignore[attr-defined]
 
 # Override a broken upstream migration transaction boundary:
 # endoreg_db.0008 performs deletes and then adds a constraint on PostgreSQL.
 # Running it non-atomically avoids "pending trigger events" on ALTER TABLE.
 MIGRATION_MODULES = {
     "endoreg_db": "lx_annotate.migration_overrides.endoreg_db",
+    "lx_dtypes_django": "lx_annotate.migration_overrides.lx_dtypes_django",
 }
 
 MIDDLEWARE = [
@@ -547,7 +748,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
-    }
+    },
 }
 
 # -----------------------------------------------------------------------------
@@ -628,7 +829,7 @@ LOGGING = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
@@ -647,12 +848,12 @@ CACHES = {
         "LOCATION": "unique-snowflake",
         "TIMEOUT": 60 * 30,  # 30 minutes
         "OPTIONS": {"MAX_ENTRIES": 1000},  # Limit cache size
-    }
+    },
 }
 # DRF Base
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication"
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],

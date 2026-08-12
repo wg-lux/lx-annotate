@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, reactive, ref, type Ref } from 'vue'
+import { computed, defineComponent, inject, reactive, ref, type Component, type Ref } from 'vue'
 
 import ReportingShell from '../ReportingShell.vue'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
@@ -10,6 +10,7 @@ import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
 import type { ReportingRuntimeDraft } from '@/stores/reportingFlowStore'
 import type { UseAuthenticatedVideoStreamOptions } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
+import { reportTemplateLifecycleContextKey } from '../reportTemplateLifecycleContext'
 type UseAuthenticatedVideoStream =
   typeof import('@/composables/useAuthenticatedVideoStream').useAuthenticatedVideoStream
 
@@ -278,12 +279,12 @@ function deferred<T>() {
 
 const mountedShells: Array<ReturnType<typeof mount>> = []
 
-function mountShell() {
+function mountShell(routerViewStub: Component | boolean = true) {
   const wrapper = mount(ReportingShell, {
     global: {
       stubs: {
         RouterLink: true,
-        RouterView: true
+        RouterView: routerViewStub
       }
     }
   })
@@ -296,13 +297,10 @@ function hasMutableArtifactKind(
 ): options is UseAuthenticatedVideoStreamOptions & {
   artifactKind: Ref<StreamableVideoFileType>
 } {
-  return (
-    typeof options.artifactKind === 'object' &&
-    'value' in options.artifactKind
-  )
+  return typeof options.artifactKind === 'object' && 'value' in options.artifactKind
 }
 
-describe('ReportingShell media preload', async () => {
+describe('ReportingShell media preload', () => {
   afterEach(() => {
     for (const wrapper of mountedShells.splice(0)) wrapper.unmount()
   })
@@ -737,6 +735,51 @@ describe('ReportingShell media preload', async () => {
     )
     expect(wrapper.get('[data-testid="report-template-select"]').text()).toContain(
       'colonoscopy_published'
+    )
+  })
+
+  it('refreshes published templates when the nested builder changes lifecycle state', async () => {
+    const LifecycleChild = defineComponent({
+      setup() {
+        const lifecycleContext = inject(reportTemplateLifecycleContextKey)
+        if (!lifecycleContext) throw new Error('Missing report-template lifecycle context.')
+        return {
+          notifyPublished: () =>
+            lifecycleContext.notifyLifecycleChanged({
+              moduleName: 'report_template_examples',
+              templateName: 'newly_published',
+              examination: 'colonoscopy',
+              lifecycleStatus: 'published'
+            })
+        }
+      },
+      template: '<button data-testid="notify-published" @click="notifyPublished">publish</button>'
+    })
+
+    const wrapper = mountShell(LifecycleChild)
+    await flushPromises()
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockClear()
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValueOnce([
+      {
+        name: 'newly_published',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '1.0.0',
+          lifecycleStatus: 'published'
+        }
+      }
+    ])
+
+    await wrapper.get('[data-testid="notify-published"]').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
+      'report_template_examples',
+      'colonoscopy'
+    )
+    expect(wrapper.get('[data-testid="report-template-select"]').text()).toContain(
+      'newly_published'
     )
   })
 
@@ -1523,19 +1566,20 @@ describe('ReportingShell media preload', async () => {
     hoisted.terminologyStore.activeModuleName = 'gastro_legacy'
     hoisted.terminologyStore.activeBundleKey = 'gastro_legacy@@1.0.0'
     hoisted.terminologyStore.findBundleByKey.mockImplementation(
-      (key: string) => availableBundles.find((bundle) => `${bundle.moduleName}@@${bundle.version}` === key) || null
+      (key: string) =>
+        availableBundles.find((bundle) => `${bundle.moduleName}@@${bundle.version}` === key) || null
     )
-    hoisted.terminologyStore.selectBundle.mockImplementation(async (bundle: TerminologyBundleVersion) => {
+    hoisted.terminologyStore.selectBundle.mockImplementation((bundle: TerminologyBundleVersion) => {
       hoisted.terminologyStore.activeBundle = {
         moduleName: bundle.moduleName,
         version: bundle.version,
         medicalField: 'gastroenterology',
-        isActive: true,
+        isActive: true
       }
       hoisted.terminologyStore.activeModuleName = bundle.moduleName
       hoisted.terminologyStore.activeBundleKey = `${bundle.moduleName}@@${bundle.version}`
       hoisted.terminologyStore.bundles = availableBundles
-      return { active: hoisted.terminologyStore.activeBundle, counts: {} }
+      return Promise.resolve({ active: hoisted.terminologyStore.activeBundle, counts: {} })
     })
 
     const initial = mountShell()
@@ -1586,7 +1630,10 @@ describe('ReportingShell media preload', async () => {
     const conflictingZip = new File(['editor export'], 'v1-terminology.zip', {
       type: 'application/zip'
     })
-    Object.defineProperty(zipInput.element, 'files', { value: [conflictingZip], configurable: true })
+    Object.defineProperty(zipInput.element, 'files', {
+      value: [conflictingZip],
+      configurable: true
+    })
 
     await zipInput.trigger('change')
     await flushPromises()
@@ -1620,7 +1667,9 @@ describe('ReportingShell media preload', async () => {
       response: { status: 401, data: { detail: 'Unauthorized' } }
     })
 
-    const unauthorizedZip = new File(['editor export'], 'unauthorized.zip', { type: 'application/zip' })
+    const unauthorizedZip = new File(['editor export'], 'unauthorized.zip', {
+      type: 'application/zip'
+    })
     Object.defineProperty(zipInput.element, 'files', {
       value: [unauthorizedZip],
       configurable: true

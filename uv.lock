@@ -1129,7 +1129,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.9.0"
+version = "1.0.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1198,9 +1198,8 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/42/21215544e07e4b3b2244411a6a64791864300d6b8d37ea96c0b435dbe2d1/endoreg_db-1.0.9.0.tar.gz", hash = "sha256:95dcaabaef890d208d7f5628dcde0e69e5581bf17c1af69aeb90ab5bfca27f4e", size = 1222229, upload-time = "2026-08-07T14:25:11.341Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/57/5038f1483414c7092dddfc26c298f7a7342bd9bc1c75d14cd3ddec437f99/endoreg_db-1.0.9.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:706336cd6a77c8fc9466643da078a0d8572430b53c2f4bac373b38c1b8e3db08", size = 2169086, upload-time = "2026-08-07T14:25:06.446Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/b2/3858c6aace293799302492093f26eb05c9097bebd0d6cdc43cc189336c01/endoreg_db-1.0.13.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1391bd4148ec84fd9830d67d09f62b9763d9365ca0b03c9cd2a064c0e3cff6b4", size = 2231121, upload-time = "2026-08-11T14:21:07.179Z" },
 ]
 
 [[package]]
@@ -2049,7 +2048,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.9.60"
+version = "0.9.64"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
@@ -2141,14 +2140,14 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.9.0" },
+    { name = "endoreg-db", specifier = "==1.0.13.0" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
-    { name = "lx-dtypes", specifier = ">=0.2.12" },
+    { name = "lx-dtypes", specifier = "==0.2.15" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
     { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0.1" },
@@ -2240,7 +2239,7 @@ gpu = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.2.13"
+version = "0.2.15"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bibtexparser" },
@@ -2263,9 +2262,9 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/92/f2/83853a47f09ca8a9b534e6c0f47b1a0b7529b740fa43d66f6989a6d34a8d/lx_dtypes-0.2.13.tar.gz", hash = "sha256:e0db25450a4d16054daf8c369644fb0f6fb13618563cdbed2bcc3b8f3ce6660d", size = 2613774, upload-time = "2026-08-07T13:54:51.643Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/d3/e80f60430cd0469973c12cabcf01239c340618b366628b8d7bba212f2c05/lx_dtypes-0.2.15.tar.gz", hash = "sha256:8049e49aa6c7e62f2a1e502f24e7582fa3d36fa5d825c239a0284989502f5d27", size = 2615207, upload-time = "2026-08-11T13:27:16.533Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/86/1cabfc7e4a8e252460db1af0e31bd0d145d1853c55e93e0425e6935507b5/lx_dtypes-0.2.13-py3-none-any.whl", hash = "sha256:fa3398f853a9f1ae815308a08c9ef4843a53ac1d7bc867e2749283340a8af5a3", size = 745886, upload-time = "2026-08-07T13:54:47.552Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/d7/869f7f22d28d8377e8075364244e0640b5b0e7f5b6e0bb585e0afa534d0c/lx_dtypes-0.2.15-py3-none-any.whl", hash = "sha256:875874c3a1610fdf519cce1626c14bc05db5188f289a5683fbd8a8aa4e3f5114", size = 747333, upload-time = "2026-08-11T13:27:11.127Z" },
 ]
 
 [[package]]

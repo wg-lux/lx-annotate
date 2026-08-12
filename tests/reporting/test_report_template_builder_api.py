@@ -1,34 +1,30 @@
 from __future__ import annotations
 
+import importlib.resources
 import json
-import textwrap
+from pathlib import Path
 
 import pytest
 import yaml
 from django.contrib.auth import get_user_model
 from django.test import Client, override_settings
 from django.urls import clear_url_caches, resolve, set_urlconf
+from endoreg_db.utils.file_operations import atomic_copy_file
 
 from tests.api.test_base_api_mount import _reload_urls_with_dtypes_api
 
 
-def _make_temp_kb_module(tmp_path):
-    module_dir = tmp_path / "report_template_examples"
-    module_dir.mkdir(parents=True)
-    (module_dir / "config.yaml").write_text(
-        textwrap.dedent(
-            """\
-            name: report_template_examples
-            version: 0.1.0
-            modules: []
-            depends_on: []
-            data:
-              files: []
-            """
-        ),
-        encoding="utf-8",
+def _copy_packaged_knowledge_base_data(tmp_path: Path) -> None:
+    packaged_data_root = Path(
+        str(importlib.resources.files("lx_dtypes").joinpath("data")),
     )
-    return module_dir
+    for source_path in packaged_data_root.rglob("*"):
+        if not source_path.is_file():
+            continue
+        atomic_copy_file(
+            source=source_path,
+            destination=tmp_path / source_path.relative_to(packaged_data_root),
+        )
 
 
 def _assert_builder_route_is_mounted() -> None:
@@ -44,15 +40,16 @@ def _assert_builder_route_is_mounted() -> None:
 )
 @pytest.mark.django_db
 def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
-    monkeypatch, tmp_path
+    monkeypatch,
+    tmp_path,
 ):
-    _reload_urls_with_dtypes_api(monkeypatch, tmp_path)
+    _copy_packaged_knowledge_base_data(tmp_path)
+    _reload_urls_with_dtypes_api(
+        monkeypatch,
+        tmp_path,
+        knowledge_base_root=tmp_path,
+    )
     _assert_builder_route_is_mounted()
-
-    from lx_dtypes.django.api import report_template_builder as builder
-
-    _make_temp_kb_module(tmp_path)
-    monkeypatch.setattr(builder, "MODULES_ROOT", tmp_path)
 
     user = get_user_model().objects.create_user(
         username="report-template-builder",
@@ -86,7 +83,7 @@ def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
                                 "label": "Vorname",
                                 "source": "patient",
                                 "required": False,
-                            }
+                            },
                         ],
                     },
                     {
@@ -107,18 +104,18 @@ def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
                                     {
                                         "classification": "lesion_size_mm",
                                         "required": True,
-                                    }
+                                    },
                                 ],
                                 "validator": {
                                     "enabled": True,
                                     "name": "polyp_present",
                                     "operator": "exists",
                                 },
-                            }
+                            },
                         ],
                     },
                 ],
-            }
+            },
         ),
         content_type="application/json",
         secure=True,
@@ -155,8 +152,8 @@ def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
 
     config_payload = yaml.safe_load(
         (tmp_path / "report_template_examples" / "config.yaml").read_text(
-            encoding="utf-8"
-        )
+            encoding="utf-8",
+        ),
     )
     assert "./generated_templates" in config_payload["data"]["dirs"]
 
@@ -166,15 +163,11 @@ def test_report_template_builder_persists_yaml_via_dtypes_ninja_api(
     ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
 )
 def test_report_template_builder_rejects_invalid_findings_sections(
-    monkeypatch, tmp_path
+    monkeypatch,
+    tmp_path,
 ):
     _reload_urls_with_dtypes_api(monkeypatch, tmp_path)
     _assert_builder_route_is_mounted()
-
-    from lx_dtypes.django.api import report_template_builder as builder
-
-    _make_temp_kb_module(tmp_path)
-    monkeypatch.setattr(builder, "MODULES_ROOT", tmp_path)
 
     client = Client()
     response = client.post(
@@ -191,9 +184,9 @@ def test_report_template_builder_rejects_invalid_findings_sections(
                         "name": "observations",
                         "description": "",
                         "findings": [],
-                    }
+                    },
                 ],
-            }
+            },
         ),
         content_type="application/json",
         secure=True,

@@ -2,24 +2,23 @@ from __future__ import annotations
 
 import os
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, Literal, TypedDict, cast
-from urllib.parse import urljoin
-from urllib.parse import urlparse
+from typing import Any, Literal, TypedDict, cast
+from urllib.parse import urljoin, urlparse
 
 import requests
 from django.conf import settings
 from django.utils import timezone
-
 from endoreg_db.models import NetworkNode
 from endoreg_db.utils.storage import ensure_local_file
 
+from ..models import OutboundHubTransferJob
 from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_cleanup import apply_completed_export_cleanup_policy
 from .hub_export_payloads import build_transfer_payload, validate_transfer_payload
-from ..models import OutboundHubTransferJob
+from .transfer_transport import TransferTransportConfig
 
 _MULTIPART_UPLOAD_CHUNK_SIZE = 1024 * 1024
 HubExportFailureClass = Literal[
@@ -30,25 +29,7 @@ HubExportFailureClass = Literal[
 ]
 
 
-class HubTransportRequestKwargs(TypedDict, total=False):
-    allow_redirects: bool
-    verify: str | bool
-    cert: tuple[str, str]
-
-
-@dataclass(frozen=True)
-class HubTransportConfig:
-    cert: tuple[str, str] | None
-    verify: str | bool
-
-    def request_kwargs(self) -> HubTransportRequestKwargs:
-        kwargs: HubTransportRequestKwargs = {
-            "allow_redirects": False,
-            "verify": self.verify,
-        }
-        if self.cert is not None:
-            kwargs["cert"] = self.cert
-        return kwargs
+HubTransportConfig = TransferTransportConfig
 
 
 class RemoteTransferStatusPayload(TypedDict, total=False):
@@ -106,7 +87,7 @@ def resolve_outbound_node_secret(
         raise ValueError(f"Outbound hub node secret file is empty: {secret_path}")
 
     raise ValueError(
-        f"Missing outbound hub node secret for source_node_key={source_node_key!r}."
+        f"Missing outbound hub node secret for source_node_key={source_node_key!r}.",
     )
 
 
@@ -120,37 +101,39 @@ def _require_readable_file(value: str, *, label: str) -> Path:
 def resolve_hub_transport_config() -> HubTransportConfig:
     require_mtls = bool(getattr(settings, "LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS", True))
     cert_value = str(
-        getattr(settings, "LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE", "") or ""
+        getattr(settings, "LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE", "") or "",
     ).strip()
     key_value = str(
-        getattr(settings, "LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE", "") or ""
+        getattr(settings, "LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE", "") or "",
     ).strip()
     ca_value = str(
-        getattr(settings, "LX_ANNOTATE_HUB_EXPORT_CA_FILE", "") or ""
+        getattr(settings, "LX_ANNOTATE_HUB_EXPORT_CA_FILE", "") or "",
     ).strip()
 
     cert: tuple[str, str] | None = None
     if require_mtls:
         if not cert_value or not key_value:
             raise ValueError(
-                "Outbound hub transfer requires mTLS client certificate and key files."
+                "Outbound hub transfer requires mTLS client certificate and key files.",
             )
         cert_path = _require_readable_file(
-            cert_value, label="LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE"
+            cert_value,
+            label="LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE",
         )
         key_path = _require_readable_file(
-            key_value, label="LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE"
+            key_value,
+            label="LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE",
         )
         cert = (str(cert_path), str(key_path))
     elif cert_value or key_value:
         raise ValueError(
-            "Outbound hub client certificate and key must not be partially configured."
+            "Outbound hub client certificate and key must not be partially configured.",
         )
 
     verify: str | bool = True
     if ca_value:
         verify = str(
-            _require_readable_file(ca_value, label="LX_ANNOTATE_HUB_EXPORT_CA_FILE")
+            _require_readable_file(ca_value, label="LX_ANNOTATE_HUB_EXPORT_CA_FILE"),
         )
     return HubTransportConfig(cert=cert, verify=verify)
 
@@ -159,11 +142,11 @@ def _raise_for_hub_response(response: requests.Response) -> None:
     status_code = response.status_code
     if status_code in {401, 403}:
         raise RemoteTransferAuthorizationError(
-            f"Hub transfer authorization denied with HTTP {status_code}."
+            f"Hub transfer authorization denied with HTTP {status_code}.",
         )
     if isinstance(status_code, int) and 300 <= status_code < 400:
         raise requests.RequestException(
-            "Hub transfer redirects are prohibited to prevent credential disclosure."
+            "Hub transfer redirects are prohibited to prevent credential disclosure.",
         )
     response.raise_for_status()
 
@@ -220,7 +203,7 @@ class MultipartUploadStream:
         self.boundary = f"lx-annotate-{uuid.uuid4().hex}"
         self.content_type = f"multipart/form-data; boundary={self.boundary}"
         self._prefix = self._build_prefix()
-        self._suffix = f"\r\n--{self.boundary}--\r\n".encode("utf-8")
+        self._suffix = f"\r\n--{self.boundary}--\r\n".encode()
         self.content_length = (
             len(self._prefix) + media_path.stat().st_size + len(self._suffix)
         )
@@ -235,7 +218,7 @@ class MultipartUploadStream:
             f"--{self.boundary}\r\n"
             f'Content-Disposition: form-data; name="file"; filename="{file_name}"\r\n'
             "Content-Type: application/octet-stream\r\n\r\n"
-        ).encode("utf-8")
+        ).encode()
 
     def __iter__(self) -> Iterator[bytes]:
         yield self._prefix
@@ -343,7 +326,7 @@ def apply_remote_status(
             "completed_at",
             "last_error",
             "updated_at",
-        ]
+        ],
     )
     if outbound_job.local_status == OutboundHubTransferJob.LocalStatus.COMPLETED:
         apply_completed_export_cleanup_policy(
@@ -411,7 +394,7 @@ def _validate_remote_transfer_status(
     if mismatches:
         raise RemoteTransferIntegrityError(
             "Hub acknowledgement identity mismatch for: "
-            + ", ".join(sorted(set(mismatches)))
+            + ", ".join(sorted(set(mismatches))),
         )
 
 
@@ -438,7 +421,7 @@ def mark_outbound_job_failure(
             "retry_count",
             "last_attempt_at",
             "updated_at",
-        ]
+        ],
     )
     emit_hub_export_audit_event(
         "hub_export.failed",
@@ -546,7 +529,7 @@ def run_outbound_transfer_job(
             "registration_started_at",
             "last_attempt_at",
             "updated_at",
-        ]
+        ],
     )
     emit_hub_export_audit_event(
         "hub_export.register_started",
@@ -620,7 +603,7 @@ def run_outbound_transfer_job(
                     "media_upload_started_at",
                     "last_attempt_at",
                     "updated_at",
-                ]
+                ],
             )
             emit_hub_export_audit_event(
                 "hub_export.upload_started",

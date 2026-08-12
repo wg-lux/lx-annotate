@@ -758,7 +758,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
@@ -805,6 +805,10 @@ import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideo
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import {
+  reportTemplateLifecycleContextKey,
+  type ReportTemplateLifecycleChange
+} from './reportTemplateLifecycleContext'
 
 const logger = createRuntimeLogger('reporting-shell')
 import {
@@ -941,11 +945,13 @@ const routePatientId = computed<number | null>(() => {
 const selectedPatientExaminationId = computed(
   () => routePatientExaminationId.value ?? flow.patientExaminationId ?? ''
 )
-const activePatientExaminationId = computed(() =>
-  routePatientExaminationId.value ?? flow.patientExaminationId
+const activePatientExaminationId = computed(
+  () => routePatientExaminationId.value ?? flow.patientExaminationId
 )
 const findingsStepTarget = computed(() =>
-  activePatientExaminationId.value ? `/reporting/${String(activePatientExaminationId.value)}/findings` : '/reporting/case-setup'
+  activePatientExaminationId.value
+    ? `/reporting/${String(activePatientExaminationId.value)}/findings`
+    : '/reporting/case-setup'
 )
 const reportEditorStepTarget = computed(() =>
   activePatientExaminationId.value
@@ -1055,6 +1061,11 @@ const activeKbModule = computed(() =>
   terminology.activeBundle ? terminology.activeModuleName : ''
 )
 
+provide(reportTemplateLifecycleContextKey, {
+  activeModuleName: activeKbModule,
+  notifyLifecycleChanged: refreshPublishedTemplatesAfterLifecycleChange
+})
+
 const activeBundleIdentityKey = computed(() => {
   const bundle = terminology.activeBundle
   return bundle ? `${bundle.moduleName}@@${bundle.version}` : ''
@@ -1098,9 +1109,7 @@ const selectedPatientExaminationLabel = computed(() => {
     patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
     null
   if (selected) return selected.label
-  return flow.patientExaminationId
-    ? `#${String(flow.patientExaminationId)}`
-    : 'Noch nicht gewählt'
+  return flow.patientExaminationId ? `#${String(flow.patientExaminationId)}` : 'Noch nicht gewählt'
 })
 
 const selectedTemplateLabel = computed(() =>
@@ -1124,9 +1133,7 @@ const selectedReportLanguageLabel = computed(
 )
 
 const visibleTerminologyBundles = computed(() => {
-  return terminology.filteredBundles.length
-    ? terminology.filteredBundles
-    : terminology.bundles
+  return terminology.filteredBundles.length ? terminology.filteredBundles : terminology.bundles
 })
 
 async function loadReportingLanguages() {
@@ -1301,8 +1308,7 @@ const conceptCoverageSubtitle = computed(() => {
 const conceptCoverageSummaryLabel = computed(() => {
   const counts = conceptCoverage.value.counts
   if (!conceptCoverage.value.items.length) return 'ungeprüft'
-  if (counts.invalid || counts.missing)
-    return `${String(counts.invalid + counts.missing)} offen`
+  if (counts.invalid || counts.missing) return `${String(counts.invalid + counts.missing)} offen`
   if (counts.unknown) return `${String(counts.unknown)} ungeklärt`
   return `${String(counts.present)} nachgewiesen`
 })
@@ -2536,8 +2542,7 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
       generation
     }
     flow.setTemplateSelection({
-      moduleName:
-        selected.identity.moduleName || originContext.moduleName,
+      moduleName: selected.identity.moduleName || originContext.moduleName,
       templateName: selected.name,
       templateIdentity: selected.identity
     })
@@ -2580,6 +2585,44 @@ async function loadBootstrapTemplates(
     return templates
   } finally {
     if (isBootstrapContextCurrent(context)) templateLoading.value = false
+  }
+}
+
+async function refreshPublishedTemplatesAfterLifecycleChange(
+  change: ReportTemplateLifecycleChange
+): Promise<void> {
+  if (change.moduleName !== activeKbModule.value) return
+
+  const examinationName = extractExaminationName(patientExaminationDetail.value || {})
+  if (!examinationName || change.examination !== examinationName) return
+
+  const expectedBundleKey = activeBundleIdentityKey.value
+  templateLoading.value = true
+  try {
+    const templates = await fetchReportTemplatesByExamination(change.moduleName, examinationName)
+    if (
+      change.moduleName !== activeKbModule.value ||
+      expectedBundleKey !== activeBundleIdentityKey.value ||
+      examinationName !== extractExaminationName(patientExaminationDetail.value || {})
+    ) {
+      return
+    }
+    availableTemplates.value = templates
+    if (change.lifecycleStatus === 'draft' && flow.selectedTemplateName === change.templateName) {
+      templateSelectionError.value =
+        'Die aktuell verwendete Berichtsvorlage wurde entveröffentlicht. Der bestehende Entwurf bleibt erhalten, kann aber erst nach Auswahl einer veröffentlichten Vorlage weitergeführt werden.'
+    } else if (change.lifecycleStatus === 'published') {
+      templateSelectionError.value = null
+    }
+  } catch (error: unknown) {
+    templateSelectionError.value = reportingApiErrorMessage(
+      error,
+      'Die veröffentlichten Berichtsvorlagen konnten nach der Statusänderung nicht aktualisiert werden.'
+    )
+  } finally {
+    if (expectedBundleKey === activeBundleIdentityKey.value) {
+      templateLoading.value = false
+    }
   }
 }
 
@@ -3121,11 +3164,15 @@ watch(
   }
 )
 
-watch(activeBundleIdentityKey, async (nextKey, previousKey) => {
-  if (nextKey === previousKey) return
-  if (terminology.importing) return
-  await reconcileActiveTerminology()
-}, { immediate: true })
+watch(
+  activeBundleIdentityKey,
+  async (nextKey, previousKey) => {
+    if (nextKey === previousKey) return
+    if (terminology.importing) return
+    await reconcileActiveTerminology()
+  },
+  { immediate: true }
+)
 
 watch(
   [

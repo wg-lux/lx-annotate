@@ -397,7 +397,7 @@
                     <button
                       type="button"
                       class="btn btn-outline-success btn-sm mb-0"
-                      :disabled="isSavingBoxAnnotations || !currentTask"
+                      :disabled="isSavingBoxAnnotations || !currentTask || !canSubmitFrame"
                       data-test="box-save-button"
                       @click="submitBoxAnnotations"
                     >
@@ -407,7 +407,7 @@
                       v-if="isPhiRegionMode"
                       type="button"
                       class="btn btn-outline-warning btn-sm mb-0"
-                      :disabled="isSavingBoxAnnotations || !currentTask"
+                      :disabled="isSavingBoxAnnotations || !currentTask || !canSubmitFrame"
                       data-test="phi-empty-background-button"
                       @click="submitEmptyPhiBackgroundFrame"
                     >
@@ -568,14 +568,14 @@
               <div class="mt-3 d-flex gap-2 flex-wrap">
                 <button
                   class="btn btn-success sidebar-action-button"
-                  :disabled="isSubmitting"
+                  :disabled="!canSubmitFrame"
                   @click="submitLabels"
                 >
                   Labels speichern
                 </button>
                 <button
                   class="btn btn-outline-success sidebar-action-button"
-                  :disabled="isSubmitting"
+                  :disabled="!canSubmitFrame"
                   data-test="positive-example-button"
                   @click="submitPositiveExample"
                 >
@@ -583,7 +583,7 @@
                 </button>
                 <button
                   class="btn btn-outline-danger sidebar-action-button"
-                  :disabled="isSubmitting"
+                  :disabled="!canSubmitFrame"
                   data-test="negative-example-button"
                   @click="submitNegativeExample"
                 >
@@ -898,6 +898,9 @@ const showFrameImageStatus = computed(
 const canManuallyRetryFrameImage = computed(
   () => !!currentTask.value && frameImageLoadState.value === 'failed'
 )
+const canSubmitFrame = computed(
+  () => !isSubmitting.value && frameImageLoadState.value === 'loaded'
+)
 const frameImageStatusMessage = computed(() => {
   if (frameImageLoadState.value === 'pending') {
     return `Frame wird extrahiert... automatischer Versuch ${String(frameImageRetryCount.value)}/${String(FRAME_IMAGE_RETRY_LIMIT)}`
@@ -1187,11 +1190,14 @@ function handleFrameImageLoad(): void {
   syncFrameImageMetrics()
 }
 
-function scheduleFrameImageRetry(task: NonNullable<typeof currentTask.value>): void {
+function scheduleFrameImageRetry(
+  task: NonNullable<typeof currentTask.value>,
+  delayMs = FRAME_IMAGE_RETRY_DELAY_MS
+): void {
   clearFrameImageRetryTimer()
   frameImageRetryTimer = setTimeout(() => {
     void probeFrameImage(task)
-  }, FRAME_IMAGE_RETRY_DELAY_MS)
+  }, delayMs)
 }
 
 function handleFrameImageError(): void {
@@ -1299,6 +1305,22 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
       frameImageRetryCount.value += 1
       frameImageLoadState.value = 'pending'
       scheduleFrameImageRetry(task)
+      return
+    }
+    if (response.status === 429) {
+      if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+        errorMessage.value = 'Frame-Dekodierung ist ausgelastet. Bitte erneut versuchen.'
+        frameImageLoadState.value = 'failed'
+        return
+      }
+      const retryAfterSeconds = Number(response.headers['retry-after'] ?? 1)
+      const retryDelayMs =
+        Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+          ? retryAfterSeconds * 1000
+          : FRAME_IMAGE_RETRY_DELAY_MS
+      frameImageRetryCount.value += 1
+      frameImageLoadState.value = 'pending'
+      scheduleFrameImageRetry(task, retryDelayMs)
       return
     }
     if (response.status === 409) {
@@ -1455,6 +1477,11 @@ async function loadBoxAnnotationsForTask(task: typeof currentTask.value): Promis
 
 async function submitBoxAnnotations(): Promise<void> {
   if (!currentTask.value) return
+  if (frameImageLoadState.value !== 'loaded') {
+    boxAnnotationError.value =
+      'Box-Annotationen können erst gespeichert werden, wenn der Frame sichtbar ist.'
+    return
+  }
   const task = currentTask.value
   isSavingBoxAnnotations.value = true
   boxAnnotationError.value = null
@@ -1734,6 +1761,10 @@ function getTargetLabelId(task: NonNullable<typeof currentTask.value>): number |
 
 async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
   if (!currentTask.value) return
+  if (frameImageLoadState.value !== 'loaded') {
+    errorMessage.value = 'Labels können erst gespeichert werden, wenn der Frame sichtbar ist.'
+    return
+  }
   const task = currentTask.value
   const labelOptions = task.data.labelOptions ?? []
   if (labelOptions.length === 0) {

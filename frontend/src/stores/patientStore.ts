@@ -32,8 +32,8 @@ function isPatient(value: unknown): value is Patient {
         isOptionalNullableString(value.gender) &&
         isOptionalNullableString(value.center) &&
         isOptionalNullableString(value.centerKey) &&
-        isOptionalString(value.email) &&
-        isOptionalString(value.phone) &&
+        isOptionalNullableString(value.email) &&
+        isOptionalNullableString(value.phone) &&
         isOptionalNullableString(value.patientHash) &&
         isOptionalString(value.comments) &&
         (value.isRealPerson === undefined || typeof value.isRealPerson === 'boolean') &&

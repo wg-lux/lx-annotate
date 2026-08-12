@@ -1,19 +1,37 @@
+from __future__ import annotations
+
 from django.urls import include, path
 
+from lx_annotate.views.administration import (
+    administration_overview,
+    center_scope_assignment,
+    center_scope_users,
+    storage_artifact_stream,
+    storage_balance_work_cancel,
+    storage_balancing_action,
+    storage_operator_control,
+    storage_placement_preview,
+)
+from lx_annotate.views.application_settings import primary_annotation_settings_detail
+from lx_annotate.views.frame_annotation import BoundedDecodedFrameStreamView
 from lx_annotate.views.hub_export import (
     hub_export_mark,
     hub_export_overview,
     hub_export_unmark,
 )
 from lx_annotate.views.quarantine import quarantine_overview
-from lx_annotate.views.administration import (
-    administration_overview,
-    center_scope_assignment,
-    center_scope_users,
-)
-
 
 urlpatterns = [
+    path(
+        "settings/application/",
+        primary_annotation_settings_detail,
+        name="primary-annotation-settings-detail",
+    ),
+    path(
+        "media/videos/<int:video_id>/frames/<int:frame_number>/decoded-stream/",
+        BoundedDecodedFrameStreamView.as_view(),
+        name="bounded-decoded-frame-stream",
+    ),
     path(
         "administration/overview/",
         administration_overview,
@@ -23,6 +41,31 @@ urlpatterns = [
         "administration/center-scopes/",
         center_scope_users,
         name="center-scope-users",
+    ),
+    path(
+        "administration/storage-balancing/actions/",
+        storage_balancing_action,
+        name="storage-balancing-action",
+    ),
+    path(
+        "administration/storage-balancing/placement-preview/",
+        storage_placement_preview,
+        name="storage-placement-preview",
+    ),
+    path(
+        "administration/storage-balancing/work-items/<uuid:work_item_id>/cancel/",
+        storage_balance_work_cancel,
+        name="storage-balance-work-cancel",
+    ),
+    path(
+        "administration/storage-balancing/operator-controls/",
+        storage_operator_control,
+        name="storage-operator-control",
+    ),
+    path(
+        "administration/storage-artifacts/<uuid:placement_id>/stream/",
+        storage_artifact_stream,
+        name="storage-artifact-stream",
     ),
     path(
         "administration/center-scopes/<int:user_id>/",

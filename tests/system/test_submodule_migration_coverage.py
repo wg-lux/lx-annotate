@@ -57,6 +57,110 @@ def test_proxy_migration_modules_delegate_to_upstream(monkeypatch, filename, tar
     assert seen == [target]
 
 
+@pytest.mark.parametrize(
+    ("override", "upstream", "previous"),
+    [
+        (
+            "0039_hub_storage_placement",
+            "0060_hub_storage_placement",
+            "0038_videohlsartifact_encoding_profile_name_and_more",
+        ),
+        (
+            "0040_storage_control_plane_hardening",
+            "0061_storage_control_plane_hardening",
+            "0039_hub_storage_placement",
+        ),
+        (
+            "0041_storage_balance_work_item",
+            "0062_storage_balance_work_item",
+            "0040_storage_control_plane_hardening",
+        ),
+        (
+            "0042_storage_transfer_evidence",
+            "0063_storage_transfer_evidence",
+            "0041_storage_balance_work_item",
+        ),
+        (
+            "0043_bind_rotation_transfer_evidence",
+            "0064_bind_rotation_transfer_evidence",
+            "0042_storage_transfer_evidence",
+        ),
+        (
+            "0044_storage_transfer_commit_and_rekey",
+            "0065_storage_transfer_commit_and_rekey",
+            "0043_bind_rotation_transfer_evidence",
+        ),
+        (
+            "0045_storage_placement_media_lease_subject",
+            "0066_storage_placement_media_lease_subject",
+            "0044_storage_transfer_commit_and_rekey",
+        ),
+        (
+            "0046_storage_transfer_delete_evidence",
+            "0067_storage_transfer_delete_evidence",
+            "0045_storage_placement_media_lease_subject",
+        ),
+        (
+            "0047_storage_node_probe_state",
+            "0068_storage_node_probe_state",
+            "0046_storage_transfer_delete_evidence",
+        ),
+        (
+            "0048_storage_balance_cancellation_receipt",
+            "0069_storage_balance_cancellation_receipt",
+            "0047_storage_node_probe_state",
+        ),
+        (
+            "0049_storage_reconciliation",
+            "0070_storage_reconciliation",
+            "0048_storage_balance_cancellation_receipt",
+        ),
+        (
+            "0050_storage_operator_control",
+            "0071_storage_operator_control",
+            "0049_storage_reconciliation",
+        ),
+    ],
+)
+def test_storage_override_chain_preserves_operations_and_rebases_dependency(
+    override: str,
+    upstream: str,
+    previous: str,
+) -> None:
+    override_migration = importlib.import_module(
+        f"lx_annotate.migration_overrides.endoreg_db.{override}",
+    ).Migration
+    upstream_migration = importlib.import_module(
+        f"endoreg_db.migrations.{upstream}",
+    ).Migration
+
+    assert override_migration.operations is upstream_migration.operations
+    assert ("endoreg_db", previous) in override_migration.dependencies
+
+
+def test_lx_dtypes_override_tracks_pinned_video_model_and_leaf() -> None:
+    module = importlib.import_module(
+        "lx_annotate.migration_overrides.lx_dtypes_django.0005_videofiledjango",
+    )
+    create = next(
+        operation
+        for operation in module.Migration.operations
+        if isinstance(operation, migrations.CreateModel)
+    )
+
+    assert module.Migration.dependencies == [
+        ("lx_dtypes_django", "0001_initial_squashed_0004_merge_20260402_0343"),
+    ]
+    assert create.name == "VideoFileDjango"
+    assert {name for name, _field in create.fields}.issuperset(
+        {"uuid", "video_hash", "raw_file", "processed_file", "storage_mode"},
+    )
+    root = Path("lx_annotate/migration_overrides/lx_dtypes_django")
+    assert (root / "max_migration.txt").read_text(encoding="utf-8").strip() == (
+        "0005_videofiledjango"
+    )
+
+
 def test_non_atomic_override_migration_sets_atomic_false(monkeypatch):
     import importlib as importlib_module
 
@@ -69,7 +173,7 @@ def test_non_atomic_override_migration_sets_atomic_false(monkeypatch):
     )
 
     namespace = runpy.run_path(
-        "lx_annotate/migration_overrides/endoreg_db/0008_imageclassificationannotation_upsert_fields.py"
+        "lx_annotate/migration_overrides/endoreg_db/0008_imageclassificationannotation_upsert_fields.py",
     )
 
     assert namespace["Migration"] is migration_cls
@@ -78,7 +182,7 @@ def test_non_atomic_override_migration_sets_atomic_false(monkeypatch):
 
 def test_import_monitoring_migration_backfills_terminal_error_codes():
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0031_uploadjob_error_code_uploadjob_last_attempt_at_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0031_uploadjob_error_code_uploadjob_last_attempt_at_and_more",
     )
     updates = []
 
@@ -104,7 +208,7 @@ def test_import_monitoring_migration_backfills_terminal_error_codes():
         for model_name in ("UploadJob", "VideoHlsArtifact")
     }
     apps = SimpleNamespace(
-        get_model=lambda app_label, model_name: models_by_name[model_name]
+        get_model=lambda app_label, model_name: models_by_name[model_name],
     )
     schema_editor = SimpleNamespace(connection=SimpleNamespace(alias="deployment"))
 
@@ -145,7 +249,7 @@ def test_import_monitoring_migration_backfills_terminal_error_codes():
 
 def test_portal_user_center_migration_preserves_examiner_memberships():
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0033_portaluserinfo_centers"
+        "lx_annotate.migration_overrides.endoreg_db.0033_portaluserinfo_centers",
     )
     created_memberships = []
 
@@ -153,7 +257,7 @@ def test_portal_user_center_migration_preserves_examiner_memberships():
         objects = SimpleNamespace(
             bulk_create=lambda memberships, ignore_conflicts: (
                 created_memberships.extend(memberships)
-            )
+            ),
         )
 
         def __init__(self, *, portaluserinfo_id, center_id):
@@ -171,7 +275,7 @@ def test_portal_user_center_migration_preserves_examiner_memberships():
         [
             SimpleNamespace(pk=11, examiner=SimpleNamespace(center_id=101)),
             SimpleNamespace(pk=12, examiner=SimpleNamespace(center_id=102)),
-        ]
+        ],
     )
     portal_user_info = SimpleNamespace(
         centers=SimpleNamespace(through=Membership),
@@ -193,7 +297,7 @@ def test_portal_user_center_migration_preserves_examiner_memberships():
 
 def test_release_migration_contains_hls_generation_and_import_lease_contracts():
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0035_reportimportattempt_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0035_reportimportattempt_and_more",
     )
 
     assert module.Migration.dependencies[0] == (
@@ -225,7 +329,7 @@ def test_release_migration_contains_hls_generation_and_import_lease_contracts():
 
 def test_add_field_if_missing_skips_existing_column(monkeypatch):
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0004_videofile_uuid"
+        "lx_annotate.migration_overrides.endoreg_db.0004_videofile_uuid",
     )
     calls = []
 
@@ -244,7 +348,7 @@ def test_add_field_if_missing_skips_existing_column(monkeypatch):
         _meta=SimpleNamespace(
             db_table="video_table",
             get_field=lambda _name: SimpleNamespace(column="uuid"),
-        )
+        ),
     )
     to_state = SimpleNamespace(apps=SimpleNamespace(get_model=lambda *args: to_model))
     schema_editor = SimpleNamespace(
@@ -252,10 +356,10 @@ def test_add_field_if_missing_skips_existing_column(monkeypatch):
             cursor=lambda: _null_context(),
             introspection=SimpleNamespace(
                 get_table_description=lambda cursor, table_name: [
-                    SimpleNamespace(name="uuid")
-                ]
+                    SimpleNamespace(name="uuid"),
+                ],
             ),
-        )
+        ),
     )
 
     operation.database_forwards("endoreg_db", schema_editor, None, to_state)
@@ -265,7 +369,7 @@ def test_add_field_if_missing_skips_existing_column(monkeypatch):
 
 def test_add_field_if_missing_calls_super_when_column_missing(monkeypatch):
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0005_rawpdffile_uuid"
+        "lx_annotate.migration_overrides.endoreg_db.0005_rawpdffile_uuid",
     )
     calls = []
 
@@ -284,16 +388,16 @@ def test_add_field_if_missing_calls_super_when_column_missing(monkeypatch):
         _meta=SimpleNamespace(
             db_table="raw_pdf_table",
             get_field=lambda _name: SimpleNamespace(column="uuid"),
-        )
+        ),
     )
     to_state = SimpleNamespace(apps=SimpleNamespace(get_model=lambda *args: to_model))
     schema_editor = SimpleNamespace(
         connection=SimpleNamespace(
             cursor=lambda: _null_context(),
             introspection=SimpleNamespace(
-                get_table_description=lambda cursor, table_name: []
+                get_table_description=lambda cursor, table_name: [],
             ),
-        )
+        ),
     )
 
     operation.database_forwards("endoreg_db", schema_editor, None, to_state)
@@ -303,10 +407,10 @@ def test_add_field_if_missing_calls_super_when_column_missing(monkeypatch):
 
 def test_uuid_population_helpers_assign_missing_values(monkeypatch):
     video_module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0004_videofile_uuid"
+        "lx_annotate.migration_overrides.endoreg_db.0004_videofile_uuid",
     )
     pdf_module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0005_rawpdffile_uuid"
+        "lx_annotate.migration_overrides.endoreg_db.0005_rawpdffile_uuid",
     )
 
     fixed_values = iter(["video-uuid", "pdf-uuid"])
@@ -319,7 +423,7 @@ def test_uuid_population_helpers_assign_missing_values(monkeypatch):
     apps = SimpleNamespace(
         get_model=lambda app_label, model_name: (  # noqa: ARG005
             video_model if model_name == "VideoFile" else raw_pdf_model
-        )
+        ),
     )
     video_schema_editor = _FakeUuidSchemaEditor(rows=[(10,)])
     raw_pdf_schema_editor = _FakeUuidSchemaEditor(rows=[(20,)])
@@ -351,7 +455,7 @@ def test_uuid_population_helpers_assign_missing_values(monkeypatch):
 
 def test_center_key_population_handles_legacy_center_without_display_name():
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0010_remove_requirementset_reqset_exam_links_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0010_remove_requirementset_reqset_exam_links_and_more",
     )
 
     existing = _FakeCenterRecord(name="Test Center", center_key="test-center")
@@ -367,9 +471,9 @@ def test_center_key_population_handles_legacy_center_without_display_name():
                     SimpleNamespace(name="id"),
                     SimpleNamespace(name="name"),
                     SimpleNamespace(name="center_key"),
-                ]
+                ],
             ),
-        )
+        ),
     )
 
     module.populate_missing_center_keys(apps, schema_editor)
@@ -380,7 +484,7 @@ def test_center_key_population_handles_legacy_center_without_display_name():
 
 def test_center_identity_repair_adds_display_name_and_center_key(monkeypatch):
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0010_remove_requirementset_reqset_exam_links_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0010_remove_requirementset_reqset_exam_links_and_more",
     )
     calls = []
 
@@ -407,28 +511,29 @@ def test_center_identity_repair_adds_display_name_and_center_key(monkeypatch):
     [("sqlite", ""), ("postgresql", " CASCADE")],
 )
 def test_legacy_requirement_delete_model_uses_backend_compatible_if_exists_sql(
-    database_vendor, cascade_clause
+    database_vendor,
+    cascade_clause,
 ):
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0013_remove_legacy_requirement_models"
+        "lx_annotate.migration_overrides.endoreg_db.0013_remove_legacy_requirement_models",
     )
     executed_sql = []
     through_model = SimpleNamespace(
         _meta=SimpleNamespace(
             auto_created=True,
             db_table="endoreg_db_requirement_finding_classifications",
-        )
+        ),
     )
     model = SimpleNamespace(
         _meta=SimpleNamespace(
             db_table="endoreg_db_requirement",
             local_many_to_many=[
-                SimpleNamespace(remote_field=SimpleNamespace(through=through_model))
+                SimpleNamespace(remote_field=SimpleNamespace(through=through_model)),
             ],
-        )
+        ),
     )
     from_state = SimpleNamespace(
-        apps=SimpleNamespace(get_model=lambda app_label, model_name: model)
+        apps=SimpleNamespace(get_model=lambda app_label, model_name: model),
     )
     schema_editor = SimpleNamespace(
         connection=SimpleNamespace(vendor=database_vendor),
@@ -448,7 +553,7 @@ def test_legacy_requirement_delete_model_uses_backend_compatible_if_exists_sql(
 
 def test_sensitivemeta_tags_migration_creates_missing_tag_table():
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0014_sensitivemeta_tags_sensitivemeta_validation_comment_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0014_sensitivemeta_tags_sensitivemeta_validation_comment_and_more",
     )
     created_models = []
     tag_model = SimpleNamespace(_meta=SimpleNamespace(db_table="endoreg_db_tag"))
@@ -468,7 +573,7 @@ def test_sensitivemeta_tags_migration_creates_missing_tag_table():
 
 def test_sensitivemeta_tags_migration_keeps_existing_tag_table():
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0014_sensitivemeta_tags_sensitivemeta_validation_comment_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0014_sensitivemeta_tags_sensitivemeta_validation_comment_and_more",
     )
     created_models = []
     tag_model = SimpleNamespace(_meta=SimpleNamespace(db_table="endoreg_db_tag"))
@@ -477,7 +582,7 @@ def test_sensitivemeta_tags_migration_keeps_existing_tag_table():
         connection=SimpleNamespace(
             cursor=lambda: _null_context(),
             introspection=SimpleNamespace(
-                table_names=lambda cursor: ["endoreg_db_tag"]
+                table_names=lambda cursor: ["endoreg_db_tag"],
             ),
         ),
         create_model=created_models.append,
@@ -490,11 +595,11 @@ def test_sensitivemeta_tags_migration_keeps_existing_tag_table():
 
 def test_video_annotations_migration_creates_missing_ai_dataset_table():
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0016_rename_streamable_relative_path_videofile_raw_streamable_relative_path_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0016_rename_streamable_relative_path_videofile_raw_streamable_relative_path_and_more",
     )
     created_models = []
     ai_dataset_model = SimpleNamespace(
-        _meta=SimpleNamespace(db_table="endoreg_db_aidataset")
+        _meta=SimpleNamespace(db_table="endoreg_db_aidataset"),
     )
     apps = SimpleNamespace(get_model=lambda app_label, model_name: ai_dataset_model)
     schema_editor = SimpleNamespace(
@@ -512,18 +617,18 @@ def test_video_annotations_migration_creates_missing_ai_dataset_table():
 
 def test_video_annotations_migration_keeps_existing_ai_dataset_table():
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0016_rename_streamable_relative_path_videofile_raw_streamable_relative_path_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0016_rename_streamable_relative_path_videofile_raw_streamable_relative_path_and_more",
     )
     created_models = []
     ai_dataset_model = SimpleNamespace(
-        _meta=SimpleNamespace(db_table="endoreg_db_aidataset")
+        _meta=SimpleNamespace(db_table="endoreg_db_aidataset"),
     )
     apps = SimpleNamespace(get_model=lambda app_label, model_name: ai_dataset_model)
     schema_editor = SimpleNamespace(
         connection=SimpleNamespace(
             cursor=lambda: _null_context(),
             introspection=SimpleNamespace(
-                table_names=lambda cursor: ["endoreg_db_aidataset"]
+                table_names=lambda cursor: ["endoreg_db_aidataset"],
             ),
         ),
         create_model=created_models.append,
@@ -536,7 +641,7 @@ def test_video_annotations_migration_keeps_existing_ai_dataset_table():
 
 def test_ai_dataset_backfill_uses_column_scoped_queries(monkeypatch):
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0021_anonymizationfieldmetric_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0021_anonymizationfieldmetric_and_more",
     )
     settings_updates = []
 
@@ -595,7 +700,7 @@ def test_ai_dataset_backfill_uses_column_scoped_queries(monkeypatch):
     apps = SimpleNamespace(
         get_model=lambda app_label, model_name: (
             settings_model if model_name == "ApplicationSettings" else dataset_model
-        )
+        ),
     )
     monkeypatch.setattr(
         module,
@@ -617,7 +722,7 @@ def test_ai_dataset_backfill_uses_column_scoped_queries(monkeypatch):
 
 def test_report_llm_migration_repairs_videostate_constraint_columns(monkeypatch):
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0023_reportllminferencejob_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0023_reportllminferencejob_and_more",
     )
     calls = []
 
@@ -648,7 +753,7 @@ def test_report_llm_migration_repairs_videostate_constraint_columns(monkeypatch)
 
 def test_report_llm_migration_repairs_numeric_distribution_columns(monkeypatch):
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0023_reportllminferencejob_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0023_reportllminferencejob_and_more",
     )
     calls = []
 
@@ -658,7 +763,8 @@ def test_report_llm_migration_repairs_numeric_distribution_columns(monkeypatch):
     monkeypatch.setattr(module, "add_field_if_missing", record_add_field_if_missing)
 
     module.ensure_numeric_value_distribution_columns(
-        apps=object(), schema_editor=object()
+        apps=object(),
+        schema_editor=object(),
     )
 
     assert [
@@ -676,7 +782,7 @@ def test_report_llm_migration_repairs_numeric_distribution_columns(monkeypatch):
 
 def test_report_llm_migration_repairs_auto_many_to_many_tables(monkeypatch):
     module = importlib.import_module(
-        "lx_annotate.migration_overrides.endoreg_db.0023_reportllminferencejob_and_more"
+        "lx_annotate.migration_overrides.endoreg_db.0023_reportllminferencejob_and_more",
     )
     calls = []
 
@@ -707,7 +813,7 @@ def test_report_llm_migration_repairs_auto_many_to_many_tables(monkeypatch):
                             remote_field=SimpleNamespace(through=explicit_through),
                         ),
                     ],
-                )
+                ),
             ),
             SimpleNamespace(
                 _meta=SimpleNamespace(
@@ -717,11 +823,11 @@ def test_report_llm_migration_repairs_auto_many_to_many_tables(monkeypatch):
                         SimpleNamespace(
                             name="choices",
                             remote_field=SimpleNamespace(through=auto_through),
-                        )
+                        ),
                     ],
-                )
+                ),
             ),
-        ]
+        ],
     )
 
     module.ensure_auto_many_to_many_tables(apps=fake_apps, schema_editor=object())

@@ -1,41 +1,31 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from threading import Barrier
 import subprocess
-import stat
+from datetime import datetime
+from pathlib import Path
 
 import pytest
 import yaml
-
 from tracker import (
-    AgentMessage,
-    AgentMessageSeverity,
+    TRACKING_DIR,
     Assessment,
     AssessmentStatus,
     Evidence,
     EvidenceKind,
     ExecutionMode,
     ExternalCodexExecBackend,
-    FindingConfidence,
     FeatureDefinition,
     FeatureTrackingState,
-    ReadinessStatus,
-    OrchestrationContract,
+    FindingConfidence,
     NativeSubagentBackend,
-    TRACKING_DIR,
+    OrchestrationContract,
+    ReadinessStatus,
     TaskTopology,
     TrackerError,
     WorkerFinding,
     WorkerResult,
     WorkUnit,
     WorkUnitStatus,
-    acknowledge_agent_message,
-    acquire_feature_lock,
-    active_feature_locks,
-    agent_inbox,
     actively_tracked_features,
     checkpoint_orchestration,
     derive_readiness,
@@ -47,11 +37,7 @@ from tracker import (
     main,
     mark_feature_done,
     reopen_feature,
-    release_feature_lock,
-    renew_feature_lock,
-    reply_to_agent_message,
     save_feature,
-    send_agent_message,
     update_assessment,
 )
 
@@ -91,7 +77,7 @@ def _unassessed_feature(feature: FeatureDefinition) -> FeatureDefinition:
         update={
             "source_documents": (),
             "definition_of_done": criteria,
-        }
+        },
     )
 
 
@@ -208,7 +194,7 @@ def test_check_returns_failure_until_definition_of_done_is_verified(
     (tracking_dir / "policy.yml").write_text(
         yaml.safe_dump(
             policy.model_copy(update={"migrated_markdown_trackers": ()}).model_dump(
-                mode="json"
+                mode="json",
             ),
             sort_keys=False,
         ),
@@ -270,7 +256,8 @@ def test_commit_guard_uses_staged_readiness_not_unstaged_yaml(
 
     feature_path.write_text(
         yaml.safe_dump(
-            _verified_feature(feature).model_dump(mode="json"), sort_keys=False
+            _verified_feature(feature).model_dump(mode="json"),
+            sort_keys=False,
         ),
         encoding="utf-8",
     )
@@ -418,11 +405,14 @@ def test_worker_result_schema_and_checkpoints_are_strict_and_idempotent() -> Non
         work_unit_id="review",
         status=WorkUnitStatus.IN_PROGRESS,
     )
-    assert checkpoint_orchestration(
-        in_progress,
-        work_unit_id="review",
-        status=WorkUnitStatus.IN_PROGRESS,
-    ) is in_progress
+    assert (
+        checkpoint_orchestration(
+            in_progress,
+            work_unit_id="review",
+            status=WorkUnitStatus.IN_PROGRESS,
+        )
+        is in_progress
+    )
 
     result = WorkerResult(
         task_status="complete",

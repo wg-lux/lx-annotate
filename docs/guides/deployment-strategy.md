@@ -348,6 +348,47 @@ answer different questions:
 - the live database determines whether the required tables, columns,
   constraints, and existing rows are consistent
 
+### Migration Override Retirement
+
+Migration override retirement is a two-release operation tracked by
+`feature-tracking/MigrationOverrideRetirement.yml`. Do not remove
+`MIGRATION_MODULES` or the override files from a deployment that has only the
+legacy migration identities recorded.
+
+Release A retains the overrides and provides a read-only preflight:
+
+```console
+python manage.py converge_migration_history
+```
+
+The preflight requires the reviewed dependency versions and semantically
+identical migration manifests. Manifest identities hash the normalized Python
+syntax tree, including canonical import grouping and ordering, so formatting,
+comments, and equivalent import sorting do not invalidate a reviewed migration,
+while imported symbols, dependency, operation, function-body, and literal
+changes do. The complete legacy history and passing runtime schema, constraint,
+data, and environment checks are also required. Any unknown, incomplete, or
+partially converged history is a blocker. After taking the normal database
+backup and placing the service in the deployment maintenance window, apply the
+bridge:
+
+```console
+python manage.py converge_migration_history --apply
+```
+
+Writes are supported only on PostgreSQL. The command locks the Django migration
+recorder, repeats the history checks inside one transaction, and records only
+the missing canonical migration identities. It does not execute schema
+operations, delete legacy identities, or modify application rows. Re-running it
+is idempotent and reports `already_converged`.
+
+Every database must report convergence before Release B removes the override
+setting and files. Release B acceptance requires an empty canonical migration
+plan, a fresh canonical database migration, the runtime acceptance checks, and
+normalized PostgreSQL schema comparison against the reviewed Release A graph.
+To roll back Release B, redeploy Release A; retain the canonical identities
+because the legacy override loader ignores them.
+
 A tracker entry marked done therefore does not prove that a particular host has
 the matching wheel or an up-to-date database. Conversely, a database
 introspection failure does not prove that the tracker or installed package is

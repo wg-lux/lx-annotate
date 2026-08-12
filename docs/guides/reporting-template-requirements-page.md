@@ -28,6 +28,27 @@ The goal of this page is simple:
 
 This means it is part of the guided multi-step reporting process, not a standalone page.
 
+## Publication And Runtime Visibility
+
+The template builder runs inside `ReportingShell` and uses the shell's active
+knowledge-base module. Saving a template creates a draft; it does not make the
+template available for clinical reporting. Publication remains a separate,
+authorized action and succeeds only after the backend readiness compiler reports
+that the template can be published.
+
+After a successful publish or unpublish action, the builder notifies the shell.
+The shell then reloads the published templates for the active module and current
+examination. Normal reporting routes continue to receive only templates whose
+lifecycle is `published` and whose production readiness is valid. If a template
+used by an existing draft is unpublished, the draft is retained but cannot be
+treated as verified against an available production template.
+
+Templates shipped inside the `lx-dtypes` wheel are immutable release content.
+They are published through the protected package release workflow, not by
+writing into `site-packages` at runtime. To author or change lifecycle state,
+first import an editable terminology bundle so the API can resolve one explicit,
+writable module root and version.
+
 ---
 
 ## What You See on the Page

@@ -125,6 +125,11 @@ export const endpoints = {
 
   administration: {
     overview: 'administration/overview/',
+    storageActions: 'administration/storage-balancing/actions/',
+    storagePlacementPreview: 'administration/storage-balancing/placement-preview/',
+    storageWorkCancellation: (workItemId: UUID) =>
+      `administration/storage-balancing/work-items/${pathId(workItemId)}/cancel/`,
+    storageOperatorControls: 'administration/storage-balancing/operator-controls/',
     centerScopes: 'administration/center-scopes/',
     centerScope: (userId: Id) => `administration/center-scopes/${pathId(userId)}/`
   },

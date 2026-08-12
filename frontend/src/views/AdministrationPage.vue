@@ -51,6 +51,253 @@
         </article>
       </section>
 
+      <section
+        v-if="overview.effectivePermissions.storageMonitorRead"
+        class="admin-card mt-4"
+        data-test="storage-balancing"
+      >
+        <div class="section-heading">
+          <div>
+            <h2>Storage-Knoten</h2>
+            <p>
+              Persistierte Kapazität und Platzierungssteuerung des Hubs. Die Datenebene wird separat
+              bereitgestellt und hier niemals stillschweigend vorausgesetzt.
+            </p>
+          </div>
+          <span class="badge" :class="storageTopologyBadge">
+            {{ storageTopologyLabel }}
+          </span>
+        </div>
+        <div
+          v-if="overview.storageBalancing.blockedReason"
+          class="alert alert-warning"
+          role="status"
+        >
+          {{ overview.storageBalancing.blockedReason }}
+        </div>
+        <div class="storage-control-grid mb-3" data-test="storage-planner-status">
+          <div>
+            <span class="status-label">Platzierungsplaner</span>
+            <strong :class="overview.storageBalancing.planner.compatible ? 'text-warning' : 'text-danger'">
+              {{ storagePlannerLabel }}
+            </strong>
+            <small>
+              Vertrag:
+              {{ overview.storageBalancing.planner.contractVersion ?? 'nicht veröffentlicht' }}
+              / erwartet {{ overview.storageBalancing.planner.expectedContractVersion }}
+            </small>
+          </div>
+          <div>
+            <span class="status-label">Reservierungen</span>
+            <strong>{{ overview.storageBalancing.activeReservationCount }}</strong>
+            <small>{{ formatStateCounts(overview.storageBalancing.reservationCounts) }}</small>
+          </div>
+          <div>
+            <span class="status-label">Rotationsqueue</span>
+            <strong>{{ overview.storageBalancing.queuedRotationCount }}</strong>
+            <small>{{ formatStateCounts(overview.storageBalancing.rotationCounts) }}</small>
+          </div>
+          <div>
+            <span class="status-label">Queue-Ausführung</span>
+            <strong :class="overview.storageBalancing.planner.queueExecutionEnabled ? 'text-success' : 'text-danger'">
+              {{ overview.storageBalancing.planner.queueExecutionEnabled ? 'Aktiv' : 'Deaktiviert' }}
+            </strong>
+            <small>
+              Fehler: {{ overview.storageBalancing.failedTransferCount }},
+              überfällige Reservierungen: {{ overview.storageBalancing.overdueReservationCount }},
+              auslaufende Schlüsselobjekte: {{ overview.storageBalancing.retiredTransferCount }}
+            </small>
+          </div>
+          <div>
+            <span class="status-label">Reconciliation</span>
+            <strong
+              :class="overview.storageBalancing.reconciliationCriticalCount ? 'text-danger' : 'text-muted'"
+            >
+              {{ overview.storageBalancing.reconciliationCriticalCount }} kritisch ·
+              {{ overview.storageBalancing.reconciliationWarningCount }} Warnungen
+            </strong>
+            <small>
+              {{ overview.storageBalancing.reconciliationRunCount }} Läufe ·
+              {{ overview.storageBalancing.lastReconciliationAt ?? 'noch nicht ausgeführt' }}
+            </small>
+          </div>
+        </div>
+        <div
+          v-if="overview.effectivePermissions.centerScopeGlobalAdmin"
+          class="d-flex flex-wrap gap-2 mb-3"
+          data-test="storage-operator-controls"
+        >
+          <button
+            class="btn btn-sm btn-outline-warning mb-0"
+            type="button"
+            :disabled="storageOperatorPending !== null"
+            @click="runStorageOperatorControl(overview.storageBalancing.planner.operatorPaused ? 'resume' : 'pause')"
+          >
+            {{ overview.storageBalancing.planner.operatorPaused ? 'Balancing fortsetzen' : 'Balancing pausieren' }}
+          </button>
+          <button
+            class="btn btn-sm btn-outline-secondary mb-0"
+            type="button"
+            :disabled="storageOperatorPending !== null"
+            @click="runStorageOperatorControl('reconcile')"
+          >
+            Reconciliation anfordern
+          </button>
+          <button
+            class="btn btn-sm btn-outline-primary mb-0"
+            type="button"
+            :disabled="storageOperatorPending !== null || overview.storageBalancing.planner.operatorPaused"
+            @click="runStorageOperatorControl('rebalance')"
+          >
+            Rebalance anfordern
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Knoten</th>
+                <th>Status</th>
+                <th>Nutzbar</th>
+                <th>Reserviert / in Arbeit</th>
+                <th>Belegt</th>
+                <th>Messalter</th>
+                <th>Platzierungen</th>
+                <th v-if="overview.effectivePermissions.centerScopeGlobalAdmin">Aktion</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="node in overview.storageBalancing.nodes" :key="node.nodeKey">
+                <td>
+                  <strong>{{ node.displayName }}</strong>
+                  <small class="d-block text-muted">{{ node.nodeKey }}</small>
+                  <small class="d-block text-muted"
+                    >{{ node.failureDomain }} · {{ node.residencyKey }}</small
+                  >
+                </td>
+                <td>
+                  <span
+                    :data-test="`storage-node-status-${node.nodeKey}`"
+                    class="badge"
+                    :class="
+                      !node.active
+                        ? 'bg-secondary'
+                        : !node.isReachable
+                          ? 'bg-danger'
+                          : !node.acceptingWrites
+                            ? 'bg-info text-dark'
+                            : node.isDraining
+                        ? 'bg-warning text-dark'
+                        : 'bg-success'
+                    "
+                  >
+                    {{
+                      !node.active
+                        ? 'Inaktiv'
+                        : !node.isReachable
+                          ? 'Nicht erreichbar'
+                          : !node.acceptingWrites
+                            ? 'Schreibgeschützt'
+                            : node.isDraining
+                              ? 'Wird entleert'
+                              : 'Aktiv'
+                    }}
+                  </span>
+                </td>
+                <td>{{ formatBytes(node.availableBytes) }}</td>
+                <td>{{ formatBytes(node.reservedBytes + node.inFlightBytes) }}</td>
+                <td>{{ formatBytes(node.committedBytes) }}</td>
+                <td>{{ formatDuration(node.healthFreshnessSeconds) }}</td>
+                <td>{{ node.currentPlacementCount }}</td>
+                <td v-if="overview.effectivePermissions.centerScopeGlobalAdmin">
+                  <button
+                    class="btn btn-sm mb-0"
+                    :data-test="`storage-node-action-${node.nodeKey}`"
+                    :class="node.isDraining ? 'btn-outline-success' : 'btn-outline-warning'"
+                    type="button"
+                    :disabled="storageActionPending === node.nodeKey"
+                    @click="runStorageAction(node)"
+                  >
+                    {{ node.isDraining ? 'Wieder aufnehmen' : 'Entleeren' }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!overview.storageBalancing.nodes.length">
+                <td
+                  :colspan="overview.effectivePermissions.centerScopeGlobalAdmin ? 8 : 7"
+                  class="text-center text-muted py-4"
+                >
+                  Keine Storage-Knoten konfiguriert.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-4" data-test="storage-balance-work">
+          <h3>Ausgleichsaufträge</h3>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Artefakt</th>
+                  <th>Pfad</th>
+                  <th>Status</th>
+                  <th>Größe</th>
+                  <th v-if="overview.effectivePermissions.centerScopeGlobalAdmin">Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="work in overview.storageBalancing.workItems" :key="work.workItemId">
+                  <td>
+                    <strong>{{ work.artifactKey }}</strong>
+                    <small class="d-block text-muted">{{ work.artifactKind }} · {{ work.reason }}</small>
+                  </td>
+                  <td>{{ work.sourceNodeKey }} → {{ work.targetNodeKey ?? 'kein Ziel' }}</td>
+                  <td>
+                    {{ work.rotationState ?? work.status }}
+                    <small v-if="work.cancellationReceiptId" class="d-block text-muted">
+                      storniert · {{ work.cancellationReceiptId }}
+                    </small>
+                    <small v-else-if="work.terminalReason" class="d-block text-muted">
+                      {{ work.terminalReason }}
+                    </small>
+                  </td>
+                  <td>{{ formatBytes(work.expectedSizeBytes) }}</td>
+                  <td v-if="overview.effectivePermissions.centerScopeGlobalAdmin">
+                    <button
+                      class="btn btn-sm btn-outline-danger mb-0"
+                      type="button"
+                      :data-test="`cancel-storage-work-${work.workItemId}`"
+                      :disabled="!work.cancellable || storageWorkPending === work.workItemId"
+                      @click="runStorageWorkCancellation(work)"
+                    >
+                      Stornieren
+                    </button>
+                    <button
+                      class="btn btn-sm btn-outline-primary mb-0 ms-1"
+                      type="button"
+                      :data-test="`retry-storage-work-${work.workItemId}`"
+                      :disabled="!work.retryable || storageOperatorPending !== null"
+                      @click="runStorageOperatorControl('retry', work)"
+                    >
+                      Neu platzieren
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="!overview.storageBalancing.workItems.length">
+                  <td
+                    :colspan="overview.effectivePermissions.centerScopeGlobalAdmin ? 5 : 4"
+                    class="text-center text-muted py-3"
+                  >
+                    Keine Ausgleichsaufträge vorhanden.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="admin-card mt-4" data-test="effective-permissions">
         <div class="section-heading">
           <div>
@@ -314,16 +561,22 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import {
   fetchAdministrationOverview,
   fetchCenterScopeUsers,
+  applyStorageOperatorControl,
+  cancelStorageBalanceWork,
+  updateStorageDrainState,
   updateCenterScope,
   type AdministrationOverview,
   type CenterAssignmentStatus,
   type CenterChoice,
-  type CenterScopeUser
+  type CenterScopeUser,
+  type StorageBalanceWorkItem,
+  type StorageOperatorControlAction,
+  type StorageNodeOverview
 } from '@/api/administrationApi'
 
 interface AdministrationErrorPayload {
@@ -348,6 +601,9 @@ const errorMessage = ref('')
 const accessError = ref('')
 const reason = ref('')
 const selectedCenterKey = ref('')
+const storageActionPending = ref<string | null>(null)
+const storageWorkPending = ref<string | null>(null)
+const storageOperatorPending = ref<StorageOperatorControlAction | null>(null)
 const pendingChange = ref<{ user: CenterScopeUser; operation: 'assign' | 'revoke' } | null>(null)
 let refreshTimer: number | null = null
 
@@ -380,6 +636,100 @@ async function loadAccessUsers(page = accessPage.value) {
       error,
       'Center-Zugriffe konnten nicht geladen werden.'
     )
+  }
+}
+
+async function runStorageAction(node: StorageNodeOverview) {
+  const action = node.isDraining ? 'resume' : 'drain'
+  const reason = window
+    .prompt(
+      action === 'drain'
+        ? 'Begründung für das Entleeren dieses Storage-Knotens:'
+        : 'Begründung für die Wiederaufnahme dieses Storage-Knotens:'
+    )
+    ?.trim()
+  if (!reason) return
+  const confirmed = window.confirm(
+    action === 'drain'
+      ? `Storage-Knoten ${node.nodeKey} für neue Platzierungen sperren?`
+      : `Storage-Knoten ${node.nodeKey} wieder für neue Platzierungen freigeben?`
+  )
+  if (!confirmed) return
+
+  storageActionPending.value = node.nodeKey
+  errorMessage.value = ''
+  try {
+    await updateStorageDrainState({
+      action,
+      nodeKey: node.nodeKey,
+      expectedIsDraining: node.isDraining,
+      reason,
+      idempotencyKey: crypto.randomUUID()
+    })
+    overview.value = await fetchAdministrationOverview()
+  } catch (error: unknown) {
+    errorMessage.value = administrationErrorMessage(
+      error,
+      'Storage-Knotenstatus konnte nicht geändert werden.'
+    )
+  } finally {
+    storageActionPending.value = null
+  }
+}
+
+async function runStorageWorkCancellation(work: StorageBalanceWorkItem) {
+  if (!work.cancellable) return
+  const reason = window.prompt('Begründung für das Stornieren dieses Ausgleichsauftrags:')?.trim()
+  if (!reason) return
+  if (!window.confirm(`Ausgleichsauftrag ${work.workItemId} vor dem Kopieren stornieren?`)) return
+
+  storageWorkPending.value = work.workItemId
+  errorMessage.value = ''
+  try {
+    await cancelStorageBalanceWork(work.workItemId, {
+      reason,
+      idempotencyKey: crypto.randomUUID()
+    })
+    overview.value = await fetchAdministrationOverview()
+  } catch (error: unknown) {
+    errorMessage.value = administrationErrorMessage(
+      error,
+      'Ausgleichsauftrag konnte nicht sicher storniert werden.'
+    )
+  } finally {
+    storageWorkPending.value = null
+  }
+}
+
+async function runStorageOperatorControl(
+  action: StorageOperatorControlAction,
+  work?: StorageBalanceWorkItem
+) {
+  const reason = window.prompt(`Begründung für die Storage-Aktion „${action}“:`)?.trim()
+  if (!reason) return
+  if (!window.confirm(`Storage-Aktion „${action}“ verbindlich anfordern?`)) return
+
+  storageOperatorPending.value = action
+  errorMessage.value = ''
+  try {
+    const result = await applyStorageOperatorControl({
+      action,
+      reason,
+      idempotencyKey: crypto.randomUUID(),
+      ...(work ? { workItemId: work.workItemId } : {})
+    })
+    overview.value = await fetchAdministrationOverview()
+    if (!result.dispatchQueued) {
+      errorMessage.value =
+        'Storage-Aktion wurde dauerhaft gespeichert und wird nach Wiederherstellung der Queue automatisch zugestellt.'
+    }
+  } catch (error: unknown) {
+    errorMessage.value = administrationErrorMessage(
+      error,
+      'Storage-Aktion konnte nicht sicher gespeichert werden.'
+    )
+  } finally {
+    storageOperatorPending.value = null
   }
 }
 
@@ -468,6 +818,45 @@ const assignmentBadge = (status: CenterAssignmentStatus) =>
     : status === 'unassigned'
       ? 'bg-warning text-dark'
       : 'bg-danger'
+const storageTopologyLabel = computed(() => {
+  const state = overview.value?.storageBalancing.topologyState
+  return (
+    {
+      unavailable: 'Vertrag nicht verfügbar',
+      not_configured: 'Nicht konfiguriert',
+      single_node_non_redundant: 'Einzelknoten · nicht redundant',
+      multi_node_control_plane_only: 'Mehrere Knoten · nur Steuerung',
+      multi_node_operational: 'Mehrere Knoten · aktiv'
+    }[state || 'unavailable'] || state
+  )
+})
+const storageTopologyBadge = computed(() =>
+  overview.value?.storageBalancing.dataPlaneOperational ? 'bg-success' : 'bg-warning text-dark'
+)
+const storagePlannerLabel = computed(() => {
+  const planner = overview.value?.storageBalancing.planner
+  if (!planner || planner.status === 'contract_unavailable') return 'Vertrag nicht verfügbar'
+  if (!planner.compatible) return 'Vertrag inkompatibel'
+  return planner.queueExecutionEnabled ? 'Planung und Ausführung aktiv' : 'Nur Planung · keine Ausführung'
+})
+const formatStateCounts = (counts: Record<string, number>) => {
+  const entries = Object.entries(counts)
+  return entries.length
+    ? entries.map(([state, count]) => `${state}: ${String(count)}`).join(' · ')
+    : 'keine Einträge'
+}
+const formatBytes = (value: number) =>
+  new Intl.NumberFormat('de-DE', {
+    style: 'unit',
+    unit: 'megabyte',
+    maximumFractionDigits: 1
+  }).format(value / 1_000_000)
+const formatDuration = (seconds: number) =>
+  seconds < 60
+    ? `${String(seconds)} s`
+    : seconds < 3600
+      ? `${String(Math.floor(seconds / 60))} min`
+      : `${String(Math.floor(seconds / 3600))} h`
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('de-DE', { dateStyle: 'short', timeStyle: 'short' }).format(
     new Date(value)
@@ -562,6 +951,22 @@ onBeforeUnmount(() => {
   margin: 0.3rem 0 0;
   color: #667085;
 }
+.storage-control-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.storage-control-grid > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem;
+  border-radius: 0.65rem;
+  background: #f7f9fc;
+}
+.storage-control-grid small {
+  color: #667085;
+  overflow-wrap: anywhere;
+}
 .permission-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -621,6 +1026,9 @@ onBeforeUnmount(() => {
   .permission-grid {
     grid-template-columns: 1fr;
   }
+  .storage-control-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 @media (max-width: 575px) {
   .admin-hero {
@@ -628,6 +1036,9 @@ onBeforeUnmount(() => {
     flex-direction: column;
   }
   .status-grid {
+    grid-template-columns: 1fr;
+  }
+  .storage-control-grid {
     grid-template-columns: 1fr;
   }
 }

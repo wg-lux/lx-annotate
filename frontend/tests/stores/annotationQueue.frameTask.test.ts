@@ -35,8 +35,11 @@ describe('annotationQueue frame task normalization', () => {
     localStorage.clear()
     mocks.axiosGet.mockReset()
     mocks.fetchApplicationSettings.mockResolvedValue({
-      aiDatasetName: '',
-      aiDatasetType: ''
+      aiDatasetId: 7,
+      aiDatasetName: 'Primary Labels',
+      aiDatasetType: 'image',
+      primaryAnnotationDatasetValid: true,
+      primaryAnnotationDatasetError: null
     })
   })
 

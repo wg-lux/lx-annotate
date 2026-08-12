@@ -230,6 +230,11 @@ function mountFrameAnnotation() {
   })
 }
 
+async function markFrameLoaded(wrapper: ReturnType<typeof mountFrameAnnotation>): Promise<void> {
+  await flushPromises()
+  await wrapper.get('img[alt="Zu annotierender Frame"]').trigger('load')
+}
+
 async function expectTextEventually(
   wrapper: ReturnType<typeof mountFrameAnnotation>,
   text: string
@@ -246,6 +251,7 @@ function installGetMock(
     streamStatus?: number
     streamBody?: Blob
     streamContentType?: string
+    retryAfter?: string
     boxResults?: Array<Record<string, unknown>>
   } = {}
 ) {
@@ -273,7 +279,10 @@ function installGetMock(
       return Promise.resolve({
         status: streamStatus,
         data: streamBody,
-        headers: { 'content-type': streamContentType }
+        headers: {
+          'content-type': streamContentType,
+          ...(options.retryAfter ? { 'retry-after': options.retryAfter } : {})
+        }
       })
     }
     return Promise.resolve({ data: { results: [] } })
@@ -328,6 +337,7 @@ describe('FrameAnnotation route', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await markFrameLoaded(wrapper)
 
     expect(hoisted.get).toHaveBeenCalledWith('media/videos/label-sets/list/')
     expect(hoisted.fetchAiDatasetOptions).toHaveBeenCalledTimes(1)
@@ -378,6 +388,7 @@ describe('FrameAnnotation route', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await markFrameLoaded(wrapper)
 
     expect(hoisted.createObjectURL).toHaveBeenCalledWith(frameBlob)
     expect(wrapper.get('[data-test="frame-box-stage"] img').attributes('src')).toBe('blob:frame-1')
@@ -386,6 +397,46 @@ describe('FrameAnnotation route', () => {
     wrapper.unmount()
 
     expect(hoisted.revokeObjectURL).toHaveBeenCalledWith('blob:frame-1')
+  })
+
+  it('keeps label submission disabled until the frame is rendered', async () => {
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+
+    expect(wrapper.get('button.btn-success').attributes('disabled')).toBeDefined()
+
+    await markFrameLoaded(wrapper)
+
+    expect(wrapper.get('button.btn-success').attributes('disabled')).toBeUndefined()
+  })
+
+  it('honors Retry-After when decoded frame capacity is saturated', async () => {
+    vi.useFakeTimers()
+    try {
+      installGetMock({
+        streamStatus: 429,
+        streamBody: new Blob(
+          [JSON.stringify({ status: 'frame_decode_throttled', retry_after_seconds: 2 })],
+          { type: 'application/json' }
+        ),
+        streamContentType: 'application/json',
+        retryAfter: '2'
+      })
+
+      mountFrameAnnotation()
+      await flushPromises()
+      const streamCallCount = () =>
+        hoisted.get.mock.calls.filter(([url]) => url === '/media/frame-101.jpg').length
+
+      expect(streamCallCount()).toBe(1)
+      await vi.advanceTimersByTimeAsync(1999)
+      expect(streamCallCount()).toBe(1)
+      await vi.advanceTimersByTimeAsync(1)
+      await flushPromises()
+      expect(streamCallCount()).toBe(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('keeps secondary queue selectors collapsed by default', async () => {
@@ -428,6 +479,7 @@ describe('FrameAnnotation route', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await markFrameLoaded(wrapper)
 
     await wrapper.get('[data-test="positive-example-button"]').trigger('click')
     await flushPromises()
@@ -446,6 +498,7 @@ describe('FrameAnnotation route', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await markFrameLoaded(wrapper)
 
     await wrapper.get('[data-test="exclude-dataset-button"]').trigger('click')
     await flushPromises()
@@ -595,6 +648,7 @@ describe('FrameAnnotation route', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await markFrameLoaded(wrapper)
 
     await wrapper.get('[data-test="negative-example-button"]').trigger('click')
     await flushPromises()
@@ -631,6 +685,7 @@ describe('FrameAnnotation route', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await markFrameLoaded(wrapper)
 
     await wrapper.get('[data-test="positive-example-button"]').trigger('click')
     await flushPromises()
@@ -698,6 +753,7 @@ describe('FrameAnnotation route', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await markFrameLoaded(wrapper)
 
     expect(hoisted.queueStore.setTaskMode).toHaveBeenCalledWith('random')
     expect(hoisted.queueStore.setTargetLabelName).toHaveBeenCalledWith('sensitive_region')
@@ -766,6 +822,7 @@ describe('FrameAnnotation route', () => {
 
     const wrapper = mountFrameAnnotation()
     await flushPromises()
+    await markFrameLoaded(wrapper)
 
     await wrapper.get('[data-test="box-save-button"]').trigger('click')
     await flushPromises()

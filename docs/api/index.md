@@ -149,6 +149,20 @@ skip, and write payloads when the UI is operating under an explicit annotator.
 | `annotation.frameBoxes` | `media/annotations/frames/boxes/` | `GET`, `POST` | Read or write frame box annotations. |
 | `annotation.skip` | `media/annotations/frames/skip/` | `POST` | Skip an annotation task. |
 
+Frame tasks use the primary annotation dataset configured at
+`settings/application/`. The dataset is identified by its database ID and must
+be active, image-based, and compatible with frame labels. Dataset names are
+display values, not identity keys.
+
+The decoded-frame endpoint
+`media/videos/{video_id}/frames/{frame_number}/decoded-stream/` reads one frame
+from the permitted video artifact without persisting a frame corpus. Each web
+process bounds concurrent decoding with
+`LX_ANNOTATE_FRAME_DECODE_MAX_CONCURRENCY` (default `2`). When capacity is
+full, it returns HTTP `429`, `status: frame_decode_throttled`, and a
+`Retry-After` header. Clients must keep submission disabled until an image has
+loaded successfully.
+
 ## Uploads
 
 | Frontend key | Path | Typical method | Purpose |

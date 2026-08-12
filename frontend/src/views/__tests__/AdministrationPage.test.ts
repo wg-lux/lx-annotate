@@ -6,12 +6,18 @@ import AdministrationPage from '../AdministrationPage.vue'
 const api = vi.hoisted(() => ({
   fetchOverview: vi.fn(),
   fetchUsers: vi.fn(),
+  cancelStorageWork: vi.fn(),
+  applyStorageControl: vi.fn(),
+  updateStorage: vi.fn(),
   updateScope: vi.fn()
 }))
 
 vi.mock('@/api/administrationApi', () => ({
   fetchAdministrationOverview: api.fetchOverview,
   fetchCenterScopeUsers: api.fetchUsers,
+  cancelStorageBalanceWork: api.cancelStorageWork,
+  applyStorageOperatorControl: api.applyStorageControl,
+  updateStorageDrainState: api.updateStorage,
   updateCenterScope: api.updateScope
 }))
 
@@ -34,6 +40,86 @@ const attentionJob = {
 }
 
 const overview = {
+  storageBalancing: {
+    contractAvailable: true,
+    controlPlaneReady: false,
+    dataPlaneOperational: false,
+    topologyState: 'single_node_non_redundant',
+    policyVersion: 'placement-v1',
+    policyVersions: ['placement-v1'],
+    nodes: [
+      {
+        nodeKey: 'storage-1',
+        displayName: 'Protected Storage 1',
+        active: true,
+        isDraining: false,
+        failureDomain: 'rack-a',
+        residencyKey: 'de-clinical',
+        placementWeight: 100,
+        totalBytes: 10000000000,
+        filesystemFreeBytes: 8000000000,
+        policyUsableBytes: 7000000000,
+        reservedBytes: 500000000,
+        inFlightBytes: 250000000,
+        committedBytes: 1000000000,
+        cleanupReclaimableBytes: 100000000,
+        availableBytes: 5250000000,
+        observedAt: '2026-08-11T10:00:00Z',
+        healthFreshnessSeconds: 30,
+        observationVersion: 3,
+        capabilities: ['anonymized_video'],
+        currentPlacementCount: 4,
+        availableAction: 'drain'
+      }
+    ],
+    placementCount: 4,
+    activeReservationCount: 1,
+    queuedRotationCount: 0,
+    failedRotationCount: 0,
+    reservationCounts: { active: 1 },
+    rotationCounts: {},
+    workItems: [
+      {
+        workItemId: 'a41c1700-95d1-47ea-a975-8f810df47b2c',
+        artifactKey: 'video:42',
+        artifactKind: 'anonymized_video',
+        expectedSizeBytes: 2000000,
+        reason: 'drain',
+        status: 'rotation_requested',
+        sourceNodeKey: 'storage-1',
+        targetNodeKey: 'storage-2',
+        rotationState: 'requested',
+        reservationStatus: 'active',
+        cancellable: true,
+        retryable: false,
+        cancellationReceiptId: null,
+        terminalReason: '',
+        createdAt: '2026-08-11T10:00:00Z'
+      }
+    ],
+    reconciliationRunCount: 0,
+    reconciliationAlertCounts: {},
+    reconciliationCriticalCount: 0,
+    reconciliationWarningCount: 0,
+    lastReconciliationAt: null,
+    planner: {
+      status: 'control_plane_only',
+      expectedContractVersion: 'hub-storage-control-v1',
+      contractVersion: 'hub-storage-control-v1',
+      compatible: true,
+      plannerAvailable: true,
+      placementRequestsAccepted: false,
+      queueExecutionEnabled: false,
+      operatorPaused: false,
+      operatorControlVersion: 0
+    },
+    availableActions: ['drain', 'resume'],
+    readinessBlockers: [
+      'storage_data_plane_not_integrated',
+      'telemetry_freshness_policy_unavailable'
+    ],
+    blockedReason: 'The storage data-plane service is not implemented.'
+  },
   hubHealth: {
     ready: false,
     sourceNodeConfigured: true,
@@ -65,6 +151,7 @@ const overview = {
     centerKey: 'center-a',
     centers: [{ centerKey: 'center-a', displayName: 'Center A' }],
     hubMonitorRead: true,
+    storageMonitorRead: true,
     centerScopeAdmin: true,
     centerScopeGlobalAdmin: true,
     centerScopeRoles: {
@@ -100,7 +187,30 @@ describe('AdministrationPage', () => {
       ]
     })
     api.updateScope.mockResolvedValue({ changed: true })
+    api.cancelStorageWork.mockResolvedValue({
+      workItemId: 'a41c1700-95d1-47ea-a975-8f810df47b2c',
+      cancellationReceiptId: '4d6cf8f6-eae1-495b-85b9-b351701b85dc',
+      rotationState: 'failed',
+      reservationStatus: 'released'
+    })
+    api.applyStorageControl.mockResolvedValue({
+      receiptId: '9e08bd12-0cc6-456f-b9a3-cd0f4d40ec4a',
+      action: 'pause',
+      controlVersion: 1,
+      isPaused: true,
+      replayed: false,
+      dispatchQueued: true
+    })
+    api.updateStorage.mockResolvedValue({
+      nodeKey: 'storage-1',
+      isDraining: true,
+      changed: true,
+      replayed: false,
+      correlationId: 'request-1'
+    })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue('Planned disk replacement')
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001')
   })
 
   afterEach(() => {
@@ -123,6 +233,90 @@ describe('AdministrationPage', () => {
       'center_scope:admin'
     )
     expect(wrapper.text()).toContain('Keycloak-Rollen ändern')
+    wrapper.unmount()
+  })
+
+  it('shows a single storage node as non-redundant and does not imply a data plane', async () => {
+    const wrapper = mount(AdministrationPage)
+    await flushPromises()
+
+    const storage = wrapper.get('[data-test="storage-balancing"]')
+    expect(storage.text()).toContain('Einzelknoten · nicht redundant')
+    expect(storage.text()).toContain('Protected Storage 1')
+    expect(storage.text()).toContain('The storage data-plane service is not implemented.')
+    expect(storage.text()).toContain('5.250 MB')
+    expect(storage.text()).toContain('Nur Planung · keine Ausführung')
+    expect(storage.text()).toContain('Queue-Ausführung')
+    expect(storage.text()).toContain('Deaktiviert')
+    wrapper.unmount()
+  })
+
+  it('does not render an inactive storage node as healthy', async () => {
+    const inactiveOverview = structuredClone(overview)
+    inactiveOverview.storageBalancing.nodes[0].active = false
+    api.fetchOverview.mockResolvedValue(inactiveOverview)
+    const wrapper = mount(AdministrationPage)
+    await flushPromises()
+
+    const badge = wrapper.get('[data-test="storage-node-status-storage-1"]')
+    expect(badge.text()).toBe('Inaktiv')
+    expect(badge.classes()).toContain('bg-secondary')
+    expect(badge.classes()).not.toContain('bg-success')
+    wrapper.unmount()
+  })
+
+  it('submits an explicitly confirmed storage drain with a reason', async () => {
+    const wrapper = mount(AdministrationPage)
+    await flushPromises()
+
+    await wrapper.get('[data-test="storage-node-action-storage-1"]').trigger('click')
+    await flushPromises()
+
+    expect(window.prompt).toHaveBeenCalled()
+    expect(window.confirm).toHaveBeenCalledWith(
+      'Storage-Knoten storage-1 für neue Platzierungen sperren?'
+    )
+    expect(api.updateStorage).toHaveBeenCalledWith({
+      action: 'drain',
+      nodeKey: 'storage-1',
+      expectedIsDraining: false,
+      reason: 'Planned disk replacement',
+      idempotencyKey: '00000000-0000-4000-8000-000000000001'
+    })
+    wrapper.unmount()
+  })
+
+  it('shows and explicitly cancels only compensatable balance work', async () => {
+    const wrapper = mount(AdministrationPage)
+    await flushPromises()
+
+    const work = wrapper.get('[data-test="storage-balance-work"]')
+    expect(work.text()).toContain('video:42')
+    expect(work.text()).toContain('storage-1 → storage-2')
+    await wrapper
+      .get('[data-test="cancel-storage-work-a41c1700-95d1-47ea-a975-8f810df47b2c"]')
+      .trigger('click')
+    await flushPromises()
+
+    expect(api.cancelStorageWork).toHaveBeenCalledWith('a41c1700-95d1-47ea-a975-8f810df47b2c', {
+      reason: 'Planned disk replacement',
+      idempotencyKey: '00000000-0000-4000-8000-000000000001'
+    })
+    wrapper.unmount()
+  })
+
+  it('persists an explicitly confirmed operator pause intent', async () => {
+    const wrapper = mount(AdministrationPage)
+    await flushPromises()
+
+    await wrapper.get('[data-test="storage-operator-controls"] button').trigger('click')
+    await flushPromises()
+
+    expect(api.applyStorageControl).toHaveBeenCalledWith({
+      action: 'pause',
+      reason: 'Planned disk replacement',
+      idempotencyKey: '00000000-0000-4000-8000-000000000001'
+    })
     wrapper.unmount()
   })
 
@@ -168,7 +362,9 @@ describe('AdministrationPage', () => {
     const wrapper = mount(AdministrationPage)
     await flushPromises()
 
-    await wrapper.get('button.btn-outline-primary').trigger('click')
+    await wrapper
+      .get('[data-test="center-scope-management"] button.btn-outline-primary')
+      .trigger('click')
     await wrapper.get('textarea').setValue('Approved onboarding')
     await wrapper.get('.change-panel').trigger('submit')
     await flushPromises()
@@ -210,7 +406,11 @@ describe('AdministrationPage', () => {
     const wrapper = mount(AdministrationPage)
     await flushPromises()
 
-    await wrapper.findAll('button.btn-outline-danger')[1].trigger('click')
+    const revokeCenterB = wrapper
+      .findAll('button.btn-outline-danger')
+      .find((button) => button.text().includes('Center B'))
+    if (!revokeCenterB) throw new Error('Center B revoke button was not rendered')
+    await revokeCenterB.trigger('click')
     await wrapper.get('textarea').setValue('Secondary access ended')
     await wrapper.get('.change-panel').trigger('submit')
     await flushPromises()

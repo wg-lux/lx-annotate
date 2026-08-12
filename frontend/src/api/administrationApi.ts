@@ -26,7 +26,174 @@ export interface TransferMonitoringJob {
   updatedAt: string
 }
 
+export type StorageAction = 'drain' | 'resume'
+export type StorageOperatorControlAction =
+  | 'pause'
+  | 'resume'
+  | 'reconcile'
+  | 'rebalance'
+  | 'retry'
+
+export interface StorageNodeOverview {
+  nodeKey: string
+  displayName: string
+  active: boolean
+  isDraining: boolean
+  isReachable: boolean
+  acceptingWrites: boolean
+  failureDomain: string
+  residencyKey: string
+  placementWeight: number
+  totalBytes: number
+  filesystemFreeBytes: number
+  policyUsableBytes: number
+  reservedBytes: number
+  inFlightBytes: number
+  committedBytes: number
+  cleanupReclaimableBytes: number
+  availableBytes: number
+  observedAt: string
+  lastProbeAt: string | null
+  lastErrorCode: string
+  healthFreshnessSeconds: number
+  observationVersion: number
+  capabilities: string[]
+  currentPlacementCount: number
+  availableAction: StorageAction
+}
+
+export interface StorageBalancingOverview {
+  contractAvailable: boolean
+  controlPlaneReady: boolean
+  dataPlaneOperational: boolean
+  topologyState:
+    | 'unavailable'
+    | 'not_configured'
+    | 'single_node_non_redundant'
+    | 'multi_node_control_plane_only'
+    | 'multi_node_operational'
+  policyVersion: string | null
+  policyVersions: string[]
+  nodes: StorageNodeOverview[]
+  placementCount: number
+  activeReservationCount: number
+  queuedRotationCount: number
+  failedRotationCount: number
+  failedTransferCount: number
+  retiredTransferCount: number
+  overdueReservationCount: number
+  reservationCounts: Record<string, number>
+  rotationCounts: Record<string, number>
+  workItems: StorageBalanceWorkItem[]
+  reconciliationRunCount: number
+  reconciliationAlertCounts: Record<string, number>
+  reconciliationCriticalCount: number
+  reconciliationWarningCount: number
+  lastReconciliationAt: string | null
+  planner: {
+    status: 'contract_unavailable' | 'contract_incompatible' | 'control_plane_only'
+    expectedContractVersion: string
+    contractVersion: string | null
+    compatible: boolean
+    plannerAvailable: boolean
+    placementRequestsAccepted: boolean
+    queueExecutionEnabled: boolean
+    operatorPaused: boolean
+    operatorControlVersion: number
+  }
+  availableActions: StorageAction[]
+  readinessBlockers: string[]
+  blockedReason: string
+}
+
+export interface StorageBalanceWorkItem {
+  workItemId: string
+  artifactKey: string
+  artifactKind: string
+  expectedSizeBytes: number
+  reason: string
+  status: string
+  sourceNodeKey: string
+  targetNodeKey: string | null
+  rotationState: string | null
+  reservationStatus: string | null
+  cancellable: boolean
+  retryable: boolean
+  cancellationReceiptId: string | null
+  terminalReason: string
+  createdAt: string
+}
+
+export interface StorageWorkCancellationResult {
+  workItemId: string
+  cancellationReceiptId: string
+  rotationId: string
+  reservationId: string
+  rotationState: string
+  reservationStatus: string
+  actor: string
+  reason: string
+  replayed: boolean
+  correlationId: string
+}
+
+export interface StorageOperatorControlResult {
+  receiptId: string
+  action: StorageOperatorControlAction
+  controlVersion: number
+  isPaused: boolean
+  nodeKey: string | null
+  workItemId: string | null
+  retryTargetSemantics: string
+  replayed: boolean
+  correlationId: string
+  dispatchQueued: boolean
+}
+
+export interface StorageActionResult {
+  nodeKey: string
+  isDraining: boolean
+  changed: boolean
+  replayed: boolean
+  correlationId: string
+}
+
+export interface StoragePlanPreviewPayload {
+  artifactKey: string
+  artifactKind:
+    | 'anonymized_video'
+    | 'processed_report'
+    | 'video_hls'
+    | 'streamable_video'
+    | 'sidecar'
+    | 'manifest'
+  expectedSizeBytes: number
+  sha256: string
+  residencyKey: string
+  idempotencyKey: string
+  excludedFailureDomains: string[]
+  policyVersion: string
+  telemetryMaxAgeSeconds: number
+  safetyMarginBytes: number
+  reservationTtlSeconds: number
+}
+
+export interface StoragePlanPreview {
+  contractVersion: string
+  policyVersion: string
+  storageNodeId: number
+  storageNodeKey: string
+  observationVersion: number
+  observedAt: string
+  requiredBytes: number
+  policyAvailableBytes: number
+  filesystemAvailableBytes: number
+  persisted: false
+  dataPlaneOperational: false
+}
+
 export interface AdministrationOverview {
+  storageBalancing: StorageBalancingOverview
   hubHealth: {
     ready: boolean
     sourceNodeConfigured: boolean
@@ -64,6 +231,7 @@ export interface AdministrationOverview {
     centerKey: string | null
     centers: CenterChoice[]
     hubMonitorRead: boolean
+    storageMonitorRead: boolean
     centerScopeAdmin: boolean
     centerScopeGlobalAdmin: boolean
     centerScopeRoles: {
@@ -105,6 +273,54 @@ export async function fetchCenterScopeUsers(page = 1): Promise<CenterScopeUsersR
   const { data } = await axiosInstance.get<CenterScopeUsersResponse>(
     r(endpoints.administration.centerScopes),
     { params: { page, page_size: 25 } }
+  )
+  return data
+}
+
+export async function updateStorageDrainState(payload: {
+  action: StorageAction
+  nodeKey: string
+  expectedIsDraining: boolean
+  reason: string
+  idempotencyKey: string
+}): Promise<StorageActionResult> {
+  const { data } = await axiosInstance.post<StorageActionResult>(
+    r(endpoints.administration.storageActions),
+    payload
+  )
+  return data
+}
+
+export async function previewStoragePlacement(
+  payload: StoragePlanPreviewPayload
+): Promise<StoragePlanPreview> {
+  const { data } = await axiosInstance.post<StoragePlanPreview>(
+    r(endpoints.administration.storagePlacementPreview),
+    payload
+  )
+  return data
+}
+
+export async function cancelStorageBalanceWork(
+  workItemId: string,
+  payload: { reason: string; idempotencyKey: string }
+): Promise<StorageWorkCancellationResult> {
+  const { data } = await axiosInstance.post<StorageWorkCancellationResult>(
+    r(endpoints.administration.storageWorkCancellation(workItemId)),
+    payload
+  )
+  return data
+}
+
+export async function applyStorageOperatorControl(payload: {
+  action: StorageOperatorControlAction
+  reason: string
+  idempotencyKey: string
+  workItemId?: string
+}): Promise<StorageOperatorControlResult> {
+  const { data } = await axiosInstance.post<StorageOperatorControlResult>(
+    r(endpoints.administration.storageOperatorControls),
+    payload
   )
   return data
 }

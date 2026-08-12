@@ -125,7 +125,7 @@
             </label>
 
             <label class="settings-field">
-              <span>KI-Datensatz</span>
+              <span>Primärer Label-Datensatz</span>
               <select
                 v-model="form.aiDatasetId"
                 class="form-select"
@@ -133,23 +133,33 @@
                 :disabled="saving"
                 @change="applySelectedAiDataset"
               >
-                <option :value="EMPTY_OPTION">Kein KI-Datensatz</option>
+                <option :value="EMPTY_OPTION">Kein primärer Label-Datensatz</option>
                 <option
-                  v-for="datasetOption in dropdowns.aiDatasets"
+                  v-for="datasetOption in primaryAnnotationDatasetOptions"
                   :key="`${datasetOption.id}-${datasetOption.datasetType}`"
                   :value="String(datasetOption.id)"
                 >
-                  {{ datasetOption.label }} · {{ datasetOption.datasetType }} · ID
-                  {{ datasetOption.id }}
+                  {{ datasetOption.label }} · ID {{ datasetOption.id }}
                 </option>
               </select>
               <small v-if="selectedAiDatasetDuplicateWarning" class="text-warning mt-1">
                 {{ selectedAiDatasetDuplicateWarning }}
               </small>
+              <small class="text-muted mt-1">
+                Labels und Datensatz-Zugehörigkeit steuern die Frame-Annotation. Frames werden bei
+                Bedarf aus dem geschützten Video dekodiert.
+              </small>
+              <small
+                v-if="currentSettings?.primaryAnnotationDatasetError"
+                class="text-danger mt-1"
+                data-test="primary-dataset-error"
+              >
+                {{ currentSettings.primaryAnnotationDatasetError }}
+              </small>
             </label>
 
             <label class="settings-field">
-              <span>KI-Datensatztyp</span>
+              <span>Annotations-Datensatztyp</span>
               <select
                 v-model="form.aiDatasetType"
                 class="form-select"
@@ -158,7 +168,6 @@
               >
                 <option :value="EMPTY_OPTION">Kein Standardtyp</option>
                 <option value="image">Image</option>
-                <option value="video">Video</option>
               </select>
             </label>
 
@@ -208,11 +217,11 @@
             <dd data-test="summary-report-template">{{ selectedReportTemplateLabel }}</dd>
           </div>
           <div>
-            <dt>KI-Datensatz</dt>
+            <dt>Primärer Label-Datensatz</dt>
             <dd data-test="summary-ai-dataset">{{ selectedAiDatasetLabel }}</dd>
           </div>
           <div>
-            <dt>KI-Datensatztyp</dt>
+            <dt>Annotations-Datensatztyp</dt>
             <dd data-test="summary-ai-dataset-type">{{ selectedAiDatasetTypeLabel }}</dd>
           </div>
           <div>
@@ -642,6 +651,7 @@ interface ApplicationSettingsErrorPayload {
     targetPath?: string
     aiDatasetName?: string
     aiDatasetType?: string
+    aiDatasetId?: string
   }
 }
 
@@ -729,6 +739,16 @@ const selectedReportTemplateLabel = computed(() => {
 const selectedAiDatasetOption = computed(() => {
   return dropdowns.aiDatasets.find((option) => String(option.id) === form.aiDatasetId) ?? null
 })
+
+const primaryAnnotationDatasetOptions = computed(() =>
+  dropdowns.aiDatasets.filter(
+    (dataset) =>
+      dataset.isActive &&
+      dataset.datasetType === 'image' &&
+      (dataset.aiModelType === 'image_multilabel_classification' ||
+        dataset.aiModelType === 'phi_region_detector')
+  )
+)
 
 const selectedAiDatasetLabel = computed(() => {
   if (selectedAiDatasetOption.value) {
@@ -980,6 +1000,13 @@ async function saveSettings() {
     applySettings(updated)
     toast.success({ text: 'Anwendungseinstellungen gespeichert.' })
   } catch (error) {
+    const payload = applicationSettingsErrorPayload(error)
+    errorMessage.value =
+      payload.errors?.aiDatasetId ||
+      payload.errors?.aiDatasetName ||
+      payload.errors?.aiDatasetType ||
+      payload.detail ||
+      'Anwendungseinstellungen konnten nicht gespeichert werden.'
     logger.error('settings-save-failed', error)
   } finally {
     saving.value = false

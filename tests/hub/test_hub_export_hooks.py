@@ -4,11 +4,9 @@ import base64
 import os
 from datetime import timedelta
 
-
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
-
 from endoreg_db.models import (
     Center,
     NetworkNode,
@@ -19,8 +17,9 @@ from endoreg_db.models import (
     VideoState,
 )
 from endoreg_db.services import video_segment_validation_workflow as segment_workflow
+
 from lx_annotate.hub.hub_export_jobs import build_hub_export_overview
-from lx_annotate.models import OutboundHubTransferJob
+from lx_annotate.models import OutboundHubTransferJob, StorageArtifactPublication
 from tests.hub_payload_helpers import verify_hub_report_artifact
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
@@ -31,7 +30,8 @@ os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 class HubExportHookTests(TestCase):
     def setUp(self) -> None:
         self.center = Center.objects.create(
-            name="Test Center", center_key="test-center"
+            name="Test Center",
+            center_key="test-center",
         )
         self.site_node = NetworkNode.objects.create(
             display_name="Site Node",
@@ -78,11 +78,21 @@ class HubExportHookTests(TestCase):
                 "sensitive_meta_processed",
                 "anonymization_validated",
                 "date_modified",
-            ]
+            ],
         )
 
         job.refresh_from_db()
         self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.QUEUED)
+        publication = StorageArtifactPublication.objects.get(raw_pdf_file=report)
+        self.assertEqual(
+            publication.processed_sha256,
+            report.state.processed_file_sha256,
+        )
+        self.assertEqual(
+            publication.processed_file_name,
+            report.processed_file.name,
+        )
+        self.assertEqual(publication.status, "pending")
         overview = build_hub_export_overview(target_node=self.hub_node)
         self.assertTrue(overview["items"][0]["eligible"])
 
@@ -106,7 +116,8 @@ class HubExportHookTests(TestCase):
             video_hash="video-hash-1",
             original_file_name="video-1.mp4",
             processed_file=ContentFile(
-                b"processed-video", name="video-1-processed.mp4"
+                b"processed-video",
+                name="video-1-processed.mp4",
             ),
         )
         job = OutboundHubTransferJob.objects.create(
@@ -134,7 +145,7 @@ class HubExportHookTests(TestCase):
                 "ready_for_export",
                 "processed_file_sha256",
                 "date_modified",
-            ]
+            ],
         )
 
         job.refresh_from_db()
@@ -157,7 +168,8 @@ class HubExportHookTests(TestCase):
             video_hash="video-hash-cleanup-pending",
             original_file_name="video-cleanup-pending.mp4",
             processed_file=ContentFile(
-                b"processed-video", name="video-cleanup-pending-processed.mp4"
+                b"processed-video",
+                name="video-cleanup-pending-processed.mp4",
             ),
         )
         VideoProcessingHistory.objects.create(
@@ -191,7 +203,8 @@ class HubExportHookTests(TestCase):
             video_hash="video-hash-not-ready",
             original_file_name="video-not-ready.mp4",
             processed_file=ContentFile(
-                b"processed-video", name="video-not-ready-processed.mp4"
+                b"processed-video",
+                name="video-not-ready-processed.mp4",
             ),
         )
 

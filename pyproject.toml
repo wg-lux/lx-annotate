@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "lx-annotate"
 
-version = "0.9.60"
+version = "0.9.64"
 description = "This webapp provides a frontend interface for pseudonymizing and annotating data and applying AI predictions."
 authors = [
     { name = "Max Hild", email = "maxhild10@gmail.com"},
@@ -52,7 +52,7 @@ dependencies = [
     "daphne>=4.2.1",
     "psycopg[binary,pool]>=3.2.12",
     "mozilla-django-oidc>=4.0.1",
-    "endoreg-db==1.0.9.0",
+    "endoreg-db==1.0.13.0",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
     "sops>=1.18",
@@ -60,7 +60,7 @@ dependencies = [
     "cryptography>=45.0.0",
     "django-linear-migrations>=2.19.0",
     "redis>=7.4.0",
-    "lx-dtypes>=0.2.12",
+    "lx-dtypes==0.2.15",
     "pre-commit[dev]>=4.6.1",
 ]
 
@@ -162,6 +162,15 @@ module = [
     "mozilla_django_oidc.*"
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Migration shims must load numerically named upstream modules at runtime. Limit
+# the exemption to mypy's two dynamic-base diagnostics for these shim modules.
+module = [
+    "lx_annotate.migration_overrides.endoreg_db.*",
+    "lx_annotate.migration_overrides.lx_dtypes_django.*",
+]
+disable_error_code = ["misc", "valid-type"]
 
 
 # [tool.uv.sources]

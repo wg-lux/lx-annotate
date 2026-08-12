@@ -66,7 +66,13 @@ describe('annotationQueue store', () => {
     vi.clearAllMocks()
     localStorage.clear()
     setActivePinia(createPinia())
-    hoisted.fetchApplicationSettings.mockResolvedValue({})
+    hoisted.fetchApplicationSettings.mockResolvedValue({
+      aiDatasetId: 7,
+      aiDatasetName: 'Primary Labels',
+      aiDatasetType: 'image',
+      primaryAnnotationDatasetValid: true,
+      primaryAnnotationDatasetError: null
+    })
   })
 
   it('discards stale batch results after clearQueue invalidates the queue generation', async () => {
@@ -198,6 +204,36 @@ describe('annotationQueue store', () => {
       ai_dataset_type: 'image',
       frame_file_type: 'auto'
     })
+  })
+
+  it('hydrates the primary annotation dataset by stable id', async () => {
+    hoisted.get.mockResolvedValueOnce({ data: { tasks: [buildTask(101)] } })
+
+    const store = useAnnotationQueueStore()
+    store.setSelectedLabelGroupId('3')
+
+    await store.fetchBatch(1)
+
+    expectLastTaskRequestParams({
+      ai_dataset_id: '7',
+      ai_dataset_name: 'Primary Labels',
+      ai_dataset_type: 'image'
+    })
+  })
+
+  it('fails closed when the primary annotation dataset is invalid', async () => {
+    hoisted.fetchApplicationSettings.mockResolvedValueOnce({
+      aiDatasetId: 9,
+      primaryAnnotationDatasetValid: false,
+      primaryAnnotationDatasetError: 'Primary dataset is inactive.'
+    })
+
+    const store = useAnnotationQueueStore()
+    store.setSelectedLabelGroupId('3')
+
+    await expect(store.fetchBatch(1)).resolves.toEqual([])
+    expect(store.lastError).toBe('Primary dataset is inactive.')
+    expect(hoisted.get).not.toHaveBeenCalled()
   })
 
   it('sends selected frame file type when requesting frame tasks', async () => {

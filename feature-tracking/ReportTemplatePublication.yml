@@ -1,0 +1,190 @@
+schema_version: '1.0'
+id: report_template_publication
+name: Report Template Publication
+description: Make report-template publication coherent between the LX-Annotate reporting shell, the lx-dtypes
+  Django API, and the immutable templates shipped in the next lx-dtypes package.
+owners:
+- lx-annotate frontend maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-report-template-publication
+    changed_at: '2026-08-11T10:00:56.246698Z'
+    note: Published lx-dtypes 0.2.14 verified from PyPI with two usable packaged templates; exact public
+      wheel passes LX-Annotate integration and frontend lifecycle regressions are green.
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Reporting template readiness and frontend requirements guidance.
+- path: docs/guides/pypi.md
+  disposition: reference
+  note: Protected Python package publication guidance.
+definition_of_done:
+- id: publication_contract
+  category: requirements
+  title: Publication has one coherent API and frontend contract
+  acceptance:
+  - The reporting shell discovers only published, production-ready templates for the active module and
+    examination.
+  - Publication changes become observable through runtime discovery without resolving a different module
+    root or version.
+  - Draft, missing, unauthorized, and readiness-blocked templates remain unavailable to normal reporting
+    users.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused Django lifecycle API tests and ReportingShell component tests covering publication,
+      rejection, and refresh behavior.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'frontend ReportingShell/Builder: 34 passed'
+    - kind: test
+      reference: 'lx-dtypes report-template slice: 165 passed'
+    note: Frontend lifecycle notification refreshes ReportingShell against the active module/examination;
+      API mutations and reads use the same resolved version, while production discovery remains published/readiness
+      filtered.
+    assessed_by: codex-report-template-publication
+    assessed_at: '2026-08-11T09:35:08.610529Z'
+- id: packaged_usable_templates
+  category: functionality
+  title: The lx-dtypes distribution contains multiple usable report templates
+  acceptance:
+  - At least two packaged templates compile in production mode with published lifecycle state and can_publish
+    true.
+  - The wheel and sdist both contain the complete immutable knowledge-base data needed to load those templates.
+  - Installed-artifact tests load and export the templates without relying on a repository checkout.
+  required: true
+  verification:
+    kind: manual
+    instructions: Build wheel and sdist, inspect both archives, install the wheel into an isolated Python
+      3.12 environment, and load at least two templates.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 0.2.14 wheel sha256 234c947ee8843386fc366cba6bd9dd9cd177853f53fa35bbd2f2725a67aa5131
+    - kind: command
+      reference: 0.2.14 sdist sha256 7d3850392d139c9d893a6470e768c68a006bdc82b9f60dd7767634a18527071f
+    - kind: test
+      reference: 'installed 0.2.14 wheel: upper_gi_quality_2025 and colonoscopy_training_basic published/can_publish=true'
+    note: Final 0.2.14 wheel and sdist both contain report_template_examples/config.yaml and report_templates.yaml.
+      The wheel was installed into an isolated Python 3.12 environment and both required templates loaded
+      from site-packages with lifecycle_status=published and can_publish=true.
+    assessed_by: codex-report-template-publication
+    assessed_at: '2026-08-11T09:43:53.598712Z'
+- id: typed_failure_behavior
+  category: security
+  title: Publication fails closed and preserves typed validated boundaries
+  acceptance:
+  - Publication requires authenticated report_template:write authorization.
+  - Lifecycle writes target an explicitly resolved writable module and never mutate immutable installed
+    package data.
+  - Persisted lifecycle data remains schema-validated and publication errors are visible to the user.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review authorization and resolver boundaries and run negative API and frontend tests.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: lx_dtypes/django/api/tests/test_report_template_routes_extra.py
+    - kind: code
+      reference: lx_dtypes/django/api/main.py::_resolve_report_template_module_location
+    note: Write routes retain report_template:write authorization, resolve a typed active module location,
+      reject immutable packaged data, and preserve published-only runtime behavior.
+    assessed_by: codex-report-template-publication
+    assessed_at: '2026-08-11T09:35:30.165567Z'
+- id: cross_repository_regression_coverage
+  category: testing
+  title: Cross-repository publication behavior has deterministic regression coverage
+  acceptance:
+  - Focused frontend tests cover empty, successful, and failed template discovery after publication state
+    changes.
+  - Focused API tests prove writable-root resolution, lifecycle persistence, cache refresh, and production
+    discovery.
+  - Package tests inspect built artifact contents and execute template loading from an installed wheel.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused frontend, Django API, model, and built-artifact test suites and record
+      exact results.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'frontend ReportingShell/Builder: 34 passed; both vue-tsc lanes passed'
+    - kind: test
+      reference: 'PyPI 0.2.14 wheel overlay in LX-Annotate: 6 passed'
+    - kind: test
+      reference: 'lx-dtypes report-template slice: 165 passed; Ruff and Pyright clean'
+    note: Frontend lifecycle tests and both type-check lanes pass. The exact lx-dtypes 0.2.14 wheel downloaded
+      from PyPI was mounted as LX-Annotate's lx_dtypes import and all six live Django URL/builder integration
+      tests passed against its immutable and mutable module-root behavior.
+    assessed_by: codex-report-template-publication
+    assessed_at: '2026-08-11T09:59:59.051356Z'
+- id: maintainable_publication_contract
+  category: documentation
+  title: Publication ownership and module-root semantics are explicit
+  acceptance:
+  - Runtime discovery, builder mutation, immutable package data, and protected release publication have
+    distinct documented ownership.
+  - Existing resolver, compiler, lifecycle registry, API client, and frontend state helpers are reused.
+  - No duplicate publication state, silent fallback, placeholder template, or repository-relative installed-runtime
+    assumption is introduced.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review changed call sites and documentation against the resolver and packaging contracts.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/reporting-template-requirements-page.md
+    - kind: document
+      reference: lx_dtypes/data/report_template_examples/README.md
+    note: Canonical frontend guide and packaged template README now distinguish runtime discovery, mutable
+      imported bundles, immutable package data, and protected package publication.
+    assessed_by: codex-report-template-publication
+    assessed_at: '2026-08-11T09:35:32.800048Z'
+- id: release_handoff
+  category: operations
+  title: The next lx-dtypes release can publish the verified artifacts safely
+  acceptance:
+  - Package versioning and protected PyPI publication remain explicit maintainer actions.
+  - Release evidence records source revision and wheel and sdist SHA-256 digests.
+  - No production deployment or dependency pin is changed before the immutable package exists.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the protected release workflow and record the published package version, source
+      revision, and artifact digests after maintainer publication.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: lx-data-models commit 924f30c79a82530ddd22659caf242a4d5e11ab2a
+    - kind: command
+      reference: PyPI lx-dtypes 0.2.14 wheel sha256 234c947ee8843386fc366cba6bd9dd9cd177853f53fa35bbd2f2725a67aa5131
+    - kind: command
+      reference: PyPI lx-dtypes 0.2.14 sdist sha256 7d3850392d139c9d893a6470e768c68a006bdc82b9f60dd7767634a18527071f
+    - kind: test
+      reference: fresh public-index install verified upper_gi_quality_2025 and colonoscopy_training_basic
+    note: lx-dtypes 0.2.14 was published to PyPI from release commit 924f30c79a82530ddd22659caf242a4d5e11ab2a.
+      PyPI's wheel and sdist digests match the pre-publication candidates, the wheel installs from the
+      public index, both packaged templates verify as published/can_publish=true, and the published wheel
+      passes LX-Annotate integration tests. No production deployment or consumer dependency pin was changed
+      as part of publication.
+    assessed_by: codex-report-template-publication
+    assessed_at: '2026-08-11T10:00:46.215013Z'

@@ -1,0 +1,365 @@
+schema_version: '1.0'
+id: hub_storage_load_balancing
+name: Hub Storage-Node Load Balancing
+description: Orchestrate one or more dedicated protected storage nodes from the LX-Annotate central hub,
+  including deterministic placement, capacity-driven rotation, safe failure handling, and operator visibility
+  without weakening media integrity or encryption boundaries.
+owners:
+- lx-annotate maintainers
+- endoreg-db maintainers
+- LuxNix maintainers
+- storage operations
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/hub-export-workflow.md
+  disposition: reference
+  note: Existing authenticated hub transport, retry, reconciliation, and operator workflow.
+- path: docs/guides/encrypted-storage-process.md
+  disposition: reference
+  note: Existing protected-media and encrypted-storage boundary.
+- path: /home/admin/luxnix/docs/hardware-setup.md
+  disposition: reference
+  note: Current declarative disk and persistent-storage provisioning context to extend for a dedicated
+    node.
+definition_of_done:
+- id: topology_and_ownership_contract
+  category: requirements
+  title: Hub, storage-node, application, and deployment ownership is explicit
+  acceptance:
+  - The central hub remains the control plane and source of storage placement intent; storage nodes expose
+    only the bounded data-plane capabilities required for health, capacity, store, fetch, verify, and
+    delete.
+  - The initial deployment supports one dedicated storage node and the contract permits additional nodes
+    without changing artifact identity or bypassing the hub.
+  - endoreg-db owns typed node, placement, lease, and rotation persistence; LX-Annotate owns hub orchestration
+    and operator workflows; LuxNix owns host, network, encrypted-disk, identity, and service deployment.
+  - Supported artifact kinds, retention classes, residency constraints, failure domains, and explicitly
+    unsupported raw-media export paths are documented.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the cross-repository architecture and deployment topology with application, database,
+      security, and storage owners.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: LX-Annotate lazy adapter consumes endoreg-db public storage models as the control-plane
+        ledger and reports data_plane_operational=false until a bounded remote storage service exists.
+    - kind: command
+      reference: docs/guides/hub-storage-load-balancing.md
+    note: Local ownership, artifact boundaries, one-node topology, and gs-02 hub to gs-01 storage mapping
+      are implemented and documented. Maintainer and storage-operator approval remains outstanding.
+    assessed_by: codex-storage-prod-readiness
+    assessed_at: '2026-08-11T10:35:24.045654Z'
+- id: deterministic_placement_and_rotation
+  category: functionality
+  title: Hub storage placement and rotation are deterministic and idempotent
+  acceptance:
+  - A versioned typed policy selects only healthy, authorized nodes with sufficient usable and reserved
+    capacity while honoring artifact class, residency, failure-domain, weight, and drain state.
+  - Equivalent placement inputs produce the same selected node through a documented stable tie-breaker;
+    retries reuse the persisted placement decision rather than choosing a second target.
+  - Rotation uses an explicit copy, target verification, atomic placement commit, and deferred source-cleanup
+    workflow; it never deletes the previous or only verified copy before commit and lease expiry.
+  - Concurrent ingest, playback, retry, reconciliation, node drain, and rotation cannot publish two canonical
+    primaries or silently orphan an artifact.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise placement and rotation against one, two, full, draining, unavailable, and concurrently
+      changing storage nodes and inspect both application and storage ledgers.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: LX storage orchestration requires STORAGE_CONTROL_CONTRACT_VERSION=hub-storage-control-v1
+        and public plan_storage_placement; missing and mismatched contracts fail closed. POST administration/storage-balancing/placement-preview
+        returns deterministic node/capacity evidence with persisted=false and data_plane_operational=false.
+    - kind: test
+      reference: '2026-08-11 focused LX slice: backend storage orchestration/API 9 passed against local
+        endoreg public planner; Pyright 0 errors; Ruff passed; Vue type-check passed; AdministrationPage
+        Vitest 7 passed; ESLint passed; migration drift no changes; tracker validation and git diff check
+        passed. MyPy was not a passed gate because existing imported hub modules lack requests stubs.'
+    - kind: command
+      reference: '2026-08-11 focused LX storage/API/migration/task lane: 67 passed; real PostgreSQL admission
+        race passed separately.'
+    - kind: code
+      reference: LX migration 0006 and hub/storage_publication.py persist a digest-bound processed-media
+        publication outbox. Receipt-only workers reload the managed VideoFile/RawPdfFile, require the
+        current approval and exact file/hash generation, then invoke the envelope-producing StorageTransferClient.
+        Endoreg's hub-storage-artifact-resolution-v1 selector resolves only one exact committed primary
+        with one matching verified transfer record. This delta is intentionally unexecuted pending owner
+        testing.
+    note: Versioned planning, atomic placement, bounded balancing, typed worker execution, restart recovery,
+      committed-placement resolution, and reservation expiry are locally implemented. Production multi-node
+      execution and soak remain outstanding.
+    assessed_by: codex-storage-prod-readiness
+    assessed_at: '2026-08-11T10:35:25.044071Z'
+- id: protected_storage_node_access
+  category: security
+  title: Hub-to-storage-node access fails closed across a hostile network
+  acceptance:
+  - Production access requires HTTPS with mutually authenticated Transport Layer Security, an authorized
+    storage-node identity, least-privilege operations, certificate rotation, and replay-resistant requests.
+  - NetworkNode.shared_secret is used only for request authentication and never for payload encryption;
+    the long-lived application master key is never transmitted to or stored on a storage node.
+  - Every standalone artifact crossing a local encrypted-storage boundary uses envelope encryption with
+    a per-transfer data-encryption key wrapped to the approved recipient identity, unless a reviewed deployment
+    proves both endpoints are inside one approved encrypted storage boundary.
+  - Missing identity, trust, key material, encryption-at-rest, route authorization, or audit capability
+    blocks placement, rotation, fetch, and cleanup before data disclosure or mutation.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the transport and key boundary, then inject absent, expired, revoked, replayed,
+      wrong-node, wrong-center, and wrong-recipient credentials in a production-like topology.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: LX wheel StorageTransferClient produces persisted fresh X25519/AES-256-GCM envelopes
+        and typed store/verify/fetch/delete receipts; Lux enforces the matching wire schema, recipient
+        unwrap, mTLS URI-SAN operations, replay protection, and ciphertext-only storage.
+    - kind: test
+      reference: 2026-08-11 wheel-only acceptance harness asserted lx_annotate resolved from candidate
+        site-packages, then completed live TLS mTLS envelope store/health/capacity/verify/plaintext-fetch/delete
+        against the Lux server; passed. Lux tests contain no import-time LX dependency.
+    note: The installed candidate-wheel client and Lux data-plane contracts match. Deployed certificate
+      workflow and gs-01 encrypted storage remain intentionally untested/pending.
+    assessed_by: codex-storage-prod-readiness
+    assessed_at: '2026-08-11T11:25:56.180507Z'
+- id: operator_control_and_visibility
+  category: functionality
+  title: Operators can understand and safely control storage balancing
+  acceptance:
+  - An authenticated hub view exposes node identity, health freshness, usable and reserved capacity, utilization,
+    drain state, current placements, queued rotations, failures, and policy version without exposing secrets
+    or patient data.
+  - Drain, rebalance, retry, pause, and cancellation actions are permission checked, attributable, idempotent,
+    bounded by lifecycle state, and require explicit confirmation for destructive cleanup.
+  - A single configured storage node is shown as a non-redundant topology and is never represented as
+    load balanced or highly available.
+  - Stale health data, exhausted capacity, or an ambiguous placement blocks new writes and presents an
+    actionable reason rather than silently falling back to an unapproved local path.
+  required: true
+  verification:
+    kind: manual
+    instructions: Use two operator identities to exercise read-only and privileged controls across healthy,
+      stale, draining, full, and failed node states and review the audit trail.
+    timeout_seconds: 1200
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: Authenticated storage telemetry is restricted to storage:monitor or global administrators;
+        global-admin drain/resume uses a unique StorageNodeActionReceipt plus AuditLedger and exact replay
+        fingerprint. Typed UI labels one-node topology non-redundant and data-plane unavailable.
+    - kind: test
+      reference: '2026-08-11: installed-package API/administration suite 30 passed; local endoreg-db cross-contract
+        suite 6 passed; AdministrationPage Vitest 7 passed; Vue type-check, focused ESLint, Ruff, MyPy,
+        migration drift check, and tracker validation passed.'
+    - kind: command
+      reference: '2026-08-11 hardened local-source cross-repository storage orchestration suite: 6 passed
+        against endoreg-db migrations 0060 and 0061.'
+    - kind: command
+      reference: tests/hub/test_tasks.py verifies already-queued byte mutations stop when balancing is
+        disabled.
+    - kind: code
+      reference: Global-admin work cancellation uses the public immutable endoreg cancellation receipt,
+        atomically compensates pre-copy reservation/target state, records AuditLedger attribution, and
+        is exposed with explicit confirmation in AdministrationPage. The overview lists exact cancellability.
+    - kind: code
+      reference: Endoreg-db migration 0071 persists versioned pause/resume/reconcile/rebalance/retry intents;
+        LX-Annotate migration 0005 persists the local dispatch outbox. Permission-gated API/UI controls
+        create attributable receipts before broker submission, and the bounded dispatcher recovers pending
+        delivery. Retry contributes its receipt identity to deterministic planning so it requires a fresh
+        work item, reservation, placement, and rotation instead of reopening failed state. This latest
+        delta awaits the owner-run verification lane and is not verification evidence.
+    - kind: code
+      reference: Manual reconcile dispatch now queues a real bounded inventory reconciliation task using
+        the operator receipt UUID as the stable run identity. Broker failure leaves the durable outbox
+        pending; unchanged exact redelivery replays while a later operator request records fresh observation
+        time.
+    note: Permission-gated topology/capacity/failure visibility, audited drain/resume, non-redundant labeling,
+      a runtime balancing kill switch, pre-copy per-work cancellation, and persisted manual controls with
+      a durable dispatch outbox are implemented. Owner-run verification and production operator acceptance
+      remain outstanding.
+    assessed_by: codex-storage-prod-readiness
+    assessed_at: '2026-08-11T10:35:27.127711Z'
+- id: capacity_health_and_alerting
+  category: operations
+  title: Capacity, node health, and balancing pressure are continuously managed
+  acceptance:
+  - Health and capacity reports are authenticated, timestamped, bounded in age, and distinguish filesystem
+    free space from policy-usable capacity, reservations, in-flight bytes, and cleanup-reclaimable bytes.
+  - Warning, stop, drain, recovery, skew, unreachable-node, repeated-rotation, integrity, and reservation-leak
+    thresholds emit structured correlated events and actionable alerts.
+  - Admission reserves capacity atomically before upload and releases or reconciles every reservation
+    after success, failure, timeout, cancellation, and worker restart.
+  - Scheduled balancing is rate limited, lease aware, resumable, and bounded so it cannot saturate hub
+    serving, database, storage, or network resources.
+  required: true
+  verification:
+    kind: manual
+    instructions: Observe a production-like soak with injected capacity pressure, skew, stale telemetry,
+      node loss, transfer interruption, and worker restart; reconcile reservations and alert delivery.
+    timeout_seconds: 3600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: LX focused 67 passed; endoreg focused 37 passed plus PostgreSQL concurrency test 1 passed.
+    - kind: code
+      reference: endoreg-db storage_reconciliation persists bounded immutable runs, observations, outcomes,
+        correlated events, and health snapshots with stable alert codes; LX overview exposes latest critical
+        and warning counts without exposing artifact data.
+    - kind: code
+      reference: LX-Annotate's additive lx-hub-storage-v1 inventory client scans globally ordered opaque-cursor
+        pages, binds rows to exact transfer evidence, and emits both remote-present and database-only
+        observations. Fetch failures persist bounded unreachable observations. Lux exposes the matching
+        mTLS-authorized additive endpoint without changing the v1 header or adding activation checks.
+        Test definitions are present but the final owner-run lane is intentionally outstanding.
+    - kind: code
+      reference: Approved video/report generations now create a durable publication record, and a bounded
+        dispatcher backfills already-approved rows and recovers lost broker delivery. Publication never
+        sends raw media or an arbitrary task path and retains the local copy. Owner-run migration/task
+        evidence is still required.
+    note: Authenticated telemetry, freshness and capacity admission, bounded balancing, atomic reservation
+      lifecycle, expiry, cancellation-aware restart recovery, structured reconciliation health, and readiness
+      blockers are implemented. Owner-run inventory evidence, external alert delivery, and production
+      threshold validation remain outstanding.
+    assessed_by: codex-storage-prod-readiness
+    assessed_at: '2026-08-11T10:35:28.132247Z'
+- id: integrity_and_failure_recovery
+  category: data_integrity
+  title: Rotation preserves canonical identity and recovers safely from partial failure
+  acceptance:
+  - Artifact identifier, byte size, cryptographic hash, storage profile, key version, source placement,
+    target placement, policy version, and workflow state are persisted and correlated for every rotation.
+  - Target bytes are verified before atomic placement publication; source cleanup waits for publication,
+    all required replicas, active media-operation lease expiry, and database/filesystem reconciliation.
+  - Lost acknowledgements, partial copies, corrupt targets, hash mismatch, target loss, source loss, database
+    rollback, and hub restart converge idempotently or enter an explicit failed or LOST state with evidence.
+  - Automatic recovery never guesses a canonical copy, rewrites clinical timeline coordinates, or removes
+    the previous or only valid master.
+  required: true
+  verification:
+    kind: manual
+    instructions: Interrupt each rotation transition and verify hash, placement, lease, database, and
+      filesystem reconciliation before and after restart.
+    timeout_seconds: 2400
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: Lux storage/deployment lane 55 passed; live cross-repository envelope suite 3 passed.
+    note: Persisted transfer evidence, exact replay, envelope verification, atomic commit, lease-aware
+      cleanup deferral, terminal failure evidence, restart recovery, rekey cleanup, and node janitor are
+      locally implemented. Production fault injection and source-loss drills remain outstanding.
+    assessed_by: codex-storage-prod-readiness
+    assessed_at: '2026-08-11T10:35:29.130472Z'
+- id: automated_cross_repository_tests
+  category: testing
+  title: Load balancing and storage rotation are regression tested across repositories
+  acceptance:
+  - Tests cover typed policy validation, deterministic selection, atomic reservation, idempotent replay,
+    concurrent placement, drain, rebalance, lease deferral, and safe source cleanup.
+  - Negative tests cover no eligible node, insufficient or stale capacity, node loss, timeout, wrong identity,
+    replay, corrupt copy, hash mismatch, lost acknowledgement, database rollback, and process restart.
+  - A compatibility test pins the same node-capability, placement, rotation, error, and telemetry schemas
+    in LX-Annotate, endoreg-db, and the evaluated LuxNix deployment.
+  - A production-like multi-node integration test proves ingest, playback through the hub, rotation, failover,
+    reconciliation, and cleanup without public storage-node access.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused backend, frontend, endoreg-db, LuxNix evaluation, concurrency, failure-injection,
+      and production-like multi-node integration suites and archive exact revisions and results.
+    timeout_seconds: 3600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: '2026-08-11 final local lanes: Lux/Nix 47 passed; LX 68 passed; endoreg storage 49 passed/1
+        PostgreSQL-only skip; skipped admission race passed separately on PostgreSQL 17; wheel-only live
+        transfer acceptance passed; Pyright 0 errors; MyPy and Ruff clean.'
+    - kind: test
+      reference: tests/hub-storage-node/verify_lx_annotate_wheel_contract.py runs LX only in a child interpreter,
+        rejects any lx_annotate package outside the supplied wheel site-packages, and exercises the real
+        Lux TLS data plane.
+    - kind: code
+      reference: The post-candidate publication/resolution/provider delta adds LX migration 0006 and exact
+        endoreg current-generation selectors. No test, type, lint, migration, build, or Nix command was
+        run after this delta at the owner's request; prior command evidence does not certify it.
+    - kind: test
+      reference: '2026-08-11 frontend suite: 91 files, 580 tests passed; Vue type-check passed'
+    - kind: test
+      reference: '2026-08-11 storage reconciliation: 3 passed'
+    - kind: command
+      reference: 'pre-commit mypy 2.3.0 over current 55 staged Python paths: 0 errors'
+    assessed_by: codex-attached-request
+    assessed_at: '2026-08-11T14:34:17.304844Z'
+- id: declarative_storage_node_deployment
+  category: operations
+  title: LuxNix deploys a reproducible protected storage node and hub access path
+  acceptance:
+  - Host role, encrypted persistent storage, mount ordering, service identity, firewall, mutually authenticated
+    Transport Layer Security material, key recipient, capacity thresholds, and monitoring are declarative.
+  - Hub services do not start or accept storage work until required mounts, credentials, routes, and health
+    dependencies are ready; mount or device failure is terminal and does not fall back to the root filesystem.
+  - The storage service is not publicly routable, grants the hub only required operations, and retains
+    no application master key or reusable plaintext transfer artifact.
+  - Rolling deployment, certificate and recipient-key rotation, node drain, rollback, replacement, backup,
+    and disaster recovery have tested procedures.
+  required: true
+  verification:
+    kind: manual
+    instructions: Evaluate and deploy the LuxNix storage-node and hub profiles on disposable hosts, inject
+      mount, identity, network, and capacity failures, and complete a drain and rollback exercise.
+    timeout_seconds: 2400
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: LuxNix evaluated gs-01 and gs-02; built lx-hub-storage-node and executed --help successfully.
+    - kind: command
+      reference: Candidate wheels migrated fresh PostgreSQL 17 to endoreg_db 0047, lx_annotate 0004, lx_dtypes_django
+        0005 with no model drift; gs-01 is the sole declared node and gs-02 balancing remains disabled.
+    note: Declarative gs-01/gs-02 topology and clean migration rehearsal pass. Activation remains blocked
+      by gs-01 encrypted-disk migration, approved release artifacts, and the in-progress mTLS deployment.
+    assessed_by: codex-storage-prod-readiness
+    assessed_at: '2026-08-11T11:18:34.540263Z'
+- id: operator_runbook
+  category: documentation
+  title: Storage-node deployment, balancing, rotation, and recovery have one executable runbook
+  acceptance:
+  - The English runbook documents topology, ownership, policy inputs, encryption, normal operation, capacity
+    planning, drain, rebalance, rotation, replacement, rollback, reconciliation, backup, and disaster
+    recovery.
+  - Procedures identify safe preconditions, expected structured events, verification commands, abort points,
+    and escalation paths without embedding secret values.
+  - The runbook distinguishes placement balancing from backup and replication and states the durability
+    and availability guarantees of a one-node and multi-node topology.
+  required: true
+  verification:
+    kind: manual
+    instructions: Have application, security, and storage operators execute the runbook in a production-like
+      environment and approve the resulting audit record.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: docs/guides/hub-storage-load-balancing.md
+    note: One English runbook now covers topology, ownership, envelope/key rotation, pre-production gates,
+      rollout, rollback, and incident response with explicit gs-01/gs-02 blockers. Execution evidence
+      and operator approval remain outstanding.
+    assessed_by: codex-storage-prod-readiness
+    assessed_at: '2026-08-11T10:35:32.018360Z'

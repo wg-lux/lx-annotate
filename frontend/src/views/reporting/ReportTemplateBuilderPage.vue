@@ -869,7 +869,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import {
   fetchReportTemplateByName,
@@ -896,6 +896,7 @@ import type {
   ReportTemplateRuntimeValidationResult
 } from '@/types/reportTemplate'
 import { reportingApiErrorMessage } from './reportingError'
+import { reportTemplateLifecycleContextKey } from './reportTemplateLifecycleContext'
 
 type CoreConceptPayload = {
   examination?: Array<{ name?: string }>
@@ -917,7 +918,8 @@ type RuntimeFindingDraft = {
   classificationChoices: RuntimeClassificationChoiceDraft[]
 }
 
-const moduleName = ref('')
+const lifecycleContext = inject(reportTemplateLifecycleContextKey, null)
+const moduleName = ref(lifecycleContext?.activeModuleName.value || '')
 const templateName = ref('')
 const examination = ref('')
 const templateDescription = ref('')
@@ -964,15 +966,11 @@ const availablePresets = computed(() => {
 })
 
 const examinationOptions = computed(() =>
-  (coreConcepts.value.examination || [])
-    .map((entry) => (entry.name || '').trim())
-    .filter(Boolean)
+  (coreConcepts.value.examination || []).map((entry) => (entry.name || '').trim()).filter(Boolean)
 )
 
 const findingOptions = computed(() =>
-  (coreConcepts.value.finding || [])
-    .map((entry) => (entry.name || '').trim())
-    .filter(Boolean)
+  (coreConcepts.value.finding || []).map((entry) => (entry.name || '').trim()).filter(Boolean)
 )
 
 const classificationOptions = computed(() =>
@@ -1000,6 +998,27 @@ function setError(message: string) {
 function clearMessages() {
   errorMessage.value = null
   successMessage.value = null
+}
+
+function readinessFromTemplate(
+  template: ReportTemplatePayload | null
+): ReportTemplateBuilderReadiness | null {
+  const readiness = template?.identity.readiness
+  if (!readiness) return null
+  return {
+    canPublish: readiness.canPublish === true,
+    lifecycleStatus: template.identity.lifecycleStatus || 'draft',
+    errors: readiness.blockingIssues,
+    warnings: readiness.warnings,
+    raw: readiness.raw
+  }
+}
+
+function syncSelectedTemplateMetadata() {
+  const option = templateOptions.value.find((item) => item.name === templateName.value) || null
+  lifecycleStatus.value = option?.identity.lifecycleStatus || null
+  builderReadiness.value = readinessFromTemplate(option)
+  if (selectedTemplate.value?.name !== option?.name) selectedTemplate.value = null
 }
 
 function defaultField(): ReportTemplateBuilderField {
@@ -1302,9 +1321,10 @@ async function refreshTemplateOptions() {
       moduleName.value,
       examination.value
     )
-    if (!templateName.value && templateOptions.value.length) {
-      templateName.value = templateOptions.value[0].name
+    if (!templateOptions.value.some((item) => item.name === templateName.value)) {
+      templateName.value = templateOptions.value[0]?.name || ''
     }
+    syncSelectedTemplateMetadata()
   } catch (error: unknown) {
     setError(reportingApiErrorMessage(error, 'Templates konnten nicht geladen werden.'))
   } finally {
@@ -1326,15 +1346,7 @@ async function loadSelectedTemplate() {
     }
     selectedTemplate.value = template
     lifecycleStatus.value = template.identity.lifecycleStatus
-    builderReadiness.value = template.identity.readiness
-      ? {
-          canPublish: template.identity.readiness.canPublish === true,
-          lifecycleStatus: template.identity.lifecycleStatus || 'draft',
-          errors: template.identity.readiness.blockingIssues,
-          warnings: template.identity.readiness.warnings,
-          raw: template.identity.readiness.raw
-        }
-      : null
+    builderReadiness.value = readinessFromTemplate(template)
     examination.value = template.examination || examination.value
     runtimeValidationResult.value = null
     definitionValidationResult.value = null
@@ -1387,6 +1399,12 @@ async function publishTemplate() {
     builderReadiness.value = result.readiness
     successMessage.value = `Vorlage "${templateName.value}" wurde veröffentlicht.`
     await refreshTemplateOptions()
+    await lifecycleContext?.notifyLifecycleChanged({
+      moduleName: moduleName.value,
+      templateName: templateName.value,
+      examination: examination.value,
+      lifecycleStatus: result.lifecycleStatus
+    })
   } catch (error: unknown) {
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht veröffentlicht werden.'))
   } finally {
@@ -1403,6 +1421,12 @@ async function unpublishTemplate() {
     lifecycleStatus.value = result.lifecycleStatus
     builderReadiness.value = result.readiness
     successMessage.value = `Vorlage "${templateName.value}" wurde entveröffentlicht.`
+    await lifecycleContext?.notifyLifecycleChanged({
+      moduleName: moduleName.value,
+      templateName: templateName.value,
+      examination: examination.value,
+      lifecycleStatus: result.lifecycleStatus
+    })
   } catch (error: unknown) {
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht entveröffentlicht werden.'))
   } finally {
@@ -1471,6 +1495,16 @@ watch(moduleName, async () => {
   await loadCoreConcepts()
   await refreshTemplateOptions()
 })
+
+watch(templateName, syncSelectedTemplateMetadata)
+
+if (lifecycleContext) {
+  watch(lifecycleContext.activeModuleName, (nextModuleName) => {
+    if (nextModuleName && nextModuleName !== moduleName.value) {
+      moduleName.value = nextModuleName
+    }
+  })
+}
 
 watch(examination, async (next, prev) => {
   if (!next || next === prev) return

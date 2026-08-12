@@ -12,6 +12,8 @@ export interface ApplicationSettingsRecord {
   aiDatasetId: number | null
   aiDatasetName: string | null
   aiDatasetType: string | null
+  primaryAnnotationDatasetValid: boolean
+  primaryAnnotationDatasetError: string | null
   updatedAt: string | null
   backupStatus: {
     ready: boolean
