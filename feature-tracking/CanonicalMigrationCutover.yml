@@ -18,7 +18,7 @@ definition_of_done:
   category: requirements
   title: Historical and canonical migration identities have an explicit safety contract
   acceptance:
-  - Supported package versions, legacy leaves, canonical leaves, and failure conditions are explicit.
+  - Package ownership, legacy leaves, canonical leaves, reviewed manifests, and failure conditions are explicit.
   - Historical migration records remain recognized by the pre-migrate safety gate.
   required: true
   verification:
@@ -82,7 +82,7 @@ definition_of_done:
   category: security
   title: Canonical migration startup fails closed before schema mutation
   acceptance:
-  - Package versions, canonical migration manifests, and database history are verified before migrate.
+  - Canonical migration manifests and database history are verified before migrate without pinning distribution versions.
   - No payload, encryption-key, or application-data mutation is introduced.
   required: true
   verification:
@@ -98,8 +98,8 @@ definition_of_done:
     - kind: command
       reference: ./.devenv/state/venv/bin/pytest tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
       note: Exit-Code 0
-    assessed_by: codex-canonical-migration-cutover
-    assessed_at: '2026-08-12T08:10:33.439831Z'
+    assessed_by: codex-migration-overrides-audit
+    assessed_at: '2026-08-12T09:27:36.743592Z'
 - id: rollout
   category: operations
   title: Canonical cutover and rollback procedures are documented

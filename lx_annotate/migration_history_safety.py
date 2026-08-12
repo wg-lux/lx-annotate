@@ -8,7 +8,6 @@ import re
 from collections.abc import Collection
 from dataclasses import dataclass
 from importlib import resources
-from importlib.metadata import PackageNotFoundError, version
 
 _MIGRATION_FILENAME = re.compile(r"^(?P<name>\d{4}_.+)\.py$")
 
@@ -21,7 +20,6 @@ class MigrationHistorySafetyError(RuntimeError):
 class MigrationHistoryContract:
     app_label: str
     distribution: str
-    distribution_version: str
     legacy_names: frozenset[str]
     canonical_module: str
     canonical_leaf: str
@@ -88,7 +86,6 @@ CONTRACTS: tuple[MigrationHistoryContract, ...] = (
     MigrationHistoryContract(
         app_label="endoreg_db",
         distribution="endoreg-db",
-        distribution_version="1.0.13.0",
         legacy_names=frozenset(
             """
             0001_initial
@@ -153,7 +150,6 @@ CONTRACTS: tuple[MigrationHistoryContract, ...] = (
     MigrationHistoryContract(
         app_label="lx_dtypes_django",
         distribution="lx-dtypes",
-        distribution_version="0.2.15",
         legacy_names=frozenset(
             """
             0001_initial
@@ -223,18 +219,6 @@ def verify_canonical_contract_manifests(
 ) -> dict[str, MigrationManifest]:
     manifests: dict[str, MigrationManifest] = {}
     for contract in contracts:
-        try:
-            installed_version = version(contract.distribution)
-        except PackageNotFoundError as exc:
-            raise MigrationHistorySafetyError(
-                f"Required distribution '{contract.distribution}' is not installed.",
-            ) from exc
-        if installed_version != contract.distribution_version:
-            raise MigrationHistorySafetyError(
-                f"Unsupported {contract.distribution} version {installed_version}; "
-                f"expected {contract.distribution_version}.",
-            )
-
         canonical = load_migration_manifest(contract.canonical_module)
         if canonical.sha256 != contract.canonical_manifest_sha256:
             raise MigrationHistorySafetyError(

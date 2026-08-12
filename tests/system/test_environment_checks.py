@@ -163,7 +163,6 @@ def _migration_contracts(monkeypatch):
     contract = history_safety.MigrationHistoryContract(
         app_label="example",
         distribution="example",
-        distribution_version="1",
         legacy_names=frozenset({"0001_initial", "0002_legacy"}),
         canonical_module="canonical.migrations",
         canonical_leaf="0003_canonical",

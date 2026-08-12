@@ -118,7 +118,7 @@ verified.
 The previously recorded local candidate was typed and regression-tested, but it
 is not yet approved for a production test. Candidate `endoreg-db 1.0.10.0` and `lx-annotate 0.9.62`
 wheels migrated a fresh disposable PostgreSQL 17 database through the expected
-leaves (`endoreg_db 0047`, `lx_annotate 0004`, and `lx_dtypes_django 0005`), and
+leaves (`endoreg_db 0047`, `lx_annotate 0004`, and `lx_dtypes_django 0004`), and
 `makemigrations --check --dry-run` reported no drift. A separate real PostgreSQL
 admission race admitted exactly one of two competing reservations without
 over-accounting.
@@ -146,7 +146,7 @@ below against the final wheels before this document can support a production-tes
 request.
 
 The subsequent application-path integration is assigned to endoreg-db
-`1.0.11.0` and LX-Annotate `0.9.64`; it adds LX-Annotate migration 0006.
+`1.0.11.0` and LX-Annotate `0.9.67`; it adds LX-Annotate migration 0006.
 An immutable publication row is keyed by the database resource and its approved
 processed SHA-256 generation. Signals only persist that row; workers receive its
 UUID, reload the resource, require the current video `ready_for_export` proof or
