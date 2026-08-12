@@ -2,35 +2,36 @@
 Production settings.
 """
 
-from lx_annotate.settings import config as config_module
-from lx_annotate.settings.config import AppConfig
-from .settings_base import (
-    APP_DATA_DIR,
-    SECRET_KEY,
-    INSTALLED_APPS,
-    MIDDLEWARE,
-    LOGGING,
-    REST_FRAMEWORK,
-    MIGRATION_MODULES,
-    STORAGES,
-    TEMPLATES,
-    ROOT_URLCONF,
-    STATIC_URL,
-    STATICFILES_STORAGE,
-    MEDIA_ROOT,
-    MEDIA_URL,
-    BASE_DIR,
-    config,
-    LX_DTYPES_HOST_MODELS_MODULE,
-)
+from __future__ import annotations
 
 import os
 from pathlib import Path
 from typing import Any, cast
 
+from lx_annotate.settings import config as config_module
+from lx_annotate.settings.config import AppConfig
+
+from .settings_base import (
+    APP_DATA_DIR,
+    BASE_DIR,
+    INSTALLED_APPS,
+    LOGGING,
+    LX_DTYPES_HOST_MODELS_MODULE,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    MIDDLEWARE,
+    REST_FRAMEWORK,
+    ROOT_URLCONF,
+    SECRET_KEY,
+    STATIC_URL,
+    STATICFILES_STORAGE,
+    STORAGES,
+    TEMPLATES,
+    config,
+)
+
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
-MIGRATION_MODULES = cast(dict[str, str], MIGRATION_MODULES)
 STORAGES = cast(dict[str, dict[str, str]], STORAGES)
 TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
 ROOT_URLCONF = cast(str, ROOT_URLCONF)
@@ -51,7 +52,7 @@ vite_source_root = (BASE_DIR / "static").resolve(strict=False)
 if static_root_path == vite_source_root:
     raise RuntimeError(
         "🚨 PRODUCTION ERROR: DJANGO_STATIC_ROOT must not point to BASE_DIR/static "
-        "(Vite source assets). Use BASE_DIR/staticfiles as STATIC_ROOT."
+        "(Vite source assets). Use BASE_DIR/staticfiles as STATIC_ROOT.",
     )
 # 1. SECURITY
 DEBUG = False
@@ -59,7 +60,7 @@ DEBUG = False
 if SECRET_KEY.startswith("***UNSAFE") or not SECRET_KEY:
     raise RuntimeError(
         "🚨 PRODUCTION ERROR: DJANGO_SECRET_KEY is missing/unsafe! "
-        "Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE."
+        "Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE.",
     )
 
 # 2. VITE (Built Assets)
@@ -68,7 +69,7 @@ DJANGO_VITE = {
         "dev_mode": False,
         "static_url_prefix": "",
         "manifest_path": os.path.join(STATIC_ROOT, ".vite", "manifest.json"),
-    }
+    },
 }
 
 # Vite already owns the frontend asset graph and manifest.
@@ -95,7 +96,7 @@ DEFAULT_PERMISSION_CLASSES = ["rest_framework.permissions.IsAuthenticated"]
 if SECRET_KEY.startswith("***UNSAFE"):
     raise RuntimeError(
         "🚨 SECURITY ERROR: SECRET_KEY must be set from environment in production!\n"
-        "Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE to a secure value."
+        "Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE to a secure value.",
     )
 
 # SECURITY: Strict host validation - must be configured
@@ -104,7 +105,7 @@ ALLOWED_HOSTS = config.allowed_hosts
 if not ALLOWED_HOSTS:
     raise RuntimeError(
         "🚨 SECURITY ERROR: DJANGO_ALLOWED_HOSTS must be set in production!\n"
-        "Example: DJANGO_ALLOWED_HOSTS=yourdomain.com,api.yourdomain.com"
+        "Example: DJANGO_ALLOWED_HOSTS=yourdomain.com,api.yourdomain.com",
     )
 
 # SECURITY: Strict CSRF protection
@@ -112,7 +113,7 @@ CSRF_TRUSTED_ORIGINS = config.csrf_trusted_origins
 if not CSRF_TRUSTED_ORIGINS:
     raise RuntimeError(
         "🚨 SECURITY ERROR: DJANGO_CSRF_TRUSTED_ORIGINS must be set in production!\n"
-        "Example: DJANGO_CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com"
+        "Example: DJANGO_CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com",
     )
 
 # SECURITY: Strict CORS - NO wildcard origins
@@ -121,7 +122,7 @@ CORS_ALLOWED_ORIGINS = config.cors_allowed_origins
 if not CORS_ALLOWED_ORIGINS:
     raise RuntimeError(
         "🚨 SECURITY ERROR: DJANGO_CORS_ALLOWED_ORIGINS must be set in production!\n"
-        "Example: DJANGO_CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com"
+        "Example: DJANGO_CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com",
     )
 
 CORS_ALLOW_CREDENTIALS = True
@@ -144,7 +145,7 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # SECURITY: API must require authentication
 assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
-    "rest_framework.permissions.IsAuthenticated"
+    "rest_framework.permissions.IsAuthenticated",
 ], "🚨 SECURITY ERROR: Production API must require authentication!"
 
 
@@ -152,7 +153,7 @@ assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
 if not config.keycloak_client_secret:
     raise RuntimeError(
         "🚨 SECURITY ERROR: KEYCLOAK_CLIENT_SECRET must be set in production!\n"
-        "Set DJANGO_KEYCLOAK_CLIENT_SECRET or DJANGO_KEYCLOAK_CLIENT_SECRET_FILE."
+        "Set DJANGO_KEYCLOAK_CLIENT_SECRET or DJANGO_KEYCLOAK_CLIENT_SECRET_FILE.",
     )
 
 # 4. LOGGING (File based)
@@ -172,14 +173,14 @@ DATABASES = {
         "OPTIONS": {
             "sslmode": config.db_sslmode,
         },
-    }
+    },
 }
 
 # Ensure database password is set
 if not DATABASES["default"]["PASSWORD"]:
     raise RuntimeError(
         "🚨 SECURITY ERROR: Database password must be set in production!\n"
-        "Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE."
+        "Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.",
     )
 
 ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "1") == "1"  # default OFF
@@ -228,7 +229,7 @@ except ImportError as e:
     print(f"❌ Keycloak integration failed to load from installed packages: {e}")
     if ENFORCE_AUTH:
         raise RuntimeError(
-            "🚨 SECURITY ERROR: ENFORCE_AUTH=1 but Keycloak integration failed to load!"
+            "🚨 SECURITY ERROR: ENFORCE_AUTH=1 but Keycloak integration failed to load!",
         ) from e
     else:
         print("🔓 ENFORCE_AUTH=0 → Keycloak disabled, no authentication")

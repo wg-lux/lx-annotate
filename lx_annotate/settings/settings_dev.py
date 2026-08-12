@@ -2,35 +2,34 @@
 Development settings.
 """
 
-from typing import Any, cast
-from .settings_base import (
-    INSTALLED_APPS,
-    MIDDLEWARE,
-    LOGGING,
-    REST_FRAMEWORK,
-    MIGRATION_MODULES,
-    STORAGES,
-    SECRET_KEY,
-    TEMPLATES,
-    ROOT_URLCONF,
-    STATIC_URL,
-    STATIC_ROOT,
-    STATICFILES_DIRS,
-    STATICFILES_STORAGE,
-    MEDIA_ROOT,
-    MEDIA_URL,
-    DATABASES,
-    BASE_DIR,
-    LX_DTYPES_HOST_MODELS_MODULE,
-)
-
-from pathlib import Path
+from __future__ import annotations
 
 import os
+from pathlib import Path
+from typing import Any, cast
+
+from .settings_base import (
+    BASE_DIR,
+    DATABASES,
+    INSTALLED_APPS,
+    LOGGING,
+    LX_DTYPES_HOST_MODELS_MODULE,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    MIDDLEWARE,
+    REST_FRAMEWORK,
+    ROOT_URLCONF,
+    SECRET_KEY,
+    STATIC_ROOT,
+    STATIC_URL,
+    STATICFILES_DIRS,
+    STATICFILES_STORAGE,
+    STORAGES,
+    TEMPLATES,
+)
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
-MIGRATION_MODULES = cast(dict[str, str], MIGRATION_MODULES)
 STORAGES = cast(dict[str, dict[str, str]], STORAGES)
 TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
 ROOT_URLCONF = cast(str, ROOT_URLCONF)
@@ -65,7 +64,7 @@ DJANGO_VITE = {
         "dev_mode": False,
         "static_url_prefix": "",
         "manifest_path": os.path.join(STATIC_ROOT, ".vite", "manifest.json"),
-    }
+    },
 }
 
 # 3. CORS & SECURITY (Relaxed)
@@ -121,12 +120,12 @@ if ENFORCE_AUTH:
     except ImportError:
         print(
             "⚠️  WARNING: endoreg_db Keycloak integration is not installed in the "
-            "active environment, falling back to basic auth"
+            "active environment, falling back to basic auth",
         )
 else:
     print("🔓 AUTH: DISABLED (Open Access)")
     REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
-        "rest_framework.permissions.AllowAny"
+        "rest_framework.permissions.AllowAny",
     ]
 
 print("🚀 DEV SETTINGS LOADED")

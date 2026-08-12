@@ -204,6 +204,7 @@
 <li class="toctree-l1"><a class="reference internal" href="pypi.html">PyPI Publishing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="frame-annotation-availability.html">Frame Annotation Availability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="terminology-delivery.html">Governed terminology delivery</a></li>
@@ -585,11 +586,34 @@ answer different questions:</p>
 feature in the <code class="docutils literal notranslate"><span class="pre">endoreg-db</span></code> source repository</p></li>
 <li><p>the installed <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> package determines the models, services, and
 upstream migrations available to the deployed application</p></li>
-<li><p>the <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> migration override set determines the migration graph
-actually applied by this Django project</p></li>
+<li><p>the installed dependency packages determine the canonical migration graph
+applied by this Django project</p></li>
 <li><p>the live database determines whether the required tables, columns,
 constraints, and existing rows are consistent</p></li>
 </ul>
+<section id="canonical-migration-history-safety">
+<h3>Canonical Migration History Safety<a class="headerlink" href="#canonical-migration-history-safety" title="Link to this heading">¶</a></h3>
+<p>LX-Annotate now uses the canonical migrations shipped by <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> and
+<code class="docutils literal notranslate"><span class="pre">lx-dtypes</span></code>. The earlier bridge release is no longer included. An existing
+database must therefore already contain the complete reviewed canonical
+migration history before this release is deployed.</p>
+<p>The Django system-check framework enforces that condition immediately before
+<code class="docutils literal notranslate"><span class="pre">migrate</span></code>. This is the effective deployment boundary because LuxNix runs
+<code class="docutils literal notranslate"><span class="pre">lx-annotate-manage</span> <span class="pre">migrate</span> <span class="pre">--noinput</span></code> from <code class="docutils literal notranslate"><span class="pre">lx-annotate-migrate.service</span></code> using
+the selected wheel and runtime database environment. The check verifies pinned
+dependency versions and semantic hashes of their canonical migration manifests.
+It permits a genuinely fresh database, an interrupted canonical first install,
+or a fully converged database. It rejects legacy-only, partially bridged,
+unexpected, or unreadable histories before Django executes a schema migration.</p>
+<p>If the check rejects a database, stop the rollout. Restore the database backup
+and deploy the preceding bridge release to complete history convergence before
+retrying this release. Do not use <code class="docutils literal notranslate"><span class="pre">--skip-checks</span></code>; that can execute canonical
+schema operations against a database whose recorded history belongs to the
+retired graph.</p>
+<p>Release acceptance still requires an empty canonical migration plan, a fresh
+canonical database migration, runtime acceptance checks, and normalized
+PostgreSQL schema comparison against the reviewed bridge-release graph. Retain
+the canonical identities during rollback.</p>
 <p>A tracker entry marked done therefore does not prove that a particular host has
 the matching wheel or an up-to-date database. Conversely, a database
 introspection failure does not prove that the tracker or installed package is
@@ -615,6 +639,7 @@ and the checker found a concrete schema or data incompatibility.</p></li>
 <p>The same connection failure may be reported repeatedly because each required
 table, constraint, and data predicate is checked independently. The repetition
 does not mean that several unrelated migrations failed.</p>
+</section>
 <section id="how-the-luxnix-module-handles-the-gate">
 <h3>How The LuxNix Module Handles The Gate<a class="headerlink" href="#how-the-luxnix-module-handles-the-gate" title="Link to this heading">¶</a></h3>
 <p>The LuxNix module at
@@ -869,6 +894,7 @@ automated rollback path.</p></li>
 <li><a class="reference internal" href="#current-service-environment">Current Service Environment</a></li>
 <li><a class="reference internal" href="#luxnix-audit-findings">LuxNix Audit Findings</a></li>
 <li><a class="reference internal" href="#runtime-schema-gate-and-feature-tracker-alignment">Runtime Schema Gate And Feature-Tracker Alignment</a><ul>
+<li><a class="reference internal" href="#canonical-migration-history-safety">Canonical Migration History Safety</a></li>
 <li><a class="reference internal" href="#how-the-luxnix-module-handles-the-gate">How The LuxNix Module Handles The Gate</a></li>
 </ul>
 </li>
@@ -892,7 +918,7 @@ automated rollback path.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=5a55070e"></script>
+</div><script src="../_static/documentation_options.js?v=35a413da"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

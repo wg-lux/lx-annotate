@@ -21,6 +21,7 @@ guides/wheel-deployment
 guides/pypi
 guides/ai-training-data-export
 guides/segment-annotation-workflow
+guides/frame-annotation-availability
 guides/anonymization-validation-correction-workflow
 guides/dtypes-findings-migration
 guides/terminology-delivery

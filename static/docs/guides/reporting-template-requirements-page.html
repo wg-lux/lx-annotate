@@ -204,6 +204,7 @@
 <li class="toctree-l1"><a class="reference internal" href="pypi.html">PyPI Publishing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="frame-annotation-availability.html">Frame Annotation Availability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="terminology-delivery.html">Governed terminology delivery</a></li>
@@ -281,6 +282,25 @@
 <li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/:patient_examination_id/template-requirements</span></code></p></li>
 </ul>
 <p>This means it is part of the guided multi-step reporting process, not a standalone page.</p>
+</section>
+<section id="publication-and-runtime-visibility">
+<h2>Publication And Runtime Visibility<a class="headerlink" href="#publication-and-runtime-visibility" title="Link to this heading">¶</a></h2>
+<p>The template builder runs inside <code class="docutils literal notranslate"><span class="pre">ReportingShell</span></code> and uses the shell’s active
+knowledge-base module. Saving a template creates a draft; it does not make the
+template available for clinical reporting. Publication remains a separate,
+authorized action and succeeds only after the backend readiness compiler reports
+that the template can be published.</p>
+<p>After a successful publish or unpublish action, the builder notifies the shell.
+The shell then reloads the published templates for the active module and current
+examination. Normal reporting routes continue to receive only templates whose
+lifecycle is <code class="docutils literal notranslate"><span class="pre">published</span></code> and whose production readiness is valid. If a template
+used by an existing draft is unpublished, the draft is retained but cannot be
+treated as verified against an available production template.</p>
+<p>Templates shipped inside the <code class="docutils literal notranslate"><span class="pre">lx-dtypes</span></code> wheel are immutable release content.
+They are published through the protected package release workflow, not by
+writing into <code class="docutils literal notranslate"><span class="pre">site-packages</span></code> at runtime. To author or change lifecycle state,
+first import an editable terminology bundle so the API can resolve one explicit,
+writable module root and version.</p>
 </section>
 <hr class="docutils" />
 <section id="what-you-see-on-the-page">
@@ -747,6 +767,7 @@
 <li><a class="reference internal" href="#">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a><ul>
 <li><a class="reference internal" href="#audience-and-purpose">Audience and Purpose</a></li>
 <li><a class="reference internal" href="#where-this-page-is-used">Where This Page Is Used</a></li>
+<li><a class="reference internal" href="#publication-and-runtime-visibility">Publication And Runtime Visibility</a></li>
 <li><a class="reference internal" href="#what-you-see-on-the-page">What You See on the Page</a><ul>
 <li><a class="reference internal" href="#template-selection">1. Template Selection</a></li>
 <li><a class="reference internal" href="#template-requirement-sets">2. Template &amp; Requirement Sets</a></li>
@@ -799,7 +820,7 @@
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=5a55070e"></script>
+</div><script src="../_static/documentation_options.js?v=35a413da"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Dtypes Findings Migration (Incremental, Endoreg-Safe)" href="dtypes-findings-migration.html"><link rel="prev" title="Frame Annotation Availability" href="frame-annotation-availability.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Anonymization Validation and Correction Workflow" href="anonymization-validation-correction-workflow.html"><link rel="prev" title="Segment Annotation Workflow" href="segment-annotation-workflow.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>Anonymization Validation and Correction Workflow - lx-annotate Documentation</title>
+        <title>Frame Annotation Availability - lx-annotate Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -204,8 +204,8 @@
 <li class="toctree-l1"><a class="reference internal" href="pypi.html">PyPI Publishing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="frame-annotation-availability.html">Frame Annotation Availability</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Anonymization Validation and Correction Workflow</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Frame Annotation Availability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="terminology-delivery.html">Governed terminology delivery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
@@ -236,7 +236,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/guides/anonymization-validation-correction-workflow.md.txt" title="View this page">
+  <a class="muted-link" href="../_sources/guides/frame-annotation-availability.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -254,127 +254,70 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="anonymization-validation-and-correction-workflow">
-<h1>Anonymization Validation and Correction Workflow<a class="headerlink" href="#anonymization-validation-and-correction-workflow" title="Link to this heading">¶</a></h1>
-<p>This page explains how anonymized PDFs and videos are reviewed, approved, and corrected before reporting.</p>
-<section id="target-audience">
-<h2>Target Audience<a class="headerlink" href="#target-audience" title="Link to this heading">¶</a></h2>
+          <section id="frame-annotation-availability">
+<h1>Frame Annotation Availability<a class="headerlink" href="#frame-annotation-availability" title="Link to this heading">¶</a></h1>
+<section id="data-ownership">
+<h2>Data ownership<a class="headerlink" href="#data-ownership" title="Link to this heading">¶</a></h2>
+<p>The primary annotation dataset is label-first. Its stable database ID, label
+set, annotation rows, and dataset membership are durable data. A decoded JPEG
+shown to an annotator is a regenerable view and is not dataset truth.</p>
+<p>Application Settings accepts only an active image dataset with a frame-label
+compatible model type. Invalid, inactive, deleted, or video datasets produce an
+actionable settings error. Duplicate dataset names do not affect selection.</p>
+</section>
+<section id="frame-source-policy">
+<h2>Frame source policy<a class="headerlink" href="#frame-source-policy" title="Link to this heading">¶</a></h2>
+<p>Normal annotation prefers the anonymized processed video. The application
+decodes only the requested frame directly from that durable artifact and sends
+it with <code class="docutils literal notranslate"><span class="pre">Cache-Control:</span> <span class="pre">no-store</span></code>; it does not create a second persistent frame
+corpus. The browser holds one frame object URL and revokes it when the task
+changes.</p>
+<p>Raw video is allowed only for an explicitly raw workflow, such as PHI-region
+annotation. Raw media remains inside the local encrypted storage boundary and
+must never be retrieved from or exported to another node.</p>
+<p>If the permitted source artifact is missing, the task is unavailable. The
+client must not enable label or box submission until the requested image has
+loaded. Operators may retry or skip the task without changing its annotator or
+dataset scope.</p>
+</section>
+<section id="back-pressure">
+<h2>Back-pressure<a class="headerlink" href="#back-pressure" title="Link to this heading">¶</a></h2>
+<p>Two host-provided settings bound decoder work per application process:</p>
 <ul class="simple">
-<li><p>Medical staff validating anonymization quality</p></li>
-<li><p>Clinical documentation staff preparing report-ready records</p></li>
-<li><p>Trainers onboarding users into anonymization-to-reporting flow</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_FRAME_DECODE_MAX_CONCURRENCY</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">2</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_FRAME_DECODE_RETRY_AFTER_SECONDS</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p></li>
 </ul>
+<p>Requests above the concurrency limit, and duplicate concurrent requests for
+the same video, frame number, and artifact kind, return HTTP <code class="docutils literal notranslate"><span class="pre">429</span></code> with a typed
+<code class="docutils literal notranslate"><span class="pre">frame_decode_throttled</span></code> payload and <code class="docutils literal notranslate"><span class="pre">Retry-After</span></code>. The frontend observes the
+header and performs at most three automatic retries. Queue prefetch contains
+task metadata only; frame bytes are requested for the current task.</p>
+<p>The decoder waiting-queue depth is <code class="docutils literal notranslate"><span class="pre">0</span></code>: saturated work is rejected immediately
+and retried by the bounded client policy. The implementation intentionally has
+no server-side decoded-frame cache, so maximum cache bytes and cache age are
+both <code class="docutils literal notranslate"><span class="pre">0</span></code>. This keeps durable storage writes at zero and makes capacity behavior
+independent of frame-corpus size. If a cache is introduced later, it must live
+on encrypted local storage, be byte- and age-bounded, use the typed filesystem
+wrappers, and remain safe to evict at any time.</p>
+<p>The durable processed source must remain retained while dataset membership or
+frame annotations reference it. Storage placement may move that processed
+artifact only under the approved integrity and residency contract; deletion
+must not orphan the label records. This retention gate remains part of storage
+workflow acceptance rather than the ephemeral decoder.</p>
 </section>
-<section id="primary-components">
-<h2>Primary Components<a class="headerlink" href="#primary-components" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/components/Anonymizer/AnonymizationValidationComponent.vue</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/components/Anonymizer/AnonymizationCorrectionComponent.vue</span></code></p></li>
-</ul>
-</section>
-<section id="clinical-purpose">
-<h2>Clinical Purpose<a class="headerlink" href="#clinical-purpose" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p>Ensure no personal data remains visible.</p></li>
-<li><p>Correct patient/examination metadata before final approval.</p></li>
-<li><p>Route the user directly into the next clinical documentation step.</p></li>
-</ul>
-</section>
-<section id="validation-workflow">
-<h2>Validation Workflow<a class="headerlink" href="#validation-workflow" title="Link to this heading">¶</a></h2>
-<section id="what-users-review">
-<h3>What Users Review<a class="headerlink" href="#what-users-review" title="Link to this heading">¶</a></h3>
-<ol class="arabic simple">
-<li><p>Original vs anonymized media side-by-side.</p></li>
-<li><p>Patient fields (name, gender, date of birth, case number).</p></li>
-<li><p>Examination date consistency.</p></li>
-<li><p>Anonymized text content.</p></li>
-<li><p>For PDF: required document type selection.</p></li>
-<li><p>For PDF: optional explicit selection of a <code class="docutils literal notranslate"><span class="pre">PatientExamination</span></code>.</p></li>
-</ol>
-</section>
-<section id="video-specific-validation-gate">
-<h3>Video-Specific Validation Gate<a class="headerlink" href="#video-specific-validation-gate" title="Link to this heading">¶</a></h3>
-<ol class="arabic simple">
-<li><p>Run <code class="docutils literal notranslate"><span class="pre">Segment-Annotation</span> <span class="pre">prüfen</span></code>.</p></li>
-<li><p>If <code class="docutils literal notranslate"><span class="pre">outside</span></code> segments exist, validate them in the dedicated outside timeline.</p></li>
-<li><p>Approval remains blocked until required outside validation is complete.</p></li>
-</ol>
-</section>
-<section id="approval-behavior">
-<h3>Approval Behavior<a class="headerlink" href="#approval-behavior" title="Link to this heading">¶</a></h3>
-<p>When <code class="docutils literal notranslate"><span class="pre">Bestätigen</span></code> is clicked:</p>
-<ul class="simple">
-<li><p>Validation data is submitted to the anonymization validate endpoint.</p></li>
-<li><p>For video media, navigation continues to segment annotation.</p></li>
-<li><p>For PDF media, navigation targets <code class="docutils literal notranslate"><span class="pre">/reporting/&lt;patient_examination_id&gt;/report-editor</span></code> when a case can be resolved.</p></li>
-<li><p>If no case is resolvable for a PDF, fallback is <code class="docutils literal notranslate"><span class="pre">/reporting/case-setup</span></code>.</p></li>
-</ul>
-</section>
-</section>
-<section id="correction-workflow">
-<h2>Correction Workflow<a class="headerlink" href="#correction-workflow" title="Link to this heading">¶</a></h2>
-<p>Use correction when anonymization quality is insufficient.</p>
-<section id="pdf-correction">
-<h3>PDF Correction<a class="headerlink" href="#pdf-correction" title="Link to this heading">¶</a></h3>
-<ol class="arabic simple">
-<li><p>Open correction from validation (<code class="docutils literal notranslate"><span class="pre">PDF-Korrektur</span></code>).</p></li>
-<li><p>Draw black redaction boxes on sensitive areas.</p></li>
-<li><p>Generate redacted PDF preview.</p></li>
-<li><p>Optionally download result for review.</p></li>
-<li><p>Upload corrected version for re-processing pipeline use.</p></li>
-</ol>
-</section>
-<section id="video-correction">
-<h3>Video Correction<a class="headerlink" href="#video-correction" title="Link to this heading">¶</a></h3>
-<ol class="arabic simple">
-<li><p>Open correction from validation (<code class="docutils literal notranslate"><span class="pre">Video-Korrektur</span></code>).</p></li>
-<li><p>Choose masking for persistent sensitive regions.</p></li>
-<li><p>Or choose frame removal for isolated sensitive frames.</p></li>
-<li><p>Start processing and monitor progress.</p></li>
-<li><p>Compare original and processed outputs.</p></li>
-<li><p>Check processing history entries.</p></li>
-</ol>
-</section>
-</section>
-<section id="operational-recommendations">
-<h2>Operational Recommendations<a class="headerlink" href="#operational-recommendations" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p>Approve only after correction output has been visually reviewed.</p></li>
-<li><p>For PDF cases, always set document type explicitly to keep downstream report handling consistent.</p></li>
-<li><p>If case assignment is ambiguous, set <code class="docutils literal notranslate"><span class="pre">PatientExamination</span></code> manually before approval.</p></li>
-</ul>
-</section>
-<section id="common-issues">
-<h2>Common Issues<a class="headerlink" href="#common-issues" title="Link to this heading">¶</a></h2>
-<section id="approval-is-blocked-for-video">
-<h3>Approval is blocked for video<a class="headerlink" href="#approval-is-blocked-for-video" title="Link to this heading">¶</a></h3>
-<ul class="simple">
-<li><p>Cause: outside segments still require validation.</p></li>
-<li><p>Action: finish outside-segment validation first, then approve.</p></li>
-</ul>
-</section>
-<section id="pdf-does-not-open-report-editor-directly">
-<h3>PDF does not open report editor directly<a class="headerlink" href="#pdf-does-not-open-report-editor-directly" title="Link to this heading">¶</a></h3>
-<ul class="simple">
-<li><p>Cause: no resolvable <code class="docutils literal notranslate"><span class="pre">patient_examination_id</span></code>.</p></li>
-<li><p>Action: select a <code class="docutils literal notranslate"><span class="pre">PatientExamination</span></code> manually or continue through case setup.</p></li>
-</ul>
-</section>
-<section id="document-type-error-on-pdf-approval">
-<h3>Document type error on PDF approval<a class="headerlink" href="#document-type-error-on-pdf-approval" title="Link to this heading">¶</a></h3>
-<ul class="simple">
-<li><p>Cause: missing or invalid document type selection.</p></li>
-<li><p>Action: choose a valid document type from the dropdown and retry.</p></li>
-</ul>
-</section>
-</section>
-<section id="technical-references">
-<h2>Technical References<a class="headerlink" href="#technical-references" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/components/Anonymizer/AnonymizationValidationComponent.vue</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/components/Anonymizer/AnonymizationCorrectionComponent.vue</span></code></p></li>
-</ul>
+<section id="monitoring-and-recovery">
+<h2>Monitoring and recovery<a class="headerlink" href="#monitoring-and-recovery" title="Link to this heading">¶</a></h2>
+<p>Structured events distinguish <code class="docutils literal notranslate"><span class="pre">frame_decode_started</span></code>,
+<code class="docutils literal notranslate"><span class="pre">frame_decode_finished</span></code>, and <code class="docutils literal notranslate"><span class="pre">frame_decode_throttled</span></code>. Throttle events include
+the artifact kind, active count, configured limit, reason, and retry delay.</p>
+<p>An empty annotation queue means no eligible label task was found. It must not
+be treated as equivalent to decode saturation, a missing source artifact, an
+authorization failure, or a decode error. Persistent throttling calls for
+capacity review; a missing source calls for storage-integrity or placement
+recovery. Neither condition permits fallback to raw or cross-center media.</p>
+<p>Remote retrieval, when implemented for this path, is restricted to anonymized
+processed media over the deployment profile’s required authenticated mTLS
+transport. Missing required transport security must fail closed.</p>
 </section>
 </section>
 
@@ -383,23 +326,23 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="dtypes-findings-migration.html">
+          <a class="next-page" href="anonymization-validation-correction-workflow.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Dtypes Findings Migration (Incremental, Endoreg-Safe)</div>
+                <div class="title">Anonymization Validation and Correction Workflow</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="frame-annotation-availability.html">
+          <a class="prev-page" href="segment-annotation-workflow.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Frame Annotation Availability</div>
+                <div class="title">Segment Annotation Workflow</div>
                 
               </div>
             </a>
@@ -433,29 +376,11 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Anonymization Validation and Correction Workflow</a><ul>
-<li><a class="reference internal" href="#target-audience">Target Audience</a></li>
-<li><a class="reference internal" href="#primary-components">Primary Components</a></li>
-<li><a class="reference internal" href="#clinical-purpose">Clinical Purpose</a></li>
-<li><a class="reference internal" href="#validation-workflow">Validation Workflow</a><ul>
-<li><a class="reference internal" href="#what-users-review">What Users Review</a></li>
-<li><a class="reference internal" href="#video-specific-validation-gate">Video-Specific Validation Gate</a></li>
-<li><a class="reference internal" href="#approval-behavior">Approval Behavior</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#correction-workflow">Correction Workflow</a><ul>
-<li><a class="reference internal" href="#pdf-correction">PDF Correction</a></li>
-<li><a class="reference internal" href="#video-correction">Video Correction</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#operational-recommendations">Operational Recommendations</a></li>
-<li><a class="reference internal" href="#common-issues">Common Issues</a><ul>
-<li><a class="reference internal" href="#approval-is-blocked-for-video">Approval is blocked for video</a></li>
-<li><a class="reference internal" href="#pdf-does-not-open-report-editor-directly">PDF does not open report editor directly</a></li>
-<li><a class="reference internal" href="#document-type-error-on-pdf-approval">Document type error on PDF approval</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#technical-references">Technical References</a></li>
+<li><a class="reference internal" href="#">Frame Annotation Availability</a><ul>
+<li><a class="reference internal" href="#data-ownership">Data ownership</a></li>
+<li><a class="reference internal" href="#frame-source-policy">Frame source policy</a></li>
+<li><a class="reference internal" href="#back-pressure">Back-pressure</a></li>
+<li><a class="reference internal" href="#monitoring-and-recovery">Monitoring and recovery</a></li>
 </ul>
 </li>
 </ul>

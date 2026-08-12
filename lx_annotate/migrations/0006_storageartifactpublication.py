@@ -8,7 +8,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("endoreg_db", "0050_storage_operator_control"),
+        ("endoreg_db", "0071_storage_operator_control"),
         ("lx_annotate", "0005_storageoperatordispatchreceipt"),
     ]
 

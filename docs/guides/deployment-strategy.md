@@ -343,51 +343,37 @@ answer different questions:
   feature in the `endoreg-db` source repository
 - the installed `endoreg_db` package determines the models, services, and
   upstream migrations available to the deployed application
-- the `lx-annotate` migration override set determines the migration graph
-  actually applied by this Django project
+- the installed dependency packages determine the canonical migration graph
+  applied by this Django project
 - the live database determines whether the required tables, columns,
   constraints, and existing rows are consistent
 
-### Migration Override Retirement
+### Canonical Migration History Safety
 
-Migration override retirement is a two-release operation tracked by
-`feature-tracking/MigrationOverrideRetirement.yml`. Do not remove
-`MIGRATION_MODULES` or the override files from a deployment that has only the
-legacy migration identities recorded.
+LX-Annotate now uses the canonical migrations shipped by `endoreg_db` and
+`lx-dtypes`. The earlier bridge release is no longer included. An existing
+database must therefore already contain the complete reviewed canonical
+migration history before this release is deployed.
 
-Release A retains the overrides and provides a read-only preflight:
+The Django system-check framework enforces that condition immediately before
+`migrate`. This is the effective deployment boundary because LuxNix runs
+`lx-annotate-manage migrate --noinput` from `lx-annotate-migrate.service` using
+the selected wheel and runtime database environment. The check verifies pinned
+dependency versions and semantic hashes of their canonical migration manifests.
+It permits a genuinely fresh database, an interrupted canonical first install,
+or a fully converged database. It rejects legacy-only, partially bridged,
+unexpected, or unreadable histories before Django executes a schema migration.
 
-```console
-python manage.py converge_migration_history
-```
+If the check rejects a database, stop the rollout. Restore the database backup
+and deploy the preceding bridge release to complete history convergence before
+retrying this release. Do not use `--skip-checks`; that can execute canonical
+schema operations against a database whose recorded history belongs to the
+retired graph.
 
-The preflight requires the reviewed dependency versions and semantically
-identical migration manifests. Manifest identities hash the normalized Python
-syntax tree, including canonical import grouping and ordering, so formatting,
-comments, and equivalent import sorting do not invalidate a reviewed migration,
-while imported symbols, dependency, operation, function-body, and literal
-changes do. The complete legacy history and passing runtime schema, constraint,
-data, and environment checks are also required. Any unknown, incomplete, or
-partially converged history is a blocker. After taking the normal database
-backup and placing the service in the deployment maintenance window, apply the
-bridge:
-
-```console
-python manage.py converge_migration_history --apply
-```
-
-Writes are supported only on PostgreSQL. The command locks the Django migration
-recorder, repeats the history checks inside one transaction, and records only
-the missing canonical migration identities. It does not execute schema
-operations, delete legacy identities, or modify application rows. Re-running it
-is idempotent and reports `already_converged`.
-
-Every database must report convergence before Release B removes the override
-setting and files. Release B acceptance requires an empty canonical migration
-plan, a fresh canonical database migration, the runtime acceptance checks, and
-normalized PostgreSQL schema comparison against the reviewed Release A graph.
-To roll back Release B, redeploy Release A; retain the canonical identities
-because the legacy override loader ignores them.
+Release acceptance still requires an empty canonical migration plan, a fresh
+canonical database migration, runtime acceptance checks, and normalized
+PostgreSQL schema comparison against the reviewed bridge-release graph. Retain
+the canonical identities during rollback.
 
 A tracker entry marked done therefore does not prove that a particular host has
 the matching wheel or an up-to-date database. Conversely, a database

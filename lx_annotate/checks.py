@@ -2,18 +2,26 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from importlib import import_module
 from pathlib import Path
-from typing import Mapping, Protocol, cast
+from typing import Protocol, cast
 
+from django.apps import apps as django_apps
 from django.conf import settings
-from django.core.checks import CRITICAL, CheckMessage, Critical, Warning
+from django.core.checks import CRITICAL, CheckMessage, Critical, Warning, register
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DEFAULT_DB_ALIAS, connections
+from django.db.migrations.recorder import MigrationRecorder
 from django.db.utils import OperationalError, ProgrammingError
-
 from endoreg_db.services.environment_readiness import check_environment_readiness
 from endoreg_db.utils.rust_backend import has_native_capability
+
+from .migration_history_safety import (
+    CONTRACTS,
+    MigrationHistorySafetyError,
+    verify_canonical_contract_manifests,
+)
 
 
 class DatabaseIntrospectionWithDescriptions(Protocol):
@@ -22,16 +30,18 @@ class DatabaseIntrospectionWithDescriptions(Protocol):
     def get_table_description(self, cursor, table_name: str): ...
 
     def get_constraints(
-        self, cursor, table_name: str
+        self,
+        cursor,
+        table_name: str,
     ) -> Mapping[str, Mapping[str, object]]: ...
 
 
-# These checks are intentionally not registered with Django's system check
-# framework. Django runs registered checks before `migrate`, which creates a
-# chicken-and-egg failure for production deployment units whose only job is to
-# apply the missing migrations. Runtime startup calls `assert_runtime_checks_pass`
-# directly after management commands such as `migrate` have had a chance to heal
-# the schema.
+# Schema, constraint, and environment checks are intentionally not registered
+# with Django's system check framework. Django runs registered checks before
+# `migrate`, which creates a chicken-and-egg failure for checks that migrations
+# are expected to heal. The phase-aware migration-history check below is the
+# exception: it allows genuinely fresh and canonical-only databases while
+# rejecting historical graph mismatches before Django mutates schema.
 _ENDOREG_DB_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     "endoreg_db_sensitivemeta": ("validation_comment",),
     "endoreg_db_uploadjob": (
@@ -135,8 +145,117 @@ _ENDOREG_DB_CONSTRAINT_QUERIES: tuple[tuple[str, str, str, tuple[str, ...]], ...
 )
 
 
+def _migration_history_introspection(
+    *,
+    using: str = DEFAULT_DB_ALIAS,
+) -> tuple[set[tuple[str, str]], set[str]]:
+    connection = connections[using]
+    recorder = MigrationRecorder(connection)
+    applied = set(recorder.applied_migrations())
+    table_names = set(connection.introspection.table_names() or [])
+    return applied, table_names
+
+
+def _application_table_names(app_label: str) -> set[str]:
+    app_config = django_apps.get_app_config(app_label)
+    return {model._meta.db_table for model in app_config.get_models()}
+
+
+def _migration_history_error(message: str, *, obj: str | None = None) -> Critical:
+    return Critical(
+        message,
+        id="lx_annotate.migration_history_unsafe",
+        obj=obj,
+    )
+
+
+@register()
+def lx_annotate_migration_history_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
+    """Reject a legacy database before canonical migrations mutate its schema."""
+    database_aliases = kwargs.get("databases")
+    if not database_aliases:
+        # Django's migrate command supplies its selected database alias to
+        # system checks. Avoid opening a database for unrelated commands such
+        # as collectstatic or the generic `check` command.
+        return []
+    using = str(next(iter(database_aliases)))
+
+    configured_modules = getattr(settings, "MIGRATION_MODULES", {})
+    forbidden_migration_modules = [
+        contract.app_label
+        for contract in CONTRACTS
+        if isinstance(configured_modules, Mapping)
+        and contract.app_label in configured_modules
+    ]
+    if forbidden_migration_modules:
+        return [
+            _migration_history_error(
+                "The retired dependency migration mapping is still configured for: "
+                f"{', '.join(forbidden_migration_modules)}.",
+            ),
+        ]
+
+    try:
+        canonical_manifests = verify_canonical_contract_manifests(CONTRACTS)
+        applied, database_tables = _migration_history_introspection(using=using)
+    except (MigrationHistorySafetyError, OperationalError, ProgrammingError) as exc:
+        return [
+            _migration_history_error(
+                "Migration history safety preflight could not verify the reviewed "
+                f"contract and database history: {exc}",
+            ),
+        ]
+
+    messages: list[CheckMessage] = []
+    for contract in CONTRACTS:
+        canonical = canonical_manifests[contract.app_label]
+        existing = {
+            name for app_label, name in applied if app_label == contract.app_label
+        }
+        allowed = contract.legacy_names | canonical.names
+        unexpected = sorted(existing - allowed)
+        if unexpected:
+            messages.append(
+                _migration_history_error(
+                    f"{contract.app_label} has migration identities outside the "
+                    f"reviewed contract: {', '.join(unexpected)}.",
+                    obj=contract.app_label,
+                ),
+            )
+            continue
+
+        has_application_tables = bool(
+            _application_table_names(contract.app_label) & database_tables,
+        )
+        if not existing and not has_application_tables:
+            # A genuinely fresh Release B database can start directly on the
+            # canonical migration graph.
+            continue
+
+        legacy_only_names = contract.legacy_names - canonical.names
+        if existing and not (legacy_only_names & existing):
+            # This is a canonical-only database. Django may safely resume an
+            # interrupted first migration run from its recorded position.
+            continue
+
+        missing = sorted(canonical.names - existing)
+        if missing:
+            messages.append(
+                _migration_history_error(
+                    f"{contract.app_label} is not safe for canonical migrations; "
+                    f"missing reviewed identities: {', '.join(missing)}. Redeploy "
+                    "the bridge release and converge this database before retrying.",
+                    obj=contract.app_label,
+                ),
+            )
+
+    return messages
+
+
 def _table_columns(
-    table_name: str, *, using: str = DEFAULT_DB_ALIAS
+    table_name: str,
+    *,
+    using: str = DEFAULT_DB_ALIAS,
 ) -> set[str] | None:
     connection = connections[using]
     introspection = cast(
@@ -169,18 +288,18 @@ def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore
                     "and service-user introspection permissions before serving traffic.",
                     id="lx_annotate.endoreg_db_schema_introspection_failed",
                     obj=table_name,
-                )
+                ),
             )
             continue
         if columns:
             continue
         messages.append(
             Critical(
-                "endoreg_db schema is behind the lx_annotate migration override set. "
+                "endoreg_db schema is behind the required canonical migration set. "
                 f"Missing required table '{table_name}'. Apply the endoreg_db migrations before serving traffic.",
                 id="lx_annotate.endoreg_db_schema_table_missing",
                 obj=table_name,
-            )
+            ),
         )
 
     for table_name, required_columns in _ENDOREG_DB_REQUIRED_COLUMNS.items():
@@ -192,7 +311,7 @@ def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore
                     "and service-user introspection permissions before serving traffic.",
                     id="lx_annotate.endoreg_db_schema_introspection_failed",
                     obj=table_name,
-                )
+                ),
             )
             continue
         if not columns:
@@ -204,12 +323,12 @@ def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore
         if missing_columns:
             messages.append(
                 Critical(
-                    "endoreg_db schema is behind the lx_annotate migration override set. "
+                    "endoreg_db schema is behind the required canonical migration set. "
                     f"Table '{table_name}' is missing required columns: {', '.join(missing_columns)}. "
                     "Apply the endoreg_db migrations before serving traffic.",
                     id="lx_annotate.endoreg_db_schema_column_missing",
                     obj=table_name,
-                )
+                ),
             )
 
     return messages
@@ -237,7 +356,9 @@ def _count_constraint_violations(
 
 
 def _table_constraint_names(
-    table_name: str, *, using: str = DEFAULT_DB_ALIAS
+    table_name: str,
+    *,
+    using: str = DEFAULT_DB_ALIAS,
 ) -> set[str] | None:
     connection = connections[using]
     introspection = cast(
@@ -269,7 +390,7 @@ def _required_constraint_messages(
                 "database connectivity and service-user introspection permissions.",
                 id="lx_annotate.endoreg_db_constraint_introspection_failed",
                 obj=table_name,
-            )
+            ),
         ]
 
     missing_constraints = [
@@ -279,12 +400,12 @@ def _required_constraint_messages(
         return []
     return [
         Critical(
-            "endoreg_db schema is behind the lx_annotate migration override "
+            "endoreg_db schema is behind the required canonical migration "
             f"set. Table '{table_name}' is missing required constraints: "
             f"{', '.join(missing_constraints)}.",
             id="lx_annotate.endoreg_db_schema_constraint_missing",
             obj=table_name,
-        )
+        ),
     ]
 
 
@@ -354,7 +475,7 @@ def _native_capability_messages() -> list[CheckMessage]:
                 "The endoreg_db native Rust extension does not provide the required "
                 "hls_state_machine/hls_state_v1 capability.",
                 id="lx_annotate.hls_native_state_machine_missing",
-            )
+            ),
         ]
     return []
 
@@ -368,7 +489,7 @@ def _environment_readiness_messages() -> list[CheckMessage]:
                 issue.message,
                 id=f"lx_annotate.{issue.code}",
                 obj=issue.path,
-            )
+            ),
         )
     return messages
 
@@ -380,7 +501,7 @@ def _protected_media_url_messages() -> list[CheckMessage]:
             Critical(
                 "NGINX_PROTECTED_MEDIA_URL must be set for protected media handoff.",
                 id="lx_annotate.nginx_protected_media_url_missing",
-            )
+            ),
         ]
     if not protected_url.startswith("/"):
         return [
@@ -388,7 +509,7 @@ def _protected_media_url_messages() -> list[CheckMessage]:
                 "NGINX_PROTECTED_MEDIA_URL must start with '/'.",
                 id="lx_annotate.nginx_protected_media_url_invalid",
                 obj=protected_url,
-            )
+            ),
         ]
     return []
 
@@ -400,7 +521,7 @@ def _protected_media_root_messages() -> list[CheckMessage]:
             Critical(
                 "PROTECTED_MEDIA_ROOT must be set for Nginx protected media routing.",
                 id="lx_annotate.protected_media_root_missing",
-            )
+            ),
         ]
 
     protected_root_path = Path(protected_root).expanduser().resolve()
@@ -411,7 +532,7 @@ def _protected_media_root_messages() -> list[CheckMessage]:
                 f"PROTECTED_MEDIA_ROOT does not exist: {protected_root_path}",
                 id="lx_annotate.protected_media_root_not_found",
                 obj=str(protected_root_path),
-            )
+            ),
         ]
     if protected_root_path != expected_media_root:
         return [
@@ -420,21 +541,21 @@ def _protected_media_root_messages() -> list[CheckMessage]:
                 "Verify Nginx alias and X-Accel-Redirect expectations.",
                 id="lx_annotate.protected_media_root_mismatch",
                 obj=f"{protected_root_path} != {expected_media_root}",
-            )
+            ),
         ]
     return []
 
 
 def _host_models_module_messages() -> list[CheckMessage]:
     host_models_module = str(
-        getattr(settings, "LX_DTYPES_HOST_MODELS_MODULE", "") or ""
+        getattr(settings, "LX_DTYPES_HOST_MODELS_MODULE", "") or "",
     ).strip()
     if not host_models_module:
         return [
             Critical(
                 "LX_DTYPES_HOST_MODELS_MODULE must identify the endoreg_db host adapter.",
                 id="lx_annotate.lx_dtypes_host_models_module_missing",
-            )
+            ),
         ]
     try:
         import_module(host_models_module)
@@ -445,7 +566,7 @@ def _host_models_module_messages() -> list[CheckMessage]:
                 f"{type(exc).__name__}.",
                 id="lx_annotate.lx_dtypes_host_models_module_invalid",
                 obj=host_models_module,
-            )
+            ),
         ]
     return []
 
@@ -453,14 +574,14 @@ def _host_models_module_messages() -> list[CheckMessage]:
 def _knowledge_base_registry_messages() -> list[CheckMessage]:
     configured_path = str(
         getattr(settings, "LX_DTYPES_KB_REGISTRY", "")
-        or os.environ.get("LX_DTYPES_KB_REGISTRY", "")
+        or os.environ.get("LX_DTYPES_KB_REGISTRY", ""),
     ).strip()
     if not configured_path:
         return [
             Warning(
                 "LX_DTYPES_KB_REGISTRY must identify the governed knowledge-base registry.",
                 id="lx_annotate.lx_dtypes_kb_registry_missing",
-            )
+            ),
         ]
 
     registry_path = Path(configured_path).expanduser().resolve()
@@ -471,14 +592,14 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
             Warning(
                 f"LX_DTYPES_KB_REGISTRY is not readable valid JSON: {type(exc).__name__}.",
                 id="lx_annotate.lx_dtypes_kb_registry_invalid",
-            )
+            ),
         ]
     if not isinstance(payload, dict) or not isinstance(payload.get("modules"), dict):
         return [
             Warning(
                 "LX_DTYPES_KB_REGISTRY must contain a modules object.",
                 id="lx_annotate.lx_dtypes_kb_registry_schema_invalid",
-            )
+            ),
         ]
     active = payload.get("active")
     if not isinstance(active, dict):
@@ -486,7 +607,7 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
             Warning(
                 "LX_DTYPES_KB_REGISTRY must contain an explicit active bundle identity.",
                 id="lx_annotate.lx_dtypes_kb_registry_active_missing",
-            )
+            ),
         ]
     module_name = active.get("module_name")
     version = active.get("version")
@@ -503,7 +624,7 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
             Warning(
                 "The active knowledge-base identity is not registered in LX_DTYPES_KB_REGISTRY.",
                 id="lx_annotate.lx_dtypes_kb_registry_active_invalid",
-            )
+            ),
         ]
 
     try:
@@ -515,7 +636,7 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
             Warning(
                 f"The active registered knowledge base cannot be loaded: {type(exc).__name__}.",
                 id="lx_annotate.lx_dtypes_kb_registry_active_unloadable",
-            )
+            ),
         ]
     return []
 
@@ -552,5 +673,5 @@ def assert_runtime_checks_pass() -> None:
     raise ImproperlyConfigured(
         "Critical runtime checks failed:\n"
         f"{formatted_messages}\n"
-        "The service is refusing to start until the deployment is consistent."
+        "The service is refusing to start until the deployment is consistent.",
     )

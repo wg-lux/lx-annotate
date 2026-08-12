@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 import json
+from types import SimpleNamespace
 
 import pytest
-from django.core.checks import WARNING
+from django.core.checks import CRITICAL, WARNING
 from django.core.checks.registry import registry
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
-
-from lx_annotate import checks as checks_module
 from lx_dtypes.models.interface.KnowledgeBaseResolver import (
     clear_knowledge_base_resolver_caches,
 )
+
+from lx_annotate import checks as checks_module
+from lx_annotate import migration_history_safety as history_safety
 
 
 @override_settings(MEDIA_ROOT="/tmp/media-root")
@@ -45,7 +46,7 @@ def test_environment_checks_surface_core_readiness_issues(monkeypatch, tmp_path)
                 code="storage_root_missing",
                 message="Storage root missing",
                 path="/missing",
-            )
+            ),
         ],
     )
 
@@ -74,7 +75,8 @@ def test_environment_checks_require_native_hls_state_machine(monkeypatch, tmp_pa
     LX_DTYPES_HOST_MODELS_MODULE="endoreg_db.integrations.lx_dtypes_host_models",
 )
 def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
-    monkeypatch, tmp_path
+    monkeypatch,
+    tmp_path,
 ):
     kb_root = tmp_path / "knowledge-bases"
     module_dir = kb_root / "verified_reporting"
@@ -89,7 +91,7 @@ def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
                 "depends_on: []",
                 "data:",
                 "  dirs: []",
-            ]
+            ],
         )
         + "\n",
         encoding="utf-8",
@@ -104,9 +106,11 @@ def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
                     "version": "2026.07.31",
                 },
                 "modules": {
-                    "verified_reporting": {"2026.07.31": {"input_dirs": [str(kb_root)]}}
+                    "verified_reporting": {
+                        "2026.07.31": {"input_dirs": [str(kb_root)]},
+                    },
                 },
-            }
+            },
         ),
         encoding="utf-8",
     )
@@ -144,7 +148,7 @@ def test_environment_checks_warn_for_missing_lx_dtypes_contract(monkeypatch, tmp
     assert registry_message.level == WARNING
 
 
-def test_runtime_checks_are_not_registered_as_pre_migrate_system_checks():
+def test_only_migration_history_is_registered_as_a_pre_migrate_system_check():
     registered_checks = set(registry.registered_checks)
 
     assert checks_module.lx_annotate_endoreg_db_schema_checks not in registered_checks
@@ -152,6 +156,161 @@ def test_runtime_checks_are_not_registered_as_pre_migrate_system_checks():
         checks_module.lx_annotate_endoreg_db_constraint_checks not in registered_checks
     )
     assert checks_module.lx_annotate_environment_checks not in registered_checks
+    assert checks_module.lx_annotate_migration_history_checks in registered_checks
+
+
+def _migration_contracts(monkeypatch):
+    contract = history_safety.MigrationHistoryContract(
+        app_label="example",
+        distribution="example",
+        distribution_version="1",
+        legacy_names=frozenset({"0001_initial", "0002_legacy"}),
+        canonical_module="canonical.migrations",
+        canonical_leaf="0003_canonical",
+        canonical_manifest_sha256="canonical",
+    )
+    canonical = history_safety.MigrationManifest(
+        frozenset({"0001_initial", "0002_canonical", "0003_canonical"}),
+        "canonical",
+    )
+    monkeypatch.setattr(checks_module, "CONTRACTS", (contract,))
+    monkeypatch.setattr(
+        checks_module,
+        "verify_canonical_contract_manifests",
+        lambda _contracts: {"example": canonical},
+    )
+    monkeypatch.setattr(
+        checks_module,
+        "_application_table_names",
+        lambda _app_label: {"example_record"},
+    )
+    return contract, canonical
+
+
+def test_pre_migrate_history_check_skips_commands_without_database_scope(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        checks_module,
+        "_migration_history_introspection",
+        lambda **_kwargs: pytest.fail("unrelated command opened the database"),
+    )
+
+    assert checks_module.lx_annotate_migration_history_checks(None) == []
+
+
+@override_settings(MIGRATION_MODULES={"example": "retired.migrations"})
+def test_pre_migrate_history_check_rejects_retired_dependency_mapping(monkeypatch):
+    _migration_contracts(monkeypatch)
+
+    messages = checks_module.lx_annotate_migration_history_checks(
+        None,
+        databases=["default"],
+    )
+
+    assert len(messages) == 1
+    assert messages[0].level >= CRITICAL
+    assert "retired dependency migration mapping" in messages[0].msg
+
+
+@override_settings(MIGRATION_MODULES={})
+def test_pre_migrate_history_check_allows_fresh_release_b_database(monkeypatch):
+    _migration_contracts(monkeypatch)
+    monkeypatch.setattr(
+        checks_module,
+        "_migration_history_introspection",
+        lambda **_kwargs: (set(), set()),
+    )
+
+    assert (
+        checks_module.lx_annotate_migration_history_checks(None, databases=["default"])
+        == []
+    )
+
+
+@override_settings(MIGRATION_MODULES={})
+def test_pre_migrate_history_check_allows_converged_release_b_database(monkeypatch):
+    contract, canonical = _migration_contracts(monkeypatch)
+    applied = {
+        (contract.app_label, name) for name in contract.legacy_names | canonical.names
+    }
+    monkeypatch.setattr(
+        checks_module,
+        "_migration_history_introspection",
+        lambda **_kwargs: (applied, {"example_record"}),
+    )
+
+    assert (
+        checks_module.lx_annotate_migration_history_checks(None, databases=["default"])
+        == []
+    )
+
+
+@override_settings(MIGRATION_MODULES={})
+def test_pre_migrate_history_check_allows_canonical_migration_resume(monkeypatch):
+    _contract, _canonical = _migration_contracts(monkeypatch)
+    monkeypatch.setattr(
+        checks_module,
+        "_migration_history_introspection",
+        lambda **_kwargs: (
+            {("example", "0001_initial"), ("example", "0002_canonical")},
+            {"example_record"},
+        ),
+    )
+
+    assert (
+        checks_module.lx_annotate_migration_history_checks(
+            None,
+            databases=["default"],
+        )
+        == []
+    )
+
+
+@override_settings(MIGRATION_MODULES={})
+def test_pre_migrate_history_check_rejects_unconverged_release_b_database(
+    monkeypatch,
+):
+    contract, _canonical = _migration_contracts(monkeypatch)
+    applied = {(contract.app_label, name) for name in contract.legacy_names}
+    monkeypatch.setattr(
+        checks_module,
+        "_migration_history_introspection",
+        lambda **_kwargs: (applied, {"example_record"}),
+    )
+
+    messages = checks_module.lx_annotate_migration_history_checks(
+        None,
+        databases=["default"],
+    )
+
+    assert len(messages) == 1
+    assert messages[0].level >= CRITICAL
+    assert messages[0].id == "lx_annotate.migration_history_unsafe"
+    assert "Redeploy the bridge release" in messages[0].msg
+
+
+@override_settings(MIGRATION_MODULES={})
+def test_pre_migrate_history_check_rejects_partial_bridge_history(monkeypatch):
+    contract, _canonical = _migration_contracts(monkeypatch)
+    applied = {
+        *((contract.app_label, name) for name in contract.legacy_names),
+        (contract.app_label, "0002_canonical"),
+    }
+    monkeypatch.setattr(
+        checks_module,
+        "_migration_history_introspection",
+        lambda **_kwargs: (applied, {"example_record"}),
+    )
+
+    messages = checks_module.lx_annotate_migration_history_checks(
+        None,
+        databases=["default"],
+    )
+
+    assert len(messages) == 1
+    assert messages[0].level >= CRITICAL
+    assert "missing reviewed identities" in messages[0].msg
 
 
 def test_schema_checks_fail_when_required_columns_are_missing(monkeypatch):
@@ -204,7 +363,7 @@ def test_schema_checks_require_release_0_9_53_columns_and_receipt_table(monkeypa
         if table_name == "endoreg_db_medicalledgerwritereceipt":
             return set()
         required = set(
-            checks_module._ENDOREG_DB_REQUIRED_COLUMNS.get(table_name, ("id",))
+            checks_module._ENDOREG_DB_REQUIRED_COLUMNS.get(table_name, ("id",)),
         )
         if table_name == "endoreg_db_videohlsartifact":
             required.remove("encoding_profile_name")
@@ -247,7 +406,7 @@ def test_constraint_checks_report_existing_violations(monkeypatch):
         checks_module,
         "_table_columns",
         lambda table_name, using=checks_module.DEFAULT_DB_ALIAS: set(
-            checks_module._ENDOREG_DB_REQUIRED_COLUMNS[table_name]
+            checks_module._ENDOREG_DB_REQUIRED_COLUMNS[table_name],
         ),
     )
     monkeypatch.setattr(
@@ -263,7 +422,7 @@ def test_constraint_checks_report_existing_violations(monkeypatch):
         checks_module,
         "_table_constraint_names",
         lambda table_name: set(
-            checks_module._ENDOREG_DB_REQUIRED_CONSTRAINTS.get(table_name, ())
+            checks_module._ENDOREG_DB_REQUIRED_CONSTRAINTS.get(table_name, ()),
         ),
     )
 
@@ -316,7 +475,7 @@ def test_constraint_checks_require_medical_ledger_receipt_integrity(monkeypatch)
         checks_module,
         "_table_columns",
         lambda table_name, using=checks_module.DEFAULT_DB_ALIAS: set(
-            checks_module._ENDOREG_DB_REQUIRED_COLUMNS[table_name]
+            checks_module._ENDOREG_DB_REQUIRED_COLUMNS[table_name],
         ),
     )
     monkeypatch.setattr(
@@ -357,7 +516,7 @@ def test_constraint_checks_skip_queries_until_required_columns_exist(monkeypatch
         checks_module,
         "_count_constraint_violations",
         lambda table_name, predicate_sql, parameters: queried_constraints.append(
-            table_name
+            table_name,
         ),
     )
     monkeypatch.setattr(
@@ -380,7 +539,7 @@ def test_assert_runtime_checks_pass_fails_closed_on_critical_messages(monkeypatc
             checks_module.Critical(
                 "schema drift",
                 id="lx_annotate.endoreg_db_schema_column_missing",
-            )
+            ),
         ],
     )
     monkeypatch.setattr(

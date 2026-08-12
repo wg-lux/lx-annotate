@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         (
             "endoreg_db",
-            "0014_sensitivemeta_tags_sensitivemeta_validation_comment_and_more",
+            "0014_sensitivemeta_tags_sensitivemeta_validation_comment",
         ),
     ]
 
@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
                             (
                                 "metadata_and_processed_media",
                                 "Metadata And Processed Media",
-                            )
+                            ),
                         ],
                         default="metadata_and_processed_media",
                         max_length=48,

@@ -343,10 +343,37 @@ answer different questions:
   feature in the `endoreg-db` source repository
 - the installed `endoreg_db` package determines the models, services, and
   upstream migrations available to the deployed application
-- the `lx-annotate` migration override set determines the migration graph
-  actually applied by this Django project
+- the installed dependency packages determine the canonical migration graph
+  applied by this Django project
 - the live database determines whether the required tables, columns,
   constraints, and existing rows are consistent
+
+### Canonical Migration History Safety
+
+LX-Annotate now uses the canonical migrations shipped by `endoreg_db` and
+`lx-dtypes`. The earlier bridge release is no longer included. An existing
+database must therefore already contain the complete reviewed canonical
+migration history before this release is deployed.
+
+The Django system-check framework enforces that condition immediately before
+`migrate`. This is the effective deployment boundary because LuxNix runs
+`lx-annotate-manage migrate --noinput` from `lx-annotate-migrate.service` using
+the selected wheel and runtime database environment. The check verifies pinned
+dependency versions and semantic hashes of their canonical migration manifests.
+It permits a genuinely fresh database, an interrupted canonical first install,
+or a fully converged database. It rejects legacy-only, partially bridged,
+unexpected, or unreadable histories before Django executes a schema migration.
+
+If the check rejects a database, stop the rollout. Restore the database backup
+and deploy the preceding bridge release to complete history convergence before
+retrying this release. Do not use `--skip-checks`; that can execute canonical
+schema operations against a database whose recorded history belongs to the
+retired graph.
+
+Release acceptance still requires an empty canonical migration plan, a fresh
+canonical database migration, runtime acceptance checks, and normalized
+PostgreSQL schema comparison against the reviewed bridge-release graph. Retain
+the canonical identities during rollback.
 
 A tracker entry marked done therefore does not prove that a particular host has
 the matching wheel or an up-to-date database. Conversely, a database

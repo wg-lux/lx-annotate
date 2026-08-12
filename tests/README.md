@@ -13,7 +13,7 @@ Backend tests are grouped by the application surface they exercise:
 - `reporting/`: Report template and reporting API behavior.
 - `services/`: Backend service-level behavior.
 - `storage/`: Managed data directory and encrypted payload maintenance.
-- `system/`: Deployment, settings, migration override, and runtime contracts.
+- `system/`: Deployment, settings, migration-history safety, and runtime contracts.
 - `views/`: View-level tests that stay close to their URL surface.
 
 Shared pytest setup stays at the root of this directory.

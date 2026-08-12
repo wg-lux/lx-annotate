@@ -5,15 +5,13 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
 
 from django.apps import AppConfig
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MIGRATION_MODULE = "lx_annotate.migration_overrides.endoreg_db"
 
 
 @dataclass(frozen=True)
@@ -30,7 +28,7 @@ class BundleEvaluationEndoregConfig(AppConfig):
 
 
 def find_contract_gaps(
-    *, required: SchemaContract, provided: SchemaContract
+    *, required: SchemaContract, provided: SchemaContract,
 ) -> list[str]:
     """Return stable, human-readable gaps without duplicating missing tables."""
     gaps = [
@@ -44,7 +42,7 @@ def find_contract_gaps(
                 gaps.append(f"missing table: {table_name}")
             continue
         missing_columns = required_columns - provided.columns.get(
-            table_name, frozenset()
+            table_name, frozenset(),
         )
         gaps.extend(
             f"missing column: {table_name}.{column_name}"
@@ -57,7 +55,7 @@ def find_contract_gaps(
                 gaps.append(f"missing table: {table_name}")
             continue
         missing_constraints = required_constraints - provided.constraints.get(
-            table_name, frozenset()
+            table_name, frozenset(),
         )
         gaps.extend(
             f"missing constraint: {table_name}.{constraint_name}"
@@ -74,7 +72,7 @@ def _configure_django() -> None:
     if settings.configured:
         raise RuntimeError(
             "Bundle evaluation must run in a fresh Python process before Django "
-            "settings are configured."
+            "settings are configured.",
         )
 
     settings.configure(
@@ -82,7 +80,7 @@ def _configure_django() -> None:
             "default": {
                 "ENGINE": "django.db.backends.sqlite3",
                 "NAME": ":memory:",
-            }
+            },
         },
         INSTALLED_APPS=[
             "django.contrib.auth",
@@ -90,7 +88,6 @@ def _configure_django() -> None:
             "scripts.evaluate_runtime_check_bundle.BundleEvaluationEndoregConfig",
         ],
         MEDIA_ROOT=str(REPO_ROOT),
-        MIGRATION_MODULES={"endoreg_db": MIGRATION_MODULE},
         USE_TZ=True,
     )
 
@@ -160,8 +157,8 @@ def main() -> int:
         provided = _provided_contract()
     except Exception as exc:
         print(
-            "Runtime-check bundle evaluation could not load the configured "
-            f"dependency and migration bundle: {type(exc).__name__}: {exc}",
+            "Runtime-check bundle evaluation could not load the canonical "
+            f"dependency migration graph: {type(exc).__name__}: {exc}",
             file=sys.stderr,
         )
         return 1
@@ -180,7 +177,7 @@ def main() -> int:
 
     print(
         "Runtime-check bundle contract passed: all required tables, columns, "
-        "and constraints are provided."
+        "and constraints are provided.",
     )
     return 0
 

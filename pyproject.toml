@@ -163,16 +163,6 @@ module = [
 ]
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-# Migration shims must load numerically named upstream modules at runtime. Limit
-# the exemption to mypy's two dynamic-base diagnostics for these shim modules.
-module = [
-    "lx_annotate.migration_overrides.endoreg_db.*",
-    "lx_annotate.migration_overrides.lx_dtypes_django.*",
-]
-disable_error_code = ["misc", "valid-type"]
-
-
 # [tool.uv.sources]
 # endoreg-db = { workspace = true }
 # lx-anonymizer = { workspace = true }

@@ -1,0 +1,136 @@
+schema_version: '1.0'
+id: canonical_migration_cutover
+name: Canonical Migration Cutover
+description: Keep the canonical dependency migration graph fail-closed after retiring the application-owned
+  compatibility graph.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Defines the runtime schema gate and deployment migration ownership.
+definition_of_done:
+- id: convergence_contract
+  category: requirements
+  title: Historical and canonical migration identities have an explicit safety contract
+  acceptance:
+  - Supported package versions, legacy leaves, canonical leaves, and failure conditions are explicit.
+  - Historical migration records remain recognized by the pre-migrate safety gate.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ./.devenv/state/venv/bin/pytest
+    - tests/system/test_migration_history_safety.py
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: ./.devenv/state/venv/bin/pytest tests/system/test_migration_history_safety.py
+      note: Exit-Code 0
+    assessed_by: codex-canonical-migration-cutover
+    assessed_at: '2026-08-12T08:10:17.352543Z'
+- id: guarded_bridge
+  category: functionality
+  title: The retired dependency migration graph is no longer shipped
+  acceptance:
+  - Base, development, and production settings use dependency-owned canonical migrations.
+  - No compatibility migration package or convergence management command is included.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ./.devenv/state/venv/bin/pytest
+    - tests/system/test_migration_history_safety.py
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: ./.devenv/state/venv/bin/pytest tests/system/test_migration_history_safety.py
+      note: Exit-Code 0
+    assessed_by: codex-canonical-migration-cutover
+    assessed_at: '2026-08-12T08:10:22.831754Z'
+- id: history_tests
+  category: testing
+  title: Fresh, canonical, historical, partial, and unexpected histories are tested
+  acceptance:
+  - Tests permit fresh and canonical-only migration histories.
+  - Tests reject historical, partially bridged, unexpected, or incomplete histories before writes.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ./.devenv/state/venv/bin/pytest
+    - tests/system/test_environment_checks.py
+    - tests/system/test_migration_history_safety.py
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: ./.devenv/state/venv/bin/pytest tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
+      note: Exit-Code 0
+    assessed_by: codex-canonical-migration-cutover
+    assessed_at: '2026-08-12T08:10:28.159707Z'
+- id: fail_closed
+  category: security
+  title: Canonical migration startup fails closed before schema mutation
+  acceptance:
+  - Package versions, canonical migration manifests, and database history are verified before migrate.
+  - No payload, encryption-key, or application-data mutation is introduced.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ./.devenv/state/venv/bin/pytest
+    - tests/system/test_environment_checks.py
+    - tests/system/test_migration_history_safety.py
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: ./.devenv/state/venv/bin/pytest tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
+      note: Exit-Code 0
+    assessed_by: codex-canonical-migration-cutover
+    assessed_at: '2026-08-12T08:10:33.439831Z'
+- id: rollout
+  category: operations
+  title: Canonical cutover and rollback procedures are documented
+  acceptance:
+  - Fleet evidence confirms every existing database was converged by the preceding bridge release before
+    promotion.
+  - Rollback preserves canonical migration records and restores the preceding release when required.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the canonical migration history safety section of the deployment guide.
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: documentation
+  category: documentation
+  title: Operator documentation names exact commands and stop conditions
+  acceptance:
+  - Acceptance, stop conditions, remediation, and rollback are documented in English.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review docs/guides/deployment-strategy.md for executable operator guidance.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/deployment-strategy.md
+    note: Canonical migration acceptance, stop conditions, bridge-release remediation, and rollback are
+      documented in English.
+    assessed_by: codex-canonical-migration-cutover
+    assessed_at: '2026-08-12T08:15:43.044980Z'
