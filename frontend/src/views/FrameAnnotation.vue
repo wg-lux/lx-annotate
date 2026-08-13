@@ -621,8 +621,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { v7 as uuidv7 } from 'uuid'
-import { isAxiosError } from 'axios'
+import { isAxiosError, type AxiosResponse } from 'axios'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import {
+  bulkUpsertFrameAnnotations,
+  FrameAnnotationBulkWriteError,
+  type FrameAnnotationBulkUpsertPayload
+} from '@/api/frameAnnotationsApi'
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import { endpoints } from '@/types/api/endpoints'
 import { useAnnotationQueueStore } from '@/stores/annotationQueue'
@@ -689,6 +694,7 @@ const PHI_REGION_DATASET_MODEL_TYPE = 'phi_region_detector'
 const NO_DATASET_OPTION = '__none__'
 const FRAME_IMAGE_RETRY_LIMIT = 3
 const FRAME_IMAGE_RETRY_DELAY_MS = 1200
+const FRAME_IMAGE_PREFETCH_LIMIT = 1
 const PHI_REGION_LABEL_ALIASES = [
   PHI_REGION_LABEL_NAME,
   'phi',
@@ -763,6 +769,7 @@ const isSubmitting = ref(false)
 const currentTask = ref<ReturnType<typeof queueStore.popNextTask> | null>(null)
 const selectedLabelIds = ref<number[]>([])
 const errorMessage = ref<string | null>(null)
+const annotationWriteRetryAllowed = ref(true)
 const isLoadingLabelGroups = ref(false)
 const labelGroupLoadError = ref<string | null>(null)
 const labelGroupOptions = ref<LabelGroupOption[]>([])
@@ -789,6 +796,10 @@ let boxDraftStart: FrameImagePoint | null = null
 let frameImageRetryTimer: ReturnType<typeof setTimeout> | null = null
 let frameImageProbeGeneration = 0
 let frameImageObjectUrl: string | null = null
+let frameImageRequestTail: Promise<void> = Promise.resolve()
+let frameImageRequestsEnabled = true
+const frameImageRequestsInFlight = new Map<string, Promise<AxiosResponse<Blob>>>()
+const prefetchedFrameImages = new Map<string, Blob>()
 let isReloadingAnnotationQueue = false
 let isBootstrappingAnnotationQueue = true
 
@@ -899,7 +910,10 @@ const canManuallyRetryFrameImage = computed(
   () => !!currentTask.value && frameImageLoadState.value === 'failed'
 )
 const canSubmitFrame = computed(
-  () => !isSubmitting.value && frameImageLoadState.value === 'loaded'
+  () =>
+    !isSubmitting.value &&
+    annotationWriteRetryAllowed.value &&
+    frameImageLoadState.value === 'loaded'
 )
 const frameImageStatusMessage = computed(() => {
   if (frameImageLoadState.value === 'pending') {
@@ -1248,6 +1262,84 @@ function readBlobText(blob: Blob): Promise<string> {
   return Promise.resolve('')
 }
 
+function requestFrameImage(url: string): Promise<AxiosResponse<Blob>> {
+  const existingRequest = frameImageRequestsInFlight.get(url)
+  if (existingRequest) return existingRequest
+
+  const request = frameImageRequestTail
+    .catch(() => undefined)
+    .then(() => {
+      if (!frameImageRequestsEnabled) {
+        throw new Error('Frame image requests have stopped.')
+      }
+      return axiosInstance.get<Blob>(url, {
+        responseType: 'blob',
+        validateStatus: () => true
+      })
+    })
+  frameImageRequestsInFlight.set(url, request)
+  frameImageRequestTail = request.then(
+    () => undefined,
+    () => undefined
+  )
+  void request.then(
+    () => frameImageRequestsInFlight.delete(url),
+    () => frameImageRequestsInFlight.delete(url)
+  )
+  return request
+}
+
+function responseImageBlob(response: AxiosResponse<Blob>): Blob | null {
+  const contentType = String(response.headers['content-type'] ?? '').toLowerCase()
+  if (
+    response.status !== 200 ||
+    !contentType.startsWith('image/') ||
+    !(response.data instanceof Blob) ||
+    response.data.size === 0
+  ) {
+    return null
+  }
+  return response.data
+}
+
+function clearPrefetchedFrameImages(): void {
+  prefetchedFrameImages.clear()
+}
+
+function takePrefetchedFrameImage(url: string): Blob | null {
+  const blob = prefetchedFrameImages.get(url) ?? null
+  if (blob) prefetchedFrameImages.delete(url)
+  return blob
+}
+
+function prefetchNextFrameImage(): void {
+  const nextTask = queueStore.taskQueue.at(0)
+  const nextUrl = nextTask?.data.imageUrl
+  if (!nextUrl || nextUrl === currentTask.value?.data.imageUrl) return
+  if (prefetchedFrameImages.has(nextUrl)) return
+
+  const querySignature = queueStore.taskQuerySignature
+  void requestFrameImage(nextUrl)
+    .then((response) => {
+      if (
+        !frameImageRequestsEnabled ||
+        queueStore.taskQuerySignature !== querySignature ||
+        nextUrl === currentTask.value?.data.imageUrl
+      ) {
+        return
+      }
+      const blob = responseImageBlob(response)
+      if (!blob) return
+      while (prefetchedFrameImages.size >= FRAME_IMAGE_PREFETCH_LIMIT) {
+        const oldestUrl: unknown = prefetchedFrameImages.keys().next().value
+        if (typeof oldestUrl !== 'string') break
+        prefetchedFrameImages.delete(oldestUrl)
+      }
+      prefetchedFrameImages.set(nextUrl, blob)
+    })
+    .catch(() => undefined)
+}
+
 async function extractPendingMessage(blob: Blob): Promise<string | null> {
   try {
     const text = await readBlobText(blob)
@@ -1270,70 +1362,75 @@ async function extractPendingMessage(blob: Blob): Promise<string | null> {
   }
 }
 
+async function handleFrameImageResponse(
+  task: NonNullable<typeof currentTask.value>,
+  response: AxiosResponse<Blob>
+): Promise<void> {
+  const contentType = String(response.headers['content-type'] ?? '').toLowerCase()
+  if (response.status === 200 && contentType.startsWith('image/')) {
+    if (!(response.data instanceof Blob)) {
+      errorMessage.value =
+        'Frame-Antwort war als Bild gekennzeichnet, enthielt aber keine binären Bilddaten.'
+      frameImageLoadState.value = 'failed'
+      return
+    }
+    if (response.data.size === 0) {
+      errorMessage.value = 'Frame-Antwort enthielt ein leeres Bild.'
+      frameImageLoadState.value = 'failed'
+      return
+    }
+    setFrameImageBlobUrl(response.data, task.data.imageUrl)
+    frameImageLoadState.value = 'loading'
+    prefetchNextFrameImage()
+    return
+  }
+  if (response.status === 202) {
+    if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+      frameImageLoadState.value = 'failed'
+      return
+    }
+    frameImageRetryCount.value += 1
+    frameImageLoadState.value = 'pending'
+    scheduleFrameImageRetry(task)
+    return
+  }
+  if (response.status === 429) {
+    if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+      errorMessage.value = 'Frame-Dekodierung ist ausgelastet. Bitte erneut versuchen.'
+      frameImageLoadState.value = 'failed'
+      return
+    }
+    const retryAfterSeconds = Number(response.headers['retry-after'] ?? 1)
+    const retryDelayMs =
+      Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? retryAfterSeconds * 1000
+        : FRAME_IMAGE_RETRY_DELAY_MS
+    frameImageRetryCount.value += 1
+    frameImageLoadState.value = 'pending'
+    scheduleFrameImageRetry(task, retryDelayMs)
+    return
+  }
+  errorMessage.value =
+    (response.data instanceof Blob ? await extractPendingMessage(response.data) : null) ??
+    `Frame-Anfrage fehlgeschlagen (HTTP ${String(response.status)}).`
+  frameImageLoadState.value = 'failed'
+}
+
 async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Promise<void> {
   const probeGeneration = ++frameImageProbeGeneration
   frameImageLoadState.value = frameImageRetryCount.value > 0 ? 'pending' : 'probing'
   try {
-    const response = await axiosInstance.get(task.data.imageUrl, {
-      responseType: 'blob',
-      validateStatus: () => true
-    })
-    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
-
-    const contentType = String(response.headers['content-type'] ?? '').toLowerCase()
-    if (response.status === 200 && contentType.startsWith('image/')) {
-      if (!(response.data instanceof Blob)) {
-        errorMessage.value =
-          'Frame-Antwort war als Bild gekennzeichnet, enthielt aber keine binären Bilddaten.'
-        frameImageLoadState.value = 'failed'
-        return
-      }
-      if (response.data.size === 0) {
-        errorMessage.value = 'Frame-Antwort enthielt ein leeres Bild.'
-        frameImageLoadState.value = 'failed'
-        return
-      }
-      setFrameImageBlobUrl(response.data, task.data.imageUrl)
+    const prefetchedBlob = takePrefetchedFrameImage(task.data.imageUrl)
+    if (prefetchedBlob) {
+      setFrameImageBlobUrl(prefetchedBlob, task.data.imageUrl)
       frameImageLoadState.value = 'loading'
+      prefetchNextFrameImage()
       return
     }
-    if (response.status === 202) {
-      if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
-        frameImageLoadState.value = 'failed'
-        return
-      }
-      frameImageRetryCount.value += 1
-      frameImageLoadState.value = 'pending'
-      scheduleFrameImageRetry(task)
-      return
-    }
-    if (response.status === 429) {
-      if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
-        errorMessage.value = 'Frame-Dekodierung ist ausgelastet. Bitte erneut versuchen.'
-        frameImageLoadState.value = 'failed'
-        return
-      }
-      const retryAfterSeconds = Number(response.headers['retry-after'] ?? 1)
-      const retryDelayMs =
-        Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
-          ? retryAfterSeconds * 1000
-          : FRAME_IMAGE_RETRY_DELAY_MS
-      frameImageRetryCount.value += 1
-      frameImageLoadState.value = 'pending'
-      scheduleFrameImageRetry(task, retryDelayMs)
-      return
-    }
-    if (response.status === 409) {
-      errorMessage.value =
-        (response.data instanceof Blob ? await extractPendingMessage(response.data) : null) ??
-        `Frame-Anfrage fehlgeschlagen (HTTP ${String(response.status)}).`
-      frameImageLoadState.value = 'failed'
-      return
-    }
-    errorMessage.value =
-      (response.data instanceof Blob ? await extractPendingMessage(response.data) : null) ??
-      `Frame-Anfrage fehlgeschlagen (HTTP ${String(response.status)}).`
-    frameImageLoadState.value = 'failed'
+
+    const response = await requestFrameImage(task.data.imageUrl)
+    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
+    await handleFrameImageResponse(task, response)
   } catch (error: unknown) {
     if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
     const detail = error instanceof Error && error.message.trim() ? ` ${error.message.trim()}` : ''
@@ -1729,6 +1826,7 @@ async function loadAiDatasets(): Promise<void> {
 async function loadNextTask(): Promise<void> {
   isLoadingTask.value = true
   errorMessage.value = null
+  annotationWriteRetryAllowed.value = true
   try {
     applyActiveAnnotatorToQueue()
     if (!queueStore.taskQueue.length) {
@@ -1794,11 +1892,7 @@ async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
         modelMetaId: null
       }
     })
-    const payload: {
-      videoId?: number
-      aiDatasetId?: number
-      annotations: typeof annotations
-    } = {
+    const payload: FrameAnnotationBulkUpsertPayload = {
       annotations
     }
     if (task.data.videoId !== undefined) {
@@ -1808,13 +1902,19 @@ async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
     if (Number.isFinite(selectedAiDatasetId) && selectedAiDatasetId > 0) {
       payload.aiDatasetId = selectedAiDatasetId
     }
-    await axiosInstance.post(r(endpoints.annotation.bulkUpsert), payload)
+    await bulkUpsertFrameAnnotations(payload)
     await loadNextTask()
   } catch (error: unknown) {
-    errorMessage.value = frameAnnotationErrorMessage(
-      error,
-      'Annotation konnte nicht gespeichert werden.'
-    )
+    if (error instanceof FrameAnnotationBulkWriteError) {
+      annotationWriteRetryAllowed.value = error.failure.retryable
+      errorMessage.value = error.failure.retryable
+        ? `${error.failure.error} Es wurden keine Daten gespeichert; Sie können diese Aufgabe erneut speichern.`
+        : `${error.failure.error} Es wurden keine Daten gespeichert. Die Aufgabe bleibt geöffnet, erneutes Speichern ist für diesen Fehler gesperrt.`
+      return
+    }
+    annotationWriteRetryAllowed.value = false
+    errorMessage.value =
+      'Der Speicherstatus der Annotation ist unklar. Die Aufgabe bleibt geöffnet; laden Sie sie vor einem weiteren Speicherversuch neu.'
   } finally {
     isSubmitting.value = false
   }
@@ -1900,6 +2000,7 @@ watch(
   () => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature],
   async () => {
     if (isBootstrappingAnnotationQueue || isReloadingAnnotationQueue) return
+    clearPrefetchedFrameImages()
     queueStore.clearQueue()
     await loadNextTask()
   }
@@ -1917,7 +2018,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  frameImageRequestsEnabled = false
   clearFrameImageRetryTimer()
+  clearPrefetchedFrameImages()
   revokeFrameImageObjectUrl()
 })
 </script>

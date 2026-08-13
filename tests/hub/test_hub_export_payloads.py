@@ -1,15 +1,14 @@
 # pyright: reportTypedDictNotRequiredAccess=false
 from __future__ import annotations
 
-import hashlib
-
 import base64
+import hashlib
 import os
+from unittest.mock import patch
 
 from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.utils import timezone
-
 from endoreg_db.models import (
     Center,
     Frame,
@@ -24,6 +23,7 @@ from endoreg_db.models import (
     VideoFile,
     VideoState,
 )
+
 from lx_annotate.hub.hub_export_payloads import (
     build_transfer_payload,
     validate_transfer_payload,
@@ -42,7 +42,8 @@ os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 class HubExportPayloadTests(TestCase):
     def setUp(self) -> None:
         self.center = Center.objects.create(
-            name="Test Center", center_key="test-center"
+            name="Test Center",
+            center_key="test-center",
         )
         self.site_node = NetworkNode.objects.create(
             display_name="Site Node",
@@ -91,7 +92,8 @@ class HubExportPayloadTests(TestCase):
             width=320,
             height=240,
             processed_file=ContentFile(
-                b"processed-video", name="video-1-processed.mp4"
+                b"processed-video",
+                name="video-1-processed.mp4",
             ),
         )
         job = OutboundHubTransferJob.objects.create(
@@ -112,7 +114,8 @@ class HubExportPayloadTests(TestCase):
         )
         rows = payload["resource_rows"]
         self.assertEqual(
-            set(rows["sensitive_meta"]), {"patient_hash", "examination_hash"}
+            set(rows["sensitive_meta"]),
+            {"patient_hash", "examination_hash"},
         )
         self.assertNotIn("original_file_name", rows["video_file"])
         self.assertNotIn("meta", rows["video_file"])
@@ -151,7 +154,8 @@ class HubExportPayloadTests(TestCase):
             width=320,
             height=240,
             processed_file=ContentFile(
-                b"processed-video", name="video-inconsistent-processed.mp4"
+                b"processed-video",
+                name="video-inconsistent-processed.mp4",
             ),
         )
         job = OutboundHubTransferJob.objects.create(
@@ -209,9 +213,58 @@ class HubExportPayloadTests(TestCase):
         with self.assertRaisesMessage(ValueError, "file hash does not match"):
             build_transfer_payload(outbound_job=job, source_node=self.site_node)
 
+    def test_rejects_unreadable_processed_video_as_typed_integrity_failure(self):
+        processed_hash = hashlib.sha256(b"processed-video").hexdigest()
+        state = VideoState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            anonymization_validated=True,
+            processing_started=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=True,
+            ready_for_export_at=timezone.now(),
+            ready_for_export_by="test-suite",
+            processed_file_sha256=processed_hash,
+        )
+        video = VideoFile.objects.create(
+            center=self.center,
+            state=state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
+            video_hash="video-hash-unreadable",
+            processed_video_hash=processed_hash,
+            original_file_name="video-unreadable.mp4",
+            suffix=".mp4",
+            fps=25.0,
+            duration=1.0,
+            frame_count=25,
+            width=320,
+            height=240,
+            processed_file=ContentFile(
+                b"processed-video",
+                name="video-unreadable-processed.mp4",
+            ),
+        )
+        job = OutboundHubTransferJob.objects.create(
+            resource_kind=OutboundHubTransferJob.ResourceKind.VIDEO,
+            video_file=video,
+            source_center=self.center,
+            target_node=self.hub_node,
+            transfer_key="site-node__video__unreadable__processed_v1",
+        )
+
+        with patch(
+            "lx_annotate.hub.hub_export_state.sha256_file",
+            side_effect=OSError("disappeared"),
+        ):
+            with self.assertRaisesMessage(ValueError, "media is unreadable"):
+                build_transfer_payload(outbound_job=job, source_node=self.site_node)
+
     def test_rejects_source_center_outside_source_node_ownership(self):
         other_center = Center.objects.create(
-            name="Other Center", center_key="other-center"
+            name="Other Center",
+            center_key="other-center",
         )
         state = RawPdfState.objects.create(
             anonymized=True,
@@ -279,11 +332,13 @@ class HubExportPayloadTests(TestCase):
         self.assertEqual(payload["resource_hash"], "report-hash-1")
         rows = payload["resource_rows"]
         self.assertEqual(
-            set(rows["sensitive_meta"]), {"patient_hash", "examination_hash"}
+            set(rows["sensitive_meta"]),
+            {"patient_hash", "examination_hash"},
         )
         self.assertNotIn("text", rows["raw_pdf_file"])
         self.assertEqual(
-            rows["raw_pdf_file"]["anonymized_text"], "Anonymized report text"
+            rows["raw_pdf_file"]["anonymized_text"],
+            "Anonymized report text",
         )
         self.assertEqual(
             rows["raw_pdf_state"]["processed_file_sha256"],
@@ -308,7 +363,8 @@ class HubExportPayloadTests(TestCase):
             processed_video_hash="processed-video-hash-2",
             original_file_name="video-2.mp4",
             processed_file=ContentFile(
-                b"processed-video", name="video-2-processed.mp4"
+                b"processed-video",
+                name="video-2-processed.mp4",
             ),
         )
         job = OutboundHubTransferJob.objects.create(
@@ -354,7 +410,8 @@ class HubExportPayloadTests(TestCase):
             width=320,
             height=240,
             processed_file=ContentFile(
-                b"processed-video", name="Patient_Max_Mustermann_processed.mp4"
+                b"processed-video",
+                name="Patient_Max_Mustermann_processed.mp4",
             ),
         )
         frame = Frame.objects.create(
@@ -399,7 +456,7 @@ class HubExportPayloadTests(TestCase):
                 "ready_for_export_by",
                 "processed_file_sha256",
                 "date_modified",
-            ]
+            ],
         )
         ImageClassificationAnnotation.objects.create(
             frame=frame,
@@ -449,7 +506,7 @@ class HubExportPayloadTests(TestCase):
                     "value": True,
                     "float_value": 0.95,
                     "information_source_name": "manual_annotation",
-                }
+                },
             ],
         )
         self.assertEqual(
@@ -466,9 +523,9 @@ class HubExportPayloadTests(TestCase):
                     "validation_state": "validated",
                     "export_segment": True,
                     "anonymous_provenance": {
-                        "information_source_name": "manual_annotation"
+                        "information_source_name": "manual_annotation",
                     },
-                }
+                },
             ],
         )
         self.assertEqual(
@@ -481,7 +538,7 @@ class HubExportPayloadTests(TestCase):
                     "status": "final",
                     "version": 2,
                     "is_active": True,
-                }
+                },
             ],
         )
         serialized = repr(rows)

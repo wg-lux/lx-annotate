@@ -1,13 +1,13 @@
 <template>
-  <nav id="navbarBlur" class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl position-sticky top-1" navbar-scroll="true">
-    <div class="container-fluid py-1 px-3">
+  <nav id="navbarBlur" class="navbar navbar-main app-topbar position-sticky" navbar-scroll="true" aria-label="Seitennavigation">
+    <div class="container-fluid app-topbar-inner">
       <!-- Mobile sidebar toggle button -->
       <button 
-        class="navbar-toggler d-lg-none" 
+        class="navbar-toggler app-topbar-menu"
         type="button" 
-        aria-controls="sidebar"
+        aria-controls="sidenav-main"
         aria-expanded="false"
-        aria-label="Toggle navigation"
+        aria-label="Navigation öffnen"
         @click="toggleSidebar"
       >
         <span class="navbar-toggler-icon">
@@ -17,24 +17,24 @@
         </span>
       </button>
       
-      <div id="navbar" class="collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4">
-        <div class="ms-md-auto pe-md-3 d-flex align-items-center">
+      <div id="navbar" class="navbar-collapse app-topbar-content">
+        <div class="app-page-context">
           <nav aria-label="breadcrumb">
-            <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
-              <li class="breadcrumb-item text-sm">
-                <a class="opacity-5 text-dark" href="javascript:;">Aktuelle Seite</a>
+            <ol class="breadcrumb app-breadcrumb">
+              <li class="breadcrumb-item app-breadcrumb-eyebrow">
+                Arbeitsbereich
               </li>
-              <li class="breadcrumb-item text-sm text-dark active" aria-current="page">
+              <li class="breadcrumb-item active app-breadcrumb-current" aria-current="page">
                 {{ currentRouteName }}
               </li>
             </ol>
           </nav>
         </div>
-        <ul class="navbar-nav justify-content-end">
+        <ul class="navbar-nav app-topbar-actions">
           <li class="nav-item d-flex align-items-center">
             <router-link 
               to="/annotationen" 
-              class="btn btn-outline-primary btn-sm mb-0 me-3"
+              class="btn btn-outline-primary btn-sm mb-0 annotation-status-button"
               :class="{ 'btn-warning': showPendingCount, 'stats-unavailable': annotationStatsStore.hasError }"
               :title="annotationStatsStatusTitle"
             >
@@ -67,20 +67,20 @@
             </router-link>
           </li>
           <li v-if="isAuthenticated" class="nav-item d-flex align-items-center">
-            <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogout">
+            <button type="button" class="nav-link account-action" @click="handleLogout">
               <i class="ni ni-circle-08 me-sm-1"></i>
               <span class="d-sm-inline d-none">Logout</span>
-            </a>
+            </button>
           </li>
           <li v-else class="nav-item d-flex align-items-center">
-            <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogin">
+            <button type="button" class="nav-link account-action" @click="handleLogin">
               <i class="ni ni-circle-08 me-sm-1"></i>
               <span class="d-sm-inline d-none">Login</span>
-            </a>
+            </button>
           </li>
-          <li v-if="isAuthenticated" class="nav-item d-flex align-items-center ms-3">
-            <span class="nav-link text-body font-weight-bold px-0">
-              <i class="ni ni-check-bold text-success me-sm-1"></i>
+          <li v-if="isAuthenticated" class="nav-item d-flex align-items-center">
+            <span class="nav-link account-identity">
+              <span class="account-presence" aria-hidden="true"></span>
               <span class="d-sm-inline d-none">{{ username }}</span>
             </span>
           </li>
@@ -190,15 +190,120 @@ onUnmounted(() => {
 
 <style scoped>
 .breadcrumb-item + .breadcrumb-item::before {
-  content: ">";
+  content: "/";
+  color: #8a9a9e;
+  padding-inline: 0.55rem;
 }
 
 .breadcrumb-item.active {
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.app-topbar {
+  top: 0.75rem;
+  z-index: 1020;
+  margin: 0.75rem clamp(1rem, 2.25vw, 2.5rem) 0;
+  padding: 0;
+  border: 1px solid rgba(23, 59, 66, 0.1);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 0.75rem 2.25rem rgba(26, 53, 60, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.app-topbar-inner {
+  min-height: 4.25rem;
+  padding: 0.7rem 1rem;
+}
+
+.app-topbar-content {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-page-context {
+  min-width: 0;
+}
+
+.app-breadcrumb {
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.app-breadcrumb-eyebrow {
+  color: #718287;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.app-breadcrumb-current {
+  max-width: min(38vw, 30rem);
+  overflow: hidden;
+  color: #173b42;
+  font-family: 'Comfortaa', system-ui, sans-serif;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-topbar-actions {
+  align-items: center;
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
+.annotation-status-button {
+  min-height: 2.35rem;
+  padding-inline: 0.85rem;
+  border-color: rgba(11, 101, 113, 0.32);
+  color: #0b6571;
+  box-shadow: none !important;
+}
+
+.account-action,
+.account-identity {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.35rem;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.45rem 0.7rem !important;
+  border: 0;
+  border-radius: 0.65rem;
+  color: #435c62 !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: transparent;
+}
+
+.account-action:hover {
+  color: #173b42 !important;
+  background: #eef5f4;
+}
+
+.account-action:focus-visible,
+.annotation-status-button:focus-visible,
+.app-topbar-menu:focus-visible {
+  outline: 3px solid rgba(11, 101, 113, 0.26);
+  outline-offset: 2px;
+}
+
+.account-presence {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #50874e;
+  box-shadow: 0 0 0 3px rgba(80, 135, 78, 0.14);
 }
 
 .btn-warning {
-  animation: pulse-warning 2s infinite;
+  animation: pulse-warning 2.4s infinite;
 }
 
 @keyframes pulse-warning {
@@ -275,6 +380,57 @@ onUnmounted(() => {
 @media (min-width: 1200px) {
   .navbar-toggler {
     display: none !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .app-topbar {
+    top: 0.5rem;
+    margin: 0.5rem 1rem 0;
+  }
+
+  .app-topbar-inner {
+    min-height: 3.75rem;
+    padding-inline: 0.75rem;
+  }
+
+  .app-topbar-content {
+    gap: 0.5rem;
+  }
+
+  .app-breadcrumb-eyebrow {
+    display: none;
+  }
+
+  .breadcrumb-item + .breadcrumb-item::before {
+    display: none;
+  }
+
+  .app-breadcrumb-current {
+    max-width: 32vw;
+    font-size: 0.8rem;
+  }
+
+  .annotation-status-button {
+    margin: 0 !important;
+    padding-inline: 0.65rem;
+    font-size: 0.68rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-warning {
+    animation: none;
+  }
+
+  .nav-link,
+  .btn,
+  .navbar-toggler-bar {
+    transition: none;
+  }
+
+  .btn:hover {
+    transform: none;
   }
 }
 </style>

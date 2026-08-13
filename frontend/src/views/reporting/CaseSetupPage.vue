@@ -127,6 +127,7 @@ import { useExaminationStore } from '@/stores/examinationStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
 import type { PatientExamination } from '@/stores/patientExaminationStore'
 import { reportingApiErrorMessage } from './reportingError'
+import { requireResolvedReportingExamination } from './reportingExaminationResolution'
 
 const flow = useReportingFlowStore()
 const patientStore = usePatientStore()
@@ -171,12 +172,18 @@ function applyPreferredExaminationSelection() {
   if (typeof preferredRaw !== 'string' || !preferredRaw.trim()) return
   if (flow.selectedExaminationId) return
 
-  const normalizedPreferred = preferredRaw.trim().toLowerCase()
-  const match = examinations.value.find(
-    (exam) => exam.name.trim().toLowerCase() === normalizedPreferred
-  )
-  if (match) {
+  try {
+    const match = requireResolvedReportingExamination({
+      catalog: examinations.value,
+      selectedExaminationId: null,
+      examinationName: preferredRaw
+    })
     flow.setCaseSelection({ selectedExaminationId: match.id })
+  } catch (error: unknown) {
+    errorMessage.value = reportingApiErrorMessage(
+      error,
+      'Die bevorzugte Untersuchung konnte nicht aufgelöst werden.'
+    )
   }
 }
 
@@ -206,13 +213,6 @@ function clearFlow() {
   flow.clearAll()
 }
 
-function formatDateOnly(value?: string | null): string | null {
-  if (!value) return null
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toISOString().split('T')[0] || null
-}
-
 async function createPatientExaminationContext() {
   if (!flow.selectedPatientId || !flow.selectedExaminationId) {
     errorMessage.value = 'Bitte wählen Sie zuerst Patient und Untersuchung aus.'
@@ -235,9 +235,7 @@ async function createPatientExaminationContext() {
       patientExamination: {
         patient: selectedPatient.patientHash || `patient_${String(flow.selectedPatientId)}`,
         examination: selectedExam.name,
-        dateStart: formattedDate,
-        patientBirthDate: formatDateOnly(selectedPatient.dob),
-        patientGender: selectedPatient.gender || null
+        dateStart: formattedDate
       }
     })
 

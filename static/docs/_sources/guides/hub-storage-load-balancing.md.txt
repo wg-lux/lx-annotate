@@ -146,7 +146,7 @@ below against the final wheels before this document can support a production-tes
 request.
 
 The subsequent application-path integration is assigned to endoreg-db
-`1.0.11.0` and LX-Annotate `0.9.67`; it adds LX-Annotate migration 0006.
+`1.0.11.0` and LX-Annotate `0.9.70`; it adds LX-Annotate migration 0006.
 An immutable publication row is keyed by the database resource and its approved
 processed SHA-256 generation. Signals only persist that row; workers receive its
 UUID, reload the resource, require the current video `ready_for_export` proof or

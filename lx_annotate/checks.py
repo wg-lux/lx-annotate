@@ -7,21 +7,13 @@ from importlib import import_module
 from pathlib import Path
 from typing import Protocol, cast
 
-from django.apps import apps as django_apps
 from django.conf import settings
-from django.core.checks import CRITICAL, CheckMessage, Critical, Warning, register
+from django.core.checks import CRITICAL, CheckMessage, Critical, Warning
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DEFAULT_DB_ALIAS, connections
-from django.db.migrations.recorder import MigrationRecorder
 from django.db.utils import OperationalError, ProgrammingError
 from endoreg_db.services.environment_readiness import check_environment_readiness
 from endoreg_db.utils.rust_backend import has_native_capability
-
-from .migration_history_safety import (
-    CONTRACTS,
-    MigrationHistorySafetyError,
-    verify_canonical_contract_manifests,
-)
 
 
 class DatabaseIntrospectionWithDescriptions(Protocol):
@@ -36,12 +28,12 @@ class DatabaseIntrospectionWithDescriptions(Protocol):
     ) -> Mapping[str, Mapping[str, object]]: ...
 
 
-# Schema, constraint, and environment checks are intentionally not registered
-# with Django's system check framework. Django runs registered checks before
-# `migrate`, which creates a chicken-and-egg failure for checks that migrations
-# are expected to heal. The phase-aware migration-history check below is the
-# exception: it allows genuinely fresh and canonical-only databases while
-# rejecting historical graph mismatches before Django mutates schema.
+# Schema, constraint, environment, and migration-history checks are
+# intentionally not registered with Django's system check framework. Django
+# runs registered checks before `migrate`, which creates a chicken-and-egg
+# failure for checks or repairs that migrations are expected to heal. Legacy
+# migration history is repaired explicitly with
+# `repair_legacy_migration_history --apply` before `migrate`.
 _ENDOREG_DB_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     "endoreg_db_sensitivemeta": ("validation_comment",),
     "endoreg_db_uploadjob": (
@@ -143,113 +135,6 @@ _ENDOREG_DB_CONSTRAINT_QUERIES: tuple[tuple[str, str, str, tuple[str, ...]], ...
         ("failed", "", "failed", ""),
     ),
 )
-
-
-def _migration_history_introspection(
-    *,
-    using: str = DEFAULT_DB_ALIAS,
-) -> tuple[set[tuple[str, str]], set[str]]:
-    connection = connections[using]
-    recorder = MigrationRecorder(connection)
-    applied = set(recorder.applied_migrations())
-    table_names = set(connection.introspection.table_names() or [])
-    return applied, table_names
-
-
-def _application_table_names(app_label: str) -> set[str]:
-    app_config = django_apps.get_app_config(app_label)
-    return {model._meta.db_table for model in app_config.get_models()}
-
-
-def _migration_history_error(message: str, *, obj: str | None = None) -> Critical:
-    return Critical(
-        message,
-        id="lx_annotate.migration_history_unsafe",
-        obj=obj,
-    )
-
-
-@register()
-def lx_annotate_migration_history_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
-    """Reject a legacy database before canonical migrations mutate its schema."""
-    database_aliases = kwargs.get("databases")
-    if not database_aliases:
-        # Django's migrate command supplies its selected database alias to
-        # system checks. Avoid opening a database for unrelated commands such
-        # as collectstatic or the generic `check` command.
-        return []
-    using = str(next(iter(database_aliases)))
-
-    configured_modules = getattr(settings, "MIGRATION_MODULES", {})
-    forbidden_migration_modules = [
-        contract.app_label
-        for contract in CONTRACTS
-        if isinstance(configured_modules, Mapping)
-        and contract.app_label in configured_modules
-    ]
-    if forbidden_migration_modules:
-        return [
-            _migration_history_error(
-                "The retired dependency migration mapping is still configured for: "
-                f"{', '.join(forbidden_migration_modules)}.",
-            ),
-        ]
-
-    try:
-        canonical_manifests = verify_canonical_contract_manifests(CONTRACTS)
-        applied, database_tables = _migration_history_introspection(using=using)
-    except (MigrationHistorySafetyError, OperationalError, ProgrammingError) as exc:
-        return [
-            _migration_history_error(
-                "Migration history safety preflight could not verify the reviewed "
-                f"contract and database history: {exc}",
-            ),
-        ]
-
-    messages: list[CheckMessage] = []
-    for contract in CONTRACTS:
-        canonical = canonical_manifests[contract.app_label]
-        existing = {
-            name for app_label, name in applied if app_label == contract.app_label
-        }
-        allowed = contract.legacy_names | canonical.names
-        unexpected = sorted(existing - allowed)
-        if unexpected:
-            messages.append(
-                _migration_history_error(
-                    f"{contract.app_label} has migration identities outside the "
-                    f"reviewed contract: {', '.join(unexpected)}.",
-                    obj=contract.app_label,
-                ),
-            )
-            continue
-
-        has_application_tables = bool(
-            _application_table_names(contract.app_label) & database_tables,
-        )
-        if not existing and not has_application_tables:
-            # A genuinely fresh Release B database can start directly on the
-            # canonical migration graph.
-            continue
-
-        legacy_only_names = contract.legacy_names - canonical.names
-        if existing and not (legacy_only_names & existing):
-            # This is a canonical-only database. Django may safely resume an
-            # interrupted first migration run from its recorded position.
-            continue
-
-        missing = sorted(canonical.names - existing)
-        if missing:
-            messages.append(
-                _migration_history_error(
-                    f"{contract.app_label} is not safe for canonical migrations; "
-                    f"missing reviewed identities: {', '.join(missing)}. Redeploy "
-                    "the bridge release and converge this database before retrying.",
-                    obj=contract.app_label,
-                ),
-            )
-
-    return messages
 
 
 def _table_columns(

@@ -870,7 +870,7 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from 'vue'
-import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
+import { fetchCoreConcepts } from '@/api/coreConcepts'
 import {
   fetchReportTemplateByName,
   fetchReportTemplatePreviewByName,
@@ -895,14 +895,10 @@ import type {
   ReportTemplateRuntimePayload,
   ReportTemplateRuntimeValidationResult
 } from '@/types/reportTemplate'
+import type { CoreConceptCollection } from '@/types/coreConcepts'
 import { reportingApiErrorMessage } from './reportingError'
 import { reportTemplateLifecycleContextKey } from './reportTemplateLifecycleContext'
-
-type CoreConceptPayload = {
-  examination?: Array<{ name?: string }>
-  finding?: Array<{ name?: string }>
-  classification?: Array<{ name?: string }>
-}
+import { requireUniqueReportingExaminationName } from './reportingExaminationResolution'
 
 type RuntimeClassificationChoiceDraft = {
   id: string
@@ -936,7 +932,7 @@ const templateLoading = ref(false)
 const definitionLoading = ref(false)
 const runtimeLoading = ref(false)
 const lifecycleLoading = ref(false)
-const coreConcepts = ref<CoreConceptPayload>({})
+const coreConcepts = ref<CoreConceptCollection | null>(null)
 const templateOptions = ref<ReportTemplatePayload[]>([])
 const selectedTemplate = ref<ReportTemplatePayload | null>(null)
 const definitionValidationResult = ref<ReportTemplateDefinitionValidationResult | null>(null)
@@ -966,17 +962,15 @@ const availablePresets = computed(() => {
 })
 
 const examinationOptions = computed(() =>
-  (coreConcepts.value.examination || []).map((entry) => (entry.name || '').trim()).filter(Boolean)
+  (coreConcepts.value?.examination || []).map((entry) => entry.name.trim()).filter(Boolean)
 )
 
 const findingOptions = computed(() =>
-  (coreConcepts.value.finding || []).map((entry) => (entry.name || '').trim()).filter(Boolean)
+  (coreConcepts.value?.finding || []).map((entry) => entry.name.trim()).filter(Boolean)
 )
 
 const classificationOptions = computed(() =>
-  (coreConcepts.value.classification || [])
-    .map((entry) => (entry.name || '').trim())
-    .filter(Boolean)
+  (coreConcepts.value?.classification || []).map((entry) => entry.name.trim()).filter(Boolean)
 )
 
 const canSave = computed(
@@ -1294,14 +1288,21 @@ const runtimePayloadPreview = computed(() => JSON.stringify(runtimePayload.value
 async function loadCoreConcepts() {
   catalogLoading.value = true
   try {
-    const response = await axiosInstance.get(
-      dtypesApi(`core-concepts/${encodeURIComponent(moduleName.value)}`)
-    )
-    coreConcepts.value = response.data as CoreConceptPayload
-    if (!examination.value && examinationOptions.value.length) {
+    coreConcepts.value = await fetchCoreConcepts(moduleName.value)
+    const shellExamination = lifecycleContext?.activeExaminationName.value.trim() || ''
+    if (shellExamination) {
+      examination.value = requireUniqueReportingExaminationName(
+        coreConcepts.value.examination,
+        shellExamination
+      ).name
+    } else if (!examination.value && examinationOptions.value.length) {
       examination.value = examinationOptions.value[0]
     }
   } catch (error: unknown) {
+    coreConcepts.value = null
+    examination.value = ''
+    templateOptions.value = []
+    selectedTemplate.value = null
     setError(reportingApiErrorMessage(error, 'Core concepts konnten nicht geladen werden.'))
   } finally {
     catalogLoading.value = false
@@ -1502,6 +1503,18 @@ if (lifecycleContext) {
   watch(lifecycleContext.activeModuleName, (nextModuleName) => {
     if (nextModuleName && nextModuleName !== moduleName.value) {
       moduleName.value = nextModuleName
+    }
+  })
+  watch(lifecycleContext.activeExaminationName, (nextExaminationName) => {
+    const normalizedName = nextExaminationName.trim()
+    if (!normalizedName || normalizedName === examination.value) return
+    try {
+      examination.value = requireUniqueReportingExaminationName(
+        coreConcepts.value?.examination || [],
+        normalizedName
+      ).name
+    } catch (error: unknown) {
+      setError(reportingApiErrorMessage(error, 'Untersuchung konnte nicht aufgelöst werden.'))
     }
   })
 }

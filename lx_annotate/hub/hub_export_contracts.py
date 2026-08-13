@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from endoreg_db.models.state.anonymization import AnonymizationState
+from endoreg_db.models.state.video_segment_validation import SegmentAnnotationStatus
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 
@@ -24,6 +26,23 @@ class HubExportMutationRequest(BaseModel):
     resources: list[HubExportResourceRef] = Field(min_length=1)
 
 
+class HubEligibleVideoOffloadRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target_node_key: str | None = None
+
+
+class HubEligibleVideoOffloadResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target_node_key: str
+    discovered_count: int
+    eligible_count: int
+    queued_count: int
+    already_registered_count: int
+    skipped_count: int
+
+
 class HubExportPrivacyStatus(StrEnum):
     PASS = "pass"
     WARNING = "warning"
@@ -37,10 +56,25 @@ class HubExportFailureClass(StrEnum):
     TRANSIENT_RETRY = "transient_retry"
 
 
+class HubExportIntegrityStatus(StrEnum):
+    NOT_READY = "not_ready"
+    MISSING_PROCESSED_MEDIA = "missing_processed_media"
+    MISSING_HASH = "missing_hash"
+    HASH_METADATA_MISMATCH = "hash_metadata_mismatch"
+    PERSISTED_VERIFIED = "persisted_verified"
+    VERIFIED = "verified"
+    PROCESSED_MEDIA_UNREADABLE = "processed_media_unreadable"
+    PROCESSED_MEDIA_HASH_MISMATCH = "processed_media_hash_mismatch"
+
+
 class HubExportRejectionReason(StrEnum):
     MISSING_CENTER = "missing_center"
     NOT_READY_FOR_EXPORT = "not_ready_for_export"
     MISSING_PROCESSED_FILE = "missing_processed_file"
+    MISSING_PROCESSED_HASH = "missing_processed_hash"
+    PROCESSED_HASH_METADATA_MISMATCH = "processed_hash_metadata_mismatch"
+    PROCESSED_FILE_HASH_MISMATCH = "processed_file_hash_mismatch"
+    PROCESSED_FILE_UNREADABLE = "processed_file_unreadable"
     SEGMENT_CLEANUP_PENDING = "segment_cleanup_pending"
     SEGMENT_CLEANUP_FAILED = "segment_cleanup_failed"
 
@@ -77,7 +111,9 @@ class HubExportItem(BaseModel):
     id: int
     resource_kind: HubExportResourceKind
     filename: str
-    anonymization_status: str
+    anonymization_status: AnonymizationState
+    segment_annotation_status: SegmentAnnotationStatus
+    export_integrity_status: HubExportIntegrityStatus
     processed_media_present: bool
     source_center_key: str | None
     source_center_name: str | None
@@ -147,7 +183,7 @@ class HubCenterSyncState(BaseModel):
     duplicate_count: int
 
     @model_validator(mode="after")
-    def validate_file_counts(self) -> "HubCenterSyncState":
+    def validate_file_counts(self) -> HubCenterSyncState:
         candidates = sum(
             file.eligible and not file.transfer_registered
             for file in self.processed_files
@@ -167,7 +203,7 @@ class HubFileSyncSummary(BaseModel):
     candidate_count: int
 
     @model_validator(mode="after")
-    def validate_summary_counts(self) -> "HubFileSyncSummary":
+    def validate_summary_counts(self) -> HubFileSyncSummary:
         center_keys = [center.center_key for center in self.centers]
         if len(center_keys) != len(set(center_keys)):
             raise ValueError("sync summary contains duplicate center_key values")
@@ -212,7 +248,10 @@ class HubExportOverview(BaseModel):
 __all__ = [
     "HubCenterSyncState",
     "HubExportDuplicateReason",
+    "HubExportIntegrityStatus",
     "HubExportItem",
+    "HubEligibleVideoOffloadRequest",
+    "HubEligibleVideoOffloadResult",
     "HubExportMutationRequest",
     "HubExportOverview",
     "HubExportPrivacyStatus",

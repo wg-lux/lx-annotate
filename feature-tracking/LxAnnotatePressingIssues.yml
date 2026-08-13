@@ -50,9 +50,9 @@ definition_of_done:
     status: verified
     evidence:
     - kind: code
-      reference: Release artifact commit 7e2ce39085863c6aae5afbe3ad9b10466694ec75; origin/main and
-        remote v0.9.55 resolve to this commit. The retained release/lx-annotate-0.9.55-final branch
-        identifies the earlier 6d535f766 release candidate, not the published artifact source.
+      reference: Release artifact commit 7e2ce39085863c6aae5afbe3ad9b10466694ec75; origin/main and remote
+        v0.9.55 resolve to this commit. The retained release/lx-annotate-0.9.55-final branch identifies
+        the earlier 6d535f766 release candidate, not the published artifact source.
     - kind: command
       reference: GitHub Actions run 30834291091 recorded RELEASE_EVIDENCE.json for commit 7e2ce39085863c6aae5afbe3ad9b10466694ec75,
         release assessor maxhild, lx-annotate 0.9.55, endoreg-db 1.0.8.4, and lx-dtypes 0.2.11.
@@ -78,9 +78,9 @@ definition_of_done:
       reference: tests/system/test_release_evidence_workflow.py; tests/system/test_terminology_bootstrap.py;
         tests/system/test_wheel_deployment_acceptance.py
     note: The published 0.9.55 artifacts were built and install-smoked by the protected GitHub workflow
-      from clean commit 7e2ce390 after the final Linux/decord release-workflow corrections. Missing
-      optional terminology is non-blocking; the packaged lx-dtypes default bundle provisions idempotently.
-      Protected GitHub release publication remains the only authorized PyPI path.
+      from clean commit 7e2ce390 after the final Linux/decord release-workflow corrections. Missing optional
+      terminology is non-blocking; the packaged lx-dtypes default bundle provisions idempotently. Protected
+      GitHub release publication remains the only authorized PyPI path.
     assessed_by: codex/root
     assessed_at: '2026-08-04T08:45:41Z'
 - id: pressing_scope
@@ -386,3 +386,45 @@ definition_of_done:
       Wheel, sdist, Nix package, Vite manifest, and documentation regeneration contracts pass.'
     assessed_by: codex-root-lxannotate
     assessed_at: '2026-08-03T10:51:42.898532Z'
+- id: german_reporting_experience
+  category: functionality
+  title: German reporting uses canonical clinical labels and a recognition-first workflow
+  acceptance:
+  - Canonical LXDM name_de values take precedence over stable technical names for indications and choices;
+    the frontend contains no clinical translation map.
+  - ID-only or malformed clinical options are not exposed as selectable labels, while unavailable persisted
+    selections remain visibly recoverable without showing their numerical identifiers.
+  - Report workflow statuses, dates, actions, and success messages use concise German presentation labels;
+    report and examination identifiers remain available only in collapsed technical details.
+  - Validator internals are hidden by default behind an accessible details control, while the visible
+    summary gives a short actionable count of missing data and unmet rules.
+  required: true
+  verification:
+    kind: command
+    command:
+    - bash
+    - -lc
+    - cd frontend && npm exec -- vitest run src/api/__tests__/reportingLanguagesApi.test.ts src/views/reporting/__tests__/reportingPresentation.test.ts
+      src/views/reporting/__tests__/reportingIndicationContract.test.ts src/views/reporting/__tests__/FinalizedResultPage.test.ts
+      src/views/reporting/__tests__/ReportExportPage.test.ts src/views/reporting/__tests__/ReportingWorklistPage.test.ts
+      src/components/Reporting/__tests__/LookupStatusPanel.test.ts src/components/Reporting/__tests__/ReportTemplateValidationPanel.test.ts
+      src/components/Reporting/__tests__/IndicationsEditor.test.ts src/views/reporting/__tests__/ReportEditorPage.test.ts
+      && npm run type-check
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm exec -- vitest run [10 focused reporting suites] (35 passed)
+    - kind: command
+      reference: cd frontend && npm run type-check (passed)
+    - kind: command
+      reference: cd frontend && npm run type-check:component-tests (passed)
+    - kind: command
+      reference: cd frontend && npm exec -- eslint [changed reporting cohort] (passed)
+    note: Canonical LXDM German labels now win at the frontend boundary without a term map; malformed
+      ID-only choices are filtered, reporting workflow presentation is German and recognition-first, technical
+      identifiers and validation internals remain accessible in collapsed details, and descriptor units
+      resolve from the core-concept graph.
+    assessed_by: codex-german-reporting-frontend-20260813
+    assessed_at: '2026-08-13T10:25:15.407185Z'

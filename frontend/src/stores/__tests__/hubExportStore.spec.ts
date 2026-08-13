@@ -22,7 +22,11 @@ vi.mock('@/types/api/endpoints', () => ({
     hubExport: {
       overview: 'hub-export/overview/',
       mark: 'hub-export/mark/',
+      offloadEligibleVideos: 'hub-export/offload-eligible-videos/',
       unmark: 'hub-export/unmark/'
+    },
+    media: {
+      videoMarkReadyForExport: (id: number) => `media/videos/${id}/mark-ready-for-export/`
     }
   }
 }))
@@ -127,5 +131,75 @@ describe('hubExportStore', () => {
       resources: [{ id: 7, resourceKind: 'report' }]
     })
     expect(hoisted.get).toHaveBeenCalledTimes(2)
+  })
+
+  it('checks video export readiness and refreshes once', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [],
+        configReady: true,
+        configError: '',
+        privacySummary: null,
+        syncSummary: null,
+        items: []
+      }
+    })
+    hoisted.post.mockResolvedValue({ data: { success: true, readyForExport: true } })
+
+    const store = useHubExportStore()
+    store.selectedTargetNodeKey = 'hub-node'
+    const result = await store.checkVideoExportReadiness([
+      { id: 2, centerKey: 'center-a' },
+      { id: 3, centerKey: 'center-a' }
+    ])
+
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/media/videos/2/mark-ready-for-export/',
+      { centerKey: 'center-a' }
+    )
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/media/videos/3/mark-ready-for-export/',
+      { centerKey: 'center-a' }
+    )
+    expect(result).toEqual({ checkedCount: 2, failedCount: 0 })
+    expect(hoisted.get).toHaveBeenCalledTimes(1)
+  })
+
+  it('queues all eligible videos and refreshes the overview', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [],
+        configReady: true,
+        configError: '',
+        privacySummary: null,
+        syncSummary: null,
+        items: []
+      }
+    })
+    hoisted.post.mockResolvedValue({
+      data: {
+        targetNodeKey: 'hub-node',
+        discoveredCount: 3,
+        eligibleCount: 2,
+        queuedCount: 2,
+        alreadyRegisteredCount: 0,
+        skippedCount: 1
+      }
+    })
+
+    const store = useHubExportStore()
+    store.selectedTargetNodeKey = 'hub-node'
+    const result = await store.offloadEligibleVideos()
+
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/hub-export/offload-eligible-videos/',
+      { targetNodeKey: 'hub-node' }
+    )
+    expect(result.queuedCount).toBe(2)
+    expect(hoisted.get).toHaveBeenCalledTimes(1)
   })
 })

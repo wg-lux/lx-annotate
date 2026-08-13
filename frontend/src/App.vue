@@ -1,13 +1,20 @@
 <template>
-  <div class="g-sidenav-show">
-    
+  <div class="g-sidenav-show app-shell" :class="{ 'app-shell--nav-open': isMenuOpen }">
+    <button
+      v-if="isMenuOpen"
+      type="button"
+      class="app-shell-backdrop"
+      aria-label="Navigation schließen"
+      @click="closeMenu"
+    ></button>
+
     <template v-if="!isMenuOpen">
-      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs ms-3 sidebar-shell sidebar-shell--collapsed">
+      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs sidebar-shell sidebar-shell--collapsed">
         <div class="g-sidenav-hidden">
           <div class="sidenav m-1">
             <button
               type="button"
-              class="btn btn-outline-primary border-0 my-3 mb-0 me-3 sidebar-toggle-button sidebar-toggle-button--closed"
+            class="btn border-0 sidebar-toggle-button sidebar-toggle-button--closed"
               aria-label="Sidebar öffnen"
               :aria-expanded="String(isMenuOpen)"
               title="Sidebar öffnen"
@@ -25,10 +32,10 @@
     </template>
 
     <template v-if="isMenuOpen">
-      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark sidebar-shell sidebar-shell--open">
+      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs border-0 fixed-start sidebar-shell sidebar-shell--open">
         <button
           type="button"
-          class="btn btn-outline-info mb-0 me-3 bg-gradient-dark sidebar-toggle-button sidebar-toggle-button--open"
+          class="btn mb-0 sidebar-toggle-button sidebar-toggle-button--open"
           aria-label="Sidebar schließen"
           :aria-expanded="String(isMenuOpen)"
           title="Sidebar schließen"
@@ -40,9 +47,9 @@
       </aside>
     </template>
 
-    <main class="main-content position-relative max-height-vh-95 h-100 border-radius-lg">
+    <main class="main-content position-relative app-main">
       <NavbarComponent />
-      <div class="container-fluid h-100 w-100 py-1 px-4">
+      <div class="container-fluid w-100 app-content">
         <div class="row">
           <div class="col-12">
             <router-view />
@@ -76,22 +83,33 @@ export default {
       isMenuOpen: false,
     };
   },
+  mounted() {
+    document.addEventListener('toggleSidebar', this.toggleMenu);
+  },
+  beforeUnmount() {
+    document.removeEventListener('toggleSidebar', this.toggleMenu);
+  },
   methods: {
     toggleMenu() {
       this.isMenuOpen = !this.isMenuOpen;
+    },
+    closeMenu() {
+      this.isMenuOpen = false;
     }
   }
 };
 </script>
 
 <style>
-.sidebar-shell--collapsed {
-  width: 4.75rem !important;
-  min-width: 4.75rem;
+.g-sidenav-show > aside.sidenav.navbar.sidebar-shell--collapsed {
+  width: 4.5rem !important;
+  min-width: 4.5rem;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 0.25rem;
+  padding-top: 1rem;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .sidebar-shell--collapsed .g-sidenav-hidden,
@@ -101,10 +119,17 @@ export default {
   justify-content: center;
 }
 
-.sidebar-shell--open {
+.g-sidenav-show > aside.sidenav.navbar.sidebar-shell--open {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  width: 17.5rem !important;
+  margin: 1rem 0 1rem 1rem;
+  height: calc(100vh - 2rem) !important;
+  border-radius: 1.25rem;
+  background: linear-gradient(165deg, #173b42 0%, #102b32 55%, #0b232a 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 1.25rem 3rem rgba(20, 46, 53, 0.22);
 }
 
 .sidebar-shell--open > div {
@@ -126,8 +151,9 @@ export default {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  border-radius: 0.5rem;
-  box-shadow: none;
+  border-radius: 0.8rem;
+  box-shadow: none !important;
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
 .sidebar-toggle-button .ni {
@@ -141,22 +167,24 @@ export default {
 }
 
 .sidebar-toggle-button--closed {
-  color: #2d3047;
-  background: #ffffff;
-  border-color: rgba(45, 48, 71, 0.16) !important;
+  color: #173b42;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(23, 59, 66, 0.14) !important;
+  box-shadow: 0 0.5rem 1.5rem rgba(29, 58, 64, 0.12) !important;
 }
 
 .sidebar-toggle-button--closed:hover,
 .sidebar-toggle-button--closed:focus {
-  color: #263fff;
-  background: #f5f7ff;
+  color: #0b6571;
+  background: #ffffff;
+  transform: translateY(-1px);
 }
 
 .sidebar-toggle-button--open {
-  margin: 0.75rem 0.75rem 0.25rem auto !important;
+  margin: 0.75rem 0.75rem 0.15rem auto !important;
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
   z-index: 2;
 }
 
@@ -184,6 +212,27 @@ export default {
   background: currentColor;
 }
 
+.app-shell-backdrop {
+  display: none;
+}
+
+.g-sidenav-show.app-shell .app-main {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  margin-left: 4.5rem !important;
+  padding-bottom: 2rem;
+}
+
+.g-sidenav-show.app-shell.app-shell--nav-open .app-main {
+  margin-left: 18.5rem !important;
+}
+
+.app-content {
+  padding: 0.75rem clamp(1rem, 2.25vw, 2.5rem) 2rem;
+}
+
 @media (max-width: 1199.98px) {
   .g-sidenav-show > aside.sidenav.navbar {
     transform: none !important;
@@ -194,7 +243,51 @@ export default {
   }
 
   .g-sidenav-show > aside.sidenav.navbar.sidebar-shell--collapsed {
-    width: 4.75rem !important;
+    width: 4.5rem !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    z-index: 1030;
+  }
+
+  .g-sidenav-show > aside.sidenav.navbar.sidebar-shell--open {
+    position: fixed !important;
+    inset: 0 auto 0 0;
+    width: min(19rem, calc(100vw - 2rem)) !important;
+    height: 100dvh !important;
+    margin: 0;
+    border-radius: 0 1.25rem 1.25rem 0;
+    z-index: 1050;
+  }
+
+  .sidebar-shell--open .sidenav {
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+
+  .app-shell-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    border: 0;
+    background: rgba(8, 24, 29, 0.54);
+    backdrop-filter: blur(3px);
+  }
+
+  .g-sidenav-show.app-shell .app-main,
+  .g-sidenav-show.app-shell.app-shell--nav-open .app-main {
+    margin-left: 0 !important;
+  }
+
+  .app-content {
+    padding-inline: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-toggle-button {
+    transition: none;
   }
 }
 </style>

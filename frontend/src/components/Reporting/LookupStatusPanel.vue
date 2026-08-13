@@ -5,8 +5,8 @@
         <div>
           <div class="fw-semibold small">{{ title }}</div>
           <div class="small text-muted">
-            Fall #{{ patientExaminationId ?? 'k. A.' }} · Abfrage {{ lookupToken ? 'aktiv' : 'nicht verbunden' }}
-            <template v-if="sessionStatus"> · Status {{ sessionStatus }}</template>
+            {{ patientExaminationId ? 'Mit Untersuchung verknüpft' : 'Keine Untersuchung verknüpft' }}
+            · Abfrage {{ lookupToken ? 'aktiv' : 'nicht verbunden' }}
           </div>
         </div>
         <button
@@ -22,11 +22,11 @@
 
       <div v-if="!collapsed" data-testid="lookup-status-details" class="row g-3 mt-1">
         <div class="col-md-4">
-          <label class="form-label">Fall-ID</label>
+          <label class="form-label">Technische Untersuchungsreferenz</label>
           <input class="form-control" :value="patientExaminationId ?? ''" readonly />
         </div>
         <div v-if="selectedExaminationId !== undefined" class="col-md-4">
-          <label class="form-label">Untersuchungs-ID</label>
+          <label class="form-label">Technische Konzeptreferenz</label>
           <input class="form-control" :value="selectedExaminationId ?? ''" readonly />
         </div>
         <div v-if="sessionStatus !== undefined" class="col-md-4">

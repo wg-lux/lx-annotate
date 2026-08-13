@@ -33,11 +33,14 @@ describe('ReportingWorklistPage', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('#101')
-    expect(wrapper.text()).toContain('#102')
+    expect(wrapper.text()).toContain('Abgeschlossen')
+    expect(wrapper.text()).toContain('Entwurf')
+    expect(wrapper.text()).not.toContain('#101')
+    expect(wrapper.findAll('details')).toHaveLength(2)
+    expect(wrapper.findAll('details').every((details) => details.attributes('open') === undefined)).toBe(true)
 
     await wrapper.find('select').setValue('final')
-    expect(wrapper.text()).toContain('#101')
-    expect(wrapper.text()).not.toContain('#102')
+    expect(wrapper.get('tbody').text()).toContain('Abgeschlossen')
+    expect(wrapper.get('tbody').text()).not.toContain('Entwurf')
   })
 })

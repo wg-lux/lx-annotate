@@ -18,94 +18,119 @@ definition_of_done:
   category: requirements
   title: Historical and canonical migration identities have an explicit safety contract
   acceptance:
-  - Package ownership, legacy leaves, canonical leaves, reviewed manifests, and failure conditions are explicit.
-  - Historical migration records remain recognized by the pre-migrate safety gate.
+  - Package ownership, legacy-to-canonical prefix checkpoints, and failure conditions are explicit.
+  - Historical migration records remain recognized by the explicit repair command without blocking Django
+    system checks.
   required: true
   verification:
     kind: command
     command:
-    - ./.devenv/state/venv/bin/pytest
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
     - tests/system/test_migration_history_safety.py
+    - tests/system/test_legacy_migration_history_repair.py
     timeout_seconds: 300
   assessment:
     status: verified
     evidence:
     - kind: command
-      reference: ./.devenv/state/venv/bin/pytest tests/system/test_migration_history_safety.py
-      note: Exit-Code 0
-    assessed_by: codex-canonical-migration-cutover
-    assessed_at: '2026-08-12T08:10:17.352543Z'
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_migration_history_safety.py tests/system/test_legacy_migration_history_repair.py
+    assessed_by: codex-migration-overrides
+    assessed_at: '2026-08-12T12:15:40.847100Z'
 - id: guarded_bridge
   category: functionality
   title: The retired dependency migration graph is no longer shipped
   acceptance:
   - Base, development, and production settings use dependency-owned canonical migrations.
-  - No compatibility migration package or convergence management command is included.
+  - No compatibility migration package is included; the repair command records history only and never
+    ships or executes replacement schema operations.
   required: true
   verification:
     kind: command
     command:
-    - ./.devenv/state/venv/bin/pytest
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
     - tests/system/test_migration_history_safety.py
     timeout_seconds: 300
   assessment:
     status: verified
     evidence:
     - kind: command
-      reference: ./.devenv/state/venv/bin/pytest tests/system/test_migration_history_safety.py
-      note: Exit-Code 0
-    assessed_by: codex-canonical-migration-cutover
-    assessed_at: '2026-08-12T08:10:22.831754Z'
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_migration_history_safety.py
+    assessed_by: codex-migration-overrides
+    assessed_at: '2026-08-12T12:15:41.909644Z'
 - id: history_tests
   category: testing
   title: Fresh, canonical, historical, partial, and unexpected histories are tested
   acceptance:
   - Tests permit fresh and canonical-only migration histories.
-  - Tests reject historical, partially bridged, unexpected, or incomplete histories before writes.
+  - Tests atomically normalize recognized historical prefixes and reject gapped, unexpected, concurrently
+    changed, or unreviewed histories before writes.
   required: true
   verification:
     kind: command
     command:
-    - ./.devenv/state/venv/bin/pytest
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
     - tests/system/test_environment_checks.py
     - tests/system/test_migration_history_safety.py
+    - tests/system/test_legacy_migration_history_repair.py
     timeout_seconds: 600
   assessment:
     status: verified
     evidence:
     - kind: command
-      reference: ./.devenv/state/venv/bin/pytest tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
-      note: Exit-Code 0
-    assessed_by: codex-canonical-migration-cutover
-    assessed_at: '2026-08-12T08:10:28.159707Z'
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
+        tests/system/test_legacy_migration_history_repair.py
+    assessed_by: codex-migration-overrides
+    assessed_at: '2026-08-12T12:15:42.930425Z'
 - id: fail_closed
   category: security
-  title: Canonical migration startup fails closed before schema mutation
+  title: Explicit history repair fails closed without blocking migrate checks
   acceptance:
-  - Canonical migration manifests and database history are verified before migrate without pinning distribution versions.
+  - The repair command validates reviewed canonical checkpoints without pinning distribution versions
+    or the complete future manifest.
   - No payload, encryption-key, or application-data mutation is introduced.
   required: true
   verification:
     kind: command
     command:
-    - ./.devenv/state/venv/bin/pytest
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
     - tests/system/test_environment_checks.py
     - tests/system/test_migration_history_safety.py
+    - tests/system/test_legacy_migration_history_repair.py
     timeout_seconds: 600
   assessment:
     status: verified
     evidence:
     - kind: command
-      reference: ./.devenv/state/venv/bin/pytest tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
-      note: Exit-Code 0
-    assessed_by: codex-migration-overrides-audit
-    assessed_at: '2026-08-12T09:27:36.743592Z'
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
+        tests/system/test_legacy_migration_history_repair.py
+    assessed_by: codex-migration-overrides
+    assessed_at: '2026-08-12T12:15:44.008513Z'
 - id: rollout
   category: operations
   title: Canonical cutover and rollback procedures are documented
   acceptance:
-  - Fleet evidence confirms every existing database was converged by the preceding bridge release before
-    promotion.
+  - Existing databases with a recognized contiguous legacy prefix are atomically repaired before Django
+    plans canonical migrations.
   - Rollback preserves canonical migration records and restores the preceding release when required.
   required: true
   verification:

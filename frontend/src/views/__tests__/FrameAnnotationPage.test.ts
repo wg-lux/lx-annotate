@@ -382,6 +382,80 @@ describe('FrameAnnotation route', () => {
     expect(wrapper.text()).toContain('Keine Annotationsaufgaben verfügbar.')
   })
 
+  it('keeps the task open and allows retry after an explicitly uncommitted retryable write', async () => {
+    hoisted.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: {
+        data: {
+          status: 'error',
+          error: 'Frame annotation storage is temporarily unavailable.',
+          code: 'frame_annotation_write_temporarily_unavailable',
+          retryable: true,
+          writeCommitted: false
+        }
+      }
+    })
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+    await markFrameLoaded(wrapper)
+    await wrapper.get('button.btn-success').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-test="frame-id-badge"]').text()).toContain('Frame-ID 101')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Es wurden keine Daten gespeichert')
+    expect(wrapper.get('button.btn-success').attributes('disabled')).toBeUndefined()
+  })
+
+  it('keeps the task open and blocks retry after a non-retryable write conflict', async () => {
+    hoisted.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: {
+        data: {
+          status: 'error',
+          error: 'Frame annotations conflict with persisted data.',
+          code: 'frame_annotation_write_conflict',
+          retryable: false,
+          writeCommitted: false
+        }
+      }
+    })
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+    await markFrameLoaded(wrapper)
+    await wrapper.get('button.btn-success').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-test="frame-id-badge"]').text()).toContain('Frame-ID 101')
+    expect(wrapper.get('[role="alert"]').text()).toContain('erneutes Speichern ist')
+    expect(wrapper.get('button.btn-success').attributes('disabled')).toBeDefined()
+  })
+
+  it('blocks retry when the server does not provide an unambiguous commit status', async () => {
+    hoisted.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: {
+        data: {
+          error: 'Proxy response did not include the write contract.'
+        }
+      }
+    })
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+    await markFrameLoaded(wrapper)
+    await wrapper.get('button.btn-success').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-test="frame-id-badge"]').text()).toContain('Frame-ID 101')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Speicherstatus der Annotation ist unklar')
+    expect(wrapper.get('button.btn-success').attributes('disabled')).toBeDefined()
+  })
+
   it('uses the probed frame blob directly as the image source', async () => {
     const frameBlob = new Blob(['frame'], { type: 'image/jpeg' })
     installGetMock({ streamBody: frameBlob })
@@ -397,6 +471,89 @@ describe('FrameAnnotation route', () => {
     wrapper.unmount()
 
     expect(hoisted.revokeObjectURL).toHaveBeenCalledWith('blob:frame-1')
+  })
+
+  it('serializes frame requests and reuses the sequential prefetch for the next task', async () => {
+    const store = buildQueueStore()
+    const firstTask = store.popNextTask() as unknown as AnnotationTask | null
+    if (!firstTask) throw new Error('Expected the first frame task fixture.')
+    const secondTask: AnnotationTask = {
+      ...firstTask,
+      id: 'task-2',
+      data: {
+        ...firstTask.data,
+        frameId: 202,
+        frameNumber: 5001,
+        imageUrl: '/media/frame-202.jpg'
+      }
+    }
+    store.taskQueue = [secondTask]
+    store.popNextTask
+      .mockReset()
+      .mockImplementationOnce(() => firstTask)
+      .mockImplementationOnce(() => {
+        store.taskQueue = []
+        return secondTask
+      })
+    hoisted.queueStore = store
+    hoisted.post.mockResolvedValue({ data: { ok: true } })
+
+    let resolveFirstFrame!: (value: object) => void
+    let resolveSecondFrame!: (value: object) => void
+    const firstFrameResponse = new Promise<object>((resolve) => {
+      resolveFirstFrame = resolve
+    })
+    const secondFrameResponse = new Promise<object>((resolve) => {
+      resolveSecondFrame = resolve
+    })
+    let activeFrameRequests = 0
+    let maximumActiveFrameRequests = 0
+    const frameRequestUrls: string[] = []
+    hoisted.get.mockImplementation((url: string) => {
+      if (url === 'media/videos/label-sets/list/') {
+        return Promise.resolve({ data: { results: [{ id: 3, name: 'Upper GI', version: 1 }] } })
+      }
+      if (url === 'media/annotations/frames/boxes/') {
+        return Promise.resolve({ data: { results: [] } })
+      }
+      if (url === firstTask.data.imageUrl || url === secondTask.data.imageUrl) {
+        frameRequestUrls.push(url)
+        activeFrameRequests += 1
+        maximumActiveFrameRequests = Math.max(maximumActiveFrameRequests, activeFrameRequests)
+        const response = url === firstTask.data.imageUrl ? firstFrameResponse : secondFrameResponse
+        return response.finally(() => {
+          activeFrameRequests -= 1
+        })
+      }
+      return Promise.resolve({ data: { results: [] } })
+    })
+
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+
+    expect(frameRequestUrls).toEqual(['/media/frame-101.jpg'])
+    resolveFirstFrame({
+      status: 200,
+      data: new Blob(['first-frame'], { type: 'image/jpeg' }),
+      headers: { 'content-type': 'image/jpeg' }
+    })
+    await flushPromises()
+
+    expect(frameRequestUrls).toEqual(['/media/frame-101.jpg', '/media/frame-202.jpg'])
+    await markFrameLoaded(wrapper)
+    await wrapper.get('[data-test="exclude-dataset-button"]').trigger('click')
+    await flushPromises()
+
+    expect(frameRequestUrls).toEqual(['/media/frame-101.jpg', '/media/frame-202.jpg'])
+    resolveSecondFrame({
+      status: 200,
+      data: new Blob(['second-frame'], { type: 'image/jpeg' }),
+      headers: { 'content-type': 'image/jpeg' }
+    })
+    await flushPromises()
+
+    expect(maximumActiveFrameRequests).toBe(1)
+    expect(wrapper.get('[data-test="frame-number-badge"]').text()).toContain('Frame 5001')
   })
 
   it('keeps label submission disabled until the frame is rendered', async () => {

@@ -3,7 +3,7 @@
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center gap-3">
         <div>
-          <h5 class="mb-0">Report export</h5>
+          <h5 class="mb-0">PDF-Bericht erstellen</h5>
           <small class="text-muted">PDF-Bericht mit ausgewählten Bildern erstellen.</small>
         </div>
         <button
@@ -39,21 +39,17 @@
         </div>
 
         <div class="row g-3 mb-3">
-          <div class="col-md-4">
-            <div class="small text-muted">PatientExamination-ID</div>
-            <div class="fw-semibold">{{ patientExaminationId ?? 'n/a' }}</div>
-          </div>
-          <div class="col-md-4">
-            <div class="small text-muted">Report-ID</div>
-            <div class="fw-semibold">{{ selectedReportId ?? 'n/a' }}</div>
-          </div>
-          <div class="col-md-4">
+          <div class="col-md-6">
             <div class="small text-muted">Status</div>
             <div>
               <span class="badge" :class="reportStatusClass">{{
-                latestReport?.status || 'n/a'
+                reportStatusLabel(latestReport?.status)
               }}</span>
             </div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Berichtsstand</div>
+            <div class="fw-semibold">{{ reportVersionLabel(latestReport?.version) }}</div>
           </div>
         </div>
 
@@ -64,7 +60,7 @@
             @click="onMakeReport"
           >
             <span v-if="generating" class="spinner-border spinner-border-sm me-1" />
-            Make report
+            PDF-Bericht erstellen
           </button>
           <RouterLink
             v-if="patientExaminationId"
@@ -85,6 +81,11 @@
         <div v-if="warnings.length" class="alert alert-warning py-2 mt-3 mb-0">
           <div v-for="warning in warnings" :key="warning">{{ warning }}</div>
         </div>
+        <details class="mt-3 small text-muted" data-testid="export-technical-details">
+          <summary>Technische Angaben</summary>
+          <div class="mt-2">Berichtsreferenz: {{ selectedReportId ?? 'nicht verfügbar' }}</div>
+          <div>Untersuchungsreferenz: {{ patientExaminationId ?? 'nicht verfügbar' }}</div>
+        </details>
       </div>
     </div>
 
@@ -139,6 +140,11 @@ import { useTerminologyStore } from '@/stores/terminologyStore'
 import { endpoints } from '@/types/api/endpoints'
 import { reportingApiErrorMessage } from './reportingError'
 import { parseReportListPayload, type ReportListRow } from './reportListPayload'
+import {
+  reportStatusBadgeClass,
+  reportStatusLabel,
+  reportVersionLabel
+} from './reportingPresentation'
 
 const route = useRoute()
 const flow = useReportingFlowStore()
@@ -184,12 +190,7 @@ const canMakeReport = computed(
     !!patient.value.dob
 )
 
-const reportStatusClass = computed(() => {
-  const status = (latestReport.value?.status || '').toLowerCase()
-  if (status === 'final') return 'bg-success'
-  if (status === 'draft') return 'bg-warning text-dark'
-  return 'bg-secondary'
-})
+const reportStatusClass = computed(() => reportStatusBadgeClass(latestReport.value?.status))
 
 const timelineUrl = computed<string | undefined>(() => {
   const url = persistedArtifacts.value?.patientTimelineUrl
@@ -267,7 +268,7 @@ async function onMakeReport() {
     persistedArtifacts.value = data.persistedArtifacts || null
     includedFrameCount.value = data.includedFrameCount || 0
     warnings.value = Array.isArray(data.warnings) ? data.warnings : []
-    successMessage.value = `PDF-Bericht #${String(data.report.id)} wurde erstellt.`
+    successMessage.value = 'Der PDF-Bericht wurde erstellt.'
   } catch (e: unknown) {
     errorMessage.value = reportingApiErrorMessage(e, 'PDF-Bericht konnte nicht erstellt werden.')
   } finally {

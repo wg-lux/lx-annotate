@@ -39,9 +39,14 @@
       </div>
 
       <div class="card-body">
-        <div v-if="hubExportStore.error" class="alert alert-info" role="status">
+        <div
+          v-if="hubExportStore.error || hubExportStore.mutationError"
+          class="alert alert-info"
+          role="status"
+          data-test="hub-export-operation-error"
+        >
           <strong>Status konnte nicht aktualisiert werden.</strong>
-          {{ hubExportStore.error }}
+          {{ hubExportStore.mutationError || hubExportStore.error }}
         </div>
 
         <div
@@ -263,6 +268,30 @@
           </div>
           <div class="d-flex gap-2 flex-wrap">
             <button
+              class="btn btn-success btn-sm"
+              :disabled="
+                !bulkOffloadCandidateCount ||
+                !hubExportStore.configReady ||
+                offloadingEligibleVideos
+              "
+              data-test="hub-export-offload-eligible-videos"
+              @click="offloadEligibleVideos"
+            >
+              {{
+                offloadingEligibleVideos
+                  ? 'Videos werden eingeplant …'
+                  : 'Alle geeigneten Videos zum Hub übertragen'
+              }}
+            </button>
+            <button
+              class="btn btn-outline-primary btn-sm"
+              :disabled="!readinessCandidates.length || checkingReadiness"
+              data-test="hub-export-check-readiness-all"
+              @click="checkAllVideoReadiness"
+            >
+              {{ checkingReadiness ? 'Exportfreigabe wird geprüft …' : 'Alle Videos auf Exportfreigabe prüfen' }}
+            </button>
+            <button
               class="btn btn-outline-success btn-sm"
               :disabled="!selectedEligibleItems.length || !hubExportStore.configReady"
               data-test="hub-export-mark-selected"
@@ -352,17 +381,80 @@
           </div>
         </div>
 
+        <div
+          v-if="hubExportStore.items.length"
+          class="hub-table-filter-bar"
+          data-test="hub-export-table-filters"
+          aria-label="Hub-Ressourcen filtern"
+        >
+          <div class="hub-table-filter-field">
+            <label for="hub-resource-type-filter" class="form-label mb-1">Ressourcentyp</label>
+            <select
+              id="hub-resource-type-filter"
+              v-model="resourceKindFilter"
+              class="form-select form-select-sm"
+              data-test="hub-resource-type-filter"
+            >
+              <option value="all">Alle Ressourcentypen</option>
+              <option value="video">Video</option>
+              <option value="report">Bericht</option>
+            </select>
+          </div>
+          <div class="hub-table-filter-field">
+            <label for="hub-storage-state-filter" class="form-label mb-1">
+              Physischer Speicherstatus
+            </label>
+            <select
+              id="hub-storage-state-filter"
+              v-model="physicalStorageStateFilter"
+              class="form-select form-select-sm"
+              data-test="hub-storage-state-filter"
+            >
+              <option value="all">Alle Speicherzustände</option>
+              <option value="present">Processed Media vorhanden</option>
+              <option value="missing">Processed Media fehlt</option>
+            </select>
+          </div>
+          <div class="hub-table-filter-summary" aria-live="polite">
+            {{ filteredItems.length }} von {{ hubExportStore.items.length }} Ressourcen
+          </div>
+          <button
+            v-if="hasActiveTableFilters"
+            type="button"
+            class="btn btn-outline-secondary btn-sm mb-0"
+            data-test="hub-table-filters-reset"
+            @click="resetTableFilters"
+          >
+            Filter zurücksetzen
+          </button>
+        </div>
+
         <div v-if="!filteredItems.length && !hubExportStore.loading" class="text-center py-5">
-          <h5 class="text-muted">Keine exportierbaren Ressourcen</h5>
-          <p class="text-muted mb-0">
-            Es sind aktuell keine anonymisierten Ressourcen für den Hub-Export verfügbar.
+          <h5 class="text-muted">
+            {{ hubExportStore.items.length ? 'Keine passenden Ressourcen' : 'Keine exportierbaren Ressourcen' }}
+          </h5>
+          <p class="text-muted mb-3">
+            {{
+              hubExportStore.items.length
+                ? 'Die gewählten Filter liefern keine Tabellenzeilen.'
+                : 'Es sind aktuell keine anonymisierten Ressourcen für den Hub-Export verfügbar.'
+            }}
           </p>
+          <button
+            v-if="hubExportStore.items.length"
+            type="button"
+            class="btn btn-outline-primary btn-sm"
+            @click="resetTableFilters"
+          >
+            Filter zurücksetzen
+          </button>
         </div>
 
         <div v-else class="table-responsive">
           <table class="table table-hover">
             <thead class="table-light">
               <tr>
+                <th>Freigabe</th>
                 <th>
                   <input
                     type="checkbox"
@@ -375,6 +467,8 @@
                 <th>Datei</th>
                 <th>Typ</th>
                 <th>Anonymisierung</th>
+                <th>Segmentprüfung</th>
+                <th>Exportintegrität</th>
                 <th>Processed Media</th>
                 <th>Zentrum</th>
                 <th>Markiert</th>
@@ -385,6 +479,25 @@
             </thead>
             <tbody>
               <tr v-for="item in filteredItems" :key="`${item.resourceKind}-${item.id}`">
+                <td class="readiness-action-cell">
+                  <button
+                    v-if="item.resourceKind === 'video'"
+                    class="btn btn-outline-primary btn-sm mb-0"
+                    :disabled="!canCheckReadiness(item) || checkingVideoIds.has(item.id)"
+                    :data-test="`hub-export-check-readiness-video-${item.id}`"
+                    @click="checkVideoReadiness(item)"
+                  >
+                    {{
+                      item.exportIntegrityStatus === 'persisted_verified' ||
+                      item.exportIntegrityStatus === 'verified'
+                        ? 'Freigegeben'
+                        : checkingVideoIds.has(item.id)
+                          ? 'Prüft …'
+                          : 'Exportfreigabe prüfen'
+                    }}
+                  </button>
+                  <span v-else class="text-muted">-</span>
+                </td>
                 <td>
                   <input
                     type="checkbox"
@@ -407,6 +520,21 @@
                 <td>
                   <span class="badge" :class="statusBadgeClass(item.anonymizationStatus)">
                     {{ statusLabel(item.anonymizationStatus) }}
+                  </span>
+                </td>
+                <td :data-test="`hub-export-segment-status-${item.resourceKind}-${item.id}`">
+                  <span
+                    v-if="item.resourceKind === 'video'"
+                    class="badge"
+                    :class="segmentStatusBadgeClass(item.segmentAnnotationStatus)"
+                  >
+                    {{ segmentStatusLabel(item.segmentAnnotationStatus) }}
+                  </span>
+                  <span v-else class="text-muted">Nicht zutreffend</span>
+                </td>
+                <td :data-test="`hub-export-integrity-status-${item.resourceKind}-${item.id}`">
+                  <span class="badge" :class="integrityStatusBadgeClass(item.exportIntegrityStatus)">
+                    {{ integrityStatusLabel(item.exportIntegrityStatus) }}
                   </span>
                 </td>
                 <td>
@@ -471,8 +599,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   useHubExportStore,
+  type HubExportAnonymizationStatus,
+  type HubExportIntegrityStatus,
   type HubExportItem,
-  type HubExportPrivacyStatus
+  type HubExportPrivacyStatus,
+  type HubExportSegmentAnnotationStatus
 } from '@/stores/hubExportStore'
 import { useAuthKcStore } from '@/stores/auth_kc'
 
@@ -481,6 +612,11 @@ const authStore = useAuthKcStore()
 const selectedKeys = ref<Set<string>>(new Set())
 const selectedTargetNodeKey = ref<string | null>(null)
 const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const checkingVideoIds = ref<Set<number>>(new Set())
+const offloadingEligibleVideos = ref(false)
+const resourceKindFilter = ref<'all' | HubExportItem['resourceKind']>('all')
+type PhysicalStorageStateFilter = 'all' | 'present' | 'missing'
+const physicalStorageStateFilter = ref<PhysicalStorageStateFilter>('all')
 
 const ACTIVE_TRANSFER_STATUSES = new Set([
   'marked',
@@ -569,13 +705,36 @@ const itemNotice = (item: HubExportItem) => {
   return transferStage(item).label
 }
 
-const filteredItems = computed(() => hubExportStore.items)
+const filteredItems = computed(() =>
+  hubExportStore.items.filter((item) => {
+    const matchesResourceKind =
+      resourceKindFilter.value === 'all' || item.resourceKind === resourceKindFilter.value
+    const matchesStorageState =
+      physicalStorageStateFilter.value === 'all' ||
+      (physicalStorageStateFilter.value === 'present'
+        ? item.processedMediaPresent
+        : !item.processedMediaPresent)
+    return matchesResourceKind && matchesStorageState
+  })
+)
+const hasActiveTableFilters = computed(
+  () => resourceKindFilter.value !== 'all' || physicalStorageStateFilter.value !== 'all'
+)
+
+const resetTableFilters = () => {
+  resourceKindFilter.value = 'all'
+  physicalStorageStateFilter.value = 'all'
+}
+
+watch([resourceKindFilter, physicalStorageStateFilter], () => {
+  selectedKeys.value = new Set()
+})
 const syncSummary = computed(() => hubExportStore.syncSummary)
 const syncCenters = computed(() => syncSummary.value?.centers ?? [])
 const syncRejections = computed(() => syncSummary.value?.rejections ?? [])
 const syncDuplicates = computed(() => syncSummary.value?.duplicates ?? [])
 const transferItems = computed(() =>
-  filteredItems.value.filter((item) => Boolean(item.outboundStatus))
+  hubExportStore.items.filter((item) => Boolean(item.outboundStatus))
 )
 const activeTransferCount = computed(
   () =>
@@ -592,7 +751,7 @@ const attentionTransferCount = computed(
       .length
 )
 const missingPrerequisiteCount = computed(
-  () => filteredItems.value.filter((item) => !item.eligible && !item.markedForUpload).length
+  () => hubExportStore.items.filter((item) => !item.eligible && !item.markedForUpload).length
 )
 const overallTransferProgress = computed(() => {
   if (!transferItems.value.length) return 0
@@ -620,6 +779,25 @@ const verificationBadgeClass = computed(() =>
   verificationReady.value ? 'bg-success' : 'bg-warning text-dark'
 )
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible))
+const canCheckReadiness = (item: HubExportItem) =>
+  item.resourceKind === 'video' &&
+  Boolean(item.sourceCenterKey) &&
+  item.processedMediaPresent &&
+  item.exportIntegrityStatus !== 'persisted_verified' &&
+  item.exportIntegrityStatus !== 'verified'
+const readinessCandidates = computed(() =>
+  hubExportStore.items.filter((item) => canCheckReadiness(item))
+)
+const checkingReadiness = computed(() => checkingVideoIds.value.size > 0)
+const bulkOffloadCandidateCount = computed(
+  () =>
+    hubExportStore.items.filter(
+      (item) =>
+        item.resourceKind === 'video' &&
+        item.eligible &&
+        (!item.outboundStatus || item.outboundStatus === 'marked')
+    ).length
+)
 const allSelectableChecked = computed(
   () =>
     selectableItems.value.length > 0 &&
@@ -670,39 +848,129 @@ const toggleSelectAll = () => {
 }
 
 const markSelected = async () => {
-  await hubExportStore.markResources(selectedEligibleItems.value)
-  selectedKeys.value = new Set()
+  try {
+    await hubExportStore.markResources(selectedEligibleItems.value)
+    selectedKeys.value = new Set()
+  } catch {
+    // The store exposes the backend rejection without discarding the operator's selection.
+  }
 }
 
 const unmarkSelected = async () => {
-  await hubExportStore.unmarkResources(selectedMarkedItems.value)
-  selectedKeys.value = new Set()
+  try {
+    await hubExportStore.unmarkResources(selectedMarkedItems.value)
+    selectedKeys.value = new Set()
+  } catch {
+    // The store exposes the backend rejection without discarding the operator's selection.
+  }
 }
 
-const statusLabel = (status: string) => {
-  const labels: Record<string, string> = {
+const offloadEligibleVideos = async () => {
+  offloadingEligibleVideos.value = true
+  try {
+    await hubExportStore.offloadEligibleVideos()
+    selectedKeys.value = new Set()
+  } catch {
+    // The store exposes the backend rejection while retaining the current overview.
+  } finally {
+    offloadingEligibleVideos.value = false
+  }
+}
+
+const checkReadiness = async (items: HubExportItem[]) => {
+  const candidates = items.filter(
+    (item): item is HubExportItem & { sourceCenterKey: string } =>
+      canCheckReadiness(item) && Boolean(item.sourceCenterKey)
+  )
+  if (!candidates.length) return
+  checkingVideoIds.value = new Set(candidates.map((item) => item.id))
+  try {
+    await hubExportStore.checkVideoExportReadiness(
+      candidates.map((item) => ({ id: item.id, centerKey: item.sourceCenterKey }))
+    )
+  } finally {
+    checkingVideoIds.value = new Set()
+  }
+}
+
+const checkVideoReadiness = async (item: HubExportItem) => {
+  await checkReadiness([item])
+}
+
+const checkAllVideoReadiness = async () => {
+  await checkReadiness(readinessCandidates.value)
+}
+
+const statusLabel = (status: HubExportAnonymizationStatus) => {
+  const labels: Record<HubExportAnonymizationStatus, string> = {
     anonymized: 'Anonymisiert',
     done_processing_anonymization: 'Fertig',
     validated: 'Validiert',
     processing_anonymization: 'In Bearbeitung',
     extracting_frames: 'Frames',
     failed: 'Fehlgeschlagen',
-    not_started: 'Nicht gestartet'
+    not_started: 'Nicht gestartet',
+    started: 'Gestartet'
   }
-  return labels[status] || status
+  return labels[status]
 }
 
-const statusBadgeClass = (status: string) => {
-  const classes: Record<string, string> = {
+const statusBadgeClass = (status: HubExportAnonymizationStatus) => {
+  const classes: Record<HubExportAnonymizationStatus, string> = {
     anonymized: 'bg-success',
     done_processing_anonymization: 'bg-success',
     validated: 'bg-success',
     processing_anonymization: 'bg-warning',
     extracting_frames: 'bg-info',
     failed: 'bg-warning text-dark',
-    not_started: 'bg-secondary'
+    not_started: 'bg-secondary',
+    started: 'bg-warning text-dark'
   }
-  return classes[status] || 'bg-secondary'
+  return classes[status]
+}
+
+const segmentStatusLabel = (status: HubExportSegmentAnnotationStatus) => {
+  const labels: Record<HubExportSegmentAnnotationStatus, string> = {
+    not_started: 'Nicht gestartet',
+    cleanup_required: 'Bereinigung erforderlich',
+    cleanup_queued: 'Bereinigung eingeplant',
+    cleanup_running: 'Bereinigung läuft',
+    cleanup_failed: 'Bereinigung fehlgeschlagen',
+    validated: 'Validiert'
+  }
+  return labels[status]
+}
+
+const segmentStatusBadgeClass = (status: HubExportSegmentAnnotationStatus) => {
+  const classes: Record<HubExportSegmentAnnotationStatus, string> = {
+    not_started: 'bg-secondary',
+    cleanup_required: 'bg-warning text-dark',
+    cleanup_queued: 'bg-info',
+    cleanup_running: 'bg-info',
+    cleanup_failed: 'bg-warning text-dark',
+    validated: 'bg-success'
+  }
+  return classes[status]
+}
+
+const integrityStatusLabel = (status: HubExportIntegrityStatus) => {
+  const labels: Record<HubExportIntegrityStatus, string> = {
+    not_ready: 'Nicht bereit',
+    missing_processed_media: 'Processed Media fehlt',
+    missing_hash: 'Hash fehlt',
+    hash_metadata_mismatch: 'Hash-Metadaten widersprüchlich',
+    persisted_verified: 'Nachweis vorhanden',
+    verified: 'Frisch geprüft',
+    processed_media_unreadable: 'Processed Media nicht lesbar',
+    processed_media_hash_mismatch: 'Datei-Hash abweichend'
+  }
+  return labels[status]
+}
+
+const integrityStatusBadgeClass = (status: HubExportIntegrityStatus) => {
+  if (status === 'persisted_verified' || status === 'verified') return 'bg-success'
+  if (status === 'not_ready') return 'bg-secondary'
+  return 'bg-warning text-dark'
 }
 
 const privacyStatusLabel = (status: HubExportPrivacyStatus) => {
@@ -761,6 +1029,30 @@ onBeforeUnmount(stopPolling)
 <style scoped>
 .hub-target-select {
   min-width: 16rem;
+}
+
+.hub-table-filter-bar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--lx-border, #dee2e6);
+  border-radius: 0.8rem;
+  background: var(--lx-surface-muted, #f8f9fa);
+}
+
+.hub-table-filter-field {
+  flex: 0 1 16rem;
+  min-width: 13rem;
+}
+
+.hub-table-filter-summary {
+  margin: 0 auto 0.5rem 0;
+  color: var(--lx-ink-muted, #6c757d);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .privacy-summary {
@@ -827,6 +1119,10 @@ onBeforeUnmount(stopPolling)
 
 .transfer-progress-cell {
   min-width: 13rem;
+}
+
+.readiness-action-cell {
+  min-width: 12rem;
 }
 
 .transfer-progress {

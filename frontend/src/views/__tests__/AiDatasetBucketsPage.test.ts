@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AiDatasetBucketsPage from '../AiDatasetBucketsPage.vue'
 
 const hoisted = vi.hoisted(() => ({
+  attachAiDatasetAnnotations: vi.fn(),
   fetchAiDatasetOptions: vi.fn(),
   fetchAiDatasetLabelSets: vi.fn(),
   fetchAiDatasetFrameBucketDistribution: vi.fn()
 }))
 
 vi.mock('@/api/aiDatasetApi', () => ({
+  attachAiDatasetAnnotations: hoisted.attachAiDatasetAnnotations,
   fetchAiDatasetOptions: hoisted.fetchAiDatasetOptions,
   fetchAiDatasetLabelSets: hoisted.fetchAiDatasetLabelSets,
   fetchAiDatasetFrameBucketDistribution: hoisted.fetchAiDatasetFrameBucketDistribution
@@ -82,6 +84,16 @@ describe('AiDatasetBucketsPage', () => {
       segmentFrameBuckets: [{ labelId: 11, labelName: 'polyp', frameCount: 6 }],
       mergedFrameBuckets: [{ labelId: 11, labelName: 'polyp', frameCount: 8 }]
     })
+    hoisted.attachAiDatasetAnnotations.mockResolvedValue({
+      datasetId: 7,
+      videoId: null,
+      frameAnnotationCount: 0,
+      videoAnnotationCount: 5,
+      attachedFrameAnnotationIds: [],
+      attachedSegmentIds: [],
+      attachedFrameAnnotationCount: 0,
+      attachedSegmentCount: 5
+    })
   })
 
   it('loads dataset bucket distribution and renders frame counts', async () => {
@@ -113,5 +125,35 @@ describe('AiDatasetBucketsPage', () => {
       targetLabelId: '11',
       predictionSegmentsOnly: true
     })
+  })
+
+  it('backfills all annotated segments and refreshes the distribution', async () => {
+    const wrapper = mount(AiDatasetBucketsPage)
+    await flushPromises()
+
+    await wrapper.get('[data-test="backfill-segments"]').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.attachAiDatasetAnnotations).toHaveBeenCalledWith('7', {
+      includeAllAnnotations: true,
+      includeFrameAnnotations: false,
+      includeVideoAnnotations: true
+    })
+    expect(hoisted.fetchAiDatasetFrameBucketDistribution).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('5 annotierte Segmente')
+  })
+
+  it('shows an error when segment backfill fails', async () => {
+    hoisted.attachAiDatasetAnnotations.mockRejectedValueOnce(new Error('request failed'))
+    const wrapper = mount(AiDatasetBucketsPage)
+    await flushPromises()
+
+    await wrapper.get('[data-test="backfill-segments"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Die annotierten Segmente konnten nicht zum Datensatz hinzugefügt werden.'
+    )
+    expect(hoisted.fetchAiDatasetFrameBucketDistribution).toHaveBeenCalledTimes(1)
   })
 })

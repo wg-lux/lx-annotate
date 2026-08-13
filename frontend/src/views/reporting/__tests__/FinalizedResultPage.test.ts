@@ -59,7 +59,10 @@ describe('FinalizedResultPage', () => {
     await flushPromises()
 
     expect(setActiveReportId).toHaveBeenCalledWith(88)
-    expect(wrapper.text()).toContain('Bericht #88 geladen.')
+    expect(wrapper.text()).toContain('Der abgeschlossene Bericht wurde geladen.')
+    expect(wrapper.text()).toContain('Abgeschlossen')
+    expect(wrapper.text()).not.toContain('Bericht #88')
+    expect(wrapper.get('[data-testid="finalized-technical-details"]').attributes('open')).toBeUndefined()
 
     const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'))
     expect(hrefs).toContain(pdfViewUrl)

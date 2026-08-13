@@ -9,7 +9,8 @@
           <div class="sidenav-header-inner text-center">
             <img :src="logoSrc" alt="Logo" class="logo-img" />
           </div>
-          <div class="ms-1 font-weight-bold text-white text-center">AG Lux</div>
+          <div class="brand-name">AG Lux</div>
+          <div class="brand-context">Klinischer Arbeitsbereich</div>
         </a>
       </div>
       <div class="sidenav-body w-auto max-height-vh-100">
@@ -422,7 +423,8 @@ export default {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  color: #f5f8ff;
+  color: #f4f8f7;
+  background: transparent !important;
 }
 
 .sidenav * {
@@ -435,6 +437,8 @@ export default {
   min-height: 0;
   position: relative;
   z-index: 1;
+  padding: 0 0.65rem 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidenav-header .navbar-brand {
@@ -447,10 +451,23 @@ export default {
   white-space: normal;
 }
 
-.sidenav-header .font-weight-bold {
+.brand-name {
   color: #fff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-  object-fit: contain;
+  font-family: 'Comfortaa', system-ui, sans-serif;
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.brand-context {
+  margin-top: 0.12rem;
+  color: rgba(229, 241, 239, 0.68);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  text-align: center;
 }
 
 .sidenav-header-inner {
@@ -458,15 +475,15 @@ export default {
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 0.75rem 1rem 0.35rem;
-  margin-bottom: 0.35rem;
+  padding: 0.15rem 1rem 0.25rem;
+  margin-bottom: 0.2rem;
 }
 
 .logo-img {
   display: block;
   width: auto;
-  max-width: 150px;
-  max-height: 92px;
+  max-width: 132px;
+  max-height: 78px;
   object-fit: contain;
 }
 
@@ -476,7 +493,7 @@ export default {
   overflow-y: auto;
   overflow-x: hidden;
   max-height: none;
-  padding: 0.2rem 0.45rem 0.8rem;
+  padding: 0.75rem 0.55rem 1rem;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -487,30 +504,30 @@ export default {
 }
 
 .nav-section-title {
-  padding: 0.35rem 0.75rem 0.6rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  padding: 0.2rem 0.75rem 0.65rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
-  color: #d6deed;
+  color: rgba(221, 237, 235, 0.62);
   font-weight: 700;
 }
 
 .nav-item {
   width: 100%;
-  margin-bottom: 2px;
+  margin-bottom: 0.18rem;
 }
 
 .nav-link {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.55rem;
   white-space: normal;
-  min-height: 2.25rem;
-  padding: 0.5rem 0.65rem;
-  color: #f5f8ff !important;
+  min-height: 2.55rem;
+  padding: 0.48rem 0.55rem;
+  color: rgba(244, 248, 247, 0.83) !important;
   border: 1px solid transparent;
-  border-radius: 0.5rem;
-  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  border-radius: 0.7rem;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
   text-decoration: none;
 }
 
@@ -524,8 +541,10 @@ export default {
 }
 
 .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff !important;
+  background-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateX(2px);
 }
 
 .nav-link:focus-visible {
@@ -534,17 +553,20 @@ export default {
 }
 
 .nav-link.active {
-  background-color: rgba(255, 255, 255, 0.24);
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+  color: #fff !important;
+  background: linear-gradient(100deg, rgba(94, 172, 169, 0.24), rgba(255, 255, 255, 0.08));
+  border-color: rgba(148, 211, 205, 0.25);
+  box-shadow: inset 3px 0 0 #73c3bd;
 }
 
 .icon-shape {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  background-color: rgba(255, 255, 255, 0.16);
-  border-radius: 0.75rem;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.6rem;
+  box-shadow: none !important;
 }
 
 .icon-shape i {
@@ -555,9 +577,10 @@ export default {
 .nav-link-text {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.3;
+  align-self: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -581,14 +604,14 @@ export default {
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
-  color: #111827;
-  background: #ffd24a;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: #372d06;
+  background: #f3ce72;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .workflow-badge-processing {
   color: #fff;
-  background: #1a73e8;
+  background: #3c7fa8;
   border-color: rgba(255, 255, 255, 0.22);
 }
 
@@ -630,7 +653,7 @@ hr.horizontal.light {
     height: 100dvh;
     transform: translateX(-110%) !important;
     z-index: 1050;
-    background: linear-gradient(195deg, #42424a, #191919) !important;
+    background: linear-gradient(165deg, #173b42 0%, #102b32 55%, #0b232a 100%) !important;
     transition: transform 0.22s ease-out !important;
     overflow: hidden;
     box-shadow: 14px 0 28px rgba(0, 0, 0, 0.36);
@@ -651,6 +674,17 @@ hr.horizontal.light {
   .sidenav {
     transform: none !important;
     position: relative !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link,
+  .sidenav {
+    transition: none !important;
+  }
+
+  .nav-link:hover {
+    transform: none;
   }
 }
 </style>

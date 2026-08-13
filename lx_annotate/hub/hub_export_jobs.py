@@ -1,39 +1,39 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import date
-from datetime import datetime
-from typing import Any
-from typing import Literal
-from typing import TypedDict
+from datetime import date, datetime
+from typing import Any, Literal, TypedDict
 
 from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
-from endoreg_db.models import Center
-from endoreg_db.models import NetworkNode
-from endoreg_db.models import RawPdfFile
-from endoreg_db.models import VideoFile
+from endoreg_db.models import Center, NetworkNode, RawPdfFile, VideoFile
+from endoreg_db.models.state.video_segment_validation import SegmentAnnotationStatus
 
 from ..models import OutboundHubTransferJob
 from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_cleanup import configured_local_cleanup_policy
-from .hub_export_contracts import HubCenterSyncState
-from .hub_export_contracts import HubExportDuplicateReason
-from .hub_export_contracts import HubExportOverview
-from .hub_export_contracts import HubExportRejectionReason
-from .hub_export_contracts import HubExportResourceKind
-from .hub_export_contracts import HubFileSyncSummary
-from .hub_export_contracts import HubProcessedFile
-from .hub_export_contracts import HubSyncDuplicate
-from .hub_export_contracts import HubSyncRejection
-from .hub_export_state import has_usable_processed_artifact
-from .hub_export_state import hub_export_auto_queue_enabled
-from .hub_export_state import is_report_hub_export_eligible
-from .hub_export_state import is_video_hub_export_eligible
-from .hub_export_state import queue_outbound_job
-from .hub_export_state import report_hub_export_blocked_reason
-from .hub_export_state import video_hub_export_blocked_reason
+from .hub_export_contracts import (
+    HubCenterSyncState,
+    HubEligibleVideoOffloadResult,
+    HubExportDuplicateReason,
+    HubExportIntegrityStatus,
+    HubExportOverview,
+    HubExportRejectionReason,
+    HubExportResourceKind,
+    HubFileSyncSummary,
+    HubProcessedFile,
+    HubSyncDuplicate,
+    HubSyncRejection,
+)
+from .hub_export_state import (
+    has_usable_processed_artifact,
+    hub_export_auto_queue_enabled,
+    is_report_hub_export_eligible,
+    queue_outbound_job,
+    report_hub_export_blocked_reason,
+    resolve_video_hub_export_state,
+)
 
 HUB_EXPORT_PRIVACY_MIN_K = 5
 
@@ -290,6 +290,10 @@ def _sync_rejection_reason(blocked_reason: str) -> HubExportRejectionReason:
     reasons = {
         "source center missing": HubExportRejectionReason.MISSING_CENTER,
         "processed media missing": HubExportRejectionReason.MISSING_PROCESSED_FILE,
+        "processed media hash missing": HubExportRejectionReason.MISSING_PROCESSED_HASH,
+        "processed media hash metadata mismatch": HubExportRejectionReason.PROCESSED_HASH_METADATA_MISMATCH,
+        "processed media hash mismatch": HubExportRejectionReason.PROCESSED_FILE_HASH_MISMATCH,
+        "processed media unreadable": HubExportRejectionReason.PROCESSED_FILE_UNREADABLE,
         "segment cleanup pending": HubExportRejectionReason.SEGMENT_CLEANUP_PENDING,
         "segment cleanup failed": HubExportRejectionReason.SEGMENT_CLEANUP_FAILED,
         "not ready for export": HubExportRejectionReason.NOT_READY_FOR_EXPORT,
@@ -474,12 +478,16 @@ def _resource_overview_item(
     selected_target: NetworkNode | None,
     eligible: bool,
     blocked_reason: str,
+    segment_annotation_status: SegmentAnnotationStatus,
+    export_integrity_status: HubExportIntegrityStatus,
 ) -> dict[str, Any]:
     return {
         "id": resource_id,
         "resource_kind": resource_kind,
         "filename": filename,
         "anonymization_status": _anonymization_status(resource),
+        "segment_annotation_status": segment_annotation_status,
+        "export_integrity_status": export_integrity_status,
         "processed_media_present": processed_media_present,
         "source_center_key": source_center_key,
         "source_center_name": source_center_name,
@@ -569,13 +577,14 @@ def _collect_video_overview(
     ).order_by("-date_created")
     for video in videos:
         video_id = int(video.pk)
-        eligible = is_video_hub_export_eligible(video)
-        blocked_reason = "" if eligible else video_hub_export_blocked_reason(video)
+        readiness = resolve_video_hub_export_state(video)
+        eligible = readiness.transfer_eligible
+        blocked_reason = readiness.blocked_reason
         video_job = jobs_by_key.get(("video", video_id))
         marked_for_upload = video_job is not None
         source_center_key = video.center.center_key if video.center else None
         filename = video.original_file_name or video.video_hash
-        processed_media_present = has_usable_processed_artifact(video)
+        processed_media_present = readiness.processed_media_present
         _append_privacy_record(
             privacy_records,
             resource_kind="video",
@@ -598,6 +607,8 @@ def _collect_video_overview(
                 selected_target=selected_target,
                 eligible=eligible,
                 blocked_reason=blocked_reason,
+                segment_annotation_status=readiness.segment_annotation_status,
+                export_integrity_status=readiness.export_integrity_status,
             ),
         )
         processed_file = _video_processed_file(
@@ -648,6 +659,15 @@ def _collect_report_overview(
         source_center_key = report_center.center_key if report_center else None
         filename = _report_filename(report)
         processed_media_present = has_usable_processed_artifact(report)
+        report_integrity_status = (
+            HubExportIntegrityStatus.PERSISTED_VERIFIED
+            if eligible
+            else (
+                HubExportIntegrityStatus.MISSING_PROCESSED_MEDIA
+                if not processed_media_present
+                else HubExportIntegrityStatus.NOT_READY
+            )
+        )
         _append_privacy_record(
             privacy_records,
             resource_kind="report",
@@ -670,6 +690,8 @@ def _collect_report_overview(
                 selected_target=selected_target,
                 eligible=eligible,
                 blocked_reason=blocked_reason,
+                segment_annotation_status=SegmentAnnotationStatus.NOT_STARTED,
+                export_integrity_status=report_integrity_status,
             ),
         )
         processed_file = _report_processed_file(
@@ -882,6 +904,56 @@ def mark_resources_for_hub_upload(
     return created_or_existing
 
 
+@transaction.atomic
+def queue_all_eligible_videos_for_hub_upload(
+    *,
+    target_node: NetworkNode,
+    marked_by: Any,
+) -> HubEligibleVideoOffloadResult:
+    authenticated_marker = _authenticated_marker(marked_by)
+    source_node = get_default_source_node()
+    if source_node is None:
+        raise ValueError("No active site node is configured for outbound hub export.")
+
+    video_ids = list(VideoFile.objects.order_by("pk").values_list("pk", flat=True))
+    eligible_count = 0
+    queued_count = 0
+    already_registered_count = 0
+
+    for video_id in video_ids:
+        try:
+            job, created = _mark_video_for_hub_upload(
+                resource_id=int(video_id),
+                target_node=target_node,
+                source_node=source_node,
+                marked_by=authenticated_marker,
+            )
+        except ValueError:
+            continue
+
+        eligible_count += 1
+        locked_job = OutboundHubTransferJob.objects.select_for_update().get(pk=job.pk)
+        if _finalize_marked_job(
+            locked_job,
+            source_node=source_node,
+            marked_by=authenticated_marker,
+            created=created,
+            force_queue=True,
+        ):
+            queued_count += 1
+        else:
+            already_registered_count += 1
+
+    return HubEligibleVideoOffloadResult(
+        target_node_key=target_node.node_key,
+        discovered_count=len(video_ids),
+        eligible_count=eligible_count,
+        queued_count=queued_count,
+        already_registered_count=already_registered_count,
+        skipped_count=len(video_ids) - eligible_count,
+    )
+
+
 def _authenticated_marker(marked_by: Any) -> Any:
     if not getattr(marked_by, "is_authenticated", False):
         raise ValueError(
@@ -898,8 +970,12 @@ def _mark_video_for_hub_upload(
     marked_by: Any,
 ) -> tuple[OutboundHubTransferJob, bool]:
     video = VideoFile.objects.select_related("center").get(pk=resource_id)
-    if not is_video_hub_export_eligible(video):
-        raise ValueError(f"Video {resource_id} is not eligible for hub export.")
+    readiness = resolve_video_hub_export_state(video, verify_processed_media=True)
+    if not readiness.transfer_eligible:
+        raise ValueError(
+            f"Video {resource_id} is not eligible for hub export: "
+            f"{readiness.blocked_reason}.",
+        )
     return OutboundHubTransferJob.objects.get_or_create(
         video_file=video,
         target_node=target_node,
@@ -952,7 +1028,8 @@ def _finalize_marked_job(
     source_node: NetworkNode,
     marked_by: Any,
     created: bool,
-) -> None:
+    force_queue: bool = False,
+) -> bool:
     emit_hub_export_audit_event(
         "hub_export.marked",
         outbound_job=job,
@@ -960,8 +1037,9 @@ def _finalize_marked_job(
         source_node_key=source_node.node_key,
         created=created,
     )
-    if hub_export_auto_queue_enabled():
-        queue_outbound_job(job)
+    if force_queue or hub_export_auto_queue_enabled():
+        return queue_outbound_job(job)
+    return False
 
 
 @transaction.atomic

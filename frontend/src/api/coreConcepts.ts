@@ -4,9 +4,11 @@ import type {
   ClassificationChoiceCore,
   ClassificationChoiceDescriptorCore,
   ClassificationCore,
+  ClassificationTypeCore,
   CoreConceptBase,
   CoreConceptCollection,
   ExaminationCore,
+  ExaminationTypeCore,
   FindingCore,
   FindingTypeCore,
   IndicationCore,
@@ -19,11 +21,7 @@ import type {
   UnitTypeCore
 } from '@/types/coreConcepts'
 
-const readKey = (
-  input: Record<string, unknown>,
-  camel: string,
-  snake: string
-): unknown => {
+const readKey = (input: Record<string, unknown>, camel: string, snake: string): unknown => {
   const value = input[camel]
   return value !== undefined ? value : input[snake]
 }
@@ -31,10 +29,10 @@ const readKey = (
 const isRecord = (input: unknown): input is Record<string, unknown> =>
   input !== null && typeof input === 'object' && !Array.isArray(input)
 
-const asRecord = (input: unknown): Record<string, unknown> =>
-  isRecord(input) ? input : {}
+const asRecord = (input: unknown): Record<string, unknown> => (isRecord(input) ? input : {})
 
-const asString = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined
 
 const asNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -45,14 +43,21 @@ const asNumber = (value: unknown): number | undefined => {
   return undefined
 }
 
-const asBoolean = (value: unknown): boolean | undefined => (typeof value === 'boolean' ? value : undefined)
+const asBoolean = (value: unknown): boolean | undefined =>
+  typeof value === 'boolean' ? value : undefined
 
 const asStringArray = (value: unknown): string[] => {
   if (Array.isArray(value)) {
-    return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean)
+    return value
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
   }
   if (typeof value === 'string') {
-    return value.split(',').map((entry) => entry.trim()).filter(Boolean)
+    return value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
   }
   return []
 }
@@ -110,13 +115,17 @@ const normalizeClassification = (raw: unknown): ClassificationCore => {
     classificationChoices: asStringArray(
       readKey(source, 'classificationChoices', 'classification_choices')
     ),
-    classificationTypes: asStringArray(readKey(source, 'classificationTypes', 'classification_types'))
+    classificationTypes: asStringArray(
+      readKey(source, 'classificationTypes', 'classification_types')
+    )
   }
 }
 
-const normalizeClassificationChoice = (
-  raw: unknown
-): ClassificationChoiceCore => {
+const normalizeClassificationType = (raw: unknown): ClassificationTypeCore => ({
+  ...normalizeBase(raw)
+})
+
+const normalizeClassificationChoice = (raw: unknown): ClassificationChoiceCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
@@ -170,13 +179,20 @@ const normalizeExamination = (raw: unknown): ExaminationCore => {
   }
 }
 
+const normalizeExaminationType = (raw: unknown): ExaminationTypeCore => ({
+  ...normalizeBase(raw)
+})
+
 const normalizeFinding = (raw: unknown): FindingCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
     findingTypes: asStringArray(readKey(source, 'findingTypes', 'finding_types')),
     classifications: asStringArray(readKey(source, 'classifications', 'classifications')),
-    interventions: asStringArray(readKey(source, 'interventions', 'interventions'))
+    interventions: asStringArray(readKey(source, 'interventions', 'interventions')),
+    causedByInterventions: asStringArray(
+      readKey(source, 'causedByInterventions', 'caused_by_interventions')
+    )
   }
 }
 
@@ -187,6 +203,7 @@ const normalizeIndication = (raw: unknown): IndicationCore => {
   return {
     ...normalizeBase(source),
     indicationTypes: asStringArray(readKey(source, 'indicationTypes', 'indication_types')),
+    classifications: asStringArray(readKey(source, 'classifications', 'classifications')),
     interventions: asStringArray(readKey(source, 'interventions', 'interventions'))
   }
 }
@@ -201,7 +218,9 @@ const normalizeIntervention = (raw: unknown): InterventionCore => {
   }
 }
 
-const normalizeInterventionType = (raw: unknown): InterventionTypeCore => ({ ...normalizeBase(raw) })
+const normalizeInterventionType = (raw: unknown): InterventionTypeCore => ({
+  ...normalizeBase(raw)
+})
 
 const normalizeUnit = (raw: unknown): UnitCore => {
   const source = asRecord(raw)
@@ -214,9 +233,7 @@ const normalizeUnit = (raw: unknown): UnitCore => {
 
 const normalizeUnitType = (raw: unknown): UnitTypeCore => ({ ...normalizeBase(raw) })
 
-const normalizeInformationSource = (
-  raw: unknown
-): InformationSourceCore => {
+const normalizeInformationSource = (raw: unknown): InformationSourceCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
@@ -258,13 +275,21 @@ const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : [
 
 export const normalizeCoreConceptCollection = (raw: unknown): CoreConceptCollection => {
   const source = asRecord(raw)
+  const moduleName =
+    asString(readKey(source, 'moduleName', 'module_name')) ||
+    asString(readKey(source, 'module', 'module')) ||
+    'unknown'
   return {
-    moduleName:
-      asString(readKey(source, 'moduleName', 'module_name')) ||
-      asString(readKey(source, 'module', 'module')) ||
-      'unknown',
+    moduleName,
+    knowledgeBaseModule:
+      asString(readKey(source, 'knowledgeBaseModule', 'knowledge_base_module')) || moduleName,
+    knowledgeBaseVersion:
+      asString(readKey(source, 'knowledgeBaseVersion', 'knowledge_base_version')) ?? null,
     classification: asArray(readKey(source, 'classification', 'classification')).map(
       normalizeClassification
+    ),
+    classificationType: asArray(readKey(source, 'classificationType', 'classification_type')).map(
+      normalizeClassificationType
     ),
     classificationChoice: asArray(
       readKey(source, 'classificationChoice', 'classification_choice')
@@ -272,13 +297,12 @@ export const normalizeCoreConceptCollection = (raw: unknown): CoreConceptCollect
     classificationChoiceDescriptor: asArray(
       readKey(source, 'classificationChoiceDescriptor', 'classification_choice_descriptor')
     ).map(normalizeClassificationChoiceDescriptor),
-    examination: asArray(readKey(source, 'examination', 'examination')).map(
-      normalizeExamination
+    examination: asArray(readKey(source, 'examination', 'examination')).map(normalizeExamination),
+    examinationType: asArray(readKey(source, 'examinationType', 'examination_type')).map(
+      normalizeExaminationType
     ),
     finding: asArray(readKey(source, 'finding', 'finding')).map(normalizeFinding),
-    findingType: asArray(readKey(source, 'findingType', 'finding_type')).map(
-      normalizeFindingType
-    ),
+    findingType: asArray(readKey(source, 'findingType', 'finding_type')).map(normalizeFindingType),
     indication: asArray(readKey(source, 'indication', 'indication')).map(normalizeIndication),
     indicationType: asArray(readKey(source, 'indicationType', 'indication_type')).map(
       normalizeIndicationType
@@ -291,9 +315,9 @@ export const normalizeCoreConceptCollection = (raw: unknown): CoreConceptCollect
     ),
     unit: asArray(readKey(source, 'unit', 'unit')).map(normalizeUnit),
     unitType: asArray(readKey(source, 'unitType', 'unit_type')).map(normalizeUnitType),
-    informationSource: asArray(
-      readKey(source, 'informationSource', 'information_source')
-    ).map(normalizeInformationSource),
+    informationSource: asArray(readKey(source, 'informationSource', 'information_source')).map(
+      normalizeInformationSource
+    ),
     informationSourceType: asArray(
       readKey(source, 'informationSourceType', 'information_source_type')
     ).map(normalizeInformationSourceType),

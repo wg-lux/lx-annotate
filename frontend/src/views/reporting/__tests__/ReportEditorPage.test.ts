@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ReportEditorPage from '../ReportEditorPage.vue'
+import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue'
 import type { ReportTemplateSectionDraft } from '@/types/reportTemplate'
 import type { SaveReportSubmissionRequest } from '@/types/api/reportSubmission'
 
@@ -48,6 +49,11 @@ const hoisted = vi.hoisted(() => {
     },
     coreConceptsApi: {
       fetchCoreConcepts: vi.fn()
+    },
+    examinationStore: {
+      exams: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
+      examinationsDropdown: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
+      fetchExaminations: vi.fn().mockResolvedValue(undefined)
     }
   }
 })
@@ -112,11 +118,7 @@ vi.mock('@/stores/patientStore', () => ({
 }))
 
 vi.mock('@/stores/examinationStore', () => ({
-  useExaminationStore: () => ({
-    exams: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
-    examinationsDropdown: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
-    fetchExaminations: vi.fn().mockResolvedValue(undefined)
-  })
+  useExaminationStore: () => hoisted.examinationStore
 }))
 
 vi.mock('@/composables/reporting/useReportTemplates', () => ({
@@ -180,7 +182,7 @@ function buildFlowStore() {
   const flow = reactive({
     patientExaminationId: 42,
     selectedPatientId: 7,
-    selectedExaminationId: 9,
+    selectedExaminationId: 9 as number | null,
     selectedKbModule: 'report_template_examples',
     selectedReportLanguage: 'de' as 'de' | 'en',
     selectedTemplateName: 'star_upper_gi_main',
@@ -283,7 +285,6 @@ function mountPage() {
         MedicalBlock: {
           template: '<div><slot /></div>'
         },
-        IndicationsEditor: true,
         ReportArtifactsPanel: true
       }
     }
@@ -295,6 +296,10 @@ describe('ReportEditorPage draft-driven workflow', () => {
     vi.clearAllMocks()
     hoisted.debugRef.current = false
     hoisted.flowRef.current = buildFlowStore()
+    hoisted.examinationStore.exams = [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }]
+    hoisted.examinationStore.examinationsDropdown = [
+      { id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }
+    ]
     hoisted.coreConceptsApi.fetchCoreConcepts.mockResolvedValue({
       moduleName: 'report_template_examples',
       examination: [
@@ -320,11 +325,13 @@ describe('ReportEditorPage draft-driven workflow', () => {
       classificationChoiceDescriptor: [
         {
           name: 'length_mm_descriptor',
-          nameDe: 'Größe (mm)',
-          nameEn: 'Size (mm)',
+          nameDe: 'Größe',
+          nameEn: 'Size',
+          unit: 'millimeter',
           tags: []
         }
-      ]
+      ],
+      unit: [{ name: 'millimeter', abbreviation: 'mm', tags: [] }]
     })
     hoisted.axiosApi.get.mockImplementation((url: string) => {
       if (url === 'patient-examinations/42/') {
@@ -379,7 +386,9 @@ describe('ReportEditorPage draft-driven workflow', () => {
     const wrapper = mountPage()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Ösophaguspolyp: Größe: Millimeter (Größe (mm): 12)')
+    expect(wrapper.text()).toContain('Ösophaguspolyp: Größe: Millimeter (Größe: 12 mm)')
+    expect(wrapper.find('.report-preview-meta').text()).not.toContain('Bericht-ID')
+    expect(wrapper.get('.report-technical-details').attributes('open')).toBeUndefined()
     expect(wrapper.find('textarea').element.value).toBe('Visible note')
     expect(wrapper.text()).toContain('Vollständigkeitsübersicht')
     expect(wrapper.text()).toContain('1 von 1 Abschnitten vollständig')
@@ -428,13 +437,74 @@ describe('ReportEditorPage draft-driven workflow', () => {
     expect(moduleInput.attributes()).toHaveProperty('readonly')
   })
 
+  it('resolves a missing examination ID by canonical name before loading colonoscopy lookups', async () => {
+    hoisted.flowRef.current.selectedExaminationId = null
+    hoisted.flowRef.current.currentRuntimeDraft.payload.examination = 'colonoscopy'
+    hoisted.examinationStore.exams = [{ id: 12, name: 'colonoscopy', displayName: 'Koloskopie' }]
+    hoisted.examinationStore.examinationsDropdown = [
+      { id: 12, name: 'colonoscopy', displayName: 'Koloskopie' }
+    ]
+    const defaultGet = hoisted.axiosApi.get.getMockImplementation()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'examinations/12/indications/?patient_examination_id=42') {
+        return Promise.resolve({
+          data: {
+            examination_indications: [{ id: 7, name_de: 'Vorsorge' }],
+            indication_choices: [{ id: 88, examination_indication_id: 7, name_de: 'Routine' }]
+          }
+        })
+      }
+      return (defaultGet?.(url) as unknown) ?? Promise.resolve({ data: [] })
+    })
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Koloskopie')
+    expect(hoisted.templateControls.fetchTemplatesByExamination).toHaveBeenCalledWith('colonoscopy')
+    expect(hoisted.axiosApi.get).toHaveBeenCalledWith(
+      'examinations/12/indications/?patient_examination_id=42'
+    )
+    expect(wrapper.getComponent(IndicationsEditor).props('indicationOptions')).toEqual([
+      {
+        id: 7,
+        label: 'Vorsorge',
+        choices: [{ id: 88, label: 'Routine' }]
+      }
+    ])
+  })
+
+  it('rejects ambiguous examination-name resolution without loading lookups', async () => {
+    hoisted.flowRef.current.selectedExaminationId = null
+    hoisted.flowRef.current.currentRuntimeDraft.payload.examination = 'colonoscopy'
+    hoisted.examinationStore.exams = [
+      { id: 12, name: 'colonoscopy', displayName: 'Koloskopie' },
+      { id: 13, name: 'colonoscopy', displayName: 'Koloskopie (legacy)' }
+    ]
+    hoisted.examinationStore.examinationsDropdown = [
+      { id: 12, name: 'colonoscopy', displayName: 'Koloskopie' },
+      { id: 13, name: 'colonoscopy', displayName: 'Koloskopie (legacy)' }
+    ]
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(
+      'Die Untersuchung "colonoscopy" ist im Untersuchungskatalog nicht eindeutig.'
+    )
+    expect(hoisted.templateControls.fetchTemplatesByExamination).not.toHaveBeenCalled()
+    expect(hoisted.axiosApi.get).not.toHaveBeenCalledWith(
+      'examinations/12/indications/?patient_examination_id=42'
+    )
+  })
+
   it('renders KnowledgeBase concept labels in the selected report language', async () => {
     hoisted.flowRef.current.selectedReportLanguage = 'en'
 
     const wrapper = mountPage()
     await flushPromises()
 
-    const expected = 'Esophageal polyp: Size: Millimetres (Size (mm): 12)'
+    const expected = 'Esophageal polyp: Size: Millimetres (Size: 12 mm)'
     expect(wrapper.text()).toContain(expected)
     expect(
       (wrapper.get('[data-testid="report-text-editor"]').element as HTMLTextAreaElement).value
@@ -558,9 +628,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
     })
 
     const refreshButton = requireDefined(
-      wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('Letzten Bericht laden')),
+      wrapper.findAll('button').find((button) => button.text().includes('Letzten Bericht laden')),
       'the report-refresh button'
     )
     await refreshButton.trigger('click')

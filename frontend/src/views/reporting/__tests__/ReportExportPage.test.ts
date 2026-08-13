@@ -106,7 +106,10 @@ describe('ReportExportPage', () => {
     await inputs[1].setValue('Lovelace')
     await inputs[2].setValue('1815-12-10')
 
-    await wrapper.findAll('button').find((button) => button.text().includes('Make report'))?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('PDF-Bericht erstellen'))
+      ?.trigger('click')
     await flushPromises()
 
     expect(makeReport).toHaveBeenCalledWith({
@@ -121,6 +124,9 @@ describe('ReportExportPage', () => {
     })
     expect(hoisted.setActiveReportId).toHaveBeenCalledWith(88)
     expect(wrapper.text()).toContain('2 Bild(er)')
+    expect(wrapper.text()).toContain('Der PDF-Bericht wurde erstellt.')
+    expect(wrapper.text()).not.toContain('PDF-Bericht #88')
+    expect(wrapper.get('[data-testid="export-technical-details"]').attributes('open')).toBeUndefined()
 
     const hrefs = wrapper.findAll('a').map((link) => link.attributes('href'))
     expect(hrefs).toContain('/api/media/pdfs/12/stream/?type=processed')
@@ -142,7 +148,7 @@ describe('ReportExportPage', () => {
 
     const makeButton = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('Make report'))
+      .find((button) => button.text().includes('PDF-Bericht erstellen'))
     expect(makeButton?.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain('verifizierter Entwurf')
     expect(makeReport).not.toHaveBeenCalled()

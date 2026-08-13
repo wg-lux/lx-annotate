@@ -10,11 +10,41 @@ export interface HubNodeSummary {
   owningCenterKey: string | null
 }
 
+export type HubExportAnonymizationStatus =
+  | 'not_started'
+  | 'extracting_frames'
+  | 'processing_anonymization'
+  | 'done_processing_anonymization'
+  | 'anonymized'
+  | 'validated'
+  | 'failed'
+  | 'started'
+
+export type HubExportSegmentAnnotationStatus =
+  | 'not_started'
+  | 'cleanup_required'
+  | 'cleanup_queued'
+  | 'cleanup_running'
+  | 'cleanup_failed'
+  | 'validated'
+
+export type HubExportIntegrityStatus =
+  | 'not_ready'
+  | 'missing_processed_media'
+  | 'missing_hash'
+  | 'hash_metadata_mismatch'
+  | 'persisted_verified'
+  | 'verified'
+  | 'processed_media_unreadable'
+  | 'processed_media_hash_mismatch'
+
 export interface HubExportItem {
   id: number
   resourceKind: 'video' | 'report'
   filename: string
-  anonymizationStatus: string
+  anonymizationStatus: HubExportAnonymizationStatus
+  segmentAnnotationStatus: HubExportSegmentAnnotationStatus
+  exportIntegrityStatus: HubExportIntegrityStatus
   processedMediaPresent: boolean
   sourceCenterKey: string | null
   sourceCenterName: string | null
@@ -40,6 +70,10 @@ export type HubExportRejectionReason =
   | 'missing_center'
   | 'not_ready_for_export'
   | 'missing_processed_file'
+  | 'missing_processed_hash'
+  | 'processed_hash_metadata_mismatch'
+  | 'processed_file_hash_mismatch'
+  | 'processed_file_unreadable'
   | 'segment_cleanup_pending'
   | 'segment_cleanup_failed'
 
@@ -120,10 +154,36 @@ export interface HubExportOverviewResponse {
   items: HubExportItem[]
 }
 
+function mutationErrorMessage(error: unknown, fallback: string): string {
+  if (!axios.isAxiosError<{ detail?: string; error?: string }>(error)) return fallback
+  const detail = (error.response?.data.detail || error.response?.data.error)?.trim()
+  return detail || error.message || fallback
+}
+
+export interface VideoExportReadinessCandidate {
+  id: number
+  centerKey: string
+}
+
+export interface VideoExportReadinessResult {
+  checkedCount: number
+  failedCount: number
+}
+
+export interface HubEligibleVideoOffloadResult {
+  targetNodeKey: string
+  discoveredCount: number
+  eligibleCount: number
+  queuedCount: number
+  alreadyRegisteredCount: number
+  skippedCount: number
+}
+
 export const useHubExportStore = defineStore('hubExport', {
   state: () => ({
     loading: false,
     error: null as string | null,
+    mutationError: null as string | null,
     selectedTargetNodeKey: null as string | null,
     sourceNodeKey: null as string | null,
     hubNodes: [] as HubNodeSummary[],
@@ -173,21 +233,86 @@ export const useHubExportStore = defineStore('hubExport', {
       if (!this.selectedTargetNodeKey) {
         throw new Error('Kein Hub-Ziel ausgewählt.')
       }
-      await axiosInstance.post(r(endpoints.hubExport.mark), {
-        targetNodeKey: this.selectedTargetNodeKey,
-        resources
-      })
-      await this.fetchOverview(this.selectedTargetNodeKey)
+      this.mutationError = null
+      try {
+        await axiosInstance.post(r(endpoints.hubExport.mark), {
+          targetNodeKey: this.selectedTargetNodeKey,
+          resources
+        })
+        await this.fetchOverview(this.selectedTargetNodeKey)
+      } catch (error: unknown) {
+        this.mutationError = mutationErrorMessage(
+          error,
+          'Die ausgewählten Ressourcen konnten nicht für den Hub-Export vorgemerkt werden.'
+        )
+        throw error
+      }
     },
     async unmarkResources(resources: Array<{ id: number; resourceKind: 'video' | 'report' }>) {
       if (!this.selectedTargetNodeKey) {
         throw new Error('Kein Hub-Ziel ausgewählt.')
       }
-      await axiosInstance.post(r(endpoints.hubExport.unmark), {
-        targetNodeKey: this.selectedTargetNodeKey,
-        resources
-      })
+      this.mutationError = null
+      try {
+        await axiosInstance.post(r(endpoints.hubExport.unmark), {
+          targetNodeKey: this.selectedTargetNodeKey,
+          resources
+        })
+        await this.fetchOverview(this.selectedTargetNodeKey)
+      } catch (error: unknown) {
+        this.mutationError = mutationErrorMessage(
+          error,
+          'Die Vormerkung der ausgewählten Ressourcen konnte nicht aufgehoben werden.'
+        )
+        throw error
+      }
+    },
+    async offloadEligibleVideos(): Promise<HubEligibleVideoOffloadResult> {
+      if (!this.selectedTargetNodeKey) {
+        throw new Error('Kein Hub-Ziel ausgewählt.')
+      }
+      this.mutationError = null
+      try {
+        const { data } = await axiosInstance.post<HubEligibleVideoOffloadResult>(
+          r(endpoints.hubExport.offloadEligibleVideos),
+          { targetNodeKey: this.selectedTargetNodeKey }
+        )
+        await this.fetchOverview(this.selectedTargetNodeKey)
+        return data
+      } catch (error: unknown) {
+        this.mutationError = mutationErrorMessage(
+          error,
+          'Die geeigneten Videos konnten nicht zur Hub-Übertragung eingeplant werden.'
+        )
+        throw error
+      }
+    },
+    async checkVideoExportReadiness(
+      videos: VideoExportReadinessCandidate[]
+    ): Promise<VideoExportReadinessResult> {
+      this.mutationError = null
+      const results = await Promise.allSettled(
+        videos.map((video) =>
+          axiosInstance.post(r(endpoints.media.videoMarkReadyForExport(video.id)), {
+            centerKey: video.centerKey
+          })
+        )
+      )
+      const failures = results.filter(
+        (result): result is PromiseRejectedResult => result.status === 'rejected'
+      )
       await this.fetchOverview(this.selectedTargetNodeKey)
+      if (failures.length) {
+        const firstFailure = mutationErrorMessage(
+          failures[0].reason,
+          'Die Exportfreigabe konnte nicht geprüft werden.'
+        )
+        this.mutationError = `${videos.length - failures.length} von ${videos.length} Videos geprüft. ${firstFailure}`
+      }
+      return {
+        checkedCount: videos.length - failures.length,
+        failedCount: failures.length
+      }
     }
   }
 })

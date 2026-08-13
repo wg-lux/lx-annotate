@@ -1,20 +1,159 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-
 from endoreg_db.models import NetworkNode, RawPdfFile, VideoFile
+from endoreg_db.models.state.anonymization import AnonymizationState
+from endoreg_db.models.state.video_segment_validation import SegmentAnnotationStatus
 from endoreg_db.services.video_segment_validation_workflow import (
     resolve_segment_annotation_status,
-    segment_annotations_are_final,
 )
+from endoreg_db.utils.file_operations import sha256_file
 
-from .hub_export_audit import emit_hub_export_audit_event
 from ..models import OutboundHubTransferJob
-
+from .hub_export_audit import emit_hub_export_audit_event
+from .hub_export_contracts import HubExportIntegrityStatus
 
 _INELIGIBLE_MESSAGE = "Resource is not currently eligible for hub export."
+
+
+@dataclass(frozen=True)
+class VideoHubExportReadiness:
+    anonymization_status: AnonymizationState
+    segment_annotation_status: SegmentAnnotationStatus
+    processed_media_present: bool
+    export_ready_state: bool
+    processed_video_hash: str
+    state_processed_file_sha256: str
+    actual_processed_file_sha256: str
+    state_present: bool
+    export_integrity_status: HubExportIntegrityStatus
+
+    @property
+    def anonymization_ready(self) -> bool:
+        return self.anonymization_status == AnonymizationState.VALIDATED
+
+    @property
+    def segment_annotations_final(self) -> bool:
+        return self.segment_annotation_status is SegmentAnnotationStatus.VALIDATED
+
+    @property
+    def export_hashes_present(self) -> bool:
+        return bool(self.processed_video_hash and self.state_processed_file_sha256)
+
+    @property
+    def export_hash_metadata_matches(self) -> bool:
+        return (
+            self.export_hashes_present
+            and self.processed_video_hash == self.state_processed_file_sha256
+        )
+
+    @property
+    def processed_media_hash_matches(self) -> bool:
+        return (
+            self.export_hash_metadata_matches
+            and bool(self.actual_processed_file_sha256)
+            and self.actual_processed_file_sha256 == self.processed_video_hash
+        )
+
+    @property
+    def export_integrity_ready(self) -> bool:
+        return self.export_integrity_status in {
+            HubExportIntegrityStatus.PERSISTED_VERIFIED,
+            HubExportIntegrityStatus.VERIFIED,
+        }
+
+    @property
+    def transfer_eligible(self) -> bool:
+        return (
+            self.state_present
+            and self.anonymization_ready
+            and self.segment_annotations_final
+            and self.processed_media_present
+            and self.export_integrity_ready
+        )
+
+    @property
+    def blocked_reason(self) -> str:
+        if not self.state_present or not self.anonymization_ready:
+            return "not ready for export"
+        if (
+            self.export_integrity_status
+            is HubExportIntegrityStatus.MISSING_PROCESSED_MEDIA
+        ):
+            return "processed media missing"
+        if self.segment_annotation_status in {
+            SegmentAnnotationStatus.CLEANUP_QUEUED,
+            SegmentAnnotationStatus.CLEANUP_RUNNING,
+        }:
+            return "segment cleanup pending"
+        if self.segment_annotation_status is SegmentAnnotationStatus.CLEANUP_FAILED:
+            return "segment cleanup failed"
+        if not self.segment_annotations_final or not self.export_ready_state:
+            return "not ready for export"
+        if self.export_integrity_status is HubExportIntegrityStatus.MISSING_HASH:
+            return "processed media hash missing"
+        if (
+            self.export_integrity_status
+            is HubExportIntegrityStatus.HASH_METADATA_MISMATCH
+        ):
+            return "processed media hash metadata mismatch"
+        if (
+            self.export_integrity_status
+            is HubExportIntegrityStatus.PROCESSED_MEDIA_UNREADABLE
+        ):
+            return "processed media unreadable"
+        if (
+            self.export_integrity_status
+            is HubExportIntegrityStatus.PROCESSED_MEDIA_HASH_MISMATCH
+        ):
+            return "processed media hash mismatch"
+        return ""
+
+    @property
+    def transfer_validation_error(self) -> str:
+        if not self.state_present:
+            return "VideoFile.state must exist for outbound hub transfer."
+        if (
+            not self.anonymization_ready
+            or not self.segment_annotations_final
+            or not self.processed_media_present
+            or not self.export_ready_state
+        ):
+            return (
+                "video transfer requires validated anonymization, finalized segment "
+                "annotations, and export integrity; video is not eligible."
+            )
+        if self.export_integrity_status is HubExportIntegrityStatus.MISSING_HASH:
+            return (
+                "VideoFile.processed_video_hash and VideoState.processed_file_sha256 "
+                "must exist for processed-media transfer."
+            )
+        if (
+            self.export_integrity_status
+            is HubExportIntegrityStatus.HASH_METADATA_MISMATCH
+        ):
+            return (
+                "Processed video hash metadata is inconsistent; refusing outbound "
+                "transfer."
+            )
+        if (
+            self.export_integrity_status
+            is HubExportIntegrityStatus.PROCESSED_MEDIA_UNREADABLE
+        ):
+            return "Processed video media is unreadable; refusing outbound transfer."
+        if (
+            self.export_integrity_status
+            is HubExportIntegrityStatus.PROCESSED_MEDIA_HASH_MISMATCH
+        ):
+            return (
+                "Processed video file hash does not match persisted hash metadata; "
+                "refusing outbound transfer."
+            )
+        return "video is not eligible for outbound hub transfer."
 
 
 def hub_export_auto_queue_enabled() -> bool:
@@ -34,6 +173,65 @@ def has_usable_processed_artifact(resource: RawPdfFile | VideoFile) -> bool:
         )
     except (OSError, TypeError, ValueError):
         return False
+
+
+def resolve_video_hub_export_state(
+    video: VideoFile,
+    *,
+    verify_processed_media: bool = False,
+) -> VideoHubExportReadiness:
+    state = video.state
+    if state is None:
+        return VideoHubExportReadiness(
+            anonymization_status=AnonymizationState.NOT_STARTED,
+            segment_annotation_status=SegmentAnnotationStatus.NOT_STARTED,
+            processed_media_present=False,
+            export_ready_state=False,
+            processed_video_hash="",
+            state_processed_file_sha256="",
+            actual_processed_file_sha256="",
+            state_present=False,
+            export_integrity_status=HubExportIntegrityStatus.NOT_READY,
+        )
+
+    processed_media_present = has_usable_processed_artifact(video)
+    processed_video_hash = str(video.processed_video_hash or "").strip().lower()
+    state_processed_file_sha256 = str(state.processed_file_sha256 or "").strip().lower()
+    actual_processed_file_sha256 = ""
+    if not processed_media_present:
+        integrity_status = HubExportIntegrityStatus.MISSING_PROCESSED_MEDIA
+    elif not state.ready_for_export:
+        integrity_status = HubExportIntegrityStatus.NOT_READY
+    elif not processed_video_hash or not state_processed_file_sha256:
+        integrity_status = HubExportIntegrityStatus.MISSING_HASH
+    elif processed_video_hash != state_processed_file_sha256:
+        integrity_status = HubExportIntegrityStatus.HASH_METADATA_MISMATCH
+    elif not verify_processed_media:
+        integrity_status = HubExportIntegrityStatus.PERSISTED_VERIFIED
+    else:
+        try:
+            actual_processed_file_sha256 = sha256_file(video.processed_file)
+        except (OSError, TypeError, ValueError):
+            integrity_status = HubExportIntegrityStatus.PROCESSED_MEDIA_UNREADABLE
+        else:
+            integrity_status = (
+                HubExportIntegrityStatus.VERIFIED
+                if actual_processed_file_sha256 == processed_video_hash
+                else HubExportIntegrityStatus.PROCESSED_MEDIA_HASH_MISMATCH
+            )
+    return VideoHubExportReadiness(
+        anonymization_status=AnonymizationState(state.anonymization_status),
+        segment_annotation_status=SegmentAnnotationStatus(
+            resolve_segment_annotation_status(video),
+        ),
+        processed_media_present=processed_media_present,
+        export_ready_state=bool(state.ready_for_export),
+        processed_video_hash=processed_video_hash,
+        state_processed_file_sha256=state_processed_file_sha256,
+        actual_processed_file_sha256=actual_processed_file_sha256,
+        state_present=True,
+        export_integrity_status=integrity_status,
+    )
 
 
 def _schedule_outbound_job(job: OutboundHubTransferJob) -> None:
@@ -71,28 +269,11 @@ def queue_outbound_job(job: OutboundHubTransferJob) -> bool:
 
 
 def video_hub_export_blocked_reason(video: VideoFile) -> str:
-    state = video.state
-    if state is None:
-        return "not ready for export"
-    if not state.anonymization_validated:
-        return "not ready for export"
-    if not has_usable_processed_artifact(video):
-        return "processed media missing"
-
-    segment_status = resolve_segment_annotation_status(video)
-    if not segment_annotations_are_final(video):
-        if segment_status in {"cleanup_queued", "cleanup_running"}:
-            return "segment cleanup pending"
-        if segment_status == "cleanup_failed":
-            return "segment cleanup failed"
-        return "not ready for export"
-    if not state.ready_for_export or not state.processed_file_sha256:
-        return "not ready for export"
-    return ""
+    return resolve_video_hub_export_state(video).blocked_reason
 
 
 def is_video_hub_export_eligible(video: VideoFile) -> bool:
-    return video_hub_export_blocked_reason(video) == ""
+    return resolve_video_hub_export_state(video).transfer_eligible
 
 
 def report_hub_export_blocked_reason(report: RawPdfFile) -> str:
@@ -121,7 +302,7 @@ def _sync_outbound_jobs(
 ) -> int:
     updated = 0
     for job in queryset.exclude(
-        local_status=OutboundHubTransferJob.LocalStatus.COMPLETED
+        local_status=OutboundHubTransferJob.LocalStatus.COMPLETED,
     ):
         update_fields: list[str] = []
 
@@ -168,20 +349,20 @@ def _sync_outbound_jobs(
 
 
 def sync_outbound_jobs_for_video(video: VideoFile) -> int:
-    blocked_reason = video_hub_export_blocked_reason(video)
+    readiness = resolve_video_hub_export_state(video)
     return _sync_outbound_jobs(
         queryset=OutboundHubTransferJob.objects.filter(video_file=video).select_related(
-            "target_node"
+            "target_node",
         ),
-        eligible=blocked_reason == "",
-        ineligible_message=blocked_reason or _INELIGIBLE_MESSAGE,
+        eligible=readiness.transfer_eligible,
+        ineligible_message=readiness.blocked_reason or _INELIGIBLE_MESSAGE,
     )
 
 
 def sync_outbound_jobs_for_report(report: RawPdfFile) -> int:
     return _sync_outbound_jobs(
         queryset=OutboundHubTransferJob.objects.filter(
-            raw_pdf_file=report
+            raw_pdf_file=report,
         ).select_related("target_node"),
         eligible=is_report_hub_export_eligible(report),
     )

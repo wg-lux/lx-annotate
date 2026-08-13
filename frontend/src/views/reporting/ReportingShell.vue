@@ -105,7 +105,7 @@
                 :key="template.name"
                 :value="template.name"
               >
-                {{ describeReportTemplateTitle(template.name)
+                {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage)
                 }}{{
                   template.identity?.knowledgeBaseVersion
                     ? ` · ${template.identity.knowledgeBaseVersion}`
@@ -229,7 +229,7 @@
           </li>
         </ol>
       </div>
-      <div class="context-summary-grid">
+      <div class="context-summary-grid" data-testid="primary-context-summary">
         <div class="context-summary-item is-primary">
           <span class="context-summary-label">Jetzt</span>
           <strong>{{ currentStepLabel }}</strong>
@@ -239,42 +239,47 @@
           <strong>{{ patientHeaderLabel }}</strong>
         </div>
         <div class="context-summary-item">
-          <span class="context-summary-label">Geburtsdatum</span>
-          <strong>{{ patientBirthDateLabel }}</strong>
-        </div>
-        <div class="context-summary-item">
-          <span class="context-summary-label">Fall-ID</span>
-          <strong>{{ caseIdLabel }}</strong>
-        </div>
-        <div class="context-summary-item">
-          <span class="context-summary-label">Status</span>
-          <strong>{{ caseStatusLabel }}</strong>
-        </div>
-        <div class="context-summary-item">
-          <span class="context-summary-label">Untersuchungstyp</span>
+          <span class="context-summary-label">Untersuchung</span>
           <strong>{{ examinationTypeLabel }}</strong>
         </div>
         <div class="context-summary-item">
           <span class="context-summary-label">Vorlage</span>
           <strong>{{ selectedTemplateLabel }}</strong>
         </div>
-        <div class="context-summary-item">
-          <span class="context-summary-label">Terminologie</span>
-          <strong>{{ selectedTerminologyLabel }}</strong>
-        </div>
-        <div class="context-summary-item">
-          <span class="context-summary-label">Berichtssprache</span>
-          <strong>{{ selectedReportLanguageLabel }}</strong>
-        </div>
-        <div class="context-summary-item">
-          <span class="context-summary-label">Entwurf</span>
-          <strong>{{ draftSummaryLabel }}</strong>
-        </div>
-        <div class="context-summary-item">
-          <span class="context-summary-label">Medien</span>
-          <strong>{{ mediaPreloadLabel }}</strong>
-        </div>
       </div>
+      <details class="context-details mt-2" data-testid="context-details">
+        <summary>Weitere Kontextinformationen</summary>
+        <div class="context-summary-grid mt-2">
+          <div class="context-summary-item">
+            <span class="context-summary-label">Geburtsdatum</span>
+            <strong>{{ patientBirthDateLabel }}</strong>
+          </div>
+          <div class="context-summary-item">
+            <span class="context-summary-label">Technische Fallreferenz</span>
+            <strong>{{ caseIdLabel }}</strong>
+          </div>
+          <div class="context-summary-item">
+            <span class="context-summary-label">Status</span>
+            <strong>{{ caseStatusLabel }}</strong>
+          </div>
+          <div class="context-summary-item">
+            <span class="context-summary-label">Terminologie</span>
+            <strong>{{ selectedTerminologyLabel }}</strong>
+          </div>
+          <div class="context-summary-item">
+            <span class="context-summary-label">Berichtssprache</span>
+            <strong>{{ selectedReportLanguageLabel }}</strong>
+          </div>
+          <div class="context-summary-item">
+            <span class="context-summary-label">Entwurf</span>
+            <strong>{{ draftSummaryLabel }}</strong>
+          </div>
+          <div class="context-summary-item">
+            <span class="context-summary-label">Medien</span>
+            <strong>{{ mediaPreloadLabel }}</strong>
+          </div>
+        </div>
+      </details>
       <div
         v-if="terminologyImportMessage"
         class="small mt-2"
@@ -773,6 +778,7 @@ import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import {
   buildReportTemplateRuntimePayload,
   describeReportTemplateTitle,
+  getReportTemplateDisplayName,
   fetchReportTemplateByName,
   fetchReportTemplatesByExamination
 } from '@/api/reportTemplatesApi'
@@ -809,6 +815,7 @@ import {
   reportTemplateLifecycleContextKey,
   type ReportTemplateLifecycleChange
 } from './reportTemplateLifecycleContext'
+import { normalizeReportingIndicationSelections } from './reportingIndicationContract'
 
 const logger = createRuntimeLogger('reporting-shell')
 import {
@@ -1061,8 +1068,25 @@ const activeKbModule = computed(() =>
   terminology.activeBundle ? terminology.activeModuleName : ''
 )
 
+const activeExaminationName = computed(() => {
+  const option =
+    patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
+    patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
+    null
+  if (option?.examinationName && option.examinationName !== 'Untersuchung') {
+    return option.examinationName
+  }
+  return (
+    readString(readRecord(patientExaminationDetail.value?.examination), 'name') ||
+    readString(patientExaminationDetail.value, 'examinationName', 'examination_name') ||
+    flow.currentRuntimeDraft?.payload.examination ||
+    ''
+  )
+})
+
 provide(reportTemplateLifecycleContextKey, {
   activeModuleName: activeKbModule,
+  activeExaminationName,
   notifyLifecycleChanged: refreshPublishedTemplatesAfterLifecycleChange
 })
 
@@ -1112,11 +1136,15 @@ const selectedPatientExaminationLabel = computed(() => {
   return flow.patientExaminationId ? `#${String(flow.patientExaminationId)}` : 'Noch nicht gewählt'
 })
 
-const selectedTemplateLabel = computed(() =>
-  flow.selectedTemplateName
-    ? describeReportTemplateTitle(flow.selectedTemplateName)
-    : 'Noch keine Vorlage gewählt'
-)
+const selectedTemplateLabel = computed(() => {
+  if (!flow.selectedTemplateName) return 'Noch keine Vorlage gewählt'
+  const template = availableTemplates.value.find(
+    (entry) => entry.name === flow.selectedTemplateName
+  )
+  return template
+    ? getReportTemplateDisplayName(template, flow.selectedReportLanguage)
+    : describeReportTemplateTitle(flow.selectedTemplateName)
+})
 
 const selectedTerminologyLabel = computed(() => {
   const field = terminology.medicalFieldLabel
@@ -1206,7 +1234,7 @@ const patientHeaderLabel = computed(() => {
   const detailHash = readString(detailPatient, 'patientHash', 'patient_hash', 'hash', 'pseudonym')
   if (detailHash) return detailHash
   if (currentPayload.value?.patient) return currentPayload.value.patient
-  return flow.selectedPatientId ? `Patient #${String(flow.selectedPatientId)}` : 'Nicht gewählt'
+  return flow.selectedPatientId ? 'Patient ausgewählt' : 'Nicht gewählt'
 })
 
 const patientBirthDateLabel = computed(() => {
@@ -1235,9 +1263,11 @@ const patientBirthDateLabel = computed(() => {
 
 const examinationTypeLabel = computed(() => {
   return (
-    selectedPatientExaminationOption.value?.examinationName ||
+    selectedPatientExaminationOption.value?.examinationDisplayName ||
     readString(
       readRecord(patientExaminationDetail.value?.examination),
+      'nameDe',
+      'name_de',
       'displayName',
       'display_name',
       'name'
@@ -2176,66 +2206,6 @@ function extractDraftDate(raw: Record<string, unknown>): string | null {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
 }
 
-function extractIndicationRows(raw: Record<string, unknown>) {
-  const nestedExamination =
-    raw.examination && typeof raw.examination === 'object'
-      ? (raw.examination as Record<string, unknown>)
-      : null
-
-  const candidates = [
-    raw.indications,
-    raw.examination_indications,
-    raw.examinationIndications,
-    nestedExamination?.indications,
-    nestedExamination?.examination_indications,
-    nestedExamination?.examinationIndications
-  ]
-
-  const rows = candidates.flatMap((candidate) => {
-    if (!Array.isArray(candidate)) return []
-    return candidate
-      .map((entry) => {
-        if (!entry || typeof entry !== 'object') return null
-        const row = entry as Record<string, unknown>
-        const examinationIndicationId = toPositiveInteger(
-          row.examinationIndicationId ??
-            row.examination_indication_id ??
-            row.indicationId ??
-            row.indication_id ??
-            row.id
-        )
-        const indicationChoiceId = toPositiveInteger(
-          row.indicationChoiceId ??
-            row.indication_choice_id ??
-            row.choiceId ??
-            row.choice_id ??
-            (row.choice as Record<string, unknown> | undefined)?.id
-        )
-        if (examinationIndicationId == null) return null
-        return {
-          examinationIndicationId,
-          indicationChoiceId
-        }
-      })
-      .filter(
-        (row): row is { examinationIndicationId: number; indicationChoiceId: number | null } =>
-          row !== null
-      )
-  })
-
-  if (!rows.length) {
-    return [{ examinationIndicationId: null, indicationChoiceId: null }]
-  }
-
-  const seen = new Set<string>()
-  return rows.filter((row) => {
-    const key = `${String(row.examinationIndicationId)}:${String(row.indicationChoiceId ?? 'null')}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
 function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload {
   if (!isRecord(value)) return false
   return (
@@ -2362,13 +2332,7 @@ async function onCaseSelect(caseId: string): Promise<void> {
   await onPatientExaminationSelect(String(firstExamination.id))
 }
 
-function upsertPatientExaminationOption(option: {
-  id: number
-  label: string
-  examinationName: string
-  patientId: number | null
-  examinationId: number | null
-}) {
+function upsertPatientExaminationOption(option: PatientExaminationOption) {
   if (!isPatientExaminationAllowedForMedicalField(option)) return
   const next = patientExaminationOptions.value.slice()
   const index = next.findIndex((entry) => entry.id === option.id)
@@ -2700,7 +2664,7 @@ async function bootstrapRuntimeDraft(
     templateName: selectedTemplate.name,
     templateIdentity: selectedTemplateIdentity
   })
-  flow.setIndications(extractIndicationRows(detail))
+  flow.setIndications(normalizeReportingIndicationSelections(detail))
   flow.setRuntimeDraft({
     draftId: `draft_${String(patientExaminationId)}`,
     patientExaminationId,
@@ -2899,7 +2863,7 @@ async function loadPatientExaminationDraftContext(
     selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
     selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
   })
-  flow.setIndications(extractIndicationRows(detail))
+  flow.setIndications(normalizeReportingIndicationSelections(detail))
   await loadFindingCatalogForExamination(extractExaminationId(detail) ?? flow.selectedExaminationId)
   assertBootstrapContextCurrent(context)
   return detail
@@ -3349,6 +3313,19 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: 0.625rem;
   align-content: start;
+}
+
+.context-details {
+  border-top: 1px solid #d9e0ea;
+  padding-top: 0.65rem;
+}
+
+.context-details summary {
+  width: fit-content;
+  color: #526174;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .context-summary-item,

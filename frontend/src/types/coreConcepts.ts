@@ -2,7 +2,9 @@ export type CoreConceptName =
   | 'classification'
   | 'classificationChoice'
   | 'classificationChoiceDescriptor'
+  | 'classificationType'
   | 'examination'
+  | 'examinationType'
   | 'finding'
   | 'findingType'
   | 'indication'
@@ -47,6 +49,10 @@ export interface ClassificationCore extends CoreConceptBase {
   classificationChoices: string[]
   classificationTypes: string[]
 }
+
+export type ClassificationTypeCoreDto = CoreConceptTransportBase
+
+export type ClassificationTypeCore = CoreConceptBase
 
 export interface ClassificationChoiceCoreDto extends CoreConceptTransportBase {
   classification_choice_descriptors?: string[] | string
@@ -104,16 +110,22 @@ export interface ExaminationCore extends CoreConceptBase {
   indications: string[]
 }
 
+export type ExaminationTypeCoreDto = CoreConceptTransportBase
+
+export type ExaminationTypeCore = CoreConceptBase
+
 export interface FindingCoreDto extends CoreConceptTransportBase {
   finding_types?: string[] | string
   classifications?: string[] | string
   interventions?: string[] | string
+  caused_by_interventions?: string[] | string
 }
 
 export interface FindingCore extends CoreConceptBase {
   findingTypes: string[]
   classifications: string[]
   interventions: string[]
+  causedByInterventions: string[]
 }
 
 export type FindingTypeCoreDto = CoreConceptTransportBase
@@ -122,11 +134,13 @@ export type FindingTypeCore = CoreConceptBase
 
 export interface IndicationCoreDto extends CoreConceptTransportBase {
   indication_types?: string[] | string
+  classifications?: string[] | string
   interventions?: string[] | string
 }
 
 export interface IndicationCore extends CoreConceptBase {
   indicationTypes: string[]
+  classifications: string[]
   interventions: string[]
 }
 
@@ -215,10 +229,14 @@ export interface CitationCore extends CoreConceptBase {
 export interface CoreConceptTransportCollection {
   module_name?: string
   module?: string
+  knowledge_base_module?: string
+  knowledge_base_version?: string | null
   classification?: ClassificationCoreDto[]
+  classification_type?: ClassificationTypeCoreDto[]
   classification_choice?: ClassificationChoiceCoreDto[]
   classification_choice_descriptor?: ClassificationChoiceDescriptorCoreDto[]
   examination?: ExaminationCoreDto[]
+  examination_type?: ExaminationTypeCoreDto[]
   finding?: FindingCoreDto[]
   finding_type?: FindingTypeCoreDto[]
   indication?: IndicationCoreDto[]
@@ -234,10 +252,14 @@ export interface CoreConceptTransportCollection {
 
 export interface CoreConceptCollection {
   moduleName: string
+  knowledgeBaseModule: string
+  knowledgeBaseVersion: string | null
   classification: ClassificationCore[]
+  classificationType: ClassificationTypeCore[]
   classificationChoice: ClassificationChoiceCore[]
   classificationChoiceDescriptor: ClassificationChoiceDescriptorCore[]
   examination: ExaminationCore[]
+  examinationType: ExaminationTypeCore[]
   finding: FindingCore[]
   findingType: FindingTypeCore[]
   indication: IndicationCore[]
@@ -251,12 +273,20 @@ export interface CoreConceptCollection {
   citation: CitationCore[]
 }
 
-export type CoreConceptDisplay = Pick<
-  CoreConceptBase,
-  'name' | 'nameDe' | 'nameEn' | 'displayName'
->
+export type CoreConceptDisplay = Pick<CoreConceptBase, 'name' | 'nameDe' | 'nameEn' | 'displayName'>
+
+export type CoreConceptLanguage = 'de' | 'en'
+
+export const getCoreConceptLocalizedName = (
+  concept: CoreConceptDisplay | null | undefined,
+  language: CoreConceptLanguage,
+  fallback = 'unknown'
+): string => {
+  if (!concept) return fallback
+  return (language === 'de' ? concept.nameDe : concept.nameEn) || concept.name || fallback
+}
 
 export const getCoreConceptDisplayName = (
   concept: CoreConceptDisplay | null | undefined,
   fallback = 'unknown'
-): string => concept?.displayName || concept?.nameDe || concept?.nameEn || concept?.name || fallback
+): string => concept?.displayName || getCoreConceptLocalizedName(concept, 'de', fallback)

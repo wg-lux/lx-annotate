@@ -50,4 +50,30 @@ describe('reportingLanguagesApi', () => {
       })
     ).toThrow('unvollständig')
   })
+
+  it('preserves the canonical German label supplied by lx-dtypes', () => {
+    expect(
+      normalizeReportingLanguages({
+        defaultLanguage: 'de',
+        languages: [{ code: 'de', label: ' Deutsch (Deutschland) ' }]
+      })
+    ).toEqual({
+      defaultLanguage: 'de',
+      languages: [{ code: 'de', label: 'Deutsch (Deutschland)' }]
+    })
+  })
+
+  it.each([
+    { defaultLanguage: 'de', languages: [] },
+    { defaultLanguage: 'de', languages: [{ code: 'de', label: '' }] },
+    {
+      defaultLanguage: 'de',
+      languages: [
+        { code: 'de', label: 'Deutsch' },
+        { code: 'de', label: 'Deutsch' }
+      ]
+    }
+  ])('rejects ambiguous or unusable language contracts', (payload) => {
+    expect(() => normalizeReportingLanguages(payload)).toThrow()
+  })
 })

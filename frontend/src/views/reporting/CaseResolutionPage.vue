@@ -46,8 +46,12 @@
           <div class="border rounded p-3 h-100 bg-light">
             <div class="small text-uppercase text-muted fw-semibold mb-1">Hashes</div>
             <div class="small">
-              <div><code>{{ patientHashDisplay || 'n/a' }}</code></div>
-              <div><code>{{ examinationHashDisplay || 'n/a' }}</code></div>
+              <div>
+                <code>{{ patientHashDisplay || 'n/a' }}</code>
+              </div>
+              <div>
+                <code>{{ examinationHashDisplay || 'n/a' }}</code>
+              </div>
             </div>
           </div>
         </div>
@@ -56,11 +60,7 @@
       <div class="row g-3 align-items-end">
         <div class="col-lg-4">
           <label class="form-label">Bestehenden Patienten wählen</label>
-          <select
-            v-model="selectedCasePatientId"
-            class="form-select"
-            :disabled="isCaseDataLoading"
-          >
+          <select v-model="selectedCasePatientId" class="form-select" :disabled="isCaseDataLoading">
             <option value="">
               {{ isCaseDataLoading ? 'Patienten werden geladen...' : 'Bitte Patient wählen' }}
             </option>
@@ -156,7 +156,9 @@
           <button
             class="btn btn-primary w-100"
             :disabled="
-              isCreatingPatientExamination || !selectedCasePatientId || !selectedNewCaseExaminationId
+              isCreatingPatientExamination ||
+              !selectedCasePatientId ||
+              !selectedNewCaseExaminationId
             "
             @click="createPatientExaminationFromSelection"
           >
@@ -192,18 +194,10 @@
         <RouterLink class="btn btn-outline-secondary btn-sm" :to="caseSetupRoute">
           Im Fall-Setup Fallkontext starten
         </RouterLink>
-        <RouterLink
-          v-if="returnToPath"
-          class="btn btn-outline-secondary btn-sm"
-          :to="returnToPath"
-        >
+        <RouterLink v-if="returnToPath" class="btn btn-outline-secondary btn-sm" :to="returnToPath">
           Zurück zur Validierung
         </RouterLink>
-        <RouterLink
-          v-if="flow.patientExaminationId"
-          class="btn btn-dark btn-sm"
-          :to="nextRoute"
-        >
+        <RouterLink v-if="flow.patientExaminationId" class="btn btn-dark btn-sm" :to="nextRoute">
           Zur klinischen Dokumentation
         </RouterLink>
       </div>
@@ -225,6 +219,7 @@ import { endpoints } from '@/types/api/endpoints'
 import { DateConverter } from '@/utils/dateHelpers'
 import { reportingApiErrorMessage } from './reportingError'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import { requireResolvedReportingExamination } from './reportingExaminationResolution'
 
 const logger = createRuntimeLogger('case-resolution')
 
@@ -293,23 +288,25 @@ const availableExaminationOptions = computed(() => examinationStore.examinations
 const availableCenterOptions = computed(() => patientStore.centers)
 const selectedCasePatientIdNumber = computed(() => toPositiveInteger(selectedCasePatientId.value))
 
-const caseResolutionSuggestedPatientExaminationOptions = computed<PatientExaminationOption[]>(() => {
-  const matches = caseResolution.value?.patientExaminationMatches ?? []
-  return matches
-    .map((match) => {
-      const id = toPositiveInteger(match.id)
-      if (id === null) return null
-      const examName = match.examinationName?.trim() || 'Untersuchung'
-      const dateStart = normalizeDateInputToGerman(match.dateStart)
-      return {
-        id,
-        label: dateStart
-          ? `#${String(id)} · ${examName} · ${dateStart}`
-          : `#${String(id)} · ${examName}`
-      }
-    })
-    .filter((entry): entry is PatientExaminationOption => entry !== null)
-})
+const caseResolutionSuggestedPatientExaminationOptions = computed<PatientExaminationOption[]>(
+  () => {
+    const matches = caseResolution.value?.patientExaminationMatches ?? []
+    return matches
+      .map((match) => {
+        const id = toPositiveInteger(match.id)
+        if (id === null) return null
+        const examName = match.examinationName?.trim() || 'Untersuchung'
+        const dateStart = normalizeDateInputToGerman(match.dateStart)
+        return {
+          id,
+          label: dateStart
+            ? `#${String(id)} · ${examName} · ${dateStart}`
+            : `#${String(id)} · ${examName}`
+        }
+      })
+      .filter((entry): entry is PatientExaminationOption => entry !== null)
+  }
+)
 
 const casePatientExaminationDropdownOptions = computed<PatientExaminationOption[]>(() => {
   const byId = new Map<number, PatientExaminationOption>()
@@ -324,7 +321,10 @@ const patientHashDisplay = computed(
   () => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null
 )
 const examinationHashDisplay = computed(
-  () => caseResolution.value?.examinationHashDisplay ?? currentItem.value?.examinationHashDisplay ?? null
+  () =>
+    caseResolution.value?.examinationHashDisplay ??
+    currentItem.value?.examinationHashDisplay ??
+    null
 )
 const pseudoPatientId = computed(() => {
   const value =
@@ -422,7 +422,9 @@ const selectedCasePatientLabel = computed(() => {
 const selectedCasePatientExaminationLabel = computed(() => {
   const selectedId = toPositiveInteger(selectedExistingPatientExaminationId.value)
   if (selectedId !== null) {
-    const option = casePatientExaminationDropdownOptions.value.find((entry) => entry.id === selectedId)
+    const option = casePatientExaminationDropdownOptions.value.find(
+      (entry) => entry.id === selectedId
+    )
     return option?.label ?? `#${String(selectedId)}`
   }
   if (flow.patientExaminationId) return `#${String(flow.patientExaminationId)}`
@@ -431,15 +433,20 @@ const selectedCasePatientExaminationLabel = computed(() => {
 const patientDraftAvailable = computed(() => {
   const item = currentItem.value
   if (!item) return false
-  return Boolean(item.patientFirstName?.trim() && item.patientLastName?.trim() && DateConverter.toISO(item.patientDob))
+  return Boolean(
+    item.patientFirstName?.trim() &&
+      item.patientLastName?.trim() &&
+      DateConverter.toISO(item.patientDob)
+  )
 })
 const caseSetupRoute = computed(() => ({
   path: '/reporting/case-setup',
   query: {
     ...(returnToPath.value ? { returnTo: returnToPath.value } : {}),
-    preferredExamination: typeof route.query.preferredExamination === 'string'
-      ? route.query.preferredExamination
-      : 'colonoscopy'
+    preferredExamination:
+      typeof route.query.preferredExamination === 'string'
+        ? route.query.preferredExamination
+        : 'colonoscopy'
   }
 }))
 const nextRoute = computed(() =>
@@ -554,7 +561,10 @@ async function fetchCasePatientExaminations(patientId: number): Promise<void> {
     const rows = readListPayload(response.data)
     casePatientExaminationOptions.value = rows
       .map((row: unknown) => normalizePatientExaminationOption(row))
-      .filter((entry: PatientExaminationOption | null): entry is PatientExaminationOption => entry !== null)
+      .filter(
+        (entry: PatientExaminationOption | null): entry is PatientExaminationOption =>
+          entry !== null
+      )
       .sort((a: PatientExaminationOption, b: PatientExaminationOption) => b.id - a.id)
   } catch (error: unknown) {
     casePatientExaminationOptions.value = []
@@ -577,11 +587,12 @@ function syncFlowPatientSelection(patientId: number | null, examinationId?: numb
 function applySelectedPatientExamination(patientExaminationId: number): void {
   const normalizedId = toPositiveInteger(patientExaminationId)
   if (normalizedId === null) return
-  const option =
-    casePatientExaminationDropdownOptions.value.find((entry) => entry.id === normalizedId) ?? {
-      id: normalizedId,
-      label: `#${String(normalizedId)}`
-    }
+  const option = casePatientExaminationDropdownOptions.value.find(
+    (entry) => entry.id === normalizedId
+  ) ?? {
+    id: normalizedId,
+    label: `#${String(normalizedId)}`
+  }
   addOrReplacePatientExaminationOption(casePatientExaminationOptions.value, option)
   selectedExistingPatientExaminationId.value = String(normalizedId)
   flow.setPatientExaminationContext({
@@ -602,14 +613,21 @@ function useSelectedExistingPatientExamination(): void {
   }
   syncFlowPatientSelection(patientId)
   applySelectedPatientExamination(patientExaminationId)
-  successMessage.value = 'Die ausgewählte Patientenuntersuchung wurde in den Reporting-Flow übernommen.'
+  successMessage.value =
+    'Die ausgewählte Patientenuntersuchung wurde in den Reporting-Flow übernommen.'
 }
 
 function normalizeGenderForPatientCreate(value?: string | null): string | null {
   if (!value) return null
   const normalized = value.trim().toLowerCase()
   if (normalized === 'männlich' || normalized === 'male' || normalized === 'm') return 'male'
-  if (normalized === 'weiblich' || normalized === 'female' || normalized === 'w' || normalized === 'f') return 'female'
+  if (
+    normalized === 'weiblich' ||
+    normalized === 'female' ||
+    normalized === 'w' ||
+    normalized === 'f'
+  )
+    return 'female'
   if (normalized === 'divers' || normalized === 'unknown') return 'unknown'
   return normalized || null
 }
@@ -649,8 +667,7 @@ async function createPatientFromMetadata(): Promise<void> {
   }
   const resolvedCenterKey = resolveCenterKeyFromMetadataCenterName(item.centerName)
   if (item.centerName?.trim() && !resolvedCenterKey) {
-    errorMessage.value =
-      `Das Zentrum "${item.centerName.trim()}" konnte nicht auf einen center_key abgebildet werden.`
+    errorMessage.value = `Das Zentrum "${item.centerName.trim()}" konnte nicht auf einen center_key abgebildet werden.`
     return
   }
   isCreatingPatientFromMetadata.value = true
@@ -676,7 +693,10 @@ async function createPatientFromMetadata(): Promise<void> {
     successMessage.value =
       'Ein neuer Patient wurde aus den vorhandenen Metadaten angelegt. Sie können jetzt direkt eine Untersuchung auswählen oder anlegen.'
   } catch (error: unknown) {
-    errorMessage.value = reportingApiErrorMessage(error, 'Der Patient konnte nicht angelegt werden.')
+    errorMessage.value = reportingApiErrorMessage(
+      error,
+      'Der Patient konnte nicht angelegt werden.'
+    )
   } finally {
     isCreatingPatientFromMetadata.value = false
   }
@@ -749,13 +769,19 @@ async function createPatientExaminationFromSelection(): Promise<void> {
 function applyPreferredExaminationSelection(): void {
   const preferredRaw = route.query.preferredExamination
   if (typeof preferredRaw !== 'string' || !preferredRaw.trim() || flow.selectedExaminationId) return
-  const normalizedPreferred = preferredRaw.trim().toLowerCase()
-  const match = availableExaminationOptions.value.find(
-    (exam) => exam.name.trim().toLowerCase() === normalizedPreferred
-  )
-  if (match) {
+  try {
+    const match = requireResolvedReportingExamination({
+      catalog: availableExaminationOptions.value,
+      selectedExaminationId: null,
+      examinationName: preferredRaw
+    })
     selectedNewCaseExaminationId.value = String(match.id)
     syncFlowPatientSelection(flow.selectedPatientId, match.id)
+  } catch (error: unknown) {
+    errorMessage.value = reportingApiErrorMessage(
+      error,
+      'Die bevorzugte Untersuchung konnte nicht aufgelöst werden.'
+    )
   }
 }
 

@@ -25,16 +25,26 @@ export function normalizeReportingLanguages(payload: unknown): ReportingLanguage
   if (!Array.isArray(rawLanguages)) {
     throw new Error('Die Liste der Berichtssprachen fehlt.')
   }
+  if (rawLanguages.length === 0) {
+    throw new Error('Die Liste der Berichtssprachen ist leer.')
+  }
   const languages = rawLanguages.map((entry): ReportLanguageOption => {
     if (!entry || typeof entry !== 'object') {
       throw new Error('Ein Eintrag der Berichtssprachen ist ungültig.')
     }
     const option = entry as Record<string, unknown>
-    if (!isReportLanguageCode(option.code) || typeof option.label !== 'string') {
+    if (
+      !isReportLanguageCode(option.code) ||
+      typeof option.label !== 'string' ||
+      !option.label.trim()
+    ) {
       throw new Error('Ein Eintrag der Berichtssprachen ist unvollständig.')
     }
-    return { code: option.code, label: option.label }
+    return { code: option.code, label: option.label.trim() }
   })
+  if (new Set(languages.map((option) => option.code)).size !== languages.length) {
+    throw new Error('Die Berichtssprachen enthalten doppelte Sprachcodes.')
+  }
   const defaultLanguage = source.defaultLanguage
   if (!isReportLanguageCode(defaultLanguage)) {
     throw new Error('Die Standard-Berichtssprache ist ungültig.')

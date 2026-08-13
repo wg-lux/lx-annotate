@@ -176,17 +176,22 @@ function normalizeSections(sections: unknown): ReportTemplateSection[] {
   if (!Array.isArray(sections)) return []
   return sections
     .filter((section): section is Record<string, unknown> => isRecordLike(section))
-    .map((section) => ({
-      name: asString(section.name) || '',
-      position: asNumber(section.position) ?? 0,
-      sectionKind:
-        (asString(section.sectionKind ?? section.section_kind) as
-          | ReportTemplateSection['sectionKind']
-          | null) || 'findings',
-      fields: normalizeSectionFields(section.fields),
-      types: asStringArray(section.types),
-      findings: normalizeFindings(section.findings)
-    }))
+    .map((section) => {
+      const name = asString(section.name) || ''
+      return {
+        name,
+        titleDe: asString(section.titleDe ?? section.title_de) || name,
+        titleEn: asString(section.titleEn ?? section.title_en) || name,
+        position: asNumber(section.position) ?? 0,
+        sectionKind:
+          (asString(section.sectionKind ?? section.section_kind) as
+            | ReportTemplateSection['sectionKind']
+            | null) || 'findings',
+        fields: normalizeSectionFields(section.fields),
+        types: asStringArray(section.types),
+        findings: normalizeFindings(section.findings)
+      }
+    })
     .filter((section) => !!section.name)
     .sort((a, b) => a.position - b.position)
 }
@@ -623,6 +628,8 @@ export function normalizeTemplatePayload(payload: unknown): ReportTemplatePayloa
   const conceptCoverage = hasCoverage ? normalizeReportConceptCoverage(rawCoverage) : null
   return {
     name,
+    nameDe: asString(payload.nameDe ?? payload.name_de) || undefined,
+    nameEn: asString(payload.nameEn ?? payload.name_en) || undefined,
     examination: asString(payload.examination) || '',
     identity: normalizeReportTemplateIdentity(payload),
     reportSections,
@@ -1257,13 +1264,23 @@ export async function buildReportTemplateRuntimePayload(params: {
   }
 }
 
-export function describeSectionTitle(sectionName: string): string {
-  return titleFromSectionName(sectionName)
+export function getReportTemplateSectionDisplayName(
+  section: Pick<ReportTemplateSection, 'name' | 'titleDe' | 'titleEn'>,
+  language: 'de' | 'en'
+): string {
+  return (language === 'de' ? section.titleDe : section.titleEn) || section.name
 }
 
 export function describeReportTemplateTitle(templateName: string): string {
-  if (templateName === 'colonoscopy_training_basic') {
-    return 'Koloskopie – S2k-Qualitätsdokumentation'
-  }
   return titleFromSectionName(templateName)
+}
+
+export function getReportTemplateDisplayName(
+  template: Pick<ReportTemplatePayload, 'name' | 'nameDe' | 'nameEn'>,
+  language: 'de' | 'en'
+): string {
+  return (
+    (language === 'de' ? template.nameDe : template.nameEn) ||
+    describeReportTemplateTitle(template.name)
+  )
 }

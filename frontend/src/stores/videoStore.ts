@@ -1133,21 +1133,10 @@ export const useVideoStore = defineStore('video', () => {
       return
     }
 
-    await fetchVideoSegments(id, options)
+    const segmentsApplied = await fetchVideoSegments(id, options)
+    if (!segmentsApplied || currentVideo.value?.id !== id) return
 
-    if (currentVideo.value) {
-      const allSegmentsArray: Segment[] = []
-      Object.values(segmentsByLabel).forEach((labelSegments) => {
-        allSegmentsArray.push(...labelSegments)
-      })
-
-      currentVideo.value.segments = allSegmentsArray
-      const listVideo = videoList.value.videos.find((video) => video.id === id)
-      if (listVideo) {
-        listVideo.segments = allSegmentsArray
-      }
-      log.debug('segments.fetch-completed', { count: allSegmentsArray.length })
-    }
+    log.debug('segments.fetch-completed', { count: currentVideo.value.segments.length })
   }
 
   async function saveAnnotations(): Promise<void> {
@@ -1614,7 +1603,7 @@ export const useVideoStore = defineStore('video', () => {
   async function fetchVideoSegments(
     videoId: number,
     options: { sourceKind?: SegmentSourceKind } = {}
-  ): Promise<void> {
+  ): Promise<boolean> {
     const token = ++_fetchToken.value
     let controller: AbortController | null = null
     try {
@@ -1633,7 +1622,7 @@ export const useVideoStore = defineStore('video', () => {
         }
       )
 
-      if (token !== _fetchToken.value) return
+      if (token !== _fetchToken.value) return false
 
       const rawSegments = normalizeSegmentList(response.data)
 
@@ -1661,15 +1650,17 @@ export const useVideoStore = defineStore('video', () => {
 
       log.debug('segments.normalize-completed', { count: rawSegments.length })
       syncCurrentVideoSegments(videoId)
+      return true
     } catch (error) {
       const axiosError = error as AxiosError
       if (axiosError.code === 'ERR_CANCELED' || axiosError.name === 'CanceledError') {
-        return
+        return false
       }
       if (token === _fetchToken.value) {
         log.error('segments.load-failed', error)
         errorMessage.value = 'Error loading video segments. Please try again later.'
       }
+      return false
     } finally {
       if (fetchSegmentsController === controller) {
         fetchSegmentsController = null

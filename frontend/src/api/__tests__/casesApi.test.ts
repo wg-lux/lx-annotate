@@ -59,6 +59,38 @@ describe('casesApi', () => {
     expect(result).toEqual([patientCase])
   })
 
+  it('preserves canonical examination translations for frontend labels', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: {
+        results: [
+          {
+            ...patientCase,
+            patientExaminations: [
+              {
+                id: 314,
+                examination: {
+                  id: 9,
+                  name: 'colonoscopy',
+                  nameDe: 'Koloskopie',
+                  nameEn: 'Colonoscopy'
+                }
+              }
+            ]
+          }
+        ]
+      }
+    })
+
+    const result = await fetchPatientCases({ patientId: 42 })
+
+    expect(result[0]?.patientExaminations[0]?.examination).toEqual({
+      id: 9,
+      name: 'colonoscopy',
+      nameDe: 'Koloskopie',
+      nameEn: 'Colonoscopy'
+    })
+  })
+
   it('creates a case through the shared Axios boundary', async () => {
     hoisted.axios.post.mockResolvedValue({ data: patientCase })
     const payload = {
@@ -84,9 +116,7 @@ describe('casesApi', () => {
       patientExamination: {
         patient: 'patient-hash',
         examination: 'colonoscopy',
-        dateStart: '2026-07-23',
-        patientBirthDate: '1980-01-01',
-        patientGender: 'female'
+        dateStart: '2026-07-23'
       }
     }
 

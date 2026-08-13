@@ -4,6 +4,8 @@ import {
   fetchReportTemplatesByExamination,
   fetchBuilderReportTemplatesByExamination,
   fetchReportTemplatePreviewByName,
+  getReportTemplateSectionDisplayName,
+  getReportTemplateDisplayName,
   normalizeDefinitionValidationResult,
   normalizeReportConceptCoverage,
   normalizeTemplatePayload,
@@ -29,6 +31,51 @@ vi.mock('@/api/axiosInstance', () => ({
 describe('reportTemplatesApi', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('preserves and selects canonical report-template translations', () => {
+    const payload = normalizeTemplatePayload({
+      name: 'colonoscopy_training_basic',
+      name_de: 'Koloskopie – leitlinienbasierte Qualitätsdokumentation',
+      name_en: 'Colonoscopy – guideline-based quality documentation',
+      examination: 'colonoscopy'
+    })
+
+    expect(payload?.nameDe).toBe('Koloskopie – leitlinienbasierte Qualitätsdokumentation')
+    expect(payload?.nameEn).toBe('Colonoscopy – guideline-based quality documentation')
+    expect(payload && getReportTemplateDisplayName(payload, 'de')).toBe(
+      'Koloskopie – leitlinienbasierte Qualitätsdokumentation'
+    )
+    expect(payload && getReportTemplateDisplayName(payload, 'en')).toBe(
+      'Colonoscopy – guideline-based quality documentation'
+    )
+    expect(getReportTemplateDisplayName({ name: 'colonoscopy_training_basic' }, 'de')).toBe(
+      'Colonoscopy Training Basic'
+    )
+  })
+
+  it('preserves localized section titles without synthesizing frontend labels', () => {
+    const payload = normalizeTemplatePayload({
+      name: 'localized_template',
+      examination: 'colonoscopy',
+      report_sections: [
+        {
+          name: 'pathologische_befunde',
+          title_de: 'Pathologische Befunde',
+          title_en: 'Pathological findings'
+        }
+      ]
+    })
+    const section = payload?.reportSections[0]
+
+    expect(section?.titleDe).toBe('Pathologische Befunde')
+    expect(section?.titleEn).toBe('Pathological findings')
+    expect(section && getReportTemplateSectionDisplayName(section, 'de')).toBe(
+      'Pathologische Befunde'
+    )
+    expect(section && getReportTemplateSectionDisplayName(section, 'en')).toBe(
+      'Pathological findings'
+    )
   })
 
   it('normalizes validators into typed descriptors', () => {
@@ -146,8 +193,8 @@ describe('reportTemplatesApi', () => {
     })
 
     expect(
-      payload?.reportSections[0]?.findings[0]?.classifications[0]?.input?.choices[0]
-        ?.descriptors[0]?.type
+      payload?.reportSections[0]?.findings[0]?.classifications[0]?.input?.choices[0]?.descriptors[0]
+        ?.type
     ).toBe('custom_measurement')
   })
 

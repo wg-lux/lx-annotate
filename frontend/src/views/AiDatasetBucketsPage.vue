@@ -5,18 +5,34 @@
         <p class="section-kicker">KI-Datensatz</p>
         <h1>Frame-Bucket-Verteilung</h1>
         <p class="heading-copy">
-          Prüfen Sie die aktuellen Frame-Zahlen für datensatzbasierte Annotation und Trainingswarteschlangen.
+          Prüfen Sie die aktuellen Frame-Zahlen für datensatzbasierte Annotation und
+          Trainingswarteschlangen.
         </p>
       </div>
-      <button
-        type="button"
-        class="btn btn-outline-secondary btn-sm"
-        :disabled="loadingDistribution || !selectedDatasetId"
-        data-test="reload-distribution"
-        @click="loadDistribution"
-      >
-        Neu laden
-      </button>
+      <div class="heading-actions">
+        <button
+          type="button"
+          class="btn btn-outline-primary btn-sm"
+          :disabled="loadingDistribution || backfillingSegments || !selectedDatasetId"
+          data-test="backfill-segments"
+          @click="backfillAnnotatedSegments"
+        >
+          {{
+            backfillingSegments
+              ? 'Segmente werden hinzugefügt...'
+              : 'Annotierte Segmente nachtragen'
+          }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          :disabled="loadingDistribution || backfillingSegments || !selectedDatasetId"
+          data-test="reload-distribution"
+          @click="loadDistribution"
+        >
+          Neu laden
+        </button>
+      </div>
     </section>
 
     <section class="controls-panel">
@@ -27,7 +43,7 @@
             v-model="selectedDatasetId"
             class="form-select"
             data-test="dataset-select"
-            :disabled="loadingOptions"
+            :disabled="loadingOptions || backfillingSegments"
           >
             <option value="">Datensatz auswählen</option>
             <option v-for="dataset in datasetOptions" :key="dataset.id" :value="String(dataset.id)">
@@ -79,6 +95,9 @@
 
       <div v-if="errorMessage" class="alert alert-warning mb-0" role="alert">
         {{ errorMessage }}
+      </div>
+      <div v-if="backfillMessage" class="alert alert-success mb-0" role="status">
+        {{ backfillMessage }}
       </div>
     </section>
 
@@ -164,7 +183,10 @@
         <div class="panel-heading">
           <div>
             <h2>Frame-Buckets pro Label</h2>
-            <p>Eindeutige Frame-Zahlen aus positiven Annotationen, Segmentbereichen und deren Vereinigung.</p>
+            <p>
+              Eindeutige Frame-Zahlen aus positiven Annotationen, Segmentbereichen und deren
+              Vereinigung.
+            </p>
           </div>
         </div>
 
@@ -215,6 +237,7 @@
 
 <script setup lang="ts">
 import {
+  attachAiDatasetAnnotations,
   fetchAiDatasetFrameBucketDistribution,
   fetchAiDatasetLabelSets,
   fetchAiDatasetOptions,
@@ -252,7 +275,9 @@ const predictionSegmentsOnly = ref(true)
 const distribution = ref<AiDatasetFrameBucketDistribution | null>(null)
 const loadingOptions = ref(true)
 const loadingDistribution = ref(false)
+const backfillingSegments = ref(false)
 const errorMessage = ref('')
+const backfillMessage = ref('')
 
 const selectedDataset = computed(() =>
   datasetOptions.value.find((dataset) => String(dataset.id) === selectedDatasetId.value)
@@ -396,6 +421,28 @@ async function loadDistribution(): Promise<void> {
   }
 }
 
+async function backfillAnnotatedSegments(): Promise<void> {
+  if (!selectedDatasetId.value || backfillingSegments.value) return
+
+  backfillingSegments.value = true
+  errorMessage.value = ''
+  backfillMessage.value = ''
+  try {
+    const result = await attachAiDatasetAnnotations(selectedDatasetId.value, {
+      includeAllAnnotations: true,
+      includeFrameAnnotations: false,
+      includeVideoAnnotations: true
+    })
+    await loadDistribution()
+    backfillMessage.value = `Nachtrag abgeschlossen. Der Datensatz enthält jetzt ${formatNumber(result.videoAnnotationCount)} annotierte Segmente.`
+  } catch (error) {
+    logger.error('segment-backfill-failed', error)
+    errorMessage.value = 'Die annotierten Segmente konnten nicht zum Datensatz hinzugefügt werden.'
+  } finally {
+    backfillingSegments.value = false
+  }
+}
+
 function bucketLabel(bucket: BucketName): string {
   if (bucket === 'positive') return 'Positiv'
   if (bucket === 'negative') return 'Negativ'
@@ -477,6 +524,13 @@ onMounted(async () => {
   margin: 0;
   font-size: 2rem;
   font-weight: 700;
+}
+
+.heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .heading-copy {

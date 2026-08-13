@@ -15,6 +15,7 @@ type CreateCasePayload = {
   patientExamination: {
     patient: string
     examination: string
+    dateStart: string
   }
 }
 
@@ -248,6 +249,12 @@ describe('CaseSetupPage draft-first setup', () => {
       patient: 'patient_7',
       examination: 'gastroscopy'
     })
+    expect(createCall[1].patientExamination.dateStart).toEqual(expect.any(String))
+    expect(Object.keys(createCall[1].patientExamination).sort()).toEqual([
+      'dateStart',
+      'examination',
+      'patient'
+    ])
     expect(hoisted.flowRef.current.setPatientExaminationContext).toHaveBeenCalledWith({
       patientExaminationId: 42,
       selectedPatientId: 7,
@@ -318,5 +325,27 @@ describe('CaseSetupPage draft-first setup', () => {
       'the clinical documentation link'
     )
     expect(nextLink.attributes('data-to')).toBe('/reporting/case-setup')
+  })
+
+  it('rejects an ambiguous preferred examination without mutating the selection', async () => {
+    hoisted.routeRef.current = {
+      query: { preferredExamination: 'colonoscopy' }
+    }
+    hoisted.flowRef.current = buildFlowStore({ selectedExaminationId: null })
+    hoisted.examinationStoreRef.current.examinationsDropdown = [
+      { id: 13, name: 'colonoscopy', displayName: 'Koloskopie' },
+      { id: 14, name: 'colonoscopy', displayName: 'Koloskopie (legacy)' }
+    ]
+
+    const wrapper = mount(CaseSetupPage)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('ist im Untersuchungskatalog nicht eindeutig')
+    expect(hoisted.flowRef.current.selectedExaminationId).toBeNull()
+    expect(
+      hoisted.flowRef.current.setCaseSelection.mock.calls.some(
+        ([payload]) => payload.selectedExaminationId !== undefined
+      )
+    ).toBe(false)
   })
 })

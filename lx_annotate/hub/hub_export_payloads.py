@@ -2,31 +2,34 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
-from typing import cast
-from typing import Literal
-from typing import TypedDict
+from typing import Any, Literal, TypedDict, cast
 
-from endoreg_db.models import Center
-from endoreg_db.models import ImageClassificationAnnotation
-from endoreg_db.models import LabelVideoSegment
-from endoreg_db.models import NetworkNode
-from endoreg_db.models import PatientExamination
-from endoreg_db.models import PatientExaminationReport
-from endoreg_db.models import RawPdfFile
-from endoreg_db.models import SensitiveMeta
-from endoreg_db.models import TransferJob
-from endoreg_db.models import VideoFile
+from endoreg_db.models import (
+    Center,
+    ImageClassificationAnnotation,
+    LabelVideoSegment,
+    NetworkNode,
+    PatientExamination,
+    PatientExaminationReport,
+    RawPdfFile,
+    SensitiveMeta,
+    TransferJob,
+    VideoFile,
+)
 from endoreg_db.models.state.anonymization import AnonymizationState
 from endoreg_db.utils.file_operations import sha256_file
-from lx_dtypes.models.contracts import JsonValue
-from lx_dtypes.models.contracts import validate_hub_transfer_report_payload
-from lx_dtypes.models.contracts import validate_hub_transfer_video_payload
+from lx_dtypes.models.contracts import (
+    JsonValue,
+    validate_hub_transfer_report_payload,
+    validate_hub_transfer_video_payload,
+)
 
 from ..models import OutboundHubTransferJob
-from .hub_export_state import has_usable_processed_artifact
-from .hub_export_state import is_report_hub_export_eligible
-from .hub_export_state import is_video_hub_export_eligible
+from .hub_export_state import (
+    has_usable_processed_artifact,
+    is_report_hub_export_eligible,
+    resolve_video_hub_export_state,
+)
 
 
 class VideoFilePayload(TypedDict, total=False):
@@ -184,33 +187,17 @@ def _require_value(value: Any, *, field_name: str) -> Any:
 
 
 def _validated_video_hashes(video: VideoFile) -> tuple[Any, str, str]:
-    _require_processed_file(video, field_name="processed_file")
+    readiness = resolve_video_hub_export_state(video, verify_processed_media=True)
+    if not readiness.transfer_eligible:
+        raise ValueError(readiness.transfer_validation_error)
     state = video.state
     if state is None:
         raise ValueError("VideoFile.state must exist for outbound hub transfer.")
-    if not is_video_hub_export_eligible(video):
-        raise ValueError(
-            f"video transfer requires anonymized processed state. Current anonymization_status={state.anonymization_status.value!r} is not eligible.",
-        )
-    _require_eligible_anonymization_status(state.anonymization_status, kind="video")
-    processed_video_hash = str(video.processed_video_hash or "").strip()
-    state_processed_hash = str(state.processed_file_sha256 or "").strip()
-    if not processed_video_hash or not state_processed_hash:
-        raise ValueError(
-            "VideoFile.processed_video_hash and VideoState.processed_file_sha256 "
-            "must exist for processed-media transfer.",
-        )
-    if processed_video_hash != state_processed_hash:
-        raise ValueError(
-            "Processed video hash metadata is inconsistent; refusing outbound transfer.",
-        )
-    actual_processed_hash = sha256_file(video.processed_file)
-    if actual_processed_hash != processed_video_hash:
-        raise ValueError(
-            "Processed video file hash does not match persisted hash metadata; "
-            "refusing outbound transfer.",
-        )
-    return state, processed_video_hash, state_processed_hash
+    return (
+        state,
+        readiness.processed_video_hash,
+        readiness.state_processed_file_sha256,
+    )
 
 
 def _video_file_payload(

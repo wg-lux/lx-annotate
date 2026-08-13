@@ -1,6 +1,6 @@
 {
   "name": "lx-annotate",
-  "version": "0.9.67",
+  "version": "0.9.70",
   "private": true,
   "type": "module",
   "scripts": {

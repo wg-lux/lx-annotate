@@ -3,8 +3,8 @@
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
         <div>
-          <h5 class="mb-0">Finalisierung / Artefakte</h5>
-          <small class="text-muted">Finalen Bericht laden, PDF öffnen und Timeline aufrufen.</small>
+          <h5 class="mb-0">Abgeschlossener Bericht</h5>
+          <small class="text-muted">Bericht prüfen, als PDF öffnen oder herunterladen.</small>
         </div>
         <button
           class="btn btn-outline-secondary btn-sm"
@@ -18,18 +18,7 @@
         <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
         <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
 
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label">PatientExamination-ID</label>
-            <input class="form-control" :value="patientExaminationId ?? ''" readonly />
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Report-ID</label>
-            <input class="form-control" :value="latestReport?.id ?? ''" readonly />
-          </div>
-        </div>
-
-        <div v-if="loading" class="text-muted">Lade Finalisierungsdaten...</div>
+        <div v-if="loading" class="text-muted">Lade Abschlussdaten …</div>
         <div v-else-if="!latestReport" class="alert alert-info mb-0">
           Kein Bericht für diese Patientenuntersuchung gefunden.
         </div>
@@ -39,21 +28,17 @@
               <div class="small text-muted">Status</div>
               <div>
                 <span class="badge" :class="statusClass">{{
-                  latestReport.status || 'unknown'
+                  reportStatusLabel(latestReport.status)
                 }}</span>
               </div>
             </div>
             <div class="col-md-3">
               <div class="small text-muted">Version</div>
-              <div>{{ latestReport.version ?? 'n/a' }}</div>
+              <div>{{ reportVersionLabel(latestReport.version) }}</div>
             </div>
             <div class="col-md-3">
               <div class="small text-muted">Aktualisiert</div>
-              <div>{{ formatTimestamp(latestReport.updatedAt || latestReport.createdAt) }}</div>
-            </div>
-            <div class="col-md-3">
-              <div class="small text-muted">Dokumenttyp</div>
-              <div>{{ reportDocumentType || 'n/a' }}</div>
+              <div>{{ formatGermanReportTimestamp(latestReport.updatedAt || latestReport.createdAt) }}</div>
             </div>
           </div>
 
@@ -93,13 +78,18 @@
           >
             Es sind noch keine Artefakt-Links verfügbar.
           </div>
+          <details class="mt-3 small text-muted" data-testid="finalized-technical-details">
+            <summary>Technische Angaben</summary>
+            <div class="mt-2">Berichtsreferenz: {{ latestReport.id }}</div>
+            <div>Untersuchungsreferenz: {{ patientExaminationId ?? 'nicht verfügbar' }}</div>
+            <div>Dokumenttyp: {{ reportDocumentType || 'nicht verfügbar' }}</div>
+          </details>
         </template>
       </div>
     </div>
 
     <div class="alert alert-secondary mb-0">
-      Alternativ kann der Bericht im Editor unter
-      <code>/reporting/&lt;id&gt;/report-editor</code> erneut gespeichert werden.
+      Änderungen können über „Bericht bearbeiten“ im Reporting-Ablauf vorgenommen werden.
     </div>
   </div>
 </template>
@@ -113,6 +103,12 @@ import { endpoints } from '@/types/api/endpoints'
 import { buildPdfStreamUrl } from '@/utils/mediaUrls'
 import { reportingApiErrorMessage } from './reportingError'
 import { parseReportListPayload, type ReportListRow } from './reportListPayload'
+import {
+  formatGermanReportTimestamp,
+  reportStatusBadgeClass,
+  reportStatusLabel,
+  reportVersionLabel
+} from './reportingPresentation'
 
 type ReportDetailRow = {
   id: number
@@ -145,12 +141,7 @@ const patientExaminationId = computed<number | null>(() => {
   return flow.patientExaminationId
 })
 
-const statusClass = computed(() => {
-  const status = (latestReport.value?.status || '').toLowerCase()
-  if (status === 'final') return 'bg-success'
-  if (status === 'draft') return 'bg-warning text-dark'
-  return 'bg-secondary'
-})
+const statusClass = computed(() => reportStatusBadgeClass(latestReport.value?.status))
 
 const persistedArtifacts = computed(() => latestReportDetail.value?.persistedArtifacts || null)
 
@@ -214,13 +205,6 @@ const patientTimelineUrl = computed(() => {
   return null
 })
 
-function formatTimestamp(value?: string | null): string {
-  if (!value) return 'n/a'
-  const dt = new Date(value)
-  if (Number.isNaN(dt.getTime())) return value
-  return dt.toLocaleString()
-}
-
 async function loadLatestFinalizedState() {
   if (!patientExaminationId.value) {
     errorMessage.value = 'Keine Patientenuntersuchung ausgewählt.'
@@ -250,7 +234,7 @@ async function loadLatestFinalizedState() {
       r(endpoints.report.patientExaminationReportById(items[0].id))
     )
     latestReportDetail.value = (detailRes.data || null) as ReportDetailRow | null
-    successMessage.value = `Bericht #${String(items[0].id)} geladen.`
+    successMessage.value = 'Der abgeschlossene Bericht wurde geladen.'
   } catch (e: unknown) {
     errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden der Finalisierungsdaten.')
   } finally {

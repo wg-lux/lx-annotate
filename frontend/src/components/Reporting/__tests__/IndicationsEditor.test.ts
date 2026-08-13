@@ -31,7 +31,7 @@ describe('IndicationsEditor', () => {
     expect(events?.[0]).toEqual([0, { examinationIndicationId: 2, indicationChoiceId: null }])
   })
 
-  it('renders unknown persisted ids as synthetic dropdown options', () => {
+  it('keeps unavailable persisted selections visible without exposing numerical ids', () => {
     const wrapper = mount(IndicationsEditor, {
       props: {
         rows: [{ examinationIndicationId: 77, indicationChoiceId: 88 }],
@@ -40,8 +40,10 @@ describe('IndicationsEditor', () => {
     })
 
     const selects = wrapper.findAll('select')
-    expect(selects[0].text()).toContain('Unbekannte Indikation (#77)')
-    expect(selects[1].text()).toContain('Unbekannte Auswahl (#88)')
+    expect(selects[0].text()).toContain('Gespeicherte Indikation nicht mehr verfügbar')
+    expect(selects[1].text()).toContain('Gespeicherte Auswahl nicht mehr verfügbar')
+    expect(wrapper.text()).not.toContain('#77')
+    expect(wrapper.text()).not.toContain('#88')
   })
 
   it('emits refresh-options when no backend options are available', async () => {

@@ -13,7 +13,8 @@ describe('LookupStatusPanel', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Fall #42')
+    expect(wrapper.text()).toContain('Mit Untersuchung verknüpft')
+    expect(wrapper.text()).not.toContain('Fall #42')
     expect(wrapper.find('[data-testid="lookup-status-details"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="lookup-status-toggle"]').trigger('click')

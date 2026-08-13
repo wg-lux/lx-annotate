@@ -4,7 +4,6 @@ import importlib
 
 import pytest
 
-
 LX_ANNOTATE_IMPORT_SMOKE_MODULES = (
     "lx_annotate",
     "lx_annotate.api_urls",
@@ -23,7 +22,6 @@ LX_ANNOTATE_IMPORT_SMOKE_MODULES = (
     "lx_annotate.hub.hub_export_reconciliation",
     "lx_annotate.hub.hub_export_state",
     "lx_annotate.hub.hub_export_worker",
-    "lx_annotate.views.ai_dataset_settings",
     "lx_annotate.views.hub_export",
     "lx_annotate.views.quarantine",
 )

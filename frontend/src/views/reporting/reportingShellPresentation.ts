@@ -6,6 +6,7 @@ export interface PatientExaminationOption {
   id: number
   label: string
   examinationName: string
+  examinationDisplayName: string
   patientId: number | null
   examinationId: number | null
 }
@@ -16,6 +17,13 @@ const readRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {}
+
+const firstNonEmptyString = (...values: unknown[]): string | null => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
 
 const toPositiveInteger = (value: unknown): number | null => {
   const parsed = Number(value)
@@ -107,10 +115,14 @@ export const normalizePatientExaminationOption = (
   const id = toPositiveInteger(row.id)
   if (id === null) return null
   const examinationName =
-    (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
-    (typeof examination.name === 'string' && examination.name.trim()) ||
-    (typeof row.examination === 'string' && row.examination.trim()) ||
-    'Untersuchung'
+    firstNonEmptyString(
+      examination.name,
+      row.examination_name,
+      row.examinationName,
+      row.examination
+    ) || 'Untersuchung'
+  const examinationDisplayName =
+    firstNonEmptyString(examination.nameDe, examination.name_de) || examinationName
   const dateStartRaw =
     typeof row.date_start === 'string'
       ? row.date_start
@@ -120,10 +132,9 @@ export const normalizePatientExaminationOption = (
   const dateLabel = dateStartRaw ? new Date(dateStartRaw).toLocaleDateString('de-DE') : ''
   return {
     id,
-    label: dateLabel
-      ? `#${String(id)} · ${examinationName} · ${dateLabel}`
-      : `#${String(id)} · ${examinationName}`,
+    label: dateLabel ? `${examinationDisplayName} · ${dateLabel}` : examinationDisplayName,
     examinationName,
+    examinationDisplayName,
     patientId: toPositiveInteger(
       patient.id ?? patientData.id ?? camelPatientData.id ?? row.patient_id ?? row.patientId
     ),
@@ -169,5 +180,5 @@ export const formatCaseLabel = (patientCase: PatientCase): string => {
   const leaveDate = formatDateLabel(patientCase.leaveDate)
   const period = [admissionDate, leaveDate].filter(Boolean).join(' – ')
   const status = patientCase.isClosed ? 'geschlossen' : patientCase.isActive ? 'aktiv' : 'inaktiv'
-  return [patientCase.caseId, period, status].filter(Boolean).join(' · ')
+  return [period || 'Zeitraum nicht angegeben', status].join(' · ')
 }

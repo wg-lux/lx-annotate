@@ -128,5 +128,5 @@ export async function savePatientExaminationDraft(params: {
       payload: params.payload
     }
   )
-  return response.data as ReportDraftResponse
+  return normalizeReportDraftResponse(response.data)
 }

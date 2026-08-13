@@ -11,6 +11,7 @@ export type ReportTemplateLifecycleChange = {
 
 export type ReportTemplateLifecycleContext = {
   activeModuleName: ComputedRef<string>
+  activeExaminationName: ComputedRef<string>
   notifyLifecycleChanged: (change: ReportTemplateLifecycleChange) => Promise<void>
 }
 

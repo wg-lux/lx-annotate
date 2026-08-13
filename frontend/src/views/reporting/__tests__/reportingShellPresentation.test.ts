@@ -13,6 +13,7 @@ import {
   normalizePatientExaminationOption,
   preferredArtifactKind
 } from '../reportingShellPresentation'
+import { getCoreConceptLocalizedName } from '@/types/coreConcepts'
 
 describe('reporting shell presentation', () => {
   it('selects the safest available video artifact preference', () => {
@@ -40,16 +41,18 @@ describe('reporting shell presentation', () => {
     const option = normalizePatientExaminationOption({
       id: '44',
       date_start: '2026-08-03T10:00:00Z',
-      examination: { id: 9, name: 'Koloskopie' },
+      examination: { id: 9, name: 'colonoscopy', name_de: 'Koloskopie' },
       patient: { id: 7 }
     })
     expect(option).toMatchObject({
       id: 44,
-      examinationName: 'Koloskopie',
+      examinationName: 'colonoscopy',
+      examinationDisplayName: 'Koloskopie',
       patientId: 7,
       examinationId: 9
     })
-    expect(option?.label).toContain('#44 · Koloskopie')
+    expect(option?.label).toBe('Koloskopie · 3.8.2026')
+    expect(option?.label).not.toContain('44')
     expect(normalizePatientExaminationOption({ id: 0 })).toBeNull()
   })
 
@@ -76,6 +79,19 @@ describe('reporting shell presentation', () => {
         patientLabSamples: [],
         patientLabValues: []
       })
-    ).toContain('case-7 · 1.8.2026 – 3.8.2026 · aktiv')
+    ).toBe('1.8.2026 – 3.8.2026 · aktiv')
+  })
+
+  it('uses canonical lx-data-model names for the selected report language', () => {
+    const concept = {
+      name: 'colonoscopy',
+      nameDe: 'Koloskopie',
+      nameEn: 'Colonoscopy',
+      displayName: 'Nicht als Übersetzung verwenden'
+    }
+
+    expect(getCoreConceptLocalizedName(concept, 'de')).toBe('Koloskopie')
+    expect(getCoreConceptLocalizedName(concept, 'en')).toBe('Colonoscopy')
+    expect(getCoreConceptLocalizedName({ name: 'colonoscopy' }, 'de')).toBe('colonoscopy')
   })
 })

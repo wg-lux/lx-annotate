@@ -118,6 +118,8 @@ describe('ReportTemplateValidationPanel', () => {
     expect(text).toContain('Untersuchungsregeln')
     expect(text).toContain('Einheitenregeln')
     expect(text).toContain('Ausstehende Daten')
+    expect(text).toContain('1 Pflichtangabe(n) fehlen noch')
+    expect(text).toContain('1 Vorlagenregel(n) benötigen Ihre Aufmerksamkeit')
     expect(text).toContain('Nachzutragen: size_mm')
     expect(text).toContain('missing_required_intervention')
     expect(text).toContain('zum Befund')
@@ -125,5 +127,6 @@ describe('ReportTemplateValidationPanel', () => {
     expect(
       wrapper.find('a[href="#finding-esophagus_polyp"]').exists()
     ).toBe(true)
+    expect(wrapper.get('[data-testid="validation-technical-details"]').attributes('open')).toBeUndefined()
   })
 })

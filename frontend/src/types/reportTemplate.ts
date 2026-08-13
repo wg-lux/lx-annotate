@@ -31,6 +31,8 @@ export type ReportTemplateFinding = {
 
 export type ReportTemplateSection = {
   name: string
+  titleDe: string
+  titleEn: string
   position: number
   sectionKind: 'findings' | 'patient_data' | 'history'
   fields: ReportTemplateSectionField[]
@@ -179,6 +181,8 @@ export type ReportTemplateValidators = {
 
 export type ReportTemplatePayload = {
   name: string
+  nameDe?: string
+  nameEn?: string
   examination: string
   identity: ReportTemplateIdentity
   reportSections: ReportTemplateSection[]

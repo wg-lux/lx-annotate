@@ -153,8 +153,9 @@ vi.mock('@/api/reportTemplatesApi', () => ({
   fetchReportTemplatesByExamination: hoisted.reportTemplatesApi.fetchReportTemplatesByExamination,
   fetchReportTemplateByName: hoisted.reportTemplatesApi.fetchReportTemplateByName,
   buildReportTemplateRuntimePayload: hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload,
-  describeReportTemplateTitle: (name: string) =>
-    name === 'colonoscopy_training_basic' ? 'Koloskopie – S2k-Qualitätsdokumentation' : name
+  describeReportTemplateTitle: (name: string) => name,
+  getReportTemplateDisplayName: (template: { name: string; nameDe?: string }, language: string) =>
+    (language === 'de' && template.nameDe) || template.name
 }))
 
 vi.mock('@/api/reportDraftApi', () => ({
@@ -386,13 +387,13 @@ describe('ReportingShell media preload', () => {
           patientExaminations: [
             {
               id: 314,
-              examination: { id: 9, name: 'colonoscopy' },
+              examination: { id: 9, name: 'colonoscopy', nameDe: 'Koloskopie' },
               patientData: { id: 42 },
               dateStart: '2026-03-10'
             },
             {
               id: 315,
-              examination: { id: 10, name: 'gastroscopy' },
+              examination: { id: 10, name: 'gastroscopy', nameDe: 'Gastroskopie' },
               patientData: { id: 42 },
               dateStart: '2026-03-11'
             }
@@ -429,13 +430,13 @@ describe('ReportingShell media preload', () => {
             results: [
               {
                 id: 314,
-                examination: { id: 9, name: 'colonoscopy' },
+                examination: { id: 9, name: 'colonoscopy', name_de: 'Koloskopie' },
                 patient: { id: 42 },
                 date_start: '2026-03-10'
               },
               {
                 id: 315,
-                examination: { id: 10, name: 'gastroscopy' },
+                examination: { id: 10, name: 'gastroscopy', name_de: 'Gastroskopie' },
                 patient: { id: 42 },
                 date_start: '2026-03-11'
               }
@@ -493,8 +494,19 @@ describe('ReportingShell media preload', () => {
     const select = wrapper.get('[data-testid="patient-examination-select"]')
     const optionTexts = select.findAll('option').map((option) => option.text())
 
-    expect(optionTexts).toContain('#314 · colonoscopy · 10.3.2026')
-    expect(optionTexts).toContain('#315 · gastroscopy · 11.3.2026')
+    expect(optionTexts).toContain('Koloskopie · 10.3.2026')
+    expect(optionTexts).toContain('Gastroskopie · 11.3.2026')
+    expect(optionTexts.join(' ')).not.toContain('#314')
+
+    const caseOptionTexts = wrapper
+      .get('[data-testid="case-select"]')
+      .findAll('option')
+      .map((option) => option.text())
+    expect(caseOptionTexts.join(' ')).not.toContain('case-uuid-314')
+
+    const primaryContext = wrapper.get('[data-testid="primary-context-summary"]')
+    expect(primaryContext.text()).not.toContain('Fall-ID')
+    expect(wrapper.get('[data-testid="context-details"]').attributes('open')).toBeUndefined()
 
     await select.setValue('315')
     await flushPromises()
@@ -744,6 +756,7 @@ describe('ReportingShell media preload', () => {
         const lifecycleContext = inject(reportTemplateLifecycleContextKey)
         if (!lifecycleContext) throw new Error('Missing report-template lifecycle context.')
         return {
+          activeExaminationName: lifecycleContext.activeExaminationName,
           notifyPublished: () =>
             lifecycleContext.notifyLifecycleChanged({
               moduleName: 'report_template_examples',
@@ -753,11 +766,13 @@ describe('ReportingShell media preload', () => {
             })
         }
       },
-      template: '<button data-testid="notify-published" @click="notifyPublished">publish</button>'
+      template:
+        '<div><span data-testid="active-examination">{{ activeExaminationName }}</span><button data-testid="notify-published" @click="notifyPublished">publish</button></div>'
     })
 
     const wrapper = mountShell(LifecycleChild)
     await flushPromises()
+    expect(wrapper.get('[data-testid="active-examination"]').text()).toBe('colonoscopy')
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockClear()
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValueOnce([
       {

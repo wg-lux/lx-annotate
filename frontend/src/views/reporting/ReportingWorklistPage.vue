@@ -25,7 +25,7 @@
             <select v-model="statusFilter" class="form-select">
               <option value="all">Alle</option>
               <option value="draft">Entwurf</option>
-              <option value="final">Final</option>
+              <option value="final">Abgeschlossen</option>
             </select>
           </div>
           <div class="col-md-8 text-md-end small text-muted">
@@ -41,8 +41,7 @@
           <table class="table table-sm align-middle">
             <thead>
               <tr>
-                <th>Report-ID</th>
-                <th>PatientExamination</th>
+                <th>Bericht</th>
                 <th>Status</th>
                 <th>Version</th>
                 <th>Aktualisiert</th>
@@ -51,15 +50,21 @@
             </thead>
             <tbody>
               <tr v-for="row in filteredItems" :key="row.id">
-                <td>#{{ row.id }}</td>
-                <td>{{ patientExaminationId(row) ?? 'n/a' }}</td>
+                <td>
+                  <div class="fw-semibold">{{ reportVersionLabel(row.version) }}</div>
+                  <details class="small text-muted">
+                    <summary>Technische Angaben</summary>
+                    <div>Berichtsreferenz: {{ row.id }}</div>
+                    <div>Untersuchungsreferenz: {{ patientExaminationId(row) ?? 'nicht verfügbar' }}</div>
+                  </details>
+                </td>
                 <td>
                   <span class="badge" :class="statusBadgeClass(row.status)">
-                    {{ row.status || 'unknown' }}
+                    {{ reportStatusLabel(row.status) }}
                   </span>
                 </td>
-                <td>{{ row.version ?? 'n/a' }}</td>
-                <td>{{ formatTimestamp(row.updatedAt || row.createdAt) }}</td>
+                <td>{{ row.version ?? 'Nicht verfügbar' }}</td>
+                <td>{{ formatGermanReportTimestamp(row.updatedAt || row.createdAt) }}</td>
                 <td class="text-end">
                   <RouterLink
                     v-if="patientExaminationId(row)"
@@ -85,6 +90,12 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import { reportingApiErrorMessage } from './reportingError'
 import { parseReportListPayload, type ReportListRow } from './reportListPayload'
+import {
+  formatGermanReportTimestamp,
+  reportStatusBadgeClass,
+  reportStatusLabel,
+  reportVersionLabel
+} from './reportingPresentation'
 
 const items = ref<ReportListRow[]>([])
 const loading = ref(false)
@@ -109,16 +120,7 @@ function patientExaminationId(row: ReportListRow): number | null {
 }
 
 function statusBadgeClass(status?: string | null): string {
-  if ((status || '').toLowerCase() === 'final') return 'bg-success'
-  if ((status || '').toLowerCase() === 'draft') return 'bg-warning text-dark'
-  return 'bg-secondary'
-}
-
-function formatTimestamp(value?: string | null): string {
-  if (!value) return 'n/a'
-  const dt = new Date(value)
-  if (Number.isNaN(dt.getTime())) return value
-  return dt.toLocaleString()
+  return reportStatusBadgeClass(status)
 }
 
 async function loadReports() {

@@ -111,7 +111,7 @@
         <ReportingMediaPreviewCards class="mb-3" />
 
         <div
-          v-if="!flow.patientExaminationId || !flow.selectedExaminationId"
+          v-if="!flow.patientExaminationId || !resolvedSelectedExaminationId"
           class="alert alert-warning"
         >
           Bitte zuerst das Fall-Setup abschließen (Patient + Untersuchung + PatientExamination).
@@ -358,6 +358,10 @@ import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useTerminologyStore } from '@/stores/terminologyStore'
 import { reportingApiErrorMessage } from './reportingError'
+import {
+  requireResolvedReportingExamination,
+  resolveReportingExamination
+} from './reportingExaminationResolution'
 
 const flow = useReportingFlowStore()
 const terminology = useTerminologyStore()
@@ -390,7 +394,8 @@ const {
   setModuleName
 } = useReportTemplates({
   initialModuleName: terminology.activeBundle ? terminology.activeModuleName : '',
-  initialTemplateName: flow.selectedTemplateName
+  initialTemplateName: flow.selectedTemplateName,
+  language: computed(() => flow.selectedReportLanguage)
 })
 
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
@@ -415,11 +420,19 @@ const draftMatchesSelectedTemplate = computed(() => {
 const canValidateDraft = computed(
   () => !!selectedTemplateName.value && !!currentPayload.value && draftMatchesSelectedTemplate.value
 )
-const selectedExamination = computed(
-  () =>
-    examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) ||
-    null
+const selectedExaminationResolution = computed(() =>
+  resolveReportingExamination({
+    catalog: examinationStore.examinationsDropdown,
+    selectedExaminationId: flow.selectedExaminationId,
+    examinationName: currentPayload.value?.examination
+  })
 )
+const selectedExamination = computed(() =>
+  selectedExaminationResolution.value.status === 'resolved'
+    ? selectedExaminationResolution.value.examination
+    : null
+)
+const resolvedSelectedExaminationId = computed(() => selectedExamination.value?.id ?? null)
 const selectedExaminationName = computed(() => selectedExamination.value?.name || null)
 const selectedExaminationDisplayName = computed(
   () => selectedExamination.value?.displayName || selectedExaminationName.value || null
@@ -537,7 +550,9 @@ function normalizeKey(value: string): string {
 
 function stringListForKey(record: Record<string, string[]>, key: string): string[] {
   const value: unknown = Reflect.get(record, key)
-  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : []
 }
 
 function findingAnchorId(findingName: string): string {
@@ -599,8 +614,10 @@ function templateFindingForName(findingName: string): ReportTemplateFinding | nu
 
 function visibleClassificationsForFinding(findingName: string): FindingClassification[] {
   const definitions = allDefinitionClassificationsForFinding(findingName)
-  const extraRequired =
-    stringListForKey(backendMissingClassificationsByFinding.value, normalizeKey(findingName))
+  const extraRequired = stringListForKey(
+    backendMissingClassificationsByFinding.value,
+    normalizeKey(findingName)
+  )
   const byKey = new Map<string, FindingClassification>()
 
   for (const classification of definitions) {
@@ -696,8 +713,9 @@ function isClassificationRequired(findingName: string, classificationName: strin
           normalizeKey(classification.classification) === normalizeKey(classificationName)
       )?.required || false
 
-  const fromValidation = (
-    stringListForKey(backendMissingClassificationsByFinding.value, normalizeKey(findingName))
+  const fromValidation = stringListForKey(
+    backendMissingClassificationsByFinding.value,
+    normalizeKey(findingName)
   ).some((classification) => normalizeKey(classification) === normalizeKey(classificationName))
 
   return fromTemplate || fromValidation
@@ -881,10 +899,7 @@ function hasFieldError(
       touchedFields.value[fieldKey(instance.localId || '', classificationName)])
 
   const hasBackendMissing =
-    stringListForKey(
-      backendMissingClassificationsByFinding.value,
-      normalizeKey(findingName)
-    ).some(
+    stringListForKey(backendMissingClassificationsByFinding.value, normalizeKey(findingName)).some(
       (classification) => normalizeKey(classification) === normalizeKey(classificationName)
     ) &&
     (showValidationFeedback.value ||
@@ -909,10 +924,7 @@ function fieldMessages(
   }
 
   if (
-    stringListForKey(
-      backendMissingClassificationsByFinding.value,
-      normalizeKey(findingName)
-    ).some(
+    stringListForKey(backendMissingClassificationsByFinding.value, normalizeKey(findingName)).some(
       (classification) => normalizeKey(classification) === normalizeKey(classificationName)
     )
   ) {
@@ -1142,9 +1154,20 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('beforeunload', handleBeforeUnload)
-  await ensureCatalogLoaded(flow.selectedExaminationId)
-  if (selectedExaminationName.value) {
+  try {
+    if (!examinationStore.exams.length) await examinationStore.fetchExaminations()
+    const examination = requireResolvedReportingExamination({
+      catalog: examinationStore.examinationsDropdown,
+      selectedExaminationId: flow.selectedExaminationId,
+      examinationName: currentPayload.value?.examination
+    })
+    await ensureCatalogLoaded(examination.id)
     await refreshTemplatesForExamination()
+  } catch (error: unknown) {
+    errorMessage.value = reportingApiErrorMessage(
+      error,
+      'Die Untersuchung für die Befunderfassung konnte nicht aufgelöst werden.'
+    )
   }
   if (canValidateDraft.value) {
     scheduleRuntimeValidation()

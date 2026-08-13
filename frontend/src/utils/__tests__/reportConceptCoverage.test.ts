@@ -12,6 +12,8 @@ import type {
 const sections: ReportTemplateSection[] = [
   {
     name: 'findings',
+    titleDe: 'Befunde',
+    titleEn: 'Findings',
     position: 1,
     sectionKind: 'findings',
     fields: [],

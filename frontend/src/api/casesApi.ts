@@ -4,7 +4,7 @@ import { endpoints } from '@/types/api/endpoints'
 export type CasePatientExamination = {
   id: number
   patientData?: { id?: number } | null
-  examination?: string | { id?: number; name?: string } | null
+  examination?: string | { id?: number; name?: string; nameDe?: string; nameEn?: string } | null
   examinationName?: string | null
   dateStart?: string | null
 }
@@ -60,8 +60,6 @@ export type CreateCaseWithExaminationPayload = {
     patient: string
     examination: string
     dateStart: string
-    patientBirthDate: string | null
-    patientGender: string | null
   }
 }
 
@@ -147,20 +145,27 @@ function requireCasePatientExamination(value: unknown, path: string): CasePatien
   const patientData =
     patientDataValue === undefined || patientDataValue === null
       ? patientDataValue
-      : { id: optionalInteger(requireRecord(patientDataValue, `${path}.patientData`).id, `${path}.patientData.id`) }
-  const examinationValue = record.examination
-  const examination =
-    examinationValue === undefined || examinationValue === null || typeof examinationValue === 'string'
-      ? examinationValue
       : {
           id: optionalInteger(
-            requireRecord(examinationValue, `${path}.examination`).id,
-            `${path}.examination.id`
-          ),
-          name: optionalString(
-            requireRecord(examinationValue, `${path}.examination`).name,
-            `${path}.examination.name`
+            requireRecord(patientDataValue, `${path}.patientData`).id,
+            `${path}.patientData.id`
           )
+        }
+  const examinationValue = record.examination
+  const examinationRecord =
+    examinationValue && typeof examinationValue === 'object'
+      ? requireRecord(examinationValue, `${path}.examination`)
+      : null
+  const examination =
+    examinationValue === undefined ||
+    examinationValue === null ||
+    typeof examinationValue === 'string'
+      ? examinationValue
+      : {
+          id: optionalInteger(examinationRecord?.id, `${path}.examination.id`),
+          name: optionalString(examinationRecord?.name, `${path}.examination.name`),
+          nameDe: optionalString(examinationRecord?.nameDe, `${path}.examination.nameDe`),
+          nameEn: optionalString(examinationRecord?.nameEn, `${path}.examination.nameEn`)
         }
   const examinationName = optionalNullableString(record.examinationName, `${path}.examinationName`)
   const dateStart = optionalNullableString(record.dateStart, `${path}.dateStart`)
@@ -216,7 +221,10 @@ function requirePatientCase(value: unknown, path = 'case'): PatientCase {
     documents: record.documents.map((entry, index) =>
       requireCaseDocument(entry, `${path}.documents[${String(index)}]`)
     ),
-    patientMedications: requireIntegerArray(record.patientMedications, `${path}.patientMedications`),
+    patientMedications: requireIntegerArray(
+      record.patientMedications,
+      `${path}.patientMedications`
+    ),
     patientMedicationSchedules: requireIntegerArray(
       record.patientMedicationSchedules,
       `${path}.patientMedicationSchedules`
@@ -244,7 +252,10 @@ export async function createPatientCase(payload: CreatePatientCasePayload): Prom
 export async function createCaseWithExamination(
   payload: CreateCaseWithExaminationPayload
 ): Promise<CreateCaseWithExaminationResponse> {
-  const response = await axiosInstance.post<unknown>(r(endpoints.case.createWithExamination), payload)
+  const response = await axiosInstance.post<unknown>(
+    r(endpoints.case.createWithExamination),
+    payload
+  )
   const record = requireRecord(response.data, 'createCaseWithExamination')
   return {
     case: requirePatientCase(record.case, 'createCaseWithExamination.case'),

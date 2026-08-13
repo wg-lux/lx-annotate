@@ -24,7 +24,11 @@ vi.mock('@/types/api/endpoints', () => ({
     hubExport: {
       overview: 'hub-export/overview/',
       mark: 'hub-export/mark/',
+      offloadEligibleVideos: 'hub-export/offload-eligible-videos/',
       unmark: 'hub-export/unmark/'
+    },
+    media: {
+      videoMarkReadyForExport: (id: number) => `media/videos/${String(id)}/mark-ready-for-export/`
     }
   }
 }))
@@ -643,5 +647,275 @@ describe('HubExportOverviewComponent', () => {
     expect(wrapper.find('.bg-danger').exists()).toBe(false)
 
     wrapper.unmount()
+  })
+
+  it('shows canonical workflow states and a marking-time integrity rejection', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: 'center-a'
+          }
+        ],
+        configReady: true,
+        configError: '',
+        items: [
+          {
+            id: 61,
+            resourceKind: 'video',
+            filename: 'integrity-race.mp4',
+            anonymizationStatus: 'validated',
+            segmentAnnotationStatus: 'validated',
+            exportIntegrityStatus: 'persisted_verified',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: false,
+            markedByUsername: null,
+            markedAt: null,
+            outboundStatus: '',
+            lastError: '',
+            blockedReason: '',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: true,
+            createdAt: null
+          }
+        ]
+      }
+    })
+    hoisted.post.mockRejectedValue({
+      isAxiosError: true,
+      message: 'Request failed with status code 400',
+      response: {
+        data: {
+          detail: 'Video 61 is not eligible for hub export: processed media hash mismatch.'
+        }
+      }
+    })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="hub-export-segment-status-video-61"]').text()).toBe(
+      'Validiert'
+    )
+    expect(wrapper.get('[data-test="hub-export-integrity-status-video-61"]').text()).toBe(
+      'Nachweis vorhanden'
+    )
+
+    await wrapper.get('[data-test="hub-export-select-video-61"]').setValue(true)
+    await wrapper.get('[data-test="hub-export-mark-selected"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="hub-export-operation-error"]').text()).toContain(
+      'processed media hash mismatch'
+    )
+    expect(wrapper.get('[data-test="hub-export-select-video-61"]').attributes('checked')).toBeDefined()
+  })
+
+  it('offers row and bulk export-readiness checks in German', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [],
+        configReady: true,
+        configError: '',
+        privacySummary: null,
+        syncSummary: null,
+        items: [
+          {
+            id: 2,
+            resourceKind: 'video',
+            filename: 'NINJAU_S001_S001_T004.mp4',
+            anonymizationStatus: 'validated',
+            segmentAnnotationStatus: 'validated',
+            exportIntegrityStatus: 'not_ready',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: false,
+            markedByUsername: null,
+            markedAt: null,
+            outboundStatus: '',
+            lastError: '',
+            blockedReason: 'not ready for export',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: false,
+            createdAt: null
+          }
+        ]
+      }
+    })
+    hoisted.post.mockResolvedValue({ data: { success: true, readyForExport: true } })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="hub-export-check-readiness-video-2"]').text()).toBe(
+      'Exportfreigabe prüfen'
+    )
+    expect(wrapper.get('[data-test="hub-export-check-readiness-all"]').text()).toBe(
+      'Alle Videos auf Exportfreigabe prüfen'
+    )
+
+    await wrapper.get('[data-test="hub-export-check-readiness-video-2"]').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/media/videos/2/mark-ready-for-export/',
+      { centerKey: 'center-a' }
+    )
+  })
+
+  it('queues all eligible videos through the German bulk transfer button', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [{
+          nodeKey: 'hub-node',
+          displayName: 'Hub',
+          baseUrl: 'https://hub.example',
+          owningCenterKey: 'center-a'
+        }],
+        configReady: true,
+        configError: '',
+        privacySummary: null,
+        syncSummary: null,
+        items: [{
+          id: 71,
+          resourceKind: 'video',
+          filename: 'eligible.mp4',
+          anonymizationStatus: 'validated',
+          segmentAnnotationStatus: 'validated',
+          exportIntegrityStatus: 'verified',
+          processedMediaPresent: true,
+          sourceCenterKey: 'center-a',
+          sourceCenterName: 'Center A',
+          markedForUpload: false,
+          markedByUsername: null,
+          markedAt: null,
+          outboundStatus: '',
+          lastError: '',
+          blockedReason: '',
+          lastTransferTimestamp: null,
+          targetNodeKey: 'hub-node',
+          eligible: true,
+          createdAt: null
+        }]
+      }
+    })
+    hoisted.post.mockResolvedValue({
+      data: {
+        targetNodeKey: 'hub-node',
+        discoveredCount: 1,
+        eligibleCount: 1,
+        queuedCount: 1,
+        alreadyRegisteredCount: 0,
+        skippedCount: 0
+      }
+    })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    const button = wrapper.get('[data-test="hub-export-offload-eligible-videos"]')
+    expect(button.text()).toBe('Alle geeigneten Videos zum Hub übertragen')
+    await button.trigger('click')
+    await flushPromises()
+
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/hub-export/offload-eligible-videos/',
+      { targetNodeKey: 'hub-node' }
+    )
+  })
+
+  it('filters hub resources by resource type and processed-media storage state', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [],
+        configReady: true,
+        configError: '',
+        privacySummary: null,
+        syncSummary: null,
+        items: [
+          {
+            id: 81,
+            resourceKind: 'video',
+            filename: 'stored-video.mp4',
+            anonymizationStatus: 'validated',
+            segmentAnnotationStatus: 'validated',
+            exportIntegrityStatus: 'verified',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: false,
+            markedByUsername: null,
+            markedAt: null,
+            outboundStatus: '',
+            lastError: '',
+            blockedReason: '',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: true,
+            createdAt: null
+          },
+          {
+            id: 82,
+            resourceKind: 'report',
+            filename: 'missing-report.pdf',
+            anonymizationStatus: 'validated',
+            segmentAnnotationStatus: 'not_started',
+            exportIntegrityStatus: 'missing_processed_media',
+            processedMediaPresent: false,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: false,
+            markedByUsername: null,
+            markedAt: null,
+            outboundStatus: '',
+            lastError: '',
+            blockedReason: 'processed media missing',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: false,
+            createdAt: null
+          }
+        ]
+      }
+    })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    await wrapper.get('[data-test="hub-resource-type-filter"]').setValue('report')
+    let rows = wrapper.findAll('.table-responsive > table.table-hover tbody tr')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('missing-report.pdf')
+    expect(wrapper.get('[data-test="hub-export-table-filters"]').text()).toContain(
+      '1 von 2 Ressourcen'
+    )
+
+    await wrapper.get('[data-test="hub-storage-state-filter"]').setValue('present')
+    expect(wrapper.text()).toContain('Keine passenden Ressourcen')
+
+    await wrapper.get('[data-test="hub-table-filters-reset"]').trigger('click')
+    rows = wrapper.findAll('.table-responsive > table.table-hover tbody tr')
+    expect(rows).toHaveLength(2)
+
+    await wrapper.get('[data-test="hub-storage-state-filter"]').setValue('missing')
+    rows = wrapper.findAll('.table-responsive > table.table-hover tbody tr')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('missing-report.pdf')
   })
 })

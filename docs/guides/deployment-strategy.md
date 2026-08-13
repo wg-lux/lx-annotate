@@ -351,29 +351,41 @@ answer different questions:
 ### Canonical Migration History Safety
 
 LX-Annotate now uses the canonical migrations shipped by `endoreg_db` and
-`lx-dtypes`. The earlier bridge release is no longer included. An existing
-database must therefore already contain the complete reviewed canonical
-migration history before this release is deployed.
+`lx-dtypes`. The earlier bridge migration modules are no longer included. An
+existing database may contain either the canonical history or the complete
+reviewed legacy history or a recognized contiguous prefix of that history.
 
-The Django system-check framework enforces that condition immediately before
-`migrate`. This is the effective deployment boundary because LuxNix runs
-`lx-annotate-manage migrate --noinput` from `lx-annotate-migrate.service` using
-the selected wheel and runtime database environment. The check verifies pinned
-dependency versions and semantic hashes of their canonical migration manifests.
-It permits a genuinely fresh database, an interrupted canonical first install,
-or a fully converged database. It rejects legacy-only, partially bridged,
-unexpected, or unreadable histories before Django executes a schema migration.
+Migration-history repair is intentionally not a registered Django system
+check. Registered checks run before `migrate` and previously prevented an old
+database from reaching the repair path. Run the explicit repair command before
+`migrate` instead:
 
-If the check rejects a database, stop the rollout. Restore the database backup
-and deploy the preceding bridge release to complete history convergence before
-retrying this release. Do not use `--skip-checks`; that can execute canonical
-schema operations against a database whose recorded history belongs to the
-retired graph.
+```bash
+lx-annotate-manage repair_legacy_migration_history
+lx-annotate-manage repair_legacy_migration_history --apply
+lx-annotate-manage migrate --noinput
+```
 
-Release acceptance still requires an empty canonical migration plan, a fresh
-canonical database migration, runtime acceptance checks, and normalized
-PostgreSQL schema comparison against the reviewed bridge-release graph. Retain
-the canonical identities during rollback.
+The first invocation is a read-only plan. `--apply` locks
+`django_migrations` on PostgreSQL and atomically records only the canonical
+prefix reviewed as schema-equivalent to the detected legacy leaf. For example,
+legacy `endoreg_db` leaf `0038` maps through canonical `0059`; migrations
+`0060` and later remain unapplied so Django executes them normally. The command
+does not execute schema operations, delete legacy records, or inspect or alter
+application payloads. It is idempotent for fresh, canonical, and already
+repaired databases.
+
+The repair contract is additive and does not pin a dependency version or the
+complete canonical manifest. Future canonical migrations can be added without
+invalidating older repair checkpoints. The command still refuses unknown
+identities, gaps before a legacy leaf, an unreviewed legacy checkpoint, or a
+history changed concurrently after the dry-run plan. Investigate those cases
+instead of fabricating migration records manually.
+
+Release acceptance still requires a successful repair plan, an empty canonical
+migration plan, a fresh canonical database migration, runtime acceptance
+checks, and normalized PostgreSQL schema comparison against the reviewed
+bridge-release graph. Retain the canonical identities during rollback.
 
 A tracker entry marked done therefore does not prove that a particular host has
 the matching wheel or an up-to-date database. Conversely, a database

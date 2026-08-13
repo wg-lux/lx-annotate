@@ -6,7 +6,7 @@ import ReportTemplateBuilderPage from '../ReportTemplateBuilderPage.vue'
 import { reportTemplateLifecycleContextKey } from '../reportTemplateLifecycleContext'
 
 const hoisted = vi.hoisted(() => ({
-  axiosGet: vi.fn(),
+  fetchCoreConcepts: vi.fn(),
   fetchByName: vi.fn(),
   fetchPreviewByName: vi.fn(),
   fetchBuilderByExamination: vi.fn(),
@@ -18,9 +18,8 @@ const hoisted = vi.hoisted(() => ({
   unpublish: vi.fn()
 }))
 
-vi.mock('@/api/axiosInstance', () => ({
-  default: { get: hoisted.axiosGet },
-  dtypesApi: (path: string) => `/dtypes-api/${path}`
+vi.mock('@/api/coreConcepts', () => ({
+  fetchCoreConcepts: hoisted.fetchCoreConcepts
 }))
 
 vi.mock('@/api/reportTemplatesApi', () => ({
@@ -63,12 +62,23 @@ const draftTemplate = {
 describe('ReportTemplateBuilderPage publication integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    hoisted.axiosGet.mockResolvedValue({
-      data: {
-        examination: [{ name: 'colonoscopy' }],
-        finding: [],
-        classification: []
-      }
+    hoisted.fetchCoreConcepts.mockResolvedValue({
+      moduleName: 'report_template_examples',
+      examination: [{ name: 'colonoscopy', displayName: 'Colonoscopy', tags: [] }],
+      finding: [],
+      classification: [],
+      classificationChoice: [],
+      classificationChoiceDescriptor: [],
+      findingType: [],
+      indication: [],
+      indicationType: [],
+      intervention: [],
+      interventionType: [],
+      unit: [],
+      unitType: [],
+      informationSource: [],
+      informationSourceType: [],
+      citation: []
     })
     hoisted.fetchBuilderByExamination.mockResolvedValue([draftTemplate])
     hoisted.fetchPreviewByName.mockResolvedValue(draftTemplate)
@@ -97,6 +107,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
         provide: {
           [reportTemplateLifecycleContextKey as symbol]: {
             activeModuleName: computed(() => 'report_template_examples'),
+            activeExaminationName: computed(() => 'colonoscopy'),
             notifyLifecycleChanged
           }
         }
@@ -104,9 +115,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
     })
     await flushPromises()
 
-    expect(hoisted.axiosGet).toHaveBeenCalledWith(
-      '/dtypes-api/core-concepts/report_template_examples'
-    )
+    expect(hoisted.fetchCoreConcepts).toHaveBeenCalledWith('report_template_examples')
     expect(hoisted.fetchPreviewByName).toHaveBeenCalledWith(
       'report_template_examples',
       'custom_colonoscopy'
@@ -127,5 +136,90 @@ describe('ReportTemplateBuilderPage publication integration', () => {
       examination: 'colonoscopy',
       lifecycleStatus: 'published'
     })
+  })
+
+  it('uses the shell examination instead of the first core-concept examination', async () => {
+    hoisted.fetchCoreConcepts.mockResolvedValueOnce({
+      moduleName: 'report_template_examples',
+      examination: [
+        { name: 'gastroscopy', displayName: 'Gastroscopy', tags: [] },
+        { name: 'colonoscopy', displayName: 'Colonoscopy', tags: [] }
+      ],
+      finding: [],
+      classification: [],
+      classificationChoice: [],
+      classificationChoiceDescriptor: [],
+      findingType: [],
+      indication: [],
+      indicationType: [],
+      intervention: [],
+      interventionType: [],
+      unit: [],
+      unitType: [],
+      informationSource: [],
+      informationSourceType: [],
+      citation: []
+    })
+
+    mount(ReportTemplateBuilderPage, {
+      global: {
+        provide: {
+          [reportTemplateLifecycleContextKey as symbol]: {
+            activeModuleName: computed(() => 'report_template_examples'),
+            activeExaminationName: computed(() => 'colonoscopy'),
+            notifyLifecycleChanged: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      }
+    })
+    await flushPromises()
+
+    expect(hoisted.fetchBuilderByExamination).toHaveBeenCalledWith(
+      'report_template_examples',
+      'colonoscopy'
+    )
+    expect(hoisted.fetchBuilderByExamination).not.toHaveBeenCalledWith(
+      'report_template_examples',
+      'gastroscopy'
+    )
+  })
+
+  it('fails visibly instead of loading templates for an unrelated examination', async () => {
+    hoisted.fetchCoreConcepts.mockResolvedValueOnce({
+      moduleName: 'report_template_examples',
+      examination: [{ name: 'gastroscopy', displayName: 'Gastroscopy', tags: [] }],
+      finding: [],
+      classification: [],
+      classificationChoice: [],
+      classificationChoiceDescriptor: [],
+      findingType: [],
+      indication: [],
+      indicationType: [],
+      intervention: [],
+      interventionType: [],
+      unit: [],
+      unitType: [],
+      informationSource: [],
+      informationSourceType: [],
+      citation: []
+    })
+
+    const wrapper = mount(ReportTemplateBuilderPage, {
+      global: {
+        provide: {
+          [reportTemplateLifecycleContextKey as symbol]: {
+            activeModuleName: computed(() => 'report_template_examples'),
+            activeExaminationName: computed(() => 'colonoscopy'),
+            notifyLifecycleChanged: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      }
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(
+      'Die ausgewählte Untersuchung "colonoscopy" fehlt im aktiven Terminologiemodul.'
+    )
+    expect(hoisted.fetchBuilderByExamination).not.toHaveBeenCalled()
   })
 })

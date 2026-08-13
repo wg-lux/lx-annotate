@@ -29,6 +29,18 @@
           {{ result.unitValidators.length }} Einheitenregel(n)
         </div>
 
+        <div v-if="pendingDataIssues.length" class="alert alert-warning py-2 mb-2" role="status">
+          {{ pendingDataIssues.length }} Pflichtangabe(n) fehlen noch. Ergänzen Sie die markierten
+          Felder vor dem Abschluss.
+        </div>
+        <div v-if="generalIssues.length" class="alert alert-warning py-2 mb-2" role="status">
+          {{ generalIssues.length }} Vorlagenregel(n) benötigen Ihre Aufmerksamkeit.
+        </div>
+
+        <details class="mt-3" data-testid="validation-technical-details">
+          <summary class="small fw-semibold">Prüfdetails anzeigen</summary>
+          <div class="mt-3">
+
         <div v-if="pendingDataIssues.length" class="alert alert-warning py-2 mb-3">
           <h6 class="small text-uppercase mb-2">Ausstehende Daten</h6>
           <div
@@ -210,6 +222,8 @@
             </div>
           </div>
         </div>
+          </div>
+        </details>
       </template>
     </div>
   </div>

@@ -22,7 +22,7 @@
           <strong>Fehler:</strong> {{ anonymizationStore.error }}
         </div>
         <!-- Loading State -->
-        <div v-if="anonymizationStore.loading && !availableFiles.length" class="text-center py-5">
+        <div v-if="anonymizationStore.loading && !overviewFiles.length" class="text-center py-5">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Wird geladen...</span>
           </div>
@@ -31,7 +31,7 @@
 
         <!-- Empty State -->
         <div
-          v-else-if="!anonymizationStore.error && !availableFiles.length"
+          v-else-if="!anonymizationStore.error && !overviewFiles.length"
           class="text-center py-5"
         >
           <div class="mb-4">
@@ -43,9 +43,74 @@
           </p>
         </div>
 
+        <div
+          v-if="overviewFiles.length"
+          class="overview-filter-bar"
+          data-test="anonymization-overview-filters"
+          aria-label="Anonymisierungsdateien filtern"
+        >
+          <div class="overview-filter-field">
+            <label for="anonymization-resource-type-filter" class="form-label mb-1">
+              Ressourcentyp
+            </label>
+            <select
+              id="anonymization-resource-type-filter"
+              v-model="resourceTypeFilter"
+              class="form-select form-select-sm"
+              data-test="anonymization-resource-type-filter"
+            >
+              <option value="all">Alle Ressourcentypen</option>
+              <option value="video">Video</option>
+              <option value="pdf">PDF</option>
+              <option value="unknown">Unbekannt</option>
+            </select>
+          </div>
+          <div class="overview-filter-field">
+            <label for="anonymization-storage-state-filter" class="form-label mb-1">
+              Physischer Speicherstatus
+            </label>
+            <select
+              id="anonymization-storage-state-filter"
+              v-model="physicalStorageStateFilter"
+              class="form-select form-select-sm"
+              data-test="anonymization-storage-state-filter"
+            >
+              <option value="all">Alle Speicherzustände</option>
+              <option value="present">Originaldatei vorhanden</option>
+              <option value="deleted">Originaldatei gelöscht</option>
+              <option value="quarantined">In Quarantäne</option>
+              <option value="unknown">Unbekannt</option>
+            </select>
+          </div>
+          <div class="overview-filter-summary" aria-live="polite">
+            {{ availableFiles.length }} von {{ overviewFiles.length }} Ressourcen
+          </div>
+          <button
+            v-if="hasActiveTableFilters"
+            type="button"
+            class="btn btn-outline-secondary btn-sm mb-0"
+            data-test="anonymization-filters-reset"
+            @click="resetTableFilters"
+          >
+            Filter zurücksetzen
+          </button>
+        </div>
+
+        <div
+          v-if="overviewFiles.length && !availableFiles.length"
+          class="overview-filter-empty text-center py-5"
+          data-test="anonymization-filter-empty"
+        >
+          <h5>Keine passenden Ressourcen</h5>
+          <p class="text-muted mb-3">Die gewählten Filter liefern keine Tabellenzeilen.</p>
+          <button type="button" class="btn btn-outline-primary btn-sm" @click="resetTableFilters">
+            Filter zurücksetzen
+          </button>
+        </div>
+
         <!-- Files Table -->
         <div
-          v-else
+          v-if="availableFiles.length"
           ref="tableScrollElement"
           class="table-responsive overview-table-scroll"
           data-test="overview-table-scroll"
@@ -348,7 +413,7 @@
           </table>
         </div>
         <div
-          v-show="hasHorizontalOverflow"
+          v-show="availableFiles.length && hasHorizontalOverflow"
           ref="stickyScrollbarElement"
           class="overview-sticky-scrollbar"
           data-test="overview-sticky-scrollbar"
@@ -417,11 +482,6 @@
           </div>
         </div>
 
-        <!-- Show warning if files were filtered out -->
-        <div v-if="filteredOutCount > 0" class="alert alert-warning mt-3" role="alert">
-          <i class="ni ni-user-run me-2"></i>
-          <strong>Hinweis:</strong> {{ filteredOutCount }} Datei(en) wurden ausgeblendet, da die ursprünglichen Dateien nicht mehr verfügbar sind.
-        </div>
       </div>
     </div>
   </div>
@@ -465,17 +525,46 @@ const overviewTableElement = ref<HTMLTableElement | null>(null);
 const stickyScrollbarElement = ref<HTMLElement | null>(null);
 const tableScrollWidth = ref(0);
 const hasHorizontalOverflow = ref(false);
+const resourceTypeFilter = ref<'all' | FileItem['mediaType']>('all');
+type OriginalFileDeletionState = 'deleted' | 'present' | 'quarantined' | 'unknown';
+const physicalStorageStateFilter = ref<'all' | OriginalFileDeletionState>('all');
 let tableResizeObserver: ResizeObserver | null = null;
 const MONITORING_REFRESH_INTERVAL_MS = 15000;
 
-// Computed properties
-const availableFiles = computed(() => anonymizationStore.overview);
+const getOriginalFileDeletionState = (file: FileItem): OriginalFileDeletionState => {
+  if (file.quarantined) return 'quarantined';
 
-const filteredOutCount = computed(() =>
-  anonymizationStore.overview.length - availableFiles.value.length
+  if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
+    return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
+  }
+
+  const cleanupStatus = file.uploadJob?.cleanupStatus?.toLowerCase();
+  if (cleanupStatus === 'completed') return 'deleted';
+  if (cleanupStatus === 'pending' || cleanupStatus === 'eligible') return 'present';
+  if (file.rawFile?.trim()) return 'present';
+  return 'unknown';
+};
+
+// Computed properties
+const overviewFiles = computed(() => anonymizationStore.overview);
+const availableFiles = computed(() =>
+  overviewFiles.value.filter((file) => {
+    const matchesResourceType =
+      resourceTypeFilter.value === 'all' || file.mediaType === resourceTypeFilter.value;
+    const matchesStorageState =
+      physicalStorageStateFilter.value === 'all' ||
+      getOriginalFileDeletionState(file) === physicalStorageStateFilter.value;
+    return matchesResourceType && matchesStorageState;
+  })
+);
+const hasActiveTableFilters = computed(
+  () => resourceTypeFilter.value !== 'all' || physicalStorageStateFilter.value !== 'all'
 );
 
-
+const resetTableFilters = () => {
+  resourceTypeFilter.value = 'all';
+  physicalStorageStateFilter.value = 'all';
+};
 
 const updateStickyScrollbar = () => {
   const container = tableScrollElement.value;
@@ -999,32 +1088,6 @@ const getUploadJobCleanupLabel = (uploadJob: UploadJobOverview) => {
   return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
 };
 
-type OriginalFileDeletionState = 'deleted' | 'present' | 'quarantined' | 'unknown';
-
-const getOriginalFileDeletionState = (file: FileItem): OriginalFileDeletionState => {
-  if (file.quarantined) {
-    return 'quarantined';
-  }
-
-  if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
-    return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
-  }
-
-  const cleanupStatus = file.uploadJob?.cleanupStatus?.toLowerCase();
-  if (cleanupStatus === 'completed') {
-    return 'deleted';
-  }
-  if (cleanupStatus === 'pending' || cleanupStatus === 'eligible') {
-    return 'present';
-  }
-
-  if (file.rawFile && file.rawFile.trim() !== '') {
-    return 'present';
-  }
-
-  return 'unknown';
-};
-
 const getOriginalFileDeletionText = (file: FileItem): string => {
   const texts: Record<OriginalFileDeletionState, string> = {
     deleted: 'Ja, gelöscht',
@@ -1081,7 +1144,7 @@ const formatDate = (dateString: string | null) => {
   });
 };
 
-const hasActiveMonitoringState = () => availableFiles.value.some(file =>
+const hasActiveMonitoringState = () => overviewFiles.value.some(file =>
   isUploadJobActive(file) || isHlsMaterializationActive(file)
 );
 
@@ -1165,6 +1228,36 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+.overview-filter-bar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--lx-border, #dee2e6);
+  border-radius: 0.8rem;
+  background: var(--lx-surface-muted, #f8f9fa);
+}
+
+.overview-filter-field {
+  flex: 0 1 16rem;
+  min-width: 13rem;
+}
+
+.overview-filter-summary {
+  margin: 0 auto 0.5rem 0;
+  color: var(--lx-ink-muted, #6c757d);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.overview-filter-empty {
+  border: 1px dashed var(--lx-border-strong, #ced4da);
+  border-radius: 0.8rem;
+  background: var(--lx-surface-muted, #f8f9fa);
+}
 
 .table th {
   border-top: none;

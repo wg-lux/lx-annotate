@@ -1,18 +1,26 @@
 # pyright: reportAttributeAccessIssue=false, reportIndexIssue=false
 from __future__ import annotations
 
-from django.contrib.auth import get_user_model
-from django.core.files.base import ContentFile
-from django.test import TestCase
-from django.test import override_settings
+import base64
+import hashlib
+import os
 from unittest.mock import patch
 
-from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
+from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
+from django.test import TestCase, override_settings
+from django.utils import timezone
+from endoreg_db.models import (
+    Center,
+    NetworkNode,
+    RawPdfFile,
+    RawPdfState,
+    VideoFile,
+    VideoState,
+)
+
 from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import verify_hub_report_artifact
-
-import base64
-import os
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 User = get_user_model()
@@ -25,7 +33,8 @@ class HubExportApiTests(TestCase):
         self.operator = User.objects.create_user(username="hub-operator")
         self.client.force_login(self.operator)
         self.center = Center.objects.create(
-            name="Test Center", center_key="test-center"
+            name="Test Center",
+            center_key="test-center",
         )
         self.site_node = NetworkNode.objects.create(
             display_name="Site Node",
@@ -60,7 +69,8 @@ class HubExportApiTests(TestCase):
 
     def test_hub_export_overview_lists_eligible_items(self):
         empty_center = Center.objects.create(
-            name="Empty Center", center_key="empty-center"
+            name="Empty Center",
+            center_key="empty-center",
         )
         response = self.client.get("/api/hub-export/overview/")
 
@@ -71,13 +81,22 @@ class HubExportApiTests(TestCase):
         self.assertEqual(payload["source_node_key"], "site-node")
         self.assertEqual(len(payload["items"]), 1)
         self.assertTrue(payload["items"][0]["eligible"])
+        self.assertEqual(
+            payload["items"][0]["segment_annotation_status"],
+            "not_started",
+        )
+        self.assertEqual(
+            payload["items"][0]["export_integrity_status"],
+            "persisted_verified",
+        )
         self.assertFalse(payload["items"][0]["marked_for_upload"])
         self.assertIsNone(payload["items"][0]["marked_by_username"])
         self.assertIsNone(payload["items"][0]["marked_at"])
         self.assertEqual(payload["privacy_summary"]["min_k"], 5)
         self.assertEqual(payload["privacy_summary"]["eligible_resource_count"], 1)
         self.assertEqual(
-            payload["privacy_summary"]["smallest_equivalence_class_size"], 1
+            payload["privacy_summary"]["smallest_equivalence_class_size"],
+            1,
         )
         self.assertFalse(payload["privacy_summary"]["passes_k_anonymity"])
         sync_summary = payload["sync_summary"]
@@ -160,7 +179,7 @@ class HubExportApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(
-            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists()
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists(),
         )
 
     def test_overview_exposes_typed_failure_class_for_operator_triage(self) -> None:
@@ -232,7 +251,7 @@ class HubExportApiTests(TestCase):
 
         self.assertEqual(resource_alias_response.status_code, 400)
         self.assertFalse(
-            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists()
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists(),
         )
 
         NetworkNode.objects.create(
@@ -253,7 +272,7 @@ class HubExportApiTests(TestCase):
 
         self.assertEqual(target_alias_response.status_code, 400)
         self.assertFalse(
-            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists()
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists(),
         )
 
     def test_bulk_mark_is_atomic_when_one_resource_is_invalid(self):
@@ -271,7 +290,7 @@ class HubExportApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(
-            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists()
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists(),
         )
 
     def test_bulk_unmark_is_atomic_and_only_marked_jobs_are_reversible(self):
@@ -350,6 +369,62 @@ class HubExportApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
         self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.QUEUED)
+        delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
+
+    @override_settings(LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=False)
+    @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
+    def test_bulk_video_offload_fresh_verifies_and_explicitly_queues(self, delay_mock):
+        processed_content = b"eligible-anonymized-video"
+        processed_hash = hashlib.sha256(processed_content).hexdigest()
+        video_state = VideoState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            processing_started=True,
+            anonymization_validated=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=True,
+            ready_for_export_at=timezone.now(),
+            ready_for_export_by="test-suite",
+            processed_file_sha256=processed_hash,
+        )
+        video = VideoFile.objects.create(
+            center=self.center,
+            state=video_state,
+            video_hash="eligible-video-hash",
+            processed_video_hash=processed_hash,
+            original_file_name="eligible-video.mp4",
+            processed_file=ContentFile(processed_content, name="eligible-video.mp4"),
+        )
+        VideoFile.objects.create(
+            center=self.center,
+            video_hash="ineligible-video-hash",
+            original_file_name="ineligible-video.mp4",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                "/api/hub-export/offload-eligible-videos/",
+                data={"target_node_key": "hub-node"},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "target_node_key": "hub-node",
+                "discovered_count": 2,
+                "eligible_count": 1,
+                "queued_count": 1,
+                "already_registered_count": 0,
+                "skipped_count": 1,
+            },
+        )
+        job = OutboundHubTransferJob.objects.get(video_file=video)
+        self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.QUEUED)
+        self.assertEqual(job.marked_by, self.operator)
         delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
 
     def test_hub_export_overview_reports_not_ready_when_multiple_hubs_exist(self):

@@ -16,6 +16,7 @@ from lx_annotate.views.application_settings import primary_annotation_settings_d
 from lx_annotate.views.frame_annotation import BoundedDecodedFrameStreamView
 from lx_annotate.views.hub_export import (
     hub_export_mark,
+    hub_export_offload_eligible_videos,
     hub_export_overview,
     hub_export_unmark,
 )
@@ -74,6 +75,11 @@ urlpatterns = [
     ),
     path("hub-export/overview/", hub_export_overview, name="hub-export-overview"),
     path("hub-export/mark/", hub_export_mark, name="hub-export-mark"),
+    path(
+        "hub-export/offload-eligible-videos/",
+        hub_export_offload_eligible_videos,
+        name="hub-export-offload-eligible-videos",
+    ),
     path("hub-export/unmark/", hub_export_unmark, name="hub-export-unmark"),
     path(
         "runtime/quarantine/",

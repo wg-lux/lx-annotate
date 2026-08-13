@@ -6,14 +6,17 @@ export interface AiDatasetOption {
   value: string
   label: string
   datasetType: AiDatasetType
-  aiModelType: string
+  aiModelType: AiDatasetModelType
   isActive: boolean
   nameCount: number
 }
 
 export type AiDatasetType = 'image' | 'video'
 
-export type AiDatasetModelType = 'image_multilabel_classification' | 'video_segment_classification'
+export type AiDatasetModelType =
+  | 'image_multilabel_classification'
+  | 'phi_region_detector'
+  | 'video_segment_classification'
 
 export interface CreateAiDatasetPayload {
   name: string
@@ -138,9 +141,9 @@ export interface AiDatasetTrainingManifestPreview {
 }
 
 export interface AiDatasetAttachmentPayload {
-  videoId?: number | string | null
-  frameAnnotationIds?: Array<number | string>
-  segmentIds?: Array<number | string>
+  videoId?: number | null
+  frameAnnotationIds?: number[]
+  segmentIds?: number[]
   includeFrameAnnotations?: boolean
   includeVideoAnnotations?: boolean
   includeAllAnnotations?: boolean
@@ -184,6 +187,60 @@ function requireInteger(value: unknown, field: string, minimum: number): number 
   return value
 }
 
+function requireNullablePositiveInteger(value: unknown, field: string): number | null {
+  if (value === null) {
+    return null
+  }
+  return requireInteger(value, field, 1)
+}
+
+function requirePositiveIntegerArray(value: unknown, field: string): number[] {
+  if (!Array.isArray(value)) {
+    throw new TypeError(`AI dataset response contains an invalid ${field}`)
+  }
+  return value.map((item, index) => requireInteger(item, `${field}[${String(index)}]`, 1))
+}
+
+const AI_DATASET_ATTACHMENT_RESULT_FIELDS = new Set([
+  'datasetId',
+  'videoId',
+  'frameAnnotationCount',
+  'videoAnnotationCount',
+  'attachedFrameAnnotationIds',
+  'attachedSegmentIds',
+  'attachedFrameAnnotationCount',
+  'attachedSegmentCount'
+])
+
+function requireAiDatasetAttachmentResult(value: unknown): AiDatasetAttachmentResult {
+  if (!isRecord(value)) {
+    throw new TypeError('AI dataset attachment response must be an object')
+  }
+  const unknownField = Object.keys(value).find(
+    (field) => !AI_DATASET_ATTACHMENT_RESULT_FIELDS.has(field)
+  )
+  if (unknownField !== undefined) {
+    throw new TypeError(`AI dataset attachment response contains unknown field ${unknownField}`)
+  }
+  return {
+    datasetId: requireInteger(value.datasetId, 'datasetId', 1),
+    videoId: requireNullablePositiveInteger(value.videoId, 'videoId'),
+    frameAnnotationCount: requireInteger(value.frameAnnotationCount, 'frameAnnotationCount', 0),
+    videoAnnotationCount: requireInteger(value.videoAnnotationCount, 'videoAnnotationCount', 0),
+    attachedFrameAnnotationIds: requirePositiveIntegerArray(
+      value.attachedFrameAnnotationIds,
+      'attachedFrameAnnotationIds'
+    ),
+    attachedSegmentIds: requirePositiveIntegerArray(value.attachedSegmentIds, 'attachedSegmentIds'),
+    attachedFrameAnnotationCount: requireInteger(
+      value.attachedFrameAnnotationCount,
+      'attachedFrameAnnotationCount',
+      0
+    ),
+    attachedSegmentCount: requireInteger(value.attachedSegmentCount, 'attachedSegmentCount', 0)
+  }
+}
+
 function requireAiDatasetType(value: unknown): AiDatasetType {
   if (value !== 'image' && value !== 'video') {
     throw new TypeError('AI dataset response contains an invalid datasetType')
@@ -191,20 +248,54 @@ function requireAiDatasetType(value: unknown): AiDatasetType {
   return value
 }
 
+function requireAiDatasetModelType(value: unknown): AiDatasetModelType {
+  if (
+    value !== 'image_multilabel_classification' &&
+    value !== 'phi_region_detector' &&
+    value !== 'video_segment_classification'
+  ) {
+    throw new TypeError('AI dataset response contains an invalid aiModelType')
+  }
+  return value
+}
+
+const AI_DATASET_OPTION_FIELDS = new Set([
+  'id',
+  'value',
+  'label',
+  'datasetType',
+  'aiModelType',
+  'isActive',
+  'nameCount'
+])
+
 function requireAiDatasetOption(value: unknown, index?: number): AiDatasetOption {
   const prefix = index === undefined ? '' : `[${String(index)}].`
   if (!isRecord(value)) {
     throw new TypeError(`AI dataset response contains an invalid option${prefix}`)
   }
+  const unknownField = Object.keys(value).find((field) => !AI_DATASET_OPTION_FIELDS.has(field))
+  if (unknownField !== undefined) {
+    throw new TypeError(`AI dataset response contains unknown field ${unknownField}`)
+  }
   if (typeof value.isActive !== 'boolean') {
     throw new TypeError(`AI dataset response contains an invalid ${prefix}isActive`)
+  }
+  const datasetType = requireAiDatasetType(value.datasetType)
+  const aiModelType = requireAiDatasetModelType(value.aiModelType)
+  const allowedModelTypes: Record<AiDatasetType, ReadonlySet<AiDatasetModelType>> = {
+    image: new Set(['image_multilabel_classification', 'phi_region_detector']),
+    video: new Set(['video_segment_classification'])
+  }
+  if (!allowedModelTypes[datasetType].has(aiModelType)) {
+    throw new TypeError('AI dataset response contains incompatible dataset/model types')
   }
   return {
     id: requireInteger(value.id, `${prefix}id`, 1),
     value: requireString(value.value, `${prefix}value`),
     label: requireString(value.label, `${prefix}label`),
-    datasetType: requireAiDatasetType(value.datasetType),
-    aiModelType: requireString(value.aiModelType, `${prefix}aiModelType`),
+    datasetType,
+    aiModelType,
     isActive: value.isActive,
     nameCount: requireInteger(value.nameCount, `${prefix}nameCount`, 1)
   }
@@ -265,9 +356,6 @@ export async function attachAiDatasetAnnotations(
   datasetId: number | string,
   payload: AiDatasetAttachmentPayload
 ): Promise<AiDatasetAttachmentResult> {
-  const { data } = await axiosInstance.post<AiDatasetAttachmentResult>(
-    r(attachmentsPath(datasetId)),
-    payload
-  )
-  return data
+  const { data } = await axiosInstance.post<unknown>(r(attachmentsPath(datasetId)), payload)
+  return requireAiDatasetAttachmentResult(data)
 }

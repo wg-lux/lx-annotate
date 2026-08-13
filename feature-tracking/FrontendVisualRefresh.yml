@@ -1,0 +1,167 @@
+schema_version: '1.0'
+id: frontend_visual_refresh
+name: Frontend visual refresh
+description: Cohesive, accessible visual polish for the shared LX-Annotate application shell.
+owners:
+- lx-annotate maintainers
+production_critical: false
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-ui-config-20260813
+    changed_at: '2026-08-13T09:52:49.876644Z'
+    note: Shared frontend shell and global visual system implemented; type-check, production build, scoped
+      lint, and 9 focused navigation tests passed.
+  - action: reopened
+    changed_by: codex-table-filters-20260813
+    changed_at: '2026-08-13T09:55:11.013030Z'
+    note: Large anonymization and hub tables need resource-type and physical-storage-state filters.
+  - action: done
+    changed_by: codex-table-filters-20260813
+    changed_at: '2026-08-13T10:00:35.177483Z'
+    note: Resource-type and physical-storage-state filtering added to anonymization and Hub tables; lint,
+      type-check, build, and 30 focused tests passed.
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Repository implementation and clinical terminology constraints.
+definition_of_done:
+- id: shared_shell
+  category: functionality
+  title: Shared application shell has a cohesive responsive hierarchy
+  acceptance:
+  - Navigation, content, and account controls remain usable at desktop and mobile widths.
+  - Existing routes, permissions, workflow counters, and authentication behavior are unchanged.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - type-check
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: npm --prefix frontend run type-check
+      note: Exit-Code 0
+    - kind: command
+      reference: 'npm --prefix frontend run type-check: exit 0'
+    note: Vue type-check passed and scoped review confirmed responsive navigation plus unchanged route,
+      permission, counter, and authentication behavior.
+    assessed_by: codex-ui-config-20260813
+    assessed_at: '2026-08-13T09:51:47.514716Z'
+- id: visual_system
+  category: requirements
+  title: Global visual system is legible and accessible
+  acceptance:
+  - Typography, surfaces, controls, tables, focus states, and motion use consistent tokens.
+  - Reduced-motion preferences and keyboard focus visibility are preserved.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the global overrides and shared shell components for contrast, focus, motion,
+      and responsive behavior.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: frontend/src/assets/custom-overrides.css and shared shell component styles
+    - kind: test
+      reference: 'AnonymizationOverviewComponent and HubExportOverviewComponent filter tests: 30 total
+        focused tests passed'
+    note: Anonymization and Hub export tables now provide combined resource-type and physical-storage-state
+      filters, visible/total counts, reset controls, and explicit no-match states.
+    assessed_by: codex-table-filters-20260813
+    assessed_at: '2026-08-13T10:00:20.303667Z'
+- id: frontend_verification
+  category: testing
+  title: Frontend build and navigation component tests pass
+  acceptance:
+  - The production frontend build succeeds.
+  - Existing shared navigation tests continue to pass.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - build
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm --prefix frontend run build: exit 0 with existing chunk-size advisory'
+    - kind: test
+      reference: 'Vitest overview component suites: 2 files, 30 tests passed'
+    note: Scoped ESLint, Vue type-check, production build, and both overview component suites passed.
+    assessed_by: codex-table-filters-20260813
+    assessed_at: '2026-08-13T10:00:21.596514Z'
+- id: accessibility_contract
+  category: security
+  title: Keyboard and motion accessibility remain explicit
+  acceptance:
+  - Interactive shell controls expose visible focus states and meaningful accessible names.
+  - Non-essential animation is disabled when reduced motion is requested.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect shared shell controls and reduced-motion CSS.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: frontend/src/App.vue and frontend/src/components/Menus/*.vue
+    note: Interactive shell controls retain accessible names and visible focus; reduced-motion rules disable
+      non-essential motion.
+    assessed_by: codex-ui-config-20260813
+    assessed_at: '2026-08-13T09:51:37.842054Z'
+- id: workflow_regression
+  category: operations
+  title: Clinical workflow presentation semantics are preserved
+  acceptance:
+  - Anonymization and segment annotation status terminology is not changed.
+  - No route filtering, authorization, API, or workflow state logic is changed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the scoped diff against AGENTS.md workflow terminology requirements.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'npm --prefix frontend run test:unit -- --run menu component tests: 9 passed'
+    note: Scoped diff changes presentation and the existing mobile shell event hookup only; routes, permissions,
+      counters, API calls, and clinical status terminology are unchanged.
+    assessed_by: codex-ui-config-20260813
+    assessed_at: '2026-08-13T09:51:39.460917Z'
+- id: maintainable_scope
+  category: documentation
+  title: Visual changes stay within shared presentation boundaries
+  acceptance:
+  - Existing component behavior and data loading remain unchanged.
+  - Global styling uses named design tokens and avoids generated asset edits.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review changed file scope and CSS token usage.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: scoped git diff for five declared files
+    note: Changes use named global tokens and component-scoped styles; generated Material Dashboard assets
+      and application data behavior were not edited.
+    assessed_by: codex-ui-config-20260813
+    assessed_at: '2026-08-13T09:51:41.173564Z'

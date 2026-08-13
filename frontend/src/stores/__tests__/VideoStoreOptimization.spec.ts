@@ -263,6 +263,73 @@ describe('VideoStore Performance Optimization', () => {
     expect(store.currentVideo?.segments[0].segmentOrigin).toBe('prediction')
   })
 
+  it('does not apply another video segments after a cancelled request', async () => {
+    const store = useVideoStore()
+    axiosGet
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({
+        data: {
+          results: [
+            {
+              id: 101,
+              original_file_name: 'Video A',
+              center_name: 'Center',
+              processor_name: 'Processor',
+              status: 'available',
+              segments: []
+            },
+            {
+              id: 102,
+              original_file_name: 'Video B',
+              center_name: 'Center',
+              processor_name: 'Processor',
+              status: 'available',
+              segments: []
+            }
+          ]
+        }
+      })
+    await store.fetchAllVideos()
+
+    let rejectVideoA!: (reason: Error) => void
+    const videoAResponse = new Promise<{ data: unknown }>((_resolve, reject) => {
+      rejectVideoA = reject
+    })
+    axiosGet.mockImplementation((url: string) => {
+      if (url === 'media/videos/101/segments/') return videoAResponse
+      if (url === 'media/videos/102/segments/') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 202,
+              videoId: 102,
+              labelName: 'outside',
+              startTime: 2,
+              endTime: 4
+            }
+          ]
+        })
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`))
+    })
+
+    const videoALoad = store.fetchAllSegments(101, true)
+    const videoBLoad = store.fetchAllSegments(102, true)
+    await videoBLoad
+
+    const cancellation = Object.assign(new Error('request cancelled'), {
+      code: 'ERR_CANCELED',
+      name: 'CanceledError'
+    })
+    rejectVideoA(cancellation)
+    await videoALoad
+
+    expect(store.currentVideo?.id).toBe(102)
+    expect(store.currentVideo?.segments.map((segment) => segment.id)).toEqual([202])
+    expect(store.videoList.videos.find((video) => video.id === 101)?.segments).toEqual([])
+    expect(store.videoList.videos.find((video) => video.id === 102)?.segments?.[0]?.id).toBe(202)
+  })
+
   it('loads prediction model options for KI reruns', async () => {
     const store = useVideoStore()
     axiosGet.mockResolvedValueOnce({

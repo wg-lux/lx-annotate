@@ -2,18 +2,30 @@
   <div>
     <h6 class="mb-2">{{ title }}</h6>
     <p v-if="description" class="text-muted small">{{ description }}</p>
-    <div v-if="optionsError" class="alert alert-warning py-2 d-flex justify-content-between align-items-center">
+    <div
+      v-if="optionsError"
+      class="alert alert-warning py-2 d-flex justify-content-between align-items-center"
+    >
       <span>{{ optionsError }}</span>
-      <button class="btn btn-outline-secondary btn-sm" :disabled="disabled || optionsLoading" @click="$emit('refresh-options')">
+      <button
+        class="btn btn-outline-secondary btn-sm"
+        :disabled="disabled || optionsLoading"
+        @click="$emit('refresh-options')"
+      >
         Optionen neu laden
       </button>
     </div>
-    <div v-else-if="optionsLoading" class="small text-muted mb-2">
-      Lade Indikationsoptionen...
-    </div>
-    <div v-else-if="!hasBaseIndicationOptions" class="alert alert-info py-2 d-flex justify-content-between align-items-center">
+    <div v-else-if="optionsLoading" class="small text-muted mb-2">Lade Indikationsoptionen...</div>
+    <div
+      v-else-if="!hasBaseIndicationOptions"
+      class="alert alert-info py-2 d-flex justify-content-between align-items-center"
+    >
       <span>Keine Indikationsoptionen aus dem Backend geladen.</span>
-      <button class="btn btn-outline-secondary btn-sm" :disabled="disabled" @click="$emit('refresh-options')">
+      <button
+        class="btn btn-outline-secondary btn-sm"
+        :disabled="disabled"
+        @click="$emit('refresh-options')"
+      >
         Optionen laden
       </button>
     </div>
@@ -41,9 +53,15 @@
         <label class="form-label">Indikationsauswahl (optional)</label>
         <select
           class="form-select"
-          :disabled="disabled || !row.examinationIndicationId || !resolveChoiceOptionsForRow(row).length"
+          :disabled="
+            disabled || !row.examinationIndicationId || !resolveChoiceOptionsForRow(row).length
+          "
           :value="row.indicationChoiceId ?? ''"
-          @change="emitUpdateRow(idx, { indicationChoiceId: parseOptionalInt(($event.target as HTMLSelectElement).value) })"
+          @change="
+            emitUpdateRow(idx, {
+              indicationChoiceId: parseOptionalInt(($event.target as HTMLSelectElement).value)
+            })
+          "
         >
           <option value="">
             {{ row.examinationIndicationId ? 'Keine Auswahl' : 'Zuerst Indikation wählen' }}
@@ -58,7 +76,11 @@
         </select>
       </div>
       <div class="col-md-2">
-        <button class="btn btn-outline-danger w-100" :disabled="disabled" @click="$emit('remove-row', idx)">
+        <button
+          class="btn btn-outline-danger w-100"
+          :disabled="disabled"
+          @click="$emit('remove-row', idx)"
+        >
           Entfernen
         </button>
       </div>
@@ -75,17 +97,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ReportingIndicationRow } from '@/stores/reportingFlowStore'
-
-type IndicationChoiceOption = {
-  id: number
-  label: string
-}
-
-type IndicationOption = {
-  id: number
-  label: string
-  choices?: IndicationChoiceOption[]
-}
+import type {
+  ReportingIndicationChoiceOption as IndicationChoiceOption,
+  ReportingIndicationOption as IndicationOption
+} from '@/views/reporting/reportingIndicationContract'
 
 const props = withDefaults(
   defineProps<{
@@ -126,7 +141,7 @@ function dedupeChoiceOptions(options: IndicationChoiceOption[]): IndicationChoic
     if (!Number.isFinite(id)) continue
     byId.set(id, {
       id,
-      label: option.label || `Auswahl #${String(id)}`
+      label: option.label || 'Bezeichnung nicht verfügbar'
     })
   }
   return Array.from(byId.values())
@@ -140,14 +155,14 @@ const baseIndicationOptions = computed<IndicationOption[]>(() => {
     const current = byId.get(id)
     const mergedChoices = dedupeChoiceOptions([
       ...(current?.choices || []),
-      ...(entry.choices || []).map((choice) => ({
+      ...entry.choices.map((choice) => ({
         id: choice.id,
         label: choice.label || ''
       }))
     ])
     byId.set(id, {
       id,
-      label: entry.label || `Indikation #${String(id)}`,
+      label: entry.label || 'Bezeichnung nicht verfügbar',
       choices: mergedChoices
     })
   }
@@ -168,7 +183,7 @@ function resolveIndicationOptionsForRow(row: ReportingIndicationRow): Indication
     return options
   }
   return [
-    { id: existingId, label: `Unbekannte Indikation (#${String(existingId)})`, choices: [] },
+    { id: existingId, label: 'Gespeicherte Indikation nicht mehr verfügbar', choices: [] },
     ...options
   ]
 }
@@ -179,7 +194,7 @@ function resolveChoiceOptionsForRow(row: ReportingIndicationRow): IndicationChoi
   if (existingId == null || options.some((option) => option.id === existingId)) {
     return options
   }
-  return [{ id: existingId, label: `Unbekannte Auswahl (#${String(existingId)})` }, ...options]
+  return [{ id: existingId, label: 'Gespeicherte Auswahl nicht mehr verfügbar' }, ...options]
 }
 
 function onIndicationChanged(index: number, rawValue: string) {
@@ -187,8 +202,7 @@ function onIndicationChanged(index: number, rawValue: string) {
   const nextChoiceOptions = getChoiceOptionsForIndication(nextIndicationId)
   const currentChoiceId = props.rows[index]?.indicationChoiceId ?? null
   const shouldClearChoice =
-    currentChoiceId != null &&
-    !nextChoiceOptions.some((choice) => choice.id === currentChoiceId)
+    currentChoiceId != null && !nextChoiceOptions.some((choice) => choice.id === currentChoiceId)
 
   emitUpdateRow(index, {
     examinationIndicationId: nextIndicationId,

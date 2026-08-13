@@ -285,6 +285,53 @@ describe('AnonymizationOverviewComponent', () => {
     expect(rows[1].text()).toContain('Bereinigung offen')
   })
 
+  it('filters the large overview by resource type and physical storage state', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({
+        id: 17,
+        uploadJob: {
+          id: 'deleted-video-source',
+          status: 'anonymized',
+          sourceFilePersisted: false,
+          cleanupStatus: 'completed'
+        }
+      }),
+      buildPdfFile({
+        id: 23,
+        uploadJob: {
+          id: 'present-pdf-source',
+          status: 'anonymized',
+          sourceFilePersisted: true,
+          cleanupStatus: 'pending'
+        }
+      }),
+      buildQuarantinedVideoFile()
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    await wrapper.get('[data-test="anonymization-resource-type-filter"]').setValue('pdf')
+    let rows = wrapper.findAll('table.overview-files-table tbody tr')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('study-report.pdf')
+    expect(wrapper.get('[data-test="anonymization-overview-filters"]').text()).toContain(
+      '1 von 3 Ressourcen'
+    )
+
+    await wrapper.get('[data-test="anonymization-storage-state-filter"]').setValue('deleted')
+    expect(wrapper.find('[data-test="anonymization-filter-empty"]').exists()).toBe(true)
+
+    await wrapper.get('[data-test="anonymization-filters-reset"]').trigger('click')
+    rows = wrapper.findAll('table.overview-files-table tbody tr')
+    expect(rows).toHaveLength(3)
+
+    await wrapper.get('[data-test="anonymization-storage-state-filter"]').setValue('quarantined')
+    rows = wrapper.findAll('table.overview-files-table tbody tr')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('quarantined-video.mov')
+  })
+
   it('keeps the filename column identifiable for sticky horizontal scrolling', async () => {
     const wrapper = mount(AnonymizationOverviewComponent)
     await flushPromises()

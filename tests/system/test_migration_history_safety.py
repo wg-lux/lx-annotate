@@ -62,7 +62,11 @@ def test_reviewed_contracts_match_installed_canonical_packages() -> None:
     assert set(manifests) == {contract.app_label for contract in safety.CONTRACTS}
     for contract in safety.CONTRACTS:
         assert not hasattr(contract, "distribution_version")
-        assert contract.canonical_leaf in manifests[contract.app_label].names
+        assert not hasattr(contract, "canonical_manifest_sha256")
+        assert all(
+            checkpoint.canonical_leaf in manifests[contract.app_label].names
+            for checkpoint in contract.legacy_checkpoints
+        )
 
 
 def test_reviewed_migration_files_are_owned_by_declared_distributions() -> None:
@@ -92,3 +96,4 @@ def test_retired_dependency_migration_graph_is_not_shipped() -> None:
     assert not package_root.joinpath("migration_overrides").is_dir()
     assert not hasattr(settings_base, "MIGRATION_MODULES")
     assert "converge_migration_history" not in get_commands()
+    assert "repair_legacy_migration_history" in get_commands()

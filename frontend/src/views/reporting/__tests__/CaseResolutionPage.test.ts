@@ -246,12 +246,28 @@ describe('CaseResolutionPage workflow linking', () => {
     )
 
     const nextLink = requireDefined(
-      wrapper
-        .findAll('a')
-        .find((link) => link.text().includes('Zur klinischen Dokumentation')),
+      wrapper.findAll('a').find((link) => link.text().includes('Zur klinischen Dokumentation')),
       'the clinical documentation link'
     )
     expect(nextLink.attributes('data-to')).toBe('/reporting/314/findings')
+  })
+
+  it('rejects duplicate preferred examination nodes instead of selecting the first', async () => {
+    hoisted.examinationStoreRef.current.examinationsDropdown = [
+      { id: 13, name: 'colonoscopy', displayName: 'Koloskopie' },
+      { id: 14, name: 'colonoscopy', displayName: 'Koloskopie (legacy)' }
+    ]
+
+    const wrapper = mount(CaseResolutionPage)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('ist im Untersuchungskatalog nicht eindeutig')
+    expect(hoisted.flowRef.current.selectedExaminationId).toBeNull()
+    expect(
+      hoisted.flowRef.current.setCaseSelection.mock.calls.some(
+        ([payload]) => payload.selectedExaminationId !== undefined
+      )
+    ).toBe(false)
   })
 
   it('resolves center names to center keys before creating a patient from metadata', async () => {

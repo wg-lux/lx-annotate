@@ -1,9 +1,9 @@
-import { computed, ref } from 'vue'
+import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
 
 import {
   fetchReportTemplateByName as fetchTemplateByNameApi,
   fetchReportTemplatesByExamination as fetchTemplatesByExaminationApi,
-  describeSectionTitle
+  getReportTemplateSectionDisplayName
 } from '@/api/reportTemplatesApi'
 import type {
   ReportTemplatePayload,
@@ -13,7 +13,8 @@ import type {
 import { reportingApiErrorMessage } from '@/views/reporting/reportingError'
 
 function normalizeSections(
-  sections: ReportTemplatePayload['reportSections'] | undefined
+  sections: ReportTemplatePayload['reportSections'] | undefined,
+  language: 'de' | 'en'
 ): ReportTemplateSectionBlock[] {
   return (sections || [])
     .slice()
@@ -33,7 +34,7 @@ function normalizeSections(
       return {
         name: section.name,
         position: section.position,
-        title: describeSectionTitle(section.name),
+        title: getReportTemplateSectionDisplayName(section, language),
         subtitle: `${String(findings.length)} Befunde · ${String(requiredFindingsCount)} erforderlich`,
         findings,
         requiredFindingsCount,
@@ -46,6 +47,7 @@ function normalizeSections(
 export function useReportTemplates(params?: {
   initialModuleName?: string
   initialTemplateName?: string | null
+  language?: MaybeRefOrGetter<'de' | 'en'>
 }) {
   const moduleName = ref(params?.initialModuleName?.trim() || '')
   const selectedTemplateName = ref<string | null>(params?.initialTemplateName || null)
@@ -56,7 +58,12 @@ export function useReportTemplates(params?: {
   let contextKey = moduleName.value
   let requestGeneration = 0
 
-  const sectionBlocks = computed(() => normalizeSections(selectedTemplate.value?.reportSections))
+  const sectionBlocks = computed(() =>
+    normalizeSections(
+      selectedTemplate.value?.reportSections,
+      params?.language ? toValue(params.language) : 'de'
+    )
+  )
   const validatorDescriptors = computed<ReportTemplateValidatorDescriptor[]>(() => [
     ...(selectedTemplate.value?.validators.findingsValidators || []),
     ...(selectedTemplate.value?.validators.examinationValidators || [])

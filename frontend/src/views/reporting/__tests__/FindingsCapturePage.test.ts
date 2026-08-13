@@ -35,14 +35,20 @@ const hoisted = vi.hoisted(() => {
 
   return {
     flowRef: new FixtureRef<ReturnType<typeof buildFlowStore>>('reporting flow'),
-    findingSelectorsRef:
-      new FixtureRef<ReturnType<typeof buildFindingSelectors>>('finding selectors'),
+    findingSelectorsRef: new FixtureRef<ReturnType<typeof buildFindingSelectors>>(
+      'finding selectors'
+    ),
     validateRuntime: vi.fn(),
     templateControls: {
       annotationOnly: false,
       setModuleName: vi.fn(),
       selectTemplateByName: vi.fn().mockResolvedValue(undefined),
       fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
+    },
+    examinationStore: {
+      exams: [{ id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }],
+      examinationsDropdown: [{ id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }],
+      fetchExaminations: vi.fn().mockResolvedValue(undefined)
     }
   }
 })
@@ -63,96 +69,102 @@ vi.mock('@/composables/reporting/useReportTemplates', () => ({
   useReportTemplates: () => {
     const annotationOnly = hoisted.templateControls.annotationOnly
     return {
-    moduleName: ref(annotationOnly ? '' : 'report_template_examples'),
-    selectedTemplateName: ref(annotationOnly ? null : 'star_upper_gi_main'),
-    templateOptions: ref(
-      annotationOnly ? [] : [{ name: 'star_upper_gi_main', examination: 'gastroscopy' }]
-    ),
-    selectedTemplate: ref(annotationOnly ? null : {
-      name: 'star_upper_gi_main',
-      examination: 'gastroscopy',
-      reportSections: [],
-      validators: {
-        examinationValidators: [],
-        findingsValidators: []
-      }
-    }),
-    sectionBlocks: ref(annotationOnly ? [] : [
-      {
-        name: 'examination_baseline',
-        position: 0,
-        title: 'Examination Baseline',
-        subtitle: 'Initial findings',
-        findings: [
-          {
-            finding: 'esophagus_polyp',
-            required: true,
-            multipleAllowed: true,
-            classifications: [
+      moduleName: ref(annotationOnly ? '' : 'report_template_examples'),
+      selectedTemplateName: ref(annotationOnly ? null : 'star_upper_gi_main'),
+      templateOptions: ref(
+        annotationOnly ? [] : [{ name: 'star_upper_gi_main', examination: 'gastroscopy' }]
+      ),
+      selectedTemplate: ref(
+        annotationOnly
+          ? null
+          : {
+              name: 'star_upper_gi_main',
+              examination: 'gastroscopy',
+              reportSections: [],
+              validators: {
+                examinationValidators: [],
+                findingsValidators: []
+              }
+            }
+      ),
+      sectionBlocks: ref(
+        annotationOnly
+          ? []
+          : [
               {
-                classification: 'size_mm',
-                required: true,
-                input: {
-                  choices: [
-                    {
-                      name: 'size_mm',
-                      descriptors: [
-                        {
-                          name: 'length_mm_descriptor',
-                          type: 'numeric',
-                          unit: 'milimeter',
-                          unitAbbreviation: 'mm',
-                          numericMin: 0,
-                          numericMax: 200
+                name: 'examination_baseline',
+                position: 0,
+                title: 'Examination Baseline',
+                subtitle: 'Initial findings',
+                findings: [
+                  {
+                    finding: 'esophagus_polyp',
+                    required: true,
+                    multipleAllowed: true,
+                    classifications: [
+                      {
+                        classification: 'size_mm',
+                        required: true,
+                        input: {
+                          choices: [
+                            {
+                              name: 'size_mm',
+                              descriptors: [
+                                {
+                                  name: 'length_mm_descriptor',
+                                  type: 'numeric',
+                                  unit: 'milimeter',
+                                  unitAbbreviation: 'mm',
+                                  numericMin: 0,
+                                  numericMax: 200
+                                }
+                              ]
+                            }
+                          ]
                         }
-                      ]
-                    }
-                  ]
-                }
-              },
-              { classification: 'lst', required: false },
-              {
-                classification: 'medication_administration_time',
-                required: false,
-                input: {
-                  choices: [
-                    {
-                      name: 'medication_administration_time_recorded',
-                      descriptors: [
-                        {
-                          name: 'medication_administration_time_value',
-                          type: 'text',
-                          unit: null,
-                          unitAbbreviation: null,
-                          numericMin: null,
-                          numericMax: null
+                      },
+                      { classification: 'lst', required: false },
+                      {
+                        classification: 'medication_administration_time',
+                        required: false,
+                        input: {
+                          choices: [
+                            {
+                              name: 'medication_administration_time_recorded',
+                              descriptors: [
+                                {
+                                  name: 'medication_administration_time_value',
+                                  type: 'text',
+                                  unit: null,
+                                  unitAbbreviation: null,
+                                  numericMin: null,
+                                  numericMax: null
+                                }
+                              ]
+                            }
+                          ]
                         }
-                      ]
-                    }
-                  ]
-                }
+                      }
+                    ]
+                  }
+                ],
+                requiredFindingsCount: 1,
+                optionalFindingsCount: 0,
+                requiredClassificationsCount: 1
               }
             ]
-          }
-        ],
-        requiredFindingsCount: 1,
-        optionalFindingsCount: 0,
-        requiredClassificationsCount: 1
-      }
-    ]),
-    loading: ref(false),
-    errorMessage: ref(null),
-    fetchTemplatesByExamination: hoisted.templateControls.fetchTemplatesByExamination,
-    selectTemplateByName: hoisted.templateControls.selectTemplateByName,
-    setModuleName: hoisted.templateControls.setModuleName
-  }
+      ),
+      loading: ref(false),
+      errorMessage: ref(null),
+      fetchTemplatesByExamination: hoisted.templateControls.fetchTemplatesByExamination,
+      selectTemplateByName: hoisted.templateControls.selectTemplateByName,
+      setModuleName: hoisted.templateControls.setModuleName
+    }
   }
 }))
 
 vi.mock('@/stores/examinationStore', () => ({
-  useExaminationStore: () => ({
-    examinationsDropdown: [{ id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }]
-  })
+  useExaminationStore: () => hoisted.examinationStore
 }))
 
 function buildFlowStore() {
@@ -178,7 +190,7 @@ function buildFlowStore() {
 
   const flow = reactive({
     patientExaminationId: 42,
-    selectedExaminationId: 7,
+    selectedExaminationId: 7 as number | null,
     selectedKbModule: 'report_template_examples',
     selectedTemplateName: 'star_upper_gi_main' as string | null,
     findingsRevision: 0,
@@ -356,6 +368,11 @@ describe('FindingsCapturePage runtime draft flow', () => {
     hoisted.templateControls.annotationOnly = false
     hoisted.templateControls.fetchTemplatesByExamination.mockResolvedValue([])
     hoisted.templateControls.selectTemplateByName.mockResolvedValue(undefined)
+    hoisted.examinationStore.exams = [{ id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }]
+    hoisted.examinationStore.examinationsDropdown = [
+      { id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }
+    ]
+    hoisted.examinationStore.fetchExaminations.mockResolvedValue(undefined)
     hoisted.flowRef.current = buildFlowStore()
     hoisted.findingSelectorsRef.current = buildFindingSelectors()
     hoisted.validateRuntime.mockResolvedValue({
@@ -584,5 +601,21 @@ describe('FindingsCapturePage runtime draft flow', () => {
 
     expect(ensureCatalogLoaded).toHaveBeenCalledWith(7)
     expect(wrapper.text()).toContain('Oesophagus Polyp')
+  })
+
+  it('loads colonoscopy findings and templates when only the canonical name is persisted', async () => {
+    hoisted.flowRef.current.selectedExaminationId = null
+    hoisted.flowRef.current.currentRuntimeDraft.payload.examination = 'colonoscopy'
+    hoisted.examinationStore.exams = [{ id: 12, name: 'colonoscopy', displayName: 'Koloskopie' }]
+    hoisted.examinationStore.examinationsDropdown = [
+      { id: 12, name: 'colonoscopy', displayName: 'Koloskopie' }
+    ]
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Bitte zuerst das Fall-Setup abschließen')
+    expect(hoisted.findingSelectorsRef.current.ensureCatalogLoaded).toHaveBeenCalledWith(12)
+    expect(hoisted.templateControls.fetchTemplatesByExamination).toHaveBeenCalledWith('colonoscopy')
   })
 })

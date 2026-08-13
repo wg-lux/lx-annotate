@@ -95,7 +95,7 @@
                         :key="template.name"
                         :value="template.name"
                       >
-                        {{ describeReportTemplateTitle(template.name) }}
+                        {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage) }}
                       </option>
                     </select>
                     <div class="form-text">Vorlage oben im Reporting-Kontext wechseln.</div>
@@ -332,11 +332,15 @@
                   <span>Untersuchung</span>
                   <strong>{{ selectedExaminationDisplayName || 'Nicht gewählt' }}</strong>
                 </div>
-                <div>
-                  <span>Bericht-ID</span>
-                  <strong>{{ flow.activeReportId ? `#${flow.activeReportId}` : 'Neu' }}</strong>
-                </div>
               </div>
+
+              <details class="report-technical-details">
+                <summary>Technische Berichtsdetails</summary>
+                <div>
+                  <span>Berichtsreferenz</span>
+                  <strong>{{ flow.activeReportId || 'Noch nicht vergeben' }}</strong>
+                </div>
+              </details>
 
               <div class="report-preview-sheet">
                 <pre>{{ renderedReportPreview }}</pre>
@@ -452,7 +456,7 @@ import {
   mergeFindingClassifications,
   type Finding
 } from '@/api/findings.contract'
-import { describeReportTemplateTitle } from '@/api/reportTemplatesApi'
+import { describeReportTemplateTitle, getReportTemplateDisplayName } from '@/api/reportTemplatesApi'
 import { fetchCoreConcepts } from '@/api/coreConcepts'
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue'
@@ -474,8 +478,21 @@ import type {
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateSectionDraft
 } from '@/types/reportTemplate'
-import type { CoreConceptBase, CoreConceptCollection } from '@/types/coreConcepts'
+import {
+  getCoreConceptLocalizedName,
+  type CoreConceptBase,
+  type CoreConceptCollection
+} from '@/types/coreConcepts'
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
+import {
+  requireResolvedReportingExamination,
+  resolveReportingExamination
+} from './reportingExaminationResolution'
+import {
+  normalizeReportingIndicationOptions,
+  type ReportingIndicationChoiceOption,
+  type ReportingIndicationOption
+} from './reportingIndicationContract'
 
 type PatientExaminationReportListItem = {
   id: number
@@ -484,17 +501,6 @@ type PatientExaminationReportListItem = {
   templateName?: string
   updatedAt?: string
   renderedText?: string
-}
-
-type IndicationChoiceOption = {
-  id: number
-  label: string
-}
-
-type IndicationOption = {
-  id: number
-  label: string
-  choices: IndicationChoiceOption[]
 }
 
 type EditorContext = {
@@ -526,7 +532,7 @@ const findingCatalog = ref<Finding[]>([])
 const findingCatalogError = ref<string | null>(null)
 const coreConcepts = ref<CoreConceptCollection | null>(null)
 const coreConceptsError = ref<string | null>(null)
-const indicationOptions = ref<IndicationOption[]>([])
+const indicationOptions = ref<ReportingIndicationOption[]>([])
 const indicationOptionsLoading = ref(false)
 const indicationOptionsError = ref<string | null>(null)
 
@@ -544,13 +550,24 @@ const {
   setRequestContext
 } = useReportTemplates({
   initialModuleName: terminology.activeBundle ? terminology.activeModuleName : '',
-  initialTemplateName: flow.selectedTemplateName
+  initialTemplateName: flow.selectedTemplateName,
+  language: computed(() => flow.selectedReportLanguage)
 })
 
-const selectedExamination = computed(
-  () =>
-    examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) ||
-    null
+const selectedExaminationResolution = computed(() =>
+  resolveReportingExamination({
+    catalog: examinationStore.examinationsDropdown,
+    selectedExaminationId: flow.selectedExaminationId,
+    examinationName: flow.currentRuntimeDraft?.payload.examination
+  })
+)
+const selectedExamination = computed(() =>
+  selectedExaminationResolution.value.status === 'resolved'
+    ? selectedExaminationResolution.value.examination
+    : null
+)
+const resolvedSelectedExaminationId = computed(
+  () => selectedExamination.value?.id ?? flow.selectedExaminationId
 )
 const selectedExaminationName = computed(() => selectedExamination.value?.name || null)
 const selectedExaminationDisplayName = computed(
@@ -559,11 +576,12 @@ const selectedExaminationDisplayName = computed(
 const selectedPatient = computed(() =>
   flow.selectedPatientId ? patientStore.getPatientById(flow.selectedPatientId) : null
 )
-const selectedTemplateDisplayName = computed(() =>
-  selectedTemplateName.value
-    ? describeReportTemplateTitle(selectedTemplateName.value)
-    : 'Ohne Berichtsvorlage'
-)
+const selectedTemplateDisplayName = computed(() => {
+  if (!selectedTemplateName.value) return 'Ohne Berichtsvorlage'
+  return selectedTemplate.value
+    ? getReportTemplateDisplayName(selectedTemplate.value, flow.selectedReportLanguage)
+    : describeReportTemplateTitle(selectedTemplateName.value)
+})
 
 const templateStatusMessage = ref<string | null>(null)
 let editorContextGeneration = 0
@@ -574,7 +592,7 @@ function captureEditorContext(): EditorContext | null {
   return {
     generation: editorContextGeneration,
     patientExaminationId: flow.patientExaminationId,
-    selectedExaminationId: flow.selectedExaminationId,
+    selectedExaminationId: resolvedSelectedExaminationId.value,
     bundleKey: terminology.activeBundleKey
   }
 }
@@ -582,10 +600,10 @@ function captureEditorContext(): EditorContext | null {
 function isEditorContextCurrent(context?: EditorContext): boolean {
   return (
     !context ||
-      (context.generation === editorContextGeneration &&
-        context.patientExaminationId === flow.patientExaminationId &&
-        context.selectedExaminationId === flow.selectedExaminationId &&
-        context.bundleKey === terminology.activeBundleKey)
+    (context.generation === editorContextGeneration &&
+      context.patientExaminationId === flow.patientExaminationId &&
+      context.selectedExaminationId === resolvedSelectedExaminationId.value &&
+      context.bundleKey === terminology.activeBundleKey)
   )
 }
 
@@ -659,7 +677,7 @@ const reportPatientLabel = computed(() => {
   if (!patient) return 'Nicht gewählt'
   const name = [patient.firstName, patient.lastName].filter(Boolean).join(' ').trim()
   const details = [patient.gender, formatDateOnly(patient.dob)].filter(Boolean)
-  return [name || `Patient #${String(patient.id)}`, ...details].join(' · ')
+  return [name || 'Patient ausgewählt', ...details].join(' · ')
 })
 
 const normalizedIndications = computed<SaveReportSubmissionRequest['indications']>(() =>
@@ -675,28 +693,28 @@ const normalizedIndicationsPreview = computed(() =>
   JSON.stringify(normalizedIndications.value, null, 2)
 )
 
-const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
-  const optionsById = new Map<number, IndicationOption>()
+const indicationOptionsForEditor = computed<ReportingIndicationOption[]>(() => {
+  const optionsById = new Map<number, ReportingIndicationOption>()
 
-  const upsert = (option: IndicationOption) => {
+  const upsert = (option: ReportingIndicationOption) => {
     const existing = optionsById.get(option.id)
     if (!existing) {
       optionsById.set(option.id, {
         id: option.id,
-        label: option.label || `Indikation #${String(option.id)}`,
+        label: option.label || 'Bezeichnung nicht verfügbar',
         choices: option.choices.slice()
       })
       return
     }
-    existing.label = existing.label || option.label || `Indikation #${String(option.id)}`
-    const choiceById = new Map<number, IndicationChoiceOption>()
+    existing.label = existing.label || option.label || 'Bezeichnung nicht verfügbar'
+    const choiceById = new Map<number, ReportingIndicationChoiceOption>()
     for (const choice of existing.choices) {
       choiceById.set(choice.id, choice)
     }
     for (const choice of option.choices) {
       choiceById.set(choice.id, {
         id: choice.id,
-        label: choice.label || `Auswahl #${String(choice.id)}`
+        label: choice.label || 'Bezeichnung nicht verfügbar'
       })
     }
     existing.choices = Array.from(choiceById.values())
@@ -716,7 +734,7 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     if (!optionsById.has(indicationId)) {
       upsert({
         id: indicationId,
-        label: `Unbekannte Indikation (#${String(indicationId)})`,
+        label: 'Gespeicherte Indikation nicht mehr verfügbar',
         choices: []
       })
     }
@@ -726,7 +744,7 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     if (!option) continue
     if (!option.choices.some((choice) => choice.id === choiceId)) {
       option.choices = [
-        { id: choiceId, label: `Unbekannte Auswahl (#${String(choiceId)})` },
+        { id: choiceId, label: 'Gespeicherte Auswahl nicht mehr verfügbar' },
         ...option.choices
       ]
     }
@@ -742,9 +760,7 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
     .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
 })
 
-const sectionDraftPreview = computed(() =>
-  JSON.stringify(flow.templateSectionDrafts, null, 2)
-)
+const sectionDraftPreview = computed(() => JSON.stringify(flow.templateSectionDrafts, null, 2))
 const runtimeFindingsPreview = computed(() =>
   JSON.stringify(currentPayload.value?.patientFindings || [], null, 2)
 )
@@ -897,283 +913,6 @@ function requireReportListItem(value: unknown): PatientExaminationReportListItem
   }
 }
 
-function normalizeDisplayLabel(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const normalized = value.trim()
-  return normalized || null
-}
-
-function normalizeChoiceOptions(value: unknown): IndicationChoiceOption[] {
-  if (!Array.isArray(value)) {
-    if (!value || typeof value !== 'object') return []
-    const row = value as Record<string, unknown>
-    const id = normalizePositiveId(
-      row.choiceId ??
-        row.choice_id ??
-        row.indicationChoiceId ??
-        row.indication_choice_id ??
-        row.id ??
-        (row as Record<string, unknown>).value
-    )
-    if (id == null) return []
-    const label =
-      normalizeDisplayLabel(
-        row.label ?? row.name ?? row.displayName ?? row.name_de ?? row.nameDe
-      ) || `Auswahl #${String(id)}`
-    return [{ id, label }]
-  }
-  const choiceById = new Map<number, IndicationChoiceOption>()
-  for (const entry of value) {
-    if (entry && typeof entry === 'object') {
-      const row = entry as Record<string, unknown>
-      const id = normalizePositiveId(
-        row.id ??
-          row.choiceId ??
-          row.choice_id ??
-          row.indicationChoiceId ??
-          row.indication_choice_id
-      )
-      if (id == null) continue
-      const label =
-        normalizeDisplayLabel(
-          row.label ?? row.name ?? row.displayName ?? row.name_de ?? row.nameDe
-        ) || `Auswahl #${String(id)}`
-      choiceById.set(id, { id, label })
-      continue
-    }
-    const id = normalizePositiveId(entry)
-    if (id == null) continue
-    choiceById.set(id, { id, label: `Auswahl #${String(id)}` })
-  }
-  return Array.from(choiceById.values())
-}
-
-function normalizeChoiceOptionsFromClassifications(value: unknown): IndicationChoiceOption[] {
-  if (!Array.isArray(value)) return []
-  const aggregated: IndicationChoiceOption[] = []
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object') continue
-    const row = entry as Record<string, unknown>
-    aggregated.push(...normalizeChoiceOptions(row.choices))
-  }
-  const deduped = new Map<number, IndicationChoiceOption>()
-  for (const choice of aggregated) {
-    deduped.set(choice.id, choice)
-  }
-  return Array.from(deduped.values())
-}
-
-function normalizeIndicationOptions(value: unknown): IndicationOption[] {
-  if (!value || typeof value !== 'object') return []
-  if (!Array.isArray(value)) {
-    const rows: unknown[] = []
-    const candidate = value as Record<string, unknown>
-    const directId = normalizePositiveId(
-      candidate.id ??
-        candidate.indicationId ??
-        candidate.indication_id ??
-        candidate.examinationIndicationId ??
-        candidate.examination_indication_id
-    )
-    if (directId != null) {
-      rows.push(candidate)
-    } else {
-      for (const [rawKey, rawValue] of Object.entries(candidate)) {
-        if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
-          rows.push({ ...(rawValue as Record<string, unknown>), id: normalizePositiveId(rawKey) })
-        } else {
-          rows.push({
-            id: rawKey,
-            choices: rawValue
-          } as Record<string, unknown>)
-        }
-      }
-    }
-    value = rows
-  }
-
-  if (!Array.isArray(value)) return []
-  const indicationById = new Map<number, IndicationOption>()
-  for (const entry of value) {
-    if (entry && typeof entry === 'object') {
-      const row = entry as Record<string, unknown>
-      const id = normalizePositiveId(
-        row.id ??
-          row.indicationId ??
-          row.indication_id ??
-          row.examinationIndicationId ??
-          row.examination_indication_id
-      )
-      if (id == null) continue
-      const label =
-        normalizeDisplayLabel(
-          row.label ?? row.name ?? row.displayName ?? row.name_de ?? row.nameDe
-        ) || `Indikation #${String(id)}`
-      const choices = [
-        ...normalizeChoiceOptions(row.choices),
-        ...normalizeChoiceOptions(row.indicationChoices),
-        ...normalizeChoiceOptions(row.indication_choices),
-        ...normalizeChoiceOptionsFromClassifications(row.classifications)
-      ]
-      const choiceById = new Map<number, IndicationChoiceOption>()
-      for (const choice of choices) {
-        choiceById.set(choice.id, choice)
-      }
-      indicationById.set(id, {
-        id,
-        label,
-        choices: Array.from(choiceById.values())
-      })
-      continue
-    }
-    const id = normalizePositiveId(entry)
-    if (id == null) continue
-    indicationById.set(id, {
-      id,
-      label: `Indikation #${String(id)}`,
-      choices: []
-    })
-  }
-
-  return Array.from(indicationById.values())
-}
-
-function upsertIndicationOption(
-  optionsById: Map<number, IndicationOption>,
-  option: IndicationOption
-) {
-  const existing = optionsById.get(option.id)
-  if (!existing) {
-    optionsById.set(option.id, {
-      id: option.id,
-      label: option.label || `Indikation #${String(option.id)}`,
-      choices: option.choices.slice()
-    })
-    return
-  }
-
-  if (!existing.label || existing.label.startsWith('Unbekannte')) {
-    existing.label = option.label || existing.label || `Indikation #${String(option.id)}`
-  }
-
-  const choiceById = new Map<number, IndicationChoiceOption>()
-  for (const choice of existing.choices) {
-    choiceById.set(choice.id, choice)
-  }
-  for (const choice of option.choices) {
-    choiceById.set(choice.id, {
-      id: choice.id,
-      label: choice.label || `Auswahl #${String(choice.id)}`
-    })
-  }
-  existing.choices = Array.from(choiceById.values())
-}
-
-function appendChoice(
-  optionsById: Map<number, IndicationOption>,
-  indicationId: number,
-  choice: IndicationChoiceOption
-): void {
-  const option = optionsById.get(indicationId)
-  if (!option) return
-  if (!option.choices.some((existingChoice) => existingChoice.id === choice.id)) {
-    option.choices.push(choice)
-  }
-}
-
-function extractChoiceRow(
-  row: unknown
-): { indicationId: number; choice: IndicationChoiceOption } | null {
-  if (!row || typeof row !== 'object') return null
-  const value = row as Record<string, unknown>
-  const indicationId = normalizePositiveId(
-    value.examinationIndicationId ??
-      value.examination_indication_id ??
-      value.indicationId ??
-      value.indication_id
-  )
-  const choiceId = normalizePositiveId(
-    value.id ??
-      value.choiceId ??
-      value.choice_id ??
-      value.indicationChoiceId ??
-      value.indication_choice_id
-  )
-  if (indicationId == null || choiceId == null) return null
-  const label =
-    normalizeDisplayLabel(
-      value.label ?? value.name ?? value.displayName ?? value.name_de ?? value.nameDe
-    ) || `Auswahl #${String(choiceId)}`
-  return { indicationId, choice: { id: choiceId, label } }
-}
-
-function appendChoiceCandidate(
-  candidate: unknown,
-  optionsById: Map<number, IndicationOption>
-): void {
-  if (Array.isArray(candidate)) {
-    for (const row of candidate) {
-      const normalized = extractChoiceRow(row)
-      if (normalized) appendChoice(optionsById, normalized.indicationId, normalized.choice)
-    }
-    return
-  }
-  if (!candidate || typeof candidate !== 'object') return
-
-  for (const [key, choices] of Object.entries(candidate as Record<string, unknown>)) {
-    const indicationId = normalizePositiveId(key)
-    if (indicationId == null) continue
-    for (const choice of normalizeChoiceOptions(choices)) {
-      appendChoice(optionsById, indicationId, choice)
-    }
-  }
-}
-
-function extractOptionsFromPayload(payload: unknown, optionsById: Map<number, IndicationOption>) {
-  if (!payload || typeof payload !== 'object') return
-  const data = payload as Record<string, unknown>
-  const nestedExamination =
-    data.examination && typeof data.examination === 'object'
-      ? (data.examination as Record<string, unknown>)
-      : null
-
-  const indicationCandidates: unknown[] = [
-    data.indications,
-    data.examinationIndications,
-    data.examination_indications,
-    data.indicationOptions,
-    data.indication_options,
-    data.examinationIndicationOptions,
-    data.examination_indication_options,
-    data.indicationChoices,
-    data.indication_choices,
-    nestedExamination?.indications,
-    nestedExamination?.examinationIndications,
-    nestedExamination?.examination_indications,
-    nestedExamination?.indicationOptions,
-    nestedExamination?.indication_options,
-    nestedExamination?.examinationIndicationOptions,
-    nestedExamination?.examination_indication_options
-  ]
-
-  for (const candidate of indicationCandidates) {
-    for (const option of normalizeIndicationOptions(candidate)) {
-      upsertIndicationOption(optionsById, option)
-    }
-  }
-
-  const topLevelChoiceCandidates: unknown[] = [
-    data.indicationChoices,
-    data.indication_choices,
-    nestedExamination?.indicationChoices,
-    nestedExamination?.indication_choices
-  ]
-
-  for (const candidate of topLevelChoiceCandidates) {
-    appendChoiceCandidate(candidate, optionsById)
-  }
-}
-
 async function loadIndicationCatalog(context?: EditorContext) {
   const patientExaminationId = context?.patientExaminationId ?? flow.patientExaminationId
   const selectedExaminationId = context?.selectedExaminationId ?? flow.selectedExaminationId
@@ -1188,7 +927,7 @@ async function loadIndicationCatalog(context?: EditorContext) {
   indicationOptionsLoading.value = true
   indicationOptionsError.value = null
 
-  const optionsById = new Map<number, IndicationOption>()
+  const indicationPayloads: unknown[] = []
   const loadErrors: string[] = []
 
   if (patientExaminationId) {
@@ -1196,7 +935,7 @@ async function loadIndicationCatalog(context?: EditorContext) {
       const detailRes = await axiosInstance.get(
         r(endpoints.examination.patientExaminationDetail(patientExaminationId))
       )
-      extractOptionsFromPayload(detailRes.data, optionsById)
+      indicationPayloads.push(detailRes.data)
     } catch {
       loadErrors.push('patient-examination')
     }
@@ -1205,10 +944,10 @@ async function loadIndicationCatalog(context?: EditorContext) {
   if (selectedExaminationId) {
     try {
       const pathSuffix = patientExaminationId
-        ? `examinations/${selectedExaminationId}/indications/?patient_examination_id=${patientExaminationId}`
-        : `examinations/${selectedExaminationId}/indications/`
+        ? `examinations/${String(selectedExaminationId)}/indications/?patient_examination_id=${String(patientExaminationId)}`
+        : `examinations/${String(selectedExaminationId)}/indications/`
       const indicationRes = await axiosInstance.get<unknown>(dtypesApi(pathSuffix))
-      extractOptionsFromPayload(indicationRes.data, optionsById)
+      indicationPayloads.push(indicationRes.data)
     } catch {
       loadErrors.push('indication-catalog')
     }
@@ -1217,13 +956,13 @@ async function loadIndicationCatalog(context?: EditorContext) {
       const examRes = await axiosInstance.get(
         r(`${endpoints.router.examinations}${String(selectedExaminationId)}/`)
       )
-      extractOptionsFromPayload(examRes.data, optionsById)
+      indicationPayloads.push(examRes.data)
     } catch {
       loadErrors.push('examination-detail')
     }
   }
 
-  if (selectedExaminationId && !optionsById.size) {
+  if (selectedExaminationId && !normalizeReportingIndicationOptions(indicationPayloads).length) {
     try {
       const listRes = await axiosInstance.get<unknown>(r(endpoints.router.examinations))
       const rows = readListPayload(listRes.data)
@@ -1231,7 +970,7 @@ async function loadIndicationCatalog(context?: EditorContext) {
         (entry) => normalizePositiveId(readRecord(entry).id) === selectedExaminationId
       )
       if (selectedRow) {
-        extractOptionsFromPayload(selectedRow, optionsById)
+        indicationPayloads.push(selectedRow)
       }
     } catch {
       loadErrors.push('examination-list')
@@ -1239,7 +978,7 @@ async function loadIndicationCatalog(context?: EditorContext) {
   }
 
   if (!isEditorContextCurrent(context)) return
-  indicationOptions.value = Array.from(optionsById.values())
+  indicationOptions.value = normalizeReportingIndicationOptions(indicationPayloads)
     .map((option) => ({
       ...option,
       choices: option.choices
@@ -1327,27 +1066,8 @@ function buildExaminationContextText(): string {
   const examinationName = selectedExaminationName.value
   if (!examinationName) return ''
   const label = localizedConceptLabel(coreConcepts.value?.examination, examinationName)
-  return `${localizedStaticText('examination')}: ${label || selectedExaminationDisplayName.value || ''}`
-}
-
-function localizedStaticText(
-  key: 'examination' | 'minutes' | 'size_mm' | 'rectified_depth_cm'
-): string {
-  const translations = {
-    de: {
-      examination: 'Untersuchung',
-      minutes: 'Minuten',
-      size_mm: 'Größe (mm)',
-      rectified_depth_cm: 'Rektifizierte Tiefe (cm)'
-    },
-    en: {
-      examination: 'Examination',
-      minutes: 'Minutes',
-      size_mm: 'Size (mm)',
-      rectified_depth_cm: 'Rectified depth (cm)'
-    }
-  } as const
-  return translations[flow.selectedReportLanguage][key]
+  const heading = flow.selectedReportLanguage === 'de' ? 'Untersuchung' : 'Examination'
+  return `${heading}: ${label || selectedExaminationDisplayName.value || ''}`
 }
 
 function localizedConceptLabel(
@@ -1356,9 +1076,7 @@ function localizedConceptLabel(
 ): string | null {
   const concept = concepts?.find((entry) => entry.name === conceptName)
   if (!concept) return null
-  return flow.selectedReportLanguage === 'de'
-    ? concept.nameDe || concept.name
-    : concept.nameEn || concept.name
+  return getCoreConceptLocalizedName(concept, flow.selectedReportLanguage, concept.name)
 }
 
 function getFindingDefinition(findingName: string): Finding | null {
@@ -1403,12 +1121,22 @@ function getDescriptorLabel(descriptorName: string): string {
     descriptorName
   )
   if (localized) return localized
-  if (descriptorName === 'minutes_numeric_value') return localizedStaticText('minutes')
-  if (descriptorName === 'length_mm_descriptor') return localizedStaticText('size_mm')
-  if (descriptorName === 'cm_rectified' || descriptorName === 'cmRectified') {
-    return localizedStaticText('rectified_depth_cm')
-  }
   return descriptorName.replace(/_/g, ' ')
+}
+
+function formatDescriptorValue(descriptorName: string, value: unknown): string {
+  const descriptor = coreConcepts.value?.classificationChoiceDescriptor.find(
+    (entry) => entry.name === descriptorName
+  )
+  const unit = descriptor?.unit
+    ? coreConcepts.value?.unit.find((entry) => entry.name === descriptor.unit)
+    : null
+  const abbreviation = unit?.abbreviation?.trim() || ''
+  const label = getDescriptorLabel(descriptorName)
+  const suffix = abbreviation && !label.toLocaleLowerCase('de').includes(abbreviation.toLocaleLowerCase('de'))
+    ? ` ${abbreviation}`
+    : ''
+  return `${label}: ${String(value)}${suffix}`
 }
 
 function formatRuntimeFindingSummary(finding: ReportTemplateRuntimePatientFindingInput): string {
@@ -1418,9 +1146,10 @@ function formatRuntimeFindingSummary(finding: ReportTemplateRuntimePatientFindin
         ? ` (${choice.descriptors
             .map(
               (descriptor) =>
-                `${getDescriptorLabel(descriptor.classificationChoiceDescriptor)}: ${String(
+                formatDescriptorValue(
+                  descriptor.classificationChoiceDescriptor,
                   descriptor.descriptorValue
-                )}`
+                )
             )
             .join(', ')})`
         : ''
@@ -1626,7 +1355,7 @@ async function loadLatestReportMeta(context?: EditorContext) {
       manuallyEditedReportText.value = latest.renderedText
       reportTextManuallyEdited.value = true
     }
-    successMessage.value = `Bericht #${String(latest.id)} (Version ${String(latest.version)}) geladen.`
+    successMessage.value = `Der Bericht wurde geladen (Version ${String(latest.version)}).`
   } catch (e: unknown) {
     if (!isEditorContextCurrent(context)) return
     errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden bestehender Berichte.')
@@ -1703,8 +1432,8 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
     persistedArtifacts.value = data.persistedArtifacts || null
 
     successMessage.value = data.created
-      ? `Bericht wurde erstellt (ID ${String(data.report.id)}, Version ${String(data.report.version)}).`
-      : `Bericht wurde aktualisiert (ID ${String(data.report.id)}, Version ${String(data.report.version)}).`
+      ? `Der Bericht wurde erstellt (Version ${String(data.report.version)}).`
+      : `Der Bericht wurde aktualisiert (Version ${String(data.report.version)}).`
   } catch (e: unknown) {
     if (!isReportSaveOperationCurrent(context, operationGeneration)) return
     const versionConflict = reportingApiError(e).response?.data?.expectedVersion
@@ -1735,23 +1464,31 @@ async function initializeEditorContext() {
       'Der Befundentwurf wird vorbereitet. Diese Ansicht aktualisiert sich automatisch.'
     return
   }
-  const context: EditorContext = {
-    generation: editorContextGeneration,
-    patientExaminationId: flow.patientExaminationId,
-    selectedExaminationId: flow.selectedExaminationId,
-    bundleKey: terminology.activeBundleKey
-  }
-  const contextKey = `${String(context.patientExaminationId)}:${String(context.selectedExaminationId || '')}:${context.bundleKey}`
+  const generation = editorContextGeneration
+  const patientExaminationId = flow.patientExaminationId
+  const bundleKey = terminology.activeBundleKey
+  const contextKey = `${String(patientExaminationId)}:${flow.currentRuntimeDraft.payload.examination}:${bundleKey}`
   if (initializedContextKey === contextKey || initializationInFlightKey === contextKey) return
   initializationInFlightKey = contextKey
   errorMessage.value = null
+  let context: EditorContext | undefined
   try {
-    await Promise.all([
-      ensurePatientsLoaded(),
-      ensureExaminationsLoaded(),
-      loadFindingCatalog(context),
-      loadCoreConceptLabels(context)
-    ])
+    await Promise.all([ensurePatientsLoaded(), ensureExaminationsLoaded()])
+    if (
+      generation !== editorContextGeneration ||
+      patientExaminationId !== flow.patientExaminationId ||
+      bundleKey !== terminology.activeBundleKey
+    ) {
+      return
+    }
+    requireResolvedReportingExamination({
+      catalog: examinationStore.examinationsDropdown,
+      selectedExaminationId: flow.selectedExaminationId,
+      examinationName: flow.currentRuntimeDraft.payload.examination
+    })
+    context = captureEditorContext() || undefined
+    if (!context) return
+    await Promise.all([loadFindingCatalog(context), loadCoreConceptLabels(context)])
     if (!isEditorContextCurrent(context)) return
     await loadIndicationCatalog(context)
     if (!isEditorContextCurrent(context)) return
@@ -1774,6 +1511,7 @@ watch(
   [
     () => flow.patientExaminationId,
     () => flow.selectedExaminationId,
+    resolvedSelectedExaminationId,
     () => Boolean(flow.currentRuntimeDraft),
     () => terminology.activeBundleKey
   ],
@@ -2027,6 +1765,29 @@ onMounted(async () => {
 .report-preview-meta strong {
   min-width: 0;
   text-align: right;
+  color: #212529;
+}
+
+.report-technical-details {
+  padding: 0 1rem 0.875rem;
+  border-bottom: 1px solid #e9ecef;
+  color: #6c757d;
+  font-size: 0.8rem;
+}
+
+.report-technical-details summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.report-technical-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.report-technical-details strong {
   color: #212529;
 }
 

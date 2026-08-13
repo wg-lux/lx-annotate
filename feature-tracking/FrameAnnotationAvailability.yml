@@ -137,8 +137,14 @@ definition_of_done:
   acceptance:
   - The client requests frame bytes only for the current task, retries typed warming and throttling responses
     according to Retry-After, and places a strict limit on automatic retries.
+  - Frame-byte requests are globally serialized in the annotation page. Duplicate requests for the same
+    frame reuse the in-flight promise, and at most the next task is prefetched into an ephemeral in-memory
+    Blob cache that is cleared on queue invalidation and page teardown.
   - A failed or unavailable frame cannot be submitted accidentally; the operator can retry it or skip
     it with the existing annotator and dataset scope preserved.
+  - Bulk label persistence and optional AI-dataset attachment use one backend transaction. An uncommitted
+    write returns typed retry semantics; the client retains the current task and retries only when the
+    response explicitly permits it.
   - Queue metadata prefetch maintains a bounded reserve of distinct frame identities without reserving
     or decoding an unbounded number of frames on the backend.
   - Changing the primary dataset, label set, annotator, source artifact kind, or sampling policy invalidates
@@ -159,10 +165,35 @@ definition_of_done:
     - kind: test
       reference: frontend/src/views/__tests__/FrameAnnotationPage.test.ts; frontend/src/stores/__tests__/annotationQueue.test.ts;
         frontend/tests/stores/annotationQueue.frameTask.test.ts
-    note: Frame bytes are current-task-only; submission waits for render; warming/throttle retries are
-      bounded; stale queue generations are discarded; skip preserves scope.
-    assessed_by: codex-frame-labels
-    assessed_at: '2026-08-12T06:51:45.066456Z'
+    - kind: command
+      reference: devenv shell -- npm --prefix frontend run test:unit -- --run src/views/__tests__/FrameAnnotationPage.test.ts
+        src/stores/__tests__/annotationQueue.test.ts tests/stores/annotationQueue.frameTask.test.ts (36
+        passed)
+    - kind: command
+      reference: devenv shell -- npm --prefix frontend run type-check:component-tests (passed); scoped
+        ESLint (passed)
+    - kind: code
+      reference: frontend/src/api/frameAnnotationsApi.ts; frontend/src/views/FrameAnnotation.vue
+    - kind: test
+      reference: frontend/src/api/__tests__/frameAnnotationsApi.test.ts; frontend/src/views/__tests__/FrameAnnotationPage.test.ts
+    - kind: command
+      reference: npm run test:unit -- --run src/api/__tests__/frameAnnotationsApi.test.ts src/views/__tests__/FrameAnnotationPage.test.ts
+        (27 passed)
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/views/video/ai/frame_annotations.py::_bulk_write_failure_response
+    - kind: test
+      reference: /home/admin/endoreg-db/tests/views/video/test_frame_annotation_bulk_upsert.py (12 passed,
+        2 subtests passed)
+    - kind: command
+      reference: /home/admin/endoreg-db/.devenv/state/venv/bin/pytest tests/views/video/test_frame_annotation_task_endpoints.py
+        tests/views/video/test_annotation_access_controls.py -q (31 passed)
+    note: Frame-byte requests remain serialized and bounded. Backend annotation persistence and optional
+      dataset attachment are atomic and expose explicit not-committed/retryable semantics; the client
+      never advances on failure and blocks retries when commit state is unknown or retry is denied. Backend
+      rollback/error-mapping tests, focused frontend API/page and queue tests, both frontend type-check
+      lanes, and scoped ESLint pass.
+    assessed_by: codex-contract-clinical-20260813
+    assessed_at: '2026-08-13T08:54:21.173921Z'
 - id: operator_acceptance
   category: operations
   title: Availability has observable service-level acceptance

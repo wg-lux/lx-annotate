@@ -4,7 +4,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from django.core.checks import CRITICAL, WARNING
+from django.core.checks import WARNING
 from django.core.checks.registry import registry
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
@@ -13,7 +13,6 @@ from lx_dtypes.models.interface.KnowledgeBaseResolver import (
 )
 
 from lx_annotate import checks as checks_module
-from lx_annotate import migration_history_safety as history_safety
 
 
 @override_settings(MEDIA_ROOT="/tmp/media-root")
@@ -148,7 +147,7 @@ def test_environment_checks_warn_for_missing_lx_dtypes_contract(monkeypatch, tmp
     assert registry_message.level == WARNING
 
 
-def test_only_migration_history_is_registered_as_a_pre_migrate_system_check():
+def test_no_checks_are_registered_before_migrate():
     registered_checks = set(registry.registered_checks)
 
     assert checks_module.lx_annotate_endoreg_db_schema_checks not in registered_checks
@@ -156,160 +155,6 @@ def test_only_migration_history_is_registered_as_a_pre_migrate_system_check():
         checks_module.lx_annotate_endoreg_db_constraint_checks not in registered_checks
     )
     assert checks_module.lx_annotate_environment_checks not in registered_checks
-    assert checks_module.lx_annotate_migration_history_checks in registered_checks
-
-
-def _migration_contracts(monkeypatch):
-    contract = history_safety.MigrationHistoryContract(
-        app_label="example",
-        distribution="example",
-        legacy_names=frozenset({"0001_initial", "0002_legacy"}),
-        canonical_module="canonical.migrations",
-        canonical_leaf="0003_canonical",
-        canonical_manifest_sha256="canonical",
-    )
-    canonical = history_safety.MigrationManifest(
-        frozenset({"0001_initial", "0002_canonical", "0003_canonical"}),
-        "canonical",
-    )
-    monkeypatch.setattr(checks_module, "CONTRACTS", (contract,))
-    monkeypatch.setattr(
-        checks_module,
-        "verify_canonical_contract_manifests",
-        lambda _contracts: {"example": canonical},
-    )
-    monkeypatch.setattr(
-        checks_module,
-        "_application_table_names",
-        lambda _app_label: {"example_record"},
-    )
-    return contract, canonical
-
-
-def test_pre_migrate_history_check_skips_commands_without_database_scope(
-    monkeypatch,
-):
-    monkeypatch.setattr(
-        checks_module,
-        "_migration_history_introspection",
-        lambda **_kwargs: pytest.fail("unrelated command opened the database"),
-    )
-
-    assert checks_module.lx_annotate_migration_history_checks(None) == []
-
-
-@override_settings(MIGRATION_MODULES={"example": "retired.migrations"})
-def test_pre_migrate_history_check_rejects_retired_dependency_mapping(monkeypatch):
-    _migration_contracts(monkeypatch)
-
-    messages = checks_module.lx_annotate_migration_history_checks(
-        None,
-        databases=["default"],
-    )
-
-    assert len(messages) == 1
-    assert messages[0].level >= CRITICAL
-    assert "retired dependency migration mapping" in messages[0].msg
-
-
-@override_settings(MIGRATION_MODULES={})
-def test_pre_migrate_history_check_allows_fresh_release_b_database(monkeypatch):
-    _migration_contracts(monkeypatch)
-    monkeypatch.setattr(
-        checks_module,
-        "_migration_history_introspection",
-        lambda **_kwargs: (set(), set()),
-    )
-
-    assert (
-        checks_module.lx_annotate_migration_history_checks(None, databases=["default"])
-        == []
-    )
-
-
-@override_settings(MIGRATION_MODULES={})
-def test_pre_migrate_history_check_allows_converged_release_b_database(monkeypatch):
-    contract, canonical = _migration_contracts(monkeypatch)
-    applied = {
-        (contract.app_label, name) for name in contract.legacy_names | canonical.names
-    }
-    monkeypatch.setattr(
-        checks_module,
-        "_migration_history_introspection",
-        lambda **_kwargs: (applied, {"example_record"}),
-    )
-
-    assert (
-        checks_module.lx_annotate_migration_history_checks(None, databases=["default"])
-        == []
-    )
-
-
-@override_settings(MIGRATION_MODULES={})
-def test_pre_migrate_history_check_allows_canonical_migration_resume(monkeypatch):
-    _contract, _canonical = _migration_contracts(monkeypatch)
-    monkeypatch.setattr(
-        checks_module,
-        "_migration_history_introspection",
-        lambda **_kwargs: (
-            {("example", "0001_initial"), ("example", "0002_canonical")},
-            {"example_record"},
-        ),
-    )
-
-    assert (
-        checks_module.lx_annotate_migration_history_checks(
-            None,
-            databases=["default"],
-        )
-        == []
-    )
-
-
-@override_settings(MIGRATION_MODULES={})
-def test_pre_migrate_history_check_rejects_unconverged_release_b_database(
-    monkeypatch,
-):
-    contract, _canonical = _migration_contracts(monkeypatch)
-    applied = {(contract.app_label, name) for name in contract.legacy_names}
-    monkeypatch.setattr(
-        checks_module,
-        "_migration_history_introspection",
-        lambda **_kwargs: (applied, {"example_record"}),
-    )
-
-    messages = checks_module.lx_annotate_migration_history_checks(
-        None,
-        databases=["default"],
-    )
-
-    assert len(messages) == 1
-    assert messages[0].level >= CRITICAL
-    assert messages[0].id == "lx_annotate.migration_history_unsafe"
-    assert "Redeploy the bridge release" in messages[0].msg
-
-
-@override_settings(MIGRATION_MODULES={})
-def test_pre_migrate_history_check_rejects_partial_bridge_history(monkeypatch):
-    contract, _canonical = _migration_contracts(monkeypatch)
-    applied = {
-        *((contract.app_label, name) for name in contract.legacy_names),
-        (contract.app_label, "0002_canonical"),
-    }
-    monkeypatch.setattr(
-        checks_module,
-        "_migration_history_introspection",
-        lambda **_kwargs: (applied, {"example_record"}),
-    )
-
-    messages = checks_module.lx_annotate_migration_history_checks(
-        None,
-        databases=["default"],
-    )
-
-    assert len(messages) == 1
-    assert messages[0].level >= CRITICAL
-    assert "missing reviewed identities" in messages[0].msg
 
 
 def test_schema_checks_fail_when_required_columns_are_missing(monkeypatch):

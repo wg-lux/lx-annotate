@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.core.exceptions import ObjectDoesNotExist
+from endoreg_db.models import NetworkNode
 from pydantic import ValidationError
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -12,12 +13,14 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from endoreg_db.models import NetworkNode
-
-from lx_annotate.hub.hub_export_contracts import HubExportMutationRequest
+from lx_annotate.hub.hub_export_contracts import (
+    HubEligibleVideoOffloadRequest,
+    HubExportMutationRequest,
+)
 from lx_annotate.hub.hub_export_jobs import (
     build_hub_export_overview,
     mark_resources_for_hub_upload,
+    queue_all_eligible_videos_for_hub_upload,
     require_normal_sender_target_hub,
     resolve_target_hub_node,
     unmark_resources_for_hub_upload,
@@ -36,6 +39,12 @@ def _resolve_target_node(target_node_key: str | None) -> NetworkNode | None:
 
 def _parse_mutation_request(data: object) -> HubExportMutationRequest:
     return HubExportMutationRequest.model_validate(data)
+
+
+def _parse_eligible_video_offload_request(
+    data: object,
+) -> HubEligibleVideoOffloadRequest:
+    return HubEligibleVideoOffloadRequest.model_validate(data)
 
 
 def _validation_errors(exc: ValidationError) -> object:
@@ -72,8 +81,8 @@ def hub_export_mark(request):
         return Response(
             {
                 "errors": {
-                    "target_node_key": "No active central hub node is configured."
-                }
+                    "target_node_key": "No active central hub node is configured.",
+                },
             },
             status=status.HTTP_409_CONFLICT,
         )
@@ -101,6 +110,39 @@ def hub_export_mark(request):
 @api_view(["POST"])
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsAuthenticated])
+def hub_export_offload_eligible_videos(request):
+    try:
+        mutation = _parse_eligible_video_offload_request(request.data or {})
+    except ValidationError as exc:
+        return Response(
+            {"errors": _validation_errors(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    target_node = _resolve_target_node(mutation.target_node_key)
+    if target_node is None:
+        return Response(
+            {
+                "errors": {
+                    "target_node_key": "No active central hub node is configured.",
+                },
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    try:
+        result = queue_all_eligible_videos_for_hub_upload(
+            target_node=target_node,
+            marked_by=request.user,
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(result.model_dump(mode="json"), status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def hub_export_unmark(request):
     try:
         mutation = _parse_mutation_request(request.data or {})
@@ -114,8 +156,8 @@ def hub_export_unmark(request):
         return Response(
             {
                 "errors": {
-                    "target_node_key": "No active central hub node is configured."
-                }
+                    "target_node_key": "No active central hub node is configured.",
+                },
             },
             status=status.HTTP_409_CONFLICT,
         )

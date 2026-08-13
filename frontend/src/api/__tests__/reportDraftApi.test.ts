@@ -81,7 +81,7 @@ describe('reportDraftApi', () => {
       }
     })
 
-    await savePatientExaminationDraft({
+    const result = await savePatientExaminationDraft({
       patientExaminationId: 314,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
@@ -126,5 +126,31 @@ describe('reportDraftApi', () => {
         }
       }
     )
+    expect(result).toMatchObject({
+      patient_examination_id: 314,
+      draft: {
+        module_name: 'report_template_examples',
+        template_name: 'star_upper_gi_main'
+      },
+      updated_at: '2026-03-19T14:00:00.000Z'
+    })
+  })
+
+  it('rejects malformed save responses at the API boundary', async () => {
+    hoisted.axios.put.mockResolvedValue({ data: { draft: 'not-an-object' } })
+
+    await expect(
+      savePatientExaminationDraft({
+        patientExaminationId: 314,
+        moduleName: 'report_template_examples',
+        templateName: 'star_upper_gi_main',
+        payload: {
+          patient: 'patient_42',
+          examiners: [],
+          examination: 'colonoscopy',
+          patientFindings: []
+        }
+      })
+    ).rejects.toThrow('Report draft response contains an invalid draft')
   })
 })
