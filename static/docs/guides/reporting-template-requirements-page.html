@@ -302,6 +302,37 @@ writing into <code class="docutils literal notranslate"><span class="pre">site-p
 first import an editable terminology bundle so the API can resolve one explicit,
 writable module root and version.</p>
 </section>
+<section id="examination-and-indication-resolution-contract">
+<h2>Examination And Indication Resolution Contract<a class="headerlink" href="#examination-and-indication-resolution-contract" title="Link to this heading">¶</a></h2>
+<p>The reporting shell owns the active patient-examination context. It passes the
+canonical examination name to nested reporting pages while the reporting flow
+store retains the patient-examination ID and, when available, the numeric
+examination concept ID.</p>
+<p>Frontend pages must resolve that identity through
+<code class="docutils literal notranslate"><span class="pre">reportingExaminationResolution.ts</span></code>. They must not independently select the
+first examination with a similar label. Resolution is valid only when one of
+these conditions holds:</p>
+<ul class="simple">
+<li><p>the stored examination ID exists and its canonical name agrees with the
+patient-examination payload; or</p></li>
+<li><p>no ID is stored and the canonical name identifies exactly one examination in
+the loaded catalog.</p></li>
+</ul>
+<p>Missing IDs, missing names, duplicate canonical names, and ID/name
+contradictions are visible workflow errors. These states must not trigger a
+broader indication, finding, or report-template query.</p>
+<p>API indication payloads enter the frontend through
+<code class="docutils literal notranslate"><span class="pre">reportingIndicationContract.ts</span></code>. This boundary separately normalizes:</p>
+<ul class="simple">
+<li><p>persisted indication selections used by the reporting flow; and</p></li>
+<li><p>indication and indication-choice options displayed by the report editor.</p></li>
+</ul>
+<p>An indication-choice row is never treated as an indication node. The report
+editor loads options for the resolved examination ID and patient-examination
+ID, while report-template discovery uses the same resolved canonical
+examination name. This shared resolution path keeps colonoscopy findings,
+indications, and report templates in one coherent clinical context.</p>
+</section>
 <hr class="docutils" />
 <section id="what-you-see-on-the-page">
 <h2>What You See on the Page<a class="headerlink" href="#what-you-see-on-the-page" title="Link to this heading">¶</a></h2>
@@ -672,7 +703,7 @@ writable module root and version.</p>
 <h2>Training Checklist (For Clinical Onboarding)<a class="headerlink" href="#training-checklist-for-clinical-onboarding" title="Link to this heading">¶</a></h2>
 <p>Use this checklist when teaching staff.</p>
 <ol class="arabic simple">
-<li><p>Can the user identify current <code class="docutils literal notranslate"><span class="pre">PatientExamination-ID</span></code>?</p></li>
+<li><p>Can the user select the intended case and examination without relying on a numerical ID?</p></li>
 <li><p>Can the user explain the purpose of each reporting step/page?</p></li>
 <li><p>Can the user load templates for the examination?</p></li>
 <li><p>Can the user select the correct template?</p></li>
@@ -694,6 +725,26 @@ writable module root and version.</p>
 <li><p><strong>Recompute</strong>: Re-run backend logic after changes.</p></li>
 <li><p><strong>Patient examination</strong>: The concrete clinical case instance used for reporting.</p></li>
 </ul>
+</section>
+<hr class="docutils" />
+<section id="canonical-language-and-progressive-disclosure">
+<h2>Canonical Language and Progressive Disclosure<a class="headerlink" href="#canonical-language-and-progressive-disclosure" title="Link to this heading">¶</a></h2>
+<p>Reporting presentation follows the terminology supplied by <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code> is the stable graph and API identity and must not be translated locally.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">name_de</span></code> and <code class="docutils literal notranslate"><span class="pre">name_en</span></code> are the canonical user-facing terms. The frontend normalizes them to
+<code class="docutils literal notranslate"><span class="pre">nameDe</span></code> and <code class="docutils literal notranslate"><span class="pre">nameEn</span></code> and selects the requested report language without maintaining a parallel
+clinical terminology map.</p></li>
+<li><p>Report-template titles follow the same contract; template-specific title overrides in the frontend
+are not permitted.</p></li>
+<li><p>If a localized name is absent, the stable <code class="docutils literal notranslate"><span class="pre">name</span></code> is shown. A guessed translation must not be
+substituted.</p></li>
+</ul>
+<p>The primary reporting viewport keeps case selection, examination selection, template selection,
+report language, and the short start guide visible. Primary labels use clinical terms and dates,
+not database IDs. Technical case and report references, terminology version, media state, and other
+supporting context remain available through collapsed details. Lists are constrained by the active
+patient, case, examination, and terminology context before they are rendered.</p>
 </section>
 <hr class="docutils" />
 <section id="related-technical-files-for-admins-developers">
@@ -768,6 +819,7 @@ writable module root and version.</p>
 <li><a class="reference internal" href="#audience-and-purpose">Audience and Purpose</a></li>
 <li><a class="reference internal" href="#where-this-page-is-used">Where This Page Is Used</a></li>
 <li><a class="reference internal" href="#publication-and-runtime-visibility">Publication And Runtime Visibility</a></li>
+<li><a class="reference internal" href="#examination-and-indication-resolution-contract">Examination And Indication Resolution Contract</a></li>
 <li><a class="reference internal" href="#what-you-see-on-the-page">What You See on the Page</a><ul>
 <li><a class="reference internal" href="#template-selection">1. Template Selection</a></li>
 <li><a class="reference internal" href="#template-requirement-sets">2. Template &amp; Requirement Sets</a></li>
@@ -808,6 +860,7 @@ writable module root and version.</p>
 </li>
 <li><a class="reference internal" href="#training-checklist-for-clinical-onboarding">Training Checklist (For Clinical Onboarding)</a></li>
 <li><a class="reference internal" href="#glossary-plain-language">Glossary (Plain Language)</a></li>
+<li><a class="reference internal" href="#canonical-language-and-progressive-disclosure">Canonical Language and Progressive Disclosure</a></li>
 <li><a class="reference internal" href="#related-technical-files-for-admins-developers">Related Technical Files (for Admins/Developers)</a></li>
 </ul>
 </li>

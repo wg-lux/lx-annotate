@@ -17,6 +17,7 @@ MKDIR_P ?= mkdir -p
 CACHE_DIR ?= $(REPO_DIR)/.make-cache
 FRONTEND_HASH_FILE ?= $(CACHE_DIR)/frontend-src.sha256
 MIGRATIONS_HASH_FILE ?= $(CACHE_DIR)/migrations.sha256
+FRONTEND_NIX ?= $(REPO_DIR)/frontend/default.nix
 
 # Helper: run commands directly if inside an active devenv shell, otherwise wrap in subshell
 ifneq ($(strip $(DEVENV_PROFILE)$(DEVENV_ROOT)$(DEVENV_STATE)),)
@@ -162,7 +163,52 @@ frontend-build: check-repo check-tools ## Build frontend assets only when fronte
 	fi
 
 frontend-build-force: check-repo check-tools ## Force-build frontend assets and refresh frontend cache
-	cd "$(REPO_DIR)" && $(DEVENV_RUN) vue-build
+	@set -e; \
+	LOG_FILE=$$(mktemp); \
+	trap 'rm -f "$$LOG_FILE"' EXIT; \
+	FRONTEND_NIX="$(FRONTEND_NIX)"; \
+	restore_nix_hash() { \
+		new_hash="$$1"; \
+		if [ "$$new_hash" = "lib.fakeHash" ]; then \
+			sed -i 's|^[[:space:]]*npmDepsHash[[:space:]]*=.*;|  npmDepsHash = lib.fakeHash;|' "$$FRONTEND_NIX"; \
+		else \
+			sed -i "s|^[[:space:]]*npmDepsHash[[:space:]]*=.*;|  npmDepsHash = \\\"$$new_hash\\\";|" "$$FRONTEND_NIX"; \
+		fi; \
+	}; \
+	ORIG_HASH="$$(sed -n 's/^[[:space:]]*npmDepsHash[[:space:]]*= *lib.fakeHash;.*/lib.fakeHash/p' "$$FRONTEND_NIX" | head -n 1)"; \
+	if [ -z "$$ORIG_HASH" ]; then \
+		ORIG_HASH="$$(sed -n 's/^[[:space:]]*npmDepsHash[[:space:]]*= *\"\\([^\"]*\\)\";.*/\\1/p' "$$FRONTEND_NIX" | head -n 1)"; \
+	fi; \
+	USED_FAKE=0; \
+	if [ "$$ORIG_HASH" != "lib.fakeHash" ]; then \
+		restore_nix_hash "lib.fakeHash"; \
+		USED_FAKE=1; \
+	fi; \
+	if cd "$(REPO_DIR)" && $(DEVENV_RUN) vue-build 2>&1 | tee "$$LOG_FILE"; then \
+		echo "Frontend build succeeded with npmDepsHash already valid."; \
+		if [ "$$USED_FAKE" = "1" ]; then \
+			if [ -n "$$ORIG_HASH" ]; then restore_nix_hash "$$ORIG_HASH"; fi; \
+		fi; \
+	else \
+		if grep -q "npmDepsHash is out of date" "$$LOG_FILE" && grep -q "got: sha256-" "$$LOG_FILE"; then \
+			NEW_HASH="$$(grep -oE 'got: sha256-[A-Za-z0-9+/=]+' "$$LOG_FILE" | head -n 1 | cut -d' ' -f2)"; \
+			restore_nix_hash "$$NEW_HASH"; \
+			echo "Updated npmDepsHash in $$FRONTEND_NIX to $$NEW_HASH"; \
+			if cd "$(REPO_DIR)" && $(DEVENV_RUN) vue-build; then \
+				echo "Frontend build succeeded after updating npmDepsHash."; \
+			else \
+				echo "Frontend build still failing after npmDepsHash update."; \
+				cat "$$LOG_FILE"; \
+				if [ -n "$$ORIG_HASH" ]; then restore_nix_hash "$$ORIG_HASH"; fi; \
+				exit 1; \
+			fi; \
+		else \
+			if [ -n "$$ORIG_HASH" ]; then restore_nix_hash "$$ORIG_HASH"; fi; \
+			echo "vue-build failed for a reason other than npmDepsHash mismatch."; \
+			cat "$$LOG_FILE"; \
+			exit 1; \
+		fi; \
+	fi
 	@$(MKDIR_P) "$(CACHE_DIR)"
 	@cd "$(REPO_DIR)" && { find frontend/src -type f -print0 | sort -z | xargs -0 -r sha256sum; } | sha256sum | awk '{print $$1}' > "$(FRONTEND_HASH_FILE)"
 

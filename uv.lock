@@ -2049,7 +2049,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.9.70"
+version = "0.9.71"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
