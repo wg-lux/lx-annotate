@@ -1039,7 +1039,7 @@ onBeforeUnmount(stopPolling)
   margin-bottom: 1rem;
   padding: 0.9rem;
   border: 1px solid var(--lx-border, #dee2e6);
-  border-radius: 0.8rem;
+  border-radius: var(--lx-corner-radius);
   background: var(--lx-surface-muted, #f8f9fa);
 }
 
@@ -1058,7 +1058,7 @@ onBeforeUnmount(stopPolling)
 .privacy-summary {
   background: #f8f9fa;
   border: 1px solid #dee2e6;
-  border-radius: 8px;
+  border-radius: var(--lx-corner-radius);
   padding: 0.75rem 1rem;
 }
 
@@ -1066,7 +1066,7 @@ onBeforeUnmount(stopPolling)
   background: #fff;
   border: 1px solid #dee2e6;
   border-left: 4px solid #0d6efd;
-  border-radius: 8px;
+  border-radius: var(--lx-corner-radius);
   padding: 1rem;
 }
 
@@ -1074,7 +1074,7 @@ onBeforeUnmount(stopPolling)
 .sync-situation,
 .sync-center-table {
   border: 1px solid #dee2e6;
-  border-radius: 8px;
+  border-radius: var(--lx-corner-radius);
   background: #fff;
 }
 
@@ -1112,7 +1112,7 @@ onBeforeUnmount(stopPolling)
 .transfer-monitor,
 .overall-progress {
   border: 1px solid #dee2e6;
-  border-radius: 8px;
+  border-radius: var(--lx-corner-radius);
   background: #f8f9fa;
   padding: 1rem;
 }

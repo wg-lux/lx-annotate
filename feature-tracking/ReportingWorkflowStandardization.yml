@@ -58,10 +58,28 @@ definition_of_done:
       reference: 'frontend reporting graph and workflow suite: 75 passed'
     - kind: code
       reference: frontend/src/views/reporting/reportingIndicationContract.ts
-    note: Colonoscopy canonical-name resolution reaches findings, indication choices, and report templates;
-      preferred-examination handoffs and duplicate nodes use the same fail-closed resolver.
-    assessed_by: codex-reporting-types-20260813
-    assessed_at: '2026-08-13T08:27:13.977762Z'
+    - kind: test
+      reference: 'frontend reporting/API suite: 17 files, 117 tests passed'
+    - kind: command
+      reference: frontend npm run type-check; npm run type-check:component-tests; scoped ESLint (passed)
+    - kind: test
+      reference: 'ReportTemplateBuilderPage delayed terminology regression: no /core-concepts/ request
+        without module; later catalog/template load passes'
+    - kind: command
+      reference: 'installed lx-dtypes 0.2.17: star_upper_gi@0.1.1 export_report_template published, can_publish=true,
+        name_de present'
+    - kind: code
+      reference: frontend/src/api/knowledgeBaseGraphApi.ts; frontend/src/types/knowledgeBaseGraph.ts
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue; ReportEditorPage.vue; ReportTemplateBuilderPage.vue
+    - kind: review
+      reference: lx-data-models d7f7a7e knowledge_base_graph_v1
+    note: ReportingShell and ReportEditor consume the exact-version knowledge_base_graph_v1 examination
+      projection for semantic concepts and published templates; ReportTemplateBuilder consumes the complete
+      graph snapshot. Numeric indication and finding endpoints remain isolated to ledger persistence IDs
+      because graph node identity is semantic by design.
+    assessed_by: codex-graph-api-integration-20260814
+    assessed_at: '2026-08-14T08:52:40.930071Z'
 - id: typed_boundary_safety
   category: security
   title: Reporting API boundaries are validated and fail closed
@@ -121,8 +139,15 @@ definition_of_done:
     - kind: command
       reference: npm exec -- vitest run src/api/__tests__/coreConcepts.test.ts src/api/__tests__/reportTemplatesApi.test.ts
         && npm run type-check (working directory frontend; 20 passed; type-check exit 0)
-    assessed_by: codex-dtypes-consistency-20260813
-    assessed_at: '2026-08-13T11:48:01.207388Z'
+    - kind: test
+      reference: 'knowledgeBaseGraphApi.test.ts: 5 passed'
+    - kind: code
+      reference: frontend/src/api/knowledgeBaseGraphApi.ts
+    note: Frontend rejects unknown contract versions, malformed hashes, mismatched requested/returned
+      identities, duplicate edges, dangling node references, malformed concept names, cross-examination
+      templates, and non-published graph templates.
+    assessed_by: codex-graph-api-integration-20260814
+    assessed_at: '2026-08-14T08:52:42.116689Z'
 - id: workflow_regression_suite
   category: testing
   title: Reporting workflows have layered regression coverage
@@ -144,10 +169,17 @@ definition_of_done:
       reference: cd frontend && npm run type-check
     - kind: command
       reference: cd frontend && npm run type-check:component-tests
-    note: Complete frontend unit suite passes 93 files and 608 tests; focused reporting tests cover colonoscopy
-      examination, indication-choice, and template propagation; both vue-tsc lanes pass.
-    assessed_by: codex-reporting-types-20260813
-    assessed_at: '2026-08-13T08:29:30.428439Z'
+    - kind: test
+      reference: 7 focused frontend files, 67 tests passed
+    - kind: test
+      reference: 'lx-data-models knowledge_base_graph_api.py: 4 passed'
+    - kind: command
+      reference: npm run type-check; npm run type-check:component-tests; scoped ESLint; git diff --check
+        passed
+    note: Versioned graph API, real-YAML fixture graph, reporting shell, editor, builder, and shared template
+      tests pass with both TypeScript lanes and scoped ESLint.
+    assessed_by: codex-graph-api-integration-20260814
+    assessed_at: '2026-08-14T08:52:43.382107Z'
 - id: observable_workflow_failures
   category: operations
   title: Reporting resolution failures are observable
@@ -244,8 +276,14 @@ definition_of_done:
       reference: frontend/src/views/reporting/__tests__/ReportingShell.mediaPreload.test.ts
     - kind: document
       reference: docs/guides/reporting-template-requirements-page.md
-    note: Primary choices and summary omit technical identifiers; first actions remain visible and technical
-      context is available in closed native details elements. Existing patient/case/examination/template
-      filters are unchanged.
-    assessed_by: codex-reporting-types-20260813
-    assessed_at: '2026-08-13T08:41:40.450080Z'
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue; frontend/src/views/reporting/CaseSetupPage.vue
+    - kind: test
+      reference: 'CaseSetupPage.test.ts and ReportingShell.mediaPreload.test.ts: 38 passed'
+    - kind: command
+      reference: frontend type-check, component-test type-check, scoped ESLint, and git diff --check passed
+    note: Reporting entry now exposes only the required patient/fall and examination selectors; template,
+      terminology, import, technical IDs, and media context are collapsed by default. Required fields
+      are numbered and announced immediately.
+    assessed_by: codex-reporting-shell-focus-20260814
+    assessed_at: '2026-08-14T08:28:19.038798Z'

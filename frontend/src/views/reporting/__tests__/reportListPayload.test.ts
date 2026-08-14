@@ -12,6 +12,8 @@ describe('parseReportListPayload', () => {
             status: 'draft',
             version: 3,
             updatedAt: '2026-08-04T10:00:00Z',
+            renderedText: 'Unauffälliger Befund.',
+            templateName: 'standard_colonoscopy',
             ignored: 'value'
           }
         ]
@@ -23,6 +25,8 @@ describe('parseReportListPayload', () => {
         version: 3,
         createdAt: undefined,
         updatedAt: '2026-08-04T10:00:00Z',
+        renderedText: 'Unauffälliger Befund.',
+        templateName: 'standard_colonoscopy',
         patientExaminationId: undefined,
         patientExamination: undefined,
         patientExaminationFk: undefined
@@ -37,7 +41,14 @@ describe('parseReportListPayload', () => {
       { id: 3, patientExaminationFk: 43 }
     ])
 
-    expect(rows.map((row) => [row.id, row.patientExaminationId, row.patientExamination, row.patientExaminationFk])).toEqual([
+    expect(
+      rows.map((row) => [
+        row.id,
+        row.patientExaminationId,
+        row.patientExamination,
+        row.patientExaminationFk
+      ])
+    ).toEqual([
       [1, 41, undefined, undefined],
       [2, undefined, { id: 42 }, undefined],
       [3, undefined, undefined, 43]
@@ -45,9 +56,9 @@ describe('parseReportListPayload', () => {
   })
 
   it('rejects malformed list entries instead of silently hiding contract failures', () => {
-    expect(() =>
-      parseReportListPayload({ results: [{ id: 7 }, { id: Number.NaN }] })
-    ).toThrow('Report list entry 1 must contain a positive integer id')
+    expect(() => parseReportListPayload({ results: [{ id: 7 }, { id: Number.NaN }] })).toThrow(
+      'Report list entry 1 must contain a positive integer id'
+    )
   })
 
   it('rejects an invalid response envelope', () => {
@@ -59,6 +70,9 @@ describe('parseReportListPayload', () => {
   it('rejects malformed optional fields rather than converting them to missing values', () => {
     expect(() => parseReportListPayload([{ id: 7, version: 'one' }])).toThrow(
       'Report list field "version" must be a finite number or null'
+    )
+    expect(() => parseReportListPayload([{ id: 7, renderedText: { text: 'unsafe' } }])).toThrow(
+      'Report list field "renderedText" must be a string or null'
     )
   })
 })

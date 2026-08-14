@@ -99,6 +99,9 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
+    expect(wrapper.classes()).toContain('sidebar-panel')
+    expect(wrapper.find('.sidenav').exists()).toBe(false)
+
     const targets = wrapper
       .findAllComponents(RouterLinkStub)
       .map((link) => toPathValue(link.props('to')))

@@ -44,11 +44,12 @@ const hoisted = vi.hoisted(() => {
     templateControls: {
       setModuleName: vi.fn(),
       setRequestContext: vi.fn(),
+      applyTemplateOptions: vi.fn(),
       selectTemplateByName: vi.fn().mockResolvedValue(undefined),
       fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
     },
-    coreConceptsApi: {
-      fetchCoreConcepts: vi.fn()
+    knowledgeBaseGraphApi: {
+      fetchExaminationReportingContext: vi.fn()
     },
     examinationStore: {
       exams: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
@@ -81,8 +82,8 @@ vi.mock('@/api/axiosInstance', () => ({
   r: (path: string) => path
 }))
 
-vi.mock('@/api/coreConcepts', () => ({
-  fetchCoreConcepts: hoisted.coreConceptsApi.fetchCoreConcepts
+vi.mock('@/api/knowledgeBaseGraphApi', () => ({
+  fetchExaminationReportingContext: hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext
 }))
 
 vi.mock('@/stores/reportingFlowStore', () => ({
@@ -164,7 +165,7 @@ vi.mock('@/composables/reporting/useReportTemplates', () => ({
     ]),
     loading: ref(false),
     errorMessage: ref(null),
-    fetchTemplatesByExamination: hoisted.templateControls.fetchTemplatesByExamination,
+    applyTemplateOptions: hoisted.templateControls.applyTemplateOptions,
     selectTemplateByName: hoisted.templateControls.selectTemplateByName,
     setModuleName: hoisted.templateControls.setModuleName,
     setRequestContext: hoisted.templateControls.setRequestContext
@@ -300,39 +301,44 @@ describe('ReportEditorPage draft-driven workflow', () => {
     hoisted.examinationStore.examinationsDropdown = [
       { id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }
     ]
-    hoisted.coreConceptsApi.fetchCoreConcepts.mockResolvedValue({
-      moduleName: 'report_template_examples',
-      examination: [
-        {
-          name: 'gastroscopy',
-          nameDe: 'Gastroskopie',
-          nameEn: 'Gastroscopy',
-          tags: []
-        }
-      ],
-      finding: [
-        {
-          name: 'esophagus_polyp',
-          nameDe: 'Ösophaguspolyp',
-          nameEn: 'Esophageal polyp',
-          tags: []
-        }
-      ],
-      classification: [{ name: 'size_mm', nameDe: 'Größe', nameEn: 'Size', tags: [] }],
-      classificationChoice: [
-        { name: 'size_mm', nameDe: 'Millimeter', nameEn: 'Millimetres', tags: [] }
-      ],
-      classificationChoiceDescriptor: [
-        {
-          name: 'length_mm_descriptor',
-          nameDe: 'Größe',
-          nameEn: 'Size',
-          unit: 'millimeter',
-          tags: []
-        }
-      ],
-      unit: [{ name: 'millimeter', abbreviation: 'mm', tags: [] }]
-    })
+    hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementation(
+      (_moduleName: string, _version: string, examinationName: string) => ({
+        concepts: {
+          moduleName: 'report_template_examples',
+          examination: [
+            {
+              name: examinationName,
+              nameDe: examinationName === 'colonoscopy' ? 'Koloskopie' : 'Gastroskopie',
+              nameEn: examinationName === 'colonoscopy' ? 'Colonoscopy' : 'Gastroscopy',
+              tags: []
+            }
+          ],
+          finding: [
+            {
+              name: 'esophagus_polyp',
+              nameDe: 'Ösophaguspolyp',
+              nameEn: 'Esophageal polyp',
+              tags: []
+            }
+          ],
+          classification: [{ name: 'size_mm', nameDe: 'Größe', nameEn: 'Size', tags: [] }],
+          classificationChoice: [
+            { name: 'size_mm', nameDe: 'Millimeter', nameEn: 'Millimetres', tags: [] }
+          ],
+          classificationChoiceDescriptor: [
+            {
+              name: 'length_mm_descriptor',
+              nameDe: 'Größe',
+              nameEn: 'Size',
+              unit: 'millimeter',
+              tags: []
+            }
+          ],
+          unit: [{ name: 'millimeter', abbreviation: 'mm', tags: [] }]
+        },
+        reportTemplates: []
+      })
+    )
     hoisted.axiosApi.get.mockImplementation((url: string) => {
       if (url === 'patient-examinations/42/') {
         return Promise.resolve({
@@ -461,7 +467,11 @@ describe('ReportEditorPage draft-driven workflow', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Koloskopie')
-    expect(hoisted.templateControls.fetchTemplatesByExamination).toHaveBeenCalledWith('colonoscopy')
+    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0',
+      'colonoscopy'
+    )
     expect(hoisted.axiosApi.get).toHaveBeenCalledWith(
       'examinations/12/indications/?patient_examination_id=42'
     )
@@ -492,7 +502,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
     expect(wrapper.text()).toContain(
       'Die Untersuchung "colonoscopy" ist im Untersuchungskatalog nicht eindeutig.'
     )
-    expect(hoisted.templateControls.fetchTemplatesByExamination).not.toHaveBeenCalled()
+    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).not.toHaveBeenCalled()
     expect(hoisted.axiosApi.get).not.toHaveBeenCalledWith(
       'examinations/12/indications/?patient_examination_id=42'
     )

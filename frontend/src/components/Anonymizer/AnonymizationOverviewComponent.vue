@@ -1237,7 +1237,7 @@ onUnmounted(() => {
   margin-bottom: 1rem;
   padding: 0.9rem;
   border: 1px solid var(--lx-border, #dee2e6);
-  border-radius: 0.8rem;
+  border-radius: var(--lx-corner-radius);
   background: var(--lx-surface-muted, #f8f9fa);
 }
 
@@ -1255,7 +1255,7 @@ onUnmounted(() => {
 
 .overview-filter-empty {
   border: 1px dashed var(--lx-border-strong, #ced4da);
-  border-radius: 0.8rem;
+  border-radius: var(--lx-corner-radius);
   background: var(--lx-surface-muted, #f8f9fa);
 }
 

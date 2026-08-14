@@ -6,7 +6,7 @@
         class="navbar-toggler app-topbar-menu"
         type="button" 
         aria-controls="sidenav-main"
-        aria-expanded="false"
+        :aria-expanded="isSidebarOpen"
         aria-label="Navigation öffnen"
         @click="toggleSidebar"
       >
@@ -98,6 +98,12 @@ import { useAnnotationStatsStore } from '@/stores/annotationStats'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const logger = createRuntimeLogger('navbar')
+const { isSidebarOpen = false } = defineProps<{
+  isSidebarOpen?: boolean
+}>()
+const emit = defineEmits<{
+  toggleSidebar: []
+}>()
 
 const route = useRoute()
 const authStore = useAuthKcStore()                            //  use Keycloak store
@@ -157,9 +163,7 @@ const handleLogout = () => {
 
 
 const toggleSidebar = () => {
-  // Dispatch custom event to toggle sidebar
-  const event = new CustomEvent('toggleSidebar')
-  document.dispatchEvent(event)
+  emit('toggleSidebar')
 }
 
 // Load annotation stats on mount and refresh periodically
@@ -205,7 +209,7 @@ onUnmounted(() => {
   margin: 0.75rem clamp(1rem, 2.25vw, 2.5rem) 0;
   padding: 0;
   border: 1px solid rgba(23, 59, 66, 0.1);
-  border-radius: 1rem;
+  border-radius: var(--lx-corner-radius);
   background: rgba(255, 255, 255, 0.88);
   box-shadow: 0 0.75rem 2.25rem rgba(26, 53, 60, 0.08);
   backdrop-filter: blur(14px);
@@ -275,7 +279,7 @@ onUnmounted(() => {
   margin: 0;
   padding: 0.45rem 0.7rem !important;
   border: 0;
-  border-radius: 0.65rem;
+  border-radius: var(--lx-corner-radius);
   color: #435c62 !important;
   font-size: 0.78rem;
   font-weight: 700;
@@ -350,6 +354,12 @@ onUnmounted(() => {
   padding: 0.25rem 0.5rem;
   background: transparent;
   margin-right: 1rem;
+}
+
+.app-topbar-menu {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
 }
 
 .navbar-toggler:focus {

@@ -22,6 +22,25 @@ tracking:
     changed_at: '2026-08-13T10:00:35.177483Z'
     note: Resource-type and physical-storage-state filtering added to anonymization and Hub tables; lint,
       type-check, build, and 30 focused tests passed.
+  - action: reopened
+    changed_by: codex-mobile-menu-20260814
+    changed_at: '2026-08-14T06:59:03.150732Z'
+    note: Captured mobile DOM shows competing sidebar controls, a nested global sidenav, and close-button
+      flow displacement.
+  - action: done
+    changed_by: codex-mobile-menu-20260814
+    changed_at: '2026-08-14T07:02:42.213079Z'
+    note: Responsive navigation unified under App state; mobile opener is unobstructed and close control
+      no longer displaces sidebar content. Lint, type-check, 12 tests, and production build passed.
+  - action: reopened
+    changed_by: codex-corner-radius-20260814
+    changed_at: '2026-08-14T07:24:06.176777Z'
+    note: Ordinary app corners currently mix Bootstrap, LX sm/md/lg, and component-local pixel radii.
+  - action: done
+    changed_by: codex-corner-radius-20260814
+    changed_at: '2026-08-14T07:28:25.303586Z'
+    note: Unified application corner rounding under one shared token and verified the focused frontend
+      surface.
 source_documents:
 - path: AGENTS.md
   disposition: reference
@@ -75,10 +94,16 @@ definition_of_done:
     - kind: test
       reference: 'AnonymizationOverviewComponent and HubExportOverviewComponent filter tests: 30 total
         focused tests passed'
-    note: Anonymization and Hub export tables now provide combined resource-type and physical-storage-state
-      filters, visible/total counts, reset controls, and explicit no-match states.
-    assessed_by: codex-table-filters-20260813
-    assessed_at: '2026-08-13T10:00:20.303667Z'
+    - kind: test
+      reference: 'App, Navbar, and Sidebar responsive navigation suites: 3 files, 12 tests passed'
+    - kind: review
+      reference: 'corner-radius-centralization-20260814: reviewed scoped Vue and CSS changes; ordinary
+        surfaces resolve to the shared token while shape-semantic exceptions remain intact'
+    note: Centralized ordinary application corner rounding on --lx-corner-radius (0.75rem), aligned LX
+      and Bootstrap radius variables plus semantic surface utilities, and preserved intentional circular,
+      pill, progress, switch, and joined-control geometry.
+    assessed_by: codex-corner-radius-20260814
+    assessed_at: '2026-08-14T07:28:03.791373Z'
 - id: frontend_verification
   category: testing
   title: Frontend build and navigation component tests pass
@@ -99,12 +124,16 @@ definition_of_done:
     status: verified
     evidence:
     - kind: command
-      reference: 'npm --prefix frontend run build: exit 0 with existing chunk-size advisory'
+      reference: 'corner-radius-build-20260814: npm --prefix frontend run build-only exited 0; existing
+        chunk-size advisory remains'
     - kind: test
-      reference: 'Vitest overview component suites: 2 files, 30 tests passed'
-    note: Scoped ESLint, Vue type-check, production build, and both overview component suites passed.
-    assessed_by: codex-table-filters-20260813
-    assessed_at: '2026-08-13T10:00:21.596514Z'
+      reference: 'corner-radius-focused-tests-20260814: App, Navbar, Sidebar, AnonymizationOverview, and
+        HubExport suites passed 42/42; Sidebar suite passed 5/5 in isolation after parallel load timeout'
+    note: Scoped ESLint, TypeScript checking, 42 focused component tests, and production build passed.
+      The Sidebar route-import test timed out only in the combined parallel run and passed 5/5 when rerun
+      in isolation.
+    assessed_by: codex-corner-radius-20260814
+    assessed_at: '2026-08-14T07:28:05.878821Z'
 - id: accessibility_contract
   category: security
   title: Keyboard and motion accessibility remain explicit

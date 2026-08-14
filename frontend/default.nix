@@ -14,7 +14,7 @@ buildNpmPackage rec {
 # specified: the SHA-AA... default
 # (fake) got (your real hash)
 # Replace lib.fakeHash with the returned hash in default.nix
-  npmDepsHash = lib.fakeHash;
+  npmDepsHash = "sha256-NFZnnW5V9b2yxUQRE8inABsw/oJdMns9kr45AUgzsWw=";
 
   npmBuildScript = "build";
   doCheck = false;

@@ -14,9 +14,9 @@
           <div class="sidenav m-1">
             <button
               type="button"
-            class="btn border-0 sidebar-toggle-button sidebar-toggle-button--closed"
+              class="btn border-0 sidebar-toggle-button sidebar-toggle-button--closed"
               aria-label="Sidebar öffnen"
-              :aria-expanded="String(isMenuOpen)"
+              :aria-expanded="isMenuOpen"
               title="Sidebar öffnen"
               @click="toggleMenu"
             >
@@ -37,7 +37,7 @@
           type="button"
           class="btn mb-0 sidebar-toggle-button sidebar-toggle-button--open"
           aria-label="Sidebar schließen"
-          :aria-expanded="String(isMenuOpen)"
+          :aria-expanded="isMenuOpen"
           title="Sidebar schließen"
           @click="toggleMenu"
         >
@@ -48,7 +48,10 @@
     </template>
 
     <main class="main-content position-relative app-main">
-      <NavbarComponent />
+      <NavbarComponent
+        :is-sidebar-open="isMenuOpen"
+        @toggle-sidebar="toggleMenu"
+      />
       <div class="container-fluid w-100 app-content">
         <div class="row">
           <div class="col-12">
@@ -82,12 +85,6 @@ export default {
     return {
       isMenuOpen: false,
     };
-  },
-  mounted() {
-    document.addEventListener('toggleSidebar', this.toggleMenu);
-  },
-  beforeUnmount() {
-    document.removeEventListener('toggleSidebar', this.toggleMenu);
   },
   methods: {
     toggleMenu() {
@@ -126,18 +123,20 @@ export default {
   width: 17.5rem !important;
   margin: 1rem 0 1rem 1rem;
   height: calc(100vh - 2rem) !important;
-  border-radius: 1.25rem;
+  border-radius: var(--lx-corner-radius);
   background: linear-gradient(165deg, #173b42 0%, #102b32 55%, #0b232a 100%) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 1.25rem 3rem rgba(20, 46, 53, 0.22);
+  position: fixed;
 }
 
 .sidebar-shell--open > div {
   flex: 1 1 auto;
   min-height: 0;
+  width: 100%;
 }
 
-.sidebar-shell--open > div > .sidenav {
+.sidebar-shell--open > div > .sidebar-panel {
   height: 100%;
 }
 
@@ -151,7 +150,7 @@ export default {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  border-radius: 0.8rem;
+  border-radius: var(--lx-corner-radius);
   box-shadow: none !important;
   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
@@ -181,7 +180,10 @@ export default {
 }
 
 .sidebar-toggle-button--open {
-  margin: 0.75rem 0.75rem 0.15rem auto !important;
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  margin: 0 !important;
   color: #ffffff;
   background: rgba(255, 255, 255, 0.1) !important;
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
@@ -243,11 +245,7 @@ export default {
   }
 
   .g-sidenav-show > aside.sidenav.navbar.sidebar-shell--collapsed {
-    width: 4.5rem !important;
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    z-index: 1030;
+    display: none !important;
   }
 
   .g-sidenav-show > aside.sidenav.navbar.sidebar-shell--open {
@@ -256,13 +254,8 @@ export default {
     width: min(19rem, calc(100vw - 2rem)) !important;
     height: 100dvh !important;
     margin: 0;
-    border-radius: 0 1.25rem 1.25rem 0;
+    border-radius: 0 var(--lx-corner-radius) var(--lx-corner-radius) 0;
     z-index: 1050;
-  }
-
-  .sidebar-shell--open .sidenav {
-    transform: none !important;
-    pointer-events: auto !important;
   }
 
   .app-shell-backdrop {

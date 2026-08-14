@@ -1,9 +1,5 @@
 <template>
-  <div>
-    <!-- Mobile backdrop -->
-    <div v-if="isSidebarOpen" class="sidebar-backdrop" @click="closeSidebar"></div>
-
-    <div class="sidenav" :class="{ show: isSidebarOpen }">
+  <div class="sidebar-panel">
       <div class="sidenav-header">
         <a class="navbar-brand m-0" href="/">
           <div class="sidenav-header-inner text-center">
@@ -288,7 +284,6 @@
             -->
         </ul>
       </div>
-    </div>
   </div>
 </template>
 
@@ -305,7 +300,6 @@ export default {
   data() {
     return {
       coloRegLogo,
-      isSidebarOpen: false,
       pendingValidationCount: 0,
       processingCount: 0,
       workflowCountsInterval: null
@@ -353,31 +347,18 @@ export default {
     }
   },
   mounted() {
-    document.addEventListener('toggleSidebar', this.handleToggleSidebarEvent);
-    window.addEventListener('resize', this.handleWindowResize);
     this.refreshWorkflowCounts();
     this.workflowCountsInterval = window.setInterval(() => {
       this.refreshWorkflowCounts();
     }, 30000);
   },
   beforeUnmount() {
-    document.removeEventListener('toggleSidebar', this.handleToggleSidebarEvent);
-    window.removeEventListener('resize', this.handleWindowResize);
     if (this.workflowCountsInterval) {
       window.clearInterval(this.workflowCountsInterval);
       this.workflowCountsInterval = null;
     }
   },
   methods: {
-    toggleSidebar() {
-      this.isSidebarOpen = !this.isSidebarOpen;
-    },
-    closeSidebar() {
-      this.isSidebarOpen = false;
-    },
-    openSidebar() {
-      this.isSidebarOpen = true;
-    },
     async refreshWorkflowCounts() {
       try {
         const { data } = await axiosInstance.get(r(endpoints.anonymization.itemsOverview))
@@ -404,21 +385,13 @@ export default {
       } catch (error) {
         logger.error('workflow-count-refresh-failed', error)
       }
-    },
-    handleToggleSidebarEvent() {
-      this.toggleSidebar();
-    },
-    handleWindowResize() {
-      if (window.innerWidth >= 1200) {
-        this.isSidebarOpen = false;
-      }
     }
   }
 }
 </script>
 
 <style scoped>
-.sidenav {
+.sidebar-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -427,7 +400,7 @@ export default {
   background: transparent !important;
 }
 
-.sidenav * {
+.sidebar-panel * {
   box-sizing: border-box;
 }
 
@@ -526,7 +499,7 @@ export default {
   padding: 0.48rem 0.55rem;
   color: rgba(244, 248, 247, 0.83) !important;
   border: 1px solid transparent;
-  border-radius: 0.7rem;
+  border-radius: var(--lx-corner-radius);
   transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
   text-decoration: none;
 }
@@ -565,7 +538,7 @@ export default {
   flex: 0 0 30px;
   background-color: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.6rem;
+  border-radius: var(--lx-corner-radius);
   box-shadow: none !important;
 }
 
@@ -627,59 +600,8 @@ hr.horizontal.light {
   object-fit: contain;
 }
 
-.sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100dvh;
-  background-color: rgba(12, 18, 32, 0.56);
-  z-index: 1040;
-  opacity: 0;
-  animation: fadeIn 0.2s ease-out forwards;
-}
-
-@keyframes fadeIn {
-  to {
-    opacity: 1;
-  }
-}
-
-@media (max-width: 1199.98px) {
-  .sidenav {
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    width: min(320px, 82vw) !important;
-    height: 100dvh;
-    transform: translateX(-110%) !important;
-    z-index: 1050;
-    background: linear-gradient(165deg, #173b42 0%, #102b32 55%, #0b232a 100%) !important;
-    transition: transform 0.22s ease-out !important;
-    overflow: hidden;
-    box-shadow: 14px 0 28px rgba(0, 0, 0, 0.36);
-    pointer-events: none;
-  }
-
-  .sidenav.show {
-    transform: translateX(0) !important;
-    pointer-events: auto;
-  }
-}
-
-@media (min-width: 1200px) {
-  .sidebar-backdrop {
-    display: none;
-  }
-
-  .sidenav {
-    transform: none !important;
-    position: relative !important;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .nav-link,
-  .sidenav {
+  .nav-link {
     transition: none !important;
   }
 

@@ -5,191 +5,242 @@
         <div class="small text-uppercase text-muted fw-semibold tracking-label">Reporting</div>
         <h4 class="mb-3">Bericht erstellen</h4>
         <div class="context-case-select w-100 w-xl-75">
-          <label class="form-label form-label-sm mb-1">Fall</label>
-          <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2">
-            <select
-              class="form-select"
-              data-testid="case-select"
-              :value="flow.caseId ?? ''"
-              :disabled="caseOptionsLoading || !caseOptions.length"
-              aria-label="Fall auswählen"
-              @change="onCaseSelect(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">
+          <div
+            class="reporting-requirement-callout"
+            :class="{ 'is-complete': Boolean(activePatientExaminationId) }"
+            data-testid="reporting-context-requirement"
+            role="status"
+          >
+            <i
+              :class="activePatientExaminationId ? 'ni ni-check-bold' : 'ni ni-notification-70'"
+              aria-hidden="true"
+            ></i>
+            <div>
+              <strong>
                 {{
-                  caseOptionsLoading
-                    ? 'Fälle werden geladen...'
-                    : caseOptions.length
-                      ? 'Bitte Fall wählen'
-                      : 'Keine Fälle verfügbar'
+                  activePatientExaminationId
+                    ? 'Patient und Untersuchung ausgewählt'
+                    : 'Patient und Untersuchung erforderlich'
                 }}
-              </option>
-              <option
-                v-for="patientCase in caseOptions"
-                :key="patientCase.caseId"
-                :value="patientCase.caseId"
-              >
-                {{ formatCaseLabel(patientCase) }}
-              </option>
-            </select>
-            <select
-              class="form-select"
-              data-testid="patient-examination-select"
-              :value="selectedPatientExaminationId"
-              :disabled="
-                !flow.caseId ||
-                patientExaminationOptionsLoading ||
-                !patientExaminationOptions.length
-              "
-              aria-label="Untersuchung auswählen"
-              @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">
-                {{
-                  patientExaminationOptionsLoading
-                    ? 'Patientenuntersuchungen werden geladen...'
-                    : patientExaminationOptions.length
-                      ? 'Bitte Patientenuntersuchung wählen'
-                      : 'Keine Patientenuntersuchungen verfügbar'
-                }}
-              </option>
-              <option
-                v-for="option in patientExaminationOptions"
-                :key="option.id"
-                :value="option.id"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-            <select
-              class="form-select"
-              data-testid="terminology-bundle-select"
-              :value="activeBundleIdentityKey"
-              :disabled="terminology.selecting || !visibleTerminologyBundles.length"
-              aria-label="Terminologiepaket auswählen"
-              @change="onTerminologyBundleSelect(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">Keine aktive Terminologie</option>
-              <option
-                v-for="bundle in visibleTerminologyBundles"
-                :key="terminology.bundleKey(bundle)"
-                :value="terminology.bundleKey(bundle)"
-              >
-                {{ bundle.moduleName }} · {{ bundle.version }}
-              </option>
-            </select>
-            <select
-              class="form-select"
-              data-testid="report-template-select"
-              :value="flow.selectedTemplateName ?? ''"
-              :disabled="templateLoading || !availableTemplates.length"
-              aria-label="Berichtsvorlage auswählen"
-              @change="
-                onTemplateSelectionChange(
-                  ($event.target as HTMLSelectElement).value,
-                  $event.target as HTMLSelectElement
-                )
-              "
-            >
-              <option value="">
-                {{
-                  templateLoading
-                    ? 'Vorlagen werden geladen...'
-                    : availableTemplates.length
-                      ? 'Bitte Vorlage wählen'
-                      : 'Keine veröffentlichte Vorlage verfügbar'
-                }}
-              </option>
-              <option
-                v-for="template in availableTemplates"
-                :key="template.name"
-                :value="template.name"
-              >
-                {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage)
-                }}{{
-                  template.identity?.knowledgeBaseVersion
-                    ? ` · ${template.identity.knowledgeBaseVersion}`
-                    : ''
-                }}
-              </option>
-            </select>
-            <select
-              class="form-select"
-              data-testid="report-language-select"
-              :value="flow.selectedReportLanguage"
-              :disabled="reportLanguagesLoading || !reportLanguageOptions.length"
-              aria-label="Berichtssprache auswählen"
-              @change="
-                flow.setReportLanguage(
-                  ($event.target as HTMLSelectElement).value as ReportLanguageCode
-                )
-              "
-            >
-              <option
-                v-for="language in reportLanguageOptions"
-                :key="language.code"
-                :value="language.code"
-              >
-                {{ language.label }}
-              </option>
-            </select>
-            <input
-              ref="terminologyFolderInput"
-              class="visually-hidden"
-              type="file"
-              webkitdirectory
-              directory
-              multiple
-              @change="importTerminologyFolder"
-            />
-            <input
-              ref="terminologyZipInput"
-              class="visually-hidden"
-              type="file"
-              accept=".zip,application/zip"
-              multiple
-              @change="importTerminologyZip"
-            />
-            <button
-              class="btn btn-outline-secondary"
-              type="button"
-              :disabled="terminology.importing"
-              @click="openTerminologyFolderPicker"
-            >
-              <i class="ni ni-single-copy-04 me-1" aria-hidden="true"></i>
-              {{
-                terminology.importing
-                  ? 'Terminologie wird importiert…'
-                  : 'Paketverzeichnis(se) auswählen'
-              }}
-            </button>
-            <button
-              class="btn btn-outline-secondary"
-              type="button"
-              :disabled="terminology.importing"
-              @click="openTerminologyZipPicker"
-            >
-              <i class="ni ni-archive-2 me-1" aria-hidden="true"></i>
-              ZIPs lokal/Cloud importieren
-            </button>
-            <ReportImportPanel @completed="handleReportImportCompleted" />
-            <button
-              class="btn btn-outline-secondary"
-              :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
-              @click="refreshMediaPreload"
-            >
-              <i class="ni ni-refresh-02 me-1" aria-hidden="true"></i>
-              Medien aktualisieren
-            </button>
-            <button
-              class="btn btn-outline-secondary"
-              type="button"
-              @click="isContextPanelOpen = !isContextPanelOpen"
-            >
-              <i class="ni ni-settings-gear-65 me-1" aria-hidden="true"></i>
-              {{ isContextPanelOpen ? 'Kontext ausblenden' : 'Kontext einblenden' }}
-            </button>
+              </strong>
+              <small v-if="!flow.caseId">
+                Wählen Sie zuerst einen Patientenfall und danach die Untersuchung aus.
+              </small>
+              <small v-else-if="!activePatientExaminationId">
+                Der Patient ist gewählt. Wählen Sie jetzt die zugehörige Untersuchung aus.
+              </small>
+              <small v-else>Der klinische Kontext für den Bericht ist vollständig.</small>
+            </div>
           </div>
+
+          <div class="reporting-required-fields">
+            <div>
+              <label class="form-label form-label-sm mb-1" for="reporting-case-select">
+                <span class="required-field-step">1</span>
+                Patient / Fall auswählen
+                <span class="text-danger" aria-hidden="true">*</span>
+              </label>
+              <select
+                id="reporting-case-select"
+                class="form-select"
+                data-testid="case-select"
+                :value="flow.caseId ?? ''"
+                :disabled="caseOptionsLoading || !caseOptions.length"
+                aria-label="Patient und Fall auswählen"
+                required
+                @change="onCaseSelect(($event.target as HTMLSelectElement).value)"
+              >
+                <option value="">
+                  {{
+                    caseOptionsLoading
+                      ? 'Fälle werden geladen...'
+                      : caseOptions.length
+                        ? 'Bitte Patient / Fall wählen'
+                        : 'Keine Fälle verfügbar'
+                  }}
+                </option>
+                <option
+                  v-for="patientCase in caseOptions"
+                  :key="patientCase.caseId"
+                  :value="patientCase.caseId"
+                >
+                  {{ formatCaseLabel(patientCase) }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label form-label-sm mb-1" for="reporting-examination-select">
+                <span class="required-field-step">2</span>
+                Untersuchung auswählen
+                <span class="text-danger" aria-hidden="true">*</span>
+              </label>
+              <select
+                id="reporting-examination-select"
+                class="form-select"
+                data-testid="patient-examination-select"
+                :value="selectedPatientExaminationId"
+                :disabled="
+                  !flow.caseId ||
+                  patientExaminationOptionsLoading ||
+                  !patientExaminationOptions.length
+                "
+                aria-label="Untersuchung auswählen"
+                required
+                @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
+              >
+                <option value="">
+                  {{
+                    patientExaminationOptionsLoading
+                      ? 'Patientenuntersuchungen werden geladen...'
+                      : patientExaminationOptions.length
+                        ? 'Bitte Untersuchung wählen'
+                        : 'Keine Patientenuntersuchungen verfügbar'
+                  }}
+                </option>
+                <option
+                  v-for="option in patientExaminationOptions"
+                  :key="option.id"
+                  :value="option.id"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <details class="reporting-secondary-controls mt-3" data-testid="reporting-options">
+            <summary>Weitere Einstellungen und Import</summary>
+            <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2 mt-2">
+              <select
+                class="form-select"
+                data-testid="terminology-bundle-select"
+                :value="activeBundleIdentityKey"
+                :disabled="terminology.selecting || !visibleTerminologyBundles.length"
+                aria-label="Terminologiepaket auswählen"
+                @change="onTerminologyBundleSelect(($event.target as HTMLSelectElement).value)"
+              >
+                <option value="">Keine aktive Terminologie</option>
+                <option
+                  v-for="bundle in visibleTerminologyBundles"
+                  :key="terminology.bundleKey(bundle)"
+                  :value="terminology.bundleKey(bundle)"
+                >
+                  {{ bundle.moduleName }} · {{ bundle.version }}
+                </option>
+              </select>
+              <select
+                class="form-select"
+                data-testid="report-template-select"
+                :value="flow.selectedTemplateName ?? ''"
+                :disabled="templateLoading || !availableTemplates.length"
+                aria-label="Berichtsvorlage auswählen"
+                @change="
+                  onTemplateSelectionChange(
+                    ($event.target as HTMLSelectElement).value,
+                    $event.target as HTMLSelectElement
+                  )
+                "
+              >
+                <option value="">
+                  {{
+                    templateLoading
+                      ? 'Vorlagen werden geladen...'
+                      : availableTemplates.length
+                        ? 'Bitte Vorlage wählen'
+                        : 'Keine veröffentlichte Vorlage verfügbar'
+                  }}
+                </option>
+                <option
+                  v-for="template in availableTemplates"
+                  :key="template.name"
+                  :value="template.name"
+                >
+                  {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage)
+                  }}{{
+                    template.identity?.knowledgeBaseVersion
+                      ? ` · ${template.identity.knowledgeBaseVersion}`
+                      : ''
+                  }}
+                </option>
+              </select>
+              <select
+                class="form-select"
+                data-testid="report-language-select"
+                :value="flow.selectedReportLanguage"
+                :disabled="reportLanguagesLoading || !reportLanguageOptions.length"
+                aria-label="Berichtssprache auswählen"
+                @change="
+                  flow.setReportLanguage(
+                    ($event.target as HTMLSelectElement).value as ReportLanguageCode
+                  )
+                "
+              >
+                <option
+                  v-for="language in reportLanguageOptions"
+                  :key="language.code"
+                  :value="language.code"
+                >
+                  {{ language.label }}
+                </option>
+              </select>
+              <input
+                ref="terminologyFolderInput"
+                class="visually-hidden"
+                type="file"
+                webkitdirectory
+                directory
+                multiple
+                @change="importTerminologyFolder"
+              />
+              <input
+                ref="terminologyZipInput"
+                class="visually-hidden"
+                type="file"
+                accept=".zip,application/zip"
+                multiple
+                @change="importTerminologyZip"
+              />
+              <button
+                class="btn btn-outline-secondary"
+                type="button"
+                :disabled="terminology.importing"
+                @click="openTerminologyFolderPicker"
+              >
+                <i class="ni ni-single-copy-04 me-1" aria-hidden="true"></i>
+                {{
+                  terminology.importing
+                    ? 'Terminologie wird importiert…'
+                    : 'Paketverzeichnis(se) auswählen'
+                }}
+              </button>
+              <button
+                class="btn btn-outline-secondary"
+                type="button"
+                :disabled="terminology.importing"
+                @click="openTerminologyZipPicker"
+              >
+                <i class="ni ni-archive-2 me-1" aria-hidden="true"></i>
+                ZIPs lokal/Cloud importieren
+              </button>
+              <ReportImportPanel @completed="handleReportImportCompleted" />
+              <button
+                class="btn btn-outline-secondary"
+                :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
+                @click="refreshMediaPreload"
+              >
+                <i class="ni ni-refresh-02 me-1" aria-hidden="true"></i>
+                Medien aktualisieren
+              </button>
+              <button
+                class="btn btn-outline-secondary"
+                type="button"
+                @click="isContextPanelOpen = !isContextPanelOpen"
+              >
+                <i class="ni ni-settings-gear-65 me-1" aria-hidden="true"></i>
+                {{ isContextPanelOpen ? 'Kontext ausblenden' : 'Kontext einblenden' }}
+              </button>
+            </div>
+          </details>
           <div v-if="patientExaminationOptionsError" class="small text-danger mt-1">
             {{ patientExaminationOptionsError }}
           </div>
@@ -200,34 +251,6 @@
             {{ templateSelectionError }}
           </div>
         </div>
-      </div>
-      <div class="reporting-start-guide" aria-label="Einstieg in den Reporting-Ablauf">
-        <strong>Hier starten</strong>
-        <ol>
-          <li :class="{ 'is-complete': Boolean(flow.patientExaminationId) }">
-            <span>1</span>
-            <div>
-              <b>Fall und Untersuchung wählen</b>
-              <small>Oben den Fall und eine zugehörige Patientenuntersuchung auswählen.</small>
-            </div>
-          </li>
-          <li :class="{ 'is-complete': Boolean(flow.selectedTemplateName) }">
-            <span>2</span>
-            <div>
-              <b>Optional: Vorlage festlegen</b>
-              <small
-                >Terminologie ergänzt Vorlagen; die Befunderfassung kann vorher beginnen.</small
-              >
-            </div>
-          </li>
-          <li :class="{ 'is-complete': Boolean(flow.currentRuntimeDraft) }">
-            <span>3</span>
-            <div>
-              <b>Befunde erfassen</b>
-              <small>Danach links dem Ablauf bis zum Abschluss folgen.</small>
-            </div>
-          </li>
-        </ol>
       </div>
       <div class="context-summary-grid" data-testid="primary-context-summary">
         <div class="context-summary-item is-primary">
@@ -241,10 +264,6 @@
         <div class="context-summary-item">
           <span class="context-summary-label">Untersuchung</span>
           <strong>{{ examinationTypeLabel }}</strong>
-        </div>
-        <div class="context-summary-item">
-          <span class="context-summary-label">Vorlage</span>
-          <strong>{{ selectedTemplateLabel }}</strong>
         </div>
       </div>
       <details class="context-details mt-2" data-testid="context-details">
@@ -265,6 +284,10 @@
           <div class="context-summary-item">
             <span class="context-summary-label">Terminologie</span>
             <strong>{{ selectedTerminologyLabel }}</strong>
+          </div>
+          <div class="context-summary-item">
+            <span class="context-summary-label">Vorlage</span>
+            <strong>{{ selectedTemplateLabel }}</strong>
           </div>
           <div class="context-summary-item">
             <span class="context-summary-label">Berichtssprache</span>
@@ -767,6 +790,7 @@ import { computed, onMounted, provide, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
+import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
 import { fetchPatientCases, type PatientCase } from '@/api/casesApi'
 import {
@@ -779,8 +803,7 @@ import {
   buildReportTemplateRuntimePayload,
   describeReportTemplateTitle,
   getReportTemplateDisplayName,
-  fetchReportTemplateByName,
-  fetchReportTemplatesByExamination
+  fetchReportTemplateByName
 } from '@/api/reportTemplatesApi'
 import {
   getFindingDisplayName,
@@ -843,7 +866,7 @@ const terminology = useTerminologyStore()
 const reportingVideoElement = ref<HTMLVideoElement | null>(null)
 const selectedVideoArtifactKind = ref<StreamableVideoFileType>('processed')
 const selectedFrameStreamUrl = ref<string | null>(null)
-const isContextPanelOpen = ref(true)
+const isContextPanelOpen = ref(false)
 const terminologyLoadPromise = ref<Promise<void> | null>(null)
 const terminologyFolderInput = ref<HTMLInputElement | null>(null)
 const terminologyZipInput = ref<HTMLInputElement | null>(null)
@@ -1029,7 +1052,7 @@ const navItems = computed(() => [
     requiresPatientExamination: true
   },
   {
-    label: 'Report export',
+    label: 'Export',
     to: reportExportStepTarget.value,
     requiresPatientExamination: true,
     requiresVerifiedTemplate: true
@@ -1067,6 +1090,7 @@ const { playbackError: reportingVideoPlaybackError } = useAuthenticatedVideoStre
 const activeKbModule = computed(() =>
   terminology.activeBundle ? terminology.activeModuleName : ''
 )
+const activeKbVersion = computed(() => terminology.activeBundle?.version || '')
 
 const activeExaminationName = computed(() => {
   const option =
@@ -1086,6 +1110,7 @@ const activeExaminationName = computed(() => {
 
 provide(reportTemplateLifecycleContextKey, {
   activeModuleName: activeKbModule,
+  activeModuleVersion: activeKbVersion,
   activeExaminationName,
   notifyLifecycleChanged: refreshPublishedTemplatesAfterLifecycleChange
 })
@@ -2541,9 +2566,10 @@ async function loadBootstrapTemplates(
   availableTemplates.value = []
   templateLoading.value = true
   try {
-    const templates = examinationName
-      ? await fetchReportTemplatesByExamination(moduleName, examinationName)
-      : []
+    const version = terminology.activeBundle?.version || ''
+    if (!examinationName || !version) return []
+    const projection = await fetchExaminationReportingContext(moduleName, version, examinationName)
+    const templates = projection.reportTemplates
     assertBootstrapContextCurrent(context)
     availableTemplates.value = templates
     return templates
@@ -2563,7 +2589,14 @@ async function refreshPublishedTemplatesAfterLifecycleChange(
   const expectedBundleKey = activeBundleIdentityKey.value
   templateLoading.value = true
   try {
-    const templates = await fetchReportTemplatesByExamination(change.moduleName, examinationName)
+    const version = terminology.activeBundle?.version
+    if (!version) return
+    const projection = await fetchExaminationReportingContext(
+      change.moduleName,
+      version,
+      examinationName
+    )
+    const templates = projection.reportTemplates
     if (
       change.moduleName !== activeKbModule.value ||
       expectedBundleKey !== activeBundleIdentityKey.value ||
@@ -2810,9 +2843,12 @@ async function validateRestoredDraftTemplate(
   context: DraftBootstrapContext
 ) {
   const examinationName = extractExaminationName(detail)
-  const templates = examinationName
-    ? await fetchReportTemplatesByExamination(context.moduleName, examinationName)
-    : []
+  const version = terminology.activeBundle?.version || ''
+  const templates =
+    examinationName && version
+      ? (await fetchExaminationReportingContext(context.moduleName, version, examinationName))
+          .reportTemplates
+      : []
   assertBootstrapContextCurrent(context)
   availableTemplates.value = templates
   const selected = draft.templateName
@@ -3234,61 +3270,69 @@ onMounted(() => {
   min-width: 0;
 }
 
-.reporting-start-guide {
-  grid-column: 1 / -1;
-  padding: 0.8rem;
-  border: 1px solid #b9cbea;
-  border-radius: 8px;
-  background: #f2f7ff;
-}
-
-.reporting-start-guide > strong {
-  display: block;
-  margin-bottom: 0.55rem;
-  color: #172234;
-}
-
-.reporting-start-guide ol {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.reporting-start-guide li {
+.reporting-requirement-callout {
   display: flex;
+  gap: 0.65rem;
   align-items: flex-start;
-  gap: 0.55rem;
-  color: #334155;
+  margin-bottom: 0.9rem;
+  padding: 0.75rem;
+  border: 1px solid #e4b55d;
+  border-radius: 8px;
+  color: #5c3b00;
+  background: #fff8e7;
 }
 
-.reporting-start-guide li > span {
+.reporting-requirement-callout.is-complete {
+  border-color: #9bc7ad;
+  color: #155f36;
+  background: #effaf3;
+}
+
+.reporting-requirement-callout i {
+  margin-top: 0.15rem;
+  font-size: 1rem;
+}
+
+.reporting-requirement-callout strong,
+.reporting-requirement-callout small {
+  display: block;
+}
+
+.reporting-requirement-callout small {
+  margin-top: 0.15rem;
+}
+
+.reporting-required-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.required-field-step {
   display: inline-flex;
-  flex: 0 0 1.6rem;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.35rem;
+  height: 1.35rem;
   align-items: center;
   justify-content: center;
+  margin-right: 0.25rem;
   border-radius: 999px;
   color: #fff;
   background: #315a94;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
-.reporting-start-guide li.is-complete > span {
-  background: #198754;
+.reporting-secondary-controls {
+  border-top: 1px solid #d9e0ea;
+  padding-top: 0.65rem;
 }
 
-.reporting-start-guide b,
-.reporting-start-guide small {
-  display: block;
-}
-
-.reporting-start-guide small {
-  margin-top: 0.15rem;
+.reporting-secondary-controls summary {
+  width: fit-content;
   color: #526174;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .tracking-label {
@@ -3743,7 +3787,7 @@ onMounted(() => {
 }
 
 @media (max-width: 767.98px) {
-  .reporting-start-guide ol {
+  .reporting-required-fields {
     grid-template-columns: 1fr;
   }
 }

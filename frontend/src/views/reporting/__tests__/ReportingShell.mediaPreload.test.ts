@@ -8,6 +8,7 @@ import type { TerminologyBundleVersion } from '@/api/terminologyApi'
 import type { PatientCase } from '@/api/casesApi'
 import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
 import type { ReportingRuntimeDraft } from '@/stores/reportingFlowStore'
+import type { ReportTemplatePayload } from '@/types/reportTemplate'
 import type { UseAuthenticatedVideoStreamOptions } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 import { reportTemplateLifecycleContextKey } from '../reportTemplateLifecycleContext'
@@ -54,6 +55,9 @@ const hoisted = vi.hoisted(() => {
       fetchReportTemplatesByExamination: vi.fn(),
       fetchReportTemplateByName: vi.fn(),
       buildReportTemplateRuntimePayload: vi.fn()
+    },
+    knowledgeBaseGraphApi: {
+      fetchExaminationReportingContext: vi.fn()
     },
     reportDraftApi: {
       fetchPatientExaminationDraft: vi.fn()
@@ -156,6 +160,10 @@ vi.mock('@/api/reportTemplatesApi', () => ({
   describeReportTemplateTitle: (name: string) => name,
   getReportTemplateDisplayName: (template: { name: string; nameDe?: string }, language: string) =>
     (language === 'de' && template.nameDe) || template.name
+}))
+
+vi.mock('@/api/knowledgeBaseGraphApi', () => ({
+  fetchExaminationReportingContext: hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext
 }))
 
 vi.mock('@/api/reportDraftApi', () => ({
@@ -293,6 +301,18 @@ function mountShell(routerViewStub: Component | boolean = true) {
   return wrapper
 }
 
+async function openContextPanel(wrapper: ReturnType<typeof mountShell>) {
+  const options = wrapper.get('[data-testid="reporting-options"]')
+  const detailsElement = options.element as HTMLDetailsElement
+  detailsElement.open = true
+  const toggle = requireDefined(
+    wrapper.findAll('button').find((button) => button.text().includes('Kontext einblenden')),
+    'the context-panel toggle'
+  )
+  await toggle.trigger('click')
+  await flushPromises()
+}
+
 function hasMutableArtifactKind(
   options: UseAuthenticatedVideoStreamOptions
 ): options is UseAuthenticatedVideoStreamOptions & {
@@ -308,6 +328,14 @@ describe('ReportingShell media preload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementation(
+      async (moduleName: string, _version: string, examinationName: string) => ({
+        reportTemplates: (await hoisted.reportTemplatesApi.fetchReportTemplatesByExamination(
+          moduleName,
+          examinationName
+        )) as ReportTemplatePayload[]
+      })
+    )
     hoisted.routeRef.current = reactive({
       path: '/reporting/314/findings',
       params: { patient_examination_id: '314' }
@@ -637,6 +665,11 @@ describe('ReportingShell media preload', () => {
 
     expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
       'report_template_examples',
+      'colonoscopy'
+    )
+    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0',
       'colonoscopy'
     )
     expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
@@ -1211,6 +1244,7 @@ describe('ReportingShell media preload', () => {
 
     const wrapper = mountShell()
     await flushPromises()
+    await openContextPanel(wrapper)
 
     const video = wrapper.find('video')
     expect(video.exists()).toBe(true)
@@ -1276,6 +1310,7 @@ describe('ReportingShell media preload', () => {
 
     const wrapper = mountShell()
     await flushPromises()
+    await openContextPanel(wrapper)
 
     const streamOptions = hoisted.useAuthenticatedVideoStream.mock.calls[0][0]
     if (!hasMutableArtifactKind(streamOptions)) {
@@ -1328,15 +1363,21 @@ describe('ReportingShell media preload', () => {
     })
   })
 
-  it('shows a clear three-step starting guide', async () => {
+  it('prioritizes patient and examination while collapsing secondary controls', async () => {
     const wrapper = mountShell()
     await flushPromises()
 
-    const guide = wrapper.get('[aria-label="Einstieg in den Reporting-Ablauf"]')
-    expect(guide.text()).toContain('Hier starten')
-    expect(guide.text()).toContain('Fall und Untersuchung wählen')
-    expect(guide.text()).toContain('Vorlage festlegen')
-    expect(guide.text()).toContain('Befunde erfassen')
+    const requirement = wrapper.get('[data-testid="reporting-context-requirement"]')
+    expect(requirement.text()).toContain('Patient und Untersuchung ausgewählt')
+    expect(wrapper.get('[data-testid="case-select"]').attributes('required')).toBeDefined()
+    expect(
+      wrapper.get('[data-testid="patient-examination-select"]').attributes('required')
+    ).toBeDefined()
+
+    const secondaryControls = wrapper.get('[data-testid="reporting-options"]')
+    expect(secondaryControls.attributes('open')).toBeUndefined()
+    expect(secondaryControls.get('summary').text()).toBe('Weitere Einstellungen und Import')
+    expect(wrapper.find('.context-panel').exists()).toBe(false)
   })
 
   it('loads and applies the report language contract', async () => {

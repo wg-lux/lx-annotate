@@ -52,7 +52,7 @@ dependencies = [
     "daphne>=4.2.1",
     "psycopg[binary,pool]>=3.2.12",
     "mozilla-django-oidc>=4.0.1",
-    "endoreg-db==1.0.15.0",
+    "endoreg-db==1.0.16.0",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
     "sops>=1.18",
@@ -60,7 +60,7 @@ dependencies = [
     "cryptography>=45.0.0",
     "django-linear-migrations>=2.19.0",
     "redis>=7.4.0",
-    "lx-dtypes==0.2.17",
+    "lx-dtypes>=0.2.18",
     "pre-commit[dev]>=4.6.1",
 ]
 

@@ -383,9 +383,15 @@ body:has(.g-sidenav-hidden) .main-content {
   --lx-focus: rgba(11, 101, 113, 0.3);
   --lx-shadow-sm: 0 0.35rem 1rem rgba(22, 55, 62, 0.07);
   --lx-shadow-md: 0 1rem 2.6rem rgba(22, 55, 62, 0.1);
-  --lx-radius-sm: 0.65rem;
-  --lx-radius-md: 0.9rem;
-  --lx-radius-lg: 1.2rem;
+  --lx-corner-radius: 0.75rem;
+  --lx-radius-sm: var(--lx-corner-radius);
+  --lx-radius-md: var(--lx-corner-radius);
+  --lx-radius-lg: var(--lx-corner-radius);
+  --bs-border-radius: var(--lx-corner-radius);
+  --bs-border-radius-sm: var(--lx-corner-radius);
+  --bs-border-radius-lg: var(--lx-corner-radius);
+  --bs-border-radius-xl: var(--lx-corner-radius);
+  --bs-border-radius-2xl: var(--lx-corner-radius);
   --lx-font-ui: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --lx-font-display: "Comfortaa", var(--lx-font-ui);
 }
@@ -421,6 +427,67 @@ textarea,
 .alert,
 .form-control {
   font-family: var(--lx-font-ui);
+}
+
+/* Ordinary surfaces share one corner geometry. Circles, pills, progress
+   tracks, switches, and joined-control edge resets remain intentional. */
+#app :where(
+  .card,
+  .alert,
+  .dropdown-menu,
+  .modal-content,
+  .toast,
+  .popover,
+  .tooltip-inner,
+  .accordion-item,
+  .list-group,
+  .table-responsive,
+  [class*="-panel"],
+  [class*="-tile"],
+  [class*="-card"],
+  [class*="-summary"],
+  [class*="-metric"],
+  [class*="-surface"],
+  [class*="-toolbar"],
+  [class*="-empty"],
+  [class*="-situation"]
+) {
+  border-radius: var(--lx-corner-radius) !important;
+}
+
+#app :where(
+  .rounded,
+  .rounded-1,
+  .rounded-2,
+  .rounded-3,
+  .border-radius-sm,
+  .border-radius-md,
+  .border-radius-lg,
+  .border-radius-xl,
+  .border-radius-2xl,
+  .border-radius-section
+) {
+  border-radius: var(--lx-corner-radius) !important;
+}
+
+#app .rounded-top {
+  border-top-left-radius: var(--lx-corner-radius) !important;
+  border-top-right-radius: var(--lx-corner-radius) !important;
+}
+
+#app .rounded-end {
+  border-top-right-radius: var(--lx-corner-radius) !important;
+  border-bottom-right-radius: var(--lx-corner-radius) !important;
+}
+
+#app .rounded-bottom {
+  border-bottom-right-radius: var(--lx-corner-radius) !important;
+  border-bottom-left-radius: var(--lx-corner-radius) !important;
+}
+
+#app .rounded-start {
+  border-top-left-radius: var(--lx-corner-radius) !important;
+  border-bottom-left-radius: var(--lx-corner-radius) !important;
 }
 
 h1,

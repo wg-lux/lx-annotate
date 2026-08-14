@@ -1,0 +1,151 @@
+schema_version: '1.0'
+id: frontend_real_yaml_contracts
+name: Frontend Real YAML Contracts
+description: Verify the frontend core-concepts boundary against real and shipped representative lx-dtypes
+  YAML modules.
+owners:
+- lx-annotate frontend maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Frontend terminology ownership and reporting context; exact YAML provenance is recorded in the
+    fixture manifest.
+definition_of_done:
+- id: real_yaml_mock_endpoint
+  category: requirements
+  title: Tests exercise a mock endpoint backed by YAML modules
+  acceptance:
+  - The mock endpoint attempts the three requested live module paths first.
+  - Tests remain portable by falling back to a representative YAML slice shipped in the frontend.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused real-YAML endpoint tests with and without the live lx-data-models checkout.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/api/__tests__/support/realYamlCoreConceptMockEndpoint.ts
+    - kind: test
+      reference: realYamlCoreConcepts.test.ts live-first endpoint test passed
+    note: Axios mock adapter attempts the three exact live module paths first and falls back per module
+      to shipped YAML fixtures.
+    assessed_by: codex-real-yaml-fixtures-20260814
+    assessed_at: '2026-08-14T07:56:00.237899Z'
+- id: exhaustive_model_routing
+  category: functionality
+  title: Supported YAML models land in their matching frontend fields
+  acceptance:
+  - Every supported model name has one explicit collection-field mapping.
+  - Unsupported report-template and validator records are excluded explicitly rather than guessed into
+    a field.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the exhaustive routing table and model-distribution assertions.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/api/__tests__/support/realYamlCoreConceptMockEndpoint.ts
+    - kind: test
+      reference: unknown-model and explicit-exclusion tests passed
+    note: Seventeen supported core model names map exhaustively to transport collections; five report/validator
+      models are explicitly excluded and unknown models fail.
+    assessed_by: codex-real-yaml-fixtures-20260814
+    assessed_at: '2026-08-14T07:56:01.259887Z'
+- id: malformed_yaml_failure
+  category: security
+  title: Malformed or ambiguous YAML fails visibly
+  acceptance:
+  - YAML documents must be arrays of typed records with non-empty names.
+  - Unknown model names fail the mock endpoint instead of disappearing silently.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run malformed-document and unknown-model negative tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: malformed YAML and terminology duplicate-key diagnostics passed
+    note: Strict YAML parsing rejects non-array documents, missing names, duplicate keys, and unknown
+      models with source paths.
+    assessed_by: codex-real-yaml-fixtures-20260814
+    assessed_at: '2026-08-14T07:56:02.308553Z'
+- id: representative_fixture_shipping
+  category: testing
+  title: Frontend ships representative fixtures for all observed core model types
+  acceptance:
+  - MST 3.0, STAR Upper GI, and terminology fixture slices are versioned under frontend test fixtures.
+  - Focused API tests verify localized names, relationships, descriptors, units, and collection placement.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused tests and compare the fixture manifest with live source records.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/test-fixtures/knowledge-base
+    - kind: command
+      reference: 'vitest realYamlCoreConcepts and coreConcepts: 2 files, 6 tests passed'
+    note: Frontend ships three YAML slices covering every core model type observed in MST 3.0, STAR Upper
+      GI, and terminology; relationship and localization assertions pass.
+    assessed_by: codex-real-yaml-fixtures-20260814
+    assessed_at: '2026-08-14T07:56:03.339052Z'
+- id: source_diagnostics
+  category: operations
+  title: Live-source incompatibilities are observable
+  acceptance:
+  - Test results identify whether live or shipped YAML supplied each endpoint response.
+  - Known upstream semantic-loader blockers are recorded without weakening frontend validation.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review live-source diagnostics and the feature tracker evidence.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: live-first test records source and terminology fallback diagnostic
+    - kind: review
+      reference: /home/admin/lx-data-models/lx_dtypes/data/terminology/lx_findings/data/00_generic_complication.yaml
+        duplicate name_de
+    note: Live MST and STAR raw YAML route successfully; terminology duplicate name_de keys trigger a
+      recorded fallback diagnostic. Canonical MST export remains blocked by unresolved unit sentinel unknown.
+    assessed_by: codex-real-yaml-fixtures-20260814
+    assessed_at: '2026-08-14T07:56:04.347734Z'
+- id: fixture_provenance
+  category: documentation
+  title: Fixture provenance and refresh rules are explicit
+  acceptance:
+  - The YAML fixture manifest records source paths, versions, and selection intent.
+  - Fixtures contain terminology only and no patient data, secrets, or local runtime paths.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the shipped fixture manifest and representative YAML records.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/src/test-fixtures/knowledge-base/manifest.yml
+    - kind: command
+      reference: 'npm run type-check; npm run type-check:component-tests; scoped ESLint; git diff --check:
+        passed'
+    note: English YAML manifest records source modules, versions, exclusions, selection policy, and known
+      upstream blockers; fixtures contain terminology only.
+    assessed_by: codex-real-yaml-fixtures-20260814
+    assessed_at: '2026-08-14T07:56:05.364227Z'

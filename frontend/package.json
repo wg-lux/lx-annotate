@@ -81,7 +81,8 @@
     "vite-plugin-vue-devtools": "^7.3.1",
     "vitest": "^3.2.4",
     "vue-eslint-parser": "^10.2.0",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.0",
+    "yaml": "^2.8.1"
   },
   "resolutions": {
     "rollup": "4.22.4"

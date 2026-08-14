@@ -2,10 +2,8 @@
   <div class="card shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
       <div>
-        <h5 class="mb-0">Fall-Setup</h5>
-        <small class="text-muted"
-          >Patient auswählen, Untersuchung wählen und Reporting-Entwurf vorbereiten</small
-        >
+        <h5 class="mb-0">Patient und Untersuchung hinzufügen</h5>
+        <small class="text-muted">Diese beiden Angaben werden für einen Bericht benötigt.</small>
       </div>
       <span class="badge" :class="sessionBadgeClass">{{ sessionBadgeLabel }}</span>
     </div>
@@ -23,13 +21,29 @@
         {{ errorMessage }}
       </div>
 
+      <div class="setup-requirement mb-3" role="status" data-testid="setup-requirement">
+        <i class="ni ni-notification-70" aria-hidden="true"></i>
+        <div>
+          <strong>Zuerst Patient und Untersuchung auswählen</strong>
+          <small
+            >Danach kann die Patientenuntersuchung angelegt und der Bericht begonnen werden.</small
+          >
+        </div>
+      </div>
+
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Patient auswählen</label>
+          <label class="form-label" for="reporting-patient-select">
+            <span class="setup-step">1</span>
+            Patient auswählen <span class="text-danger" aria-hidden="true">*</span>
+          </label>
           <select
+            id="reporting-patient-select"
             class="form-select"
+            data-testid="patient-select"
             :value="flow.selectedPatientId ?? ''"
             :disabled="patientsLoading || loading"
+            required
             @change="onPatientChange(($event.target as HTMLSelectElement).value)"
           >
             <option value="" disabled>
@@ -41,11 +55,17 @@
           </select>
         </div>
         <div class="col-md-6">
-          <label class="form-label">Untersuchung auswählen</label>
+          <label class="form-label" for="reporting-examination-type-select">
+            <span class="setup-step">2</span>
+            Untersuchung auswählen <span class="text-danger" aria-hidden="true">*</span>
+          </label>
           <select
+            id="reporting-examination-type-select"
             class="form-select"
+            data-testid="examination-select"
             :value="flow.selectedExaminationId ?? ''"
             :disabled="examinationsLoading || loading"
+            required
             @change="onExaminationChange(($event.target as HTMLSelectElement).value)"
           >
             <option value="" disabled>
@@ -60,27 +80,6 @@
             </option>
           </select>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Fall-ID</label>
-          <input class="form-control" :value="flow.caseId ?? ''" readonly />
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">PatientExamination-ID</label>
-          <input
-            class="form-control"
-            type="number"
-            :value="flow.patientExaminationId ?? ''"
-            readonly
-          />
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Reporting-Status</label>
-          <input
-            class="form-control"
-            :value="flow.currentRuntimeDraft ? 'Entwurf geladen' : 'Noch kein Entwurf geladen'"
-            readonly
-          />
-        </div>
       </div>
 
       <div class="mt-3 d-flex flex-wrap gap-2">
@@ -92,18 +91,38 @@
           <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
           Fall und Patientenuntersuchung anlegen
         </button>
-        <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="reloadLists">
-          Neu laden
-        </button>
-        <button class="btn btn-outline-danger btn-sm" :disabled="loading" @click="clearFlow">
-          Alles zurücksetzen
-        </button>
         <RouterLink v-if="returnToPath" class="btn btn-outline-secondary btn-sm" :to="returnToPath">
           Zurück zur Validierung
         </RouterLink>
       </div>
 
-      <div class="mt-4">
+      <details class="setup-secondary mt-3" data-testid="setup-secondary-actions">
+        <summary>Weitere Aktionen und technische Details</summary>
+        <div class="mt-2 d-flex flex-wrap gap-2">
+          <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="reloadLists">
+            Listen neu laden
+          </button>
+          <button class="btn btn-outline-danger btn-sm" :disabled="loading" @click="clearFlow">
+            Auswahl zurücksetzen
+          </button>
+        </div>
+        <dl class="setup-technical-grid mb-0 mt-3">
+          <div>
+            <dt>Fallreferenz</dt>
+            <dd>{{ flow.caseId || 'Noch nicht angelegt' }}</dd>
+          </div>
+          <div>
+            <dt>Patientenuntersuchung</dt>
+            <dd>{{ flow.patientExaminationId || 'Noch nicht angelegt' }}</dd>
+          </div>
+          <div>
+            <dt>Entwurf</dt>
+            <dd>{{ flow.currentRuntimeDraft ? 'Geladen' : 'Noch nicht geladen' }}</dd>
+          </div>
+        </dl>
+      </details>
+
+      <div v-if="flow.patientExaminationId" class="mt-4">
         <h6 class="mb-2">Nächster Schritt</h6>
         <RouterLink
           class="btn btn-dark btn-sm"
@@ -276,3 +295,74 @@ onMounted(async () => {
   await reloadLists()
 })
 </script>
+
+<style scoped>
+.setup-requirement {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.75rem;
+  border: 1px solid #e4b55d;
+  border-radius: 8px;
+  color: #5c3b00;
+  background: #fff8e7;
+}
+
+.setup-requirement strong,
+.setup-requirement small {
+  display: block;
+}
+
+.setup-requirement small {
+  margin-top: 0.15rem;
+}
+
+.setup-step {
+  display: inline-flex;
+  width: 1.35rem;
+  height: 1.35rem;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.25rem;
+  border-radius: 999px;
+  color: #fff;
+  background: #315a94;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.setup-secondary {
+  border-top: 1px solid #d9e0ea;
+  padding-top: 0.65rem;
+}
+
+.setup-secondary summary {
+  width: fit-content;
+  color: #526174;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.setup-technical-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.setup-technical-grid div {
+  padding: 0.6rem;
+  border-radius: 6px;
+  background: #f5f7fa;
+}
+
+.setup-technical-grid dt {
+  color: #66768c;
+  font-size: 0.75rem;
+}
+
+.setup-technical-grid dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+</style>

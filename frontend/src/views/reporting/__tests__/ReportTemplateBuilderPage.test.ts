@@ -1,12 +1,12 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ReportTemplateBuilderPage from '../ReportTemplateBuilderPage.vue'
 import { reportTemplateLifecycleContextKey } from '../reportTemplateLifecycleContext'
 
 const hoisted = vi.hoisted(() => ({
-  fetchCoreConcepts: vi.fn(),
+  fetchKnowledgeBaseGraphSnapshot: vi.fn(),
   fetchByName: vi.fn(),
   fetchPreviewByName: vi.fn(),
   fetchBuilderByExamination: vi.fn(),
@@ -18,14 +18,16 @@ const hoisted = vi.hoisted(() => ({
   unpublish: vi.fn()
 }))
 
-vi.mock('@/api/coreConcepts', () => ({
-  fetchCoreConcepts: hoisted.fetchCoreConcepts
+vi.mock('@/api/knowledgeBaseGraphApi', () => ({
+  fetchKnowledgeBaseGraphSnapshot: hoisted.fetchKnowledgeBaseGraphSnapshot
 }))
 
 vi.mock('@/api/reportTemplatesApi', () => ({
   fetchReportTemplateByName: hoisted.fetchByName,
   fetchReportTemplatePreviewByName: hoisted.fetchPreviewByName,
   fetchBuilderReportTemplatesByExamination: hoisted.fetchBuilderByExamination,
+  getReportTemplateDisplayName: (template: { name: string; nameDe?: string }) =>
+    template.nameDe || template.name,
   validateReportTemplateDefinition: hoisted.validateDefinition,
   validateReportTemplateRuntime: hoisted.validateRuntime
 }))
@@ -39,6 +41,7 @@ vi.mock('@/api/reportTemplateBuilderApi', () => ({
 
 const draftTemplate = {
   name: 'custom_colonoscopy',
+  nameDe: 'Koloskopie-Demovorlage',
   examination: 'colonoscopy',
   identity: {
     moduleName: 'report_template_examples',
@@ -62,23 +65,27 @@ const draftTemplate = {
 describe('ReportTemplateBuilderPage publication integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    hoisted.fetchCoreConcepts.mockResolvedValue({
-      moduleName: 'report_template_examples',
-      examination: [{ name: 'colonoscopy', displayName: 'Colonoscopy', tags: [] }],
-      finding: [],
-      classification: [],
-      classificationChoice: [],
-      classificationChoiceDescriptor: [],
-      findingType: [],
-      indication: [],
-      indicationType: [],
-      intervention: [],
-      interventionType: [],
-      unit: [],
-      unitType: [],
-      informationSource: [],
-      informationSourceType: [],
-      citation: []
+    hoisted.fetchKnowledgeBaseGraphSnapshot.mockResolvedValue({
+      concepts: {
+        moduleName: 'report_template_examples',
+        examination: [
+          { name: 'colonoscopy', nameDe: 'Koloskopie', displayName: 'Koloskopie', tags: [] }
+        ],
+        finding: [{ name: 'colon_polyp', nameDe: 'Kolonpolyp', tags: [] }],
+        classification: [{ name: 'polyp_size', nameDe: 'Polypengröße', tags: [] }],
+        classificationChoice: [],
+        classificationChoiceDescriptor: [],
+        findingType: [],
+        indication: [],
+        indicationType: [],
+        intervention: [],
+        interventionType: [],
+        unit: [],
+        unitType: [],
+        informationSource: [],
+        informationSourceType: [],
+        citation: []
+      }
     })
     hoisted.fetchBuilderByExamination.mockResolvedValue([draftTemplate])
     hoisted.fetchPreviewByName.mockResolvedValue(draftTemplate)
@@ -98,6 +105,15 @@ describe('ReportTemplateBuilderPage publication integration', () => {
         raw: {}
       }
     })
+    hoisted.saveDefinition.mockResolvedValue({
+      moduleName: 'report_template_examples',
+      fileName: 'clinic_template.yaml',
+      path: '/knowledge/generated/clinic_template.yaml',
+      templateName: 'custom_colonoscopy',
+      recordsWritten: 2,
+      lifecycleStatus: 'draft',
+      readiness: null
+    })
   })
 
   it('uses the shell module, loads drafts through preview, and notifies after publication', async () => {
@@ -107,6 +123,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
         provide: {
           [reportTemplateLifecycleContextKey as symbol]: {
             activeModuleName: computed(() => 'report_template_examples'),
+            activeModuleVersion: computed(() => '1.0.0'),
             activeExaminationName: computed(() => 'colonoscopy'),
             notifyLifecycleChanged
           }
@@ -115,7 +132,10 @@ describe('ReportTemplateBuilderPage publication integration', () => {
     })
     await flushPromises()
 
-    expect(hoisted.fetchCoreConcepts).toHaveBeenCalledWith('report_template_examples')
+    expect(hoisted.fetchKnowledgeBaseGraphSnapshot).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0'
+    )
     expect(hoisted.fetchPreviewByName).toHaveBeenCalledWith(
       'report_template_examples',
       'custom_colonoscopy'
@@ -138,27 +158,99 @@ describe('ReportTemplateBuilderPage publication integration', () => {
     })
   })
 
+  it('waits for the shell terminology module before loading builder catalogs', async () => {
+    const activeModuleName = ref('')
+    const wrapper = mount(ReportTemplateBuilderPage, {
+      global: {
+        provide: {
+          [reportTemplateLifecycleContextKey as symbol]: {
+            activeModuleName: computed(() => activeModuleName.value),
+            activeModuleVersion: computed(() => '1.0.0'),
+            activeExaminationName: computed(() => ''),
+            notifyLifecycleChanged: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      }
+    })
+    await flushPromises()
+
+    expect(hoisted.fetchKnowledgeBaseGraphSnapshot).not.toHaveBeenCalled()
+    expect(hoisted.fetchBuilderByExamination).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('Request failed with status code 404')
+
+    activeModuleName.value = 'report_template_examples'
+    await flushPromises()
+
+    expect(hoisted.fetchKnowledgeBaseGraphSnapshot).toHaveBeenCalledTimes(1)
+    expect(hoisted.fetchKnowledgeBaseGraphSnapshot).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0'
+    )
+    expect(hoisted.fetchBuilderByExamination).toHaveBeenCalledWith(
+      'report_template_examples',
+      'colonoscopy'
+    )
+    expect(wrapper.text()).toContain('1 Untersuchungen')
+    expect(wrapper.text()).toContain('Koloskopie')
+    expect(wrapper.text()).toContain('Koloskopie-Demovorlage')
+
+    const addFindingButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Befund hinzufügen')
+    if (!addFindingButton) throw new Error('Add finding button not found.')
+    await addFindingButton.trigger('click')
+    expect(wrapper.text()).toContain('Kolonpolyp')
+
+    const addClassificationButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Wert hinzufügen')
+    if (!addClassificationButton) throw new Error('Add classification button not found.')
+    await addClassificationButton.trigger('click')
+    expect(wrapper.text()).toContain('Polypengröße')
+  })
+
+  it('fails closed when the shell does not provide an exact module version', async () => {
+    const wrapper = mount(ReportTemplateBuilderPage, {
+      global: {
+        provide: {
+          [reportTemplateLifecycleContextKey as symbol]: {
+            activeModuleName: computed(() => 'report_template_examples'),
+            activeModuleVersion: computed(() => ''),
+            activeExaminationName: computed(() => 'colonoscopy'),
+            notifyLifecycleChanged: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      }
+    })
+    await flushPromises()
+
+    expect(hoisted.fetchKnowledgeBaseGraphSnapshot).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('eine exakte Terminologieversion benötigt')
+  })
+
   it('uses the shell examination instead of the first core-concept examination', async () => {
-    hoisted.fetchCoreConcepts.mockResolvedValueOnce({
-      moduleName: 'report_template_examples',
-      examination: [
-        { name: 'gastroscopy', displayName: 'Gastroscopy', tags: [] },
-        { name: 'colonoscopy', displayName: 'Colonoscopy', tags: [] }
-      ],
-      finding: [],
-      classification: [],
-      classificationChoice: [],
-      classificationChoiceDescriptor: [],
-      findingType: [],
-      indication: [],
-      indicationType: [],
-      intervention: [],
-      interventionType: [],
-      unit: [],
-      unitType: [],
-      informationSource: [],
-      informationSourceType: [],
-      citation: []
+    hoisted.fetchKnowledgeBaseGraphSnapshot.mockResolvedValueOnce({
+      concepts: {
+        moduleName: 'report_template_examples',
+        examination: [
+          { name: 'gastroscopy', displayName: 'Gastroscopy', tags: [] },
+          { name: 'colonoscopy', displayName: 'Colonoscopy', tags: [] }
+        ],
+        finding: [],
+        classification: [],
+        classificationChoice: [],
+        classificationChoiceDescriptor: [],
+        findingType: [],
+        indication: [],
+        indicationType: [],
+        intervention: [],
+        interventionType: [],
+        unit: [],
+        unitType: [],
+        informationSource: [],
+        informationSourceType: [],
+        citation: []
+      }
     })
 
     mount(ReportTemplateBuilderPage, {
@@ -166,6 +258,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
         provide: {
           [reportTemplateLifecycleContextKey as symbol]: {
             activeModuleName: computed(() => 'report_template_examples'),
+            activeModuleVersion: computed(() => '1.0.0'),
             activeExaminationName: computed(() => 'colonoscopy'),
             notifyLifecycleChanged: vi.fn().mockResolvedValue(undefined)
           }
@@ -185,23 +278,25 @@ describe('ReportTemplateBuilderPage publication integration', () => {
   })
 
   it('fails visibly instead of loading templates for an unrelated examination', async () => {
-    hoisted.fetchCoreConcepts.mockResolvedValueOnce({
-      moduleName: 'report_template_examples',
-      examination: [{ name: 'gastroscopy', displayName: 'Gastroscopy', tags: [] }],
-      finding: [],
-      classification: [],
-      classificationChoice: [],
-      classificationChoiceDescriptor: [],
-      findingType: [],
-      indication: [],
-      indicationType: [],
-      intervention: [],
-      interventionType: [],
-      unit: [],
-      unitType: [],
-      informationSource: [],
-      informationSourceType: [],
-      citation: []
+    hoisted.fetchKnowledgeBaseGraphSnapshot.mockResolvedValueOnce({
+      concepts: {
+        moduleName: 'report_template_examples',
+        examination: [{ name: 'gastroscopy', displayName: 'Gastroscopy', tags: [] }],
+        finding: [],
+        classification: [],
+        classificationChoice: [],
+        classificationChoiceDescriptor: [],
+        findingType: [],
+        indication: [],
+        indicationType: [],
+        intervention: [],
+        interventionType: [],
+        unit: [],
+        unitType: [],
+        informationSource: [],
+        informationSourceType: [],
+        citation: []
+      }
     })
 
     const wrapper = mount(ReportTemplateBuilderPage, {
@@ -209,6 +304,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
         provide: {
           [reportTemplateLifecycleContextKey as symbol]: {
             activeModuleName: computed(() => 'report_template_examples'),
+            activeModuleVersion: computed(() => '1.0.0'),
             activeExaminationName: computed(() => 'colonoscopy'),
             notifyLifecycleChanged: vi.fn().mockResolvedValue(undefined)
           }
@@ -221,5 +317,52 @@ describe('ReportTemplateBuilderPage publication integration', () => {
       'Die ausgewählte Untersuchung "colonoscopy" fehlt im aktiven Terminologiemodul.'
     )
     expect(hoisted.fetchBuilderByExamination).not.toHaveBeenCalled()
+  })
+
+  it('preserves hospital branding sections in the template save payload', async () => {
+    const wrapper = mount(ReportTemplateBuilderPage, {
+      global: {
+        provide: {
+          [reportTemplateLifecycleContextKey as symbol]: {
+            activeModuleName: computed(() => 'report_template_examples'),
+            activeModuleVersion: computed(() => '1.0.0'),
+            activeExaminationName: computed(() => 'colonoscopy'),
+            notifyLifecycleChanged: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      }
+    })
+    await flushPromises()
+
+    await wrapper
+      .get('[data-testid="hospital-address"]')
+      .setValue('Klinikum Beispiel\nEndoskopie\nMusterstraße 1\n12345 Berlin')
+    await wrapper
+      .get('input[placeholder*="clinic_colonoscopy_template_v1"]')
+      .setValue('clinic_template')
+
+    const openSaveButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Template speichern')
+    if (!openSaveButton) throw new Error('Template save button not found.')
+    await openSaveButton.trigger('click')
+
+    const saveButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Speichern')
+    if (!saveButton) throw new Error('Save confirmation button not found.')
+    await saveButton.trigger('click')
+    await flushPromises()
+
+    expect(hoisted.saveDefinition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sections: [
+          expect.objectContaining({
+            sectionType: 'clinic_address',
+            description: 'Klinikum Beispiel\nEndoskopie\nMusterstraße 1\n12345 Berlin'
+          })
+        ]
+      })
+    )
   })
 })

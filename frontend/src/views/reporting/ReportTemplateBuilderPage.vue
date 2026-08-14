@@ -65,8 +65,8 @@
                 <label class="form-label">Untersuchung</label>
                 <select v-model="examination" class="form-select">
                   <option value="" disabled>Untersuchung wählen</option>
-                  <option v-for="item in examinationOptions" :key="item" :value="item">
-                    {{ item }}
+                  <option v-for="item in examinationOptions" :key="item.name" :value="item.name">
+                    {{ item.label }}
                   </option>
                 </select>
               </div>
@@ -79,7 +79,7 @@
                 >
                   <option value="" disabled>Vorlage wählen</option>
                   <option v-for="item in templateOptions" :key="item.name" :value="item.name">
-                    {{ item.name }}
+                    {{ getReportTemplateDisplayName(item, 'de') }}
                   </option>
                 </select>
               </div>
@@ -236,8 +236,8 @@
                   <label class="form-label form-label-sm">Befund</label>
                   <select v-model="finding.finding" class="form-select form-select-sm">
                     <option value="" disabled>Befund wählen</option>
-                    <option v-for="item in findingOptions" :key="item" :value="item">
-                      {{ item }}
+                    <option v-for="item in findingOptions" :key="item.name" :value="item.name">
+                      {{ item.label }}
                     </option>
                   </select>
                 </div>
@@ -271,8 +271,12 @@
                     <label class="form-label form-label-sm">Klassifikation</label>
                     <select v-model="choice.classification" class="form-select form-select-sm">
                       <option value="" disabled>Klassifikation waehlen</option>
-                      <option v-for="item in classificationOptions" :key="item" :value="item">
-                        {{ item }}
+                      <option
+                        v-for="item in classificationOptions"
+                        :key="item.name"
+                        :value="item.name"
+                      >
+                        {{ item.label }}
                       </option>
                     </select>
                   </div>
@@ -526,6 +530,12 @@
           </div>
         </div>
 
+        <ReportTemplateBrandingEditor
+          v-model:sections="sections"
+          :template-name="templateName"
+          :examination="examination"
+        />
+
         <div class="border rounded p-3 mt-4 bg-light-subtle">
           <div class="d-flex flex-wrap gap-2 align-items-end">
             <div>
@@ -660,8 +670,8 @@
                     <label class="form-label form-label-sm">Befund</label>
                     <select v-model="finding.finding" class="form-select form-select-sm">
                       <option value="" disabled>Befund wählen</option>
-                      <option v-for="item in findingOptions" :key="item" :value="item">
-                        {{ item }}
+                      <option v-for="item in findingOptions" :key="item.name" :value="item.name">
+                        {{ item.label }}
                       </option>
                     </select>
                   </div>
@@ -712,8 +722,12 @@
                         class="form-select form-select-sm"
                       >
                         <option value="" disabled>Klassifikation waehlen</option>
-                        <option v-for="item in classificationOptions" :key="item" :value="item">
-                          {{ item }}
+                        <option
+                          v-for="item in classificationOptions"
+                          :key="item.name"
+                          :value="item.name"
+                        >
+                          {{ item.label }}
                         </option>
                       </select>
                     </div>
@@ -772,8 +786,12 @@
                           class="form-select form-select-sm"
                         >
                           <option value="" disabled>Klassifikation wählen</option>
-                          <option v-for="item in classificationOptions" :key="item" :value="item">
-                            {{ item }}
+                          <option
+                            v-for="item in classificationOptions"
+                            :key="item.name"
+                            :value="item.name"
+                          >
+                            {{ item.label }}
                           </option>
                         </select>
                       </div>
@@ -807,8 +825,12 @@
                           "
                         >
                           <option value="">Klassifikation anhängen</option>
-                          <option v-for="item in classificationOptions" :key="item" :value="item">
-                            {{ item }}
+                          <option
+                            v-for="item in classificationOptions"
+                            :key="item.name"
+                            :value="item.name"
+                          >
+                            {{ item.label }}
                           </option>
                         </select>
                         <div class="d-flex flex-wrap gap-2 mt-2">
@@ -870,14 +892,16 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from 'vue'
-import { fetchCoreConcepts } from '@/api/coreConcepts'
+import ReportTemplateBrandingEditor from '@/components/Reporting/ReportTemplateBrandingEditor.vue'
 import {
   fetchReportTemplateByName,
   fetchReportTemplatePreviewByName,
   fetchBuilderReportTemplatesByExamination,
+  getReportTemplateDisplayName,
   validateReportTemplateDefinition,
   validateReportTemplateRuntime
 } from '@/api/reportTemplatesApi'
+import { fetchKnowledgeBaseGraphSnapshot } from '@/api/knowledgeBaseGraphApi'
 import {
   saveReportTemplateDefinition,
   fetchReportTemplateReadiness,
@@ -895,7 +919,7 @@ import type {
   ReportTemplateRuntimePayload,
   ReportTemplateRuntimeValidationResult
 } from '@/types/reportTemplate'
-import type { CoreConceptCollection } from '@/types/coreConcepts'
+import { getCoreConceptLocalizedName, type CoreConceptCollection } from '@/types/coreConcepts'
 import { reportingApiErrorMessage } from './reportingError'
 import { reportTemplateLifecycleContextKey } from './reportTemplateLifecycleContext'
 import { requireUniqueReportingExaminationName } from './reportingExaminationResolution'
@@ -962,15 +986,21 @@ const availablePresets = computed(() => {
 })
 
 const examinationOptions = computed(() =>
-  (coreConcepts.value?.examination || []).map((entry) => entry.name.trim()).filter(Boolean)
+  (coreConcepts.value?.examination || [])
+    .filter((entry) => entry.name.trim())
+    .map((entry) => ({ name: entry.name.trim(), label: getCoreConceptLocalizedName(entry, 'de') }))
 )
 
 const findingOptions = computed(() =>
-  (coreConcepts.value?.finding || []).map((entry) => entry.name.trim()).filter(Boolean)
+  (coreConcepts.value?.finding || [])
+    .filter((entry) => entry.name.trim())
+    .map((entry) => ({ name: entry.name.trim(), label: getCoreConceptLocalizedName(entry, 'de') }))
 )
 
 const classificationOptions = computed(() =>
-  (coreConcepts.value?.classification || []).map((entry) => entry.name.trim()).filter(Boolean)
+  (coreConcepts.value?.classification || [])
+    .filter((entry) => entry.name.trim())
+    .map((entry) => ({ name: entry.name.trim(), label: getCoreConceptLocalizedName(entry, 'de') }))
 )
 
 const canSave = computed(
@@ -1286,26 +1316,62 @@ const runtimePayload = computed<ReportTemplateRuntimePayload>(() => ({
 const runtimePayloadPreview = computed(() => JSON.stringify(runtimePayload.value, null, 2))
 
 async function loadCoreConcepts() {
+  const requestedModuleName = moduleName.value.trim()
+  const requestedModuleVersion = lifecycleContext?.activeModuleVersion.value.trim() || ''
+  if (!requestedModuleName) {
+    coreConcepts.value = null
+    examination.value = ''
+    templateOptions.value = []
+    selectedTemplate.value = null
+    return
+  }
+  if (!requestedModuleVersion) {
+    coreConcepts.value = null
+    examination.value = ''
+    templateOptions.value = []
+    selectedTemplate.value = null
+    setError('Für die Graph-Auflösung wird eine exakte Terminologieversion benötigt.')
+    return
+  }
+
   catalogLoading.value = true
   try {
-    coreConcepts.value = await fetchCoreConcepts(moduleName.value)
-    const shellExamination = lifecycleContext?.activeExaminationName.value.trim() || ''
+    const graph = await fetchKnowledgeBaseGraphSnapshot(requestedModuleName, requestedModuleVersion)
+    if (
+      moduleName.value.trim() !== requestedModuleName ||
+      lifecycleContext?.activeModuleVersion.value.trim() !== requestedModuleVersion
+    ) {
+      return
+    }
+    coreConcepts.value = graph.concepts
+    const shellExamination = lifecycleContext.activeExaminationName.value.trim()
     if (shellExamination) {
       examination.value = requireUniqueReportingExaminationName(
         coreConcepts.value.examination,
         shellExamination
       ).name
     } else if (!examination.value && examinationOptions.value.length) {
-      examination.value = examinationOptions.value[0]
+      examination.value = examinationOptions.value[0]?.name || ''
     }
   } catch (error: unknown) {
+    if (
+      moduleName.value.trim() !== requestedModuleName ||
+      lifecycleContext?.activeModuleVersion.value.trim() !== requestedModuleVersion
+    ) {
+      return
+    }
     coreConcepts.value = null
     examination.value = ''
     templateOptions.value = []
     selectedTemplate.value = null
     setError(reportingApiErrorMessage(error, 'Core concepts konnten nicht geladen werden.'))
   } finally {
-    catalogLoading.value = false
+    if (
+      moduleName.value.trim() === requestedModuleName &&
+      lifecycleContext?.activeModuleVersion.value.trim() === requestedModuleVersion
+    ) {
+      catalogLoading.value = false
+    }
   }
 }
 
@@ -1504,6 +1570,10 @@ if (lifecycleContext) {
     if (nextModuleName && nextModuleName !== moduleName.value) {
       moduleName.value = nextModuleName
     }
+  })
+  watch(lifecycleContext.activeModuleVersion, async () => {
+    await loadCoreConcepts()
+    await refreshTemplateOptions()
   })
   watch(lifecycleContext.activeExaminationName, (nextExaminationName) => {
     const normalizedName = nextExaminationName.trim()

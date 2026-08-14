@@ -3,8 +3,10 @@
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center gap-3">
         <div>
-          <h5 class="mb-0">PDF-Bericht erstellen</h5>
-          <small class="text-muted">PDF-Bericht mit ausgewählten Bildern erstellen.</small>
+          <h5 class="mb-0">Bericht exportieren</h5>
+          <small class="text-muted"
+            >Als formatiertes PDF mit Bildern oder als übersichtliche Textdatei.</small
+          >
         </div>
         <button
           class="btn btn-outline-secondary btn-sm"
@@ -21,6 +23,9 @@
           Für den PDF-Export ist ein verifizierter Entwurf mit einer zur aktiven Terminologie
           passenden veröffentlichten Berichtsvorlage erforderlich. Die erfassten Befunde bleiben
           erhalten.
+        </div>
+        <div v-if="latestReport && !hasTextReport" class="alert alert-info py-2">
+          Für den TXT-Export muss der Bericht zuerst im Berichtseditor gespeichert werden.
         </div>
 
         <div class="row g-3 mb-3">
@@ -62,6 +67,15 @@
             <span v-if="generating" class="spinner-border spinner-border-sm me-1" />
             PDF-Bericht erstellen
           </button>
+          <button
+            class="btn btn-outline-primary"
+            type="button"
+            :disabled="!canDownloadText"
+            data-testid="download-text-report"
+            @click="onDownloadTextReport"
+          >
+            TXT herunterladen
+          </button>
           <RouterLink
             v-if="patientExaminationId"
             class="btn btn-outline-secondary"
@@ -80,6 +94,16 @@
 
         <div v-if="warnings.length" class="alert alert-warning py-2 mt-3 mb-0">
           <div v-for="warning in warnings" :key="warning">{{ warning }}</div>
+        </div>
+        <div class="export-format-notes mt-3" aria-label="Verfügbare Exportformate">
+          <div>
+            <strong>PDF</strong>
+            <span>Layoutierter Bericht mit den ausgewählten Befundbildern.</span>
+          </div>
+          <div>
+            <strong>TXT</strong>
+            <span>UTF-8-Text mit Patientenkontext und dem gespeicherten Berichtstext.</span>
+          </div>
         </div>
         <details class="mt-3 small text-muted" data-testid="export-technical-details">
           <summary>Technische Angaben</summary>
@@ -140,6 +164,7 @@ import { useTerminologyStore } from '@/stores/terminologyStore'
 import { endpoints } from '@/types/api/endpoints'
 import { reportingApiErrorMessage } from './reportingError'
 import { parseReportListPayload, type ReportListRow } from './reportListPayload'
+import { formatReportingTextDocument, reportingTextFilename } from './reportingTextExport'
 import {
   reportStatusBadgeClass,
   reportStatusLabel,
@@ -190,6 +215,13 @@ const canMakeReport = computed(
     !!patient.value.dob
 )
 
+const hasPatientIdentity = computed(
+  () => !!patient.value.firstName && !!patient.value.lastName && !!patient.value.dob
+)
+
+const hasTextReport = computed(() => Boolean(latestReport.value?.renderedText?.trim()))
+const canDownloadText = computed(() => hasPatientIdentity.value && hasTextReport.value)
+
 const reportStatusClass = computed(() => reportStatusBadgeClass(latestReport.value?.status))
 
 const timelineUrl = computed<string | undefined>(() => {
@@ -204,6 +236,60 @@ function clearMessages() {
   errorMessage.value = null
   successMessage.value = null
   warnings.value = []
+}
+
+function hydratePatientIdentity() {
+  const timelinePatient = flow.mediaPreload?.patient
+  if (!timelinePatient) return
+  if (!patient.value.firstName) patient.value.firstName = timelinePatient.firstName || ''
+  if (!patient.value.lastName) patient.value.lastName = timelinePatient.lastName || ''
+  if (!patient.value.dob) patient.value.dob = timelinePatient.dob || ''
+}
+
+function onDownloadTextReport() {
+  const report = latestReport.value
+  const renderedText = report?.renderedText?.trim()
+  if (!report || !renderedText) {
+    errorMessage.value =
+      'TXT-Export ist erst möglich, nachdem der Bericht im Berichtseditor gespeichert wurde.'
+    return
+  }
+  if (!hasPatientIdentity.value) {
+    errorMessage.value = 'Vorname, Nachname und Geburtsdatum sind für den TXT-Export erforderlich.'
+    return
+  }
+
+  clearMessages()
+  try {
+    const exportInput = {
+      firstName: patient.value.firstName,
+      lastName: patient.value.lastName,
+      dob: patient.value.dob,
+      examination: flow.currentRuntimeDraft?.payload.examination || 'Nicht angegeben',
+      templateName: report.templateName || flow.selectedTemplateName,
+      status: reportStatusLabel(report.status),
+      version: report.version,
+      updatedAt: report.updatedAt,
+      renderedText
+    }
+    const blob = new Blob(['\uFEFF', formatReportingTextDocument(exportInput)], {
+      type: 'text/plain;charset=utf-8'
+    })
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = reportingTextFilename(report.id)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(objectUrl)
+    successMessage.value = 'Der TXT-Bericht wurde heruntergeladen.'
+  } catch (error: unknown) {
+    errorMessage.value = reportingApiErrorMessage(
+      error,
+      'TXT-Bericht konnte nicht heruntergeladen werden.'
+    )
+  }
 }
 
 async function loadLatestReport() {
@@ -260,6 +346,7 @@ async function onMakeReport() {
       maxFrames: 12
     })
     latestReport.value = {
+      ...(latestReport.value ?? {}),
       id: data.report.id,
       status: data.report.status,
       version: data.report.version
@@ -277,6 +364,29 @@ async function onMakeReport() {
 }
 
 onMounted(() => {
+  hydratePatientIdentity()
   void loadLatestReport()
 })
 </script>
+
+<style scoped>
+.export-format-notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.75rem;
+}
+
+.export-format-notes > div {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  background: var(--bs-light-bg-subtle);
+}
+
+.export-format-notes span {
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+}
+</style>

@@ -96,6 +96,15 @@ export function useReportTemplates(params?: {
     selectedTemplate.value = null
   }
 
+  function applyTemplateOptions(templates: ReportTemplatePayload[]) {
+    templateOptions.value = templates.slice()
+    const preferredName = selectedTemplateName.value
+    const preferredTemplate =
+      (preferredName && templates.find((item) => item.name === preferredName)) || null
+    selectedTemplate.value = preferredTemplate
+    selectedTemplateName.value = preferredTemplate?.name || null
+  }
+
   async function fetchTemplateByName(
     templateName: string,
     opts?: { setAsSelected?: boolean; moduleOverride?: string }
@@ -152,13 +161,7 @@ export function useReportTemplates(params?: {
     try {
       const templates = await fetchTemplatesByExaminationApi(useModule, examinationName)
       if (generation !== requestGeneration || useModule !== moduleName.value) return []
-      templateOptions.value = templates
-
-      const preferredName = selectedTemplateName.value
-      const preferredTemplate =
-        (preferredName && templates.find((item) => item.name === preferredName)) || null
-      selectedTemplate.value = preferredTemplate
-      selectedTemplateName.value = preferredTemplate?.name || null
+      applyTemplateOptions(templates)
 
       return templates
     } catch (error: unknown) {
@@ -202,6 +205,7 @@ export function useReportTemplates(params?: {
     clearError,
     setModuleName,
     setRequestContext,
+    applyTemplateOptions,
     fetchTemplateByName,
     fetchTemplatesByExamination,
     selectTemplateByName

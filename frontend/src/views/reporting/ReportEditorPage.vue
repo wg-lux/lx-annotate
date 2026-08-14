@@ -457,7 +457,7 @@ import {
   type Finding
 } from '@/api/findings.contract'
 import { describeReportTemplateTitle, getReportTemplateDisplayName } from '@/api/reportTemplatesApi'
-import { fetchCoreConcepts } from '@/api/coreConcepts'
+import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue'
 import ReportArtifactsPanel from '@/components/Reporting/ReportArtifactsPanel.vue'
@@ -544,7 +544,7 @@ const {
   sectionBlocks,
   loading: templateLoading,
   errorMessage: templateErrorMessage,
-  fetchTemplatesByExamination,
+  applyTemplateOptions,
   selectTemplateByName,
   setModuleName,
   setRequestContext
@@ -867,7 +867,7 @@ watch(
 )
 
 watch(selectedKbModule, () => {
-  void loadCoreConceptLabels()
+  void refreshTemplatesForExamination()
 })
 
 function normalizePositiveId(value: unknown): number | null {
@@ -1133,9 +1133,10 @@ function formatDescriptorValue(descriptorName: string, value: unknown): string {
     : null
   const abbreviation = unit?.abbreviation?.trim() || ''
   const label = getDescriptorLabel(descriptorName)
-  const suffix = abbreviation && !label.toLocaleLowerCase('de').includes(abbreviation.toLocaleLowerCase('de'))
-    ? ` ${abbreviation}`
-    : ''
+  const suffix =
+    abbreviation && !label.toLocaleLowerCase('de').includes(abbreviation.toLocaleLowerCase('de'))
+      ? ` ${abbreviation}`
+      : ''
   return `${label}: ${String(value)}${suffix}`
 }
 
@@ -1144,12 +1145,11 @@ function formatRuntimeFindingSummary(finding: ReportTemplateRuntimePatientFindin
     .map((choice) => {
       const descriptorText = choice.descriptors.length
         ? ` (${choice.descriptors
-            .map(
-              (descriptor) =>
-                formatDescriptorValue(
-                  descriptor.classificationChoiceDescriptor,
-                  descriptor.descriptorValue
-                )
+            .map((descriptor) =>
+              formatDescriptorValue(
+                descriptor.classificationChoiceDescriptor,
+                descriptor.descriptorValue
+              )
             )
             .join(', ')})`
         : ''
@@ -1213,32 +1213,16 @@ async function loadFindingCatalog(context?: EditorContext) {
   }
 }
 
-async function loadCoreConceptLabels(context?: EditorContext) {
-  if (isEditorContextCurrent(context)) coreConceptsError.value = null
-  const moduleName = selectedKbModule.value
-  if (!moduleName) {
-    if (!isEditorContextCurrent(context)) return
-    coreConcepts.value = null
-    return
-  }
-  try {
-    const concepts = await fetchCoreConcepts(moduleName)
-    if (!isEditorContextCurrent(context)) return
-    coreConcepts.value = concepts
-  } catch (error) {
-    if (!isEditorContextCurrent(context)) return
-    coreConcepts.value = null
-    coreConceptsError.value = reportingApiErrorMessage(
-      error,
-      'Die übersetzten LXDM-Bezeichnungen konnten nicht geladen werden.'
-    )
-  }
-}
-
 async function refreshTemplatesForExamination(context?: EditorContext) {
-  if (isEditorContextCurrent(context)) templateStatusMessage.value = null
-  if (!selectedKbModule.value) {
+  if (isEditorContextCurrent(context)) {
+    templateStatusMessage.value = null
+    coreConceptsError.value = null
+  }
+  const bundle = terminology.activeBundle
+  if (!bundle || !selectedKbModule.value) {
     if (isEditorContextCurrent(context)) {
+      coreConcepts.value = null
+      applyTemplateOptions([])
       templateStatusMessage.value =
         'Vorlagen werden angeboten, sobald eine Terminologie aktiviert wurde.'
     }
@@ -1246,12 +1230,26 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
   }
   const examName = selectedExaminationName.value
   if (!examName) return
-  const templates = await fetchTemplatesByExamination(examName)
-  if (!isEditorContextCurrent(context)) return
-  if (templates.length) {
-    templateStatusMessage.value = `${String(templates.length)} Vorlage(n) für "${examName}" geladen.`
-  } else {
-    templateStatusMessage.value = `Keine Vorlagen für "${examName}" gefunden.`
+  try {
+    const projection = await fetchExaminationReportingContext(
+      bundle.moduleName,
+      bundle.version,
+      examName
+    )
+    if (!isEditorContextCurrent(context)) return
+    coreConcepts.value = projection.concepts
+    applyTemplateOptions(projection.reportTemplates)
+    templateStatusMessage.value = projection.reportTemplates.length
+      ? `${String(projection.reportTemplates.length)} Vorlage(n) für "${examName}" geladen.`
+      : `Keine Vorlagen für "${examName}" gefunden.`
+  } catch (error: unknown) {
+    if (!isEditorContextCurrent(context)) return
+    coreConcepts.value = null
+    applyTemplateOptions([])
+    coreConceptsError.value = reportingApiErrorMessage(
+      error,
+      'Der versionierte Reporting-Kontext konnte nicht geladen werden.'
+    )
   }
 }
 
@@ -1488,11 +1486,9 @@ async function initializeEditorContext() {
     })
     context = captureEditorContext() || undefined
     if (!context) return
-    await Promise.all([loadFindingCatalog(context), loadCoreConceptLabels(context)])
+    await Promise.all([loadFindingCatalog(context), refreshTemplatesForExamination(context)])
     if (!isEditorContextCurrent(context)) return
     await loadIndicationCatalog(context)
-    if (!isEditorContextCurrent(context)) return
-    await refreshTemplatesForExamination(context)
     if (!isEditorContextCurrent(context)) return
     await loadLatestReportMeta(context)
     if (isEditorContextCurrent(context)) initializedContextKey = contextKey

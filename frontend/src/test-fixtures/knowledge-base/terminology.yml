@@ -1,0 +1,56 @@
+# Representative frontend contract slice from the terminology 0.1.0 child modules.
+- model: classification_choice
+  name: 'yes'
+  name_de: Ja
+  name_en: 'Yes'
+- model: classification_type
+  name: default_classification_type
+- model: classification
+  name: visualized
+  classification_types: [inferrable]
+  classification_choices: ['yes', 'no']
+- model: classification_choice_descriptor
+  name: lesion_size_mm_value
+  description: Größter Durchmesser der Läsion in Millimetern.
+  classification_choice_descriptor_type: numeric
+  unit: milimeter
+  numeric_min: 0
+  numeric_max: 200
+- model: examination
+  name: ercp
+  description: Endoscopic retrograde cholangiopancreatography.
+  examination_types: [endoscopic_procedure]
+  findings:
+    - ercp_antibiotic_prophylaxis
+    - ercp_bile_duct_cannulation
+  indications: []
+- model: examination_type
+  name: endoscopic_procedure
+  description: An examination performed using an endoscope.
+- model: finding
+  name: examination_setting
+  finding_types: [baseline]
+  description: Settings related to the examination environment and conditions.
+  classifications: [examination_setting_generic_location]
+- model: finding_type
+  name: default_finding_type
+- model: indication
+  name: colonoscopy_generic
+  name_de: Koloskopie
+  name_en: Colonoscopy
+  description: Generic indication for colonoscopy examination.
+- model: indication_type
+  name: default_indication_type
+  description: Default indication type
+- model: intervention
+  name: endoscopy_injection_liftup
+  description: Lift-up injection used to create a submucosal fluid cushion.
+  intervention_types: [diagnostic, invasive]
+- model: intervention_type
+  name: default_intervention_type
+- model: unit
+  name: milligram
+  abbreviation: mg
+  name_de: Milligramm
+  name_en: Milligram
+  description: Mass unit used for medication doses.

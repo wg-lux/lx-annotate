@@ -227,6 +227,29 @@ describe('CaseSetupPage draft-first setup', () => {
     })
   })
 
+  it('shows only patient and examination as the required initial fields', async () => {
+    hoisted.flowRef.current = buildFlowStore({
+      selectedPatientId: null,
+      selectedExaminationId: null,
+      patientExaminationId: null,
+      caseId: null
+    })
+
+    const wrapper = mount(CaseSetupPage)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="setup-requirement"]').text()).toContain(
+      'Zuerst Patient und Untersuchung auswählen'
+    )
+    expect(wrapper.get('[data-testid="patient-select"]').attributes('required')).toBeDefined()
+    expect(wrapper.get('[data-testid="examination-select"]').attributes('required')).toBeDefined()
+    expect(wrapper.findAll('input')).toHaveLength(0)
+    expect(
+      wrapper.get('[data-testid="setup-secondary-actions"]').attributes('open')
+    ).toBeUndefined()
+    expect(wrapper.text()).not.toContain('Zur klinischen Dokumentation')
+  })
+
   it('creates a patient examination and switches reporting context without lookup init', async () => {
     const wrapper = mount(CaseSetupPage)
     await flushPromises()
@@ -320,11 +343,7 @@ describe('CaseSetupPage draft-first setup', () => {
       '/anonymisierung/validierung?fileId=5&mediaType=pdf'
     )
 
-    const nextLink = requireDefined(
-      wrapper.findAll('a').find((link) => link.text().includes('Zur klinischen Dokumentation')),
-      'the clinical documentation link'
-    )
-    expect(nextLink.attributes('data-to')).toBe('/reporting/case-setup')
+    expect(wrapper.text()).not.toContain('Zur klinischen Dokumentation')
   })
 
   it('rejects an ambiguous preferred examination without mutating the selection', async () => {

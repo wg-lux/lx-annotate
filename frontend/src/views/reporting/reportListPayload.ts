@@ -4,6 +4,8 @@ export type ReportListRow = {
   version?: number | null
   createdAt?: string | null
   updatedAt?: string | null
+  renderedText?: string | null
+  templateName?: string | null
   patientExaminationId?: number | null
   patientExamination?: number | { id?: number } | null
   patientExaminationFk?: number | null
@@ -24,9 +26,7 @@ const optionalString = (value: unknown, field: string): string | null | undefine
   throw new TypeError(`Report list field "${field}" must be a string or null.`)
 }
 
-const parsePatientExamination = (
-  value: unknown
-): ReportListRow['patientExamination'] => {
+const parsePatientExamination = (value: unknown): ReportListRow['patientExamination'] => {
   if (value === undefined || value === null) return value
   if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value
   if (isRecord(value)) {
@@ -53,6 +53,8 @@ const parseReportListRow = (value: unknown, index: number): ReportListRow => {
     version: optionalNumber(value.version, 'version'),
     createdAt: optionalString(value.createdAt, 'createdAt'),
     updatedAt: optionalString(value.updatedAt, 'updatedAt'),
+    renderedText: optionalString(value.renderedText, 'renderedText'),
+    templateName: optionalString(value.templateName, 'templateName'),
     patientExaminationId: optionalNumber(value.patientExaminationId, 'patientExaminationId'),
     patientExamination: parsePatientExamination(value.patientExamination),
     patientExaminationFk: optionalNumber(value.patientExaminationFk, 'patientExaminationFk')

@@ -22,8 +22,9 @@ vi.mock('@/stores/auth_kc', () => ({
   useAuthKcStore: () => fixtures.auth
 }))
 
-function mountNavbar() {
+function mountNavbar(props: { isSidebarOpen?: boolean } = {}) {
   return mount(NavbarComponent, {
+    props,
     global: {
       stubs: {
         RouterLink: {
@@ -104,5 +105,18 @@ describe('NavbarComponent annotation statistics status', () => {
     await flushPromises()
 
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('reports the responsive sidebar state and emits the toggle request', async () => {
+    const store = useAnnotationStatsStore()
+    vi.spyOn(store, 'fetchAnnotationStats').mockResolvedValue(undefined)
+
+    const wrapper = mountNavbar({ isSidebarOpen: true })
+    await flushPromises()
+
+    const toggle = wrapper.get('.app-topbar-menu')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    await toggle.trigger('click')
+    expect(wrapper.emitted('toggleSidebar')).toHaveLength(1)
   })
 })
