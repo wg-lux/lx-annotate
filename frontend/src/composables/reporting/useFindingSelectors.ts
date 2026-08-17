@@ -6,7 +6,7 @@ import {
   type Finding,
   type PatientFindingRow
 } from '@/api/findings.contract'
-import { findingsApi } from '@/api/findingsApi'
+import { findingsApi, type FindingsCatalogContext } from '@/api/findingsApi'
 import { usePatientFindingStore } from '@/stores/patientFindingStore'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
@@ -35,11 +35,13 @@ export function useFindingSelectors() {
   const loading = computed(() => catalogState.loading.value || patientFindingStore.loading)
 
   const ensureCatalogLoaded = async (
-    examinationId: number | null | undefined
+    examinationId: number | null | undefined,
+    context?: FindingsCatalogContext
   ): Promise<readonly Finding[]> => {
     if (!examinationId) return []
-    if (catalogState.examinationId.value !== examinationId) {
-      await catalogState.fetchFindings(examinationId)
+    const contextKey = findingCatalogContextKey(examinationId, context)
+    if (catalogState.contextKey.value !== contextKey) {
+      await catalogState.fetchFindings(examinationId, context)
     }
     return catalogState.findings.value
   }
@@ -104,25 +106,28 @@ export function useFindingSelectors() {
 
 const catalogFindingsState = ref<Finding[]>([])
 const catalogFindingsByIdState = ref<Map<number, Finding>>(new Map())
-const catalogExaminationIdState = ref<number | null>(null)
+const catalogContextKeyState = ref<string | null>(null)
 const patientFindingIdsByPatientExaminationState = ref<Map<number, number[]>>(new Map())
 const catalogLoadingState = ref(false)
 const catalogErrorState = ref<string | null>(null)
 
 function useFindingCatalogState() {
-  const fetchFindings = async (examinationId: number): Promise<readonly Finding[]> => {
+  const fetchFindings = async (
+    examinationId: number,
+    context?: FindingsCatalogContext
+  ): Promise<readonly Finding[]> => {
     try {
       catalogLoadingState.value = true
       catalogErrorState.value = null
-      const nextFindings = await findingsApi.getExaminationFindings(examinationId)
+      const nextFindings = await findingsApi.getExaminationFindings(examinationId, context)
       catalogFindingsState.value = nextFindings
-      catalogExaminationIdState.value = examinationId
+      catalogContextKeyState.value = findingCatalogContextKey(examinationId, context)
       catalogFindingsByIdState.value = new Map(
         nextFindings.map((finding) => [finding.id, finding] as const)
       )
       return catalogFindingsState.value
     } catch (error: unknown) {
-      catalogExaminationIdState.value = null
+      catalogContextKeyState.value = null
       const message = error instanceof Error ? error.message : 'Unknown findings error'
       catalogErrorState.value = `Fehler beim Laden der Befunde: ${message}`
       logger.error('catalog-load-failed', error)
@@ -135,10 +140,23 @@ function useFindingCatalogState() {
   return {
     findings: catalogFindingsState,
     findingsById: catalogFindingsByIdState,
-    examinationId: catalogExaminationIdState,
+    contextKey: catalogContextKeyState,
     patientFindingIdsByPatientExamination: patientFindingIdsByPatientExaminationState,
     loading: catalogLoadingState,
     error: catalogErrorState,
     fetchFindings
   }
+}
+
+function findingCatalogContextKey(
+  examinationId: number,
+  context?: FindingsCatalogContext
+): string {
+  if (!context) return String(examinationId)
+  return [
+    examinationId,
+    context.moduleName,
+    context.moduleVersion,
+    context.patientExaminationId ?? ''
+  ].join('@@')
 }

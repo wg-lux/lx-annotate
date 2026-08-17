@@ -7,6 +7,8 @@ export type CasePatientExamination = {
   examination?: string | { id?: number; name?: string; nameDe?: string; nameEn?: string } | null
   examinationName?: string | null
   dateStart?: string | null
+  knowledgeBaseModule?: string | null
+  knowledgeBaseVersion?: string | null
 }
 
 export type PatientCase = {
@@ -169,12 +171,22 @@ function requireCasePatientExamination(value: unknown, path: string): CasePatien
         }
   const examinationName = optionalNullableString(record.examinationName, `${path}.examinationName`)
   const dateStart = optionalNullableString(record.dateStart, `${path}.dateStart`)
+  const knowledgeBaseModule = optionalNullableString(
+    record.knowledgeBaseModule,
+    `${path}.knowledgeBaseModule`
+  )
+  const knowledgeBaseVersion = optionalNullableString(
+    record.knowledgeBaseVersion,
+    `${path}.knowledgeBaseVersion`
+  )
   return {
     id: requireInteger(record.id, `${path}.id`),
     ...(patientData === undefined ? {} : { patientData }),
     ...(examination === undefined ? {} : { examination }),
     ...(examinationName === undefined ? {} : { examinationName }),
-    ...(dateStart === undefined ? {} : { dateStart })
+    ...(dateStart === undefined ? {} : { dateStart }),
+    ...(knowledgeBaseModule === undefined ? {} : { knowledgeBaseModule }),
+    ...(knowledgeBaseVersion === undefined ? {} : { knowledgeBaseVersion })
   }
 }
 

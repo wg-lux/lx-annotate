@@ -1129,7 +1129,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.16.0"
+version = "1.0.19.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1198,9 +1198,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/aa/19/65113b07a9963ac90746010c372a03e58332922d5b3cac0118c59cbb1e31/endoreg_db-1.0.16.0.tar.gz", hash = "sha256:e0e2542b9fd816c6123263ac77ae71e249f3a614f3eaa17e2a12e653c8ef6415", size = 1265377, upload-time = "2026-08-14T11:45:00.335Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/5a/eab41b6d524a5f002b5a49531de0b1196f46c729b722dbc9cb2f28588944/endoreg_db-1.0.19.0.tar.gz", hash = "sha256:43b20b945be08a50cd7d92a0f9342b021989d18af72fc1363937e5751b60d8f0", size = 1271182, upload-time = "2026-08-17T10:59:38.322Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/67/780f192033603e8234f685f2d41de2e1314dd20f259e4a6db938ec764e24/endoreg_db-1.0.16.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4b6d1deb8dab2ecaf57847274321987675edb2e9a43e6b513413ab20b782d501", size = 2235316, upload-time = "2026-08-14T11:44:57.073Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/a1/e705727e50677af07ab9302a082e254d1a7a194e401d879f3f478c19eb3e/endoreg_db-1.0.19.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0a56ec8bcf0fa1ed181d8ccb8d5387cfb28b7975ccf5b2ed73fbd3a2afb4fe34", size = 2241987, upload-time = "2026-08-17T10:59:34.999Z" },
 ]
 
 [[package]]
@@ -2049,7 +2049,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
@@ -2083,6 +2083,7 @@ dependencies = [
     { name = "torch" },
     { name = "torchvision" },
     { name = "transformers" },
+    { name = "typebridge-check" },
     { name = "watchdog" },
     { name = "whitenoise" },
 ]
@@ -2141,14 +2142,14 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.16.0" },
+    { name = "endoreg-db", specifier = "==1.0.19.0" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
-    { name = "lx-dtypes", specifier = ">=0.2.18" },
+    { name = "lx-dtypes", specifier = "==0.2.22" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
     { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0.1" },
@@ -2184,6 +2185,7 @@ requires-dist = [
     { name = "torchvision", specifier = ">=0.15.0" },
     { name = "transformers", specifier = "==4.45.0" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.2.0" },
+    { name = "typebridge-check", specifier = ">=0.0.1" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.32.4.20250913" },
     { name = "watchdog", specifier = ">=3.0.0" },
     { name = "whitenoise", specifier = ">=6.8.2" },
@@ -2240,7 +2242,7 @@ gpu = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.2.18"
+version = "0.2.22"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bibtexparser" },
@@ -2263,9 +2265,9 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/47/1a5109b26899229625195e5f0f2c0001999ce6b7405c9f5a658421a58e19/lx_dtypes-0.2.18.tar.gz", hash = "sha256:b54f8523f04b9ba2736fb4eb447194ce90a70d0ebfecfd3c64a25c0b6304d64e", size = 3524529, upload-time = "2026-08-14T12:13:09.512Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/f9/473722bf7428fa82cfcd375ab9baa827c3297f0ae5b665e123feabf4b000/lx_dtypes-0.2.22.tar.gz", hash = "sha256:c1824381e84a137e70ad88b48f36fe19fdf49dc90d64e23044324da029169a5f", size = 2594804, upload-time = "2026-08-17T11:31:38.178Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/9e/8ba23582e4f6eebb50b5a43dee6aec7d0d0ec7922be9e1b1b9314b952455/lx_dtypes-0.2.18-py3-none-any.whl", hash = "sha256:8d2c9241bdab0163cca2a1ec8e9a879cbc2f812617070de9df6c8d0d0c2747d9", size = 803904, upload-time = "2026-08-14T12:13:02.354Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/64/5b1a12edee7cb364d7ead399736333f21f665d8ab02acfa249fffb2e989b/lx_dtypes-0.2.22-py3-none-any.whl", hash = "sha256:03cb566d1e2e4c09601c189a3df9a82a3f9fc112ad34dfe84432ce4036f04873", size = 808323, upload-time = "2026-08-17T11:31:35.268Z" },
 ]
 
 [[package]]
@@ -5132,6 +5134,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7f/67/ea9c9ddbaa3e0b4d53c91f8778a33e42045be352dc7200ed2b9aaa7dc229/txaio-25.12.2.tar.gz", hash = "sha256:9f232c21e12aa1ff52690e365b5a0ecfd42cc27a6ec86e1b92ece88f763f4b78", size = 117393, upload-time = "2025-12-09T15:03:26.527Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/50/05/bdb6318120cac9bf97779674f49035e0595d894b42d4c43b60637bafdb1f/txaio-25.12.2-py3-none-any.whl", hash = "sha256:5f6cd6c6b397fc3305790d15efd46a2d5b91cdbefa96543b4f8666aeb56ba026", size = 31208, upload-time = "2025-12-09T04:30:27.811Z" },
+]
+
+[[package]]
+name = "typebridge-check"
+version = "0.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "build" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4d/4b/9ad8f93d2b73a4bbfbd60759dda14be76e852c172d8a09cbd9ee3a2d4b4c/typebridge_check-0.0.1.tar.gz", hash = "sha256:11ecd2627e1cf90bfd59abf70207fc1aa36e345275379177b7c6a8d73efdf1a5", size = 18468, upload-time = "2026-08-17T11:13:22.502Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/71/57cb0daaf784971b662c3b75f3472b323f32e7627128b16d6ed8aa9850bf/typebridge_check-0.0.1-py3-none-any.whl", hash = "sha256:9f379012269d53d32520d014575d0e2ec17fccf8ff1b8ad5b3cb09af8931f881", size = 18048, upload-time = "2026-08-17T11:13:21.069Z" },
 ]
 
 [[package]]

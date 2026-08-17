@@ -1,30 +1,39 @@
 # pyright: reportIndexIssue=false, reportArgumentType=false
 from __future__ import annotations
 
-import tempfile
+import base64
+import hashlib
 import json
-import requests
-from unittest.mock import MagicMock, patch
+import os
+import tempfile
+from collections.abc import Iterable
 from pathlib import Path
+from typing import cast
+from unittest.mock import MagicMock, patch
 
+import requests
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
-
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
+from lx_dtypes.models.contracts.hub_media_envelope import (
+    HubMediaEnvelopeMetadata,
+    HubMediaEnvelopeReceipt,
+)
+
+from lx_annotate.hub.hub_export_worker import (
+    MultipartUploadStream,
+    resolve_hub_transport_config,
+    resolve_outbound_node_secret,
+    run_outbound_transfer_job,
+)
+from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
     hub_transfer_status_payload,
     verify_hub_report_artifact,
 )
-from lx_annotate.hub.hub_export_worker import (
-    resolve_outbound_node_secret,
-    resolve_hub_transport_config,
-    run_outbound_transfer_job,
-)
-from lx_annotate.models import OutboundHubTransferJob
-
-import base64
-import os
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 
@@ -34,8 +43,29 @@ os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 @override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
 class HubExportWorkerTests(TestCase):
     def setUp(self) -> None:
+        self.envelope_tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.envelope_tempdir.cleanup)
+        envelope_root = Path(self.envelope_tempdir.name)
+        recipient_key = X25519PrivateKey.generate()
+        recipient_public_path = envelope_root / "hub-recipient.pem"
+        recipient_public_path.write_bytes(
+            recipient_key.public_key().public_bytes(
+                serialization.Encoding.PEM,
+                serialization.PublicFormat.SubjectPublicKeyInfo,
+            ),
+        )
+        settings_override = self.settings(
+            LX_ANNOTATE_ENCRYPTED_DATA_DIR=str(envelope_root),
+            LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR=str(
+                envelope_root / "envelopes",
+            ),
+            LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE=str(recipient_public_path),
+        )
+        settings_override.enable()
+        self.addCleanup(settings_override.disable)
         self.center = Center.objects.create(
-            name="Test Center", center_key="test-center"
+            name="Test Center",
+            center_key="test-center",
         )
         self.site_node = NetworkNode.objects.create(
             display_name="Site Node",
@@ -90,6 +120,39 @@ class HubExportWorkerTests(TestCase):
             transfer_status=transfer_status,
             processing_decision=processing_decision,
         )
+
+    def _applied_payload(
+        self,
+        upload_stream: MultipartUploadStream,
+    ) -> dict[str, object]:
+        envelope = HubMediaEnvelopeMetadata.model_validate_json(
+            upload_stream.envelope_json,
+        )
+        ciphertext = upload_stream.media_path.read_bytes()
+        receipt = HubMediaEnvelopeReceipt(
+            transfer_key=envelope.transfer_key,
+            source_node_key=envelope.source_node_key,
+            source_center_key=envelope.source_center_key,
+            target_node_key=envelope.target_node_key,
+            resource_kind=envelope.resource_kind,
+            resource_hash=envelope.resource_hash,
+            processed_media_hash=envelope.processed_media_hash,
+            plaintext_sha256=envelope.plaintext_sha256,
+            plaintext_size=envelope.plaintext_size,
+            recipient_key_id=envelope.recipient_key_id,
+            ciphertext_sha256=hashlib.sha256(ciphertext).hexdigest(),
+            ciphertext_size=len(ciphertext),
+            envelope_fingerprint_sha256=envelope.envelope_fingerprint_sha256(),
+            receiver_transfer_id="remote-transfer-1",
+            processing_decision="skip_processing_preserved_state",
+        )
+        return {
+            **self._remote_status(
+                transfer_status="applied",
+                processing_decision="skip_processing_preserved_state",
+            ),
+            "envelope_receipt": receipt.model_dump(mode="json"),
+        }
 
     def test_resolve_outbound_node_secret_requires_explicit_or_env_value(self):
         with self.assertRaisesMessage(ValueError, "Missing outbound hub node secret"):
@@ -156,6 +219,26 @@ class HubExportWorkerTests(TestCase):
         self.assertEqual(event["failure_class"], "configuration_rejection")
         self.assertEqual(event["attempt_number"], 1)
 
+    @override_settings(LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE="")
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_missing_recipient_key_blocks_before_registration(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(
+            result.failure_class,
+            OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION,
+        )
+        self.assertIn("recipient key", result.last_error)
+        post_mock.assert_not_called()
+
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_registers_and_uploads_processed_media(
         self,
@@ -169,9 +252,8 @@ class HubExportWorkerTests(TestCase):
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = self._remote_status(
-            transfer_status="applied",
-            processing_decision="skip_processing_preserved_state",
+        upload_response.json.side_effect = lambda: self._applied_payload(
+            post_mock.call_args.kwargs["data"],
         )
         upload_response.raise_for_status.return_value = None
 
@@ -184,7 +266,8 @@ class HubExportWorkerTests(TestCase):
         )
 
         self.assertEqual(
-            result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
+            result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
         )
         self.assertEqual(result.remote_transfer_status, "applied")
         self.assertEqual(result.remote_transfer_id, "remote-transfer-1")
@@ -203,20 +286,25 @@ class HubExportWorkerTests(TestCase):
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = self._remote_status(
-            transfer_status="applied",
-            processing_decision="skip_processing_preserved_state",
+        upload_response.json.side_effect = lambda: self._applied_payload(
+            post_mock.call_args.kwargs["data"],
         )
         upload_response.raise_for_status.return_value = None
 
         responses = iter([register_response, upload_response])
         captured_upload: dict[str, object] = {}
 
-        def _post_side_effect(*args, **kwargs):
-            headers = kwargs.get("headers", {})
-            content_type = str(headers.get("Content-Type", ""))
+        def _post_side_effect(
+            *args: object,
+            **kwargs: object,
+        ) -> object:
+            captured_upload["kwargs"] = kwargs
+            headers = cast(dict[str, object], kwargs.get("headers", {}))
+            content_type = str(
+                headers.get("Content-Type", headers.get("content-type", "")),
+            )
             if content_type.startswith("multipart/form-data; boundary="):
-                body_chunks = list(kwargs["data"])
+                body_chunks = list(cast("Iterable[bytes]", kwargs["data"]))
                 captured_upload["kwargs"] = kwargs
                 captured_upload["body"] = b"".join(body_chunks)
             return next(responses)
@@ -230,22 +318,29 @@ class HubExportWorkerTests(TestCase):
         )
 
         self.assertEqual(
-            result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
+            result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
         )
-        upload_kwargs = captured_upload["kwargs"]
-        body = captured_upload["body"]
-        headers = upload_kwargs["headers"]
+        upload_kwargs = cast(dict[str, object], captured_upload["kwargs"])
+        self.assertIn("body", captured_upload)
+        self.assertIn("headers", upload_kwargs)
+        body = cast(bytes, captured_upload["body"])
+        headers = cast(dict[str, str], upload_kwargs["headers"])
 
         self.assertNotIn("files", upload_kwargs)
         self.assertNotIsInstance(upload_kwargs["data"], bytes)
+        content_type = str(
+            headers.get("Content-Type", headers.get("content-type", "")),
+        )
         self.assertTrue(
-            headers["Content-Type"].startswith("multipart/form-data; boundary=")
+            content_type.startswith("multipart/form-data; boundary="),
         )
         self.assertEqual(int(headers["Content-Length"]), len(body))
         self.assertIn(b'name="media_role"', body)
         self.assertIn(b"\r\nprocessed\r\n", body)
+        self.assertIn(b'name="envelope"', body)
         self.assertIn(b'name="file"; filename=', body)
-        self.assertIn(b"%PDF-1.4\nprocessed\n%%EOF\n", body)
+        self.assertNotIn(b"%PDF-1.4\nprocessed\n%%EOF\n", body)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_is_noop_for_completed_job(
@@ -262,7 +357,8 @@ class HubExportWorkerTests(TestCase):
         )
 
         self.assertEqual(
-            result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
+            result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
         )
         post_mock.assert_not_called()
 
@@ -361,12 +457,12 @@ class HubExportWorkerTests(TestCase):
         self.assertIn("processed_media_hash", result.last_error)
         post_mock.assert_called_once()
 
-    @patch("lx_annotate.hub.hub_export_worker.ensure_local_file")
+    @patch("lx_annotate.hub.hub_export_envelope.iter_field_file_bytes")
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_records_unreadable_processed_media(
         self,
         post_mock: MagicMock,
-        ensure_local_file_mock: MagicMock,
+        iter_field_file_bytes_mock: MagicMock,
     ) -> None:
         register_response = MagicMock()
         register_response.json.return_value = self._remote_status(
@@ -375,7 +471,7 @@ class HubExportWorkerTests(TestCase):
         )
         register_response.raise_for_status.return_value = None
         post_mock.return_value = register_response
-        ensure_local_file_mock.side_effect = OSError("protected media unavailable")
+        iter_field_file_bytes_mock.side_effect = OSError("protected media unavailable")
 
         with self.assertLogs("lx_annotate.hub_export.audit", level="INFO") as logs:
             result = run_outbound_transfer_job(
@@ -392,10 +488,8 @@ class HubExportWorkerTests(TestCase):
         post_mock.assert_called_once()
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
-    @patch("lx_annotate.hub.hub_export_worker.ensure_local_file")
-    def test_run_outbound_transfer_job_localizes_processed_media_before_upload(
+    def test_run_outbound_transfer_job_encrypts_without_localizing_plaintext(
         self,
-        ensure_local_file_mock: MagicMock,
         post_mock: MagicMock,
     ) -> None:
         register_response = MagicMock()
@@ -406,36 +500,74 @@ class HubExportWorkerTests(TestCase):
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = self._remote_status(
-            transfer_status="applied",
-            processing_decision="skip_processing_preserved_state",
+        upload_response.json.side_effect = lambda: self._applied_payload(
+            post_mock.call_args.kwargs["data"],
         )
         upload_response.raise_for_status.return_value = None
         post_mock.side_effect = [register_response, upload_response]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            localized_path = Path(tmpdir) / "localized-report.pdf"
-            localized_path.write_bytes(b"%PDF-1.4\nprocessed\n%%EOF\n")
-
-            class _Localizer:
-                def __enter__(self):
-                    return localized_path
-
-                def __exit__(self, exc_type, exc, tb):
-                    return False
-
-            ensure_local_file_mock.return_value = _Localizer()
-
-            result = run_outbound_transfer_job(
-                outbound_job_id=str(self.job.id),
-                source_node_key=self.site_node.node_key,
-                source_secret="super-secret",
-            )
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
 
         self.assertEqual(
-            result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
+            result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
         )
-        ensure_local_file_mock.assert_called_once_with(
-            self.report.processed_file,
-            suffix=".pdf",
+        upload_stream = post_mock.call_args.kwargs["data"]
+        self.assertIsInstance(upload_stream, MultipartUploadStream)
+        self.assertTrue(upload_stream.upload_file_name.endswith(".bin"))
+        self.assertFalse(upload_stream.media_path.exists())
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_applied_registration_validates_receipt_and_cleans_lost_ack_envelope(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        register_response = MagicMock()
+        register_response.json.return_value = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
         )
+        register_response.raise_for_status.return_value = None
+        applied_payload: dict[str, object] = {}
+
+        def first_attempt(*args: object, **kwargs: object) -> MagicMock:
+            del args
+            upload_stream = kwargs.get("data")
+            if isinstance(upload_stream, MultipartUploadStream):
+                applied_payload.update(self._applied_payload(upload_stream))
+                raise requests.ConnectionError("lost applied acknowledgement")
+            return register_response
+
+        post_mock.side_effect = first_attempt
+        first_result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+        envelope_directory = Path(self.envelope_tempdir.name) / "envelopes"
+        self.assertEqual(
+            first_result.local_status,
+            OutboundHubTransferJob.LocalStatus.FAILED,
+        )
+        self.assertEqual(len(list(envelope_directory.glob("*"))), 2)
+
+        applied_response = MagicMock()
+        applied_response.json.return_value = applied_payload
+        applied_response.raise_for_status.return_value = None
+        post_mock.side_effect = None
+        post_mock.return_value = applied_response
+        second_result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+
+        self.assertEqual(
+            second_result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
+        )
+        self.assertEqual(list(envelope_directory.glob("*")), [])

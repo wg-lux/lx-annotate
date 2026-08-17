@@ -17,7 +17,9 @@ This workflow applies to:
 
 This workflow does not apply to:
 
-- watcher or API ingest into the local node
+- the implementation details of watcher or API ingest into the local node;
+  successful ingest is the prerequisite that creates the local video and its
+  managed artifacts
 - raw-media transfer
 - the legacy annotation-segment export screen
 
@@ -26,9 +28,56 @@ This workflow does not apply to:
 - `center_key` is the canonical machine-facing center identifier
 - transfer is permitted only for anonymized resources
 - the sender exports only anonymized processed media
+- import alone never makes a video transferable
 - transfer is explicit: a resource must be marked for upload before it may be
   queued
 - retries must reuse the same logical transfer identity
+
+## Video Reachability From Import To Transfer
+
+The following directed acyclic graph (DAG) separates automated import and
+processing from explicit user approvals. Every gate is fail closed. Import may
+create a processed artifact, but only the final green path can create and queue
+an outbound transfer job.
+
+```mermaid
+flowchart TD
+    A[Watcher or API video import] --> B[Managed VideoFile and VideoState]
+    B --> C[Anonymization pipeline creates processed artifact]
+    C --> D{Processed artifact usable?}
+    D -- No --> X1[Blocked: processed media missing or unreadable]
+    D -- Yes --> E[User validates anonymization]
+    E --> F{Anonymization status VALIDATED?}
+    F -- No --> X2[Blocked: anonymization not validated]
+    F -- Yes --> G[User validates segment annotations]
+    G --> H[Post-validation cleanup removes outside segments]
+    H --> I{Segment status VALIDATED?}
+    I -- No --> X3[Blocked: cleanup required, pending, running, or failed]
+    I -- Yes --> J[User requests ready-for-export promotion]
+    J --> K[Server hashes final managed processed artifact]
+    K --> L{Persisted hashes match and audit entry succeeds?}
+    L -- No --> X4[Blocked: integrity or audit failure]
+    L -- Yes --> M[Transfer-eligible video]
+    M --> N[Authenticated operator marks video for hub upload]
+    N --> O[Outbound job MARKED]
+    O --> P[Explicit or configured queue action]
+    P --> Q[Outbound job QUEUED]
+    Q --> R[Register deterministic transfer key]
+    R --> S[Upload anonymized processed media]
+    S --> T{Matching hub acknowledgement APPLIED?}
+    T -- No --> X5[FAILED or reconciliation required]
+    T -- Yes --> U[Outbound job COMPLETED]
+
+    V[Processed artifact or segment changes] --> W[Clear ready-for-export proof]
+    W --> J
+```
+
+The state can therefore be reached through normal product behavior; tests must
+not manufacture `ready_for_export` directly. The reachability contract uses
+the same model transitions and services as the import pipeline, segment
+workflow, ready-for-export endpoint, Hub marking, and queueing code. Any later
+processed-artifact replacement or segment mutation revokes the proof and sends
+the video back to the readiness gate.
 
 ## Marked For Upload
 
@@ -52,25 +101,28 @@ per-resource state changes, not as a separate domain concept.
 
 ## Eligible Resources
 
-A resource is eligible for outbound hub transfer only when all of the following
-are true:
+Video candidate eligibility and operator marking are separate states. A video
+is a transfer candidate only when all of the following are true:
 
-- it is a video or report supported by the upstream transfer contract
 - it belongs to the local sender center scope
-- it has been explicitly marked for upload
-- processed media exists locally
-- the anonymization state is one of:
-  - `ANONYMIZED`
-  - `DONE_PROCESSING_ANONYMIZATION`
-  - `VALIDATED`
+- its managed processed artifact exists and is non-empty
+- anonymization status is exactly `VALIDATED`
+- segment annotation status is exactly `VALIDATED`, which includes successful
+  outside-segment cleanup
+- `ready_for_export` is true with an attributable actor and timestamp
+- `VideoFile.processed_video_hash` and
+  `VideoState.processed_file_sha256` contain the same final processed-artifact
+  digest
 
-The following states are not export-eligible:
+Overview polling trusts only the persisted integrity proof and does not read
+the complete video. The marking and transfer boundaries recalculate the digest
+from the actual managed artifact and reject unreadable content or any mismatch.
+States such as `ANONYMIZED` and `DONE_PROCESSING_ANONYMIZATION` are useful
+workflow progress, but are not transfer eligible until human anonymization
+validation and every later gate has completed.
 
-- `NOT_STARTED`
-- `STARTED`
-- `EXTRACTING_FRAMES`
-- `PROCESSING_ANONYMIZING`
-- `FAILED`
+An authenticated operator may then create the separate `marked` transfer
+intent. Marking does not repair or bypass a failed eligibility gate.
 
 If the local state becomes ineligible after marking, the sender must refuse to
 queue or retry the transfer until the resource becomes eligible again.

@@ -271,7 +271,9 @@ and explicit for operators in a high-stakes clinical environment.</p>
 </ul>
 <p>This workflow does not apply to:</p>
 <ul class="simple">
-<li><p>watcher or API ingest into the local node</p></li>
+<li><p>the implementation details of watcher or API ingest into the local node;
+successful ingest is the prerequisite that creates the local video and its
+managed artifacts</p></li>
 <li><p>raw-media transfer</p></li>
 <li><p>the legacy annotation-segment export screen</p></li>
 </ul>
@@ -282,10 +284,55 @@ and explicit for operators in a high-stakes clinical environment.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">center_key</span></code> is the canonical machine-facing center identifier</p></li>
 <li><p>transfer is permitted only for anonymized resources</p></li>
 <li><p>the sender exports only anonymized processed media</p></li>
+<li><p>import alone never makes a video transferable</p></li>
 <li><p>transfer is explicit: a resource must be marked for upload before it may be
 queued</p></li>
 <li><p>retries must reuse the same logical transfer identity</p></li>
 </ul>
+</section>
+<section id="video-reachability-from-import-to-transfer">
+<h2>Video Reachability From Import To Transfer<a class="headerlink" href="#video-reachability-from-import-to-transfer" title="Link to this heading">¶</a></h2>
+<p>The following directed acyclic graph (DAG) separates automated import and
+processing from explicit user approvals. Every gate is fail closed. Import may
+create a processed artifact, but only the final green path can create and queue
+an outbound transfer job.</p>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>flowchart TD
+    A[Watcher or API video import] --&gt; B[Managed VideoFile and VideoState]
+    B --&gt; C[Anonymization pipeline creates processed artifact]
+    C --&gt; D{Processed artifact usable?}
+    D -- No --&gt; X1[Blocked: processed media missing or unreadable]
+    D -- Yes --&gt; E[User validates anonymization]
+    E --&gt; F{Anonymization status VALIDATED?}
+    F -- No --&gt; X2[Blocked: anonymization not validated]
+    F -- Yes --&gt; G[User validates segment annotations]
+    G --&gt; H[Post-validation cleanup removes outside segments]
+    H --&gt; I{Segment status VALIDATED?}
+    I -- No --&gt; X3[Blocked: cleanup required, pending, running, or failed]
+    I -- Yes --&gt; J[User requests ready-for-export promotion]
+    J --&gt; K[Server hashes final managed processed artifact]
+    K --&gt; L{Persisted hashes match and audit entry succeeds?}
+    L -- No --&gt; X4[Blocked: integrity or audit failure]
+    L -- Yes --&gt; M[Transfer-eligible video]
+    M --&gt; N[Authenticated operator marks video for hub upload]
+    N --&gt; O[Outbound job MARKED]
+    O --&gt; P[Explicit or configured queue action]
+    P --&gt; Q[Outbound job QUEUED]
+    Q --&gt; R[Register deterministic transfer key]
+    R --&gt; S[Upload anonymized processed media]
+    S --&gt; T{Matching hub acknowledgement APPLIED?}
+    T -- No --&gt; X5[FAILED or reconciliation required]
+    T -- Yes --&gt; U[Outbound job COMPLETED]
+
+    V[Processed artifact or segment changes] --&gt; W[Clear ready-for-export proof]
+    W --&gt; J
+</pre></div>
+</div>
+<p>The state can therefore be reached through normal product behavior; tests must
+not manufacture <code class="docutils literal notranslate"><span class="pre">ready_for_export</span></code> directly. The reachability contract uses
+the same model transitions and services as the import pipeline, segment
+workflow, ready-for-export endpoint, Hub marking, and queueing code. Any later
+processed-artifact replacement or segment mutation revokes the proof and sends
+the video back to the readiness gate.</p>
 </section>
 <section id="marked-for-upload">
 <h2>Marked For Upload<a class="headerlink" href="#marked-for-upload" title="Link to this heading">¶</a></h2>
@@ -308,29 +355,27 @@ per-resource state changes, not as a separate domain concept.</p>
 </section>
 <section id="eligible-resources">
 <h2>Eligible Resources<a class="headerlink" href="#eligible-resources" title="Link to this heading">¶</a></h2>
-<p>A resource is eligible for outbound hub transfer only when all of the following
-are true:</p>
+<p>Video candidate eligibility and operator marking are separate states. A video
+is a transfer candidate only when all of the following are true:</p>
 <ul class="simple">
-<li><p>it is a video or report supported by the upstream transfer contract</p></li>
 <li><p>it belongs to the local sender center scope</p></li>
-<li><p>it has been explicitly marked for upload</p></li>
-<li><p>processed media exists locally</p></li>
-<li><p>the anonymization state is one of:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">ANONYMIZED</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">DONE_PROCESSING_ANONYMIZATION</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">VALIDATED</span></code></p></li>
+<li><p>its managed processed artifact exists and is non-empty</p></li>
+<li><p>anonymization status is exactly <code class="docutils literal notranslate"><span class="pre">VALIDATED</span></code></p></li>
+<li><p>segment annotation status is exactly <code class="docutils literal notranslate"><span class="pre">VALIDATED</span></code>, which includes successful
+outside-segment cleanup</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ready_for_export</span></code> is true with an attributable actor and timestamp</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">VideoFile.processed_video_hash</span></code> and
+<code class="docutils literal notranslate"><span class="pre">VideoState.processed_file_sha256</span></code> contain the same final processed-artifact
+digest</p></li>
 </ul>
-</li>
-</ul>
-<p>The following states are not export-eligible:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">NOT_STARTED</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">STARTED</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">EXTRACTING_FRAMES</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">PROCESSING_ANONYMIZING</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">FAILED</span></code></p></li>
-</ul>
+<p>Overview polling trusts only the persisted integrity proof and does not read
+the complete video. The marking and transfer boundaries recalculate the digest
+from the actual managed artifact and reject unreadable content or any mismatch.
+States such as <code class="docutils literal notranslate"><span class="pre">ANONYMIZED</span></code> and <code class="docutils literal notranslate"><span class="pre">DONE_PROCESSING_ANONYMIZATION</span></code> are useful
+workflow progress, but are not transfer eligible until human anonymization
+validation and every later gate has completed.</p>
+<p>An authenticated operator may then create the separate <code class="docutils literal notranslate"><span class="pre">marked</span></code> transfer
+intent. Marking does not repair or bypass a failed eligibility gate.</p>
 <p>If the local state becomes ineligible after marking, the sender must refuse to
 queue or retry the transfer until the resource becomes eligible again.</p>
 </section>
@@ -682,6 +727,7 @@ successful hub outcome.</p>
 <li><a class="reference internal" href="#">Hub Export Workflow</a><ul>
 <li><a class="reference internal" href="#scope">Scope</a></li>
 <li><a class="reference internal" href="#core-decisions">Core Decisions</a></li>
+<li><a class="reference internal" href="#video-reachability-from-import-to-transfer">Video Reachability From Import To Transfer</a></li>
 <li><a class="reference internal" href="#marked-for-upload">Marked For Upload</a></li>
 <li><a class="reference internal" href="#eligible-resources">Eligible Resources</a></li>
 <li><a class="reference internal" href="#sender-state-machine">Sender State Machine</a></li>
@@ -707,7 +753,7 @@ successful hub outcome.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=8d563738"></script>
+</div><script src="../_static/documentation_options.js?v=292eb321"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

@@ -72,6 +72,45 @@ describe('findingsApi canonical routing', () => {
     expect(hoisted.axios.get).toHaveBeenLastCalledWith('/dtypes-api/examinations/12/findings/')
   })
 
+  it('scopes catalog reads to one exact knowledge-base identity and patient examination', async () => {
+    hoisted.axios.get
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: { choices: [] } })
+    const context = {
+      moduleName: 'dgvs_reporting',
+      moduleVersion: '0.1.0',
+      patientExaminationId: 168
+    }
+
+    await findingsApi.getExaminationFindings(12, context)
+    await findingsApi.getFindingClassifications(6, context)
+    await findingsApi.getClassificationChoices(5, context)
+
+    const config = {
+      params: {
+        module_name: 'dgvs_reporting',
+        module_version: '0.1.0',
+        patient_examination_id: 168
+      }
+    }
+    expect(hoisted.axios.get).toHaveBeenNthCalledWith(
+      1,
+      '/dtypes-api/examinations/12/findings/',
+      config
+    )
+    expect(hoisted.axios.get).toHaveBeenNthCalledWith(
+      2,
+      '/dtypes-api/findings/6/classifications/',
+      config
+    )
+    expect(hoisted.axios.get).toHaveBeenNthCalledWith(
+      3,
+      '/dtypes-api/classifications/5/choices/',
+      config
+    )
+  })
+
   it('ignores obsolete rollback flags for patient-finding writes', async () => {
     vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg')
     hoisted.axios.post.mockResolvedValueOnce({
@@ -198,6 +237,13 @@ describe('findingsApi canonical routing', () => {
 
   it('rejects invalid request identifiers and classification selections before dispatch', async () => {
     await expect(findingsApi.getExaminationFindings(0)).rejects.toThrowError(/positive integer/)
+    await expect(
+      findingsApi.getExaminationFindings(12, {
+        moduleName: '',
+        moduleVersion: '0.1.0',
+        patientExaminationId: 168
+      })
+    ).rejects.toThrowError(/context\.moduleName/)
     await expect(
       findingsApi.createPatientFinding({
         patientExamination: 88,

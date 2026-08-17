@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
 from urllib.parse import urljoin, urlparse
@@ -12,11 +11,21 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 from endoreg_db.models import NetworkNode
-from endoreg_db.utils.storage import ensure_local_file
+from lx_dtypes.models.contracts.hub_media_envelope import (
+    HubMediaEnvelopeReceipt,
+    validate_hub_media_receipt_matches_envelope,
+)
 
 from ..models import OutboundHubTransferJob
 from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_cleanup import apply_completed_export_cleanup_policy
+from .hub_export_envelope import (
+    HubExportEnvelopeConfig,
+    PreparedHubExportEnvelope,
+    cleanup_persisted_hub_export_envelope,
+    prepare_hub_export_envelope,
+    resolve_hub_export_envelope_config,
+)
 from .hub_export_payloads import build_transfer_payload, validate_transfer_payload
 from .transfer_transport import TransferTransportConfig
 
@@ -46,6 +55,7 @@ class RemoteTransferStatusPayload(TypedDict, total=False):
     processing_decision: str
     payload_schema_version: str
     status_detail: str
+    envelope_receipt: dict[str, object]
 
 
 class RemoteTransferIntegrityError(ValueError):
@@ -194,11 +204,13 @@ class MultipartUploadStream:
         media_path: Path,
         media_role: str,
         upload_file_name: str,
+        envelope_json: str,
         chunk_size: int = _MULTIPART_UPLOAD_CHUNK_SIZE,
     ) -> None:
         self.media_path = media_path
         self.media_role = media_role
         self.upload_file_name = Path(upload_file_name).name
+        self.envelope_json = envelope_json
         self.chunk_size = chunk_size
         self.boundary = f"lx-annotate-{uuid.uuid4().hex}"
         self.content_type = f"multipart/form-data; boundary={self.boundary}"
@@ -215,6 +227,10 @@ class MultipartUploadStream:
             f"--{self.boundary}\r\n"
             'Content-Disposition: form-data; name="media_role"\r\n\r\n'
             f"{media_role}\r\n"
+            f"--{self.boundary}\r\n"
+            'Content-Disposition: form-data; name="envelope"\r\n'
+            "Content-Type: application/json\r\n\r\n"
+            f"{self.envelope_json}\r\n"
             f"--{self.boundary}\r\n"
             f'Content-Disposition: form-data; name="file"; filename="{file_name}"\r\n'
             "Content-Type: application/octet-stream\r\n\r\n"
@@ -249,34 +265,87 @@ def _processed_media_field(
     return report.processed_file, "processed"
 
 
-def _pseudonymous_upload_file_name(
+def _processed_media_envelope(
     outbound_job: OutboundHubTransferJob,
-    *,
-    media_path: Path,
-) -> str:
-    suffix = media_path.suffix.lower()
-    if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO:
-        video = outbound_job.video_file
-        digest = str(getattr(video, "processed_video_hash", "") or "").strip()
-        resource_hash = str(getattr(video, "video_hash", "") or "").strip()
-    else:
-        report = outbound_job.raw_pdf_file
-        state = getattr(report, "state", None)
-        digest = str(getattr(state, "processed_file_sha256", "") or "").strip()
-        resource_hash = str(getattr(report, "pdf_hash", "") or "").strip()
-    if not digest and not resource_hash:
-        raise ValueError("Outbound transfer resource hash is missing.")
-    return f"{digest or resource_hash}{suffix}"
-
-
-@contextmanager
-def _localized_processed_media_path(
-    outbound_job: OutboundHubTransferJob,
-) -> Iterator[tuple[Path, str]]:
+) -> tuple[Any, str]:
     field_file, media_role = _processed_media_field(outbound_job)
-    suffix = Path(str(field_file.name or "")).suffix or None
-    with ensure_local_file(field_file, suffix=suffix) as local_path:
-        yield local_path, media_role
+    return field_file, media_role
+
+
+def _resource_hash(outbound_job: OutboundHubTransferJob) -> str:
+    resource = (
+        outbound_job.video_file
+        if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO
+        else outbound_job.raw_pdf_file
+    )
+    field_name = (
+        "video_hash"
+        if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO
+        else "pdf_hash"
+    )
+    value = str(getattr(resource, field_name, "") or "").strip()
+    if not value:
+        raise ValueError("Outbound transfer resource hash is missing.")
+    return value
+
+
+def _prepare_media_envelope(
+    *,
+    outbound_job: OutboundHubTransferJob,
+    source_node: NetworkNode,
+    config: HubExportEnvelopeConfig,
+) -> PreparedHubExportEnvelope:
+    source_center = outbound_job.source_center
+    source_center_key = str(getattr(source_center, "center_key", "") or "").strip()
+    if not source_center_key:
+        raise ValueError("Outbound transfer source center is missing.")
+    field_file, _media_role = _processed_media_envelope(outbound_job)
+    resource_kind: Literal["video", "report"] = (
+        "video"
+        if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO
+        else "report"
+    )
+    return prepare_hub_export_envelope(
+        field_file=field_file,
+        config=config,
+        transfer_key=str(outbound_job.transfer_key),
+        source_node_key=str(source_node.node_key),
+        source_center_key=source_center_key,
+        target_node_key=str(outbound_job.target_node.node_key),
+        resource_kind=resource_kind,
+        resource_hash=_resource_hash(outbound_job),
+        processed_media_hash=_expected_processed_media_hash(outbound_job),
+    )
+
+
+def _validated_envelope_receipt(
+    *,
+    response_data: RemoteTransferStatusPayload,
+    prepared: PreparedHubExportEnvelope,
+) -> HubMediaEnvelopeReceipt:
+    raw_receipt = response_data.get("envelope_receipt")
+    if not isinstance(raw_receipt, dict):
+        raise RemoteTransferIntegrityError(
+            "Hub applied media without a typed envelope receipt.",
+        )
+    try:
+        receipt = HubMediaEnvelopeReceipt.model_validate(raw_receipt)
+        validate_hub_media_receipt_matches_envelope(
+            envelope=prepared.envelope,
+            receipt=receipt,
+        )
+    except ValueError as exc:
+        raise RemoteTransferIntegrityError(
+            f"Hub envelope receipt mismatch: {exc}",
+        ) from exc
+    if (
+        receipt.ciphertext_sha256 != prepared.ciphertext_sha256
+        or receipt.ciphertext_size != prepared.ciphertext_size
+    ):
+        raise RemoteTransferIntegrityError(
+            "Hub envelope receipt does not match the uploaded ciphertext.",
+        )
+    return receipt
 
 
 def apply_remote_status(
@@ -477,6 +546,7 @@ def run_outbound_transfer_job(
 
     try:
         transport = resolve_hub_transport_config()
+        envelope_config = resolve_hub_export_envelope_config()
         source_node = NetworkNode.objects.get(
             node_key=source_node_key,
             is_active=True,
@@ -549,6 +619,10 @@ def run_outbound_transfer_job(
             **transport.request_kwargs(),
         )
         if register_response.status_code == 409:
+            cleanup_persisted_hub_export_envelope(
+                config=envelope_config,
+                transfer_key=str(outbound_job.transfer_key),
+            )
             return mark_outbound_job_failure(
                 outbound_job,
                 error_message=(
@@ -560,12 +634,29 @@ def run_outbound_transfer_job(
             )
         _raise_for_hub_response(register_response)
         register_payload = cast(RemoteTransferStatusPayload, register_response.json())
+        applied_envelope: PreparedHubExportEnvelope | None = None
+        if register_payload.get("transfer_status") == "applied":
+            applied_envelope = _prepare_media_envelope(
+                outbound_job=outbound_job,
+                source_node=source_node,
+                config=envelope_config,
+            )
+            _validated_envelope_receipt(
+                response_data=register_payload,
+                prepared=applied_envelope,
+            )
         apply_remote_status(
             outbound_job,
             register_payload,
             expected_source_node_key=source_node.node_key,
         )
+        if applied_envelope is not None:
+            applied_envelope.cleanup()
     except RemoteTransferIntegrityError as exc:
+        cleanup_persisted_hub_export_envelope(
+            config=envelope_config,
+            transfer_key=str(outbound_job.transfer_key),
+        )
         return mark_outbound_job_failure(
             outbound_job,
             error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
@@ -574,6 +665,10 @@ def run_outbound_transfer_job(
             retryable=False,
         )
     except RemoteTransferAuthorizationError as exc:
+        cleanup_persisted_hub_export_envelope(
+            config=envelope_config,
+            transfer_key=str(outbound_job.transfer_key),
+        )
         return mark_outbound_job_failure(
             outbound_job,
             error_message=str(exc),
@@ -592,54 +687,66 @@ def run_outbound_transfer_job(
     if outbound_job.local_status != OutboundHubTransferJob.LocalStatus.AWAITING_MEDIA:
         return outbound_job
 
+    prepared: PreparedHubExportEnvelope | None = None
     try:
-        with _localized_processed_media_path(outbound_job) as (media_path, media_role):
-            outbound_job.local_status = OutboundHubTransferJob.LocalStatus.UPLOADING
-            outbound_job.media_upload_started_at = timezone.now()
-            outbound_job.last_attempt_at = outbound_job.media_upload_started_at
-            outbound_job.save(
-                update_fields=[
-                    "local_status",
-                    "media_upload_started_at",
-                    "last_attempt_at",
-                    "updated_at",
-                ],
-            )
-            emit_hub_export_audit_event(
-                "hub_export.upload_started",
-                outbound_job=outbound_job,
-                source_node_key=source_node.node_key,
-            )
+        prepared = _prepare_media_envelope(
+            outbound_job=outbound_job,
+            source_node=source_node,
+            config=envelope_config,
+        )
+        _field_file, media_role = _processed_media_envelope(outbound_job)
+        outbound_job.local_status = OutboundHubTransferJob.LocalStatus.UPLOADING
+        outbound_job.media_upload_started_at = timezone.now()
+        outbound_job.last_attempt_at = outbound_job.media_upload_started_at
+        outbound_job.save(
+            update_fields=[
+                "local_status",
+                "media_upload_started_at",
+                "last_attempt_at",
+                "updated_at",
+            ],
+        )
+        emit_hub_export_audit_event(
+            "hub_export.upload_started",
+            outbound_job=outbound_job,
+            source_node_key=source_node.node_key,
+        )
 
-            upload_stream = MultipartUploadStream(
-                media_path=media_path,
-                media_role=media_role,
-                upload_file_name=_pseudonymous_upload_file_name(
-                    outbound_job,
-                    media_path=media_path,
-                ),
-            )
-            headers = hub_headers(source_node=source_node, source_secret=secret)
-            headers["Content-Type"] = upload_stream.content_type
-            headers["Content-Length"] = str(upload_stream.content_length)
-            media_response = requests.post(
-                hub_transfer_media_url(
-                    outbound_job.target_node,
-                    outbound_job.transfer_key,
-                ),
-                data=upload_stream,
-                headers=headers,
-                timeout=request_timeout_s,
-                **transport.request_kwargs(),
-            )
-            _raise_for_hub_response(media_response)
-            media_payload = cast(RemoteTransferStatusPayload, media_response.json())
-            apply_remote_status(
-                outbound_job,
-                media_payload,
-                expected_source_node_key=source_node.node_key,
-            )
+        upload_stream = MultipartUploadStream(
+            media_path=prepared.ciphertext_path,
+            media_role=media_role,
+            upload_file_name=f"{prepared.ciphertext_sha256}.bin",
+            envelope_json=prepared.envelope.model_dump_json(),
+        )
+        headers = hub_headers(source_node=source_node, source_secret=secret)
+        headers["Content-Type"] = upload_stream.content_type
+        headers["Content-Length"] = str(upload_stream.content_length)
+        media_response = requests.post(
+            hub_transfer_media_url(
+                outbound_job.target_node,
+                outbound_job.transfer_key,
+            ),
+            data=upload_stream,
+            headers=headers,
+            timeout=request_timeout_s,
+            **transport.request_kwargs(),
+        )
+        _raise_for_hub_response(media_response)
+        media_payload = cast(RemoteTransferStatusPayload, media_response.json())
+        _validated_envelope_receipt(
+            response_data=media_payload,
+            prepared=prepared,
+        )
+        apply_remote_status(
+            outbound_job,
+            media_payload,
+            expected_source_node_key=source_node.node_key,
+        )
+        if outbound_job.local_status == OutboundHubTransferJob.LocalStatus.COMPLETED:
+            prepared.cleanup()
     except RemoteTransferIntegrityError as exc:
+        if prepared is not None:
+            prepared.cleanup()
         return mark_outbound_job_failure(
             outbound_job,
             error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
@@ -648,6 +755,8 @@ def run_outbound_transfer_job(
             retryable=False,
         )
     except RemoteTransferAuthorizationError as exc:
+        if prepared is not None:
+            prepared.cleanup()
         return mark_outbound_job_failure(
             outbound_job,
             error_message=str(exc),
@@ -663,6 +772,8 @@ def run_outbound_transfer_job(
             failure_class="transient_retry",
         )
     except (OSError, ValueError) as exc:
+        if prepared is not None:
+            prepared.cleanup()
         return mark_outbound_job_failure(
             outbound_job,
             error_message=f"Hub transfer processed media rejected: {exc}",

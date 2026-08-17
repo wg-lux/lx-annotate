@@ -69,6 +69,9 @@
         <div v-if="templateErrorMessage" class="alert alert-danger py-2 mb-2">
           {{ templateErrorMessage }}
         </div>
+        <div v-if="templateContextError" class="alert alert-danger py-2 mb-2" role="alert">
+          {{ templateContextError }}
+        </div>
         <div v-if="templateStatusMessage" class="alert alert-success py-2 mb-2">
           {{ templateStatusMessage }}
         </div>
@@ -342,6 +345,8 @@ import {
   type FindingChoice
 } from '@/api/findings.contract'
 import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi'
+import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
+import type { FindingsCatalogContext } from '@/api/findingsApi'
 import type {
   ReportTemplateFinding,
   ReportTemplateRuntimeClassificationChoiceInput,
@@ -358,6 +363,7 @@ import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useTerminologyStore } from '@/stores/terminologyStore'
 import { reportingApiErrorMessage } from './reportingError'
+import { resolveReportingKnowledgeBaseContext } from './reportingKnowledgeBaseContext'
 import {
   requireResolvedReportingExamination,
   resolveReportingExamination
@@ -377,6 +383,7 @@ const successMessage = ref<string | null>(null)
 const templateValidationLoading = ref(false)
 const templateValidationError = ref<string | null>(null)
 const templateStatusMessage = ref<string | null>(null)
+const templateContextError = ref<string | null>(null)
 const touchedFields = ref<Record<string, boolean>>({})
 const showValidationFeedback = ref(false)
 const dirtySinceMount = ref(false)
@@ -390,7 +397,7 @@ const {
   sectionBlocks,
   loading: templateLoading,
   errorMessage: templateErrorMessage,
-  fetchTemplatesByExamination,
+  applyTemplateOptions,
   setModuleName
 } = useReportTemplates({
   initialModuleName: terminology.activeBundle ? terminology.activeModuleName : '',
@@ -941,6 +948,7 @@ function findingLevelMessages(findingName: string): string[] {
 
 async function refreshTemplatesForExamination() {
   templateStatusMessage.value = null
+  templateContextError.value = null
   if (!selectedKbModule.value) {
     templateStatusMessage.value =
       'Vorlagen werden angeboten, sobald eine Terminologie aktiviert wurde.'
@@ -948,12 +956,47 @@ async function refreshTemplatesForExamination() {
   }
   const examName = selectedExaminationName.value
   if (!examName) return
-  const templates = await fetchTemplatesByExamination(examName)
-  if (templates.length) {
-    templateStatusMessage.value = `${String(templates.length)} Template(s) fuer "${examName}" geladen.`
-  } else {
-    templateStatusMessage.value = `Keine Templates fuer "${examName}" gefunden.`
+  const bundle = terminology.activeBundle
+  if (!bundle) return
+  try {
+    const reportingContext = activeFindingsCatalogContext()
+    if (!reportingContext) return
+    const projection = await fetchExaminationReportingContext(
+      reportingContext.moduleName,
+      reportingContext.moduleVersion,
+      examName
+    )
+    applyTemplateOptions(projection.reportTemplates)
+    templateStatusMessage.value = projection.reportTemplates.length
+      ? `${String(projection.reportTemplates.length)} Template(s) fuer "${examName}" geladen.`
+      : `Keine Templates fuer "${examName}" gefunden.`
+  } catch (error: unknown) {
+    applyTemplateOptions([])
+    templateContextError.value = reportingApiErrorMessage(
+      error,
+      'Der versionierte Reporting-Kontext konnte nicht geladen werden.'
+    )
   }
+}
+
+function activeFindingsCatalogContext(): FindingsCatalogContext | undefined {
+  const bundle = terminology.activeBundle
+  if (!bundle) return undefined
+  const patientExaminationId = flow.patientExaminationId
+  if (!patientExaminationId) return undefined
+  const payload = currentPayload.value
+  const pinnedIdentity =
+    payload?.knowledgeBaseModule && payload.knowledgeBaseVersion
+      ? {
+          moduleName: payload.knowledgeBaseModule,
+          moduleVersion: payload.knowledgeBaseVersion
+        }
+      : null
+  return resolveReportingKnowledgeBaseContext({
+    patientExaminationId,
+    pinnedIdentity,
+    activeBundle: bundle
+  })
 }
 
 function onAddFinding(findingName: string) {
@@ -1161,7 +1204,7 @@ onMounted(async () => {
       selectedExaminationId: flow.selectedExaminationId,
       examinationName: currentPayload.value?.examination
     })
-    await ensureCatalogLoaded(examination.id)
+    await ensureCatalogLoaded(examination.id, activeFindingsCatalogContext())
     await refreshTemplatesForExamination()
   } catch (error: unknown) {
     errorMessage.value = reportingApiErrorMessage(

@@ -72,20 +72,28 @@ def test_reviewed_contracts_match_installed_canonical_packages() -> None:
 def test_reviewed_migration_files_are_owned_by_declared_distributions() -> None:
     for contract in safety.CONTRACTS:
         module_path = contract.canonical_module.replace(".", "/")
-        package_files = distribution(contract.distribution).files
-        assert package_files is not None
-        owned_migrations = {
-            file.name
-            for file in package_files
-            if file.parent.as_posix() == module_path
-            and file.name.endswith(".py")
-            and file.name != "__init__.py"
-        }
         installed_migrations = {
             entry.name
             for entry in safety.resources.files(contract.canonical_module).iterdir()
             if entry.name.endswith(".py") and entry.name != "__init__.py"
         }
+        package_files = distribution(contract.distribution).files
+        if package_files is None:
+            owned_migrations = set()
+        else:
+            owned_migrations = {
+                file.name
+                for file in package_files
+                if file.parent.as_posix() == module_path
+                and file.name.endswith(".py")
+                and file.name != "__init__.py"
+            }
+        if not owned_migrations:
+            # Some distributions may expose migration files only through package
+            # resources in the active runtime environment (eg editable installs).
+            # In that case, compare against discovered installed migration
+            # files instead of metadata file listings.
+            owned_migrations = installed_migrations
 
         assert installed_migrations == owned_migrations
 

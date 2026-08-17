@@ -49,6 +49,7 @@ def _resolve_runtime_data_dir() -> Path:
 # XDG Data Logic -> Root Data Directory support
 XDG_DATA_HOME = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 APP_DATA_DIR = _resolve_runtime_data_dir()
+LX_ANNOTATE_ENCRYPTED_DATA_DIR = str(APP_DATA_DIR)
 ensure_directory(APP_DATA_DIR)
 APP_STORAGE_DIR = APP_DATA_DIR / "storage"
 ensure_directory(APP_STORAGE_DIR)
@@ -270,6 +271,16 @@ LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE = str(
 ).strip()
 LX_ANNOTATE_HUB_EXPORT_CA_FILE = str(
     os.getenv("LX_ANNOTATE_HUB_EXPORT_CA_FILE", "") or "",
+).strip()
+LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE = str(
+    os.getenv("LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE", "") or "",
+).strip()
+LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR = str(
+    os.getenv(
+        "LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR",
+        str(APP_DATA_DIR / "hub-export-envelopes"),
+    )
+    or "",
 ).strip()
 LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS = max(
     int(os.getenv("LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS", "1800")),

@@ -4,6 +4,10 @@ from enum import StrEnum
 
 from endoreg_db.models.state.anonymization import AnonymizationState
 from endoreg_db.models.state.video_segment_validation import SegmentAnnotationStatus
+from lx_dtypes.models.contracts.hub_media_envelope import (
+    HubMediaEnvelopeMetadata,
+    HubMediaEnvelopeReceipt,
+)
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 
@@ -253,6 +257,8 @@ __all__ = [
     "HubEligibleVideoOffloadRequest",
     "HubEligibleVideoOffloadResult",
     "HubExportMutationRequest",
+    "HubMediaEnvelopeMetadata",
+    "HubMediaEnvelopeReceipt",
     "HubExportOverview",
     "HubExportPrivacyStatus",
     "HubExportPrivacySummary",

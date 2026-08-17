@@ -39,11 +39,20 @@ const hoisted = vi.hoisted(() => {
       'finding selectors'
     ),
     validateRuntime: vi.fn(),
+    fetchExaminationReportingContext: vi.fn(),
+    terminologyStore: {
+      activeBundle: {
+        moduleName: 'report_template_examples',
+        version: '1.0.0'
+      } as { moduleName: string; version: string } | null,
+      activeModuleName: 'report_template_examples',
+      activeBundleKey: 'report_template_examples@@1.0.0'
+    },
     templateControls: {
       annotationOnly: false,
       setModuleName: vi.fn(),
       selectTemplateByName: vi.fn().mockResolvedValue(undefined),
-      fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
+      applyTemplateOptions: vi.fn()
     },
     examinationStore: {
       exams: [{ id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }],
@@ -63,6 +72,14 @@ vi.mock('@/composables/reporting/useFindingSelectors', () => ({
 
 vi.mock('@/api/reportTemplatesApi', () => ({
   validateReportTemplateRuntime: hoisted.validateRuntime
+}))
+
+vi.mock('@/api/knowledgeBaseGraphApi', () => ({
+  fetchExaminationReportingContext: hoisted.fetchExaminationReportingContext
+}))
+
+vi.mock('@/stores/terminologyStore', () => ({
+  useTerminologyStore: () => hoisted.terminologyStore
 }))
 
 vi.mock('@/composables/reporting/useReportTemplates', () => ({
@@ -156,7 +173,7 @@ vi.mock('@/composables/reporting/useReportTemplates', () => ({
       ),
       loading: ref(false),
       errorMessage: ref(null),
-      fetchTemplatesByExamination: hoisted.templateControls.fetchTemplatesByExamination,
+      applyTemplateOptions: hoisted.templateControls.applyTemplateOptions,
       selectTemplateByName: hoisted.templateControls.selectTemplateByName,
       setModuleName: hoisted.templateControls.setModuleName
     }
@@ -208,7 +225,7 @@ function buildFlowStore() {
         examiners: [],
         examination: 'gastroscopy',
         knowledgeBaseModule: 'report_template_examples',
-        knowledgeBaseVersion: null,
+        knowledgeBaseVersion: null as string | null,
         patientFindings: [] as ReportTemplateRuntimePatientFindingInput[]
       }
     },
@@ -366,7 +383,13 @@ describe('FindingsCapturePage runtime draft flow', () => {
     vi.useFakeTimers()
     vi.clearAllMocks()
     hoisted.templateControls.annotationOnly = false
-    hoisted.templateControls.fetchTemplatesByExamination.mockResolvedValue([])
+    hoisted.terminologyStore.activeBundle = {
+      moduleName: 'report_template_examples',
+      version: '1.0.0'
+    }
+    hoisted.terminologyStore.activeModuleName = 'report_template_examples'
+    hoisted.terminologyStore.activeBundleKey = 'report_template_examples@@1.0.0'
+    hoisted.fetchExaminationReportingContext.mockResolvedValue({ reportTemplates: [] })
     hoisted.templateControls.selectTemplateByName.mockResolvedValue(undefined)
     hoisted.examinationStore.exams = [{ id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }]
     hoisted.examinationStore.examinationsDropdown = [
@@ -425,6 +448,9 @@ describe('FindingsCapturePage runtime draft flow', () => {
 
   it('keeps catalog-backed finding capture available without terminology', async () => {
     hoisted.templateControls.annotationOnly = true
+    hoisted.terminologyStore.activeBundle = null
+    hoisted.terminologyStore.activeModuleName = ''
+    hoisted.terminologyStore.activeBundleKey = ''
     hoisted.flowRef.current.selectedKbModule = ''
     hoisted.flowRef.current.selectedTemplateName = null
     hoisted.flowRef.current.currentRuntimeDraft.moduleName = ''
@@ -599,7 +625,11 @@ describe('FindingsCapturePage runtime draft flow', () => {
     const wrapper = mountPage()
     await flushPromises()
 
-    expect(ensureCatalogLoaded).toHaveBeenCalledWith(7)
+    expect(ensureCatalogLoaded).toHaveBeenCalledWith(7, {
+      moduleName: 'report_template_examples',
+      moduleVersion: '1.0.0',
+      patientExaminationId: 42
+    })
     expect(wrapper.text()).toContain('Oesophagus Polyp')
   })
 
@@ -615,7 +645,36 @@ describe('FindingsCapturePage runtime draft flow', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('Bitte zuerst das Fall-Setup abschließen')
-    expect(hoisted.findingSelectorsRef.current.ensureCatalogLoaded).toHaveBeenCalledWith(12)
-    expect(hoisted.templateControls.fetchTemplatesByExamination).toHaveBeenCalledWith('colonoscopy')
+    expect(hoisted.findingSelectorsRef.current.ensureCatalogLoaded).toHaveBeenCalledWith(12, {
+      moduleName: 'report_template_examples',
+      moduleVersion: '1.0.0',
+      patientExaminationId: 42
+    })
+    expect(hoisted.fetchExaminationReportingContext).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0',
+      'colonoscopy'
+    )
+  })
+
+  it('blocks catalog and templates when the draft patient identity differs from the active bundle', async () => {
+    hoisted.terminologyStore.activeBundle = {
+      moduleName: 'dgvs_reporting',
+      version: '0.1.0'
+    }
+    hoisted.terminologyStore.activeModuleName = 'dgvs_reporting'
+    hoisted.terminologyStore.activeBundleKey = 'dgvs_reporting@@0.1.0'
+    hoisted.flowRef.current.currentRuntimeDraft.payload.knowledgeBaseModule =
+      'report_template_examples'
+    hoisted.flowRef.current.currentRuntimeDraft.payload.knowledgeBaseVersion = '1.0.0'
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(hoisted.findingSelectorsRef.current.ensureCatalogLoaded).not.toHaveBeenCalled()
+    expect(hoisted.fetchExaminationReportingContext).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain(
+      'Die Patientenuntersuchung #42 ist an report_template_examples@1.0.0 gebunden'
+    )
   })
 })

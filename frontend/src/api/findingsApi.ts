@@ -40,6 +40,12 @@ export interface UpdatePatientFindingPayload {
   classifications?: ClassificationSelection[]
 }
 
+export interface FindingsCatalogContext {
+  moduleName: string
+  moduleVersion: string
+  patientExaminationId?: number
+}
+
 const DTYPES_PATHS = {
   examinationFindings: (examinationId: number) =>
     dtypesApi(`examinations/${String(examinationId)}/findings/`),
@@ -77,6 +83,29 @@ function requirePositiveRequestId(value: unknown, path: string): number {
     throw new TypeError(`${path} must be a positive integer.`)
   }
   return value
+}
+
+function requireRequestIdentitySegment(value: unknown, path: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new TypeError(`${path} must be a non-empty string.`)
+  }
+  return value.trim()
+}
+
+function findingsCatalogParams(context: FindingsCatalogContext): {
+  module_name: string
+  module_version: string
+  patient_examination_id?: number
+} {
+  const patientExaminationId =
+    context.patientExaminationId === undefined
+      ? undefined
+      : requirePositiveRequestId(context.patientExaminationId, 'context.patientExaminationId')
+  return {
+    module_name: requireRequestIdentitySegment(context.moduleName, 'context.moduleName'),
+    module_version: requireRequestIdentitySegment(context.moduleVersion, 'context.moduleVersion'),
+    ...(patientExaminationId === undefined ? {} : { patient_examination_id: patientExaminationId })
+  }
 }
 
 function optionalBoolean(value: unknown, path: string): boolean | undefined {
@@ -207,30 +236,42 @@ export function parseFindingsApiError(error: unknown): FindingsApiError {
 }
 
 export const findingsApi = {
-  async getExaminationFindings(examinationId: number): Promise<Finding[]> {
+  async getExaminationFindings(
+    examinationId: number,
+    context?: FindingsCatalogContext
+  ): Promise<Finding[]> {
     const validExaminationId = requirePositiveRequestId(examinationId, 'examinationId')
-    const response = await axiosInstance.get<unknown>(
-      DTYPES_PATHS.examinationFindings(validExaminationId)
-    )
+    const path = DTYPES_PATHS.examinationFindings(validExaminationId)
+    const response = context
+      ? await axiosInstance.get<unknown>(path, { params: findingsCatalogParams(context) })
+      : await axiosInstance.get<unknown>(path)
     return normalizeFindings(response.data)
   },
 
-  async getFindingClassifications(findingId: number): Promise<FindingClassification[]> {
+  async getFindingClassifications(
+    findingId: number,
+    context?: FindingsCatalogContext
+  ): Promise<FindingClassification[]> {
     const validFindingId = requirePositiveRequestId(findingId, 'findingId')
-    const response = await axiosInstance.get<unknown>(
-      DTYPES_PATHS.findingClassifications(validFindingId)
-    )
+    const path = DTYPES_PATHS.findingClassifications(validFindingId)
+    const response = context
+      ? await axiosInstance.get<unknown>(path, { params: findingsCatalogParams(context) })
+      : await axiosInstance.get<unknown>(path)
     return requireArrayPayload(response.data, 'Finding classifications response').map(
       (classification, index) =>
         normalizeFindingClassification(classification, `findingClassifications[${String(index)}]`)
     )
   },
 
-  async getClassificationChoices(classificationId: number): Promise<FindingChoice[]> {
+  async getClassificationChoices(
+    classificationId: number,
+    context?: FindingsCatalogContext
+  ): Promise<FindingChoice[]> {
     const validClassificationId = requirePositiveRequestId(classificationId, 'classificationId')
-    const response = await axiosInstance.get<unknown>(
-      DTYPES_PATHS.classificationChoices(validClassificationId)
-    )
+    const path = DTYPES_PATHS.classificationChoices(validClassificationId)
+    const response = context
+      ? await axiosInstance.get<unknown>(path, { params: findingsCatalogParams(context) })
+      : await axiosInstance.get<unknown>(path)
     const payload = response.data
     if (Array.isArray(payload)) {
       return payload.map((choice, index) =>

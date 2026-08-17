@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import tomllib
-
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -53,6 +52,10 @@ def test_wheel_runtime_splits_code_and_data_roots():
         "Environment=DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_prod"
         in service_unit
     )
+    assert (
+        "Environment=LX_DTYPES_KB_REGISTRY=/var/lib/lx-annotate/data/terminology/registry.json"
+        in service_unit
+    )
     assert "EnvironmentFile=/var/lib/lx-annotate/.env.systemd" in service_unit
     assert "WorkingDirectory=/home/lx-annotate/lx-annotate-wheel" in service_unit
     assert (
@@ -81,6 +84,23 @@ def test_deploy_script_disables_pip_cache_growth():
     assert "PIP_NO_CACHE_DIR=1" in deploy_sh
     assert "install --no-cache-dir --upgrade pip" in deploy_sh
     assert "install --no-cache-dir --upgrade --force-reinstall" in deploy_sh
+
+
+def test_deploy_script_provisions_packaged_terminology_before_restart():
+    deploy_sh = _read("deployment_example/deploy.sh")
+
+    assert (
+        'LX_DTYPES_KB_REGISTRY="${LX_DTYPES_KB_REGISTRY:-$LX_ANNOTATE_ENCRYPTED_DATA_DIR/terminology/registry.json}"'
+        in deploy_sh
+    )
+    bootstrap = '"$VENV_DIR/bin/lx-annotate-bootstrap-terminology"'
+    migrate = '"$VENV_DIR/bin/python" -m django migrate'
+    assert bootstrap in deploy_sh
+    assert '--registry "$LX_DTYPES_KB_REGISTRY"' in deploy_sh
+    assert deploy_sh.index(bootstrap) < deploy_sh.index(migrate)
+    assert deploy_sh.index(bootstrap) < deploy_sh.index(
+        'systemctl restart "$SERVICE_NAME"',
+    )
 
 
 def test_post_deploy_acceptance_smoke_is_wired():

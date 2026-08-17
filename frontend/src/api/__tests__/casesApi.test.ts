@@ -91,6 +91,32 @@ describe('casesApi', () => {
     })
   })
 
+  it('preserves the exact patient-examination knowledge-base identity', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: {
+        results: [
+          {
+            ...patientCase,
+            patientExaminations: [
+              {
+                id: 314,
+                knowledgeBaseModule: 'dgvs_reporting',
+                knowledgeBaseVersion: '0.1.0'
+              }
+            ]
+          }
+        ]
+      }
+    })
+
+    const result = await fetchPatientCases({ patientExaminationId: 314 })
+
+    expect(result[0]?.patientExaminations[0]).toMatchObject({
+      knowledgeBaseModule: 'dgvs_reporting',
+      knowledgeBaseVersion: '0.1.0'
+    })
+  })
+
   it('creates a case through the shared Axios boundary', async () => {
     hoisted.axios.post.mockResolvedValue({ data: patientCase })
     const payload = {

@@ -402,7 +402,7 @@
           </div>
           <div class="hub-table-filter-field">
             <label for="hub-storage-state-filter" class="form-label mb-1">
-              Physischer Speicherstatus
+              Speicherstatus
             </label>
             <select
               id="hub-storage-state-filter"
@@ -411,8 +411,8 @@
               data-test="hub-storage-state-filter"
             >
               <option value="all">Alle Speicherzustände</option>
-              <option value="present">Processed Media vorhanden</option>
-              <option value="missing">Processed Media fehlt</option>
+              <option value="present">Anonymisiertes Dokument vorhanden</option>
+              <option value="missing">Anonymisiertes Dokument fehlt</option>
             </select>
           </div>
           <div class="hub-table-filter-summary" aria-live="polite">

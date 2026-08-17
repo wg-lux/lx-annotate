@@ -9,6 +9,8 @@ export interface PatientExaminationOption {
   examinationDisplayName: string
   patientId: number | null
   examinationId: number | null
+  knowledgeBaseModule?: string | null
+  knowledgeBaseVersion?: string | null
 }
 
 export type FindingStatus = 'complete' | 'warning' | 'missing' | 'empty'
@@ -130,6 +132,14 @@ export const normalizePatientExaminationOption = (
         ? row.dateStart
         : ''
   const dateLabel = dateStartRaw ? new Date(dateStartRaw).toLocaleDateString('de-DE') : ''
+  const knowledgeBaseModule = firstNonEmptyString(
+    row.knowledgeBaseModule,
+    row.knowledge_base_module
+  )
+  const knowledgeBaseVersion = firstNonEmptyString(
+    row.knowledgeBaseVersion,
+    row.knowledge_base_version
+  )
   return {
     id,
     label: dateLabel ? `${examinationDisplayName} · ${dateLabel}` : examinationDisplayName,
@@ -138,7 +148,9 @@ export const normalizePatientExaminationOption = (
     patientId: toPositiveInteger(
       patient.id ?? patientData.id ?? camelPatientData.id ?? row.patient_id ?? row.patientId
     ),
-    examinationId: toPositiveInteger(examination.id ?? row.examination_id ?? row.examinationId)
+    examinationId: toPositiveInteger(examination.id ?? row.examination_id ?? row.examinationId),
+    ...(knowledgeBaseModule ? { knowledgeBaseModule } : {}),
+    ...(knowledgeBaseVersion ? { knowledgeBaseVersion } : {})
   }
 }
 

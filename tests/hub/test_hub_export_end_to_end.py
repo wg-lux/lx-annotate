@@ -4,17 +4,20 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+import tempfile
+from pathlib import Path
 from typing import cast
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse
 
 import requests
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
-
 from endoreg_db.models import (
     Center,
     NetworkNode,
@@ -25,6 +28,12 @@ from endoreg_db.models import (
     VideoState,
 )
 from endoreg_db.serializers.hub.transfer_job import TransferJobCreateSerializer
+from endoreg_db.utils.file_operations import sha256_file
+from lx_dtypes.models.contracts.hub_media_envelope import (
+    HubMediaEnvelopeMetadata,
+    HubMediaEnvelopeReceipt,
+)
+
 from lx_annotate.hub.hub_export_payloads import build_transfer_payload
 from lx_annotate.hub.hub_export_worker import (
     MultipartUploadStream,
@@ -44,10 +53,44 @@ TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 @override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
 class HubExportEndToEndTests(TestCase):
     def setUp(self) -> None:
+        self.envelope_tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.envelope_tempdir.cleanup)
+        envelope_root = Path(self.envelope_tempdir.name)
+        recipient_key = X25519PrivateKey.generate()
+        recipient_private_path = envelope_root / "hub-recipient-private.pem"
+        recipient_private_path.write_bytes(
+            recipient_key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            ),
+        )
+        recipient_private_path.chmod(0o600)
+        recipient_public_path = envelope_root / "hub-recipient-public.pem"
+        recipient_public_path.write_bytes(
+            recipient_key.public_key().public_bytes(
+                serialization.Encoding.PEM,
+                serialization.PublicFormat.SubjectPublicKeyInfo,
+            ),
+        )
+        settings_override = self.settings(
+            LX_ANNOTATE_ENCRYPTED_DATA_DIR=str(envelope_root),
+            LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR=str(
+                envelope_root / "sender-envelopes",
+            ),
+            LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE=str(recipient_public_path),
+            ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES=(
+                str(recipient_private_path),
+            ),
+            ENDOREG_HUB_TRANSFER_REQUIRE_ROOT_OWNED_PRIVATE_KEYS=False,
+        )
+        settings_override.enable()
+        self.addCleanup(settings_override.disable)
         self.operator = User.objects.create_user(username="hub-e2e-operator")
         self.client.force_login(self.operator)
         self.center = Center.objects.create(
-            name="Test Center", center_key="test-center"
+            name="Test Center",
+            center_key="test-center",
         )
         self.site_node = NetworkNode.objects.create(
             display_name="Site Node",
@@ -96,6 +139,46 @@ class HubExportEndToEndTests(TestCase):
         response.url = url
         return response
 
+    @staticmethod
+    def _mock_applied_payload(
+        *,
+        job: OutboundHubTransferJob,
+        source_node_key: str,
+        remote_transfer_id: str,
+        upload_stream: MultipartUploadStream,
+    ) -> dict[str, object]:
+        envelope = HubMediaEnvelopeMetadata.model_validate_json(
+            upload_stream.envelope_json,
+        )
+        ciphertext = upload_stream.media_path.read_bytes()
+        receipt = HubMediaEnvelopeReceipt(
+            transfer_key=envelope.transfer_key,
+            source_node_key=envelope.source_node_key,
+            source_center_key=envelope.source_center_key,
+            target_node_key=envelope.target_node_key,
+            resource_kind=envelope.resource_kind,
+            resource_hash=envelope.resource_hash,
+            processed_media_hash=envelope.processed_media_hash,
+            plaintext_sha256=envelope.plaintext_sha256,
+            plaintext_size=envelope.plaintext_size,
+            recipient_key_id=envelope.recipient_key_id,
+            ciphertext_sha256=hashlib.sha256(ciphertext).hexdigest(),
+            ciphertext_size=len(ciphertext),
+            envelope_fingerprint_sha256=envelope.envelope_fingerprint_sha256(),
+            receiver_transfer_id=remote_transfer_id,
+            processing_decision="skip_processing_preserved_state",
+        )
+        return {
+            **hub_transfer_status_payload(
+                job=job,
+                source_node_key=source_node_key,
+                remote_transfer_id=remote_transfer_id,
+                transfer_status="applied",
+                processing_decision="skip_processing_preserved_state",
+            ),
+            "envelope_receipt": receipt.model_dump(mode="json"),
+        }
+
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_report_mark_then_transfer_completes(self, post_mock: MagicMock) -> None:
         report_state = RawPdfState.objects.create(
@@ -141,12 +224,11 @@ class HubExportEndToEndTests(TestCase):
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = hub_transfer_status_payload(
+        upload_response.json.side_effect = lambda: self._mock_applied_payload(
             job=job,
             source_node_key=self.site_node.node_key,
             remote_transfer_id="remote-transfer-1",
-            transfer_status="applied",
-            processing_decision="skip_processing_preserved_state",
+            upload_stream=post_mock.call_args.kwargs["data"],
         )
         upload_response.raise_for_status.return_value = None
         post_mock.side_effect = [register_response, upload_response]
@@ -158,7 +240,8 @@ class HubExportEndToEndTests(TestCase):
         )
 
         self.assertEqual(
-            result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
+            result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
         )
         self.assertEqual(result.remote_transfer_status, "applied")
 
@@ -208,6 +291,7 @@ class HubExportEndToEndTests(TestCase):
         self.assertEqual(mark_response.status_code, 200)
         outbound_job = OutboundHubTransferJob.objects.get(raw_pdf_file=report)
         lose_upload_ack = True
+        transmitted_ciphertext: list[bytes] = []
 
         def _receiver_post(url: str, **kwargs: object) -> requests.Response:
             nonlocal lose_upload_ack
@@ -235,13 +319,16 @@ class HubExportEndToEndTests(TestCase):
                 )
             else:
                 upload_stream = cast(MultipartUploadStream, kwargs["data"])
+                ciphertext = upload_stream.media_path.read_bytes()
+                transmitted_ciphertext.append(ciphertext)
                 django_response = self.client.post(
                     path,
                     data={
                         "media_role": upload_stream.media_role,
+                        "envelope": upload_stream.envelope_json,
                         "file": SimpleUploadedFile(
                             upload_stream.upload_file_name,
-                            upload_stream.media_path.read_bytes(),
+                            ciphertext,
                             content_type="application/octet-stream",
                         ),
                     },
@@ -253,7 +340,7 @@ class HubExportEndToEndTests(TestCase):
                 lose_upload_ack = False
                 self.assertEqual(response.status_code, 200, response.content)
                 raise requests.ConnectionError(
-                    "connection dropped after receiver applied the upload"
+                    "connection dropped after receiver applied the upload",
                 )
             return response
 
@@ -283,9 +370,22 @@ class HubExportEndToEndTests(TestCase):
             OutboundHubTransferJob.LocalStatus.FAILED,
         )
         self.assertEqual(
-            receiver_job.transfer_status, TransferJob.TransferStatus.APPLIED
+            receiver_job.transfer_status,
+            TransferJob.TransferStatus.APPLIED,
         )
         self.assertEqual(lost_ack_result.retry_count, 1)
+        self.assertEqual(
+            sha256_file(report.processed_file),
+            hashlib.sha256(b"%PDF-1.4\nprocessed-real\n%%EOF\n").hexdigest(),
+        )
+        self.assertTrue(transmitted_ciphertext)
+        self.assertEqual(len(transmitted_ciphertext), 1)
+        self.assertTrue(
+            all(
+                b"%PDF-1.4\nprocessed-real\n%%EOF\n" not in ciphertext
+                for ciphertext in transmitted_ciphertext
+            ),
+        )
 
         exact_replay_result = run_outbound_transfer_job(
             outbound_job_id=str(outbound_job.id),
@@ -362,7 +462,7 @@ class HubExportEndToEndTests(TestCase):
                     {
                         "id": hash_mismatch_report.id,
                         "resource_kind": "report",
-                    }
+                    },
                 ],
             },
             content_type="application/json",
@@ -476,7 +576,8 @@ class HubExportEndToEndTests(TestCase):
             width=320,
             height=240,
             processed_file=ContentFile(
-                b"processed-video", name="video-1-processed.mp4"
+                b"processed-video",
+                name="video-1-processed.mp4",
             ),
         )
         mark_response = self.client.post(
@@ -503,12 +604,11 @@ class HubExportEndToEndTests(TestCase):
         register_response.raise_for_status.return_value = None
 
         upload_response = MagicMock()
-        upload_response.json.return_value = hub_transfer_status_payload(
+        upload_response.json.side_effect = lambda: self._mock_applied_payload(
             job=job,
             source_node_key=self.site_node.node_key,
             remote_transfer_id="remote-transfer-2",
-            transfer_status="applied",
-            processing_decision="skip_processing_preserved_state",
+            upload_stream=post_mock.call_args.kwargs["data"],
         )
         upload_response.raise_for_status.return_value = None
         post_mock.side_effect = [register_response, upload_response]
@@ -520,6 +620,7 @@ class HubExportEndToEndTests(TestCase):
         )
 
         self.assertEqual(
-            result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
+            result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
         )
         self.assertEqual(result.remote_transfer_status, "applied")

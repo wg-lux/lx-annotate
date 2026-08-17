@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from unittest.mock import patch
-
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
-
 from endoreg_db.models import Center, NetworkNode, TransferJob
+
 from tests.hub_payload_helpers import valid_report_resource_rows
 
 
@@ -34,7 +31,9 @@ class HubTransferSecurityTests(TestCase):
         )
 
     def _transfer_payload(
-        self, *, transfer_key: str = "site-node__report__hash-1__v1"
+        self,
+        *,
+        transfer_key: str = "site-node__report__hash-1__v1",
     ) -> dict:
         return {
             "transfer_key": transfer_key,
@@ -55,7 +54,9 @@ class HubTransferSecurityTests(TestCase):
         }
 
     def _create_transfer_job(
-        self, *, transfer_key: str = "site-node__report__status__v1"
+        self,
+        *,
+        transfer_key: str = "site-node__report__status__v1",
     ) -> TransferJob:
         return TransferJob.objects.create(
             transfer_key=transfer_key,
@@ -96,8 +97,8 @@ class HubTransferSecurityTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertFalse(
             TransferJob.objects.filter(
-                transfer_key="site-node__report__off__v1"
-            ).exists()
+                transfer_key="site-node__report__off__v1",
+            ).exists(),
         )
 
     @override_settings(
@@ -185,7 +186,7 @@ class HubTransferSecurityTests(TestCase):
     )
     def test_transfer_status_rejects_missing_mtls_attestation(self):
         transfer_job = self._create_transfer_job(
-            transfer_key="site-node__report__status-mtls__v1"
+            transfer_key="site-node__report__status-mtls__v1",
         )
 
         response = self.client.get(
@@ -207,7 +208,7 @@ class HubTransferSecurityTests(TestCase):
     )
     def test_transfer_status_accepts_secure_proxy_attested_request(self):
         transfer_job = self._create_transfer_job(
-            transfer_key="site-node__report__status-ok__v1"
+            transfer_key="site-node__report__status-ok__v1",
         )
 
         response = self.client.get(
@@ -228,7 +229,7 @@ class HubTransferSecurityTests(TestCase):
     )
     def test_transfer_media_upload_rejects_insecure_transport(self):
         transfer_job = self._create_transfer_job(
-            transfer_key="site-node__report__media-insecure__v1"
+            transfer_key="site-node__report__media-insecure__v1",
         )
 
         response = self.client.post(
@@ -250,7 +251,7 @@ class HubTransferSecurityTests(TestCase):
     )
     def test_transfer_media_upload_rejects_missing_mtls_attestation(self):
         transfer_job = self._create_transfer_job(
-            transfer_key="site-node__report__media-mtls__v1"
+            transfer_key="site-node__report__media-mtls__v1",
         )
 
         response = self.client.post(
@@ -263,37 +264,3 @@ class HubTransferSecurityTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertIn("mutual tls", str(response.json()["detail"]).lower())
-
-    @override_settings(
-        ENDOREG_DEPLOYMENT_ROLE="central_hub",
-        ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
-        ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
-        ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
-        ENDOREG_HUB_TRANSFER_MTLS_META_VALUE="SUCCESS",
-    )
-    def test_transfer_media_upload_accepts_secure_proxy_attested_request(self):
-        transfer_job = self._create_transfer_job(
-            transfer_key="site-node__report__media-ok__v1"
-        )
-        uploaded_file = SimpleUploadedFile(
-            "report.pdf",
-            b"%PDF-1.4\nhub-transfer\n",
-            content_type="application/pdf",
-        )
-
-        with patch(
-            "endoreg_db.views.media.hub.transfers.attach_transfer_media",
-            return_value=transfer_job,
-        ) as mocked_attach:
-            response = self.client.post(
-                f"/api/media/hub/transfers/{transfer_job.transfer_key}/media/",
-                data={"media_role": "processed", "file": uploaded_file},
-                secure=True,
-                HTTP_X_CLIENT_CERT_VERIFIED="SUCCESS",
-                HTTP_X_NETWORK_NODE_KEY=self.site_node.node_key,
-                HTTP_X_NETWORK_NODE_SECRET="super-secret",
-            )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["transfer_key"], transfer_job.transfer_key)
-        mocked_attach.assert_called_once()

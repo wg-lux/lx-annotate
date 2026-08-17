@@ -282,7 +282,62 @@ shows its setup or error state.</p></li>
 <li><p>The frontend reads the active identity, templates, and findings through
 <code class="docutils literal notranslate"><span class="pre">/dtypes-api/</span></code>. It never receives server filesystem paths.</p></li>
 </ol>
-<p>The registry must contain the active identity and its versioned data root:</p>
+</section>
+<section id="delivery-and-runtime-dag">
+<h2>Delivery and runtime DAG<a class="headerlink" href="#delivery-and-runtime-dag" title="Link to this heading">¶</a></h2>
+<p>The two supported source paths remain distinct until the registry resolver
+turns their stable descriptors into validated runtime inputs:</p>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>flowchart TD
+    authoring[&quot;Author or terminology editor&quot;]
+    yaml[&quot;Versioned knowledge-base YAML&quot;]
+    validate[&quot;Schema and semantic validation&quot;]
+    identity[&quot;Immutable module name and version&quot;]
+
+    catalog[&quot;Build catalog entry&lt;br/&gt;relative resource root and SHA-256&quot;]
+    wheel[&quot;Build lx-dtypes wheel&quot;]
+    wheelCheck{&quot;Wheel contains catalog and exact YAML bytes?&quot;}
+    provider[&quot;Provider source&lt;br/&gt;lx_dtypes.builtin and content digest&quot;]
+
+    editorZip[&quot;Approved editor ZIP or package directory&quot;]
+    importApi[&quot;Sequential terminology import API&quot;]
+    importCheck{&quot;Extracted bundle identity and graph valid?&quot;}
+    filesystem[&quot;Filesystem source&lt;br/&gt;deployment-owned input_dirs&quot;]
+
+    registry[&quot;Governed registry&lt;br/&gt;active identity and typed source&quot;]
+    resolver[&quot;lx-dtypes registry resolver&quot;]
+    sourceKind{&quot;Source kind&quot;}
+    providerResolve[&quot;Resolve current wheel resource&quot;]
+    filesystemResolve[&quot;Resolve explicit deployment path&quot;]
+    identityCheck{&quot;Provider, version, config identity,&lt;br/&gt;and content digest match?&quot;}
+    load[&quot;Load exact knowledge-base graph&quot;]
+    api[&quot;dtypes API: bundles, templates, findings&quot;]
+    frontend[&quot;Reporting frontend&quot;]
+
+    buildFail[&quot;Fail build or release&quot;]
+    importFail[&quot;Reject import and preserve registry&quot;]
+    runtimeFail[&quot;Fail terminology operation explicitly&quot;]
+
+    authoring --&gt; yaml --&gt; validate --&gt; identity
+    identity --&gt; catalog --&gt; wheel --&gt; wheelCheck
+    wheelCheck --&gt;|yes| provider --&gt; registry
+    wheelCheck --&gt;|no| buildFail
+
+    identity --&gt; editorZip --&gt; importApi --&gt; importCheck
+    importCheck --&gt;|yes| filesystem --&gt; registry
+    importCheck --&gt;|no| importFail
+
+    registry --&gt; resolver --&gt; sourceKind
+    sourceKind --&gt;|provider| providerResolve --&gt; identityCheck
+    sourceKind --&gt;|filesystem| filesystemResolve --&gt; identityCheck
+    identityCheck --&gt;|yes| load --&gt; api --&gt; frontend
+    identityCheck --&gt;|no| runtimeFail
+</pre></div>
+</div>
+<p>No edge writes a resolved wheel installation path back into the registry. A
+new environment therefore resolves the same provider descriptor against its
+own installed wheel and verifies the immutable content again.</p>
+<p>The registry must contain the active identity and a typed source descriptor.
+Deployment-owned imports use an explicit filesystem source:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;active&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;module_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;gastroenterology_reporting&quot;</span><span class="p">,</span>
@@ -291,15 +346,52 @@ shows its setup or error state.</p></li>
 <span class="w">  </span><span class="nt">&quot;modules&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;gastroenterology_reporting&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;2026.07.31&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nt">&quot;input_dirs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/var/lib/lx-annotate/data/terminology/packages/gastroenterology_reporting/2026.07.31&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="nt">&quot;sources&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
+<span class="w">          </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;filesystem&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;input_dirs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/var/lib/lx-annotate/data/terminology/packages/gastroenterology_reporting/2026.07.31&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="p">}]</span>
 <span class="w">      </span><span class="p">}</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">input_dirs</span></code> and the registry path are server-private deployment data. Public
+<p>Legacy top-level <code class="docutils literal notranslate"><span class="pre">input_dirs</span></code> entries remain readable for compatibility.
+<code class="docutils literal notranslate"><span class="pre">input_dirs</span></code> and the registry path are server-private deployment data. Public
 bundle responses expose identities and metadata only.</p>
+</section>
+<section id="packaged-reporting-bundles">
+<h2>Packaged reporting bundles<a class="headerlink" href="#packaged-reporting-bundles" title="Link to this heading">¶</a></h2>
+<p>The installed <code class="docutils literal notranslate"><span class="pre">lx-dtypes</span></code> package provides three selectable reporting bundles:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dgvs_reporting</span></code> contains DGVS guideline-derived report templates and depends
+on the concept-only <code class="docutils literal notranslate"><span class="pre">DGVS_Terminology</span></code> module.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mst_3_0</span></code> contains MST 3.0 report templates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">star_upper_gi</span></code> contains the ESGE STAR Upper GI report templates.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">lx-dtypes</span></code> ships these immutable YAML trees and <code class="docutils literal notranslate"><span class="pre">data/catalog.json</span></code> inside its
+wheel. The typed <code class="docutils literal notranslate"><span class="pre">lx_dtypes.knowledge_bases</span></code> API resolves a module, exact
+knowledge-base version, package-relative resource root, and SHA-256 content
+digest. A built-in registry entry persists only that stable identity:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;sources&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
+<span class="w">    </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;provider&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;provider&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;lx_dtypes.builtin&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;content_sha256&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;catalog digest&gt;&quot;</span>
+<span class="w">  </span><span class="p">}]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The resolver obtains the current wheel’s installation path at load time and
+verifies the catalog digest. An absolute <code class="docutils literal notranslate"><span class="pre">site-packages</span></code>, virtual-environment,
+or Nix-store path from an installed wheel must never be persisted. Missing
+providers, absent versions, and digest conflicts fail explicitly.</p>
+<p>The best-effort terminology bootstrap adds missing identities for all three
+bundles to the governed registry. It activates <code class="docutils literal notranslate"><span class="pre">star_upper_gi</span></code> only when it
+creates a new registry; an existing active identity and imported bundle entries
+are preserved. The reporting frontend renders the registry entries returned by
+<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/dtypes-api/terminology/bundles</span></code> and loads templates only for the selected
+bundle and examination.</p>
 </section>
 <section id="prohibited-runtime-overlays">
 <h2>Prohibited runtime overlays<a class="headerlink" href="#prohibited-runtime-overlays" title="Link to this heading">¶</a></h2>
@@ -316,8 +408,9 @@ deployment:</p>
 <ol class="arabic simple">
 <li><p>Run the declared feature verifier exactly as recorded in
 <code class="docutils literal notranslate"><span class="pre">endoreg-db/feature-tracking/AssistedReportingApiIntegration.yml</span></code>.</p></li>
-<li><p>Build the <code class="docutils literal notranslate"><span class="pre">lx-dtypes</span></code> wheel, install it into a clean environment, register
-its packaged data root, and load the intended module/version.</p></li>
+<li><p>Build the <code class="docutils literal notranslate"><span class="pre">lx-dtypes</span></code> wheel, install it into a clean environment, inspect
+its packaged catalog/YAML, register its provider descriptor, and load the
+intended module/version.</p></li>
 <li><p>Build the matching frontend and Python deployment artifacts.</p></li>
 <li><p>Start the production settings/service profile with the provisioned registry
 and host adapter.</p></li>
@@ -405,6 +498,8 @@ URLs.</p>
             <ul>
 <li><a class="reference internal" href="#">Governed terminology delivery</a><ul>
 <li><a class="reference internal" href="#delivery-path">Delivery path</a></li>
+<li><a class="reference internal" href="#delivery-and-runtime-dag">Delivery and runtime DAG</a></li>
+<li><a class="reference internal" href="#packaged-reporting-bundles">Packaged reporting bundles</a></li>
 <li><a class="reference internal" href="#prohibited-runtime-overlays">Prohibited runtime overlays</a></li>
 <li><a class="reference internal" href="#verification-and-release-evidence">Verification and release evidence</a></li>
 <li><a class="reference internal" href="#failure-behavior">Failure behavior</a></li>
@@ -419,7 +514,7 @@ URLs.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=8d563738"></script>
+</div><script src="../_static/documentation_options.js?v=292eb321"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

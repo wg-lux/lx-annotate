@@ -51,6 +51,14 @@ const hoisted = vi.hoisted(() => {
     knowledgeBaseGraphApi: {
       fetchExaminationReportingContext: vi.fn()
     },
+    terminologyStore: {
+      activeBundle: {
+        moduleName: 'report_template_examples',
+        version: '1.0.0'
+      } as { moduleName: string; version: string } | null,
+      activeModuleName: 'report_template_examples',
+      activeBundleKey: 'report_template_examples@@1.0.0'
+    },
     examinationStore: {
       exams: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
       examinationsDropdown: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
@@ -91,14 +99,7 @@ vi.mock('@/stores/reportingFlowStore', () => ({
 }))
 
 vi.mock('@/stores/terminologyStore', () => ({
-  useTerminologyStore: () => ({
-    activeBundle: {
-      moduleName: 'report_template_examples',
-      version: '1.0.0'
-    },
-    activeModuleName: 'report_template_examples',
-    activeBundleKey: 'report_template_examples@@1.0.0'
-  })
+  useTerminologyStore: () => hoisted.terminologyStore
 }))
 
 vi.mock('@/stores/patientStore', () => ({
@@ -297,6 +298,12 @@ describe('ReportEditorPage draft-driven workflow', () => {
     vi.clearAllMocks()
     hoisted.debugRef.current = false
     hoisted.flowRef.current = buildFlowStore()
+    hoisted.terminologyStore.activeBundle = {
+      moduleName: 'report_template_examples',
+      version: '1.0.0'
+    }
+    hoisted.terminologyStore.activeModuleName = 'report_template_examples'
+    hoisted.terminologyStore.activeBundleKey = 'report_template_examples@@1.0.0'
     hoisted.examinationStore.exams = [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }]
     hoisted.examinationStore.examinationsDropdown = [
       { id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }
@@ -345,7 +352,9 @@ describe('ReportEditorPage draft-driven workflow', () => {
           data: {
             id: 42,
             examination: { id: 9, name: 'gastroscopy' },
-            patient: { id: 7 }
+            patient: { id: 7 },
+            knowledge_base_module: 'report_template_examples',
+            knowledge_base_version: '1.0.0'
           }
         })
       }
@@ -443,6 +452,26 @@ describe('ReportEditorPage draft-driven workflow', () => {
     expect(moduleInput.attributes()).toHaveProperty('readonly')
   })
 
+  it('blocks catalog and template resolution when the patient identity differs from the active bundle', async () => {
+    hoisted.terminologyStore.activeBundle = {
+      moduleName: 'dgvs_reporting',
+      version: '0.1.0'
+    }
+    hoisted.terminologyStore.activeModuleName = 'dgvs_reporting'
+    hoisted.terminologyStore.activeBundleKey = 'dgvs_reporting@@0.1.0'
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(
+      'Die Patientenuntersuchung #42 ist an report_template_examples@1.0.0 gebunden'
+    )
+    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).not.toHaveBeenCalled()
+    expect(
+      hoisted.axiosApi.get.mock.calls.some(([url]) => url === 'examinations/9/findings/')
+    ).toBe(false)
+  })
+
   it('resolves a missing examination ID by canonical name before loading colonoscopy lookups', async () => {
     hoisted.flowRef.current.selectedExaminationId = null
     hoisted.flowRef.current.currentRuntimeDraft.payload.examination = 'colonoscopy'
@@ -472,6 +501,13 @@ describe('ReportEditorPage draft-driven workflow', () => {
       '1.0.0',
       'colonoscopy'
     )
+    expect(hoisted.axiosApi.get).toHaveBeenCalledWith('examinations/12/findings/', {
+      params: {
+        module_name: 'report_template_examples',
+        module_version: '1.0.0',
+        patient_examination_id: 42
+      }
+    })
     expect(hoisted.axiosApi.get).toHaveBeenCalledWith(
       'examinations/12/indications/?patient_examination_id=42'
     )

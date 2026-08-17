@@ -57,7 +57,8 @@ const hoisted = vi.hoisted(() => {
       buildReportTemplateRuntimePayload: vi.fn()
     },
     knowledgeBaseGraphApi: {
-      fetchExaminationReportingContext: vi.fn()
+      fetchExaminationReportingContext: vi.fn(),
+      fetchKnowledgeBaseGraphSnapshot: vi.fn()
     },
     reportDraftApi: {
       fetchPatientExaminationDraft: vi.fn()
@@ -163,7 +164,8 @@ vi.mock('@/api/reportTemplatesApi', () => ({
 }))
 
 vi.mock('@/api/knowledgeBaseGraphApi', () => ({
-  fetchExaminationReportingContext: hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext
+  fetchExaminationReportingContext: hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext,
+  fetchKnowledgeBaseGraphSnapshot: hoisted.knowledgeBaseGraphApi.fetchKnowledgeBaseGraphSnapshot
 }))
 
 vi.mock('@/api/reportDraftApi', () => ({
@@ -336,6 +338,10 @@ describe('ReportingShell media preload', () => {
         )) as ReportTemplatePayload[]
       })
     )
+    hoisted.knowledgeBaseGraphApi.fetchKnowledgeBaseGraphSnapshot.mockResolvedValue({
+      reportTemplates: [],
+      concepts: { examination: [] }
+    })
     hoisted.routeRef.current = reactive({
       path: '/reporting/314/findings',
       params: { patient_examination_id: '314' }
@@ -442,6 +448,8 @@ describe('ReportingShell media preload', () => {
             id: 314,
             examination: { id: 9, name: 'colonoscopy' },
             patient: { id: 42 },
+            knowledge_base_module: 'report_template_examples',
+            knowledge_base_version: '1.0.0',
             date_start: '2026-03-10',
             examiners: [
               { username: 'dr_house' },
@@ -723,7 +731,7 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.text()).toContain('Keine aktive Terminologie')
   })
 
-  it('recovers template loading immediately after a successful terminology import', async () => {
+  it('keeps an imported terminology selection but blocks it for a differently pinned patient examination', async () => {
     hoisted.terminologyStore.activeBundle = null
     hoisted.terminologyStore.activeModuleName = ''
     hoisted.terminologyStore.activeBundleKey = ''
@@ -774,12 +782,9 @@ describe('ReportingShell media preload', () => {
     await folderInput.trigger('change')
     await flushPromises()
 
-    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
-      'colonoscopy_reporting',
-      'colonoscopy'
-    )
-    expect(wrapper.get('[data-testid="report-template-select"]').text()).toContain(
-      'colonoscopy_published'
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain(
+      'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
   })
 
@@ -891,7 +896,9 @@ describe('ReportingShell media preload', () => {
       })
     )
     expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('keiner aktuell veröffentlichten und kompatiblen')
+    expect(wrapper.text()).toContain(
+      'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
+    )
   })
 
   it('leaves template loading retryable after a template endpoint error', async () => {
@@ -1511,14 +1518,20 @@ describe('ReportingShell media preload', () => {
   it('renders available terminology bundles while keeping fallback state when no active bundle exists', async () => {
     const backendActiveNullBundles: TerminologyBundleVersion[] = [
       {
-        moduleName: 'gastro_legacy',
-        version: '1.0.0',
+        moduleName: 'dgvs_reporting',
+        version: '0.1.0',
         medicalField: 'gastroenterology',
         isActive: false
       },
       {
-        moduleName: 'gastro_v2',
-        version: '2.0.0',
+        moduleName: 'mst_3_0',
+        version: '3.0.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      },
+      {
+        moduleName: 'star_upper_gi',
+        version: '0.1.2',
         medicalField: 'gastroenterology',
         isActive: false
       }
@@ -1536,16 +1549,139 @@ describe('ReportingShell media preload', () => {
     const bundleSelect = wrapper.get('[data-testid="terminology-bundle-select"]')
     expect((bundleSelect.element as HTMLSelectElement).value).toBe('')
     const bundleOptions = bundleSelect.findAll('option').map((option) => option.text())
-    expect(bundleOptions).toContain('gastro_legacy · 1.0.0')
-    expect(bundleOptions).toContain('gastro_v2 · 2.0.0')
+    expect(bundleOptions).toContain('dgvs_reporting · 0.1.0')
+    expect(bundleOptions).toContain('mst_3_0 · 3.0.0')
+    expect(bundleOptions).toContain('star_upper_gi · 0.1.2')
     expect(wrapper.text()).toContain('Keine aktive Terminologie')
     expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
   })
 
-  it('uses backend-reported active bundle identity for template context bootstrap', async () => {
+  it('shows both ESGE STAR templates for a STAR-compatible examination', async () => {
+    const bundles: TerminologyBundleVersion[] = [
+      {
+        moduleName: 'dgvs_reporting',
+        version: '0.1.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      },
+      {
+        moduleName: 'mst_3_0',
+        version: '3.0.0',
+        medicalField: 'gastroenterology',
+        isActive: false
+      },
+      {
+        moduleName: 'star_upper_gi',
+        version: '0.1.2',
+        medicalField: 'gastroenterology',
+        isActive: true
+      }
+    ]
+    hoisted.terminologyStore.bundles = bundles
+    hoisted.terminologyStore.filteredBundles = bundles
+    hoisted.terminologyStore.activeBundle = requireDefined(bundles[2], 'STAR bundle')
+    hoisted.terminologyStore.activeModuleName = 'star_upper_gi'
+    hoisted.terminologyStore.activeBundleKey = 'star_upper_gi@@0.1.2'
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
+      {
+        name: 'star_upper_gi_mini_report_template',
+        nameDe: 'STAR Upper GI – Basismodul',
+        examination: 'star_upper_gi_endoscopy',
+        identity: {
+          moduleName: 'star_upper_gi',
+          knowledgeBaseVersion: '0.1.2',
+          templateVersion: '0.1.1',
+          lifecycleStatus: 'published'
+        }
+      },
+      {
+        name: 'star_upper_gi_standard_report_template',
+        nameDe: 'Standardisierter STAR-ÖGD-Bericht',
+        examination: 'star_upper_gi_endoscopy',
+        identity: {
+          moduleName: 'star_upper_gi',
+          knowledgeBaseVersion: '0.1.2',
+          templateVersion: '2025.1',
+          lifecycleStatus: 'published'
+        }
+      }
+    ])
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'cases/') {
+        const caseResponse: PatientCase = {
+          id: 5,
+          caseId: 'case-uuid-314',
+          patient: 42,
+          admissionDate: '2026-03-10T08:00:00Z',
+          leaveDate: null,
+          isActive: true,
+          isClosed: false,
+          isDeleted: false,
+          patientExaminations: [
+            {
+              id: 314,
+              examination: {
+                id: 9,
+                name: 'star_upper_gi_endoscopy',
+                nameDe: 'Ösophagogastroduodenoskopie'
+              },
+              patientData: { id: 42 },
+              dateStart: '2026-03-10'
+            }
+          ],
+          documents: [],
+          patientMedications: [],
+          patientMedicationSchedules: [],
+          patientLabSamples: [],
+          patientLabValues: []
+        }
+        return Promise.resolve({ data: [caseResponse] })
+      }
+      if (url === 'patient-examinations/314/') {
+        return Promise.resolve({
+          data: {
+            id: 314,
+            examination: { id: 9, name: 'star_upper_gi_endoscopy' },
+            patient: { id: 42 },
+            date_start: '2026-03-10',
+            examiners: []
+          }
+        })
+      }
+      return Promise.resolve({ data: { results: [] } })
+    })
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).toHaveBeenCalledWith(
+      'star_upper_gi',
+      '0.1.2',
+      'star_upper_gi_endoscopy'
+    )
+    const bundleOptions = wrapper
+      .get('[data-testid="terminology-bundle-select"]')
+      .findAll('option')
+      .map((option) => option.text())
+    expect(bundleOptions).toEqual(
+      expect.arrayContaining(['dgvs_reporting · 0.1.0', 'mst_3_0 · 3.0.0', 'star_upper_gi · 0.1.2'])
+    )
+    const templateLabels = wrapper
+      .get('[data-testid="report-template-select"]')
+      .findAll('option')
+      .map((option) => option.text())
+    expect(templateLabels).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('STAR Upper GI – Basismodul'),
+        expect.stringContaining('Standardisierter STAR-ÖGD-Bericht')
+      ])
+    )
+  })
+
+  it('blocks templates and findings when the active DGVS identity contradicts the patient identity', async () => {
     const backendBundle = {
-      moduleName: 'gastro_v2',
-      version: '2.0.0',
+      moduleName: 'dgvs_reporting',
+      version: '0.1.0',
       medicalField: 'gastroenterology' as const,
       isActive: true
     }
@@ -1570,13 +1706,28 @@ describe('ReportingShell media preload', () => {
     hoisted.terminologyStore.activeBundle = backendBundle
     hoisted.terminologyStore.activeModuleName = backendBundle.moduleName
     hoisted.terminologyStore.activeBundleKey = `${backendBundle.moduleName}@@${backendBundle.version}`
+    const defaultGet = hoisted.axiosApi.get.getMockImplementation()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'patient-examinations/314/') {
+        return Promise.resolve({
+          data: {
+            id: 314,
+            examination: { id: 9, name: 'colonoscopy' },
+            patient: { id: 42 },
+            knowledge_base_module: 'stale_reporting_bundle',
+            knowledge_base_version: '0.0.1'
+          }
+        })
+      }
+      return defaultGet?.(url) ?? Promise.resolve({ data: [] })
+    })
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
       {
         name: 'colonoscopy_published',
         examination: 'colonoscopy',
         identity: {
-          moduleName: 'gastro_v2',
-          knowledgeBaseVersion: '2.0.0',
+          moduleName: 'dgvs_reporting',
+          knowledgeBaseVersion: '0.1.0',
           templateVersion: null,
           templateHash: null,
           lifecycleStatus: 'published',
@@ -1588,15 +1739,17 @@ describe('ReportingShell media preload', () => {
     const wrapper = mountShell()
     await flushPromises()
 
-    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
-      'gastro_v2',
-      'colonoscopy'
+    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).not.toHaveBeenCalled()
+    expect(hoisted.findingsApi.getExaminationFindings).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain(
+      'Die Patientenuntersuchung #314 ist an stale_reporting_bundle@0.0.1 gebunden'
     )
+    expect(wrapper.text()).toContain('das gebundene Terminologiepaket auswählen')
     const bundleSelect = wrapper.get('[data-testid="terminology-bundle-select"]')
-    expect((bundleSelect.element as HTMLSelectElement).value).toBe('gastro_v2@@2.0.0')
+    expect((bundleSelect.element as HTMLSelectElement).value).toBe('dgvs_reporting@@0.1.0')
   })
 
-  it('preserves a user-selected bundle across page reload and keeps it as primary context', async () => {
+  it('preserves a user-selected bundle across reload but blocks incompatible patient resolution', async () => {
     const availableBundles: TerminologyBundleVersion[] = [
       {
         moduleName: 'gastro_legacy',
@@ -1654,9 +1807,9 @@ describe('ReportingShell media preload', () => {
 
     const restored = mountShell()
     await flushPromises()
-    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
-      'gastro_v2',
-      'colonoscopy'
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
+    expect(restored.text()).toContain(
+      'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
     const rehydratedSelect = restored.get('[data-testid="terminology-bundle-select"]')
     expect((rehydratedSelect.element as HTMLSelectElement).value).toBe('gastro_v2@@2.0.0')
@@ -1755,6 +1908,51 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.text()).toContain(
       'Keine aktive Terminologie. Befunde und Medien bleiben verfügbar; Vorlagenprüfung, Finalisierung und templateabhängiger Export werden nach Paketaktivierung ergänzt.'
     )
+  })
+
+  it('shows where bundle templates are available when the selected examination has none', async () => {
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([])
+    hoisted.knowledgeBaseGraphApi.fetchKnowledgeBaseGraphSnapshot.mockResolvedValue({
+      reportTemplates: [
+        {
+          name: 'star_upper_gi_standard_report_template',
+          nameDe: 'Standardisierter STAR-ÖGD-Bericht',
+          examination: 'star_upper_gi_endoscopy',
+          identity: {
+            moduleName: 'report_template_examples',
+            knowledgeBaseVersion: '1.0.0',
+            templateVersion: '2025.1',
+            templateHash: null,
+            lifecycleStatus: 'published',
+            readiness: null
+          }
+        }
+      ],
+      concepts: {
+        examination: [
+          {
+            name: 'star_upper_gi_endoscopy',
+            nameDe: 'Ösophagogastroduodenoskopie'
+          }
+        ]
+      }
+    })
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    expect(hoisted.knowledgeBaseGraphApi.fetchKnowledgeBaseGraphSnapshot).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0'
+    )
+    const hint = wrapper.get('[data-testid="template-availability-hint"]')
+    expect(hint.text()).toContain('Für die gewählte Untersuchung ist keine Vorlage verfügbar')
+    expect(hint.text()).toContain('Standardisierter STAR-ÖGD-Bericht')
+    expect(hint.text()).toContain('verfügbar für Ösophagogastroduodenoskopie')
+    expect(hint.text()).toContain('(star_upper_gi_endoscopy)')
+    expect(
+      wrapper.get('[data-testid="report-template-select"]').attributes('disabled')
+    ).toBeDefined()
   })
 
   it('keeps catalog-based finding rendering isolated to the selected examination context', async () => {

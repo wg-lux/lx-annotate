@@ -33,17 +33,21 @@
 
     <template v-if="isMenuOpen">
       <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs border-0 fixed-start sidebar-shell sidebar-shell--open">
-        <button
-          type="button"
-          class="btn mb-0 sidebar-toggle-button sidebar-toggle-button--open"
-          aria-label="Sidebar schließen"
-          :aria-expanded="isMenuOpen"
-          title="Sidebar schließen"
-          @click="toggleMenu"
-        >
-          <i class="ni ni-fat-remove" aria-hidden="true"></i>
-        </button>
-        <SidebarComponent />
+        <div class="sidebar-shell__toolbar">
+          <button
+            type="button"
+            class="btn mb-0 sidebar-toggle-button sidebar-toggle-button--open"
+            aria-label="Sidebar schließen"
+            aria-controls="sidenav-main"
+            :aria-expanded="isMenuOpen"
+            title="Sidebar schließen"
+            @click="toggleMenu"
+          >
+            <i class="ni ni-fat-remove" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <SidebarComponent class="sidebar-shell__content" />
       </aside>
     </template>
 

@@ -450,7 +450,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import axiosInstance, { dtypesApi, r } from '@/api/axiosInstance'
-import { findingsApi } from '@/api/findingsApi'
+import { findingsApi, type FindingsCatalogContext } from '@/api/findingsApi'
 import {
   getFindingDisplayName,
   mergeFindingClassifications,
@@ -484,6 +484,11 @@ import {
   type CoreConceptCollection
 } from '@/types/coreConcepts'
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
+import {
+  readReportingKnowledgeBaseIdentity,
+  resolveReportingKnowledgeBaseContext,
+  type ReportingKnowledgeBaseIdentity
+} from './reportingKnowledgeBaseContext'
 import {
   requireResolvedReportingExamination,
   resolveReportingExamination
@@ -584,6 +589,7 @@ const selectedTemplateDisplayName = computed(() => {
 })
 
 const templateStatusMessage = ref<string | null>(null)
+const patientExaminationKnowledgeBaseIdentity = ref<ReportingKnowledgeBaseIdentity | null>(null)
 let editorContextGeneration = 0
 let reportSaveGeneration = 0
 
@@ -1201,8 +1207,14 @@ async function loadFindingCatalog(context?: EditorContext) {
     findingCatalog.value = []
     return
   }
+  const catalogContext = activeFindingsCatalogContext(
+    context?.patientExaminationId ?? flow.patientExaminationId
+  )
   try {
-    const findings = await findingsApi.getExaminationFindings(examinationId)
+    const findings = await findingsApi.getExaminationFindings(
+      examinationId,
+      catalogContext
+    )
     if (!isEditorContextCurrent(context)) return
     findingCatalog.value = findings
   } catch {
@@ -1211,6 +1223,19 @@ async function loadFindingCatalog(context?: EditorContext) {
     findingCatalogError.value =
       'Die deutschen Befundbezeichnungen konnten nicht geladen werden. Bitte erneut versuchen.'
   }
+}
+
+function activeFindingsCatalogContext(
+  patientExaminationId: number | null
+): FindingsCatalogContext | undefined {
+  const bundle = terminology.activeBundle
+  if (!bundle) return undefined
+  if (!patientExaminationId) return undefined
+  return resolveReportingKnowledgeBaseContext({
+    patientExaminationId,
+    pinnedIdentity: patientExaminationKnowledgeBaseIdentity.value,
+    activeBundle: bundle
+  })
 }
 
 async function refreshTemplatesForExamination(context?: EditorContext) {
@@ -1230,10 +1255,14 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
   }
   const examName = selectedExaminationName.value
   if (!examName) return
+  const reportingContext = activeFindingsCatalogContext(
+    context?.patientExaminationId ?? flow.patientExaminationId
+  )
+  if (!reportingContext) return
   try {
     const projection = await fetchExaminationReportingContext(
-      bundle.moduleName,
-      bundle.version,
+      reportingContext.moduleName,
+      reportingContext.moduleVersion,
       examName
     )
     if (!isEditorContextCurrent(context)) return
@@ -1251,6 +1280,17 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
       'Der versionierte Reporting-Kontext konnte nicht geladen werden.'
     )
   }
+}
+
+async function loadPatientExaminationKnowledgeBaseIdentity(
+  context: EditorContext
+): Promise<void> {
+  const response = await axiosInstance.get(
+    r(endpoints.examination.patientExaminationDetail(context.patientExaminationId))
+  )
+  if (!isEditorContextCurrent(context)) return
+  patientExaminationKnowledgeBaseIdentity.value = readReportingKnowledgeBaseIdentity(response.data)
+  activeFindingsCatalogContext(context.patientExaminationId)
 }
 
 function buildDraftFindingsPayload(): SaveReportSubmissionRequest['findings'] {
@@ -1486,6 +1526,8 @@ async function initializeEditorContext() {
     })
     context = captureEditorContext() || undefined
     if (!context) return
+    await loadPatientExaminationKnowledgeBaseIdentity(context)
+    if (!isEditorContextCurrent(context)) return
     await Promise.all([loadFindingCatalog(context), refreshTemplatesForExamination(context)])
     if (!isEditorContextCurrent(context)) return
     await loadIndicationCatalog(context)
@@ -1517,6 +1559,7 @@ watch(
     flow.setSavingFinalReport(false)
     loading.value = false
     pendingSaveStatus.value = null
+    patientExaminationKnowledgeBaseIdentity.value = null
     initializedContextKey = null
     setRequestContext(
       `${terminology.activeBundleKey}:${String(flow.patientExaminationId || '')}:${String(flow.selectedExaminationId || '')}`

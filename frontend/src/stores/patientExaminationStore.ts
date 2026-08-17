@@ -14,6 +14,8 @@ export interface PatientExamination {
   examination: Examination
   video: Video | null
   id: number
+  knowledgeBaseModule?: string | null
+  knowledgeBaseVersion?: string | null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -34,7 +36,11 @@ function isVideo(value: unknown): value is Video {
 
 function isPatientExamination(value: unknown): value is PatientExamination {
   return isRecord(value) && typeof value.id === 'number' && isPatient(value.patient) &&
-    isExamination(value.examination) && (value.video === null || isVideo(value.video))
+    isExamination(value.examination) && (value.video === null || isVideo(value.video)) &&
+    (value.knowledgeBaseModule === undefined || value.knowledgeBaseModule === null ||
+      typeof value.knowledgeBaseModule === 'string') &&
+    (value.knowledgeBaseVersion === undefined || value.knowledgeBaseVersion === null ||
+      typeof value.knowledgeBaseVersion === 'string')
 }
 
 function requirePatientExamination(value: unknown): PatientExamination {

@@ -26,7 +26,64 @@ is the JSON file named by `LX_DTYPES_KB_REGISTRY`.
 8. The frontend reads the active identity, templates, and findings through
    `/dtypes-api/`. It never receives server filesystem paths.
 
-The registry must contain the active identity and its versioned data root:
+## Delivery and runtime DAG
+
+The two supported source paths remain distinct until the registry resolver
+turns their stable descriptors into validated runtime inputs:
+
+```mermaid
+flowchart TD
+    authoring["Author or terminology editor"]
+    yaml["Versioned knowledge-base YAML"]
+    validate["Schema and semantic validation"]
+    identity["Immutable module name and version"]
+
+    catalog["Build catalog entry<br/>relative resource root and SHA-256"]
+    wheel["Build lx-dtypes wheel"]
+    wheelCheck{"Wheel contains catalog and exact YAML bytes?"}
+    provider["Provider source<br/>lx_dtypes.builtin and content digest"]
+
+    editorZip["Approved editor ZIP or package directory"]
+    importApi["Sequential terminology import API"]
+    importCheck{"Extracted bundle identity and graph valid?"}
+    filesystem["Filesystem source<br/>deployment-owned input_dirs"]
+
+    registry["Governed registry<br/>active identity and typed source"]
+    resolver["lx-dtypes registry resolver"]
+    sourceKind{"Source kind"}
+    providerResolve["Resolve current wheel resource"]
+    filesystemResolve["Resolve explicit deployment path"]
+    identityCheck{"Provider, version, config identity,<br/>and content digest match?"}
+    load["Load exact knowledge-base graph"]
+    api["dtypes API: bundles, templates, findings"]
+    frontend["Reporting frontend"]
+
+    buildFail["Fail build or release"]
+    importFail["Reject import and preserve registry"]
+    runtimeFail["Fail terminology operation explicitly"]
+
+    authoring --> yaml --> validate --> identity
+    identity --> catalog --> wheel --> wheelCheck
+    wheelCheck -->|yes| provider --> registry
+    wheelCheck -->|no| buildFail
+
+    identity --> editorZip --> importApi --> importCheck
+    importCheck -->|yes| filesystem --> registry
+    importCheck -->|no| importFail
+
+    registry --> resolver --> sourceKind
+    sourceKind -->|provider| providerResolve --> identityCheck
+    sourceKind -->|filesystem| filesystemResolve --> identityCheck
+    identityCheck -->|yes| load --> api --> frontend
+    identityCheck -->|no| runtimeFail
+```
+
+No edge writes a resolved wheel installation path back into the registry. A
+new environment therefore resolves the same provider descriptor against its
+own installed wheel and verifies the immutable content again.
+
+The registry must contain the active identity and a typed source descriptor.
+Deployment-owned imports use an explicit filesystem source:
 
 ```json
 {
@@ -37,15 +94,55 @@ The registry must contain the active identity and its versioned data root:
   "modules": {
     "gastroenterology_reporting": {
       "2026.07.31": {
-        "input_dirs": ["/var/lib/lx-annotate/data/terminology/packages/gastroenterology_reporting/2026.07.31"]
+        "sources": [{
+          "kind": "filesystem",
+          "input_dirs": ["/var/lib/lx-annotate/data/terminology/packages/gastroenterology_reporting/2026.07.31"]
+        }]
       }
     }
   }
 }
 ```
 
+Legacy top-level `input_dirs` entries remain readable for compatibility.
 `input_dirs` and the registry path are server-private deployment data. Public
 bundle responses expose identities and metadata only.
+
+## Packaged reporting bundles
+
+The installed `lx-dtypes` package provides three selectable reporting bundles:
+
+- `dgvs_reporting` contains DGVS guideline-derived report templates and depends
+  on the concept-only `DGVS_Terminology` module.
+- `mst_3_0` contains MST 3.0 report templates.
+- `star_upper_gi` contains the ESGE STAR Upper GI report templates.
+
+`lx-dtypes` ships these immutable YAML trees and `data/catalog.json` inside its
+wheel. The typed `lx_dtypes.knowledge_bases` API resolves a module, exact
+knowledge-base version, package-relative resource root, and SHA-256 content
+digest. A built-in registry entry persists only that stable identity:
+
+```json
+{
+  "sources": [{
+    "kind": "provider",
+    "provider": "lx_dtypes.builtin",
+    "content_sha256": "<catalog digest>"
+  }]
+}
+```
+
+The resolver obtains the current wheel's installation path at load time and
+verifies the catalog digest. An absolute `site-packages`, virtual-environment,
+or Nix-store path from an installed wheel must never be persisted. Missing
+providers, absent versions, and digest conflicts fail explicitly.
+
+The best-effort terminology bootstrap adds missing identities for all three
+bundles to the governed registry. It activates `star_upper_gi` only when it
+creates a new registry; an existing active identity and imported bundle entries
+are preserved. The reporting frontend renders the registry entries returned by
+`GET /dtypes-api/terminology/bundles` and loads templates only for the selected
+bundle and examination.
 
 ## Prohibited runtime overlays
 
@@ -62,8 +159,9 @@ deployment:
 
 1. Run the declared feature verifier exactly as recorded in
    `endoreg-db/feature-tracking/AssistedReportingApiIntegration.yml`.
-2. Build the `lx-dtypes` wheel, install it into a clean environment, register
-   its packaged data root, and load the intended module/version.
+2. Build the `lx-dtypes` wheel, install it into a clean environment, inspect
+   its packaged catalog/YAML, register its provider descriptor, and load the
+   intended module/version.
 3. Build the matching frontend and Python deployment artifacts.
 4. Start the production settings/service profile with the provisioned registry
    and host adapter.
