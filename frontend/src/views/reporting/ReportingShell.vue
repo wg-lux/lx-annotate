@@ -862,6 +862,7 @@ import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideo
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
 import {
+  ReportingKnowledgeBaseMismatchError,
   readReportingKnowledgeBaseIdentity,
   resolveReportingKnowledgeBaseContext,
   type ReportingKnowledgeBaseIdentity
@@ -2243,6 +2244,27 @@ function assertPatientExaminationKnowledgeBaseCompatibility(
   }
 }
 
+async function discoverActiveTemplatesForKnowledgeBaseMismatch(
+  error: unknown,
+  detail: Record<string, unknown>,
+  context: DraftBootstrapContext
+): Promise<void> {
+  if (!(error instanceof ReportingKnowledgeBaseMismatchError)) return
+
+  const examinationName = extractExaminationName(detail)
+  if (!context.moduleName || !context.moduleVersion || !examinationName) return
+
+  try {
+    await loadBootstrapTemplates(context.moduleName, examinationName, context)
+  } catch (templateError: unknown) {
+    if (templateError instanceof SupersededReportingContextError) throw templateError
+    templateSelectionError.value = reportingApiErrorMessage(
+      templateError,
+      'Die Vorlagen der aktiven Terminologie konnten nicht geladen werden.'
+    )
+  }
+}
+
 function toPositiveInteger(value: unknown): number | null {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
@@ -2812,7 +2834,12 @@ async function bootstrapRuntimeDraft(
   const detail = readRecord(detailResponse.data)
   patientExaminationDetail.value = detail
   patientExaminationIdentityLoadedId.value = patientExaminationId
-  assertPatientExaminationKnowledgeBaseCompatibility(detail, context)
+  try {
+    assertPatientExaminationKnowledgeBaseCompatibility(detail, context)
+  } catch (error: unknown) {
+    await discoverActiveTemplatesForKnowledgeBaseMismatch(error, detail, context)
+    throw error
+  }
 
   const detailPatientId = extractPatientId(detail)
   const detailExaminationId = extractExaminationId(detail)
@@ -3063,7 +3090,12 @@ async function loadPatientExaminationDraftContext(
       : {}
   patientExaminationDetail.value = detail
   patientExaminationIdentityLoadedId.value = patientExaminationId
-  assertPatientExaminationKnowledgeBaseCompatibility(detail, context)
+  try {
+    assertPatientExaminationKnowledgeBaseCompatibility(detail, context)
+  } catch (error: unknown) {
+    await discoverActiveTemplatesForKnowledgeBaseMismatch(error, detail, context)
+    throw error
+  }
   flow.setCaseSelection({
     selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
     selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId

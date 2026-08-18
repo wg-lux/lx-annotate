@@ -5,9 +5,30 @@ export type ReportingKnowledgeBaseIdentity = {
   moduleVersion: string
 }
 
-type ActiveBundle = {
+export type ReportingActiveBundle = {
   moduleName: string
   version: string
+}
+
+export class ReportingKnowledgeBaseMismatchError extends Error {
+  readonly patientExaminationId: number
+  readonly pinnedIdentity: ReportingKnowledgeBaseIdentity
+  readonly activeBundle: ReportingActiveBundle
+
+  constructor(params: {
+    patientExaminationId: number
+    pinnedIdentity: ReportingKnowledgeBaseIdentity
+    activeBundle: ReportingActiveBundle
+  }) {
+    const { patientExaminationId, pinnedIdentity, activeBundle } = params
+    super(
+      `Die Patientenuntersuchung #${String(patientExaminationId)} ist an ${pinnedIdentity.moduleName}@${pinnedIdentity.moduleVersion} gebunden, aktiv ausgewählt ist jedoch ${activeBundle.moduleName}@${activeBundle.version}. Bitte das gebundene Terminologiepaket auswählen oder die Patientenuntersuchung kontrolliert migrieren.`
+    )
+    this.name = 'ReportingKnowledgeBaseMismatchError'
+    this.patientExaminationId = patientExaminationId
+    this.pinnedIdentity = pinnedIdentity
+    this.activeBundle = activeBundle
+  }
 }
 
 const readRecord = (value: unknown): Record<string, unknown> =>
@@ -41,7 +62,7 @@ export function readReportingKnowledgeBaseIdentity(
 export function resolveReportingKnowledgeBaseContext(params: {
   patientExaminationId: number
   pinnedIdentity: ReportingKnowledgeBaseIdentity | null
-  activeBundle: ActiveBundle | null
+  activeBundle: ReportingActiveBundle | null
 }): FindingsCatalogContext {
   const { patientExaminationId, pinnedIdentity, activeBundle } = params
   if (!activeBundle) {
@@ -56,9 +77,11 @@ export function resolveReportingKnowledgeBaseContext(params: {
     (pinnedIdentity.moduleName !== activeBundle.moduleName ||
       pinnedIdentity.moduleVersion !== activeBundle.version)
   ) {
-    throw new Error(
-      `Die Patientenuntersuchung #${String(patientExaminationId)} ist an ${pinnedIdentity.moduleName}@${pinnedIdentity.moduleVersion} gebunden, aktiv ausgewählt ist jedoch ${activeBundle.moduleName}@${activeBundle.version}. Bitte das gebundene Terminologiepaket auswählen oder die Patientenuntersuchung kontrolliert migrieren.`
-    )
+    throw new ReportingKnowledgeBaseMismatchError({
+      patientExaminationId,
+      pinnedIdentity,
+      activeBundle
+    })
   }
   return {
     moduleName: pinnedIdentity?.moduleName || activeBundle.moduleName,

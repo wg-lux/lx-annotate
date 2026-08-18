@@ -731,7 +731,7 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.text()).toContain('Keine aktive Terminologie')
   })
 
-  it('keeps an imported terminology selection but blocks it for a differently pinned patient examination', async () => {
+  it('discovers imported templates but keeps a differently pinned patient examination blocked', async () => {
     hoisted.terminologyStore.activeBundle = null
     hoisted.terminologyStore.activeModuleName = ''
     hoisted.terminologyStore.activeBundleKey = ''
@@ -782,7 +782,16 @@ describe('ReportingShell media preload', () => {
     await folderInput.trigger('change')
     await flushPromises()
 
-    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
+      'colonoscopy_reporting',
+      'colonoscopy'
+    )
+    expect(
+      wrapper
+        .get('[data-testid="report-template-select"]')
+        .findAll('option')
+        .map((option) => option.text())
+    ).toEqual(expect.arrayContaining([expect.stringContaining('colonoscopy_published')]))
     expect(wrapper.text()).toContain(
       'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
@@ -896,6 +905,11 @@ describe('ReportingShell media preload', () => {
       })
     )
     expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
+      'colonoscopy_reporting',
+      'colonoscopy'
+    )
+    expect(wrapper.get('[data-testid="report-template-select"]').text()).toContain('same_name')
     expect(wrapper.text()).toContain(
       'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
@@ -1678,7 +1692,7 @@ describe('ReportingShell media preload', () => {
     )
   })
 
-  it('blocks templates and findings when the active DGVS identity contradicts the patient identity', async () => {
+  it('discovers active templates but blocks findings when the active DGVS identity contradicts the patient identity', async () => {
     const backendBundle = {
       moduleName: 'dgvs_reporting',
       version: '0.1.0',
@@ -1739,8 +1753,16 @@ describe('ReportingShell media preload', () => {
     const wrapper = mountShell()
     await flushPromises()
 
-    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).not.toHaveBeenCalled()
+    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).toHaveBeenCalledWith(
+      'dgvs_reporting',
+      '0.1.0',
+      'colonoscopy'
+    )
     expect(hoisted.findingsApi.getExaminationFindings).not.toHaveBeenCalled()
+    expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="report-template-select"]').text()).toContain(
+      'colonoscopy_published'
+    )
     expect(wrapper.text()).toContain(
       'Die Patientenuntersuchung #314 ist an stale_reporting_bundle@0.0.1 gebunden'
     )
@@ -1807,7 +1829,10 @@ describe('ReportingShell media preload', () => {
 
     const restored = mountShell()
     await flushPromises()
-    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
+      'gastro_v2',
+      'colonoscopy'
+    )
     expect(restored.text()).toContain(
       'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
