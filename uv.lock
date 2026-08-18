@@ -2049,7 +2049,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "1.0.1"
+version = "1.0.2"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
@@ -2083,7 +2083,6 @@ dependencies = [
     { name = "torch" },
     { name = "torchvision" },
     { name = "transformers" },
-    { name = "typebridge-check" },
     { name = "watchdog" },
     { name = "whitenoise" },
 ]
@@ -2112,6 +2111,7 @@ dev = [
     { name = "sphinx-autodoc-typehints" },
     { name = "sphinx-copybutton" },
     { name = "twine" },
+    { name = "typebridge-check" },
     { name = "types-requests" },
 ]
 docs = [
@@ -2185,7 +2185,7 @@ requires-dist = [
     { name = "torchvision", specifier = ">=0.15.0" },
     { name = "transformers", specifier = "==4.45.0" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.2.0" },
-    { name = "typebridge-check", specifier = ">=0.0.1" },
+    { name = "typebridge-check", marker = "extra == 'dev'", specifier = ">=0.0.1" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.32.4.20250913" },
     { name = "watchdog", specifier = ">=3.0.0" },
     { name = "whitenoise", specifier = ">=6.8.2" },

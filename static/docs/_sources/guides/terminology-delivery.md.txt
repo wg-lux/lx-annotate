@@ -137,10 +137,16 @@ verifies the catalog digest. An absolute `site-packages`, virtual-environment,
 or Nix-store path from an installed wheel must never be persisted. Missing
 providers, absent versions, and digest conflicts fail explicitly.
 
-The best-effort terminology bootstrap adds missing identities for all three
-bundles to the governed registry. It activates `star_upper_gi` only when it
-creates a new registry; an existing active identity and imported bundle entries
-are preserved. The reporting frontend renders the registry entries returned by
+The terminology bootstrap registers missing identities for all packaged
+catalog bundles and fully loads every packaged bundle before succeeding. A
+missing registry, an empty `{ "modules": {} }` registry, or a registry without
+an active identity receives the configured/default packaged identity. If the
+active entry is a stale built-in provider or a legacy filesystem entry pointing
+into an installed wheel, bootstrap atomically replaces it with the matching
+current catalog identity. An active custom or imported filesystem entry is
+preserved, including an older custom version with the same module name.
+
+The reporting frontend renders the registry entries returned by
 `GET /dtypes-api/terminology/bundles` and loads templates only for the selected
 bundle and examination.
 
@@ -177,12 +183,17 @@ required work still described as outstanding means the status remains
 
 ## Failure behavior
 
-Missing or malformed registries, unregistered active identities, and unloadable
-bundles do not block application or annotation startup. Operations that require
-terminology still fail explicitly; the frontend does not guess a module or
-retry against a legacy route. Missing host adapters remain startup failures.
-Import and activation require the configured terminology write role and use
-atomic registry replacement.
+Governed wheel deployments run terminology bootstrap as a strict readiness
+gate. A malformed registry, invalid packaged catalog entry, digest mismatch,
+unloadable packaged bundle, or unresolved active identity blocks rollout and
+traffic. `--best-effort` may be used for explicitly non-governed development or
+diagnosis, but a deployment using it cannot claim production readiness.
+
+Terminology-dependent operations fail explicitly; the frontend does not guess
+a module or retry against a legacy route. Missing host adapters remain startup
+failures. Import, bootstrap migration, and activation use atomic registry
+replacement; imports and activation additionally require the configured
+terminology write role.
 
 Direct server-side imports from arbitrary cloud URLs are intentionally not
 supported. Such an endpoint would require a defined provider, machine identity,

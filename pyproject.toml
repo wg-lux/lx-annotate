@@ -5,10 +5,10 @@ build-backend = "hatchling.build"
 [project]
 name = "lx-annotate"
 
-version = "1.0.1"
+version = "1.0.2"
 description = "This webapp provides a frontend interface for pseudonymizing and annotating data and applying AI predictions."
 authors = [
-    { name = "Max Hild", email = "maxhild10@gmail.com"},
+    { name = "Max Hild", email = "hild_m@ukw.de"},
     { name = "Thomas J. Lux", email = "lux_t1@ukw.de" },
 ]
 classifiers = [

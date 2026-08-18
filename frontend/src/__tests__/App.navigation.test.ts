@@ -30,7 +30,11 @@ const mountApp = () =>
       stubs: {
         NavbarComponent: NavbarStub,
         SidebarComponent: {
-          template: '<div data-test="sidebar-content">Sidebar</div>'
+          template: `
+            <div class="sidebar-panel" data-test="sidebar-content">
+              Sidebar
+            </div>
+          `
         },
         ToastMessageContainer: true,
         RouterView: true
@@ -38,7 +42,7 @@ const mountApp = () =>
     }
   })
 
-describe('App responsive navigation', () => {
+ describe('App responsive navigation', () => {
   it('opens from the navbar and closes without a second sidebar state', async () => {
     const wrapper = mountApp()
 
@@ -70,5 +74,16 @@ describe('App responsive navigation', () => {
     await wrapper.get('.app-shell-backdrop').trigger('click')
 
     expect(wrapper.find('.sidebar-shell--open').exists()).toBe(false)
+  })
+it('places the sidebar panel directly inside the open shell', async () => {
+    const wrapper = mountApp()
+
+    await wrapper
+      .get('[data-test="navbar-sidebar-toggle"]')
+      .trigger('click')
+
+    const panel = wrapper.find('.sidebar-shell--open > .sidebar-panel')
+    expect(panel.exists()).toBe(true)
+    expect(panel.isVisible()).toBe(true)
   })
 })

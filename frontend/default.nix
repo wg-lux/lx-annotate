@@ -5,7 +5,7 @@
 
 buildNpmPackage rec {
   pname = "lx-annotate-frontend";
-  version = "1.0.0";
+  version = "1.0.1";
 
   src = ./.;
 
@@ -14,7 +14,7 @@ buildNpmPackage rec {
 # specified: the SHA-AA... default
 # (fake) got (your real hash)
 # Replace lib.fakeHash with the returned hash in default.nix
-  npmDepsHash = "sha256-RlPychy2KSlD4SB5dpgueu3io5dUDbhkgEuL+ctiWf0=";
+  npmDepsHash = "sha256-iKEyoMWxtauq22LOE8vJubd8JaDoSfyQwtqPuLiUG+8=";
 
   npmBuildScript = "build";
   doCheck = false;

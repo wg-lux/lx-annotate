@@ -33,9 +33,7 @@ export function readReportingKnowledgeBaseIdentity(
   )
   if (!moduleName && !moduleVersion) return null
   if (!moduleName || !moduleVersion) {
-    throw new Error(
-      'Die Knowledge-Base-Bindung der Patientenuntersuchung ist unvollständig. Bitte die Patientenuntersuchung auf eine vollständige Modul- und Versionsbindung migrieren.'
-    )
+    return null
   }
   return { moduleName, moduleVersion }
 }

@@ -134,14 +134,15 @@ export default {
   position: fixed;
 }
 
-.sidebar-shell--open > div {
-  flex: 1 1 auto;
+.g-sidenav-show
+  > aside.sidenav.navbar.sidebar-shell--open
+  > .sidebar-panel {
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
   width: 100%;
-}
-
-.sidebar-shell--open > div > .sidebar-panel {
   height: 100%;
+  overflow: hidden;
 }
 
 .sidebar-toggle-button {
