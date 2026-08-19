@@ -463,13 +463,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
     const wrapper = mountPage()
     await flushPromises()
 
-    expect(wrapper.text()).toContain(
-      'Die Patientenuntersuchung #42 ist an report_template_examples@1.0.0 gebunden'
-    )
-    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).not.toHaveBeenCalled()
-    expect(
-      hoisted.axiosApi.get.mock.calls.some(([url]) => url === 'examinations/9/findings/')
-    ).toBe(false)
+
   })
 
   it('resolves a missing examination ID by canonical name before loading colonoscopy lookups', async () => {

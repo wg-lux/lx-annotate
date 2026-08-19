@@ -154,7 +154,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
         this.loading = true
         this.error = null
         const response = await axiosInstance.get<unknown>(
-          r(endpoints.examination.patientExaminationLegacyDetail(id))
+          r(endpoints.examination.patientExaminationDetail(id))
         )
         const pe = requirePatientExamination(response.data)
         const index = this.patientExaminations.findIndex((existingPe) => existingPe.id === pe.id)

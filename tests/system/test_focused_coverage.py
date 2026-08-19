@@ -56,7 +56,8 @@ def test_app_config_parses_and_normalizes_host_and_origin_lists():
 
 
 def test_app_config_applies_secret_files_when_field_not_explicitly_set(
-    tmp_path, monkeypatch
+    tmp_path,
+    monkeypatch,
 ):
     monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
     monkeypatch.delenv("DJANGO_DB_PASSWORD", raising=False)
@@ -68,7 +69,8 @@ def test_app_config_applies_secret_files_when_field_not_explicitly_set(
     secret_key_file.write_text("s" * 64, encoding="utf-8")
     db_pwd_file.write_text("db-pass", encoding="utf-8")
     keycloak_secret_file.write_text(
-        'OIDC_RP_CLIENT_SECRET="kc-secret"\n', encoding="utf-8"
+        'OIDC_RP_CLIENT_SECRET="kc-secret"\n',
+        encoding="utf-8",
     )
 
     cfg = AppConfig(
@@ -144,7 +146,7 @@ def test_load_config_reads_values_from_explicit_env_file(tmp_path, monkeypatch):
                 "DJANGO_CORS_ALLOWED_ORIGINS=https://frontend.example.com",
                 "OIDC_RP_CLIENT_ID=endoregdb-api",
                 "OIDC_RP_CLIENT_SECRET=kc-secret",
-            ]
+            ],
         )
         + "\n",
         encoding="utf-8",
@@ -180,7 +182,7 @@ def test_load_config_accepts_legacy_allowed_hosts_from_env_file(tmp_path, monkey
             [
                 "DJANGO_SECRET_KEY=" + ("m" * 64),
                 "ALLOWED_HOSTS=lx-annotate.local,localhost",
-            ]
+            ],
         )
         + "\n",
         encoding="utf-8",
@@ -211,7 +213,8 @@ def test_load_config_accepts_secretspec_keycloak_and_timezone_aliases(monkeypatc
 
 
 def test_load_config_accepts_secretspec_keycloak_and_timezone_from_env_file(
-    tmp_path, monkeypatch
+    tmp_path,
+    monkeypatch,
 ):
     for key in (
         "DJANGO_KEYCLOAK_CLIENT_ID",
@@ -232,7 +235,7 @@ def test_load_config_accepts_secretspec_keycloak_and_timezone_from_env_file(
                 "OIDC_RP_CLIENT_ID=endoregdb-api",
                 "OIDC_RP_CLIENT_SECRET=oidc-secret",
                 "TIME_ZONE=Europe/Berlin",
-            ]
+            ],
         )
         + "\n",
         encoding="utf-8",
@@ -285,7 +288,8 @@ def test_settings_base_requires_explicit_runtime_contract_in_central_hub_mode(
     sys.modules.pop("lx_annotate.settings.settings_base", None)
 
     with pytest.raises(
-        RuntimeError, match=r"DJANGO_DB_NAME or DATABASE_URL must be set"
+        RuntimeError,
+        match=r"DJANGO_DB_NAME or DATABASE_URL must be set",
     ):
         importlib.import_module("lx_annotate.settings.settings_base")
 
@@ -329,13 +333,13 @@ def test_settings_base_requires_secure_transport_for_transfer_api(monkeypatch):
 def test_settings_base_requires_central_hub_for_enabled_transfer_api(monkeypatch):
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
     monkeypatch.setenv("ENDOREG_DEPLOYMENT_ROLE", "site_node")
-    monkeypatch.setenv("ENDOREG_ENABLE_HUB_TRANSFERS", "true")
+    monkeypatch.setenv("ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS", "true")
 
     sys.modules.pop("lx_annotate.settings.settings_base", None)
 
     with pytest.raises(
         RuntimeError,
-        match=r"ENDOREG_ENABLE_HUB_TRANSFERS=true requires ENDOREG_DEPLOYMENT_ROLE=central_hub",
+        match=r"ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS=true requires ENDOREG_DEPLOYMENT_ROLE=central_hub",
     ):
         importlib.import_module("lx_annotate.settings.settings_base")
 
@@ -357,12 +361,15 @@ def test_development_secret_key_reads_existing_key(monkeypatch, tmp_path):
 
 
 def test_development_secret_key_generates_with_audited_atomic_write(
-    monkeypatch, tmp_path
+    monkeypatch,
+    tmp_path,
 ):
     monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
     monkeypatch.setattr(secret_key_mod, "HOME_DIR", tmp_path)
     monkeypatch.setattr(
-        secret_key_mod, "get_random_secret_key", lambda: "new-secret-key"
+        secret_key_mod,
+        "get_random_secret_key",
+        lambda: "new-secret-key",
     )
     calls = []
 
@@ -385,17 +392,20 @@ def test_development_secret_key_generates_with_audited_atomic_write(
             "required_bytes": 14,
             "file_mode": 0o600,
             "dir_mode": 0o700,
-        }
+        },
     ]
 
 
 def test_development_secret_key_fails_loudly_when_atomic_write_fails(
-    monkeypatch, tmp_path
+    monkeypatch,
+    tmp_path,
 ):
     monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
     monkeypatch.setattr(secret_key_mod, "HOME_DIR", tmp_path)
     monkeypatch.setattr(
-        secret_key_mod, "get_random_secret_key", lambda: "generated-key"
+        secret_key_mod,
+        "get_random_secret_key",
+        lambda: "generated-key",
     )
 
     def _raise_oserror(**kwargs):  # noqa: ARG001
@@ -437,7 +447,7 @@ def test_walk_handles_nested_resolvers():
         return None
 
     urlpatterns = [
-        path("api/", include(([path("ping/", ping_view, name="ping")], "api")))
+        path("api/", include(([path("ping/", ping_view, name="ping")], "api"))),
     ]
 
     rows = _walk(urlpatterns)
@@ -451,7 +461,7 @@ def test_settings_dev_import_uses_static_vite_manifest_and_allow_any(monkeypatch
     manifest_path = Path(module.DJANGO_VITE["default"]["manifest_path"])
     assert manifest_path == Path(module.STATIC_ROOT) / ".vite" / "manifest.json"
     assert module.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
-        "rest_framework.permissions.AllowAny"
+        "rest_framework.permissions.AllowAny",
     ]
     assert (
         module.LX_DTYPES_HOST_MODELS_MODULE
@@ -478,7 +488,7 @@ def test_settings_prod_import_uses_static_vite_manifest(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(config_mod, "load_config", lambda env_file=None: dummy_config)
     base.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
-        "rest_framework.permissions.IsAuthenticated"
+        "rest_framework.permissions.IsAuthenticated",
     ]
     monkeypatch.setenv("ENFORCE_AUTH", "0")
 
@@ -486,7 +496,9 @@ def test_settings_prod_import_uses_static_vite_manifest(monkeypatch, tmp_path):
 
     assert module.STATIC_ROOT == str(tmp_path / "static-root")
     assert module.DJANGO_VITE["default"]["manifest_path"] == os.path.join(
-        str(tmp_path / "static-root"), ".vite", "manifest.json"
+        str(tmp_path / "static-root"),
+        ".vite",
+        "manifest.json",
     )
     assert module.CORS_ALLOWED_ORIGINS == ["https://frontend.example.com"]
     assert (
@@ -496,7 +508,8 @@ def test_settings_prod_import_uses_static_vite_manifest(monkeypatch, tmp_path):
 
 
 def test_settings_prod_import_reads_luxnix_style_service_environment(
-    monkeypatch, tmp_path
+    monkeypatch,
+    tmp_path,
 ):
     app_data_dir = tmp_path / "lx-annotate-data"
     app_data_dir.mkdir(parents=True, exist_ok=True)

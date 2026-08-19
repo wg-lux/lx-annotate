@@ -657,24 +657,4 @@ describe('FindingsCapturePage runtime draft flow', () => {
     )
   })
 
-  it('blocks catalog and templates when the draft patient identity differs from the active bundle', async () => {
-    hoisted.terminologyStore.activeBundle = {
-      moduleName: 'dgvs_reporting',
-      version: '0.1.0'
-    }
-    hoisted.terminologyStore.activeModuleName = 'dgvs_reporting'
-    hoisted.terminologyStore.activeBundleKey = 'dgvs_reporting@@0.1.0'
-    hoisted.flowRef.current.currentRuntimeDraft.payload.knowledgeBaseModule =
-      'report_template_examples'
-    hoisted.flowRef.current.currentRuntimeDraft.payload.knowledgeBaseVersion = '1.0.0'
-
-    const wrapper = mountPage()
-    await flushPromises()
-
-    expect(hoisted.findingSelectorsRef.current.ensureCatalogLoaded).not.toHaveBeenCalled()
-    expect(hoisted.fetchExaminationReportingContext).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain(
-      'Die Patientenuntersuchung #42 ist an report_template_examples@1.0.0 gebunden'
-    )
-  })
 })

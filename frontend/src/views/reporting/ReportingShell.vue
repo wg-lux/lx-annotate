@@ -864,7 +864,6 @@ import { reportingApiError, reportingApiErrorMessage } from './reportingError'
 import {
   ReportingKnowledgeBaseMismatchError,
   readReportingKnowledgeBaseIdentity,
-  resolveReportingKnowledgeBaseContext,
   type ReportingKnowledgeBaseIdentity
 } from './reportingKnowledgeBaseContext'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
@@ -873,6 +872,7 @@ import {
   type ReportTemplateLifecycleChange
 } from './reportTemplateLifecycleContext'
 import { normalizeReportingIndicationSelections } from './reportingIndicationContract'
+import { useReportingKnowledgeBase } from './useReportingKnowledgeBase';
 
 const logger = createRuntimeLogger('reporting-shell')
 import {
@@ -984,6 +984,8 @@ let patientOptionsRequestGeneration = 0
 let caseOptionsRequestGeneration = 0
 let mediaPreloadRequestGeneration = 0
 let routeContextWatchGeneration = 0
+
+const { getCatalogContext, pinnedIdentity } = useReportingKnowledgeBase(patientExaminationDetail)
 
 type DraftBootstrapContext = {
   generation: number
@@ -2166,7 +2168,7 @@ async function loadFindingCatalogForExamination(examinationId: number | null | u
   try {
     const rows = await findingsApi.getExaminationFindings(
       examinationId,
-      activeFindingsCatalogContext()
+      getCatalogContext({ allowMismatchFallback: true })
     )
     if (
       requestGeneration !== findingCatalogRequestGeneration ||
@@ -2185,58 +2187,17 @@ async function loadFindingCatalogForExamination(examinationId: number | null | u
   }
 }
 
-function activeFindingsCatalogContext(): FindingsCatalogContext | undefined {
-  const bundle = terminology.activeBundle
-  if (!bundle) return undefined
-  const patientExaminationId = flow.patientExaminationId
-  if (!patientExaminationId) return undefined
-  const option = patientExaminationOptions.value.find(
-    (entry) => entry.id === patientExaminationId
-  )
-  if (
-    patientExaminationIdentityLoadedId.value !== patientExaminationId &&
-    !option?.knowledgeBaseModule &&
-    !option?.knowledgeBaseVersion
-  ) {
-    throw new Error('Die Knowledge-Base-Bindung der Patientenuntersuchung wird noch geladen.')
-  }
-  return resolveReportingKnowledgeBaseContext({
-    patientExaminationId,
-    pinnedIdentity: pinnedPatientExaminationKnowledgeBaseIdentity(),
-    activeBundle: bundle
-  })
-}
-
-function pinnedPatientExaminationKnowledgeBaseIdentity(
-  detail: Record<string, unknown> | null = patientExaminationDetail.value
-): ReportingKnowledgeBaseIdentity | null {
-  const patientExaminationId = flow.patientExaminationId
-  const detailIdentity =
-    patientExaminationIdentityLoadedId.value === patientExaminationId
-      ? readReportingKnowledgeBaseIdentity(detail)
-      : null
-  if (detailIdentity) return detailIdentity
-  const option = patientExaminationOptions.value.find(
-    (entry) => entry.id === patientExaminationId
-  )
-  if (!option?.knowledgeBaseModule && !option?.knowledgeBaseVersion) return null
-  return readReportingKnowledgeBaseIdentity({
-    knowledgeBaseModule: option.knowledgeBaseModule,
-    knowledgeBaseVersion: option.knowledgeBaseVersion
-  })
-}
 
 function assertPatientExaminationKnowledgeBaseCompatibility(
   detail: Record<string, unknown>,
   context: DraftBootstrapContext
 ): void {
   if (!terminology.activeBundle) return
-  const resolved = resolveReportingKnowledgeBaseContext({
-    patientExaminationId: context.patientExaminationId,
-    pinnedIdentity: pinnedPatientExaminationKnowledgeBaseIdentity(detail),
-    activeBundle: terminology.activeBundle
-  })
+
+  const resolved =  getCatalogContext({ allowMismatchFallback: false })
+
   if (
+    !resolved ||
     resolved.moduleName !== context.moduleName ||
     resolved.moduleVersion !== context.moduleVersion
   ) {
@@ -3191,11 +3152,21 @@ async function ensureRuntimeDraft(patientExaminationId: number, context: DraftBo
 async function hydrateDraftForRoutePatientExamination(patientExaminationId: number) {
   if (patientExaminationId !== routePatientExaminationId.value) return
   const requestedKey = `${String(patientExaminationId)}:${activeBundleIdentityKey.value || 'loading'}`
+
   if (draftBootstrapInFlight.value?.key === requestedKey) {
     await draftBootstrapInFlight.value.promise
     return
   }
 
+  const pinned = pinnedIdentity.value
+  if (pinned?.moduleName && pinned?.moduleVersion) {
+    const matchingBundle = terminology.bundles.find(
+      (b) => b.moduleName === pinned.moduleName && b.version === pinned.moduleVersion
+    )
+    if (matchingBundle && terminology.activeBundleKey !== terminology.bundleKey(matchingBundle)) {
+      await terminology.selectBundle(matchingBundle)
+    }
+  }
   const option =
     patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
   if (patientExaminationId !== routePatientExaminationId.value) return

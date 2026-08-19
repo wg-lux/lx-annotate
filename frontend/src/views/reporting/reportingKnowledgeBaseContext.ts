@@ -63,29 +63,26 @@ export function resolveReportingKnowledgeBaseContext(params: {
   patientExaminationId: number
   pinnedIdentity: ReportingKnowledgeBaseIdentity | null
   activeBundle: ReportingActiveBundle | null
+  allowMismatchFallback?: boolean
 }): FindingsCatalogContext {
-  const { patientExaminationId, pinnedIdentity, activeBundle } = params
-  if (!activeBundle) {
-    throw new Error(
-      pinnedIdentity
-        ? `Die Patientenuntersuchung #${String(patientExaminationId)} ist an ${pinnedIdentity.moduleName}@${pinnedIdentity.moduleVersion} gebunden. Bitte dieses Terminologiepaket aktivieren.`
-        : 'Bitte ein Terminologiepaket aktivieren, bevor Vorlagen und Befundkatalog geladen werden.'
-    )
-  }
+  // This function resolves the active terminology bundle. In strict mode it can throw an error if
+  // the current terminology bundle is changed for an active report. 
+  const { patientExaminationId, pinnedIdentity, activeBundle, allowMismatchFallback } = params
+
   if (
     pinnedIdentity &&
-    (pinnedIdentity.moduleName !== activeBundle.moduleName ||
-      pinnedIdentity.moduleVersion !== activeBundle.version)
+    (pinnedIdentity.moduleName !== activeBundle?.moduleName ||
+      pinnedIdentity.moduleVersion !== activeBundle?.version)
   ) {
-    throw new ReportingKnowledgeBaseMismatchError({
-      patientExaminationId,
-      pinnedIdentity,
-      activeBundle
-    })
+    if (!allowMismatchFallback && activeBundle) {
+      throw new ReportingKnowledgeBaseMismatchError({ patientExaminationId, pinnedIdentity, activeBundle })
+    }
   }
+
+  // Fallback to active bundle if mismatch is explicitly permitted
   return {
-    moduleName: pinnedIdentity?.moduleName || activeBundle.moduleName,
-    moduleVersion: pinnedIdentity?.moduleVersion || activeBundle.version,
+    moduleName: activeBundle?.moduleName || pinnedIdentity?.moduleName || '',
+    moduleVersion: activeBundle?.version || pinnedIdentity?.moduleVersion || '',
     patientExaminationId
   }
 }

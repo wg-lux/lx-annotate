@@ -368,7 +368,9 @@ import {
   requireResolvedReportingExamination,
   resolveReportingExamination
 } from './reportingExaminationResolution'
+import { useReportingKnowledgeBase } from './useReportingKnowledgeBase'
 
+const { getCatalogContext } = useReportingKnowledgeBase()
 const flow = useReportingFlowStore()
 const terminology = useTerminologyStore()
 const examinationStore = useExaminationStore()
@@ -954,12 +956,12 @@ async function refreshTemplatesForExamination() {
       'Vorlagen werden angeboten, sobald eine Terminologie aktiviert wurde.'
     return
   }
+  const reportingContext = getCatalogContext({ allowMismatchFallback: true })
   const examName = selectedExaminationName.value
   if (!examName) return
   const bundle = terminology.activeBundle
   if (!bundle) return
   try {
-    const reportingContext = activeFindingsCatalogContext()
     if (!reportingContext) return
     const projection = await fetchExaminationReportingContext(
       reportingContext.moduleName,
@@ -977,26 +979,6 @@ async function refreshTemplatesForExamination() {
       'Der versionierte Reporting-Kontext konnte nicht geladen werden.'
     )
   }
-}
-
-function activeFindingsCatalogContext(): FindingsCatalogContext | undefined {
-  const bundle = terminology.activeBundle
-  if (!bundle) return undefined
-  const patientExaminationId = flow.patientExaminationId
-  if (!patientExaminationId) return undefined
-  const payload = currentPayload.value
-  const pinnedIdentity =
-    payload?.knowledgeBaseModule && payload.knowledgeBaseVersion
-      ? {
-          moduleName: payload.knowledgeBaseModule,
-          moduleVersion: payload.knowledgeBaseVersion
-        }
-      : null
-  return resolveReportingKnowledgeBaseContext({
-    patientExaminationId,
-    pinnedIdentity,
-    activeBundle: bundle
-  })
 }
 
 function onAddFinding(findingName: string) {
@@ -1204,7 +1186,7 @@ onMounted(async () => {
       selectedExaminationId: flow.selectedExaminationId,
       examinationName: currentPayload.value?.examination
     })
-    await ensureCatalogLoaded(examination.id, activeFindingsCatalogContext())
+    await ensureCatalogLoaded(examination.id, getCatalogContext({ allowMismatchFallback: true }))
     await refreshTemplatesForExamination()
   } catch (error: unknown) {
     errorMessage.value = reportingApiErrorMessage(

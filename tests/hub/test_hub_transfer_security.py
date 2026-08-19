@@ -6,7 +6,7 @@ from endoreg_db.models import Center, NetworkNode, TransferJob
 from tests.hub_payload_helpers import valid_report_resource_rows
 
 
-@override_settings(ENDOREG_ENABLE_HUB_TRANSFERS=True)
+@override_settings(ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS=True)
 class HubTransferSecurityTests(TestCase):
     def setUp(self) -> None:
         self.center = Center.objects.create(
@@ -77,7 +77,7 @@ class HubTransferSecurityTests(TestCase):
 
     @override_settings(
         ENDOREG_DEPLOYMENT_ROLE="central_hub",
-        ENDOREG_ENABLE_HUB_TRANSFERS=False,
+        ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS=False,
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
         ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",

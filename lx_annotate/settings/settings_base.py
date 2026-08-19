@@ -223,8 +223,8 @@ if _deployment_role_raw:
     ENDOREG_DEPLOYMENT_ROLE = _deployment_role_raw
 else:
     ENDOREG_DEPLOYMENT_ROLE = "standalone"
-ENDOREG_ENABLE_HUB_TRANSFERS = os.getenv(
-    "ENDOREG_ENABLE_HUB_TRANSFERS",
+ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS = os.getenv(
+    "ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS",
     "0",
 ).strip().lower() in {"1", "true", "yes", "on"}
 ENDOREG_ENABLE_STORAGE_BALANCING = os.getenv(
@@ -596,13 +596,17 @@ def _require_env_var(*names: str) -> None:
 
 
 def _validate_hub_transfer_security_contract() -> None:
-    if ENDOREG_ENABLE_HUB_TRANSFERS and ENDOREG_DEPLOYMENT_ROLE != "central_hub":
+    if (
+        ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS
+        and ENDOREG_DEPLOYMENT_ROLE != "central_hub"
+    ):
         raise RuntimeError(
-            "ENDOREG_ENABLE_HUB_TRANSFERS=true requires "
+            "ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS=true requires "
             "ENDOREG_DEPLOYMENT_ROLE=central_hub.",
         )
     if ENDOREG_ENABLE_STORAGE_BALANCING and (
-        ENDOREG_DEPLOYMENT_ROLE != "central_hub" or not ENDOREG_ENABLE_HUB_TRANSFERS
+        ENDOREG_DEPLOYMENT_ROLE != "central_hub"
+        or not ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS
     ):
         raise RuntimeError(
             "ENDOREG_ENABLE_STORAGE_BALANCING=true requires an enabled central_hub transfer profile.",

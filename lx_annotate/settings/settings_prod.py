@@ -11,6 +11,7 @@ from typing import Any, cast
 from lx_annotate.settings import config as config_module
 from lx_annotate.settings.config import AppConfig
 
+from . import settings_base as base_settings
 from .settings_base import (
     APP_DATA_DIR,
     BASE_DIR,
@@ -41,6 +42,26 @@ MEDIA_ROOT = cast(Path, MEDIA_ROOT)
 MEDIA_URL = cast(str, MEDIA_URL)
 LX_DTYPES_HOST_MODELS_MODULE = cast(str, LX_DTYPES_HOST_MODELS_MODULE)
 config = cast(AppConfig, config)
+
+# Celery reads configuration only from the active Django settings module.
+# settings_base owns the queue topology, so production must re-export it
+# explicitly instead of silently falling back to Celery's built-in `celery`
+# queue.
+CELERY_BROKER_URL = base_settings.CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = base_settings.CELERY_RESULT_BACKEND
+CELERY_TASK_IGNORE_RESULT = base_settings.CELERY_TASK_IGNORE_RESULT
+CELERY_TASK_DEFAULT_QUEUE = base_settings.CELERY_TASK_DEFAULT_QUEUE
+CELERY_PIPELINE_QUEUE = base_settings.CELERY_PIPELINE_QUEUE
+CELERY_FRAME_EXTRACTION_QUEUE = base_settings.CELERY_FRAME_EXTRACTION_QUEUE
+CELERY_FFMPEG_MEDIA_QUEUE = base_settings.CELERY_FFMPEG_MEDIA_QUEUE
+CELERY_INFERENCE_QUEUE = base_settings.CELERY_INFERENCE_QUEUE
+CELERY_TRAINING_QUEUE = base_settings.CELERY_TRAINING_QUEUE
+CELERY_LLM_INFERENCE_QUEUE = base_settings.CELERY_LLM_INFERENCE_QUEUE
+CELERY_MAINTENANCE_QUEUE = base_settings.CELERY_MAINTENANCE_QUEUE
+CELERY_HUB_TRANSFER_QUEUE = base_settings.CELERY_HUB_TRANSFER_QUEUE
+CELERY_TASK_CREATE_MISSING_QUEUES = base_settings.CELERY_TASK_CREATE_MISSING_QUEUES
+CELERY_TASK_QUEUES = base_settings.CELERY_TASK_QUEUES
+CELERY_TASK_ROUTES = base_settings.CELERY_TASK_ROUTES
 
 # -----------------------------------------------------------------------------
 

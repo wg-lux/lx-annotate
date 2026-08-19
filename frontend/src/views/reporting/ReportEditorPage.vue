@@ -498,6 +498,7 @@ import {
   type ReportingIndicationChoiceOption,
   type ReportingIndicationOption
 } from './reportingIndicationContract'
+import { useReportingKnowledgeBase } from './useReportingKnowledgeBase'
 
 type PatientExaminationReportListItem = {
   id: number
@@ -540,6 +541,7 @@ const coreConceptsError = ref<string | null>(null)
 const indicationOptions = ref<ReportingIndicationOption[]>([])
 const indicationOptionsLoading = ref(false)
 const indicationOptionsError = ref<string | null>(null)
+const { getCatalogContext } = useReportingKnowledgeBase()
 
 const {
   moduleName: selectedKbModule,
@@ -1207,9 +1209,8 @@ async function loadFindingCatalog(context?: EditorContext) {
     findingCatalog.value = []
     return
   }
-  const catalogContext = activeFindingsCatalogContext(
-    context?.patientExaminationId ?? flow.patientExaminationId
-  )
+  const catalogContext = getCatalogContext({ allowMismatchFallback: true })
+
   try {
     const findings = await findingsApi.getExaminationFindings(
       examinationId,
@@ -1223,19 +1224,6 @@ async function loadFindingCatalog(context?: EditorContext) {
     findingCatalogError.value =
       'Die deutschen Befundbezeichnungen konnten nicht geladen werden. Bitte erneut versuchen.'
   }
-}
-
-function activeFindingsCatalogContext(
-  patientExaminationId: number | null
-): FindingsCatalogContext | undefined {
-  const bundle = terminology.activeBundle
-  if (!bundle) return undefined
-  if (!patientExaminationId) return undefined
-  return resolveReportingKnowledgeBaseContext({
-    patientExaminationId,
-    pinnedIdentity: patientExaminationKnowledgeBaseIdentity.value,
-    activeBundle: bundle
-  })
 }
 
 async function refreshTemplatesForExamination(context?: EditorContext) {
@@ -1255,9 +1243,7 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
   }
   const examName = selectedExaminationName.value
   if (!examName) return
-  const reportingContext = activeFindingsCatalogContext(
-    context?.patientExaminationId ?? flow.patientExaminationId
-  )
+  const reportingContext = getCatalogContext({ allowMismatchFallback: true })
   if (!reportingContext) return
   try {
     const projection = await fetchExaminationReportingContext(
@@ -1290,7 +1276,7 @@ async function loadPatientExaminationKnowledgeBaseIdentity(
   )
   if (!isEditorContextCurrent(context)) return
   patientExaminationKnowledgeBaseIdentity.value = readReportingKnowledgeBaseIdentity(response.data)
-  activeFindingsCatalogContext(context.patientExaminationId)
+  getCatalogContext({ allowMismatchFallback: true })
 }
 
 function buildDraftFindingsPayload(): SaveReportSubmissionRequest['findings'] {
