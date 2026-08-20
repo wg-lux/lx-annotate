@@ -52,15 +52,15 @@ dependencies = [
     "daphne>=4.2.1",
     "psycopg[binary,pool]>=3.2.12",
     "mozilla-django-oidc>=4.0.1",
-    "endoreg-db==1.0.20.0",
+    "endoreg-db==1.0.22.0",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
     "sops>=1.18",
     "django-ninja==1.5.3",
     "cryptography>=45.0.0",
     "django-linear-migrations>=2.19.0",
-    "redis>=7.4.0",
-    "lx-dtypes==0.2.22",
+    "redis>=5.0.3,<6.5",
+    "lx-dtypes==0.2.24",
     "pre-commit[dev]>=4.6.1",
 ]
 
@@ -76,7 +76,6 @@ lx-annotate-watch = "lx_annotate.cli:watch"
 lx-annotate-export-frames = "lx_annotate.cli:export_frames"
 lx-annotate-import-sap = "lx_annotate.cli:import_sap"
 lx-annotate-recover-data = "lx_annotate.cli:recover_data"
-lx-annotate-bootstrap-terminology = "lx_annotate.cli:bootstrap_terminology"
 lx-annotate-provision-hub-nodes = "lx_annotate.cli:provision_hub_nodes"
 lx-annotate-storage-relief = "lx_annotate.cli:storage_relief"
 lx-annotate-acceptance = "lx_annotate.cli:acceptance"

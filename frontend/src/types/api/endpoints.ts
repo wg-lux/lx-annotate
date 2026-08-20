@@ -120,6 +120,7 @@ export const endpoints = {
     overview: 'hub-export/overview/',
     mark: 'hub-export/mark/',
     offloadEligibleVideos: 'hub-export/offload-eligible-videos/',
+    retry: (jobId: UUID) => `hub-export/jobs/${pathId(jobId)}/retry/`,
     unmark: 'hub-export/unmark/'
   },
 
@@ -172,8 +173,7 @@ export const endpoints = {
     videoStream: (pk: Id) => `media/videos/${pathId(pk)}/stream/`,
     videoHlsPlaylist: (pk: Id) => `media/videos/${pathId(pk)}/hls/playlist/`,
     videoReimport: (pk: Id) => `media/videos/${pathId(pk)}/reimport/`,
-    videoMarkReadyForExport: (pk: Id) =>
-      `media/videos/${pathId(pk)}/mark-ready-for-export/`,
+    videoMarkReadyForExport: (pk: Id) => `media/videos/${pathId(pk)}/mark-ready-for-export/`,
     exportAnnotated: 'media/videos/export-annotated/',
 
     videoCorrection: (pk: Id) => `media/videos/video-correction/${pathId(pk)}`,

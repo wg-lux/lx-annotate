@@ -116,12 +116,6 @@ def recover_data(argv: Sequence[str] | None = None) -> int:
     return manage(["recover_runtime_data", *_command_args(argv)])
 
 
-def bootstrap_terminology(argv: Sequence[str] | None = None) -> int:
-    from lx_annotate.runtime_commands.terminology_bootstrap import main
-
-    return main(_command_args(argv))
-
-
 def provision_hub_nodes(argv: Sequence[str] | None = None) -> int:
     return manage(["provision_hub_nodes", *_command_args(argv)])
 

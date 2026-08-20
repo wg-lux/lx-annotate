@@ -289,7 +289,11 @@
               data-test="hub-export-check-readiness-all"
               @click="checkAllVideoReadiness"
             >
-              {{ checkingReadiness ? 'Exportfreigabe wird geprüft …' : 'Alle Videos auf Exportfreigabe prüfen' }}
+              {{
+                checkingReadiness
+                  ? 'Exportfreigabe wird geprüft …'
+                  : 'Alle Videos auf Exportfreigabe prüfen'
+              }}
             </button>
             <button
               class="btn btn-outline-success btn-sm"
@@ -401,9 +405,7 @@
             </select>
           </div>
           <div class="hub-table-filter-field">
-            <label for="hub-storage-state-filter" class="form-label mb-1">
-              Speicherstatus
-            </label>
+            <label for="hub-storage-state-filter" class="form-label mb-1"> Speicherstatus </label>
             <select
               id="hub-storage-state-filter"
               v-model="physicalStorageStateFilter"
@@ -431,7 +433,11 @@
 
         <div v-if="!filteredItems.length && !hubExportStore.loading" class="text-center py-5">
           <h5 class="text-muted">
-            {{ hubExportStore.items.length ? 'Keine passenden Ressourcen' : 'Keine exportierbaren Ressourcen' }}
+            {{
+              hubExportStore.items.length
+                ? 'Keine passenden Ressourcen'
+                : 'Keine exportierbaren Ressourcen'
+            }}
           </h5>
           <p class="text-muted mb-3">
             {{
@@ -533,7 +539,10 @@
                   <span v-else class="text-muted">Nicht zutreffend</span>
                 </td>
                 <td :data-test="`hub-export-integrity-status-${item.resourceKind}-${item.id}`">
-                  <span class="badge" :class="integrityStatusBadgeClass(item.exportIntegrityStatus)">
+                  <span
+                    class="badge"
+                    :class="integrityStatusBadgeClass(item.exportIntegrityStatus)"
+                  >
                     {{ integrityStatusLabel(item.exportIntegrityStatus) }}
                   </span>
                 </td>
@@ -584,7 +593,23 @@
                   </div>
                 </td>
                 <td class="small text-muted">
-                  {{ itemNotice(item) }}
+                  <span class="d-block">{{ itemNotice(item) }}</span>
+                  <button
+                    v-if="item.outboundStatus === 'failed' && item.outboundJobId"
+                    type="button"
+                    class="btn btn-outline-warning btn-sm mt-2 mb-0"
+                    :disabled="
+                      retryingJobIds.has(item.outboundJobId) || !hubExportStore.configReady
+                    "
+                    :data-test="`hub-export-retry-${item.outboundJobId}`"
+                    @click="retryFailedTransfer(item)"
+                  >
+                    {{
+                      retryingJobIds.has(item.outboundJobId)
+                        ? 'Wird eingeplant …'
+                        : 'Erneut versuchen'
+                    }}
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -614,6 +639,7 @@ const selectedTargetNodeKey = ref<string | null>(null)
 const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const checkingVideoIds = ref<Set<number>>(new Set())
 const offloadingEligibleVideos = ref(false)
+const retryingJobIds = ref<Set<string>>(new Set())
 const resourceKindFilter = ref<'all' | HubExportItem['resourceKind']>('all')
 type PhysicalStorageStateFilter = 'all' | 'present' | 'missing'
 const physicalStorageStateFilter = ref<PhysicalStorageStateFilter>('all')
@@ -874,6 +900,21 @@ const offloadEligibleVideos = async () => {
     // The store exposes the backend rejection while retaining the current overview.
   } finally {
     offloadingEligibleVideos.value = false
+  }
+}
+
+const retryFailedTransfer = async (item: HubExportItem) => {
+  const jobId = item.outboundJobId
+  if (!jobId || retryingJobIds.value.has(jobId)) return
+  retryingJobIds.value = new Set(retryingJobIds.value).add(jobId)
+  try {
+    await hubExportStore.retryFailedJob(jobId)
+  } catch {
+    // The store exposes the backend rejection while retaining the failed row.
+  } finally {
+    const remaining = new Set(retryingJobIds.value)
+    remaining.delete(jobId)
+    retryingJobIds.value = remaining
   }
 }
 

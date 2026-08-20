@@ -46,7 +46,8 @@ const hoisted = vi.hoisted(() => {
       }
     },
     axiosApi: {
-      get: vi.fn<(url: string, ...args: unknown[]) => unknown>()
+      get: vi.fn<(url: string, ...args: unknown[]) => unknown>(),
+      post: vi.fn<(url: string, payload: unknown) => unknown>()
     },
     findingsApi: {
       getExaminationFindings: vi.fn()
@@ -143,7 +144,8 @@ vi.mock('vue-router', async () => {
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: hoisted.axiosApi.get
+    get: hoisted.axiosApi.get,
+    post: hoisted.axiosApi.post
   },
   r: (value: string) => value
 }))
@@ -209,18 +211,32 @@ function buildFlowStore() {
     selectedPatientId: 42 as number | null,
     selectedExaminationId: 9 as number | null,
     selectedKbModule: 'report_template_examples',
-    selectedReportLanguage: 'de' as 'de' | 'en',
+    selectedReportLanguage: 'de',
     selectedTemplateName: null as string | null,
     currentRuntimeDraft: null as ReportingRuntimeDraft | null,
-    runtimeDraftsByPatientExaminationId: {} as Record<string, ReportingRuntimeDraft>,
+    runtimeDraftsByPatientExaminationId: {} as Partial<
+      Record<string, ReportingRuntimeDraft>
+    >,
     mediaPreload: null as TimelineLatestPayload | null,
-    mediaPreloadStatus: 'idle' as 'idle' | 'loading' | 'ready' | 'error',
+    mediaPreloadStatus: 'idle',
     mediaPreloadError: null as string | null,
-    draftPersistenceStatus: 'idle' as 'idle' | 'saving' | 'saved' | 'error',
+    draftPersistenceStatus: 'idle',
     draftPersistenceError: null as string | null,
     lastPersistedDraftAt: null as string | null,
     hasUnpersistedDraftChanges: false,
-    setCaseSelection: vi.fn(),
+    setCaseSelection: vi.fn(
+      (payload: { selectedPatientId?: number | null; selectedExaminationId?: number | null }) => {
+        if (payload.selectedPatientId !== undefined)
+          flow.selectedPatientId = payload.selectedPatientId
+        if (payload.selectedExaminationId !== undefined)
+          flow.selectedExaminationId = payload.selectedExaminationId
+      }
+    ),
+    resetForPatientSwitch: vi.fn(() => {
+      flow.caseId = null
+      flow.patientExaminationId = null
+      flow.selectedExaminationId = null
+    }),
     setCaseContext: vi.fn((payload: CaseContext) => {
       flow.caseId = payload.caseId
       if (payload.selectedPatientId !== undefined)
@@ -408,6 +424,23 @@ describe('ReportingShell media preload', () => {
       patientFindings: []
     })
     hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'patients/') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 42,
+              firstName: 'Pat',
+              lastName: 'Ient',
+              patientHash: 'patient_42'
+            }
+          ]
+        })
+      }
+      if (url === 'patient-examinations/examinations_dropdown/') {
+        return Promise.resolve({
+          data: [{ id: 9, name: 'colonoscopy', nameDe: 'Koloskopie' }]
+        })
+      }
       if (url === 'cases/') {
         const caseResponse: PatientCase = {
           id: 5,
@@ -482,6 +515,39 @@ describe('ReportingShell media preload', () => {
       }
 
       return Promise.resolve({ data: { results: [] } })
+    })
+    hoisted.axiosApi.post.mockResolvedValue({
+      data: {
+        case: {
+          id: 6,
+          caseId: 'case-created-401',
+          patient: 42,
+          admissionDate: '2026-08-20T10:00:00.000Z',
+          leaveDate: null,
+          isActive: true,
+          isClosed: false,
+          isDeleted: false,
+          patientExaminations: [
+            {
+              id: 401,
+              examination: { id: 9, name: 'colonoscopy', nameDe: 'Koloskopie' },
+              patientData: { id: 42 },
+              dateStart: '2026-08-20'
+            }
+          ],
+          documents: [],
+          patientMedications: [],
+          patientMedicationSchedules: [],
+          patientLabSamples: [],
+          patientLabValues: []
+        },
+        patientExamination: {
+          id: 401,
+          examination: { id: 9, name: 'colonoscopy', nameDe: 'Koloskopie' },
+          patientData: { id: 42 },
+          dateStart: '2026-08-20'
+        }
+      }
     })
   })
 
@@ -1390,15 +1456,55 @@ describe('ReportingShell media preload', () => {
 
     const requirement = wrapper.get('[data-testid="reporting-context-requirement"]')
     expect(requirement.text()).toContain('Patient und Untersuchung ausgewählt')
-    expect(wrapper.get('[data-testid="case-select"]').attributes('required')).toBeDefined()
-    expect(
-      wrapper.get('[data-testid="patient-examination-select"]').attributes('required')
-    ).toBeDefined()
+    expect(wrapper.get('[data-testid="resolved-patient-examination"]').text()).toContain(
+      'Persistierte Patientenuntersuchung 314'
+    )
+    expect(wrapper.find('[data-testid="patient-select"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="examination-select"]').exists()).toBe(false)
 
     const secondaryControls = wrapper.get('[data-testid="reporting-options"]')
     expect(secondaryControls.attributes('open')).toBeUndefined()
     expect(secondaryControls.get('summary').text()).toBe('Weitere Einstellungen und Import')
     expect(wrapper.find('.context-panel').exists()).toBe(false)
+  })
+
+  it('persists patient and examination as one patient examination before entering findings', async () => {
+    hoisted.routeRef.current = reactive({
+      path: '/reporting',
+      params: { patient_examination_id: '' }
+    })
+    hoisted.flowRef.current.caseId = null
+    hoisted.flowRef.current.patientExaminationId = null
+    hoisted.flowRef.current.selectedPatientId = null
+    hoisted.flowRef.current.selectedExaminationId = null
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="resolved-patient-examination"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="patient-select"]').setValue('42')
+    await wrapper.get('[data-testid="examination-select"]').setValue('9')
+    await wrapper.get('[data-testid="persist-patient-examination"]').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.axiosApi.post).toHaveBeenCalledWith(
+      'cases/create-with-examination/',
+      expect.any(Object)
+    )
+    const createPayload = hoisted.axiosApi.post.mock.calls.at(-1)?.[1]
+    expect(createPayload).toMatchObject({
+      patientExamination: {
+        patient: 'patient_42',
+        examination: 'colonoscopy'
+      }
+    })
+    expect(hoisted.flowRef.current.setPatientExaminationContext).toHaveBeenCalledWith({
+      patientExaminationId: 401,
+      selectedPatientId: 42,
+      selectedExaminationId: 9,
+      preserveTemplateSelection: true
+    })
+    expect(hoisted.routerRef.current.push).toHaveBeenCalledWith('/reporting/401/findings')
   })
 
   it('loads and applies the report language contract', async () => {
@@ -1692,7 +1798,6 @@ describe('ReportingShell media preload', () => {
     )
   })
 
-
   it('preserves a user-selected bundle across reload but blocks incompatible patient resolution', async () => {
     const availableBundles: TerminologyBundleVersion[] = [
       {
@@ -1747,6 +1852,7 @@ describe('ReportingShell media preload', () => {
     expect(hoisted.terminologyStore.activeBundle).toEqual(
       expect.objectContaining({ moduleName: 'gastro_v2', version: '2.0.0' })
     )
+    initial.unmount()
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockClear()
 
     const restored = mountShell()
@@ -1922,5 +2028,61 @@ describe('ReportingShell media preload', () => {
 
     const bundle = wrapper.get('[data-testid="terminology-bundle-select"]')
     expect((bundle.element as HTMLSelectElement).value).toBe('report_template_examples@@1.0.0')
+  })
+
+  it('reselects the exact installed bundle pinned by a restored patient draft', async () => {
+    const pinnedBundle: TerminologyBundleVersion = {
+      moduleName: 'report_template_examples',
+      version: '1.0.0',
+      medicalField: 'gastroenterology',
+      isActive: false
+    }
+    const otherBundle: TerminologyBundleVersion = {
+      moduleName: 'other_reporting',
+      version: '2.0.0',
+      medicalField: 'gastroenterology',
+      isActive: true
+    }
+    const restoredDraft: ReportingRuntimeDraft = {
+      draftId: 'draft_314',
+      patientExaminationId: 314,
+      moduleName: pinnedBundle.moduleName,
+      templateName: null,
+      templateIdentity: null,
+      hydratedFrom: 'session_storage',
+      updatedAt: '2026-08-20T10:00:00.000Z',
+      verificationStatus: 'unverified',
+      persistencePolicy: 'blocked_until_verified',
+      payload: {
+        patient: 'patient_42',
+        examiners: [],
+        examination: 'colonoscopy',
+        knowledgeBaseModule: pinnedBundle.moduleName,
+        knowledgeBaseVersion: pinnedBundle.version,
+        patientFindings: []
+      }
+    }
+    hoisted.flowRef.current.currentRuntimeDraft = restoredDraft
+    hoisted.flowRef.current.runtimeDraftsByPatientExaminationId = { '314': restoredDraft }
+    hoisted.terminologyStore.bundles = [pinnedBundle, otherBundle]
+    hoisted.terminologyStore.filteredBundles = [pinnedBundle, otherBundle]
+    hoisted.terminologyStore.activeBundle = otherBundle
+    hoisted.terminologyStore.activeModuleName = otherBundle.moduleName
+    hoisted.terminologyStore.activeBundleKey = `${otherBundle.moduleName}@@${otherBundle.version}`
+    hoisted.terminologyStore.selectBundle.mockImplementation((bundle: TerminologyBundleVersion) => {
+      const active = { ...bundle, isActive: true }
+      hoisted.terminologyStore.activeBundle = active
+      hoisted.terminologyStore.activeModuleName = active.moduleName
+      hoisted.terminologyStore.activeBundleKey = `${active.moduleName}@@${active.version}`
+      return Promise.resolve({ active, counts: {} })
+    })
+
+    mountShell()
+    await flushPromises()
+
+    expect(hoisted.terminologyStore.selectBundle).toHaveBeenCalledWith(pinnedBundle)
+    expect(hoisted.terminologyStore.activeBundle).toEqual(
+      expect.objectContaining({ moduleName: 'report_template_examples', version: '1.0.0' })
+    )
   })
 })

@@ -46,10 +46,11 @@ describe('reporting routes', () => {
   })
 
   it.each([
-    ['/untersuchung', '/reporting/case-setup'],
-    ['/report-generator', '/reporting/case-setup'],
+    ['/untersuchung', '/reporting'],
+    ['/report-generator', '/reporting'],
     ['/reporting/123/template-requirements', '/reporting/123/findings'],
-    ['/reporting/:patient_examination_id/findings', '/reporting/case-setup']
+    ['/reporting/:patient_examination_id/findings', '/reporting'],
+    ['/reporting/case-setup', '/reporting']
   ])('resolves %s through the application route configuration', async (from, expected) => {
     const router = createAppRouter(createMemoryHistory())
 
@@ -60,7 +61,7 @@ describe('reporting routes', () => {
 
   it('rejects repeated patient-examination route parameters instead of joining them', async () => {
     const router = createAppRouter(createMemoryHistory())
-    await router.push('/reporting/case-setup')
+    await router.push('/reporting')
     const route = router
       .getRoutes()
       .find(
@@ -80,7 +81,7 @@ describe('reporting routes', () => {
         },
         router.currentRoute.value
       )
-    ).toBe('/reporting/case-setup')
+    ).toBe('/reporting')
   })
 
   it('keeps navigation within the same reporting draft without flushing', async () => {

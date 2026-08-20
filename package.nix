@@ -15,6 +15,7 @@
   runtimeLibs ? [ ],
   frontend,
   pythonDeps,
+  featureProviders,
 }:
 
 let
@@ -120,23 +121,68 @@ stdenvNoCC.mkDerivation {
         # canonical static root after collectstatic so the django-vite manifest
         # and its referenced assets are preserved exactly.
         cp -r ${frontend}/dist/. "$static_root/"
+        export WG_LUX_FEATURE_SOURCE=${./feature-tracking}
+        export WG_LUX_FEATURE_OUTPUT="$out/share/lx-annotate/features"
+        ${python.interpreter} - <<'PY'
+        import os
+        from pathlib import Path
+        import yaml
+
+        source = Path(os.environ["WG_LUX_FEATURE_SOURCE"])
+        output = Path(os.environ["WG_LUX_FEATURE_OUTPUT"])
+        output.mkdir(parents=True, exist_ok=True)
+        seen = set()
+        top_keys = (
+            "schema_version", "id", "name", "description", "owners",
+            "production_critical", "source_documents", "invariants",
+        )
+        requirement_keys = (
+            "id", "category", "title", "acceptance", "required", "verification",
+        )
+        for path in sorted(source.rglob("*.yml")):
+            if path.name in {
+                "PackagedKnowledgeBaseResources.yml", "policy.yml",
+                "schema.example.yml", "standard.yml",
+            }:
+                continue
+            value = yaml.safe_load(path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict) or not isinstance(value.get("id"), str):
+                continue
+            feature_id = value["id"]
+            if feature_id in seen:
+                raise ValueError(f"duplicate feature id: {feature_id}")
+            seen.add(feature_id)
+            specification = {key: value[key] for key in top_keys if key in value}
+            specification["definition_of_done"] = [
+                {key: requirement[key] for key in requirement_keys if key in requirement}
+                for requirement in value.get("definition_of_done", [])
+            ]
+            (output / f"{feature_id}.yml").write_text(
+                yaml.safe_dump(specification, sort_keys=False), encoding="utf-8"
+            )
+        PY
         vite_entry_file="$(LX_ANNOTATE_STATIC_ROOT="$static_root" ${python.interpreter} -c 'import json, os, sys; from pathlib import Path; static_root = Path(os.environ["LX_ANNOTATE_STATIC_ROOT"]); manifest_path = static_root / ".vite" / "manifest.json"; sys.exit(f"missing Vite manifest: {manifest_path}") if not manifest_path.is_file() else None; manifest = json.loads(manifest_path.read_text(encoding="utf-8")); entry = manifest.get("src/main.ts"); sys.exit("Vite manifest is missing the src/main.ts entry") if not isinstance(entry, dict) else None; entry_file = entry.get("file"); sys.exit("Vite manifest src/main.ts entry is missing its file mapping") if not entry_file else None; print(entry_file)')"
         if [ ! -f "$static_root/$vite_entry_file" ]; then
           echo "Vite manifest src/main.ts points to a missing asset: $static_root/$vite_entry_file" >&2
           exit 1
         fi
 
-        writeCliEntrypoint() {
+        writePythonEntrypoint() {
           local executable="$1"
-          local function_name="$2"
+          local module_name="$2"
+          local function_name="$3"
 
           cat > "$out/libexec/$executable" <<EOF
     #!${stdenv.shell}
     set -euo pipefail
     cd "$app_dir"
-    exec ${python.interpreter} -c "from lx_annotate.cli import $function_name; raise SystemExit($function_name())" "\$@"
+    exec ${python.interpreter} -c "from $module_name import $function_name; raise SystemExit($function_name())" "\$@"
     EOF
           chmod +x "$out/libexec/$executable"
+        }
+
+        writeCliEntrypoint() {
+          writePythonEntrypoint "$1" lx_annotate.cli "$2"
         }
 
         writeCliEntrypoint lx-annotate-web web
@@ -150,10 +196,10 @@ stdenvNoCC.mkDerivation {
         writeCliEntrypoint lx-annotate-export-frames export_frames
         writeCliEntrypoint lx-annotate-import-sap import_sap
         writeCliEntrypoint lx-annotate-recover-data recover_data
-        writeCliEntrypoint lx-annotate-bootstrap-terminology bootstrap_terminology
         writeCliEntrypoint lx-annotate-provision-hub-nodes provision_hub_nodes
         writeCliEntrypoint lx-annotate-storage-relief storage_relief
         writeCliEntrypoint lx-annotate-acceptance acceptance
+        writePythonEntrypoint lx-dtypes-kb-registry lx_dtypes.scripts.kb_registry main
 
         wrapRuntimeEntrypoint() {
           makeWrapper "$1" "$2" \
@@ -176,30 +222,33 @@ stdenvNoCC.mkDerivation {
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-export-frames" "$out/bin/lx-annotate-export-frames"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-import-sap" "$out/bin/lx-annotate-import-sap"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-recover-data" "$out/bin/lx-annotate-recover-data"
-        wrapRuntimeEntrypoint "$out/libexec/lx-annotate-bootstrap-terminology" "$out/bin/lx-annotate-bootstrap-terminology"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-provision-hub-nodes" "$out/bin/lx-annotate-provision-hub-nodes"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-storage-relief" "$out/bin/lx-annotate-storage-relief"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-acceptance" "$out/bin/lx-annotate-acceptance"
+        wrapRuntimeEntrypoint "$out/libexec/lx-dtypes-kb-registry" "$out/bin/lx-dtypes-kb-registry"
 
         runHook postInstall
   '';
 
-  passthru.runtimeEntrypoints = {
-    web = "lx-annotate-web";
-    manage = "lx-annotate-manage";
-    migrate = "lx-annotate-migrate";
-    loadBaseData = "lx-annotate-load-base-data";
-    worker = "lx-annotate-worker";
-    celery = "lx-annotate-celery";
-    watch = "lx-annotate-watch";
-    exportFrames = "lx-annotate-export-frames";
-    importSap = "lx-annotate-import-sap";
-    recoverData = "lx-annotate-recover-data";
-    bootstrapTerminology = "lx-annotate-bootstrap-terminology";
-    provisionHubNodes = "lx-annotate-provision-hub-nodes";
-    storageRelief = "lx-annotate-storage-relief";
-    acceptance = "lx-annotate-acceptance";
-    serverAlias = "lx-annotate-server";
+  passthru = {
+    inherit featureProviders;
+    runtimeEntrypoints = {
+      web = "lx-annotate-web";
+      manage = "lx-annotate-manage";
+      migrate = "lx-annotate-migrate";
+      loadBaseData = "lx-annotate-load-base-data";
+      worker = "lx-annotate-worker";
+      celery = "lx-annotate-celery";
+      watch = "lx-annotate-watch";
+      exportFrames = "lx-annotate-export-frames";
+      importSap = "lx-annotate-import-sap";
+      recoverData = "lx-annotate-recover-data";
+      knowledgeBaseRegistry = "lx-dtypes-kb-registry";
+      provisionHubNodes = "lx-annotate-provision-hub-nodes";
+      storageRelief = "lx-annotate-storage-relief";
+      acceptance = "lx-annotate-acceptance";
+      serverAlias = "lx-annotate-server";
+    };
   };
 
   meta = with lib; {

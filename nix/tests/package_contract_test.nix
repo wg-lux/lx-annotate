@@ -32,12 +32,12 @@ in
           lx-annotate-export-frames \
           lx-annotate-import-sap \
           lx-annotate-recover-data \
-          lx-annotate-bootstrap-terminology \
           lx-annotate-provision-hub-nodes \
           lx-annotate-storage-relief \
           lx-annotate-acceptance \
           lx-annotate-server \
-          lx-annotate-celery
+          lx-annotate-celery \
+          lx-dtypes-kb-registry
         do
           test -x "${lxAnnotate}/bin/$command"
         done
@@ -56,18 +56,20 @@ in
         grep -Fq "from lx_annotate.cli import export_frames" ${lxAnnotate}/libexec/lx-annotate-export-frames
         grep -Fq "from lx_annotate.cli import import_sap" ${lxAnnotate}/libexec/lx-annotate-import-sap
         grep -Fq "from lx_annotate.cli import recover_data" ${lxAnnotate}/libexec/lx-annotate-recover-data
-        grep -Fq "from lx_annotate.cli import bootstrap_terminology" ${lxAnnotate}/libexec/lx-annotate-bootstrap-terminology
+        grep -Fq "from lx_dtypes.scripts.kb_registry import main" ${lxAnnotate}/libexec/lx-dtypes-kb-registry
         grep -Fq "from lx_annotate.cli import provision_hub_nodes" ${lxAnnotate}/libexec/lx-annotate-provision-hub-nodes
         grep -Fq "from lx_annotate.cli import storage_relief" ${lxAnnotate}/libexec/lx-annotate-storage-relief
         grep -Fq "from lx_annotate.cli import acceptance" ${lxAnnotate}/libexec/lx-annotate-acceptance
         test ! -e ${lxAnnotate}/bin/lx-annotate-export_frames
+        test ! -e ${lxAnnotate}/bin/lx-annotate-bootstrap-terminology
         test "${lxAnnotate.runtimeEntrypoints.celery}" = "lx-annotate-celery"
+        test "${lxAnnotate.runtimeEntrypoints.knowledgeBaseRegistry}" = "lx-dtypes-kb-registry"
         if grep -Fq "/var/lib/lx-annotate/data" ${lxAnnotate}/bin/lx-annotate-web; then
           echo "package wrapper hardcodes host data paths" >&2
           exit 1
         fi
 
-        for command in lx-annotate-web lx-annotate-manage lx-annotate-worker lx-annotate-watch lx-annotate-migrate lx-annotate-load-base-data lx-annotate-export-frames lx-annotate-import-sap lx-annotate-recover-data lx-annotate-bootstrap-terminology lx-annotate-provision-hub-nodes lx-annotate-storage-relief lx-annotate-acceptance; do
+        for command in lx-annotate-web lx-annotate-manage lx-annotate-worker lx-annotate-watch lx-annotate-migrate lx-annotate-load-base-data lx-annotate-export-frames lx-annotate-import-sap lx-annotate-recover-data lx-annotate-provision-hub-nodes lx-annotate-storage-relief lx-annotate-acceptance lx-dtypes-kb-registry; do
           if grep -Eq 'git |uv sync|pip install|\.venv|\.devenv/state/venv' \
             "${lxAnnotate}/bin/$command" "${lxAnnotate}/libexec/$command"; then
             echo "$command wrapper still contains mutable runtime setup" >&2
@@ -94,13 +96,13 @@ in
 
         for command in \
           lx-annotate-recover-data \
-          lx-annotate-bootstrap-terminology \
           lx-annotate-provision-hub-nodes \
           lx-annotate-storage-relief \
           lx-annotate-acceptance
         do
           ${lxAnnotate}/bin/$command --help >/dev/null
         done
+        ${lxAnnotate}/bin/lx-dtypes-kb-registry bootstrap --help >/dev/null
 
         if grep -R -Fq "/home/admin/dev/lx-annotate" \
           ${lxAnnotate}/bin \

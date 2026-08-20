@@ -65,12 +65,12 @@ vi.mock('@/stores/reportingFlowStore', () => ({
   ) =>
     Boolean(
       draft &&
-        bundle &&
-        draft.patientExaminationId === patientExaminationId &&
-        draft.verificationStatus === 'verified' &&
-        draft.templateName &&
-        draft.templateIdentity.moduleName === bundle.moduleName &&
-        draft.templateIdentity.knowledgeBaseVersion === bundle.version
+      bundle &&
+      draft.patientExaminationId === patientExaminationId &&
+      draft.verificationStatus === 'verified' &&
+      draft.templateName &&
+      draft.templateIdentity.moduleName === bundle.moduleName &&
+      draft.templateIdentity.knowledgeBaseVersion === bundle.version
     )
 }))
 
@@ -144,6 +144,8 @@ describe('ReportExportPage', () => {
     expect(makeReport).toHaveBeenCalledWith({
       patientExaminationId: 17,
       reportId: 88,
+      knowledgeBaseModule: 'clinical_reporting',
+      knowledgeBaseVersion: '2.0.0',
       patient: {
         firstName: 'Ada',
         lastName: 'Lovelace',

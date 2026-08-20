@@ -10,6 +10,8 @@ export type ReportExportPatientIdentity = {
 export type MakeReportRequest = {
   patientExaminationId: number
   reportId?: number | null
+  knowledgeBaseModule: string
+  knowledgeBaseVersion: string
   patient: ReportExportPatientIdentity
   maxFrames?: number
 }

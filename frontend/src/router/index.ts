@@ -34,7 +34,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
           {
             path: 'case-setup',
             name: 'Reporting Fall-Setup',
-            component: () => import('@/views/reporting/CaseSetupPage.vue')
+            redirect: '/reporting'
           },
           {
             path: ':patient_examination_id/template-requirements',
@@ -42,7 +42,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
             redirect: (to) => {
               const patientExaminationId = to.params.patient_examination_id
               if (typeof patientExaminationId !== 'string' || !patientExaminationId.trim()) {
-                return '/reporting/case-setup'
+                return '/reporting'
               }
               return `/reporting/${patientExaminationId}/findings`
             }
@@ -173,7 +173,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
       {
         path: '/untersuchung',
         name: 'Untersuchung',
-        redirect: '/reporting/case-setup',
+        redirect: '/reporting',
         meta: {
           description: 'Legacy route redirected to the centralized reporting setup.'
         }
@@ -275,7 +275,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
       {
         path: '/report-generator',
         name: 'Report Generator',
-        redirect: '/reporting/case-setup',
+        redirect: '/reporting',
         meta: {
           description: 'Legacy route redirected to the centralized reporting setup.'
         }
@@ -404,7 +404,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
     }
     const peParam = to.params.patient_examination_id
     if (peParam === ':patient_examination_id') {
-      next('/reporting/case-setup')
+      next('/reporting')
       return
     }
     next()

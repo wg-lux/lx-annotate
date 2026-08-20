@@ -114,9 +114,11 @@ in
             print("lx-annotate.service runtime environment contract passed")
 
             machine.wait_for_unit("lx-annotate.service")
+            machine.wait_for_unit("lx-dtypes-kb-bootstrap.service")
             machine.wait_for_open_port(8000)
 
             machine.succeed("systemctl show -p ExecStart lx-annotate.service | grep -F '${lxAnnotate}/bin/lx-annotate-web'")
+            machine.succeed("systemctl show -p ExecStart lx-dtypes-kb-bootstrap.service | grep -F '${lxAnnotate}/bin/lx-dtypes-kb-registry bootstrap'")
             machine.succeed("systemctl cat lx-annotate-idle-video-transcode.service | grep -F '${lxAnnotate}/bin/lx-annotate-manage reconcile_video_formats --repair --in-place --json'")
             machine.succeed("systemctl cat lx-annotate-idle-video-transcode.service | grep -F 'CPUSchedulingPolicy=idle'")
             machine.succeed("systemctl cat lx-annotate-idle-video-transcode.service | grep -F 'IOSchedulingClass=idle'")
@@ -163,7 +165,6 @@ in
                   set -euo pipefail
                   for command in \
                     lx-annotate-recover-data \
-                    lx-annotate-bootstrap-terminology \
                     lx-annotate-provision-hub-nodes \
                     lx-annotate-storage-relief \
                     lx-annotate-acceptance
@@ -171,6 +172,8 @@ in
                     test -x "${lxAnnotate}/bin/$command"
                     "${lxAnnotate}/bin/$command" --help >/dev/null
                   done
+                  test -x "${lxAnnotate}/bin/lx-dtypes-kb-registry"
+                  "${lxAnnotate}/bin/lx-dtypes-kb-registry" bootstrap --help >/dev/null
                 '';
               };
             };
