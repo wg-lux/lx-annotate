@@ -131,7 +131,8 @@ def test_recovery_command_normalizes_paths_and_prefers_cli_target(
 
     monkeypatch.setattr(command_module, "RuntimeRecoveryService", RecoveryServiceStub)
     monkeypatch.setenv(
-        "LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(tmp_path / "environment-target"),
+        "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
+        str(tmp_path / "environment-target"),
     )
     target = tmp_path / "cli-target"
     state_file = tmp_path / "state" / "recovery.env"

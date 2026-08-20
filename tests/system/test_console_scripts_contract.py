@@ -74,6 +74,9 @@ def test_export_frames_delegates_default_output_directory_to_command(
     monkeypatch.setenv("LX_ANNOTATE_EXPORT_FRAMES_OUTPUT_DIR", str(output_dir))
     manage_calls: list[list[str]] = []
 
+    def record_manage_call(args: Sequence[str]) -> int:
+        manage_calls.append(list(args))
+        return 0
 
     monkeypatch.setattr(
         cli,
@@ -174,7 +177,8 @@ def test_manage_exposes_command_to_app_startup_and_restores_argv(
         assert argv == ["lx-annotate-manage", "recover_runtime_data", "--help"]
 
     monkeypatch.setattr(
-        "django.core.management.execute_from_command_line", fake_execute,
+        "django.core.management.execute_from_command_line",
+        fake_execute,
     )
 
     assert cli.manage(["recover_runtime_data", "--help"]) == 0

@@ -255,7 +255,8 @@ class HubExportApiTests(TestCase):
         self.assertEqual(job.transfer_key, original_transfer_key)
         self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.QUEUED)
         self.assertEqual(
-            job.failure_class, OutboundHubTransferJob.FailureClass.NO_FAILURE,
+            job.failure_class,
+            OutboundHubTransferJob.FailureClass.NO_FAILURE,
         )
         self.assertEqual(job.last_error, "")
         delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
