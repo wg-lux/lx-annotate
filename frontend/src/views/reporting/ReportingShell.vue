@@ -24,41 +24,138 @@
                 }}
               </strong>
               <small v-if="!flow.caseId">
-                Wählen Sie zuerst einen Patientenfall und danach die Untersuchung aus.
+                Wählen Sie Patient und Untersuchung aus. Persistiert wird erst die daraus
+                angelegte Patientenuntersuchung.
               </small>
               <small v-else-if="!activePatientExaminationId">
-                Der Patient ist gewählt. Wählen Sie jetzt die zugehörige Untersuchung aus.
+                Der Patient ist gewählt. Wählen Sie jetzt die Untersuchung aus und legen Sie die
+                Patientenuntersuchung an.
               </small>
               <small v-else>Der klinische Kontext für den Bericht ist vollständig.</small>
             </div>
           </div>
 
-          <div class="reporting-required-fields">
+          <div v-if="!activePatientExaminationId" class="reporting-required-fields">
             <div>
-              <label class="form-label form-label-sm mb-1" for="reporting-case-select">
+              <label class="form-label form-label-sm mb-1" for="reporting-patient-select">
                 <span class="required-field-step">1</span>
-                Patient / Fall auswählen
+                Patient auswählen
                 <span class="text-danger" aria-hidden="true">*</span>
               </label>
               <select
-                id="reporting-case-select"
+                id="reporting-patient-select"
+                class="form-select"
+                data-testid="patient-select"
+                :value="flow.selectedPatientId ?? ''"
+                :disabled="patientsLoading || patientExaminationCreationLoading"
+                aria-label="Patient für eine neue Patientenuntersuchung auswählen"
+                required
+                @change="onPatientSelection(($event.target as HTMLSelectElement).value)"
+              >
+                <option value="" disabled>
+                  {{
+                    patientsLoading
+                      ? 'Patienten werden geladen...'
+                      : patients.length
+                        ? 'Bitte Patient wählen'
+                        : 'Keine Patienten verfügbar'
+                  }}
+                </option>
+                <option v-for="patient in patients" :key="patient.id" :value="patient.id">
+                  {{ patient.displayName }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label form-label-sm mb-1" for="reporting-examination-type-select">
+                <span class="required-field-step">2</span>
+                Untersuchung auswählen
+                <span class="text-danger" aria-hidden="true">*</span>
+              </label>
+              <select
+                id="reporting-examination-type-select"
+                class="form-select"
+                data-testid="examination-select"
+                :value="flow.selectedExaminationId ?? ''"
+                :disabled="examinationsLoading || patientExaminationCreationLoading"
+                aria-label="Untersuchungstyp für eine neue Patientenuntersuchung auswählen"
+                required
+                @change="onExaminationSelection(($event.target as HTMLSelectElement).value)"
+              >
+                <option value="" disabled>
+                  {{
+                    examinationsLoading
+                      ? 'Untersuchungen werden geladen...'
+                      : examinations.length
+                        ? 'Bitte Untersuchung wählen'
+                        : 'Keine Untersuchungen verfügbar'
+                  }}
+                </option>
+                <option
+                  v-for="examination in examinations"
+                  :key="examination.id"
+                  :value="examination.id"
+                >
+                  {{ examination.displayName }}
+                </option>
+              </select>
+            </div>
+            <div class="reporting-persistence-action">
+              <button
+                class="btn btn-primary"
+                type="button"
+                data-testid="persist-patient-examination"
+                :disabled="
+                  patientExaminationCreationLoading ||
+                  !flow.selectedPatientId ||
+                  !flow.selectedExaminationId
+                "
+                @click="createPatientExaminationContext"
+              >
+                <span
+                  v-if="patientExaminationCreationLoading"
+                  class="spinner-border spinner-border-sm me-1"
+                ></span>
+                Patientenuntersuchung anlegen
+              </button>
+              <small class="text-muted">
+                Patient und Untersuchung werden erst durch diesen Schritt als Patientenuntersuchung
+                in EndoReg DB persistiert.
+              </small>
+            </div>
+          </div>
+
+          <div v-else class="reporting-resolved-context" data-testid="resolved-patient-examination">
+            <div>
+              <span>Patient</span>
+              <strong>{{ patientHeaderLabel }}</strong>
+            </div>
+            <div>
+              <span>Untersuchung</span>
+              <strong>{{ examinationTypeLabel }}</strong>
+            </div>
+            <small>Persistierte Patientenuntersuchung {{ activePatientExaminationId }}</small>
+            <button
+              class="btn btn-outline-secondary btn-sm"
+              type="button"
+              @click="startNewPatientExamination"
+            >
+              Neue Patientenuntersuchung
+            </button>
+          </div>
+
+          <details class="reporting-secondary-controls mt-3" data-testid="reporting-options">
+            <summary>Weitere Einstellungen und Import</summary>
+            <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2 mt-2">
+              <select
                 class="form-select"
                 data-testid="case-select"
                 :value="flow.caseId ?? ''"
                 :disabled="caseOptionsLoading || !caseOptions.length"
-                aria-label="Patient und Fall auswählen"
-                required
+                aria-label="Persistierten Patientenfall auswählen"
                 @change="onCaseSelect(($event.target as HTMLSelectElement).value)"
               >
-                <option value="">
-                  {{
-                    caseOptionsLoading
-                      ? 'Fälle werden geladen...'
-                      : caseOptions.length
-                        ? 'Bitte Patient / Fall wählen'
-                        : 'Keine Fälle verfügbar'
-                  }}
-                </option>
+                <option value="">Persistierten Fall wählen</option>
                 <option
                   v-for="patientCase in caseOptions"
                   :key="patientCase.caseId"
@@ -67,15 +164,7 @@
                   {{ formatCaseLabel(patientCase) }}
                 </option>
               </select>
-            </div>
-            <div>
-              <label class="form-label form-label-sm mb-1" for="reporting-examination-select">
-                <span class="required-field-step">2</span>
-                Untersuchung auswählen
-                <span class="text-danger" aria-hidden="true">*</span>
-              </label>
               <select
-                id="reporting-examination-select"
                 class="form-select"
                 data-testid="patient-examination-select"
                 :value="selectedPatientExaminationId"
@@ -84,19 +173,10 @@
                   patientExaminationOptionsLoading ||
                   !patientExaminationOptions.length
                 "
-                aria-label="Untersuchung auswählen"
-                required
+                aria-label="Persistierte Patientenuntersuchung auswählen"
                 @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
               >
-                <option value="">
-                  {{
-                    patientExaminationOptionsLoading
-                      ? 'Patientenuntersuchungen werden geladen...'
-                      : patientExaminationOptions.length
-                        ? 'Bitte Untersuchung wählen'
-                        : 'Keine Patientenuntersuchungen verfügbar'
-                  }}
-                </option>
+                <option value="">Persistierte Patientenuntersuchung wählen</option>
                 <option
                   v-for="option in patientExaminationOptions"
                   :key="option.id"
@@ -105,12 +185,6 @@
                   {{ option.label }}
                 </option>
               </select>
-            </div>
-          </div>
-
-          <details class="reporting-secondary-controls mt-3" data-testid="reporting-options">
-            <summary>Weitere Einstellungen und Import</summary>
-            <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2 mt-2">
               <select
                 class="form-select"
                 data-testid="terminology-bundle-select"
@@ -271,6 +345,9 @@
           </div>
           <div v-if="caseOptionsError" class="small text-danger mt-1">
             {{ caseOptionsError }}
+          </div>
+          <div v-if="patientExaminationCreationError" class="small text-danger mt-1" role="alert">
+            {{ patientExaminationCreationError }}
           </div>
           <div v-if="templateSelectionError" class="small text-danger mt-1" role="alert">
             {{ templateSelectionError }}
@@ -820,7 +897,7 @@ import {
   fetchKnowledgeBaseGraphSnapshot
 } from '@/api/knowledgeBaseGraphApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
-import { fetchPatientCases, type PatientCase } from '@/api/casesApi'
+import { createCaseWithExamination, fetchPatientCases, type PatientCase } from '@/api/casesApi'
 import {
   fetchReportingLanguages,
   type ReportLanguageCode,
@@ -857,6 +934,10 @@ import {
   type ReportingRuntimeDraft
 } from '@/stores/reportingFlowStore'
 import { terminologyBatchImportMessage, useTerminologyStore } from '@/stores/terminologyStore'
+import { usePatientStore } from '@/stores/patientStore'
+import { useExaminationStore } from '@/stores/examinationStore'
+import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
+import type { PatientExamination } from '@/stores/patientExaminationStore'
 import { fetchPatientTimelineLatest, pickPreferredReportStream } from '@/api/reportingTimelineApi'
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
@@ -872,7 +953,7 @@ import {
   type ReportTemplateLifecycleChange
 } from './reportTemplateLifecycleContext'
 import { normalizeReportingIndicationSelections } from './reportingIndicationContract'
-import { useReportingKnowledgeBase } from './useReportingKnowledgeBase';
+import { useReportingKnowledgeBase } from './useReportingKnowledgeBase'
 
 const logger = createRuntimeLogger('reporting-shell')
 import {
@@ -897,6 +978,9 @@ const route = useRoute()
 const router = useRouter()
 const flow = useReportingFlowStore()
 const terminology = useTerminologyStore()
+const patientStore = usePatientStore()
+const examinationStore = useExaminationStore()
+const patientExaminationStore = usePatientExaminationStore()
 const reportingVideoElement = ref<HTMLVideoElement | null>(null)
 const selectedVideoArtifactKind = ref<StreamableVideoFileType>('processed')
 const selectedFrameStreamUrl = ref<string | null>(null)
@@ -962,6 +1046,8 @@ const patientExaminationOptionsError = ref<string | null>(null)
 const caseOptions = ref<PatientCase[]>([])
 const caseOptionsLoading = ref(false)
 const caseOptionsError = ref<string | null>(null)
+const patientExaminationCreationLoading = ref(false)
+const patientExaminationCreationError = ref<string | null>(null)
 const draftBootstrapInFlight = ref<{ key: string; promise: Promise<void> } | null>(null)
 const draftBootstrapError = ref<string | null>(null)
 const patientExaminationDetail = ref<Record<string, unknown> | null>(null)
@@ -984,6 +1070,11 @@ let patientOptionsRequestGeneration = 0
 let caseOptionsRequestGeneration = 0
 let mediaPreloadRequestGeneration = 0
 let routeContextWatchGeneration = 0
+
+const patients = computed(() => patientStore.patientsWithDisplayName)
+const examinations = computed(() => examinationStore.examinationsDropdown)
+const patientsLoading = computed(() => patientStore.loading)
+const examinationsLoading = computed(() => examinationStore.loading)
 
 const { getCatalogContext, pinnedIdentity } = useReportingKnowledgeBase(patientExaminationDetail)
 
@@ -1028,27 +1119,27 @@ const activePatientExaminationId = computed(
 const findingsStepTarget = computed(() =>
   activePatientExaminationId.value
     ? `/reporting/${String(activePatientExaminationId.value)}/findings`
-    : '/reporting/case-setup'
+    : '/reporting'
 )
 const reportEditorStepTarget = computed(() =>
   activePatientExaminationId.value
     ? `/reporting/${String(activePatientExaminationId.value)}/report-editor`
-    : '/reporting/case-setup'
+    : '/reporting'
 )
 const frameSelectorStepTarget = computed(() =>
   activePatientExaminationId.value
     ? `/reporting/${String(activePatientExaminationId.value)}/frame-selector`
-    : '/reporting/case-setup'
+    : '/reporting'
 )
 const reportExportStepTarget = computed(() =>
   activePatientExaminationId.value
     ? `/reporting/${String(activePatientExaminationId.value)}/report-export`
-    : '/reporting/case-setup'
+    : '/reporting'
 )
 const finalizedStepTarget = computed(() =>
   activePatientExaminationId.value
     ? `/reporting/${String(activePatientExaminationId.value)}/finalized`
-    : '/reporting/case-setup'
+    : '/reporting'
 )
 const reportEditorTarget = computed(() => {
   if (!activePatientExaminationId.value) return null
@@ -1081,7 +1172,6 @@ const navItems = computed(() => [
     requiresPatientExamination: false
   },
   { label: 'Arbeitsliste', to: '/reporting', requiresPatientExamination: false },
-  { label: 'Falldaten', to: '/reporting/case-setup', requiresPatientExamination: false },
   {
     label: 'Befunde',
     to: findingsStepTarget.value,
@@ -2187,14 +2277,13 @@ async function loadFindingCatalogForExamination(examinationId: number | null | u
   }
 }
 
-
 function assertPatientExaminationKnowledgeBaseCompatibility(
   detail: Record<string, unknown>,
   context: DraftBootstrapContext
 ): void {
   if (!terminology.activeBundle) return
 
-  const resolved =  getCatalogContext({ allowMismatchFallback: false })
+  const resolved = getCatalogContext({ allowMismatchFallback: false })
 
   if (
     !resolved ||
@@ -2455,7 +2544,7 @@ async function onCaseSelect(caseId: string): Promise<void> {
       selectedPatientId: patientCase.patient,
       selectedExaminationId: null
     })
-    await router.push('/reporting/case-setup')
+    await router.push('/reporting')
     return
   }
   await onPatientExaminationSelect(String(firstExamination.id))
@@ -2580,12 +2669,90 @@ async function onPatientExaminationSelect(rawValue: string) {
   await router.push(getNavigationTargetForPatientExamination(patientExaminationId))
 }
 
+function parseOptionalPositiveInteger(rawValue: string): number | null {
+  const value = Number(rawValue)
+  return Number.isSafeInteger(value) && value > 0 ? value : null
+}
+
+async function onPatientSelection(rawValue: string): Promise<void> {
+  const patientId = parseOptionalPositiveInteger(rawValue)
+  if (patientId === flow.selectedPatientId) return
+  if (!(await flushDraftBeforeContextSwitch(null))) return
+  flow.resetForPatientSwitch()
+  flow.setCaseSelection({ selectedPatientId: patientId })
+  patientExaminationCreationError.value = null
+}
+
+function onExaminationSelection(rawValue: string): void {
+  flow.setCaseSelection({ selectedExaminationId: parseOptionalPositiveInteger(rawValue) })
+  patientExaminationCreationError.value = null
+}
+
+async function startNewPatientExamination(): Promise<void> {
+  if (!(await flushDraftBeforeContextSwitch(null))) return
+  flow.resetForPatientSwitch()
+  flow.setCaseSelection({ selectedPatientId: null, selectedExaminationId: null })
+  patientExaminationCreationError.value = null
+  await router.push('/reporting')
+}
+
+async function createPatientExaminationContext(): Promise<void> {
+  if (!flow.selectedPatientId || !flow.selectedExaminationId) {
+    patientExaminationCreationError.value =
+      'Bitte wählen Sie zuerst Patient und Untersuchung aus.'
+    return
+  }
+
+  const selectedPatient = patientStore.getPatientById(flow.selectedPatientId)
+  const selectedExamination = examinations.value.find(
+    (entry) => entry.id === flow.selectedExaminationId
+  )
+  if (!selectedPatient || !selectedExamination) {
+    patientExaminationCreationError.value =
+      'Patient oder Untersuchung konnte nicht eindeutig aufgelöst werden.'
+    return
+  }
+
+  patientExaminationCreationLoading.value = true
+  patientExaminationCreationError.value = null
+  try {
+    const now = new Date()
+    const result = await createCaseWithExamination({
+      admissionDate: now.toISOString(),
+      patientExamination: {
+        patient: selectedPatient.patientHash || `patient_${String(flow.selectedPatientId)}`,
+        examination: selectedExamination.name,
+        dateStart: now.toISOString().split('T')[0]
+      }
+    })
+    const patientExamination = result.patientExamination as PatientExamination
+    patientExaminationStore.addPatientExamination(patientExamination)
+    patientExaminationStore.setCurrentPatientExaminationId(patientExamination.id)
+    mergeCaseOptions([result.case])
+    activateCase(result.case)
+    flow.setPatientExaminationContext({
+      patientExaminationId: patientExamination.id,
+      selectedPatientId: flow.selectedPatientId,
+      selectedExaminationId: flow.selectedExaminationId,
+      preserveTemplateSelection: true
+    })
+    await router.push(`/reporting/${String(patientExamination.id)}/findings`)
+  } catch (error: unknown) {
+    patientExaminationCreationError.value = reportingApiErrorMessage(
+      error,
+      'Die Patientenuntersuchung konnte nicht angelegt werden.'
+    )
+  } finally {
+    patientExaminationCreationLoading.value = false
+  }
+}
+
 function draftHasRuntimeContent(): boolean {
   return Boolean(
     flow.currentRuntimeDraft?.payload.patientFindings.length ||
-      Object.keys(readRecord(flow.templateSectionDrafts)).length ||
-      flow.activeReportId ||
-      flow.findingsRevision > 0
+    Object.keys(readRecord(flow.templateSectionDrafts)).length ||
+    flow.activeReportId ||
+    flow.findingsRevision > 0
   )
 }
 
@@ -3159,14 +3326,16 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
   }
 
   const pinned = pinnedIdentity.value
-  if (pinned?.moduleName && pinned?.moduleVersion) {
+  if (pinned?.moduleName && pinned.moduleVersion) {
     const matchingBundle = terminology.bundles.find(
-      (b) => b.moduleName === pinned.moduleName && b.version === pinned.moduleVersion
+      (bundle) =>
+        bundle.moduleName === pinned.moduleName && bundle.version === pinned.moduleVersion
     )
     if (matchingBundle && terminology.activeBundleKey !== terminology.bundleKey(matchingBundle)) {
       await terminology.selectBundle(matchingBundle)
     }
   }
+
   const option =
     patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
   if (patientExaminationId !== routePatientExaminationId.value) return
@@ -3276,7 +3445,7 @@ function isStepDisabled(item: {
 }) {
   return Boolean(
     (item.requiresPatientExamination && !flow.patientExaminationId) ||
-      (item.requiresVerifiedTemplate && !hasVerifiedTemplateContext.value)
+    (item.requiresVerifiedTemplate && !hasVerifiedTemplateContext.value)
   )
 }
 
@@ -3386,6 +3555,7 @@ watch(
 onMounted(() => {
   void ensureTerminologyBundlesLoaded()
   void loadReportingLanguages()
+  void Promise.all([patientStore.fetchPatients(), examinationStore.fetchExaminations()])
 })
 </script>
 
@@ -3480,6 +3650,38 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+.reporting-persistence-action {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reporting-resolved-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #9bc7ad;
+  border-radius: 8px;
+  background: #effaf3;
+}
+
+.reporting-resolved-context span,
+.reporting-resolved-context small {
+  display: block;
+  color: #526174;
+}
+
+.reporting-resolved-context small {
+  grid-column: 1 / -1;
+}
+
+.reporting-resolved-context .btn {
+  grid-column: 1 / -1;
+  width: fit-content;
 }
 
 .required-field-step {

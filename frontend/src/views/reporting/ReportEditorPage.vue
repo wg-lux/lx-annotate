@@ -1212,10 +1212,7 @@ async function loadFindingCatalog(context?: EditorContext) {
   const catalogContext = getCatalogContext({ allowMismatchFallback: true })
 
   try {
-    const findings = await findingsApi.getExaminationFindings(
-      examinationId,
-      catalogContext
-    )
+    const findings = await findingsApi.getExaminationFindings(examinationId, catalogContext)
     if (!isEditorContextCurrent(context)) return
     findingCatalog.value = findings
   } catch {
@@ -1268,9 +1265,7 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
   }
 }
 
-async function loadPatientExaminationKnowledgeBaseIdentity(
-  context: EditorContext
-): Promise<void> {
+async function loadPatientExaminationKnowledgeBaseIdentity(context: EditorContext): Promise<void> {
   const response = await axiosInstance.get(
     r(endpoints.examination.patientExaminationDetail(context.patientExaminationId))
   )
@@ -1413,6 +1408,8 @@ function buildSaveSubmissionPayload(
     ...(currentReportVersion.value ? { expectedVersion: currentReportVersion.value } : {}),
     patientExaminationId: context.patientExaminationId,
     templateName: context.templateName,
+    knowledgeBaseModule: terminology.activeBundle?.moduleName || '',
+    knowledgeBaseVersion: terminology.activeBundle?.version || '',
     templateVersion: currentRuntimeDraft.value?.templateIdentity?.templateVersion || '',
     templateHash: currentRuntimeDraft.value?.templateIdentity?.templateHash || '',
     status,

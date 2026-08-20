@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import tomllib
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -13,10 +14,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def test_release_version_has_one_repository_policy() -> None:
     pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
     frontend_package = json.loads(
-        (REPO_ROOT / "frontend" / "package.json").read_text(encoding="utf-8")
+        (REPO_ROOT / "frontend" / "package.json").read_text(encoding="utf-8"),
     )
     frontend_lock = json.loads(
-        (REPO_ROOT / "frontend" / "package-lock.json").read_text(encoding="utf-8")
+        (REPO_ROOT / "frontend" / "package-lock.json").read_text(encoding="utf-8"),
     )
 
     release_version = pyproject["project"]["version"]
@@ -40,12 +41,12 @@ def test_python_wheel_exposes_runtime_console_scripts():
         "lx-annotate-export-frames": "lx_annotate.cli:export_frames",
         "lx-annotate-import-sap": "lx_annotate.cli:import_sap",
         "lx-annotate-recover-data": "lx_annotate.cli:recover_data",
-        "lx-annotate-bootstrap-terminology": ("lx_annotate.cli:bootstrap_terminology"),
         "lx-annotate-provision-hub-nodes": "lx_annotate.cli:provision_hub_nodes",
         "lx-annotate-storage-relief": "lx_annotate.cli:storage_relief",
         "lx-annotate-acceptance": "lx_annotate.cli:acceptance",
     }
     assert pyproject["project"]["scripts"].items() >= expected_scripts.items()
+    assert "lx-annotate-bootstrap-terminology" not in pyproject["project"]["scripts"]
 
 
 def test_cli_entrypoints_keep_luxnix_compatibility_aliases():
@@ -72,10 +73,12 @@ def test_export_frames_delegates_default_output_directory_to_command(
     output_dir = tmp_path / "export" / "frames"
     monkeypatch.setenv("LX_ANNOTATE_EXPORT_FRAMES_OUTPUT_DIR", str(output_dir))
     manage_calls: list[list[str]] = []
+
+
     monkeypatch.setattr(
         cli,
         "manage",
-        lambda args: manage_calls.append(list(args)) or 0,
+        record_manage_call,
     )
 
     assert cli.export_frames(["--limit", "1"]) == 0
@@ -87,7 +90,7 @@ def test_export_frames_delegates_default_output_directory_to_command(
             str(output_dir),
             "--limit",
             "1",
-        ]
+        ],
     ]
     assert not output_dir.exists()
 
@@ -98,10 +101,15 @@ def test_export_frames_preserves_explicit_output_path(
     from lx_annotate import cli
 
     manage_calls: list[list[str]] = []
+
+    def record_manage_call(args: Sequence[str]) -> int:
+        manage_calls.append(list(args))
+        return 0
+
     monkeypatch.setattr(
         cli,
         "manage",
-        lambda args: manage_calls.append(list(args)) or 0,
+        record_manage_call,
     )
 
     assert cli.export_frames(["--output-path=annotations.json"]) == 0
@@ -138,10 +146,15 @@ def test_operational_entrypoints_delegate_to_management_commands(
     from lx_annotate import cli
 
     manage_calls: list[list[str]] = []
+
+    def record_manage_call(args: Sequence[str]) -> int:
+        manage_calls.append(list(args))
+        return 0
+
     monkeypatch.setattr(
         cli,
         "manage",
-        lambda args: manage_calls.append(list(args)) or 0,
+        record_manage_call,
     )
 
     assert getattr(cli, function_name)(["--example"]) == 0
@@ -161,7 +174,7 @@ def test_manage_exposes_command_to_app_startup_and_restores_argv(
         assert argv == ["lx-annotate-manage", "recover_runtime_data", "--help"]
 
     monkeypatch.setattr(
-        "django.core.management.execute_from_command_line", fake_execute
+        "django.core.management.execute_from_command_line", fake_execute,
     )
 
     assert cli.manage(["recover_runtime_data", "--help"]) == 0

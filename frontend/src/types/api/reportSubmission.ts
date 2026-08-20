@@ -37,6 +37,8 @@ export type SaveReportSubmissionRequest = {
   reportId?: number
   patientExaminationId: number
   templateName: string
+  knowledgeBaseModule: string
+  knowledgeBaseVersion: string
   templateVersion?: string
   templateHash?: string
   status: ReportSubmissionStatus

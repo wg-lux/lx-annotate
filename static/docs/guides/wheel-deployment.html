@@ -454,6 +454,18 @@ dedicated LuxNix service or external KMS/secrets system should own key
 management and unlock policy.</p>
 </section>
 </section>
+<section id="knowledge-base-startup-gate">
+<h2>Knowledge-base startup gate<a class="headerlink" href="#knowledge-base-startup-gate" title="Link to this heading">¶</a></h2>
+<p>Before migrations or any Django service starts, run the CLI shipped by the
+installed <code class="docutils literal notranslate"><span class="pre">lx-dtypes</span></code> dependency:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>lx-dtypes-kb-registry<span class="w"> </span>bootstrap<span class="w"> </span>--registry<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LX_DTYPES_KB_REGISTRY</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+<p>The command provisions and fully validates every packaged provider identity,
+preserves a valid custom active identity, and exits nonzero for malformed or
+unloadable state. LX-Annotate does not provide a compatibility wrapper for this
+command. Deployment must stop when the gate fails.</p>
+</section>
 <section id="ingress-contract">
 <h2>Ingress Contract<a class="headerlink" href="#ingress-contract" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> supports two first-class ingest boundaries:</p>
@@ -851,6 +863,7 @@ cache growth on long-lived hosts.</p></li>
 <li><a class="reference internal" href="#secretspec-usage">Secretspec Usage</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#knowledge-base-startup-gate">Knowledge-base startup gate</a></li>
 <li><a class="reference internal" href="#ingress-contract">Ingress Contract</a></li>
 <li><a class="reference internal" href="#storage-recommendations">Storage Recommendations</a></li>
 <li><a class="reference internal" href="#hub-deployment-profile">Hub Deployment Profile</a></li>

@@ -212,6 +212,20 @@ The application should not generate or manage encryption keys itself. A
 dedicated LuxNix service or external KMS/secrets system should own key
 management and unlock policy.
 
+## Knowledge-base startup gate
+
+Before migrations or any Django service starts, run the CLI shipped by the
+installed `lx-dtypes` dependency:
+
+```bash
+lx-dtypes-kb-registry bootstrap --registry "$LX_DTYPES_KB_REGISTRY"
+```
+
+The command provisions and fully validates every packaged provider identity,
+preserves a valid custom active identity, and exits nonzero for malformed or
+unloadable state. LX-Annotate does not provide a compatibility wrapper for this
+command. Deployment must stop when the gate fails.
+
 ## Ingress Contract
 
 `lx-annotate` supports two first-class ingest boundaries:

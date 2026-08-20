@@ -10,6 +10,16 @@
     pyproject-build-systems.url = "github:pyproject-nix/build-system-pkgs/04e9c186e01f0830dad3739088070e4c551191a4";
 
     nixtest.url = "gitlab:TECHNOFAB/nixtest?dir=lib";
+
+    endoreg-db = {
+      url = "github:wg-lux/endoreg-db/prototype";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    lx-data-models = {
+      url = "github:wg-lux/lx-data-models";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -135,6 +145,11 @@
           depName != "lx-annotate" && depName != "lx_annotate"
         ) resolvedUvDeps;
 
+        featureProviders = {
+          endoreg-db = inputs.endoreg-db.packages.${system}.default;
+          lx-data-models = inputs.lx-data-models.packages.${system}.lx-dtypes;
+        };
+
         frontend = pkgs.callPackage ./frontend/default.nix { };
 
         runtimeLibs = [
@@ -145,7 +160,7 @@
         ];
 
         lx-annotate = pkgs.callPackage ./package.nix {
-          inherit runtimeLibs frontend pythonDeps;
+          inherit runtimeLibs frontend pythonDeps featureProviders;
         };
 
         nixtestSuite = ntlib.mkNixtest {

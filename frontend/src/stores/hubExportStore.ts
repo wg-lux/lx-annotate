@@ -51,6 +51,7 @@ export interface HubExportItem {
   markedForUpload: boolean
   markedByUsername: string | null
   markedAt: string | null
+  outboundJobId: string | null
   outboundStatus: string
   failureClass?:
     | 'configuration_rejection'
@@ -179,6 +180,12 @@ export interface HubEligibleVideoOffloadResult {
   skippedCount: number
 }
 
+export interface HubExportRetryResult {
+  outboundJobId: string
+  transferKey: string
+  localStatus: string
+}
+
 export const useHubExportStore = defineStore('hubExport', {
   state: () => ({
     loading: false,
@@ -222,8 +229,7 @@ export const useHubExportStore = defineStore('hubExport', {
             ? error.response?.data.detail || error.message
             : error instanceof Error
               ? error.message
-              : null) ||
-          'Fehler beim Laden der Hub-Export-Übersicht.'
+              : null) || 'Fehler beim Laden der Hub-Export-Übersicht.'
         throw error
       } finally {
         this.loading = false
@@ -287,6 +293,22 @@ export const useHubExportStore = defineStore('hubExport', {
         throw error
       }
     },
+    async retryFailedJob(outboundJobId: string): Promise<HubExportRetryResult> {
+      this.mutationError = null
+      try {
+        const { data } = await axiosInstance.post<HubExportRetryResult>(
+          r(endpoints.hubExport.retry(outboundJobId))
+        )
+        await this.fetchOverview(this.selectedTargetNodeKey)
+        return data
+      } catch (error: unknown) {
+        this.mutationError = mutationErrorMessage(
+          error,
+          'Der fehlgeschlagene Hub-Transfer konnte nicht erneut eingeplant werden.'
+        )
+        throw error
+      }
+    },
     async checkVideoExportReadiness(
       videos: VideoExportReadinessCandidate[]
     ): Promise<VideoExportReadinessResult> {
@@ -307,7 +329,7 @@ export const useHubExportStore = defineStore('hubExport', {
           failures[0].reason,
           'Die Exportfreigabe konnte nicht geprüft werden.'
         )
-        this.mutationError = `${videos.length - failures.length} von ${videos.length} Videos geprüft. ${firstFailure}`
+        this.mutationError = `${String(videos.length - failures.length)} von ${String(videos.length)} Videos geprüft. ${firstFailure}`
       }
       return {
         checkedCount: videos.length - failures.length,

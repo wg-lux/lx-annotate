@@ -217,8 +217,8 @@ export const useTerminologyStore = defineStore('terminology', () => {
             candidate.version === response.active.version
         }))
       } else if (result.imported.length > 1) {
-        activeBundle.value = null
-        bundles.value = bundles.value.map((candidate) => ({ ...candidate, isActive: false }))
+        const backendActiveBundle = result.imported[result.imported.length - 1]
+        applyImportedBundle(backendActiveBundle, true)
       }
       return result
     } finally {
