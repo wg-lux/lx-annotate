@@ -5,6 +5,7 @@ import re
 import tomllib
 from pathlib import Path
 
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 REQUIRED_HOST_ENVIRONMENT_KEYS = frozenset(
@@ -38,7 +39,7 @@ REQUIRED_HOST_ENVIRONMENT_KEYS = frozenset(
         "WATCHER_REPORT_DIR",
         "WATCHER_VIDEO_DIR",
         "WORKING_DIR",
-    },
+    }
 )
 
 RESTORED_CONSUMED_ENVIRONMENT_KEYS = frozenset(
@@ -71,7 +72,6 @@ RESTORED_CONSUMED_ENVIRONMENT_KEYS = frozenset(
         "LX_ANNOTATE_STREAMABLE_VIDEO_ROOT",
         "LX_ANONYMIZER_PATH",
         "LX_DTYPES_KB_REGISTRY",
-        "LX_DTYPES_TERMINOLOGY_IMPORT_ROOT",
         "MEDIA_URL",
         "NGINX_PROTECTED_MEDIA_URL",
         "OLLAMA_BIN",
@@ -94,7 +94,7 @@ RESTORED_CONSUMED_ENVIRONMENT_KEYS = frozenset(
         "VITE_ENABLE_DEBUG",
         "WATCHER_POLL_INTERVAL_SECONDS",
         "WATCHER_STABLE_AFTER_SECONDS",
-    },
+    }
 )
 
 REMOVED_UNUSED_ENVIRONMENT_KEYS = frozenset(
@@ -110,7 +110,7 @@ REMOVED_UNUSED_ENVIRONMENT_KEYS = frozenset(
         "OLLAMA_MODELS",
         "SECRETSPEC_PROFILE",
         "TRANSFORMERS_CACHE",
-    },
+    }
 )
 
 FORBIDDEN_INLINE_SECRET_KEYS = frozenset(
@@ -121,7 +121,7 @@ FORBIDDEN_INLINE_SECRET_KEYS = frozenset(
         "LX_ANNOTATE_MASTER_KEY",
         "OIDC_RP_CLIENT_SECRET",
         "SECRET_KEY",
-    },
+    }
 )
 
 PROCESS_INTERNAL_ENVIRONMENT_KEYS = frozenset(
@@ -136,7 +136,7 @@ PROCESS_INTERNAL_ENVIRONMENT_KEYS = frozenset(
         "RUN_INTEGRATION_TESTS",
         "RUN_MAIN",
         "WATCHER_LOG_LEVEL",
-    },
+    }
 )
 
 
@@ -232,5 +232,5 @@ def test_python_environment_accesses_are_classified() -> None:
 
     assert python_environment_keys
     assert python_environment_keys <= declared_keys, sorted(
-        python_environment_keys - declared_keys,
+        python_environment_keys - declared_keys
     )

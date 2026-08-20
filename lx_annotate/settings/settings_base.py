@@ -54,18 +54,6 @@ ensure_directory(APP_DATA_DIR)
 APP_STORAGE_DIR = APP_DATA_DIR / "storage"
 ensure_directory(APP_STORAGE_DIR)
 
-LX_DTYPES_TERMINOLOGY_IMPORT_ROOT = (
-    Path(
-        os.getenv(
-            "LX_DTYPES_TERMINOLOGY_IMPORT_ROOT",
-            str(APP_DATA_DIR / "terminology" / "packages"),
-        ),
-    )
-    .expanduser()
-    .resolve()
-)
-ensure_directory(LX_DTYPES_TERMINOLOGY_IMPORT_ROOT)
-
 PROTECTED_MEDIA_URL = (
     str(os.getenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/") or "").strip()
     or "/protected_media/"
@@ -129,10 +117,6 @@ os.environ.setdefault("LX_ANNOTATE_DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("STORAGE_DIR", str(APP_STORAGE_DIR))
-os.environ.setdefault(
-    "LX_DTYPES_TERMINOLOGY_IMPORT_ROOT",
-    str(LX_DTYPES_TERMINOLOGY_IMPORT_ROOT),
-)
 os.environ.setdefault("NGINX_PROTECTED_MEDIA_URL", PROTECTED_MEDIA_URL)
 os.environ["PROTECTED_MEDIA_ROOT"] = str(PROTECTED_MEDIA_ROOT)
 os.environ.setdefault("LX_ANNOTATE_STREAMABLE_VIDEO_ROOT", str(STREAMABLE_VIDEO_ROOT))

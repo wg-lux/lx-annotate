@@ -17,8 +17,9 @@ from lx_dtypes.knowledge_bases import (
 from lx_dtypes.models.interface.KnowledgeBaseResolver import (
     clear_knowledge_base_resolver_caches,
 )
-from lx_dtypes.scripts.kb_registry import main as kb_registry_main
 from ninja.main import NinjaAPI
+
+from lx_annotate.runtime_commands.terminology_bootstrap import main as bootstrap_main
 
 
 def _mount_canonical_dtypes_api(monkeypatch, registry_path: Path) -> None:
@@ -62,9 +63,8 @@ def test_packaged_dgvs_bundle_resolves_through_canonical_host_api(
     registry_path = tmp_path / "terminology" / "registry.json"
 
     assert (
-        kb_registry_main(
+        bootstrap_main(
             [
-                "bootstrap",
                 "--registry",
                 str(registry_path),
                 "--module",

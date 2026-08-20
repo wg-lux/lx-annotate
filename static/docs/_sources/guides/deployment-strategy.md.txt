@@ -104,9 +104,8 @@ The runtime deployment flow is:
 2. Copy the wheel artifact to the server.
 3. Install or reinstall the wheel into the runtime virtualenv.
 4. Write or update `/var/lib/lx-annotate/.env.systemd`.
-5. Run `lx-dtypes-kb-registry bootstrap` against the governed registry.
-6. Run migrations.
-7. Restart the ASGI service.
+5. Run migrations.
+6. Restart the ASGI service.
 
 That flow is implemented by `deployment_example/deploy.sh`.
 

@@ -425,8 +425,6 @@ describe('ReportEditorPage draft-driven workflow', () => {
     const savePayload = saveCall[1]
     expect(savePayload.patientExaminationId).toBe(42)
     expect(savePayload.templateName).toBe('star_upper_gi_main')
-    expect(savePayload.knowledgeBaseModule).toBe('report_template_examples')
-    expect(savePayload.knowledgeBaseVersion).toBe('1.0.0')
     expect(savePayload.templateVersion).toBe('1')
     expect(savePayload.templateHash).toBe('hash-1')
     expect(savePayload.findings).toEqual([
@@ -464,6 +462,8 @@ describe('ReportEditorPage draft-driven workflow', () => {
 
     const wrapper = mountPage()
     await flushPromises()
+
+
   })
 
   it('resolves a missing examination ID by canonical name before loading colonoscopy lookups', async () => {

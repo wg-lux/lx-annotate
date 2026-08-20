@@ -407,15 +407,11 @@ let
         description = "LX-Annotate Celery worker ${name}";
         wantedBy = lib.optionals (workerCfg.mode == "always") [ "multi-user.target" ];
         after =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
+          lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
           ++ lib.optionals (cfg.migrate.enable && !cfg.loadBaseData.enable) [ "lx-annotate-migrate.service" ];
-        wants =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ];
+        wants = lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ];
         requires =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
+          lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
           ++ lib.optionals (cfg.migrate.enable && !cfg.loadBaseData.enable) [ "lx-annotate-migrate.service" ];
         environment = workerEnvironment;
         serviceConfig = {
@@ -897,33 +893,14 @@ in
     ];
 
     systemd.services = {
-      lx-dtypes-kb-bootstrap = mkBaseService {
-        description = "Strictly provision packaged lx-dtypes knowledge bases";
-        before = [
-          "lx-annotate-migrate.service"
-          "lx-annotate-load-base-data.service"
-          "lx-annotate.service"
-        ];
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-          ExecStart = "${cfg.package}/bin/lx-dtypes-kb-registry bootstrap";
-          TimeoutStartSec = "10min";
-        };
-      };
-
       lx-annotate = mkBaseService {
         description = "Packaged LX-Annotate web service";
         after =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
+          lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
           ++ lib.optionals (cfg.migrate.enable && !cfg.loadBaseData.enable) [ "lx-annotate-migrate.service" ];
-        wants =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ];
+        wants = lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ];
         requires =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
+          lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
           ++ lib.optionals (cfg.migrate.enable && !cfg.loadBaseData.enable) [ "lx-annotate-migrate.service" ];
         serviceConfig = {
           ExecStart = "${cfg.package}/bin/lx-annotate-web";
@@ -934,9 +911,6 @@ in
 
       lx-annotate-migrate = lib.mkIf cfg.migrate.enable (mkBaseService {
         description = "Apply LX-Annotate database migrations";
-        after = [ "lx-dtypes-kb-bootstrap.service" ];
-        wants = [ "lx-dtypes-kb-bootstrap.service" ];
-        requires = [ "lx-dtypes-kb-bootstrap.service" ];
         before = [
           "lx-annotate.service"
         ]
@@ -951,15 +925,9 @@ in
 
       lx-annotate-load-base-data = lib.mkIf cfg.loadBaseData.enable (mkBaseService {
         description = "Load LX-Annotate base data";
-        after =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.migrate.enable [ "lx-annotate-migrate.service" ];
-        wants =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.migrate.enable [ "lx-annotate-migrate.service" ];
-        requires =
-          [ "lx-dtypes-kb-bootstrap.service" ]
-          ++ lib.optionals cfg.migrate.enable [ "lx-annotate-migrate.service" ];
+        after = lib.optionals cfg.migrate.enable [ "lx-annotate-migrate.service" ];
+        wants = lib.optionals cfg.migrate.enable [ "lx-annotate-migrate.service" ];
+        requires = lib.optionals cfg.migrate.enable [ "lx-annotate-migrate.service" ];
         before = [ "lx-annotate.service" ];
         serviceConfig = {
           Type = "oneshot";

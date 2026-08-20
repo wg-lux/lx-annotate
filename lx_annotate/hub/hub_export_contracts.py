@@ -124,7 +124,6 @@ class HubExportItem(BaseModel):
     marked_for_upload: bool
     marked_by_username: str | None
     marked_at: str | None
-    outbound_job_id: str | None
     outbound_status: str
     failure_class: HubExportFailureClass | None
     last_error: str
@@ -250,32 +249,23 @@ class HubExportOverview(BaseModel):
     items: list[HubExportItem]
 
 
-class HubExportRetryResult(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    outbound_job_id: str
-    transfer_key: str
-    local_status: str
-
-
 __all__ = [
     "HubCenterSyncState",
-    "HubEligibleVideoOffloadRequest",
-    "HubEligibleVideoOffloadResult",
     "HubExportDuplicateReason",
     "HubExportIntegrityStatus",
     "HubExportItem",
+    "HubEligibleVideoOffloadRequest",
+    "HubEligibleVideoOffloadResult",
     "HubExportMutationRequest",
+    "HubMediaEnvelopeMetadata",
+    "HubMediaEnvelopeReceipt",
     "HubExportOverview",
     "HubExportPrivacyStatus",
     "HubExportPrivacySummary",
     "HubExportRejectionReason",
     "HubExportResourceKind",
     "HubExportResourceRef",
-    "HubExportRetryResult",
     "HubFileSyncSummary",
-    "HubMediaEnvelopeMetadata",
-    "HubMediaEnvelopeReceipt",
     "HubNodeSummary",
     "HubProcessedFile",
     "HubSyncDuplicate",

@@ -48,7 +48,7 @@ describe('terminologyStore', () => {
     expect(terminology.error).toBeNull()
   })
 
-  it('imports package ZIPs sequentially, reports partial failures, and mirrors backend activation', async () => {
+  it('imports package ZIPs sequentially and reports partial failures', async () => {
     const first = new File(['first'], 'first.zip', { type: 'application/zip' })
     const broken = new File(['broken'], 'broken.zip', { type: 'application/zip' })
     const second = new File(['second'], 'second.zip', { type: 'application/zip' })
@@ -88,11 +88,8 @@ describe('terminologyStore', () => {
     ])
     expect(result.imported.map((bundle) => bundle.moduleName)).toEqual(['first', 'second'])
     expect(result.failures).toEqual([{ sourceName: 'broken.zip', message: 'Ungültiges Paket.' }])
-    expect(terminology.activeBundle).toEqual(
-      expect.objectContaining({ moduleName: 'second', version: '2.0', isActive: true })
-    )
-    expect(terminology.bundles.find((bundle) => bundle.moduleName === 'first')?.isActive).toBe(false)
-    expect(terminology.bundles.find((bundle) => bundle.moduleName === 'second')?.isActive).toBe(true)
+    expect(terminology.activeBundle).toBeNull()
+    expect(terminology.bundles.every((bundle) => !bundle.isActive)).toBe(true)
     expect(terminology.error).toContain('broken.zip: Ungültiges Paket.')
   })
 

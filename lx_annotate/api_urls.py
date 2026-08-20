@@ -18,7 +18,6 @@ from lx_annotate.views.hub_export import (
     hub_export_mark,
     hub_export_offload_eligible_videos,
     hub_export_overview,
-    hub_export_retry,
     hub_export_unmark,
 )
 from lx_annotate.views.quarantine import quarantine_overview
@@ -82,11 +81,6 @@ urlpatterns = [
         name="hub-export-offload-eligible-videos",
     ),
     path("hub-export/unmark/", hub_export_unmark, name="hub-export-unmark"),
-    path(
-        "hub-export/jobs/<uuid:outbound_job_id>/retry/",
-        hub_export_retry,
-        name="hub-export-retry",
-    ),
     path(
         "runtime/quarantine/",
         quarantine_overview,

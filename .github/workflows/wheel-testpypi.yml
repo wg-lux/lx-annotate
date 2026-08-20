@@ -327,21 +327,23 @@ jobs:
           )
 
           bootstrap = scripts / (
-              "lx-dtypes-kb-registry.exe"
+              "lx-annotate-bootstrap-terminology.exe"
               if os.name == "nt"
-              else "lx-dtypes-kb-registry"
+              else "lx-annotate-bootstrap-terminology"
           )
           with tempfile.TemporaryDirectory() as temporary_dir:
               registry = pathlib.Path(temporary_dir) / "registry.json"
-              subprocess.check_call([str(bootstrap), "bootstrap", "--registry", str(registry)])
+              subprocess.check_call([str(bootstrap), "--registry", str(registry)])
               payload = json.loads(registry.read_text(encoding="utf-8"))
               active = payload["active"]
-              entry = payload["modules"][active["module_name"]][active["version"]]
-              source = entry["sources"][0]
-              if source["kind"] != "provider" or source["provider"] != "lx_dtypes.builtin":
-                  raise SystemExit(f"unexpected packaged terminology source: {source}")
-              if len(source["content_sha256"]) != 64 or "input_dirs" in entry:
-                  raise SystemExit(f"unstable packaged terminology registry entry: {entry}")
+              input_dirs = payload["modules"][active["module_name"]][active["version"]]["input_dirs"]
+              if len(input_dirs) != 1:
+                  raise SystemExit(f"expected one packaged terminology data root: {input_dirs}")
+              packaged_data = pathlib.Path(input_dirs[0]).resolve()
+              if packaged_data.name != "data" or packaged_data.parent.name != "lx_dtypes":
+                  raise SystemExit(f"terminology root is not installed lx_dtypes/data: {packaged_data}")
+              if not packaged_data.is_relative_to(venv_dir.resolve()):
+                  raise SystemExit(f"terminology root escapes installed wheel environment: {packaged_data}")
 
   publish-testpypi:
     name: Publish To TestPyPI
@@ -552,18 +554,20 @@ jobs:
           )
 
           bootstrap = scripts / (
-              "lx-dtypes-kb-registry.exe"
+              "lx-annotate-bootstrap-terminology.exe"
               if os.name == "nt"
-              else "lx-dtypes-kb-registry"
+              else "lx-annotate-bootstrap-terminology"
           )
           with tempfile.TemporaryDirectory() as temporary_dir:
               registry = pathlib.Path(temporary_dir) / "registry.json"
-              subprocess.check_call([str(bootstrap), "bootstrap", "--registry", str(registry)])
+              subprocess.check_call([str(bootstrap), "--registry", str(registry)])
               payload = json.loads(registry.read_text(encoding="utf-8"))
               active = payload["active"]
-              entry = payload["modules"][active["module_name"]][active["version"]]
-              source = entry["sources"][0]
-              if source["kind"] != "provider" or source["provider"] != "lx_dtypes.builtin":
-                  raise SystemExit(f"unexpected packaged terminology source: {source}")
-              if len(source["content_sha256"]) != 64 or "input_dirs" in entry:
-                  raise SystemExit(f"unstable packaged terminology registry entry: {entry}")
+              input_dirs = payload["modules"][active["module_name"]][active["version"]]["input_dirs"]
+              if len(input_dirs) != 1:
+                  raise SystemExit(f"expected one packaged terminology data root: {input_dirs}")
+              packaged_data = pathlib.Path(input_dirs[0]).resolve()
+              if packaged_data.name != "data" or packaged_data.parent.name != "lx_dtypes":
+                  raise SystemExit(f"terminology root is not installed lx_dtypes/data: {packaged_data}")
+              if not packaged_data.is_relative_to(venv_dir.resolve()):
+                  raise SystemExit(f"terminology root escapes installed wheel environment: {packaged_data}")

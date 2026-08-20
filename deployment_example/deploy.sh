@@ -45,7 +45,6 @@ export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lx_annotate.settings.se
 export DJANGO_STATIC_ROOT="${DJANGO_STATIC_ROOT:-$STATIC_ROOT}"
 export LX_ANNOTATE_ENCRYPTED_DATA_DIR="${LX_ANNOTATE_ENCRYPTED_DATA_DIR:-$DATA_DIR}"
 export LX_DTYPES_KB_REGISTRY="${LX_DTYPES_KB_REGISTRY:-$LX_ANNOTATE_ENCRYPTED_DATA_DIR/terminology/registry.json}"
-export LX_DTYPES_TERMINOLOGY_IMPORT_ROOT="${LX_DTYPES_TERMINOLOGY_IMPORT_ROOT:-$LX_ANNOTATE_ENCRYPTED_DATA_DIR/terminology/packages}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$STATE_DIR}"
 export WORKING_DIR="${WORKING_DIR:-$APP_DIR}"
 export HOME_DIR="${HOME_DIR:-$APP_DIR}"
@@ -55,7 +54,6 @@ export PYTORCH_ALLOC_CONF="${PYTORCH_ALLOC_CONF:-expandable_segments:True}"
 mkdir -p \
   "$DJANGO_STATIC_ROOT" \
   "$LX_ANNOTATE_ENCRYPTED_DATA_DIR" \
-  "$LX_DTYPES_TERMINOLOGY_IMPORT_ROOT" \
   "$(dirname "$LX_DTYPES_KB_REGISTRY")"
 
 package_static_dir="$("$VENV_DIR/bin/python" - <<'PY'
@@ -75,7 +73,7 @@ if [[ -n "$package_static_dir" && -d "$package_static_dir" ]]; then
   ln -sfn "$DJANGO_STATIC_ROOT" "$APP_DIR/staticfiles"
 fi
 
-"$VENV_DIR/bin/lx-dtypes-kb-registry" bootstrap \
+"$VENV_DIR/bin/lx-annotate-bootstrap-terminology" \
   --registry "$LX_DTYPES_KB_REGISTRY"
 "$VENV_DIR/bin/python" -m django migrate --settings="$DJANGO_SETTINGS_MODULE" --noinput
 

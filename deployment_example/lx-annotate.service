@@ -11,7 +11,6 @@ Group=lx-annotate
 WorkingDirectory=/home/lx-annotate/lx-annotate-wheel
 Environment=DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_prod
 Environment=LX_DTYPES_KB_REGISTRY=/var/lib/lx-annotate/data/terminology/registry.json
-Environment=LX_DTYPES_TERMINOLOGY_IMPORT_ROOT=/var/lib/lx-annotate/data/terminology/packages
 EnvironmentFile=/var/lib/lx-annotate/.env.systemd
 ExecStart=/home/lx-annotate/lx-annotate-wheel/.venv/bin/daphne -b ${DJANGO_HOST} -p ${DJANGO_PORT} lx_annotate.asgi:application
 Restart=on-failure

@@ -65,42 +65,31 @@ definition_of_done:
     assessed_at: '2026-08-17T07:07:31.587709Z'
 - id: consumer_bootstrap
   category: testing
-  title: lx-dtypes provisions packaged reporting bundles idempotently
+  title: LX-Annotate provisions packaged reporting bundles idempotently
   acceptance:
-  - The lx-dtypes CLI registers all supported reporting bundles through provider descriptors.
+  - Bootstrap registers all supported reporting bundles through provider descriptors.
   - Existing active selections remain unchanged.
   - Re-running bootstrap does not rewrite an unchanged registry.
-  - LX-Annotate does not own a compatibility bootstrap command.
   required: true
   verification:
     kind: command
     command:
     - uv
-    - --directory
-    - /home/admin/lx-data-models
     - run
     - pytest
-    - tests/unit/lx_dtypes/tests/test_knowledge_base_registry_bootstrap.py
+    - tests/system/test_terminology_bootstrap.py
     - -q
     timeout_seconds: 600
   assessment:
-    status: blocked
+    status: verified
     evidence:
     - kind: command
-      reference: 'uv run pytest bootstrap and registry coverage: 22 passed'
-    - kind: command
-      reference: 'PYTHONPATH=/home/admin/lx-data-models pytest focused LX consumer suite: 39 passed'
-    - kind: code
-      reference: /home/admin/lx-data-models/lx_dtypes/knowledge_base_registry.py
-    note: 'The strict lx-dtypes bootstrap boundary and LX-Annotate command removal are implemented. Focused
-      lx-dtypes tests passed (22 passed before a concurrent test-layout migration), LX consumer tests
-      passed (39 passed), and a local lx-dtypes 0.2.24 wheel bootstrap passed. Release integration is
-      blocked: published endoreg-db==1.0.21.0 requires lx-dtypes==0.2.23 exactly, while the new CLI first
-      exists in unreleased lx-dtypes==0.2.24; publish 0.2.24, release a compatible endoreg-db, then refresh
-      the LX-Annotate lock. Local wheel SHA-256 7e5cb24fcdf30f521559ced1c8926b7c0b0e95212d16b731b28511a13f92c2e2
-      is verification only, not release evidence.'
-    assessed_by: codex-terminology-audit
-    assessed_at: '2026-08-20T10:56:29.100745Z'
+      reference: 'PYTHONPATH=/home/admin/lx-data-models pytest tests/system/test_terminology_bootstrap.py
+        -q: 5 passed'
+    note: Bootstrap provisions catalog modules, replaces stale installed paths, preserves active custom
+      bundles, and remains byte-idempotent.
+    assessed_by: codex-resource-paths-review
+    assessed_at: '2026-08-17T07:07:33.100797Z'
 - id: catalog_integrity
   category: security
   title: Catalog integrity is verified before packaged resources are used
@@ -184,13 +173,11 @@ definition_of_done:
     status: verified
     evidence:
     - kind: document
-      reference: /home/admin/lx-data-models/docs/guides/knowledge-base-authoring.md
-    - kind: document
       reference: docs/guides/terminology-delivery.md
-    note: Package and consumer guides assign strict bootstrap ownership to lx-dtypes, prohibit implicit
-      Django registry mutation, and retain provider/filesystem source rules.
-    assessed_by: codex-terminology-audit
-    assessed_at: '2026-08-20T10:53:41.967193Z'
+    note: English delivery guide documents provider and filesystem ownership, digest behavior, and prohibition
+      on persisted wheel installation paths.
+    assessed_by: codex-resource-paths-review
+    assessed_at: '2026-08-17T07:07:37.804888Z'
 - id: replacement_observability
   category: operations
   title: Environment replacement failures are explicit and diagnosable
@@ -206,10 +193,10 @@ definition_of_done:
     status: verified
     evidence:
     - kind: test
-      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/test_knowledge_base_registry_bootstrap.py
-    - kind: code
-      reference: /home/admin/lx-data-models/lx_dtypes/knowledge_base_registry.py
-    note: The lx-dtypes CLI emits structured success/error events with exact active identity and has no
-      best-effort mode; focused failure and idempotence cases pass.
-    assessed_by: codex-terminology-audit
-    assessed_at: '2026-08-20T10:56:36.437772Z'
+      reference: /home/admin/lx-data-models/lx_dtypes/models/interface/tests/test_knowledge_base_resolver.py
+    - kind: test
+      reference: tests/system/test_terminology_bootstrap.py
+    note: Distinct typed errors cover unknown providers, absent versions, catalog/config conflicts and
+      digest mismatches; bootstrap retains exact identity in JSON output.
+    assessed_by: codex-resource-paths-review
+    assessed_at: '2026-08-17T07:07:39.345296Z'

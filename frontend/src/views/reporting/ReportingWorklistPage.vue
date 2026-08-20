@@ -10,7 +10,7 @@
           <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="loadReports">
             Aktualisieren
           </button>
-          <RouterLink class="btn btn-primary btn-sm" to="/reporting">
+          <RouterLink class="btn btn-primary btn-sm" to="/reporting/case-setup">
             Neuen Bericht starten
           </RouterLink>
         </div>
@@ -113,7 +113,7 @@ function patientExaminationId(row: ReportListRow): number | null {
   if (typeof row.patientExaminationFk === 'number') return row.patientExaminationFk
   if (typeof row.patientExamination === 'number') return row.patientExamination
   if (row.patientExamination && typeof row.patientExamination === 'object') {
-    const nestedId = row.patientExamination.id
+    const nestedId = (row.patientExamination as { id?: number }).id
     if (typeof nestedId === 'number') return nestedId
   }
   return null

@@ -23,7 +23,6 @@ from lx_annotate.hub.hub_export_jobs import (
     queue_all_eligible_videos_for_hub_upload,
     require_normal_sender_target_hub,
     resolve_target_hub_node,
-    retry_failed_outbound_job,
     unmark_resources_for_hub_upload,
 )
 
@@ -138,28 +137,6 @@ def hub_export_offload_eligible_videos(request):
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response(result.model_dump(mode="json"), status=status.HTTP_200_OK)
-
-
-@api_view(["POST"])
-@authentication_classes([SessionAuthentication])
-@permission_classes([IsAuthenticated])
-def hub_export_retry(request, outbound_job_id):
-    try:
-        result = retry_failed_outbound_job(
-            outbound_job_id=str(outbound_job_id),
-            requested_by=request.user,
-        )
-    except ObjectDoesNotExist:
-        return Response(
-            {"detail": "Hub transfer job not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-    except ValueError as exc:
-        return Response(
-            {"detail": str(exc)},
-            status=status.HTTP_409_CONFLICT,
-        )
     return Response(result.model_dump(mode="json"), status=status.HTTP_200_OK)
 
 

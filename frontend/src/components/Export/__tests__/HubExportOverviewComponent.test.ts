@@ -25,7 +25,6 @@ vi.mock('@/types/api/endpoints', () => ({
       overview: 'hub-export/overview/',
       mark: 'hub-export/mark/',
       offloadEligibleVideos: 'hub-export/offload-eligible-videos/',
-      retry: (jobId: string) => `hub-export/jobs/${jobId}/retry/`,
       unmark: 'hub-export/unmark/'
     },
     media: {
@@ -703,7 +702,9 @@ describe('HubExportOverviewComponent', () => {
     const wrapper = mount(HubExportOverviewComponent)
     await flushPromises()
 
-    expect(wrapper.get('[data-test="hub-export-segment-status-video-61"]').text()).toBe('Validiert')
+    expect(wrapper.get('[data-test="hub-export-segment-status-video-61"]').text()).toBe(
+      'Validiert'
+    )
     expect(wrapper.get('[data-test="hub-export-integrity-status-video-61"]').text()).toBe(
       'Nachweis vorhanden'
     )
@@ -715,9 +716,7 @@ describe('HubExportOverviewComponent', () => {
     expect(wrapper.get('[data-test="hub-export-operation-error"]').text()).toContain(
       'processed media hash mismatch'
     )
-    expect(
-      wrapper.get('[data-test="hub-export-select-video-61"]').attributes('checked')
-    ).toBeDefined()
+    expect(wrapper.get('[data-test="hub-export-select-video-61"]').attributes('checked')).toBeDefined()
   })
 
   it('offers row and bulk export-readiness checks in German', async () => {
@@ -770,9 +769,10 @@ describe('HubExportOverviewComponent', () => {
     await wrapper.get('[data-test="hub-export-check-readiness-video-2"]').trigger('click')
     await flushPromises()
 
-    expect(hoisted.post).toHaveBeenCalledWith('/api/media/videos/2/mark-ready-for-export/', {
-      centerKey: 'center-a'
-    })
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/media/videos/2/mark-ready-for-export/',
+      { centerKey: 'center-a' }
+    )
   })
 
   it('queues all eligible videos through the German bulk transfer button', async () => {
@@ -780,41 +780,37 @@ describe('HubExportOverviewComponent', () => {
       data: {
         selectedTargetNodeKey: 'hub-node',
         sourceNodeKey: 'site-node',
-        hubNodes: [
-          {
-            nodeKey: 'hub-node',
-            displayName: 'Hub',
-            baseUrl: 'https://hub.example',
-            owningCenterKey: 'center-a'
-          }
-        ],
+        hubNodes: [{
+          nodeKey: 'hub-node',
+          displayName: 'Hub',
+          baseUrl: 'https://hub.example',
+          owningCenterKey: 'center-a'
+        }],
         configReady: true,
         configError: '',
         privacySummary: null,
         syncSummary: null,
-        items: [
-          {
-            id: 71,
-            resourceKind: 'video',
-            filename: 'eligible.mp4',
-            anonymizationStatus: 'validated',
-            segmentAnnotationStatus: 'validated',
-            exportIntegrityStatus: 'verified',
-            processedMediaPresent: true,
-            sourceCenterKey: 'center-a',
-            sourceCenterName: 'Center A',
-            markedForUpload: false,
-            markedByUsername: null,
-            markedAt: null,
-            outboundStatus: '',
-            lastError: '',
-            blockedReason: '',
-            lastTransferTimestamp: null,
-            targetNodeKey: 'hub-node',
-            eligible: true,
-            createdAt: null
-          }
-        ]
+        items: [{
+          id: 71,
+          resourceKind: 'video',
+          filename: 'eligible.mp4',
+          anonymizationStatus: 'validated',
+          segmentAnnotationStatus: 'validated',
+          exportIntegrityStatus: 'verified',
+          processedMediaPresent: true,
+          sourceCenterKey: 'center-a',
+          sourceCenterName: 'Center A',
+          markedForUpload: false,
+          markedByUsername: null,
+          markedAt: null,
+          outboundStatus: '',
+          lastError: '',
+          blockedReason: '',
+          lastTransferTimestamp: null,
+          targetNodeKey: 'hub-node',
+          eligible: true,
+          createdAt: null
+        }]
       }
     })
     hoisted.post.mockResolvedValue({
@@ -836,9 +832,10 @@ describe('HubExportOverviewComponent', () => {
     await button.trigger('click')
     await flushPromises()
 
-    expect(hoisted.post).toHaveBeenCalledWith('/api/hub-export/offload-eligible-videos/', {
-      targetNodeKey: 'hub-node'
-    })
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/hub-export/offload-eligible-videos/',
+      { targetNodeKey: 'hub-node' }
+    )
   })
 
   it('filters hub resources by resource type and processed-media storage state', async () => {
@@ -920,81 +917,5 @@ describe('HubExportOverviewComponent', () => {
     rows = wrapper.findAll('.table-responsive > table.table-hover tbody tr')
     expect(rows).toHaveLength(1)
     expect(rows[0].text()).toContain('missing-report.pdf')
-  })
-
-  it('offers an explicit retry for a failed transfer job', async () => {
-    hoisted.get
-      .mockResolvedValueOnce({
-        data: {
-          selectedTargetNodeKey: 'hub-node',
-          sourceNodeKey: 'site-node',
-          hubNodes: [
-            {
-              nodeKey: 'hub-node',
-              displayName: 'Hub',
-              baseUrl: 'https://hub.example',
-              owningCenterKey: 'center-a'
-            }
-          ],
-          configReady: true,
-          configError: '',
-          privacySummary: null,
-          syncSummary: null,
-          items: [
-            {
-              id: 91,
-              resourceKind: 'video',
-              filename: 'failed-video.mp4',
-              anonymizationStatus: 'validated',
-              segmentAnnotationStatus: 'validated',
-              exportIntegrityStatus: 'verified',
-              processedMediaPresent: true,
-              sourceCenterKey: 'center-a',
-              sourceCenterName: 'Center A',
-              markedForUpload: true,
-              markedByUsername: 'hub-operator',
-              markedAt: '2026-08-20T08:00:00Z',
-              outboundJobId: 'job-91',
-              outboundStatus: 'failed',
-              failureClass: 'configuration_rejection',
-              lastError: 'Hub transfer configuration or payload was rejected.',
-              blockedReason: '',
-              lastTransferTimestamp: null,
-              targetNodeKey: 'hub-node',
-              eligible: true,
-              createdAt: '2026-08-20T08:00:00Z'
-            }
-          ]
-        }
-      })
-      .mockResolvedValueOnce({
-        data: {
-          selectedTargetNodeKey: 'hub-node',
-          sourceNodeKey: 'site-node',
-          hubNodes: [],
-          configReady: true,
-          configError: '',
-          privacySummary: null,
-          syncSummary: null,
-          items: []
-        }
-      })
-    hoisted.post.mockResolvedValue({
-      data: {
-        outboundJobId: 'job-91',
-        transferKey: 'site-node__video__hash__processed_v1',
-        localStatus: 'queued'
-      }
-    })
-
-    const wrapper = mount(HubExportOverviewComponent)
-    await flushPromises()
-
-    const retryButton = wrapper.get('[data-test="hub-export-retry-job-91"]')
-    expect(retryButton.text()).toBe('Erneut versuchen')
-    await retryButton.trigger('click')
-    await flushPromises()
-
-    expect(hoisted.post).toHaveBeenCalledWith('/api/hub-export/jobs/job-91/retry/')
   })
 })

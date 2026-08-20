@@ -21,7 +21,6 @@ from .hub_export_contracts import (
     HubExportOverview,
     HubExportRejectionReason,
     HubExportResourceKind,
-    HubExportRetryResult,
     HubFileSyncSummary,
     HubProcessedFile,
     HubSyncDuplicate,
@@ -356,7 +355,6 @@ def _job_overview_fields(
             job.marked_by.get_username() if job is not None and job.marked_by else None
         ),
         "marked_at": job.marked_at.isoformat() if job is not None else None,
-        "outbound_job_id": str(job.pk) if job is not None else None,
         "outbound_status": job.local_status if job is not None else "",
         "failure_class": job.failure_class
         if job is not None and job.failure_class
@@ -962,112 +960,6 @@ def _authenticated_marker(marked_by: Any) -> Any:
             "An authenticated operator is required for hub export marking.",
         )
     return marked_by
-
-
-def _validate_failed_job_for_operator_retry(
-    job: OutboundHubTransferJob,
-    *,
-    source_node: NetworkNode,
-) -> None:
-    if job.local_status != OutboundHubTransferJob.LocalStatus.FAILED:
-        raise ValueError("Only failed hub transfer jobs can be retried.")
-    if (
-        not job.target_node.is_active
-        or job.target_node.role != NetworkNode.Role.CENTRAL_HUB
-    ):
-        raise ValueError(
-            "The failed hub transfer target is not an active central hub node.",
-        )
-    if job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO:
-        if job.video_file_id is None:
-            raise ValueError("The failed video transfer no longer references a video.")
-        readiness = resolve_video_hub_export_state(
-            job.video_file,
-            verify_processed_media=True,
-        )
-        if not readiness.transfer_eligible:
-            raise ValueError(
-                "The failed video transfer is no longer eligible for hub export: "
-                f"{readiness.blocked_reason}.",
-            )
-        resource_hash = str(job.video_file.video_hash)
-    elif job.resource_kind == OutboundHubTransferJob.ResourceKind.REPORT:
-        if job.raw_pdf_file_id is None or not is_report_hub_export_eligible(
-            job.raw_pdf_file,
-        ):
-            raise ValueError(
-                "The failed report transfer is no longer eligible for hub export.",
-            )
-        resource_hash = str(job.raw_pdf_file.pdf_hash)
-    else:
-        raise ValueError(f"Unsupported resource_kind={job.resource_kind!r}")
-    expected_transfer_key = build_transfer_key(
-        source_node_key=str(source_node.node_key),
-        resource_kind=str(job.resource_kind),
-        resource_hash=resource_hash,
-    )
-    if str(job.transfer_key) != expected_transfer_key:
-        raise ValueError(
-            "The failed hub transfer identity does not match the active site node.",
-        )
-
-
-@transaction.atomic
-def retry_failed_outbound_job(
-    *,
-    outbound_job_id: str,
-    requested_by: Any,
-) -> HubExportRetryResult:
-    authenticated_operator = _authenticated_marker(requested_by)
-    source_node = get_default_source_node()
-    if source_node is None:
-        raise ValueError("No active site node is configured for outbound hub export.")
-
-    job = (
-        OutboundHubTransferJob.objects.select_for_update()
-        .select_related("target_node", "video_file__state", "raw_pdf_file__state")
-        .get(pk=outbound_job_id)
-    )
-    active_target = require_normal_sender_target_hub()
-    if job.target_node_id != active_target.pk:
-        raise ValueError(
-            "The failed hub transfer target does not match the configured central hub.",
-        )
-    _validate_failed_job_for_operator_retry(job, source_node=source_node)
-
-    job.local_status = OutboundHubTransferJob.LocalStatus.QUEUED
-    job.failure_class = OutboundHubTransferJob.FailureClass.NO_FAILURE
-    job.last_error = ""
-    job.queued_at = timezone.now()
-    job.save(
-        update_fields=[
-            "local_status",
-            "failure_class",
-            "last_error",
-            "queued_at",
-            "updated_at",
-        ],
-    )
-    emit_hub_export_audit_event(
-        "hub_export.operator_retry_queued",
-        outbound_job=job,
-        request_user=authenticated_operator,
-        source_node_key=source_node.node_key,
-    )
-    job_id = str(job.pk)
-    source_node_key = str(source_node.node_key)
-
-    def _dispatch() -> None:
-        from lx_annotate.tasks import run_outbound_hub_transfer_job_task
-
-        run_outbound_hub_transfer_job_task.delay(job_id, source_node_key)
-
-    transaction.on_commit(_dispatch)
-    return HubExportRetryResult(
-        outbound_job_id=job_id,
-        transfer_key=str(job.transfer_key),
-        local_status=str(job.local_status),
-    )
 
 
 def _mark_video_for_hub_upload(

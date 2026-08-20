@@ -342,8 +342,6 @@ async function onMakeReport() {
     const data = await makeReport({
       patientExaminationId: patientExaminationId.value,
       reportId: selectedReportId.value,
-      knowledgeBaseModule: terminology.activeBundle?.moduleName || '',
-      knowledgeBaseVersion: terminology.activeBundle?.version || '',
       patient: patient.value,
       maxFrames: 12
     })

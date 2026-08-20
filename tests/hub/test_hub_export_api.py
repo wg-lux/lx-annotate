@@ -90,7 +90,6 @@ class HubExportApiTests(TestCase):
             "persisted_verified",
         )
         self.assertFalse(payload["items"][0]["marked_for_upload"])
-        self.assertIsNone(payload["items"][0]["outbound_job_id"])
         self.assertIsNone(payload["items"][0]["marked_by_username"])
         self.assertIsNone(payload["items"][0]["marked_at"])
         self.assertEqual(payload["privacy_summary"]["min_k"], 5)
@@ -206,84 +205,10 @@ class HubExportApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         item = response.json()["items"][0]
-        self.assertEqual(item["outbound_job_id"], str(job.pk))
         self.assertEqual(item["failure_class"], "authorization_denial")
         self.assertEqual(item["last_error"], "Hub transfer authorization was denied.")
         self.assertNotIn("super-secret", item["last_error"])
         self.assertNotIn("/protected/clinical", item["last_error"])
-
-    @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
-    def test_operator_retry_requeues_same_failed_job_and_transfer_key(
-        self,
-        delay_mock,
-    ) -> None:
-        mark_response = self.client.post(
-            "/api/hub-export/mark/",
-            data={
-                "target_node_key": "hub-node",
-                "resources": [{"id": self.report.id, "resource_kind": "report"}],
-            },
-            content_type="application/json",
-        )
-        self.assertEqual(mark_response.status_code, 200)
-        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
-        original_job_id = job.pk
-        original_transfer_key = job.transfer_key
-        job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
-        job.failure_class = OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION
-        job.last_error = "Outbound hub transfer requires mTLS client files."
-        job.save(update_fields=["local_status", "failure_class", "last_error"])
-
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                f"/api/hub-export/jobs/{job.pk}/retry/",
-                data={},
-                content_type="application/json",
-            )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "outbound_job_id": str(original_job_id),
-                "transfer_key": original_transfer_key,
-                "local_status": "queued",
-            },
-        )
-        job.refresh_from_db()
-        self.assertEqual(job.pk, original_job_id)
-        self.assertEqual(job.transfer_key, original_transfer_key)
-        self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.QUEUED)
-        self.assertEqual(
-            job.failure_class, OutboundHubTransferJob.FailureClass.NO_FAILURE,
-        )
-        self.assertEqual(job.last_error, "")
-        delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
-
-    @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
-    def test_operator_retry_rejects_non_failed_job(self, delay_mock) -> None:
-        mark_response = self.client.post(
-            "/api/hub-export/mark/",
-            data={
-                "target_node_key": "hub-node",
-                "resources": [{"id": self.report.id, "resource_kind": "report"}],
-            },
-            content_type="application/json",
-        )
-        self.assertEqual(mark_response.status_code, 200)
-        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
-
-        response = self.client.post(
-            f"/api/hub-export/jobs/{job.pk}/retry/",
-            data={},
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 409)
-        self.assertIn("Only failed", response.json()["detail"])
-        job.refresh_from_db()
-        self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.MARKED)
-        delay_mock.assert_not_called()
 
     def test_hub_export_operator_endpoints_require_authentication(self):
         self.client.logout()
@@ -305,11 +230,6 @@ class HubExportApiTests(TestCase):
                     "target_node_key": "hub-node",
                     "resources": [{"id": self.report.id, "resource_kind": "report"}],
                 },
-            ),
-            (
-                "post",
-                "/api/hub-export/jobs/11111111-1111-1111-1111-111111111111/retry/",
-                {},
             ),
         ):
             response = getattr(self.client, method)(

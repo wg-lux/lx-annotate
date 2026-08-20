@@ -100,8 +100,8 @@ Runtime secrets now use `DJANGO_DB_PASSWORD_FILE`,
   without printing values.
 - Enables migrations against a local SQLite database so the packaged service
   can pass its fail-closed schema readiness check.
-- Exercises packaged recovery, the strict lx-dtypes knowledge-base bootstrap,
-  Hub provisioning, storage-relief, and acceptance command entry points.
+- Exercises packaged recovery, terminology bootstrap, Hub provisioning,
+  storage-relief, and acceptance command entry points.
 
 ## Verification commands and results
 

@@ -386,16 +386,14 @@ digest. A built-in registry entry persists only that stable identity:</p>
 verifies the catalog digest. An absolute <code class="docutils literal notranslate"><span class="pre">site-packages</span></code>, virtual-environment,
 or Nix-store path from an installed wheel must never be persisted. Missing
 providers, absent versions, and digest conflicts fail explicitly.</p>
-<p>The package-owned <code class="docutils literal notranslate"><span class="pre">lx-dtypes-kb-registry</span> <span class="pre">bootstrap</span></code> boundary registers missing
-identities for all packaged catalog bundles and fully loads every packaged
-bundle before succeeding. A missing registry, an empty <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&quot;modules&quot;:</span> <span class="pre">{}</span> <span class="pre">}</span></code>
-registry, or a registry without an active identity receives the
-configured/default packaged identity. If the active entry is a stale built-in
-provider or a legacy filesystem entry pointing into an installed wheel,
-bootstrap atomically replaces it with the matching current catalog identity.
-An active custom or imported filesystem entry is preserved, including an older
-custom version with the same module name. LX-Annotate does not own a terminology
-bootstrap command and Django import does not silently mutate this registry.</p>
+<p>The terminology bootstrap registers missing identities for all packaged
+catalog bundles and fully loads every packaged bundle before succeeding. A
+missing registry, an empty <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&quot;modules&quot;:</span> <span class="pre">{}</span> <span class="pre">}</span></code> registry, or a registry without
+an active identity receives the configured/default packaged identity. If the
+active entry is a stale built-in provider or a legacy filesystem entry pointing
+into an installed wheel, bootstrap atomically replaces it with the matching
+current catalog identity. An active custom or imported filesystem entry is
+preserved, including an older custom version with the same module name.</p>
 <p>The reporting frontend renders the registry entries returned by
 <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/dtypes-api/terminology/bundles</span></code> and loads templates only for the selected
 bundle and examination.</p>
@@ -433,11 +431,11 @@ required work still described as outstanding means the status remains
 </section>
 <section id="failure-behavior">
 <h2>Failure behavior<a class="headerlink" href="#failure-behavior" title="Link to this heading">¶</a></h2>
-<p>Governed wheel deployments run <code class="docutils literal notranslate"><span class="pre">lx-dtypes-kb-registry</span> <span class="pre">bootstrap</span></code> as a strict
-readiness gate before migrations and service startup. A malformed registry,
-invalid packaged catalog entry, digest mismatch, unloadable packaged bundle, or
-unresolved active identity blocks rollout and traffic. This boundary has no
-best-effort mode.</p>
+<p>Governed wheel deployments run terminology bootstrap as a strict readiness
+gate. A malformed registry, invalid packaged catalog entry, digest mismatch,
+unloadable packaged bundle, or unresolved active identity blocks rollout and
+traffic. <code class="docutils literal notranslate"><span class="pre">--best-effort</span></code> may be used for explicitly non-governed development or
+diagnosis, but a deployment using it cannot claim production readiness.</p>
 <p>Terminology-dependent operations fail explicitly; the frontend does not guess
 a module or retry against a legacy route. Missing host adapters remain startup
 failures. Import, bootstrap migration, and activation use atomic registry

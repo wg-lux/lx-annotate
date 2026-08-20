@@ -23,11 +23,10 @@ vi.mock('@/types/api/endpoints', () => ({
       overview: 'hub-export/overview/',
       mark: 'hub-export/mark/',
       offloadEligibleVideos: 'hub-export/offload-eligible-videos/',
-      retry: (jobId: string) => `hub-export/jobs/${jobId}/retry/`,
       unmark: 'hub-export/unmark/'
     },
     media: {
-      videoMarkReadyForExport: (id: number) => `media/videos/${String(id)}/mark-ready-for-export/`
+      videoMarkReadyForExport: (id: number) => `media/videos/${id}/mark-ready-for-export/`
     }
   }
 }))
@@ -156,12 +155,14 @@ describe('hubExportStore', () => {
       { id: 3, centerKey: 'center-a' }
     ])
 
-    expect(hoisted.post).toHaveBeenCalledWith('/api/media/videos/2/mark-ready-for-export/', {
-      centerKey: 'center-a'
-    })
-    expect(hoisted.post).toHaveBeenCalledWith('/api/media/videos/3/mark-ready-for-export/', {
-      centerKey: 'center-a'
-    })
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/media/videos/2/mark-ready-for-export/',
+      { centerKey: 'center-a' }
+    )
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/media/videos/3/mark-ready-for-export/',
+      { centerKey: 'center-a' }
+    )
     expect(result).toEqual({ checkedCount: 2, failedCount: 0 })
     expect(hoisted.get).toHaveBeenCalledTimes(1)
   })
@@ -194,40 +195,11 @@ describe('hubExportStore', () => {
     store.selectedTargetNodeKey = 'hub-node'
     const result = await store.offloadEligibleVideos()
 
-    expect(hoisted.post).toHaveBeenCalledWith('/api/hub-export/offload-eligible-videos/', {
-      targetNodeKey: 'hub-node'
-    })
+    expect(hoisted.post).toHaveBeenCalledWith(
+      '/api/hub-export/offload-eligible-videos/',
+      { targetNodeKey: 'hub-node' }
+    )
     expect(result.queuedCount).toBe(2)
-    expect(hoisted.get).toHaveBeenCalledTimes(1)
-  })
-
-  it('retries a failed job by its stable outbound job id and refreshes', async () => {
-    hoisted.get.mockResolvedValue({
-      data: {
-        selectedTargetNodeKey: 'hub-node',
-        sourceNodeKey: 'site-node',
-        hubNodes: [],
-        configReady: true,
-        configError: '',
-        privacySummary: null,
-        syncSummary: null,
-        items: []
-      }
-    })
-    hoisted.post.mockResolvedValue({
-      data: {
-        outboundJobId: 'job-123',
-        transferKey: 'site-node__video__hash__processed_v1',
-        localStatus: 'queued'
-      }
-    })
-
-    const store = useHubExportStore()
-    store.selectedTargetNodeKey = 'hub-node'
-    const result = await store.retryFailedJob('job-123')
-
-    expect(hoisted.post).toHaveBeenCalledWith('/api/hub-export/jobs/job-123/retry/')
-    expect(result.localStatus).toBe('queued')
     expect(hoisted.get).toHaveBeenCalledTimes(1)
   })
 })

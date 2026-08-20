@@ -20,10 +20,6 @@ is the JSON file named by `LX_DTYPES_KB_REGISTRY`.
 6. The server validates each extracted artifact before atomically registering
    and activating its exact identity. A failed package is reported by name and
    does not stop the remaining packages. The last successful package is active.
-   Validated ZIP contents are retained in the local directory configured by
-   `LX_DTYPES_TERMINOLOGY_IMPORT_ROOT`. LX-Annotate defaults this to
-   `<LX_ANNOTATE_ENCRYPTED_DATA_DIR>/terminology/packages`; deployments must
-   keep that directory on the encrypted application-data volume.
 7. Startup checks report missing or invalid terminology as an operational
    warning. Annotation remains available while terminology-dependent reporting
    shows its setup or error state.
@@ -141,16 +137,14 @@ verifies the catalog digest. An absolute `site-packages`, virtual-environment,
 or Nix-store path from an installed wheel must never be persisted. Missing
 providers, absent versions, and digest conflicts fail explicitly.
 
-The package-owned `lx-dtypes-kb-registry bootstrap` boundary registers missing
-identities for all packaged catalog bundles and fully loads every packaged
-bundle before succeeding. A missing registry, an empty `{ "modules": {} }`
-registry, or a registry without an active identity receives the
-configured/default packaged identity. If the active entry is a stale built-in
-provider or a legacy filesystem entry pointing into an installed wheel,
-bootstrap atomically replaces it with the matching current catalog identity.
-An active custom or imported filesystem entry is preserved, including an older
-custom version with the same module name. LX-Annotate does not own a terminology
-bootstrap command and Django import does not silently mutate this registry.
+The terminology bootstrap registers missing identities for all packaged
+catalog bundles and fully loads every packaged bundle before succeeding. A
+missing registry, an empty `{ "modules": {} }` registry, or a registry without
+an active identity receives the configured/default packaged identity. If the
+active entry is a stale built-in provider or a legacy filesystem entry pointing
+into an installed wheel, bootstrap atomically replaces it with the matching
+current catalog identity. An active custom or imported filesystem entry is
+preserved, including an older custom version with the same module name.
 
 The reporting frontend renders the registry entries returned by
 `GET /dtypes-api/terminology/bundles` and loads templates only for the selected
@@ -189,11 +183,11 @@ required work still described as outstanding means the status remains
 
 ## Failure behavior
 
-Governed wheel deployments run `lx-dtypes-kb-registry bootstrap` as a strict
-readiness gate before migrations and service startup. A malformed registry,
-invalid packaged catalog entry, digest mismatch, unloadable packaged bundle, or
-unresolved active identity blocks rollout and traffic. This boundary has no
-best-effort mode.
+Governed wheel deployments run terminology bootstrap as a strict readiness
+gate. A malformed registry, invalid packaged catalog entry, digest mismatch,
+unloadable packaged bundle, or unresolved active identity blocks rollout and
+traffic. `--best-effort` may be used for explicitly non-governed development or
+diagnosis, but a deployment using it cannot claim production readiness.
 
 Terminology-dependent operations fail explicitly; the frontend does not guess
 a module or retry against a legacy route. Missing host adapters remain startup

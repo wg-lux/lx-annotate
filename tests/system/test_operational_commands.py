@@ -20,7 +20,7 @@ def test_hub_node_spec_accepts_deployment_json_aliases(tmp_path: Path) -> None:
             "baseUrl": "https://site-01.example",
             "centerKey": "site-01",
             "sharedSecretFile": str(secret_path),
-        },
+        }
     )
 
     assert spec.node_key == "site-01"
@@ -48,6 +48,30 @@ def test_runtime_acceptance_validates_manifest_target(tmp_path: Path) -> None:
     asset.unlink()
     with pytest.raises(CommandError, match="missing asset"):
         validate_static_assets(static_root)
+
+
+def test_terminology_bootstrap_requires_registered_active_identity(
+    tmp_path: Path,
+) -> None:
+    from lx_annotate.runtime_commands.terminology_bootstrap import (
+        _read_active_identity,
+    )
+
+    registry = tmp_path / "registry.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "modules": {"example": {"1.0": {"input_dirs": ["/data"]}}},
+                "active": {"module_name": "example", "version": "1.0"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert _read_active_identity(registry) == ("example", "1.0")
+
+    registry.write_text(json.dumps({"modules": {}}), encoding="utf-8")
+    with pytest.raises(ValueError, match="no active module"):
+        _read_active_identity(registry)
 
 
 def test_recovery_state_reader_uses_last_matching_value(tmp_path: Path) -> None:
@@ -83,7 +107,7 @@ def test_provision_command_emits_standard_event(
                 "role": "site_node",
                 "created": True,
                 "secret_changed": False,
-            },
+            }
         ],
     )
     stdout = StringIO()
@@ -131,7 +155,7 @@ def test_recovery_command_normalizes_paths_and_prefers_cli_target(
 
     monkeypatch.setattr(command_module, "RuntimeRecoveryService", RecoveryServiceStub)
     monkeypatch.setenv(
-        "LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(tmp_path / "environment-target"),
+        "LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(tmp_path / "environment-target")
     )
     target = tmp_path / "cli-target"
     state_file = tmp_path / "state" / "recovery.env"
@@ -158,7 +182,7 @@ def test_recovery_command_normalizes_paths_and_prefers_cli_target(
             "force": False,
             "force_repair": False,
             "skip_repair": True,
-        },
+        }
     ]
 
 
