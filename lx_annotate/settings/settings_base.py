@@ -225,7 +225,7 @@ else:
     ENDOREG_DEPLOYMENT_ROLE = "standalone"
 ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS = os.getenv(
     "ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS",
-    "0",
+    os.getenv("ENDOREG_ENABLE_HUB_TRANSFERS", "0"),
 ).strip().lower() in {"1", "true", "yes", "on"}
 ENDOREG_ENABLE_STORAGE_BALANCING = os.getenv(
     "ENDOREG_ENABLE_STORAGE_BALANCING",
