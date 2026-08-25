@@ -27,7 +27,14 @@ expected: sha256-gFyVehSwVatoPJnel6OSbV2mYRbG3Fbk5/aooeEzzhw=
 actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=
 ```
 
-Update `npmDepsHash` to the reported actual hash and rerun `make package`:
+Run the dedicated helper after changing the lockfile, then copy its output into
+`frontend/default.nix` and rerun `make package`:
+
+```console
+make frontend-npm-deps-hash
+```
+
+For example:
 
 ```nix
 npmDepsHash = "sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=";

@@ -44,6 +44,7 @@ export type ReportTemplateBuilderSection = {
 
 export type SaveReportTemplateDefinitionRequest = {
   moduleName: string
+  moduleVersion: string
   fileName: string
   templateName: string
   examination: string
@@ -156,10 +157,11 @@ export async function saveReportTemplateDefinition(
 
 export async function fetchReportTemplateReadiness(
   moduleName: string,
+  moduleVersion: string,
   templateName: string
 ): Promise<ReportTemplateBuilderReadiness> {
   const response = await axiosInstance.get(
-    `${dtypesApi('report-templates')}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-definition`
+    `${dtypesApi('report-templates')}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-definition?version=${encodeURIComponent(moduleVersion)}`
   )
   const readiness = normalizeBuilderReadiness(response.data)
   if (!readiness) throw new Error('Ungültiges Readiness-Ergebnis der Berichtsvorlage.')
@@ -168,20 +170,22 @@ export async function fetchReportTemplateReadiness(
 
 export async function publishReportTemplate(
   moduleName: string,
+  moduleVersion: string,
   templateName: string
 ): Promise<ReportTemplateLifecycleResponse> {
   const response = await axiosInstance.post(
-    `${dtypesApi('report-templates')}/builder/templates/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/publish`
+    `${dtypesApi('report-templates')}/builder/templates/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/publish?version=${encodeURIComponent(moduleVersion)}`
   )
   return normalizeLifecycleResponse(response.data)
 }
 
 export async function unpublishReportTemplate(
   moduleName: string,
+  moduleVersion: string,
   templateName: string
 ): Promise<ReportTemplateLifecycleResponse> {
   const response = await axiosInstance.post(
-    `${dtypesApi('report-templates')}/builder/templates/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/unpublish`
+    `${dtypesApi('report-templates')}/builder/templates/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/unpublish?version=${encodeURIComponent(moduleVersion)}`
   )
   return normalizeLifecycleResponse(response.data)
 }

@@ -891,7 +891,7 @@
 import { computed, onMounted, provide, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
-import { findingsApi, type FindingsCatalogContext } from '@/api/findingsApi'
+import { findingsApi } from '@/api/findingsApi'
 import {
   fetchExaminationReportingContext,
   fetchKnowledgeBaseGraphSnapshot
@@ -907,8 +907,7 @@ import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import {
   buildReportTemplateRuntimePayload,
   describeReportTemplateTitle,
-  getReportTemplateDisplayName,
-  fetchReportTemplateByName
+  getReportTemplateDisplayName
 } from '@/api/reportTemplatesApi'
 import {
   getFindingDisplayName,
@@ -954,6 +953,13 @@ import {
 } from './reportTemplateLifecycleContext'
 import { normalizeReportingIndicationSelections } from './reportingIndicationContract'
 import { useReportingKnowledgeBase } from './useReportingKnowledgeBase'
+import {
+  SupersededReportingDagError,
+  commitReportingDagAtomically,
+  createImmutableReportingDag,
+  executeReportingDag,
+  type ReportingDagInputs
+} from './reportingResolutionGraph'
 
 const logger = createRuntimeLogger('reporting-shell')
 import {
@@ -1079,12 +1085,39 @@ const examinationsLoading = computed(() => examinationStore.loading)
 const { getCatalogContext, pinnedIdentity } = useReportingKnowledgeBase(patientExaminationDetail)
 
 type DraftBootstrapContext = {
-  generation: number
-  patientExaminationId: number
-  bundleKey: string
-  moduleName: string
-  moduleVersion: string
+  readonly generation: number
+  readonly patientExaminationId: number
+  readonly bundleKey: string
+  readonly moduleName: string
+  readonly moduleVersion: string
+  readonly pinnedIdentity: ReportingKnowledgeBaseIdentity | null
 }
+
+type BootstrapDagContext = Readonly<{
+  evaluation: DraftBootstrapContext
+  option: PatientExaminationOption | null
+  selectedTemplateName: string | null
+  allowMissingTemplate: boolean
+}>
+
+type BootstrapTemplateResult = Readonly<{
+  templates: readonly ReportTemplatePayload[]
+  availability: readonly TemplateAvailabilityItem[]
+  availabilityError: string | null
+}>
+
+type BootstrapFindingResult = Readonly<{
+  rows: readonly Finding[]
+  byId: ReadonlyMap<number, Finding>
+}>
+
+type BootstrapDraftResult = Readonly<{
+  detail: Record<string, unknown>
+  templates: BootstrapTemplateResult
+  findings: BootstrapFindingResult
+  selectedTemplate: ReportTemplatePayload | null
+  payload: ReportTemplateRuntimePayload | null
+}>
 
 class SupersededReportingContextError extends Error {}
 
@@ -1270,7 +1303,8 @@ function isBootstrapContextCurrent(context: DraftBootstrapContext): boolean {
     context.generation === draftBootstrapGeneration &&
     context.patientExaminationId === routePatientExaminationId.value &&
     context.bundleKey === activeBundleIdentityKey.value &&
-    context.moduleName === activeKbModule.value
+    context.moduleName === activeKbModule.value &&
+    context.moduleVersion === activeKbVersion.value
   )
 }
 
@@ -2123,7 +2157,7 @@ function clearInactiveTerminologySelection() {
 
 function markCurrentDraftUnverified() {
   const draft = flow.currentRuntimeDraft
-  if (!draft || draft.verificationStatus === 'unverified') return
+  if (!draft) return
   const activeBundle = terminology.activeBundle
   const draftVersion =
     draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
@@ -2132,6 +2166,12 @@ function markCurrentDraftUnverified() {
     draft.moduleName === activeBundle.moduleName &&
     draftVersion === activeBundle.version &&
     draft.verificationStatus === 'verified'
+  ) {
+    return
+  }
+  if (
+    draft.verificationStatus === 'unverified' &&
+    draft.persistencePolicy === 'blocked_until_verified'
   ) {
     return
   }
@@ -2168,6 +2208,7 @@ async function reconcileActiveTerminology() {
     }
   }
   draftBootstrapGeneration += 1
+  findingCatalogRequestGeneration += 1
   draftBootstrapInFlight.value = null
   markCurrentDraftUnverified()
   clearTerminologyDerivedViewState()
@@ -2212,7 +2253,7 @@ function ensureTerminologyBundlesLoaded(): Promise<void> {
   return task
 }
 
-async function loadTemplateReferenceForSelection() {
+function loadTemplateReferenceForSelection() {
   const moduleName = activeKbModule.value
   const templateName = flow.selectedTemplateName
   if (!moduleName || !templateName) {
@@ -2230,8 +2271,19 @@ async function loadTemplateReferenceForSelection() {
   templateReferenceError.value = null
   templateReferenceKey.value = nextKey
   try {
-    const payload = await fetchReportTemplateByName(moduleName, templateName)
+    const payload =
+      availableTemplates.value.find(
+        (template) =>
+          template.name === templateName &&
+          template.identity.moduleName === moduleName &&
+          template.identity.knowledgeBaseVersion === activeKbVersion.value
+      ) || null
     if (templateReferenceKey.value !== nextKey) return
+    if (!payload) {
+      throw new Error(
+        'Die gewählte Vorlage ist nicht Teil des versionierten Terminologiegraphen.'
+      )
+    }
     templateReference.value = payload
   } catch (error: unknown) {
     if (templateReferenceKey.value !== nextKey) return
@@ -2249,6 +2301,7 @@ async function loadTemplateReferenceForSelection() {
 
 async function loadFindingCatalogForExamination(examinationId: number | null | undefined) {
   const requestGeneration = ++findingCatalogRequestGeneration
+  const requestedBundleKey = activeBundleIdentityKey.value
   if (!examinationId) {
     findingCatalog.value = []
     findingCatalogLoading.value = false
@@ -2258,20 +2311,29 @@ async function loadFindingCatalogForExamination(examinationId: number | null | u
   try {
     const rows = await findingsApi.getExaminationFindings(
       examinationId,
-      getCatalogContext({ allowMismatchFallback: true })
+      getCatalogContext()
     )
     if (
       requestGeneration !== findingCatalogRequestGeneration ||
-      examinationId !== flow.selectedExaminationId
+      examinationId !== flow.selectedExaminationId ||
+      requestedBundleKey !== activeBundleIdentityKey.value
     ) {
       return
     }
     findingCatalog.value = Array.isArray(rows) ? rows : []
   } catch {
-    if (requestGeneration !== findingCatalogRequestGeneration) return
+    if (
+      requestGeneration !== findingCatalogRequestGeneration ||
+      requestedBundleKey !== activeBundleIdentityKey.value
+    ) {
+      return
+    }
     findingCatalog.value = []
   } finally {
-    if (requestGeneration === findingCatalogRequestGeneration) {
+    if (
+      requestGeneration === findingCatalogRequestGeneration &&
+      requestedBundleKey === activeBundleIdentityKey.value
+    ) {
       findingCatalogLoading.value = false
     }
   }
@@ -2281,37 +2343,20 @@ function assertPatientExaminationKnowledgeBaseCompatibility(
   detail: Record<string, unknown>,
   context: DraftBootstrapContext
 ): void {
-  if (!terminology.activeBundle) return
-
-  const resolved = getCatalogContext({ allowMismatchFallback: false })
-
+  if (!context.moduleName || !context.moduleVersion) return
+  const pinned = context.pinnedIdentity || readReportingKnowledgeBaseIdentity(detail)
   if (
-    !resolved ||
-    resolved.moduleName !== context.moduleName ||
-    resolved.moduleVersion !== context.moduleVersion
+    pinned &&
+    (pinned.moduleName !== context.moduleName || pinned.moduleVersion !== context.moduleVersion)
   ) {
-    throw new SupersededReportingContextError('Reporting context changed during loading.')
-  }
-}
-
-async function discoverActiveTemplatesForKnowledgeBaseMismatch(
-  error: unknown,
-  detail: Record<string, unknown>,
-  context: DraftBootstrapContext
-): Promise<void> {
-  if (!(error instanceof ReportingKnowledgeBaseMismatchError)) return
-
-  const examinationName = extractExaminationName(detail)
-  if (!context.moduleName || !context.moduleVersion || !examinationName) return
-
-  try {
-    await loadBootstrapTemplates(context.moduleName, examinationName, context)
-  } catch (templateError: unknown) {
-    if (templateError instanceof SupersededReportingContextError) throw templateError
-    templateSelectionError.value = reportingApiErrorMessage(
-      templateError,
-      'Die Vorlagen der aktiven Terminologie konnten nicht geladen werden.'
-    )
+    throw new ReportingKnowledgeBaseMismatchError({
+      patientExaminationId: context.patientExaminationId,
+      pinnedIdentity: pinned,
+      activeBundle: {
+        moduleName: context.moduleName,
+        version: context.moduleVersion
+      }
+    })
   }
 }
 
@@ -2784,13 +2829,14 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
   }
 
   templateSelectionError.value = null
-  const originContext: DraftBootstrapContext = {
+  const originContext: DraftBootstrapContext = Object.freeze({
     generation: draftBootstrapGeneration,
     patientExaminationId: flow.patientExaminationId,
     bundleKey: activeBundleIdentityKey.value,
     moduleName: activeKbModule.value,
-    moduleVersion: activeKbVersion.value
-  }
+    moduleVersion: activeKbVersion.value,
+    pinnedIdentity: pinnedIdentity.value ? Object.freeze({ ...pinnedIdentity.value }) : null
+  })
   let attemptedContext: DraftBootstrapContext | null = null
   try {
     if (draftHasRuntimeContent()) await flow.flushDraftAutosave()
@@ -2800,10 +2846,10 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
         (entry) => entry.id === originContext.patientExaminationId
       ) || null
     const generation = ++draftBootstrapGeneration
-    attemptedContext = {
+    attemptedContext = Object.freeze({
       ...originContext,
       generation
-    }
+    })
     flow.setTemplateSelection({
       moduleName: selected.identity.moduleName || originContext.moduleName,
       templateName: selected.name,
@@ -2832,65 +2878,135 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
   }
 }
 
-async function loadBootstrapTemplates(
-  moduleName: string,
-  examinationName: string,
-  context: DraftBootstrapContext
-): Promise<ReportTemplatePayload[]> {
-  availableTemplates.value = []
-  templateAvailability.value = []
-  templateAvailabilityError.value = null
-  templateLoading.value = true
-  try {
-    const version = terminology.activeBundle?.version || ''
-    if (!version) return []
-    const templates = examinationName
-      ? (await fetchExaminationReportingContext(moduleName, version, examinationName))
-          .reportTemplates
-      : []
-    assertBootstrapContextCurrent(context)
-    availableTemplates.value = templates
-    if (!templates.length) await loadTemplateAvailability(moduleName, version, context)
-    return templates
-  } finally {
-    if (isBootstrapContextCurrent(context)) templateLoading.value = false
-  }
+async function resolveBootstrapDetail(
+  context: BootstrapDagContext
+): Promise<Record<string, unknown>> {
+  const response = await axiosInstance.get(
+    r(endpoints.examination.patientExaminationDetail(context.evaluation.patientExaminationId))
+  )
+  const detail = readRecord(response.data)
+  assertPatientExaminationKnowledgeBaseCompatibility(detail, context.evaluation)
+  return Object.freeze({ ...detail })
 }
 
-async function loadTemplateAvailability(
-  moduleName: string,
-  version: string,
-  context: DraftBootstrapContext
-): Promise<void> {
+async function resolveBootstrapTemplates(
+  context: BootstrapDagContext,
+  inputs: ReportingDagInputs
+): Promise<BootstrapTemplateResult> {
+  const detail = inputs.get('detail') as Record<string, unknown>
+  const { moduleName, moduleVersion } = context.evaluation
+  const examinationName = extractExaminationName(detail)
+  const templates = examinationName
+    ? (await fetchExaminationReportingContext(moduleName, moduleVersion, examinationName))
+        .reportTemplates
+    : []
+  if (templates.length) {
+    return Object.freeze({
+      templates: Object.freeze([...templates]),
+      availability: Object.freeze([]),
+      availabilityError: null
+    })
+  }
+
   try {
-    const snapshot = await fetchKnowledgeBaseGraphSnapshot(moduleName, version)
-    assertBootstrapContextCurrent(context)
+    const snapshot = await fetchKnowledgeBaseGraphSnapshot(moduleName, moduleVersion)
     const examinationByName = new Map(
       snapshot.concepts.examination.map((examination) => [examination.name, examination])
     )
-    templateAvailability.value = snapshot.reportTemplates.map((template) => {
+    const availability = snapshot.reportTemplates.map((template) => {
       const examination = examinationByName.get(template.examination)
-      return {
+      return Object.freeze({
         template,
         examinationName: template.examination,
         examinationNameDe: examination?.nameDe,
         examinationNameEn: examination?.nameEn
-      }
+      })
+    })
+    return Object.freeze({
+      templates: Object.freeze([]),
+      availability: Object.freeze(availability),
+      availabilityError: null
     })
   } catch (error: unknown) {
-    if (!isBootstrapContextCurrent(context)) return
-    templateAvailability.value = []
-    templateAvailabilityError.value = reportingApiErrorMessage(
-      error,
-      'Die Untersuchungszuordnung der verfügbaren Vorlagen konnte nicht geladen werden.'
-    )
+    return Object.freeze({
+      templates: Object.freeze([]),
+      availability: Object.freeze([]),
+      availabilityError: reportingApiErrorMessage(
+        error,
+        'Die Untersuchungszuordnung der verfügbaren Vorlagen konnte nicht geladen werden.'
+      )
+    })
   }
 }
+
+async function resolveBootstrapFindings(
+  context: BootstrapDagContext,
+  inputs: ReportingDagInputs
+): Promise<BootstrapFindingResult> {
+  const detail = inputs.get('detail') as Record<string, unknown>
+  const examinationId = context.option?.examinationId ?? extractExaminationId(detail)
+  const rows = examinationId
+    ? await findingsApi.getExaminationFindings(examinationId, {
+        moduleName: context.evaluation.moduleName,
+        moduleVersion: context.evaluation.moduleVersion,
+        patientExaminationId: context.evaluation.patientExaminationId
+      })
+    : []
+  const normalizedRows = Object.freeze(Array.isArray(rows) ? [...rows] : [])
+  return Object.freeze({
+    rows: normalizedRows,
+    byId: new Map(normalizedRows.map((finding) => [finding.id, finding]))
+  })
+}
+
+async function resolveBootstrapDraft(
+  context: BootstrapDagContext,
+  inputs: ReportingDagInputs
+): Promise<BootstrapDraftResult> {
+  const detail = inputs.get('detail') as Record<string, unknown>
+  const templates = inputs.get('templates') as BootstrapTemplateResult
+  const findings = inputs.get('findings') as BootstrapFindingResult
+  const selectedTemplate =
+    (context.selectedTemplateName &&
+      templates.templates.find((template) => template.name === context.selectedTemplateName)) ||
+    null
+  if (!selectedTemplate) {
+    if (!context.allowMissingTemplate) {
+      throw new Error('Bitte wählen Sie eine veröffentlichte Berichtsvorlage aus.')
+    }
+    return Object.freeze({ detail, templates, findings, selectedTemplate: null, payload: null })
+  }
+
+  const payload = await buildReportTemplateRuntimePayload({
+    moduleName: context.evaluation.moduleName,
+    patientExaminationId: context.evaluation.patientExaminationId,
+    patient: resolvePatientKey(detail, context.evaluation.patientExaminationId),
+    examiners: extractExaminers(detail),
+    examination: selectedTemplate.examination || extractExaminationName(detail),
+    knowledgeBaseVersion: context.evaluation.moduleVersion,
+    getFindingById: (findingId) => findings.byId.get(findingId)
+  })
+  return Object.freeze({ detail, templates, findings, selectedTemplate, payload })
+}
+
+const bootstrapResolutionGraph = createImmutableReportingDag<BootstrapDagContext>([
+  { id: 'detail', dependencies: [], run: resolveBootstrapDetail },
+  { id: 'templates', dependencies: ['detail'], run: resolveBootstrapTemplates },
+  { id: 'findings', dependencies: ['detail'], run: resolveBootstrapFindings },
+  {
+    id: 'draft',
+    dependencies: ['detail', 'templates', 'findings'],
+    run: resolveBootstrapDraft
+  }
+])
 
 async function refreshPublishedTemplatesAfterLifecycleChange(
   change: ReportTemplateLifecycleChange
 ): Promise<void> {
-  if (change.moduleName !== activeKbModule.value) return
+  if (
+    change.moduleName !== activeKbModule.value ||
+    change.moduleVersion !== activeKbVersion.value
+  ) return
 
   const examinationName = extractExaminationName(patientExaminationDetail.value || {})
   if (!examinationName || change.examination !== examinationName) return
@@ -2898,16 +3014,15 @@ async function refreshPublishedTemplatesAfterLifecycleChange(
   const expectedBundleKey = activeBundleIdentityKey.value
   templateLoading.value = true
   try {
-    const version = terminology.activeBundle?.version
-    if (!version) return
     const projection = await fetchExaminationReportingContext(
       change.moduleName,
-      version,
+      change.moduleVersion,
       examinationName
     )
     const templates = projection.reportTemplates
     if (
       change.moduleName !== activeKbModule.value ||
+      change.moduleVersion !== activeKbVersion.value ||
       expectedBundleKey !== activeBundleIdentityKey.value ||
       examinationName !== extractExaminationName(patientExaminationDetail.value || {})
     ) {
@@ -2932,109 +3047,81 @@ async function refreshPublishedTemplatesAfterLifecycleChange(
   }
 }
 
-async function loadBootstrapFindingCatalog(
-  examinationId: number | null,
-  context: DraftBootstrapContext
-): Promise<Map<number, Finding>> {
-  const rows = examinationId
-    ? await findingsApi.getExaminationFindings(examinationId, {
-        moduleName: context.moduleName,
-        moduleVersion: context.moduleVersion,
-        patientExaminationId: context.patientExaminationId
-      })
-    : []
-  assertBootstrapContextCurrent(context)
-  findingCatalog.value = Array.isArray(rows) ? rows : []
-  return new Map(findingCatalog.value.map((finding) => [finding.id, finding]))
-}
-
 async function bootstrapRuntimeDraft(
   patientExaminationId: number,
   option: PatientExaminationOption | null,
   context: DraftBootstrapContext,
   allowMissingTemplate = true
 ) {
-  const moduleName = context.moduleName
-  const detailResponse = await axiosInstance.get(
-    r(endpoints.examination.patientExaminationDetail(patientExaminationId))
-  )
-  assertBootstrapContextCurrent(context)
-  const detail = readRecord(detailResponse.data)
-  patientExaminationDetail.value = detail
-  patientExaminationIdentityLoadedId.value = patientExaminationId
-  try {
-    assertPatientExaminationKnowledgeBaseCompatibility(detail, context)
-  } catch (error: unknown) {
-    await discoverActiveTemplatesForKnowledgeBaseMismatch(error, detail, context)
-    throw error
-  }
-
-  const detailPatientId = extractPatientId(detail)
-  const detailExaminationId = extractExaminationId(detail)
-  flow.setCaseSelection({
-    selectedPatientId: option?.patientId ?? detailPatientId ?? flow.selectedPatientId,
-    selectedExaminationId:
-      option?.examinationId ?? detailExaminationId ?? flow.selectedExaminationId
-  })
-
-  const examinationName = extractExaminationName(detail)
-  if (!moduleName) {
+  if (!context.moduleName || !context.moduleVersion) {
     throw new Error(
       'Keine verifizierte aktive Knowledge Base ist im Terminologieregister ausgewählt.'
     )
   }
-  const templates = await loadBootstrapTemplates(moduleName, examinationName, context)
-  const selectedTemplate =
-    (flow.selectedTemplateName &&
-      templates.find((template) => template.name === flow.selectedTemplateName)) ||
-    null
-
-  const findingsById = await loadBootstrapFindingCatalog(
-    option?.examinationId ?? detailExaminationId,
-    context
-  )
-
-  if (!selectedTemplate) {
-    if (!allowMissingTemplate) {
-      throw new Error('Bitte wählen Sie eine veröffentlichte Berichtsvorlage aus.')
-    }
-    setAnnotationOnlyRuntimeDraft(patientExaminationId, detail, context)
-    return
+  templateLoading.value = true
+  const graphContext: BootstrapDagContext = Object.freeze({
+    evaluation: context,
+    option,
+    selectedTemplateName: flow.selectedTemplateName,
+    allowMissingTemplate
+  })
+  try {
+    const outputs = await executeReportingDag({
+      graph: bootstrapResolutionGraph,
+      context: graphContext,
+      isCurrent: () => isBootstrapContextCurrent(context)
+    })
+    const result = outputs.get('draft') as BootstrapDraftResult
+    commitReportingDagAtomically({
+      isCurrent: () => isBootstrapContextCurrent(context),
+      result,
+      commit: (resolved) => {
+        const detailPatientId = extractPatientId(resolved.detail)
+        const detailExaminationId = extractExaminationId(resolved.detail)
+        patientExaminationDetail.value = resolved.detail
+        patientExaminationIdentityLoadedId.value = patientExaminationId
+        availableTemplates.value = [...resolved.templates.templates]
+        templateAvailability.value = [...resolved.templates.availability]
+        templateAvailabilityError.value = resolved.templates.availabilityError
+        findingCatalog.value = [...resolved.findings.rows]
+        flow.setCaseSelection({
+          selectedPatientId: option?.patientId ?? detailPatientId ?? flow.selectedPatientId,
+          selectedExaminationId:
+            option?.examinationId ?? detailExaminationId ?? flow.selectedExaminationId
+        })
+        if (!resolved.selectedTemplate || !resolved.payload) {
+          setAnnotationOnlyRuntimeDraft(patientExaminationId, resolved.detail, context)
+          return
+        }
+        const selectedTemplateIdentity = resolved.selectedTemplate.identity
+        flow.setTemplateSelection({
+          moduleName: context.moduleName,
+          templateName: resolved.selectedTemplate.name,
+          templateIdentity: selectedTemplateIdentity
+        })
+        flow.setIndications(normalizeReportingIndicationSelections(resolved.detail))
+        flow.setRuntimeDraft({
+          draftId: `draft_${String(patientExaminationId)}`,
+          patientExaminationId,
+          moduleName: context.moduleName,
+          templateName: resolved.selectedTemplate.name,
+          templateIdentity: selectedTemplateIdentity,
+          payload: {
+            ...resolved.payload,
+            ...(extractDraftDate(resolved.detail)
+              ? { date: extractDraftDate(resolved.detail) }
+              : {})
+          },
+          hydratedFrom: 'backend_context',
+          verificationStatus: 'verified',
+          persistencePolicy: 'persistable',
+          updatedAt: new Date().toISOString()
+        })
+      }
+    })
+  } finally {
+    if (isBootstrapContextCurrent(context)) templateLoading.value = false
   }
-  const selectedTemplateIdentity = selectedTemplate.identity
-
-  const payload = await buildReportTemplateRuntimePayload({
-    moduleName,
-    patientExaminationId,
-    patient: resolvePatientKey(detail, patientExaminationId),
-    examiners: extractExaminers(detail),
-    examination: selectedTemplate.examination || examinationName,
-    knowledgeBaseVersion: context.moduleVersion || null,
-    getFindingById: (findingId) => findingsById.get(findingId)
-  })
-  assertBootstrapContextCurrent(context)
-
-  flow.setTemplateSelection({
-    moduleName,
-    templateName: selectedTemplate.name,
-    templateIdentity: selectedTemplateIdentity
-  })
-  flow.setIndications(normalizeReportingIndicationSelections(detail))
-  flow.setRuntimeDraft({
-    draftId: `draft_${String(patientExaminationId)}`,
-    patientExaminationId,
-    moduleName,
-    templateName: selectedTemplate.name,
-    templateIdentity: selectedTemplateIdentity,
-    payload: {
-      ...payload,
-      ...(extractDraftDate(detail) ? { date: extractDraftDate(detail) } : {})
-    },
-    hydratedFrom: 'backend_context',
-    verificationStatus: 'verified',
-    persistencePolicy: 'persistable',
-    updatedAt: new Date().toISOString()
-  })
 }
 
 async function hydrateRuntimeDraftFromDraftApi(
@@ -3165,7 +3252,7 @@ async function validateRestoredDraftTemplate(
   context: DraftBootstrapContext
 ) {
   const examinationName = extractExaminationName(detail)
-  const version = terminology.activeBundle?.version || ''
+  const version = context.moduleVersion
   const templates =
     examinationName && version
       ? (await fetchExaminationReportingContext(context.moduleName, version, examinationName))
@@ -3216,14 +3303,10 @@ async function loadPatientExaminationDraftContext(
     detailResponse.data && typeof detailResponse.data === 'object'
       ? (detailResponse.data as Record<string, unknown>)
       : {}
+  assertPatientExaminationKnowledgeBaseCompatibility(detail, context)
   patientExaminationDetail.value = detail
   patientExaminationIdentityLoadedId.value = patientExaminationId
-  try {
-    assertPatientExaminationKnowledgeBaseCompatibility(detail, context)
-  } catch (error: unknown) {
-    await discoverActiveTemplatesForKnowledgeBaseMismatch(error, detail, context)
-    throw error
-  }
+
   flow.setCaseSelection({
     selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
     selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
@@ -3325,17 +3408,6 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
     return
   }
 
-  const pinned = pinnedIdentity.value
-  if (pinned?.moduleName && pinned.moduleVersion) {
-    const matchingBundle = terminology.bundles.find(
-      (bundle) =>
-        bundle.moduleName === pinned.moduleName && bundle.version === pinned.moduleVersion
-    )
-    if (matchingBundle && terminology.activeBundleKey !== terminology.bundleKey(matchingBundle)) {
-      await terminology.selectBundle(matchingBundle)
-    }
-  }
-
   const option =
     patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
   if (patientExaminationId !== routePatientExaminationId.value) return
@@ -3358,17 +3430,23 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
     try {
       await ensureTerminologyBundlesLoaded()
       if (generation !== draftBootstrapGeneration) return
-      const context: DraftBootstrapContext = {
+      const context: DraftBootstrapContext = Object.freeze({
         generation,
         patientExaminationId,
         bundleKey: activeBundleIdentityKey.value,
         moduleName: activeKbModule.value,
-        moduleVersion: activeKbVersion.value
-      }
+        moduleVersion: activeKbVersion.value,
+        pinnedIdentity: pinnedIdentity.value ? Object.freeze({ ...pinnedIdentity.value }) : null
+      })
       assertBootstrapContextCurrent(context)
       await ensureRuntimeDraft(patientExaminationId, context)
     } catch (error: unknown) {
-      if (error instanceof SupersededReportingContextError) return
+      if (
+        error instanceof SupersededReportingContextError ||
+        error instanceof SupersededReportingDagError
+      ) {
+        return
+      }
       if (generation !== draftBootstrapGeneration) return
       draftBootstrapError.value = reportingApiErrorMessage(
         error,
@@ -3522,11 +3600,12 @@ watch(
     () => flow.selectedKbModule,
     () => flow.selectedTemplateName,
     activeKbModule,
-    activeBundleIdentityKey
+    activeBundleIdentityKey,
+    () => availableTemplates.value
   ],
-  async () => {
+  () => {
     selectedReferenceFindingKey.value = null
-    await loadTemplateReferenceForSelection()
+    loadTemplateReferenceForSelection()
   },
   { immediate: true }
 )

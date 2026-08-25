@@ -13,7 +13,7 @@ const hoisted = vi.hoisted(() => ({
     currentRuntimeDraft: {
       patientExaminationId: 17,
       templateName: 'published_template',
-      verificationStatus: 'verified' as 'verified' | 'unverified',
+      verificationStatus: 'verified',
       moduleName: 'clinical_reporting',
       templateIdentity: {
         moduleName: 'clinical_reporting',

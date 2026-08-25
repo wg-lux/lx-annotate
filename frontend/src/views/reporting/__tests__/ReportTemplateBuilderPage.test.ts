@@ -62,6 +62,14 @@ const draftTemplate = {
   conceptCoverageState: 'missing' as const
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+  return { promise, resolve }
+}
+
 describe('ReportTemplateBuilderPage publication integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -138,6 +146,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
     )
     expect(hoisted.fetchPreviewByName).toHaveBeenCalledWith(
       'report_template_examples',
+      '1.0.0',
       'custom_colonoscopy'
     )
     expect(hoisted.fetchByName).not.toHaveBeenCalled()
@@ -149,13 +158,65 @@ describe('ReportTemplateBuilderPage publication integration', () => {
     await publishButton.trigger('click')
     await flushPromises()
 
-    expect(hoisted.publish).toHaveBeenCalledWith('report_template_examples', 'custom_colonoscopy')
+    expect(hoisted.publish).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0',
+      'custom_colonoscopy'
+    )
     expect(notifyLifecycleChanged).toHaveBeenCalledWith({
       moduleName: 'report_template_examples',
+      moduleVersion: '1.0.0',
       templateName: 'custom_colonoscopy',
       examination: 'colonoscopy',
       lifecycleStatus: 'published'
     })
+  })
+
+  it('discards a delayed publication result after the terminology version changes', async () => {
+    const activeModuleVersion = ref('1.0.0')
+    const delayedPublish = deferred<{
+      moduleName: string
+      templateName: string
+      lifecycleStatus: 'published'
+      readiness: null
+    }>()
+    const notifyLifecycleChanged = vi.fn().mockResolvedValue(undefined)
+    hoisted.publish.mockReturnValueOnce(delayedPublish.promise)
+    const wrapper = mount(ReportTemplateBuilderPage, {
+      global: {
+        provide: {
+          [reportTemplateLifecycleContextKey as symbol]: {
+            activeModuleName: computed(() => 'report_template_examples'),
+            activeModuleVersion: computed(() => activeModuleVersion.value),
+            activeExaminationName: computed(() => 'colonoscopy'),
+            notifyLifecycleChanged
+          }
+        }
+      }
+    })
+    await flushPromises()
+    const publishButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Veröffentlichen')
+    if (!publishButton) throw new Error('Publish button not found.')
+    await publishButton.trigger('click')
+
+    activeModuleVersion.value = '2.0.0'
+    delayedPublish.resolve({
+      moduleName: 'report_template_examples',
+      templateName: 'custom_colonoscopy',
+      lifecycleStatus: 'published',
+      readiness: null
+    })
+    await flushPromises()
+
+    expect(hoisted.publish).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0',
+      'custom_colonoscopy'
+    )
+    expect(notifyLifecycleChanged).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('wurde veröffentlicht')
   })
 
   it('waits for the shell terminology module before loading builder catalogs', async () => {
@@ -188,6 +249,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
     )
     expect(hoisted.fetchBuilderByExamination).toHaveBeenCalledWith(
       'report_template_examples',
+      '1.0.0',
       'colonoscopy'
     )
     expect(wrapper.text()).toContain('1 Untersuchungen')
@@ -269,12 +331,59 @@ describe('ReportTemplateBuilderPage publication integration', () => {
 
     expect(hoisted.fetchBuilderByExamination).toHaveBeenCalledWith(
       'report_template_examples',
+      '1.0.0',
       'colonoscopy'
     )
     expect(hoisted.fetchBuilderByExamination).not.toHaveBeenCalledWith(
       'report_template_examples',
+      '1.0.0',
       'gastroscopy'
     )
+  })
+
+  it('discards a delayed template list after the terminology version changes', async () => {
+    const activeModuleVersion = ref('1.0.0')
+    const delayedVersionOne = deferred<typeof draftTemplate[]>()
+    const versionTwoTemplate = {
+      ...draftTemplate,
+      name: 'custom_colonoscopy_v2',
+      nameDe: 'Koloskopie Version 2',
+      identity: {
+        ...draftTemplate.identity,
+        knowledgeBaseVersion: '2.0.0'
+      }
+    }
+    hoisted.fetchBuilderByExamination.mockImplementation(() =>
+      activeModuleVersion.value === '1.0.0'
+        ? delayedVersionOne.promise
+        : Promise.resolve([versionTwoTemplate])
+    )
+
+    const wrapper = mount(ReportTemplateBuilderPage, {
+      global: {
+        provide: {
+          [reportTemplateLifecycleContextKey as symbol]: {
+            activeModuleName: computed(() => 'report_template_examples'),
+            activeModuleVersion: computed(() => activeModuleVersion.value),
+            activeExaminationName: computed(() => 'colonoscopy'),
+            notifyLifecycleChanged: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      }
+    })
+    await vi.waitFor(() => {
+      expect(hoisted.fetchBuilderByExamination).toHaveBeenCalled()
+    })
+
+    activeModuleVersion.value = '2.0.0'
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('Koloskopie Version 2')
+    })
+
+    delayedVersionOne.resolve([draftTemplate])
+    await flushPromises()
+    expect(wrapper.text()).toContain('Koloskopie Version 2')
+    expect(wrapper.text()).not.toContain('Koloskopie-Demovorlage')
   })
 
   it('fails visibly instead of loading templates for an unrelated examination', async () => {
@@ -356,6 +465,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
 
     expect(hoisted.saveDefinition).toHaveBeenCalledWith(
       expect.objectContaining({
+        moduleVersion: '1.0.0',
         sections: [
           expect.objectContaining({
             sectionType: 'clinic_address',

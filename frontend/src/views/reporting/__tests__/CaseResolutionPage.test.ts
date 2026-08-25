@@ -123,10 +123,11 @@ type AnonymizationStoreStub = {
 }
 
 function buildFlowStore() {
+  const initialPatientExaminationId = (): number | null => 314
   const flow = reactive({
     selectedPatientId: null as number | null,
     selectedExaminationId: null as number | null,
-    patientExaminationId: 314 as number | null,
+    patientExaminationId: initialPatientExaminationId(),
     setCaseSelection: vi.fn(
       (payload: { selectedPatientId?: number | null; selectedExaminationId?: number | null }) => {
         if (payload.selectedPatientId !== undefined)

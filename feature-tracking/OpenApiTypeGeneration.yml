@@ -1,0 +1,174 @@
+schema_version: '1.0'
+id: openapi_type_generation
+name: Django Ninja OpenAPI Type Generation
+description: Generate deterministic TypeScript contracts from the endoreg and lx-dtypes Django Ninja APIs.
+owners:
+- lx-annotate maintainers
+- lx-annotate frontend maintainers
+- endoreg-db maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-openapi-typegen-20260825
+    changed_at: '2026-08-25T12:40:50.459192Z'
+    note: Offline dual-API OpenAPI export, deterministic TypeScript generation, frontend generated response
+      integration, strict lint cleanup, documentation, and regression checks all pass.
+  - action: reopened
+    changed_by: codex-openapi-typegen-20260825
+    changed_at: '2026-08-25T12:41:45.367318Z'
+    note: Fold the now-clean strict ESLint gate into the single frontend type-check command.
+  - action: done
+    changed_by: codex-openapi-typegen-20260825
+    changed_at: '2026-08-25T12:44:44.283186Z'
+    note: Offline dual-API OpenAPI export, deterministic TypeScript generation, generated response integration,
+      and the unified typegen/vue-tsc/ESLint gate all pass.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Offline schema export, generated-file ownership, and verification workflow.
+definition_of_done:
+- id: offline_export
+  category: requirements
+  title: Both Ninja APIs export without a running server
+  acceptance:
+  - The command exports separate endoreg-api and dtypes-api OpenAPI documents.
+  - Output writes are atomic and deterministic.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - tests/system/test_openapi_type_generation.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'tests/system/test_openapi_type_generation.py: 4 passed'
+    note: Offline command deterministically exports separately prefixed endoreg-api and dtypes-api schemas
+      using atomic writes.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:40:25.071056Z'
+- id: generated_types
+  category: functionality
+  title: OpenAPI documents compile into TypeScript contracts
+  acceptance:
+  - Endoreg and dtypes schemas generate separate TypeScript modules.
+  - Generated modules expose paths, operations, and components.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - typegen:check
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: npm --prefix frontend run typegen:check (exit 0)
+    note: Both OpenAPI documents compile to separate generated modules exposing paths, operations, and
+      components; recursive JSON remains strongly typed.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:40:26.884625Z'
+- id: generation_tests
+  category: testing
+  title: Export and generated-file freshness are regression tested
+  acceptance:
+  - Tests assert canonical prefixes, expected operations, schemas, and stable output.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - tests/system/test_openapi_type_generation.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test pytest -q tests/system/test_openapi_type_generation.py
+        (4 passed)
+    note: Regression tests cover deterministic output, API ownership prefixes, representative schemas,
+      stale files, and settings bootstrap.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:40:28.859011Z'
+- id: safe_generation
+  category: security
+  title: Type generation does not weaken runtime configuration
+  acceptance:
+  - Production secrets are not embedded in scripts or generated artifacts.
+  - Schema export writes through the typed atomic filesystem boundary.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review management bootstrap, exporter, scripts, and generated artifacts.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: manage.py and export_openapi.py
+    note: Test settings are honored before base settings import; no production secret is required or emitted;
+      project atomic filesystem wrappers persist artifacts.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:40:30.597976Z'
+- id: reproducible_workflow
+  category: operations
+  title: Local and CI type generation use one reproducible command
+  acceptance:
+  - npm scripts generate and freshness-check both APIs.
+  - Frontend type checking consumes the generated modules.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - type-check
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm --prefix frontend run type-check (exit 0: generated freshness, vue-tsc, strict ESLint)'
+    note: One CI-facing command now verifies generated artifacts, Vue/TypeScript contracts, and repository-wide
+      ESLint with zero warnings.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:44:39.931244Z'
+- id: workflow_documented
+  category: documentation
+  title: Ownership, commands, and limitations are documented
+  acceptance:
+  - Documentation distinguishes Ninja-generated contracts from DRF routes.
+  - Generated files are identified as derived artifacts that must not be hand edited.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review docs/guides/openapi-type-generation.md against the implemented commands.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/openapi-type-generation.md
+    note: Guide documents API ownership, generated artifacts, camel-case mapping, recursive JSON compatibility,
+      DRF exclusion, and manual-body limitation.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:40:33.493012Z'

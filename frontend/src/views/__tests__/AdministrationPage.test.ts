@@ -12,6 +12,11 @@ const api = vi.hoisted(() => ({
   updateScope: vi.fn()
 }))
 
+const dialogs = {
+  confirm: vi.fn<(message?: string) => boolean>(),
+  prompt: vi.fn<(message?: string, defaultValue?: string) => string | null>()
+}
+
 vi.mock('@/api/administrationApi', () => ({
   fetchAdministrationOverview: api.fetchOverview,
   fetchCenterScopeUsers: api.fetchUsers,
@@ -208,8 +213,12 @@ describe('AdministrationPage', () => {
       replayed: false,
       correlationId: 'request-1'
     })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
-    vi.spyOn(window, 'prompt').mockReturnValue('Planned disk replacement')
+    dialogs.confirm.mockReturnValue(true)
+    dialogs.prompt.mockReturnValue('Planned disk replacement')
+    vi.spyOn(window, 'confirm').mockImplementation((message) => dialogs.confirm(message))
+    vi.spyOn(window, 'prompt').mockImplementation((message, defaultValue) =>
+      dialogs.prompt(message, defaultValue)
+    )
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001')
   })
 
@@ -272,8 +281,8 @@ describe('AdministrationPage', () => {
     await wrapper.get('[data-test="storage-node-action-storage-1"]').trigger('click')
     await flushPromises()
 
-    expect(window.prompt).toHaveBeenCalled()
-    expect(window.confirm).toHaveBeenCalledWith(
+    expect(dialogs.prompt).toHaveBeenCalled()
+    expect(dialogs.confirm).toHaveBeenCalledWith(
       'Storage-Knoten storage-1 für neue Platzierungen sperren?'
     )
     expect(api.updateStorage).toHaveBeenCalledWith({

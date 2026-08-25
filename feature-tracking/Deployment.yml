@@ -1,8 +1,8 @@
 schema_version: '1.0'
 id: deployment
 name: Deployment
-description: Govern attributable release inputs, temporary deployment artifacts, release worktrees,
-  Nix roots, and post-deployment cleanup for LX-Annotate across the LuxNix clinical fleet.
+description: Govern attributable release inputs, temporary deployment artifacts, release worktrees, Nix
+  roots, and post-deployment cleanup for LX-Annotate across the LuxNix clinical fleet.
 owners:
 - LuxNix maintainers
 - lx-annotate maintainers
@@ -35,7 +35,24 @@ definition_of_done:
       state, flake.lock, selected host output, and LX-Annotate artifact metadata.
     timeout_seconds: 600
   assessment:
-    status: not_assessed
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: target gc-02; active system /nix/store/bcia1cqm7n4rgq6hqk6axlxixzig0rq3-nixos-system-gc-02-25.11.20260125.1cd347b;
+        active service /nix/store/9l9lmzl7p2bjvrpsb9gx0hzg3qgzgihv-lx-annotate-wheel-runtime-1.0.4
+    - kind: command
+      reference: LuxNix revision 1658288bb85eff92d2d87689a667e9208261a53b; flake.lock sha256 3ea0f05365ef457e1bad9e31809aba280a39f0999b2a32b4d78ed98bd2335f87;
+        dirty entries=25
+    - kind: command
+      reference: Evaluated and active wheel sha256 bb8cd013002c7bee361e6f59eb58da6a23b1640fc7f809405f008c3c0a9f8546;
+        installed lx-annotate=1.0.4, endoreg-db=1.0.20.0, lx-dtypes=0.2.22
+    note: 'Provenance was captured for the storage work: target gc-02, active system and service closures,
+      LuxNix revision and flake.lock digest, installed package versions, and the immutable LX-Annotate
+      1.0.4 wheel digest. The evaluated default now matches the active wheel exactly. Readiness remains
+      incomplete because the LuxNix worktree has 25 entries requiring ownership review and the coordinated
+      wheel containing current endoreg/lx changes has not been released or identified.'
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T07:58:40.036667Z'
 - id: immutable_runtime_source
   category: functionality
   title: Runtime services consume immutable installed artifacts
@@ -55,6 +72,7 @@ definition_of_done:
     timeout_seconds: 900
   assessment:
     status: not_assessed
+    evidence: []
 - id: reproducible_pre_deploy_gate
   category: testing
   title: Pre-deployment checks reproduce the selected fleet configuration
@@ -73,6 +91,7 @@ definition_of_done:
     timeout_seconds: 3600
   assessment:
     status: not_assessed
+    evidence: []
 - id: protected_temporary_boundary
   category: security
   title: Temporary storage never becomes a protected-data or secret boundary
@@ -92,6 +111,7 @@ definition_of_done:
     timeout_seconds: 1200
   assessment:
     status: not_assessed
+    evidence: []
 - id: accepted_cleanup_and_recovery
   category: operations
   title: Cleanup follows successful acceptance and remains recoverable
@@ -112,6 +132,7 @@ definition_of_done:
     timeout_seconds: 1800
   assessment:
     status: not_assessed
+    evidence: []
 - id: documented_operator_and_agent_workflow
   category: documentation
   title: Operators and agents follow one source-hygiene workflow
@@ -131,3 +152,4 @@ definition_of_done:
     timeout_seconds: 600
   assessment:
     status: not_assessed
+    evidence: []

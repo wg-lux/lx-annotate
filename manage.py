@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Django's command-line utility for administrative tasks."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -7,10 +8,9 @@ import os
 import sys
 from pathlib import Path
 
-from lx_annotate.settings.settings_base import BASE_DIR
-
 DEV_SETTINGS_MODULE = "lx_annotate.settings.settings_dev"
 PROD_SETTINGS_MODULE = "lx_annotate.settings.settings_prod"
+BASE_DIR = Path(__file__).resolve().parent
 
 
 def _requested_management_command(argv: list[str]) -> str:
@@ -68,7 +68,8 @@ default_data_dir = os.environ.get(
 if not default_data_dir:
     default_data_dir = str(Path(BASE_DIR) / "data")
 default_storage_dir = os.environ.get(
-    "STORAGE_DIR", str(Path(default_data_dir) / "storage"),
+    "STORAGE_DIR",
+    str(Path(default_data_dir) / "storage"),
 )
 os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", default_data_dir)
 os.environ.setdefault("LX_ANNOTATE_DATA_DIR", default_data_dir)

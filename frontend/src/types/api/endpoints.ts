@@ -15,20 +15,10 @@ const pathId = (id: Id): string => String(id)
 export const endpoints = {
   auth: {
     bootstrap: 'auth/bootstrap',
-    context: 'auth/context',
     publicHome: 'endoreg_db/',
     login: 'login/',
     loginCallback: 'login/callback/',
     conf: 'conf/'
-  },
-
-  router: {
-    examinations: 'examinations/',
-    examinationById: (id: Id) => `examinations/${pathId(id)}/`,
-    findings: 'findings/',
-    classifications: 'classifications/',
-    patientFindings: 'patient-findings/',
-    patientExaminationReports: 'patient-examination-reports/'
   },
 
   patient: {
@@ -45,8 +35,6 @@ export const endpoints = {
     patientDeletionSafety: (id: Id) => `patients/${pathId(id)}/check_deletion_safety/`,
     centers: 'centers/',
     genders: 'genders/',
-    patientFindings: 'patient-findings/',
-    patientFindingById: (id: Id) => `patient-findings/${pathId(id)}/`,
     checkPatientExaminationExists: (id: Id) => `check_pe_exist/${pathId(id)}/`
   },
 
@@ -59,37 +47,28 @@ export const endpoints = {
 
   examination: {
     examinationsDropdown: 'patient-examinations/examinations_dropdown/',
-    examinationFindings: (examinationId: Id) => `examinations/${pathId(examinationId)}/findings/`,
-    findingClassifications: (findingId: Id) => `findings/${pathId(findingId)}/classifications/`,
-    classificationChoices: (classificationId: Id) =>
-      `classifications/${pathId(classificationId)}/choices/`,
-
     patientExaminationCreate: 'patient-examinations/create/',
     patientExaminationDetail: (id: Id) => `patient-examinations/${pathId(id)}/`,
     patientExaminationDraft: (id: Id) => `patient-examinations/${pathId(id)}/draft/`,
-    patientExaminationList: 'patient-examinations/list/',
-    patientExaminationClassifications: (examId: Id) =>
-      `patient-examinations/${pathId(examId)}/classifications/`,
-    patientExaminationFindings: (examinationId: Id) =>
-      `patient-examinations/${pathId(examinationId)}/findings/`
+    patientExaminationList: 'patient-examinations/list/'
   },
 
   report: {
     patientExaminationReports: 'patient-examination-reports/',
-    patientExaminationReportById: (id: Id) => `patient-examination-reports/${pathId(id)}/`,
+    patientExaminationReportById: (id: Id) => `patient-examination-reports/${pathId(id)}`,
     patientExaminationReportsByPatientExamination: (patientExaminationId: Id) =>
       `patient-examination-reports/?patient_examination_id=${pathId(patientExaminationId)}`,
-    saveReportSubmission: 'patient-examination-reports/save-submission/',
-    makeReport: 'patient-examination-reports/make-report/',
-    segmentFrameSelectorBase: 'patient-examination-reports/segment-frame-selector/',
+    saveReportSubmission: 'patient-examination-reports/save-submission',
+    makeReport: 'patient-examination-reports/make-report',
+    segmentFrameSelectorBase: 'patient-examination-reports/segment-frame-selector',
     segmentFrameSelector: (patientExaminationId: Id, reportId?: Id) =>
       reportId == null
-        ? `patient-examination-reports/segment-frame-selector/?patient_examination_id=${pathId(patientExaminationId)}`
-        : `patient-examination-reports/segment-frame-selector/?patient_examination_id=${pathId(patientExaminationId)}&report_id=${pathId(reportId)}`,
+        ? `patient-examination-reports/segment-frame-selector?patient_examination_id=${pathId(patientExaminationId)}`
+        : `patient-examination-reports/segment-frame-selector?patient_examination_id=${pathId(patientExaminationId)}&report_id=${pathId(reportId)}`,
     reportHistoryContext: (patientExaminationId: Id, limit?: number) =>
       limit == null
-        ? `patient-examination-reports/history-context/?patient_examination_id=${pathId(patientExaminationId)}`
-        : `patient-examination-reports/history-context/?patient_examination_id=${pathId(patientExaminationId)}&limit=${pathId(limit)}`
+        ? `patient-examination-reports/history-context?patient_examination_id=${pathId(patientExaminationId)}`
+        : `patient-examination-reports/history-context?patient_examination_id=${pathId(patientExaminationId)}&limit=${pathId(limit)}`
   },
 
   annotation: {
@@ -139,10 +118,6 @@ export const endpoints = {
     quarantine: 'runtime/quarantine/'
   },
 
-  workflow: {
-    saveWorkflowData: 'save-workflow-data/'
-  },
-
   anonymization: {
     itemsOverview: 'anonymization/items/overview/',
     retryUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${jobId}/retry/`,
@@ -190,7 +165,6 @@ export const endpoints = {
     videoLabelSetsList: 'media/videos/label-sets/list/',
     videoPredictionModelsList: 'media/videos/prediction-models/list/',
 
-    segmentsCollection: 'media/videos/segments/',
     segmentsStats: 'media/videos/segments/stats/',
     videoSegments: (pk: Id) => `media/videos/${pathId(pk)}/segments/`,
     videoSegmentsBulkMutation: (pk: Id) => `media/videos/${pathId(pk)}/segments/bulk/`,
@@ -226,9 +200,7 @@ export const endpoints = {
     pdfs: 'media/pdfs/',
     pdfDetail: (pk: Id) => `media/pdfs/${pathId(pk)}/`,
     pdfStream: (pk: Id) => `media/pdfs/${pathId(pk)}/stream/`,
-    pdfReimport: (pk: Id) => `media/pdfs/${pathId(pk)}/reimport/`,
-    processedVideoDownload: (videoId: Id, historyId: Id) =>
-      `media/processed-videos/${pathId(videoId)}/${pathId(historyId)}/`
+    pdfReimport: (pk: Id) => `media/pdfs/${pathId(pk)}/reimport/`
   }
 } as const
 

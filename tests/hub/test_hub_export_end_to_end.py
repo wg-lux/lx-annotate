@@ -6,7 +6,7 @@ import hashlib
 import os
 import tempfile
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse
 
@@ -46,7 +46,7 @@ from tests.hub_payload_helpers import (
     verify_hub_report_artifact,
 )
 
-User = get_user_model()
+User = cast(Any, get_user_model())
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 
 

@@ -98,7 +98,7 @@ import { useAnnotationStatsStore } from '@/stores/annotationStats'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const logger = createRuntimeLogger('navbar')
-const { isSidebarOpen = false } = defineProps<{
+const { isSidebarOpen } = defineProps<{
   isSidebarOpen?: boolean
 }>()
 const emit = defineEmits<{

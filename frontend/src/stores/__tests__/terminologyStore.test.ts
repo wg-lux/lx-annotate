@@ -7,11 +7,13 @@ type CreateTerminologyBundleArchives =
   typeof import('@/api/terminologyApi').createTerminologyBundleArchives
 type FetchTerminologyBundles = typeof import('@/api/terminologyApi').fetchTerminologyBundles
 type ImportTerminologyBundle = typeof import('@/api/terminologyApi').importTerminologyBundle
+type SelectTerminologyBundle = typeof import('@/api/terminologyApi').selectTerminologyBundle
 
 const hoisted = vi.hoisted(() => ({
   createTerminologyBundleArchives: vi.fn<CreateTerminologyBundleArchives>(),
   fetchTerminologyBundles: vi.fn<FetchTerminologyBundles>(),
-  importTerminologyBundle: vi.fn<ImportTerminologyBundle>()
+  importTerminologyBundle: vi.fn<ImportTerminologyBundle>(),
+  selectTerminologyBundle: vi.fn<SelectTerminologyBundle>()
 }))
 
 vi.mock('@/api/terminologyApi', async (importOriginal) => {
@@ -20,7 +22,8 @@ vi.mock('@/api/terminologyApi', async (importOriginal) => {
     ...original,
     createTerminologyBundleArchives: hoisted.createTerminologyBundleArchives,
     fetchTerminologyBundles: hoisted.fetchTerminologyBundles,
-    importTerminologyBundle: hoisted.importTerminologyBundle
+    importTerminologyBundle: hoisted.importTerminologyBundle,
+    selectTerminologyBundle: hoisted.selectTerminologyBundle
   }
 })
 
@@ -48,13 +51,14 @@ describe('terminologyStore', () => {
     expect(terminology.error).toBeNull()
   })
 
-  it('imports package ZIPs sequentially, reports partial failures, and mirrors backend activation', async () => {
+  it('imports package ZIPs sequentially without activating the imported bundles', async () => {
     const first = new File(['first'], 'first.zip', { type: 'application/zip' })
     const broken = new File(['broken'], 'broken.zip', { type: 'application/zip' })
     const second = new File(['second'], 'second.zip', { type: 'application/zip' })
     hoisted.importTerminologyBundle
       .mockResolvedValueOnce({
         ok: true,
+        revision: 'sha256:after-first',
         imported: {
           moduleName: 'first',
           version: '1.0',
@@ -69,6 +73,7 @@ describe('terminologyStore', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
+        revision: 'sha256:after-second',
         imported: {
           moduleName: 'second',
           version: '2.0',
@@ -77,6 +82,35 @@ describe('terminologyStore', () => {
         },
         counts: { findings: 2 }
       })
+    hoisted.fetchTerminologyBundles.mockResolvedValue({
+      revision: 'sha256:registry-after-imports',
+      active: {
+        moduleName: 'existing',
+        version: '3.0',
+        medicalField: 'gastroenterology',
+        isActive: true
+      },
+      bundles: [
+        {
+          moduleName: 'existing',
+          version: '3.0',
+          medicalField: 'gastroenterology',
+          isActive: true
+        },
+        {
+          moduleName: 'first',
+          version: '1.0',
+          medicalField: 'gastroenterology',
+          isActive: false
+        },
+        {
+          moduleName: 'second',
+          version: '2.0',
+          medicalField: 'gastroenterology',
+          isActive: false
+        }
+      ]
+    })
     const terminology = useTerminologyStore()
 
     const result = await terminology.importBundles([first, broken, second])
@@ -89,10 +123,11 @@ describe('terminologyStore', () => {
     expect(result.imported.map((bundle) => bundle.moduleName)).toEqual(['first', 'second'])
     expect(result.failures).toEqual([{ sourceName: 'broken.zip', message: 'Ungültiges Paket.' }])
     expect(terminology.activeBundle).toEqual(
-      expect.objectContaining({ moduleName: 'second', version: '2.0', isActive: true })
+      expect.objectContaining({ moduleName: 'existing', version: '3.0', isActive: true })
     )
     expect(terminology.bundles.find((bundle) => bundle.moduleName === 'first')?.isActive).toBe(false)
-    expect(terminology.bundles.find((bundle) => bundle.moduleName === 'second')?.isActive).toBe(true)
+    expect(terminology.bundles.find((bundle) => bundle.moduleName === 'second')?.isActive).toBe(false)
+    expect(terminology.registryRevision).toBe('sha256:registry-after-imports')
     expect(terminology.error).toContain('broken.zip: Ungültiges Paket.')
   })
 
@@ -106,6 +141,7 @@ describe('terminologyStore', () => {
     hoisted.importTerminologyBundle.mockImplementation((file: File) =>
       Promise.resolve({
         ok: true,
+        revision: `sha256:${file.name}`,
         imported: {
           moduleName: file.name.replace('.zip', ''),
           version: '1.0',
@@ -115,6 +151,11 @@ describe('terminologyStore', () => {
         counts: {}
       })
     )
+    hoisted.fetchTerminologyBundles.mockResolvedValue({
+      revision: 'sha256:after-folder-import',
+      active: null,
+      bundles: []
+    })
     const terminology = useTerminologyStore()
 
     const result = await terminology.importBundleFolders(selectedFiles)
@@ -140,5 +181,50 @@ describe('terminologyStore', () => {
 
     expect(result.failures[0].message).toContain('Das benötigte Modul „lx_units“ fehlt')
     expect(result.failures[0].message).toContain('gemeinsamen Ordner')
+  })
+
+  it('uses the registry revision for selection and reloads after a conflict', async () => {
+    const original = {
+      moduleName: 'original',
+      version: '1.0',
+      medicalField: 'gastroenterology' as const,
+      isActive: true
+    }
+    const concurrent = {
+      moduleName: 'concurrent',
+      version: '2.0',
+      medicalField: 'gastroenterology' as const,
+      isActive: true
+    }
+    hoisted.fetchTerminologyBundles
+      .mockResolvedValueOnce({
+        revision: 'sha256:revision-one',
+        active: original,
+        bundles: [original, { ...concurrent, isActive: false }]
+      })
+      .mockResolvedValueOnce({
+        revision: 'sha256:revision-two',
+        active: concurrent,
+        bundles: [{ ...original, isActive: false }, concurrent]
+      })
+    hoisted.selectTerminologyBundle.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 409, data: { detail: 'Revision mismatch.' } }
+    })
+    const terminology = useTerminologyStore()
+    await terminology.loadBundles()
+
+    await expect(
+      terminology.selectBundle({ moduleName: 'requested', version: '3.0' })
+    ).rejects.toMatchObject({ response: { status: 409 } })
+
+    expect(hoisted.selectTerminologyBundle).toHaveBeenCalledWith({
+      moduleName: 'requested',
+      version: '3.0',
+      expectedRevision: 'sha256:revision-one'
+    })
+    expect(terminology.registryRevision).toBe('sha256:revision-two')
+    expect(terminology.activeBundle).toEqual(concurrent)
+    expect(terminology.error).toContain('zwischenzeitlich geändert')
   })
 })

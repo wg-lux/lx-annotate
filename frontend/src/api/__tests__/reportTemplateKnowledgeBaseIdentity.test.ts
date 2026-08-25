@@ -34,11 +34,12 @@ describe('report-template knowledge-base identity', () => {
 
     const [template] = await fetchReportTemplatesByExamination(
       'report_template_examples',
+      '0.1.0',
       'colonoscopy'
     )
 
     expect(hoisted.get).toHaveBeenCalledWith(
-      '/dtypes-api/report-templates/by-examination/report_template_examples/colonoscopy'
+      '/dtypes-api/report-templates/by-examination/report_template_examples/colonoscopy?version=0.1.0'
     )
     expect(template.identity).toMatchObject({
       moduleName: 'report_template_examples',

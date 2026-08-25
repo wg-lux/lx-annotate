@@ -81,7 +81,7 @@ describe('OutsideSegmentComponent', () => {
         video_url: '/api/media/videos/7/stream/',
         duration: 12
       }
-    } as never)
+    })
   })
 
   it('uses authenticated processed HLS without a legacy video src', async () => {
@@ -98,7 +98,7 @@ describe('OutsideSegmentComponent', () => {
   })
 
   it('validates a single outside segment via the backend endpoint', async () => {
-    hoisted.axiosPost.mockResolvedValue({ data: {} } as never)
+    hoisted.axiosPost.mockResolvedValue({ data: {} })
 
     const wrapper = mount(OutsideSegmentComponent, {
       props: { videoId: 7 }
@@ -143,7 +143,7 @@ describe('OutsideSegmentComponent', () => {
   })
 
   it('emits validation-complete after all outside segments are validated', async () => {
-    hoisted.axiosPost.mockResolvedValue({ data: {} } as never)
+    hoisted.axiosPost.mockResolvedValue({ data: {} })
 
     const wrapper = mount(OutsideSegmentComponent, {
       props: { videoId: 7 }

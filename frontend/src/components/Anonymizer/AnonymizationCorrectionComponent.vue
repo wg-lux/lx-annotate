@@ -261,14 +261,6 @@
                     <div class="col-md-4 text-end">
                       <div class="d-flex flex-column gap-2">
                         <button
-                          class="btn btn-outline-info btn-sm"
-                          :disabled="isProcessing"
-                          @click="analyzeVideo"
-                        >
-                          <i class="ni ni-tv-2 me-1"></i>
-                          Video analysieren
-                        </button>
-                        <button
                           class="btn btn-outline-warning btn-sm"
                           :disabled="isProcessing"
                           @click="reprocessVideo"
@@ -698,9 +690,9 @@
                           </td>
                           <td>
                             <button
-                              v-if="entry.status === 'success' && entry.outputPath"
+                              v-if="entry.status === 'success' && entry.downloadUrl"
                               class="btn btn-outline-primary btn-sm"
-                              @click="downloadResult(entry.id)"
+                              @click="openProcessedResult(entry.downloadUrl)"
                             >
                               <i class="ni ni-cloud-upload-96"></i>
                             </button>
@@ -802,22 +794,6 @@ interface UploadResponse {
   upload_id?: string | number;
 }
 
-interface AnalysisResponse extends Partial<VideoMetadata> {
-  sensitiveFrameCount?: number;
-}
-
-interface CorrectionTaskResult {
-  output_path?: string;
-  summary?: string;
-}
-
-interface CorrectionTaskStatusResponse {
-  status?: string;
-  progress?: number;
-  message?: string;
-  result?: CorrectionTaskResult | null;
-}
-
 interface FrameRemovalResponse {
   taskId?: string;
   task_id?: string;
@@ -838,10 +814,18 @@ const selectedStrategy = ref<VideoAnonymizationStrategy>('detector_assisted');
 
 // Patient data for correction
 // Configuration for masking
-const maskConfig = ref({
-  type: 'device_default' as 'device_default' | 'custom',
+const maskConfig = ref<{
+  type: 'device_default' | 'custom';
+  deviceName: string;
+  processingMethod: 'streaming' | 'direct';
+  endoscopeX: number;
+  endoscopeY: number;
+  endoscopeWidth: number;
+  endoscopeHeight: number;
+}>({
+  type: 'device_default',
   deviceName: 'olympus_cv_1500',
-  processingMethod: 'streaming' as 'streaming' | 'direct',
+  processingMethod: 'streaming',
   endoscopeX: 550,
   endoscopeY: 0,
   endoscopeWidth: 1350,
@@ -849,10 +833,15 @@ const maskConfig = ref({
 });
 
 // Configuration for frame removal
-const frameConfig = ref({
-  selectionMethod: 'automatic' as 'automatic' | 'manual',
-  detectionEngine: 'minicpm' as 'minicpm' | 'traditional' | 'hybrid',
-  processingMethod: 'streaming' as 'streaming' | 'traditional',
+const frameConfig = ref<{
+  selectionMethod: 'automatic' | 'manual';
+  detectionEngine: 'minicpm' | 'traditional' | 'hybrid';
+  processingMethod: 'streaming' | 'traditional';
+  manualFrames: string;
+}>({
+  selectionMethod: 'automatic',
+  detectionEngine: 'minicpm',
+  processingMethod: 'streaming',
   manualFrames: ''
 });
 
@@ -864,6 +853,7 @@ const processingHistory = ref<Array<{
   status: string;
   details: string;
   outputPath?: string;
+  downloadUrl?: string;
 }>>([]);
 
 const normalizeProcessingHistory = (raw: unknown) => {
@@ -879,6 +869,7 @@ const normalizeProcessingHistory = (raw: unknown) => {
       status: stringFromUnknown(entry.status),
       details: stringFromUnknown(entry.details ?? entry.message),
       outputPath: stringFromUnknown(entry.outputPath ?? entry.output_path ?? entry.output_file) || undefined,
+      downloadUrl: stringFromUnknown(entry.downloadUrl ?? entry.download_url) || undefined,
     }));
 };
 
@@ -1450,43 +1441,6 @@ const uploadRedactedPdf = async () => {
   }
 };
 
-const analyzeVideo = async () => {
-  if (!currentVideo.value) return;
-
-  isProcessing.value = true;
-  currentOperation.value = 'analysis';
-  processingProgress.value = 0;
-  processingStatus.value = 'Video wird analysiert...';
-
-  try {
-    const response = await axiosInstance.post<AnalysisResponse>(r(`media/videos/${String(currentVideo.value.id)}/analyze/`), {
-      use_minicpm: frameConfig.value.detectionEngine !== 'traditional',
-      detailed_analysis: true
-    });
-
-    // Update metadata with analysis results
-    videoMetadata.value = { ...videoMetadata.value, ...response.data };
-    processingProgress.value = 100;
-    processingStatus.value = 'Analyse abgeschlossen';
-
-    // Add to history
-    processingHistory.value.unshift({
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      operation: 'analysis',
-      status: 'success',
-      details: `${String(response.data.sensitiveFrameCount ?? 0)} sensible Frames gefunden`
-    });
-
-  } catch (err: unknown) {
-    error.value = getApiErrorMessage(err, 'Fehler bei der Video-Analyse');
-    logger.error('video-analysis-failed', err);
-  } finally {
-    isProcessing.value = false;
-    currentOperation.value = '';
-  }
-};
-
 const applyMasking = async () => {
   if (!currentVideo.value) return;
 
@@ -1602,7 +1556,9 @@ const removeFrames = async () => {
 
     const taskId = response.data.taskId ?? response.data.task_id;
     if (taskId) {
-      await pollTaskProgress(taskId, 'frame_removal');
+      throw new Error(
+        `Der Server lieferte die asynchrone Aufgabe ${taskId}, stellt aber keinen Status-Endpunkt bereit.`
+      );
     } else {
       await finalizeCorrectionProcessing('frame_removal', {
         output_path: response.data.outputFile ?? response.data.output_file,
@@ -1644,34 +1600,6 @@ const parseManualFrames = (frameString: string): number[] => {
   return [...new Set(frames)].sort((a, b) => a - b);
 };
 
-const pollTaskProgress = async (
-  taskId: string,
-  operation: 'masking' | 'frame_removal'
-) => {
-  const pollInterval = 5000;
-  const maxPolls = 300;
-  for (let polls = 0; polls < maxPolls && isProcessing.value; polls += 1) {
-    const response = await axiosInstance.get<CorrectionTaskStatusResponse>(
-      r(`media/videos/task-status/${taskId}/`)
-    );
-    const { status, progress, message, result } = response.data;
-    processingProgress.value = progress || 0;
-    processingStatus.value = message || 'Verarbeitung läuft...';
-
-    if (status === 'SUCCESS') {
-      await finalizeCorrectionProcessing(operation, result);
-      return;
-    }
-    if (status === 'FAILURE') {
-      throw new Error(message || 'Verarbeitung fehlgeschlagen');
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, pollInterval));
-  }
-  if (isProcessing.value) {
-    throw new Error('Zeitüberschreitung bei der Verarbeitung');
-  }
-};
-
 const finalizeCorrectionProcessing = async (
   operation: 'masking' | 'frame_removal',
   result?: { output_path?: string; summary?: string } | null
@@ -1708,7 +1636,7 @@ const reprocessVideo = async () => {
   if (!currentVideo.value) return;
 
   try {
-    await axiosInstance.post(r(`media/videos/${String(currentVideo.value.id)}/reprocess/`));
+    await axiosInstance.post(r(endpoints.media.videoReimport(currentVideo.value.id)));
     await refreshCurrentVideo();
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler bei der Neuverarbeitung');
@@ -1722,31 +1650,14 @@ const seekVideo = (seconds: number) => {
   }
 };
 
-const downloadResult = async (historyId: number) => {
-  if (!currentVideo.value) return;
-
-  try {
-    const response = await axiosInstance.get(
-      r(endpoints.media.processedVideoDownload(currentVideo.value.id, historyId)),
-      {
-        responseType: 'blob'
-      }
-    );
-
-    // Create download link
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${currentVideo.value.filename}_processed.mp4`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-
-  } catch (err: unknown) {
-    error.value = getApiErrorMessage(err, 'Fehler beim Download');
-    logger.error('result-download-failed', err);
+const openProcessedResult = (downloadUrl: string) => {
+  const url = new URL(downloadUrl, window.location.origin);
+  if (url.origin !== window.location.origin) {
+    error.value = 'Die Ergebnis-URL gehört nicht zu diesem Server.';
+    logger.error('result-url-origin-mismatch', { origin: url.origin });
+    return;
   }
+  window.open(url.toString(), '_blank', 'noopener,noreferrer');
 };
 
 // Event handlers

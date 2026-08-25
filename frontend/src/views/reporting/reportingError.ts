@@ -11,7 +11,7 @@ type ReportingApiError = {
 }
 
 export function reportingApiError(error: unknown): ReportingApiError {
-  return error && typeof error === 'object' ? (error as ReportingApiError) : {}
+  return error && typeof error === 'object' ? (error) : {}
 }
 
 export function reportingApiErrorMessage(error: unknown, fallback: string): string {

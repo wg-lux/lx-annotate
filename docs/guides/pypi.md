@@ -5,6 +5,14 @@ package and its lock file carry the same version so a release commit identifies
 one application build. Update all three files in the release commit; do not use
 the frontend package version as an independent release stream.
 
+Use the `version:bump` devenv task to update `pyproject.toml`, the frontend
+manifest and lockfile, and the frontend Nix derivation together. Set
+`VERSION_BUMP` to `major`, `minor`, `patch`, or an exact `X.Y.Z` value:
+
+```console
+VERSION_BUMP=patch devenv tasks run version:bump
+```
+
 The `make package` workflow builds the frontend and Sphinx documentation before
 creating the wheel and source distribution. Generated frontend files are owned
 by `staticfiles/`; generated documentation is owned by `static/docs/` for the
@@ -27,7 +35,14 @@ expected: sha256-gFyVehSwVatoPJnel6OSbV2mYRbG3Fbk5/aooeEzzhw=
 actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=
 ```
 
-Update `npmDepsHash` to the reported actual hash and rerun `make package`:
+Run the dedicated helper after changing the lockfile, then copy its output into
+`frontend/default.nix` and rerun `make package`:
+
+```console
+make frontend-npm-deps-hash
+```
+
+For example:
 
 ```nix
 npmDepsHash = "sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=";

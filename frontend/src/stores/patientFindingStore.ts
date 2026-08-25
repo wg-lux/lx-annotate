@@ -47,7 +47,7 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
       loading.value = true
       error.value = null
       const payload = await findingsApi.listPatientFindings(patientExaminationId)
-      patientFindings.value = payload as PatientFinding[]
+      patientFindings.value = payload
     } catch (err: unknown) {
       const parsed = parseFindingsApiError(err)
       error.value = `Fehler beim Laden der Patientenbefunde (${parsed.code}): ${parsed.message}`

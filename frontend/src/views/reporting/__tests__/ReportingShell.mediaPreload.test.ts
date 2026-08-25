@@ -203,20 +203,24 @@ function buildFlowStore() {
     templateIdentity?: unknown
   }
 
+  const nullable = <Value>(value: Value): Value | null => value
+  const initialCaseId = nullable('case-uuid-314')
+  const initialPatientExaminationId = nullable(314)
+  const initialPatientId = nullable(42)
+  const initialExaminationId = nullable(9)
+  const initialDrafts: Partial<Record<string, ReportingRuntimeDraft>> = {}
   const flow = reactive({
     sessionStatus: 'active',
     lookupToken: 'tok',
-    caseId: 'case-uuid-314' as string | null,
-    patientExaminationId: 314 as number | null,
-    selectedPatientId: 42 as number | null,
-    selectedExaminationId: 9 as number | null,
+    caseId: initialCaseId,
+    patientExaminationId: initialPatientExaminationId,
+    selectedPatientId: initialPatientId,
+    selectedExaminationId: initialExaminationId,
     selectedKbModule: 'report_template_examples',
     selectedReportLanguage: 'de',
     selectedTemplateName: null as string | null,
     currentRuntimeDraft: null as ReportingRuntimeDraft | null,
-    runtimeDraftsByPatientExaminationId: {} as Partial<
-      Record<string, ReportingRuntimeDraft>
-    >,
+    runtimeDraftsByPatientExaminationId: initialDrafts,
     mediaPreload: null as TimelineLatestPayload | null,
     mediaPreloadStatus: 'idle',
     mediaPreloadError: null as string | null,
@@ -347,9 +351,10 @@ describe('ReportingShell media preload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementation(
-      async (moduleName: string, _version: string, examinationName: string) => ({
+      async (moduleName: string, version: string, examinationName: string) => ({
         reportTemplates: (await hoisted.reportTemplatesApi.fetchReportTemplatesByExamination(
           moduleName,
+          version,
           examinationName
         )) as ReportTemplatePayload[]
       })
@@ -739,6 +744,7 @@ describe('ReportingShell media preload', () => {
 
     expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
       'report_template_examples',
+      '1.0.0',
       'colonoscopy'
     )
     expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).toHaveBeenCalledWith(
@@ -762,6 +768,35 @@ describe('ReportingShell media preload', () => {
         .map((option) => option.text())
         .some((label) => label.includes('default_template'))
     ).toBe(true)
+  })
+
+  it('runs independent template and finding nodes in one wave and commits only after the barrier', async () => {
+    const templates = deferred<{
+      reportTemplates: ReportTemplatePayload[]
+    }>()
+    const findings = deferred<unknown[]>()
+    hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockReturnValueOnce(
+      templates.promise
+    )
+    hoisted.findingsApi.getExaminationFindings.mockImplementation(() => findings.promise)
+
+    mountShell()
+    await vi.waitFor(() => {
+      expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).toHaveBeenCalled()
+      expect(hoisted.findingsApi.getExaminationFindings).toHaveBeenCalled()
+    })
+    expect(hoisted.flowRef.current.setRuntimeDraft).not.toHaveBeenCalled()
+
+    templates.resolve({ reportTemplates: [] })
+    await flushPromises()
+    expect(hoisted.flowRef.current.setRuntimeDraft).not.toHaveBeenCalled()
+
+    findings.resolve([])
+    await vi.waitFor(() => {
+      expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalledWith(
+        expect.objectContaining({ patientExaminationId: 314, verificationStatus: 'unverified' })
+      )
+    })
   })
 
   it('does not request report templates without an active terminology bundle', async () => {
@@ -797,7 +832,7 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.text()).toContain('Keine aktive Terminologie')
   })
 
-  it('discovers imported templates but keeps a differently pinned patient examination blocked', async () => {
+  it('rejects a differently pinned patient examination before template discovery', async () => {
     hoisted.terminologyStore.activeBundle = null
     hoisted.terminologyStore.activeModuleName = ''
     hoisted.terminologyStore.activeBundleKey = ''
@@ -848,16 +883,13 @@ describe('ReportingShell media preload', () => {
     await folderInput.trigger('change')
     await flushPromises()
 
-    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
-      'colonoscopy_reporting',
-      'colonoscopy'
-    )
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
     expect(
       wrapper
         .get('[data-testid="report-template-select"]')
         .findAll('option')
         .map((option) => option.text())
-    ).toEqual(expect.arrayContaining([expect.stringContaining('colonoscopy_published')]))
+    ).not.toEqual(expect.arrayContaining([expect.stringContaining('colonoscopy_published')]))
     expect(wrapper.text()).toContain(
       'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
@@ -873,6 +905,7 @@ describe('ReportingShell media preload', () => {
           notifyPublished: () =>
             lifecycleContext.notifyLifecycleChanged({
               moduleName: 'report_template_examples',
+              moduleVersion: '1.0.0',
               templateName: 'newly_published',
               examination: 'colonoscopy',
               lifecycleStatus: 'published'
@@ -904,6 +937,7 @@ describe('ReportingShell media preload', () => {
 
     expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
       'report_template_examples',
+      '1.0.0',
       'colonoscopy'
     )
     expect(wrapper.get('[data-testid="report-template-select"]').text()).toContain(
@@ -971,11 +1005,8 @@ describe('ReportingShell media preload', () => {
       })
     )
     expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
-    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
-      'colonoscopy_reporting',
-      'colonoscopy'
-    )
-    expect(wrapper.get('[data-testid="report-template-select"]').text()).toContain('same_name')
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="report-template-select"]').text()).not.toContain('same_name')
     expect(wrapper.text()).toContain(
       'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
@@ -1079,6 +1110,14 @@ describe('ReportingShell media preload', () => {
     hoisted.reportTemplatesApi.fetchReportTemplateByName.mockResolvedValue({
       name: 'medication_template',
       examination: 'colonoscopy',
+      identity: {
+        moduleName: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0',
+        templateVersion: null,
+        templateHash: null,
+        lifecycleStatus: 'published',
+        readiness: null
+      },
       reportSections: [
         {
           name: 'indikation_und_sedierung',
@@ -1144,6 +1183,17 @@ describe('ReportingShell media preload', () => {
         examinationValidators: []
       }
     })
+    hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementationOnce(
+      async () => ({
+        reportTemplates: [
+          (await hoisted.reportTemplatesApi.fetchReportTemplateByName(
+            'report_template_examples',
+            '1.0.0',
+            'medication_template'
+          )) as ReportTemplatePayload
+        ]
+      })
+    )
     const draft: ReportingRuntimeDraft = {
       draftId: 'draft_314',
       patientExaminationId: 314,
@@ -1857,10 +1907,7 @@ describe('ReportingShell media preload', () => {
 
     const restored = mountShell()
     await flushPromises()
-    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).toHaveBeenCalledWith(
-      'gastro_v2',
-      'colonoscopy'
-    )
+    expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
     expect(restored.text()).toContain(
       'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
@@ -2008,6 +2055,62 @@ describe('ReportingShell media preload', () => {
     ).toBeDefined()
   })
 
+  it('keeps an annotation-only draft pinned when terminology changes after no template matched', async () => {
+    const originalBundle = requireDefined(
+      hoisted.terminologyStore.activeBundle || undefined,
+      'initial terminology bundle'
+    )
+    const nextBundle: TerminologyBundleVersion = {
+      moduleName: 'other_reporting',
+      version: '2.0.0',
+      medicalField: 'gastroenterology',
+      isActive: false
+    }
+    hoisted.terminologyStore.bundles = [originalBundle, nextBundle]
+    hoisted.terminologyStore.filteredBundles = [originalBundle, nextBundle]
+    hoisted.terminologyStore.findBundleByKey.mockImplementation(
+      (key: string) =>
+        [originalBundle, nextBundle].find(
+          (bundle) => `${bundle.moduleName}@@${bundle.version}` === key
+        ) || null
+    )
+    hoisted.terminologyStore.selectBundle.mockImplementation(function (
+      this: typeof hoisted.terminologyStore,
+      bundle: TerminologyBundleVersion
+    ) {
+      const active = { ...bundle, isActive: true }
+      this.activeBundle = active
+      this.activeModuleName = active.moduleName
+      this.activeBundleKey = `${active.moduleName}@@${active.version}`
+      return Promise.resolve({ active, counts: {} })
+    })
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([])
+
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(hoisted.flowRef.current.currentRuntimeDraft).toEqual(
+      expect.objectContaining({ moduleName: originalBundle.moduleName, templateName: null })
+    )
+    hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockClear()
+
+    await wrapper
+      .get('[data-testid="terminology-bundle-select"]')
+      .setValue(`${nextBundle.moduleName}@@${nextBundle.version}`)
+    await flushPromises()
+
+    expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).not.toHaveBeenCalled()
+    expect(hoisted.flowRef.current.currentRuntimeDraft).toEqual(
+      expect.objectContaining({
+        moduleName: originalBundle.moduleName,
+        verificationStatus: 'unverified',
+        persistencePolicy: 'blocked_until_verified'
+      })
+    )
+    expect(wrapper.text()).toContain(
+      `ist an ${originalBundle.moduleName}@${originalBundle.version} gebunden`
+    )
+  })
+
   it('keeps catalog-based finding rendering isolated to the selected examination context', async () => {
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([])
     hoisted.terminologyStore.filteredBundles = [
@@ -2030,7 +2133,7 @@ describe('ReportingShell media preload', () => {
     expect((bundle.element as HTMLSelectElement).value).toBe('report_template_examples@@1.0.0')
   })
 
-  it('reselects the exact installed bundle pinned by a restored patient draft', async () => {
+  it('does not mutate global terminology while rejecting a differently pinned restored draft', async () => {
     const pinnedBundle: TerminologyBundleVersion = {
       moduleName: 'report_template_examples',
       version: '1.0.0',
@@ -2077,12 +2180,15 @@ describe('ReportingShell media preload', () => {
       return Promise.resolve({ active, counts: {} })
     })
 
-    mountShell()
+    const wrapper = mountShell()
     await flushPromises()
 
-    expect(hoisted.terminologyStore.selectBundle).toHaveBeenCalledWith(pinnedBundle)
+    expect(hoisted.terminologyStore.selectBundle).not.toHaveBeenCalled()
     expect(hoisted.terminologyStore.activeBundle).toEqual(
-      expect.objectContaining({ moduleName: 'report_template_examples', version: '1.0.0' })
+      expect.objectContaining({ moduleName: 'other_reporting', version: '2.0.0' })
+    )
+    expect(wrapper.text()).toContain(
+      'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
     )
   })
 })

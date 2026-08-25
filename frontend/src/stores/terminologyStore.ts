@@ -65,12 +65,14 @@ function bundleKey(bundle: Pick<TerminologyBundleVersion, 'moduleName' | 'versio
 export const useTerminologyStore = defineStore('terminology', () => {
   const bundles = ref<TerminologyBundleVersion[]>([])
   const activeBundle = ref<TerminologyBundleVersion | null>(null)
+  const registryRevision = ref<string | null>(null)
   const loading = ref(false)
   const selecting = ref(false)
   const importing = ref(false)
   const error = ref<string | null>(null)
   const selectedMedicalField = ref<MedicalField>(loadPersistedMedicalField())
   const lastSelectionCounts = ref<Record<string, number> | null>(null)
+  let loadGeneration = 0
 
   const activeModuleName = computed(() => activeBundle.value?.moduleName || '')
   const activeBundleKey = computed(() => (activeBundle.value ? bundleKey(activeBundle.value) : ''))
@@ -82,17 +84,22 @@ export const useTerminologyStore = defineStore('terminology', () => {
   const medicalFieldLabel = computed(() => 'Gastroenterologie')
 
   async function loadBundles() {
+    const generation = ++loadGeneration
     loading.value = true
     error.value = null
     try {
       const response = await fetchTerminologyBundles()
+      if (generation !== loadGeneration) return
       bundles.value = response.bundles
       activeBundle.value = response.active
+      registryRevision.value = response.revision
       lastSelectionCounts.value = null
     } catch (caught: unknown) {
+      if (generation !== loadGeneration) return
       if (axios.isAxiosError(caught) && caught.response?.status === 404) {
         bundles.value = []
         activeBundle.value = null
+        registryRevision.value = null
         lastSelectionCounts.value = null
         return
       }
@@ -102,7 +109,7 @@ export const useTerminologyStore = defineStore('terminology', () => {
       )
       throw caught
     } finally {
-      loading.value = false
+      if (generation === loadGeneration) loading.value = false
     }
   }
 
@@ -110,10 +117,25 @@ export const useTerminologyStore = defineStore('terminology', () => {
     selecting.value = true
     error.value = null
     try {
+      if (!registryRevision.value) await loadBundles()
+      const expectedRevision = registryRevision.value
+      if (!expectedRevision) {
+        throw new Error('Die Revision des Terminologieregisters ist nicht verfügbar.')
+      }
       const response = await selectTerminologyBundle({
         moduleName: bundle.moduleName,
-        version: bundle.version
+        version: bundle.version,
+        expectedRevision
       })
+      if (registryRevision.value !== expectedRevision) {
+        await loadBundles()
+        throw new Error(
+          'Die Terminologieauswahl wurde parallel geändert. Die aktuelle Auswahl wurde neu geladen.'
+        )
+      }
+      loadGeneration += 1
+      loading.value = false
+      registryRevision.value = response.revision
       activeBundle.value = response.active
       lastSelectionCounts.value = response.counts
       bundles.value = bundles.value.map((candidate) => ({
@@ -124,6 +146,12 @@ export const useTerminologyStore = defineStore('terminology', () => {
       }))
       return response
     } catch (caught: unknown) {
+      if (axios.isAxiosError(caught) && caught.response?.status === 409) {
+        await loadBundles()
+        error.value =
+          'Die Terminologieauswahl wurde zwischenzeitlich geändert. Bitte prüfen Sie die aktuelle Auswahl und versuchen Sie es erneut.'
+        throw caught
+      }
       error.value = terminologyErrorMessage(
         caught,
         'Terminologiepaket konnte nicht aktiviert werden.'
@@ -139,8 +167,7 @@ export const useTerminologyStore = defineStore('terminology', () => {
     error.value = null
     try {
       const response = await importTerminologyBundle(file)
-      const imported = response.imported
-      applyImportedBundle(imported)
+      await loadBundles()
       lastSelectionCounts.value = response.counts
       return response
     } catch (caught: unknown) {
@@ -154,37 +181,16 @@ export const useTerminologyStore = defineStore('terminology', () => {
     }
   }
 
-  function applyImportedBundle(imported: TerminologyBundleVersion, activate = true) {
-    if (activate) activeBundle.value = imported
-    const withoutImported = bundles.value.filter(
-      (candidate) =>
-        candidate.moduleName !== imported.moduleName || candidate.version !== imported.version
-    )
-    bundles.value = [
-      ...withoutImported.map((candidate) => ({
-        ...candidate,
-        isActive: activate
-          ? false
-          : candidate.moduleName === activeBundle.value?.moduleName &&
-            candidate.version === activeBundle.value.version
-      })),
-      { ...imported, isActive: activate }
-    ].sort((left, right) =>
-      `${left.moduleName}@@${left.version}`.localeCompare(`${right.moduleName}@@${right.version}`)
-    )
-  }
-
   async function importBundles(files: File[]): Promise<TerminologyBundleBatchImportResult> {
     importing.value = true
     error.value = null
     const result: TerminologyBundleBatchImportResult = { imported: [], failures: [] }
-    const previousActiveBundle = activeBundle.value
+    let lastCounts: Record<string, number> | null = null
     try {
       for (const file of files) {
         try {
           const response = await importTerminologyBundle(file)
-          applyImportedBundle(response.imported, false)
-          lastSelectionCounts.value = response.counts
+          lastCounts = response.counts
           result.imported.push(response.imported)
         } catch (caught: unknown) {
           result.failures.push({
@@ -196,29 +202,14 @@ export const useTerminologyStore = defineStore('terminology', () => {
           })
         }
       }
+      if (result.imported.length) {
+        await loadBundles()
+        lastSelectionCounts.value = lastCounts
+      }
       if (result.failures.length) {
         error.value = result.failures
           .map((failure) => `${failure.sourceName}: ${failure.message}`)
           .join('\n')
-      }
-      if (result.imported.length === 1 && !previousActiveBundle) {
-        applyImportedBundle(result.imported[0], true)
-      } else if (previousActiveBundle && result.imported.length) {
-        const response = await selectTerminologyBundle({
-          moduleName: previousActiveBundle.moduleName,
-          version: previousActiveBundle.version
-        })
-        activeBundle.value = response.active
-        lastSelectionCounts.value = response.counts
-        bundles.value = bundles.value.map((candidate) => ({
-          ...candidate,
-          isActive:
-            candidate.moduleName === response.active.moduleName &&
-            candidate.version === response.active.version
-        }))
-      } else if (result.imported.length > 1) {
-        const backendActiveBundle = result.imported[result.imported.length - 1]
-        applyImportedBundle(backendActiveBundle, true)
       }
       return result
     } finally {
@@ -252,6 +243,7 @@ export const useTerminologyStore = defineStore('terminology', () => {
   return {
     bundles,
     activeBundle,
+    registryRevision,
     loading,
     selecting,
     importing,

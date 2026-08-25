@@ -207,6 +207,7 @@ class OutboundHubTransferJob(models.Model):
         NOT_APPLICABLE = "not_applicable", "Not Applicable"
         RETAINED = "retained", "Retained"
         ELIGIBLE = "eligible", "Eligible"
+        CLEANING = "cleaning", "Cleaning"
         CLEANED = "cleaned", "Cleaned"
 
     id: Any = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -254,6 +255,8 @@ class OutboundHubTransferJob(models.Model):
         default=LocalCleanupStatus.NOT_APPLICABLE,
     )
     local_cleanup_eligible_at: Any = models.DateTimeField(null=True, blank=True)
+    local_cleanup_completed_at: Any = models.DateTimeField(null=True, blank=True)
+    envelope_receipt: Any = models.JSONField(null=True, blank=True)
     local_status: Any = models.CharField(
         max_length=32,
         choices=LocalStatus.choices,
@@ -368,6 +371,64 @@ class OutboundHubTransferJob(models.Model):
                     ),
                 },
             )
+
+        if self.envelope_receipt is not None:
+            from lx_dtypes.models.contracts.hub_media_envelope import (
+                HubMediaEnvelopeReceipt,
+            )
+
+            try:
+                receipt = HubMediaEnvelopeReceipt.model_validate(self.envelope_receipt)
+            except ValueError as exc:
+                raise ValidationError(
+                    {"envelope_receipt": "Envelope receipt is invalid."},
+                ) from exc
+
+            resource = self.video_file if has_video else self.raw_pdf_file
+            resource_hash_field = "video_hash" if has_video else "pdf_hash"
+            processed_hash = (
+                str(getattr(resource, "processed_video_hash", "") or "").strip()
+                if has_video
+                else str(
+                    getattr(
+                        getattr(resource, "state", None),
+                        "processed_file_sha256",
+                        "",
+                    )
+                    or "",
+                ).strip()
+            )
+            expected = {
+                "transfer_key": str(self.transfer_key),
+                "target_node_key": str(self.target_node.node_key),
+                "source_center_key": str(
+                    getattr(self.source_center, "center_key", "") or "",
+                ),
+                "resource_kind": str(self.resource_kind),
+                "resource_hash": str(
+                    getattr(resource, resource_hash_field, "") or "",
+                ),
+                "processed_media_hash": processed_hash,
+            }
+            mismatches = [
+                field_name
+                for field_name, expected_value in expected.items()
+                if not expected_value
+                or str(getattr(receipt, field_name)) != expected_value
+            ]
+            if self.remote_transfer_id and (
+                receipt.receiver_transfer_id != str(self.remote_transfer_id)
+            ):
+                mismatches.append("receiver_transfer_id")
+            if mismatches:
+                raise ValidationError(
+                    {
+                        "envelope_receipt": (
+                            "Envelope receipt does not match the outbound job: "
+                            + ", ".join(sorted(set(mismatches)))
+                        ),
+                    },
+                )
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.full_clean()

@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from endoreg_db.models import NetworkNode
 from lx_dtypes.models.contracts.hub_media_envelope import (
@@ -348,11 +349,13 @@ def _validated_envelope_receipt(
     return receipt
 
 
+@transaction.atomic
 def apply_remote_status(
     outbound_job: OutboundHubTransferJob,
     response_data: RemoteTransferStatusPayload,
     *,
     expected_source_node_key: str,
+    validated_receipt: HubMediaEnvelopeReceipt | None = None,
 ) -> OutboundHubTransferJob:
     _validate_remote_transfer_status(
         outbound_job,
@@ -372,10 +375,15 @@ def apply_remote_status(
         outbound_job.local_status = OutboundHubTransferJob.LocalStatus.AWAITING_MEDIA
         outbound_job.failure_class = ""
     elif remote_transfer_status == "applied":
+        if validated_receipt is None:
+            raise RemoteTransferIntegrityError(
+                "Hub applied media without a locally validated envelope receipt.",
+            )
         outbound_job.local_status = OutboundHubTransferJob.LocalStatus.COMPLETED
         outbound_job.completed_at = timezone.now()
         outbound_job.failure_class = ""
         outbound_job.last_error = ""
+        outbound_job.envelope_receipt = validated_receipt.model_dump(mode="json")
     elif remote_transfer_status in {"failed", "inconsistent"}:
         outbound_job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
         outbound_job.failure_class = (
@@ -394,6 +402,7 @@ def apply_remote_status(
             "failure_class",
             "completed_at",
             "last_error",
+            "envelope_receipt",
             "updated_at",
         ],
     )
@@ -641,14 +650,17 @@ def run_outbound_transfer_job(
                 source_node=source_node,
                 config=envelope_config,
             )
-            _validated_envelope_receipt(
+            validated_receipt = _validated_envelope_receipt(
                 response_data=register_payload,
                 prepared=applied_envelope,
             )
+        else:
+            validated_receipt = None
         apply_remote_status(
             outbound_job,
             register_payload,
             expected_source_node_key=source_node.node_key,
+            validated_receipt=validated_receipt,
         )
         if applied_envelope is not None:
             applied_envelope.cleanup()
@@ -733,7 +745,7 @@ def run_outbound_transfer_job(
         )
         _raise_for_hub_response(media_response)
         media_payload = cast(RemoteTransferStatusPayload, media_response.json())
-        _validated_envelope_receipt(
+        validated_receipt = _validated_envelope_receipt(
             response_data=media_payload,
             prepared=prepared,
         )
@@ -741,6 +753,7 @@ def run_outbound_transfer_job(
             outbound_job,
             media_payload,
             expected_source_node_key=source_node.node_key,
+            validated_receipt=validated_receipt,
         )
         if outbound_job.local_status == OutboundHubTransferJob.LocalStatus.COMPLETED:
             prepared.cleanup()

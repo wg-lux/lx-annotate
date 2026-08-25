@@ -44,8 +44,8 @@ def test_file_sync_summary_rejects_duplicate_center_keys() -> None:
     with pytest.raises(ValidationError, match="duplicate center_key"):
         HubFileSyncSummary(
             centers=[
-                HubCenterSyncState(**center_payload),
-                HubCenterSyncState(**center_payload),
+                HubCenterSyncState.model_validate(center_payload),
+                HubCenterSyncState.model_validate(center_payload),
             ],
             rejections=[],
             duplicates=[],

@@ -1,0 +1,146 @@
+schema_version: '1.0'
+id: pre_commit_api_contract
+name: Pre-Commit API Contract Gate
+description: Run the focused frontend/backend API contract regression test before every commit.
+owners:
+- lx-annotate maintainers
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-precommit-api-20260825
+    changed_at: '2026-08-25T13:05:07.993892Z'
+    note: Added focused API contract pre-commit hook; canonical suite and actual pre-commit invocation
+      pass with 9 tests.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Documents generated API contracts and their verification workflow.
+definition_of_done:
+- id: focused_hook
+  category: operations
+  title: Pre-commit invokes the focused API contract test
+  acceptance:
+  - The hook runs the frontend/backend route and payload contract test explicitly.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pre-commit
+    - run
+    - api-contracts
+    - --all-files
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run api-contracts --all-files: Passed'
+    note: Explicit local hook invokes the canonical API contract suite before the broader tests.
+    assessed_by: codex-precommit-api-20260825
+    assessed_at: '2026-08-25T13:04:22.890693Z'
+- id: contract_suite
+  category: testing
+  title: API contract regressions pass
+  acceptance:
+  - Route ownership, methods, request payloads, and response contracts pass.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - pytest
+    - tests/contracts/test_frontend_backend_api_contract.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'devenv shell -- pytest tests/contracts/test_frontend_backend_api_contract.py -q: 9 passed'
+    note: Route ownership, methods, request payloads, and generated response fields pass.
+    assessed_by: codex-precommit-api-20260825
+    assessed_at: '2026-08-25T13:04:26.699336Z'
+- id: hook_documented
+  category: documentation
+  title: The pre-commit API gate is discoverable
+  acceptance:
+  - The hook name and purpose are clear in pre-commit configuration.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the api-contracts hook in .pre-commit-config.yaml.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Reviewed .pre-commit-config.yaml api-contracts hook name and entry.
+    note: The hook name clearly identifies the frontend/backend API contract gate.
+    assessed_by: codex-precommit-api-20260825
+    assessed_at: '2026-08-25T13:04:47.703080Z'
+- id: all_files_scope
+  category: requirements
+  title: The gate evaluates the whole repository state
+  acceptance:
+  - The hook is filename-independent and can run through pre-commit on all files.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pre-commit
+    - run
+    - api-contracts
+    - --all-files
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run api-contracts --all-files: Passed'
+    note: Filename-independent hook runs against the complete staged repository state.
+    assessed_by: codex-precommit-api-20260825
+    assessed_at: '2026-08-25T13:04:50.118444Z'
+- id: fail_visible
+  category: security
+  title: Contract drift fails the commit visibly
+  acceptance:
+  - The hook propagates pytest failures and has no fallback or network dependency.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the hook entry and its pass_filenames setting.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Reviewed pass_filenames=false and direct pytest entry.
+    note: Pytest failures propagate directly; the hook has no fallback or network call.
+    assessed_by: codex-precommit-api-20260825
+    assessed_at: '2026-08-25T13:04:52.535814Z'
+- id: existing_suite_reuse
+  category: functionality
+  title: The hook reuses the canonical contract suite
+  acceptance:
+  - The hook invokes the maintained contract test rather than duplicating assertions.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/contracts/test_frontend_backend_api_contract.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pytest tests/contracts/test_frontend_backend_api_contract.py -q: 9 passed'
+    note: The hook reuses the maintained contract regression test without duplicated assertions.
+    assessed_by: codex-precommit-api-20260825
+    assessed_at: '2026-08-25T13:04:55.471848Z'

@@ -103,6 +103,10 @@ function normalizeCaps(raw: unknown): CapMap {
   return out
 }
 
+function emptyCapabilities(): CapMap {
+  return {}
+}
+
 export const useAuthKcStore = defineStore('auth_kc', {
   state: () => ({
     /** Filled from backend bootstrap */
@@ -110,7 +114,7 @@ export const useAuthKcStore = defineStore('auth_kc', {
     roles: [] as string[],
 
     /** Capabilities normalized to simple booleans (see normalizeCaps) */
-    caps: {} as CapMap,
+    caps: emptyCapabilities(),
 
     /** True once we’ve attempted to load bootstrap */
     loaded: false
@@ -121,25 +125,15 @@ export const useAuthKcStore = defineStore('auth_kc', {
   actions: {
     /**
      * Load the backend-provided auth/bootstrap context exactly once.
-     * Primary endpoint:    GET auth/bootstrap
-     * Back-compat fallback: GET auth/context
+     * Canonical endpoint: GET auth/bootstrap
      */
     async loadBootstrap() {
       if (this.loaded) return
       try {
-        let data: unknown
-        try {
-          const res = await axios.get<unknown>(r(endpoints.auth.bootstrap), {
-            withCredentials: true
-          })
-          data = res.data
-        } catch {
-          // Fallback for older backend
-          const res = await axios.get<unknown>(r(endpoints.auth.context), {
-            withCredentials: true
-          })
-          data = res.data
-        }
+        const response = await axios.get<unknown>(r(endpoints.auth.bootstrap), {
+          withCredentials: true
+        })
+        const data = response.data
 
         // User & roles (support both shapes)
         const bootstrap = isRecord(data) ? data : {}

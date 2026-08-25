@@ -43,6 +43,14 @@ in
         done
 
         test -f ${lxAnnotate}/share/lx-annotate/staticfiles/.vite/manifest.json
+        test -d ${lxAnnotate.featurePackage}/share/lx-annotate/features
+        test "${lxAnnotate.featurePackage}" != "${lxAnnotate}"
+        ls ${lxAnnotate.featurePackage}/share/lx-annotate/features/*.yml >/dev/null
+        if grep -R -Eq '^(assessment|current_work):' \
+          ${lxAnnotate.featurePackage}/share/lx-annotate/features; then
+          echo "feature package contains mutable assessment state" >&2
+          exit 1
+        fi
 
         grep -Fq "${lxAnnotate}/share/lx-annotate/staticfiles" ${lxAnnotate}/bin/lx-annotate-web
         grep -Fq "lx_annotate.settings.settings_prod" ${lxAnnotate}/bin/lx-annotate-web

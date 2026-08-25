@@ -42,7 +42,7 @@ type ClassifPayload = {
 
 export const useExaminationStore = defineStore('examination', {
   state: () => ({
-    loading: false as boolean,
+    loading: false,
     error: null as string | null,
     exams: [] as Examination[],
     selectedExaminationId: null as number | null,

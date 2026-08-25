@@ -4,6 +4,7 @@ import type { ReportTemplateLifecycleStatus } from '@/types/reportTemplate'
 
 export type ReportTemplateLifecycleChange = {
   moduleName: string
+  moduleVersion: string
   templateName: string
   examination: string
   lifecycleStatus: ReportTemplateLifecycleStatus

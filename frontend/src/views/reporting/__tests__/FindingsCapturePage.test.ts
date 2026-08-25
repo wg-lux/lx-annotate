@@ -16,6 +16,11 @@ function requireDefined<T>(value: T | undefined, description: string): T {
 }
 
 const hoisted = vi.hoisted(() => {
+  const initialActiveBundle = (): { moduleName: string; version: string } | null => ({
+    moduleName: 'report_template_examples',
+    version: '1.0.0'
+  })
+
   class FixtureRef<T> {
     private fixture: T | undefined
 
@@ -41,10 +46,7 @@ const hoisted = vi.hoisted(() => {
     validateRuntime: vi.fn(),
     fetchExaminationReportingContext: vi.fn(),
     terminologyStore: {
-      activeBundle: {
-        moduleName: 'report_template_examples',
-        version: '1.0.0'
-      } as { moduleName: string; version: string } | null,
+      activeBundle: initialActiveBundle(),
       activeModuleName: 'report_template_examples',
       activeBundleKey: 'report_template_examples@@1.0.0'
     },
@@ -205,11 +207,14 @@ function buildFlowStore() {
     descriptors?: ReportTemplateRuntimeDescriptorInput[]
   }
 
+  const initialSelectedExaminationId = (): number | null => 7
+  const initialSelectedTemplateName = (): string | null => 'star_upper_gi_main'
+
   const flow = reactive({
     patientExaminationId: 42,
-    selectedExaminationId: 7 as number | null,
+    selectedExaminationId: initialSelectedExaminationId(),
     selectedKbModule: 'report_template_examples',
-    selectedTemplateName: 'star_upper_gi_main' as string | null,
+    selectedTemplateName: initialSelectedTemplateName(),
     findingsRevision: 0,
     lastFindingsEvent: null as FindingsEvent | null,
     lastTemplateValidation: null as ReportTemplateRuntimeValidationResult | null,
@@ -225,7 +230,7 @@ function buildFlowStore() {
         examiners: [],
         examination: 'gastroscopy',
         knowledgeBaseModule: 'report_template_examples',
-        knowledgeBaseVersion: null as string | null,
+        knowledgeBaseVersion: '1.0.0',
         patientFindings: [] as ReportTemplateRuntimePatientFindingInput[]
       }
     },
@@ -440,6 +445,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
 
     expect(hoisted.validateRuntime).toHaveBeenCalledWith(
       'report_template_examples',
+      '1.0.0',
       'star_upper_gi_main',
       hoisted.flowRef.current.currentRuntimeDraft.payload
     )
@@ -513,6 +519,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
 
     expect(hoisted.validateRuntime).toHaveBeenCalledWith(
       'report_template_examples',
+      '1.0.0',
       'star_upper_gi_main',
       hoisted.flowRef.current.currentRuntimeDraft.payload
     )

@@ -200,9 +200,9 @@
               <div class="col-md-6">
                 <label class="form-label">Vorlagenversion</label>
                 <input
-                  v-model="runtimeKnowledgeBaseVersion"
+                  :value="runtimeKnowledgeBaseVersion"
                   class="form-control"
-                  placeholder="optional"
+                  readonly
                 />
               </div>
               <div class="col-12">
@@ -963,9 +963,40 @@ const definitionValidationResult = ref<ReportTemplateDefinitionValidationResult 
 const runtimeValidationResult = ref<ReportTemplateRuntimeValidationResult | null>(null)
 const builderReadiness = ref<ReportTemplateBuilderReadiness | null>(null)
 const lifecycleStatus = ref<'draft' | 'published' | null>(null)
+let templateOptionsRequestGeneration = 0
+let selectedTemplateRequestGeneration = 0
+let definitionRequestGeneration = 0
+let lifecycleRequestGeneration = 0
+let runtimeRequestGeneration = 0
+let saveRequestGeneration = 0
+
+type BuilderRequestIdentity = Readonly<{
+  moduleName: string
+  moduleVersion: string
+  templateName: string
+}>
+
+function captureBuilderRequestIdentity(): BuilderRequestIdentity | null {
+  const identity = Object.freeze({
+    moduleName: moduleName.value.trim(),
+    moduleVersion: lifecycleContext?.activeModuleVersion.value.trim() || '',
+    templateName: templateName.value.trim()
+  })
+  return identity.moduleName && identity.moduleVersion && identity.templateName ? identity : null
+}
+
+function isBuilderRequestIdentityCurrent(identity: BuilderRequestIdentity): boolean {
+  return (
+    moduleName.value.trim() === identity.moduleName &&
+    lifecycleContext?.activeModuleVersion.value.trim() === identity.moduleVersion &&
+    templateName.value.trim() === identity.templateName
+  )
+}
 
 const runtimePatient = ref('frontend_test_patient')
-const runtimeKnowledgeBaseVersion = ref('')
+const runtimeKnowledgeBaseVersion = computed(
+  () => lifecycleContext?.activeModuleVersion.value.trim() || ''
+)
 const runtimeExaminersInput = ref('')
 const runtimeFindings = ref<RuntimeFindingDraft[]>([])
 
@@ -1290,7 +1321,7 @@ const runtimePayload = computed<ReportTemplateRuntimePayload>(() => ({
     .filter(Boolean),
   examination: selectedTemplate.value?.examination || examination.value,
   knowledgeBaseModule: moduleName.value,
-  knowledgeBaseVersion: runtimeKnowledgeBaseVersion.value.trim() || null,
+  knowledgeBaseVersion: runtimeKnowledgeBaseVersion.value || null,
   patientFindings: runtimeFindings.value
     .filter((finding) => !!finding.finding.trim())
     .map((finding) => ({
@@ -1376,7 +1407,11 @@ async function loadCoreConcepts() {
 }
 
 async function refreshTemplateOptions() {
-  if (!examination.value) {
+  const requestedModuleName = moduleName.value.trim()
+  const requestedModuleVersion = lifecycleContext?.activeModuleVersion.value.trim() || ''
+  const requestedExamination = examination.value.trim()
+  const requestGeneration = ++templateOptionsRequestGeneration
+  if (!requestedModuleName || !requestedModuleVersion || !requestedExamination) {
     templateOptions.value = []
     selectedTemplate.value = null
     return
@@ -1384,32 +1419,77 @@ async function refreshTemplateOptions() {
 
   templatesLoading.value = true
   try {
-    templateOptions.value = await fetchBuilderReportTemplatesByExamination(
-      moduleName.value,
-      examination.value
+    const templates = await fetchBuilderReportTemplatesByExamination(
+      requestedModuleName,
+      requestedModuleVersion,
+      requestedExamination
     )
+    if (
+      requestGeneration !== templateOptionsRequestGeneration ||
+      moduleName.value.trim() !== requestedModuleName ||
+      lifecycleContext?.activeModuleVersion.value.trim() !== requestedModuleVersion ||
+      examination.value.trim() !== requestedExamination
+    ) {
+      return
+    }
+    if (
+      templates.some(
+        (template) =>
+          template.identity.moduleName !== requestedModuleName ||
+          template.identity.knowledgeBaseVersion !== requestedModuleVersion
+      )
+    ) {
+      throw new Error(
+        'Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.'
+      )
+    }
+    templateOptions.value = templates
     if (!templateOptions.value.some((item) => item.name === templateName.value)) {
       templateName.value = templateOptions.value[0]?.name || ''
     }
     syncSelectedTemplateMetadata()
   } catch (error: unknown) {
+    if (requestGeneration !== templateOptionsRequestGeneration) return
     setError(reportingApiErrorMessage(error, 'Templates konnten nicht geladen werden.'))
   } finally {
-    templatesLoading.value = false
+    if (requestGeneration === templateOptionsRequestGeneration) templatesLoading.value = false
   }
 }
 
 async function loadSelectedTemplate() {
   if (!templateName.value) return
+  const requestedModuleName = moduleName.value.trim()
+  const requestedModuleVersion = lifecycleContext?.activeModuleVersion.value.trim() || ''
+  const requestedTemplateName = templateName.value
+  const requestGeneration = ++selectedTemplateRequestGeneration
+  if (!requestedModuleName || !requestedModuleVersion) return
   templateLoading.value = true
   try {
     const fetchTemplate =
       lifecycleStatus.value === 'draft'
         ? fetchReportTemplatePreviewByName
         : fetchReportTemplateByName
-    const template = await fetchTemplate(moduleName.value, templateName.value)
+    const template = await fetchTemplate(
+      requestedModuleName,
+      requestedModuleVersion,
+      requestedTemplateName
+    )
+    if (
+      requestGeneration !== selectedTemplateRequestGeneration ||
+      moduleName.value.trim() !== requestedModuleName ||
+      lifecycleContext?.activeModuleVersion.value.trim() !== requestedModuleVersion ||
+      templateName.value !== requestedTemplateName
+    ) {
+      return
+    }
     if (!template) {
       throw new Error('Ungültiges Format der Berichtsvorlage.')
+    }
+    if (
+      template.identity.moduleName !== requestedModuleName ||
+      template.identity.knowledgeBaseVersion !== requestedModuleVersion
+    ) {
+      throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
     }
     selectedTemplate.value = template
     lifecycleStatus.value = template.identity.lifecycleStatus
@@ -1418,107 +1498,174 @@ async function loadSelectedTemplate() {
     runtimeValidationResult.value = null
     definitionValidationResult.value = null
   } catch (error: unknown) {
+    if (requestGeneration !== selectedTemplateRequestGeneration) return
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht geladen werden.'))
   } finally {
-    templateLoading.value = false
+    if (requestGeneration === selectedTemplateRequestGeneration) templateLoading.value = false
   }
 }
 
 async function runDefinitionValidation() {
-  if (!templateName.value) return
+  const identity = captureBuilderRequestIdentity()
+  if (!identity) return
+  const requestGeneration = ++definitionRequestGeneration
   definitionLoading.value = true
   try {
-    definitionValidationResult.value = await validateReportTemplateDefinition(
-      moduleName.value,
-      templateName.value
+    const result = await validateReportTemplateDefinition(
+      identity.moduleName,
+      identity.moduleVersion,
+      identity.templateName
     )
-    successMessage.value = `Strukturprüfung für "${templateName.value}" abgeschlossen.`
+    if (
+      requestGeneration !== definitionRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
+    definitionValidationResult.value = result
+    successMessage.value = `Strukturprüfung für "${identity.templateName}" abgeschlossen.`
   } catch (error: unknown) {
+    if (
+      requestGeneration !== definitionRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
     setError(reportingApiErrorMessage(error, 'Strukturprüfung fehlgeschlagen.'))
   } finally {
-    definitionLoading.value = false
+    if (requestGeneration === definitionRequestGeneration) definitionLoading.value = false
   }
 }
 
 async function refreshReadiness() {
-  if (!templateName.value) return
+  const identity = captureBuilderRequestIdentity()
+  if (!identity) return
+  const requestGeneration = ++definitionRequestGeneration
   definitionLoading.value = true
   try {
-    builderReadiness.value = await fetchReportTemplateReadiness(
-      moduleName.value,
-      templateName.value
+    const readiness = await fetchReportTemplateReadiness(
+      identity.moduleName,
+      identity.moduleVersion,
+      identity.templateName
     )
-    lifecycleStatus.value = builderReadiness.value.lifecycleStatus
+    if (
+      requestGeneration !== definitionRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
+    builderReadiness.value = readiness
+    lifecycleStatus.value = readiness.lifecycleStatus
   } catch (error: unknown) {
+    if (
+      requestGeneration !== definitionRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
     setError(reportingApiErrorMessage(error, 'Readiness-Prüfung fehlgeschlagen.'))
   } finally {
-    definitionLoading.value = false
+    if (requestGeneration === definitionRequestGeneration) definitionLoading.value = false
   }
 }
 
 async function publishTemplate() {
-  if (!templateName.value || !builderReadiness.value?.canPublish) return
+  const identity = captureBuilderRequestIdentity()
+  if (!identity || !builderReadiness.value?.canPublish) return
+  const requestGeneration = ++lifecycleRequestGeneration
   lifecycleLoading.value = true
   clearMessages()
   try {
-    const result = await publishReportTemplate(moduleName.value, templateName.value)
+    const result = await publishReportTemplate(
+      identity.moduleName,
+      identity.moduleVersion,
+      identity.templateName
+    )
+    if (
+      requestGeneration !== lifecycleRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
     lifecycleStatus.value = result.lifecycleStatus
     builderReadiness.value = result.readiness
-    successMessage.value = `Vorlage "${templateName.value}" wurde veröffentlicht.`
+    successMessage.value = `Vorlage "${identity.templateName}" wurde veröffentlicht.`
     await refreshTemplateOptions()
     await lifecycleContext?.notifyLifecycleChanged({
-      moduleName: moduleName.value,
-      templateName: templateName.value,
+      moduleName: identity.moduleName,
+      moduleVersion: identity.moduleVersion,
+      templateName: identity.templateName,
       examination: examination.value,
       lifecycleStatus: result.lifecycleStatus
     })
   } catch (error: unknown) {
+    if (
+      requestGeneration !== lifecycleRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht veröffentlicht werden.'))
   } finally {
-    lifecycleLoading.value = false
+    if (requestGeneration === lifecycleRequestGeneration) lifecycleLoading.value = false
   }
 }
 
 async function unpublishTemplate() {
-  if (!templateName.value || lifecycleStatus.value !== 'published') return
+  const identity = captureBuilderRequestIdentity()
+  if (!identity || lifecycleStatus.value !== 'published') return
+  const requestGeneration = ++lifecycleRequestGeneration
   lifecycleLoading.value = true
   clearMessages()
   try {
-    const result = await unpublishReportTemplate(moduleName.value, templateName.value)
+    const result = await unpublishReportTemplate(
+      identity.moduleName,
+      identity.moduleVersion,
+      identity.templateName
+    )
+    if (
+      requestGeneration !== lifecycleRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
     lifecycleStatus.value = result.lifecycleStatus
     builderReadiness.value = result.readiness
-    successMessage.value = `Vorlage "${templateName.value}" wurde entveröffentlicht.`
+    successMessage.value = `Vorlage "${identity.templateName}" wurde entveröffentlicht.`
     await lifecycleContext?.notifyLifecycleChanged({
-      moduleName: moduleName.value,
-      templateName: templateName.value,
+      moduleName: identity.moduleName,
+      moduleVersion: identity.moduleVersion,
+      templateName: identity.templateName,
       examination: examination.value,
       lifecycleStatus: result.lifecycleStatus
     })
   } catch (error: unknown) {
+    if (
+      requestGeneration !== lifecycleRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht entveröffentlicht werden.'))
   } finally {
-    lifecycleLoading.value = false
+    if (requestGeneration === lifecycleRequestGeneration) lifecycleLoading.value = false
   }
 }
 
 async function runRuntimeValidation() {
-  if (!selectedTemplate.value) {
+  const identity = captureBuilderRequestIdentity()
+  if (!selectedTemplate.value || !identity) {
     setError('Bitte zuerst eine gespeicherte Vorlage laden.')
     return
   }
 
+  const requestGeneration = ++runtimeRequestGeneration
   runtimeLoading.value = true
   try {
-    runtimeValidationResult.value = await validateReportTemplateRuntime(
-      moduleName.value,
-      selectedTemplate.value.name,
+    const result = await validateReportTemplateRuntime(
+      identity.moduleName,
+      identity.moduleVersion,
+      identity.templateName,
       runtimePayload.value
     )
-    successMessage.value = `Eingabeprüfung für "${selectedTemplate.value.name}" abgeschlossen.`
+    if (
+      requestGeneration !== runtimeRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
+    runtimeValidationResult.value = result
+    successMessage.value = `Eingabeprüfung für "${identity.templateName}" abgeschlossen.`
   } catch (error: unknown) {
+    if (
+      requestGeneration !== runtimeRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
     setError(reportingApiErrorMessage(error, 'Eingabeprüfung fehlgeschlagen.'))
   } finally {
-    runtimeLoading.value = false
+    if (requestGeneration === runtimeRequestGeneration) runtimeLoading.value = false
   }
 }
 
@@ -1532,18 +1679,24 @@ async function reloadWorkspace() {
 }
 
 async function saveTemplate() {
-  if (!canSave.value) return
+  const identity = captureBuilderRequestIdentity()
+  if (!canSave.value || !identity) return
+  const requestGeneration = ++saveRequestGeneration
   saving.value = true
   clearMessages()
   try {
     const result = await saveReportTemplateDefinition({
-      moduleName: moduleName.value,
+      moduleName: identity.moduleName,
+      moduleVersion: identity.moduleVersion,
       fileName: fileName.value,
       templateName: templateName.value,
       examination: examination.value,
       description: templateDescription.value,
       sections: sections.value
     })
+    if (requestGeneration !== saveRequestGeneration || !isBuilderRequestIdentityCurrent(identity)) {
+      return
+    }
     successMessage.value = `Vorlage "${result.templateName}" wurde in ${result.fileName} gespeichert.`
     lifecycleStatus.value = result.lifecycleStatus
     builderReadiness.value = result.readiness
@@ -1551,9 +1704,13 @@ async function saveTemplate() {
     await refreshTemplateOptions()
     await loadSelectedTemplate()
   } catch (error: unknown) {
+    if (
+      requestGeneration !== saveRequestGeneration ||
+      !isBuilderRequestIdentityCurrent(identity)
+    ) return
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht gespeichert werden.'))
   } finally {
-    saving.value = false
+    if (requestGeneration === saveRequestGeneration) saving.value = false
   }
 }
 

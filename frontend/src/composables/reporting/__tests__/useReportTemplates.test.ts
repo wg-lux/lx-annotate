@@ -28,7 +28,7 @@ describe('useReportTemplates', () => {
     await expect(templates.fetchTemplatesByExamination('colonoscopy')).resolves.toEqual([])
     expect(apiMocks.get).not.toHaveBeenCalled()
 
-    templates.setModuleName('  ')
+    templates.setModuleName('  ', '')
     expect(templates.moduleName.value).toBe('')
   })
 
@@ -42,6 +42,8 @@ describe('useReportTemplates', () => {
         {
           name: 'star_upper_gi_main',
           examination: 'star_upper_gi_endoscopy',
+          knowledgeBaseModule: 'report_template_examples',
+          knowledgeBaseVersion: '0.1.0',
           reportSections: [],
           validators: { examinationValidators: [], findingsValidators: [] }
         }
@@ -50,13 +52,14 @@ describe('useReportTemplates', () => {
 
     const catalog = useReportTemplates({
       initialModuleName: 'report_template_examples',
+      initialModuleVersion: '0.1.0',
       initialTemplateName: null
     })
 
     await catalog.fetchTemplatesByExamination('star_upper_gi_endoscopy')
 
     expect(apiMocks.get).toHaveBeenCalledWith(
-      '/dtypes-api/report-templates/by-examination/report_template_examples/star_upper_gi_endoscopy'
+      '/dtypes-api/report-templates/by-examination/report_template_examples/star_upper_gi_endoscopy?version=0.1.0'
     )
     expect(catalog.templateOptions.value.map((template) => template.name)).toEqual([
       'star_upper_gi_main'
@@ -71,16 +74,21 @@ describe('useReportTemplates', () => {
     apiMocks.get
       .mockReturnValueOnce(versionOne.promise)
       .mockReturnValueOnce(versionTwo.promise)
-    const catalog = useReportTemplates({ initialModuleName: 'clinical_reporting' })
+    const catalog = useReportTemplates({
+      initialModuleName: 'clinical_reporting',
+      initialModuleVersion: '1.0.0'
+    })
 
     const firstLoad = catalog.fetchTemplatesByExamination('colonoscopy')
-    catalog.setModuleName('clinical_reporting', 'clinical_reporting@@2.0.0')
+    catalog.setModuleName('clinical_reporting', '2.0.0')
     const secondLoad = catalog.fetchTemplatesByExamination('colonoscopy')
     versionTwo.resolve({
       data: [
         {
           name: 'version_two',
           examination: 'colonoscopy',
+          knowledgeBaseModule: 'clinical_reporting',
+          knowledgeBaseVersion: '2.0.0',
           reportSections: [],
           validators: { examinationValidators: [], findingsValidators: [] }
         }
@@ -92,6 +100,8 @@ describe('useReportTemplates', () => {
         {
           name: 'version_one',
           examination: 'colonoscopy',
+          knowledgeBaseModule: 'clinical_reporting',
+          knowledgeBaseVersion: '1.0.0',
           reportSections: [],
           validators: { examinationValidators: [], findingsValidators: [] }
         }
@@ -107,6 +117,8 @@ describe('useReportTemplates', () => {
       data: {
         name: 'custom_template',
         examination: 'star_upper_gi_endoscopy',
+        knowledgeBaseModule: 'report_template_examples',
+        knowledgeBaseVersion: '0.1.0',
         reportSections: [],
         validators: { examinationValidators: [], findingsValidators: [] }
       }
@@ -114,13 +126,14 @@ describe('useReportTemplates', () => {
 
     const catalog = useReportTemplates({
       initialModuleName: 'report_template_examples',
+      initialModuleVersion: '0.1.0',
       initialTemplateName: null
     })
 
     await catalog.selectTemplateByName('custom_template')
 
     expect(apiMocks.get).toHaveBeenCalledWith(
-      '/dtypes-api/report-templates/report_template_examples/custom_template'
+      '/dtypes-api/report-templates/report_template_examples/custom_template?version=0.1.0'
     )
     expect(catalog.selectedTemplateName.value).toBe('custom_template')
   })
@@ -131,6 +144,8 @@ describe('useReportTemplates', () => {
         {
           name: 'broken_template',
           examination: 'colonoscopy',
+          knowledgeBaseModule: 'report_template_examples',
+          knowledgeBaseVersion: '0.1.0',
           reportSections: [
             {
               name: 'findings',
@@ -145,6 +160,7 @@ describe('useReportTemplates', () => {
 
     const catalog = useReportTemplates({
       initialModuleName: 'report_template_examples',
+      initialModuleVersion: '0.1.0',
       initialTemplateName: null
     })
 
@@ -166,6 +182,8 @@ describe('useReportTemplates', () => {
       data: {
         name: 'star_upper_gi_main',
         examination: 'star_upper_gi_endoscopy',
+        knowledgeBaseModule: 'report_template_examples',
+        knowledgeBaseVersion: '0.1.0',
         reportSections: [
           {
             name: 'examination_baseline',
@@ -209,6 +227,7 @@ describe('useReportTemplates', () => {
 
     const catalog = useReportTemplates({
       initialModuleName: 'report_template_examples',
+      initialModuleVersion: '0.1.0',
       initialTemplateName: null
     })
 

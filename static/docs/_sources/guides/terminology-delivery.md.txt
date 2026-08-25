@@ -20,6 +20,10 @@ is the JSON file named by `LX_DTYPES_KB_REGISTRY`.
 6. The server validates each extracted artifact before atomically registering
    and activating its exact identity. A failed package is reported by name and
    does not stop the remaining packages. The last successful package is active.
+   Validated ZIP contents are retained in the local directory configured by
+   `LX_DTYPES_TERMINOLOGY_IMPORT_ROOT`. LX-Annotate defaults this to
+   `<LX_ANNOTATE_ENCRYPTED_DATA_DIR>/terminology/packages`; deployments must
+   keep that directory on the encrypted application-data volume.
 7. Startup checks report missing or invalid terminology as an operational
    warning. Annotation remains available while terminology-dependent reporting
    shows its setup or error state.

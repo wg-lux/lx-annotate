@@ -74,7 +74,7 @@ def test_repo_urls_expose_validate_from_ledger_route(monkeypatch, tmp_path):
     client = Client()
 
     response = client.post(
-        "/dtypes-api/report-templates/report_template_examples/colonoscopy_training_basic/validate-from-ledger/999999",
+        "/dtypes-api/report-templates/report_template_examples/colonoscopy_training_basic/validate-from-ledger/999999?version=0.1.0",
         secure=True,
     )
 

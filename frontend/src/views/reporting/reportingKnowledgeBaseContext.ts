@@ -63,23 +63,18 @@ export function resolveReportingKnowledgeBaseContext(params: {
   patientExaminationId: number
   pinnedIdentity: ReportingKnowledgeBaseIdentity | null
   activeBundle: ReportingActiveBundle | null
-  allowMismatchFallback?: boolean
 }): FindingsCatalogContext {
-  // This function resolves the active terminology bundle. In strict mode it can throw an error if
-  // the current terminology bundle is changed for an active report. 
-  const { patientExaminationId, pinnedIdentity, activeBundle, allowMismatchFallback } = params
+  const { patientExaminationId, pinnedIdentity, activeBundle } = params
 
   if (
     pinnedIdentity &&
-    (pinnedIdentity.moduleName !== activeBundle?.moduleName ||
-      pinnedIdentity.moduleVersion !== activeBundle?.version)
+    activeBundle &&
+    (pinnedIdentity.moduleName !== activeBundle.moduleName ||
+      pinnedIdentity.moduleVersion !== activeBundle.version)
   ) {
-    if (!allowMismatchFallback && activeBundle) {
-      throw new ReportingKnowledgeBaseMismatchError({ patientExaminationId, pinnedIdentity, activeBundle })
-    }
+    throw new ReportingKnowledgeBaseMismatchError({ patientExaminationId, pinnedIdentity, activeBundle })
   }
 
-  // Fallback to active bundle if mismatch is explicitly permitted
   return {
     moduleName: activeBundle?.moduleName || pinnedIdentity?.moduleName || '',
     moduleVersion: activeBundle?.version || pinnedIdentity?.moduleVersion || '',

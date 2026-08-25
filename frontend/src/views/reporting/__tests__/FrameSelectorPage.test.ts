@@ -134,7 +134,7 @@ describe('FrameSelectorPage', () => {
 
     expect(hoisted.ensureCatalogLoaded).toHaveBeenCalledWith(9)
     expect(hoisted.get).toHaveBeenCalledWith(
-      'patient-examination-reports/segment-frame-selector/?patient_examination_id=42'
+      'patient-examination-reports/segment-frame-selector?patient_examination_id=42'
     )
     expect(hoisted.flowRef.current.setActiveReportId).toHaveBeenCalledWith(88)
     expect(wrapper.text()).toContain('Antrum')
@@ -204,7 +204,7 @@ describe('FrameSelectorPage', () => {
 
     expect(hoisted.patch).toHaveBeenNthCalledWith(
       1,
-      'patient-examination-reports/segment-frame-selector/',
+      'patient-examination-reports/segment-frame-selector',
       {
         patientExaminationId: 42,
         reportId: 88,
@@ -220,7 +220,7 @@ describe('FrameSelectorPage', () => {
 
     expect(hoisted.patch).toHaveBeenNthCalledWith(
       2,
-      'patient-examination-reports/segment-frame-selector/',
+      'patient-examination-reports/segment-frame-selector',
       {
         patientExaminationId: 42,
         reportId: 88,

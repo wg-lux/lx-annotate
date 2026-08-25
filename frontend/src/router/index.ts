@@ -34,7 +34,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
           {
             path: 'case-setup',
             name: 'Reporting Fall-Setup',
-            redirect: '/reporting'
+            component: () => import('@/views/reporting/CaseSetupPage.vue')
           },
           {
             path: ':patient_examination_id/template-requirements',

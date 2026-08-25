@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from django.contrib.auth.models import User
-from rest_framework.test import APIClient
-
 from endoreg_db.models import Center, Frame, VideoFile
 from endoreg_db.schemas.video_storage import (
     VideoArtifactProbe,
@@ -20,13 +19,16 @@ from endoreg_db.services.video_files import (
 )
 from endoreg_db.services.video_storage.timelines import persist_video_source_timeline
 from endoreg_db.services.video_timeline import VideoTimelineMappingError
-
+from rest_framework.test import APIClient
 
 pytestmark = pytest.mark.django_db
 
 
 def _source_timeline_meta(
-    *, frame_count: int, duration: float, variable_frame_rate: bool
+    *,
+    frame_count: int,
+    duration: float,
+    variable_frame_rate: bool,
 ) -> dict[str, object]:
     timeline = VideoTimelineContract(
         fps_num=25,
@@ -90,7 +92,7 @@ def _make_video(
                 is_extracted=True,
             )
             for frame_number, timestamp in enumerate(timestamps)
-        ]
+        ],
     )
     return video
 
@@ -122,7 +124,7 @@ def test_vfr_video_resolves_nearest_frame_from_persisted_pts(vfr_video: VideoFil
     assert neighborhood.next is not None
     assert neighborhood.next.timestamp == pytest.approx(0.16)
     assert [frame.timestamp for frame in neighborhood.frames] == pytest.approx(
-        [0.0, 0.04, 0.11, 0.16, 0.24]
+        [0.0, 0.04, 0.11, 0.16, 0.24],
     )
 
 
@@ -163,7 +165,7 @@ def test_probed_vfr_timestamps_are_persisted_and_used_for_resolution(
 
     video.refresh_from_db()
     assert list(
-        video.frames.order_by("frame_number").values_list("timestamp", flat=True)
+        video.frames.order_by("frame_number").values_list("timestamp", flat=True),
     ) == pytest.approx([0.0, 0.04, 0.11, 0.16, 0.24])
     assert video.meta["source_timeline"]["timestamp_mapping"] == "ffprobe_pts"
     assert video_seconds_to_frame_number(video, 0.13) == 2
@@ -186,7 +188,7 @@ def test_legacy_cfr_video_resolves_timestamps_without_frame_rows():
     assert neighborhood.current.frame_number == 3
     assert neighborhood.current.timestamp == pytest.approx(0.12)
     assert [frame.timestamp for frame in neighborhood.frames] == pytest.approx(
-        [0.08, 0.12, 0.16]
+        [0.08, 0.12, 0.16],
     )
 
 
@@ -271,4 +273,5 @@ def test_frame_neighborhood_endpoint_validates_query(vfr_video: VideoFile):
     )
 
     assert response.status_code == 400
-    assert response.data["error"] == "Invalid frame-neighborhood query."
+    payload = cast(dict[str, Any], response.data)
+    assert payload["error"] == "Invalid frame-neighborhood query."

@@ -1,10 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { strFromU8, unzipSync } from 'fflate'
 
 import {
   createTerminologyBundleArchive,
-  createTerminologyBundleArchives
+  createTerminologyBundleArchives,
+  fetchTerminologyBundles,
+  selectTerminologyBundle
 } from '@/api/terminologyApi'
+
+const hoisted = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }))
+
+vi.mock('@/api/axiosInstance', () => ({
+  default: { get: hoisted.get, post: hoisted.post },
+  dtypesApi: (path: string) => `/dtypes-api/${path}`
+}))
 
 function readFile(file: File): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
@@ -162,5 +171,46 @@ describe('terminologyApi folder import', () => {
 
     expect(archives).toHaveLength(1)
     expect(entries['complete_package/lx_units/config.yaml']).toBeDefined()
+  })
+})
+
+describe('terminologyApi registry revision contract', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('preserves the registry revision returned by the bundle list', async () => {
+    hoisted.get.mockResolvedValue({
+      data: { revision: 'sha256:list', active: null, bundles: [] }
+    })
+
+    await expect(fetchTerminologyBundles()).resolves.toMatchObject({ revision: 'sha256:list' })
+    expect(hoisted.get).toHaveBeenCalledWith('/dtypes-api/terminology/bundles')
+  })
+
+  it('sends the expected revision when selecting a bundle', async () => {
+    hoisted.post.mockResolvedValue({
+      data: {
+        ok: true,
+        revision: 'sha256:next',
+        active: {
+          moduleName: 'clinical_reporting',
+          version: '2.0.0',
+          medicalField: 'gastroenterology',
+          isActive: true
+        },
+        counts: {}
+      }
+    })
+
+    await selectTerminologyBundle({
+      moduleName: 'clinical_reporting',
+      version: '2.0.0',
+      expectedRevision: 'sha256:current'
+    })
+
+    expect(hoisted.post).toHaveBeenCalledWith('/dtypes-api/terminology/bundles/select', {
+      moduleName: 'clinical_reporting',
+      version: '2.0.0',
+      expectedRevision: 'sha256:current'
+    })
   })
 })

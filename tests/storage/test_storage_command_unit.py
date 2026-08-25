@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from django.core.management import CommandError
@@ -79,7 +80,10 @@ def _run_probe(monkeypatch, *, storage: _ProbeStorage, prefix: str = "health"):
     ],
 )
 def test_encryption_probe_fails_closed_and_cleans_up(
-    monkeypatch, decrypted: bytes, raw: bytes, error: str
+    monkeypatch,
+    decrypted: bytes,
+    raw: bytes,
+    error: str,
 ) -> None:
     storage = _ProbeStorage(decrypted=decrypted, raw=raw)
     with pytest.raises(CommandError, match=error):
@@ -113,7 +117,9 @@ class _RepairStorage:
     ],
 )
 def test_repair_command_rejects_unsafe_or_missing_scan_roots(
-    monkeypatch, prefix: str, error: str
+    monkeypatch,
+    prefix: str,
+    error: str,
 ) -> None:
     storage = _RepairStorage()
     monkeypatch.setattr(repair_managed_payloads, "EncryptedStorage", _RepairStorage)
@@ -178,12 +184,15 @@ class _RelativePath:
     [(True, "Skipping symlink"), (False, "Would repair plaintext payload")],
 )
 def test_repair_scan_skips_symlinks_and_honors_dry_run(
-    monkeypatch, symlink: bool, expected: str
+    monkeypatch,
+    symlink: bool,
+    expected: str,
 ) -> None:
     storage = _ScanningStorage()
     root = _ScanRoot(_ScanEntry(symlink=symlink))
     command = repair_managed_payloads.Command()
-    command.stdout = io.StringIO()
+    output = io.StringIO()
+    command.stdout = cast(Any, output)
     monkeypatch.setattr(repair_managed_payloads, "EncryptedStorage", _ScanningStorage)
     monkeypatch.setattr(repair_managed_payloads, "default_storage", storage)
     monkeypatch.setattr(
@@ -194,4 +203,4 @@ def test_repair_scan_skips_symlinks_and_honors_dry_run(
 
     command.handle(path_prefix="", dry_run=True)
 
-    assert expected in command.stdout.getvalue()
+    assert expected in output.getvalue()

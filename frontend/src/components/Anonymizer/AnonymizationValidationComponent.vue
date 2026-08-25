@@ -1147,7 +1147,6 @@ const totalOutsideSegments = ref(0);
 const originalUrl = ref('');
 const processedUrl = ref('');
 const showOriginal = ref(false);
-const hasSuccessfulUpload = ref(false);
 
 
 
@@ -1253,16 +1252,6 @@ function normalizeDateInputToGerman(value?: string | null): string {
   return DateConverter.toGerman(isoDate);
 }
 
-function buildSensitiveMetaSnake(dobGerman: string) {
-  return {
-    patient_first_name: editedPatient.value.patientFirstName || '',
-    patient_last_name:  editedPatient.value.patientLastName  || '',
-    patient_gender:     editedPatient.value.patientGenderName    || '',
-    patient_dob:        dobGerman,  // 🎯 Jetzt deutsches Format
-    casenumber:         editedPatient.value.casenumber       || '',
-  };
-}
-
 // ============================================================================
 // COMPUTED PROPERTIES - Validation
 // ============================================================================
@@ -1313,11 +1302,6 @@ const hasValidPatientExaminationSelection = computed(() => {
   if (!isPdf.value) return true;
   if (selectedPatientExaminationOption.value !== '__manual__') return true;
   return selectedPatientExaminationIdForRouting.value !== null;
-});
-
-const canSubmit = computed(() => {
-  // For annotation saving, we need both uploaded images AND valid patient data
-  return dataOk.value;
 });
 
 // ============================================================================
@@ -2531,57 +2515,6 @@ const approveItem = async () => {
     applyApprovalErrorDetails(error);
   } finally {
     isApproving.value = false;
-  }
-};
-
-
-const _saveAnnotation = async () => {
-
-
-  if (!canSubmit.value) {
-    // Provide more specific error messages
-    if (!processedUrl.value || !originalUrl.value) {
-      toast.error({ text: 'Bitte laden Sie zuerst Bilder hoch (Original und bearbeitetes Bild).' });
-    } else if (!dataOk.value) {
-      // Specific validation errors
-      const errors = [];
-      if (!firstNameOk.value) errors.push('Vorname');
-      if (!lastNameOk.value) errors.push('Nachname');
-      if (!isDobValid.value) errors.push('gültiges Geburtsdatum');
-      if (!isExaminationDateValid.value) errors.push('gültiges Untersuchungsdatum (darf nicht vor Geburtsdatum liegen)');
-
-      toast.error({ text: `Bitte korrigieren Sie: ${errors.join(', ')}` });
-    }
-    return;
-  }
-
-  try {
-    const annotationData = {
-      processed_image_url: processedUrl.value,
-      patient_data: buildSensitiveMetaSnake(DateConverter.toGerman(dobISO.value || '') || ''),  // 🎯 Phase 2.1: DEUTSCHES FORMAT
-      examinationDate: DateConverter.toGerman(examISO.value || '') || '',                       // 🎯 Phase 2.1: DEUTSCHES FORMAT
-      anonymized_text: editedAnonymizedText.value,
-    };
-
-    if (currentItem.value && isVideo.value) {
-      await axiosInstance.post(r('save-anonymization-annotation-video/'), {
-        ...annotationData,
-        itemId: currentItem.value.id,
-      });
-    } else if (currentItem.value && isPdf.value) {
-      await axiosInstance.post(r('save-anonymization-annotation-pdf/'), annotationData);
-    } else {
-      toast.error({ text: 'Keine gültige Anonymisierung zum Speichern gefunden.' });
-      return;
-    }
-
-    originalUrl.value = '';
-    processedUrl.value = '';
-    hasSuccessfulUpload.value = false;
-    toast.success({ text: 'Annotation erfolgreich gespeichert' });
-  } catch (error) {
-    logger.error('annotation-save-failed', error);
-    toast.error({ text: 'Fehler beim Speichern der Annotation' });
   }
 };
 

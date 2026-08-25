@@ -47,24 +47,17 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: api-contracts
+        name: frontend/backend API contract test
+        entry: devenv shell -- pytest tests/contracts/test_frontend_backend_api_contract.py -q
+        language: system
+        pass_filenames: false
+
       - id: frontend-typecheck
         name: frontend type-check
         entry: devenv shell -- npm --prefix frontend run type-check
         language: system
         pass_filenames: false
-  -   repo: https://github.com/asottile/setup-cfg-fmt
-      rev: v3.2.0
-      hooks:
-      -   id: setup-cfg-fmt
-  -   repo: https://github.com/asottile/add-trailing-comma
-      rev: v4.0.0
-      hooks:
-      -   id: add-trailing-comma
-  -   repo: https://github.com/asottile/pyupgrade
-      rev: v3.21.2
-      hooks:
-      -   id: pyupgrade
-          args: [--py310-plus]
   -   repo: https://github.com/PyCQA/flake8
       rev: 7.3.0
       hooks:

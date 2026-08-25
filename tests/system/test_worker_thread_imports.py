@@ -6,6 +6,7 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -208,7 +209,7 @@ def _build_worker_import_env(tmp_path: Path) -> dict[str, str]:
             "LX_ANNOTATE_ENCRYPTED_DATA_DIR": str(data_root),
             "LX_ANNOTATE_IMPORT_SWEEP_RESULT_PREFIX": RESULT_PREFIX,
             "LX_ANNOTATE_IMPORT_SWEEP_WORKERS": json.dumps(
-                LUXNIX_WORKER_BASED_CELERY_PROFILES
+                LUXNIX_WORKER_BASED_CELERY_PROFILES,
             ),
             "OIDC_RP_CLIENT_SECRET": "worker-import-test-keycloak-secret",
             "PROTECTED_MEDIA_ROOT": str(storage_root),
@@ -216,18 +217,19 @@ def _build_worker_import_env(tmp_path: Path) -> dict[str, str]:
             "RUN_VIDEO_TESTS": "0",
             "STORAGE_DIR": str(storage_root),
             "TRANSFORMERS_OFFLINE": "1",
-        }
+        },
     )
     return env
 
 
 def _format_import_failures(payload: dict[str, object]) -> str:
     lines: list[str] = []
-    for result in payload["results"]:
+    results = cast(list[dict[str, Any]], payload["results"])
+    for result in results:
         for failure in result["failures"]:
             lines.append(
                 f"{result['unit']} failed importing {failure['module']}: "
-                f"{failure['error']}"
+                f"{failure['error']}",
             )
             traceback_lines = str(failure["traceback"]).strip().splitlines()
             lines.extend(f"    {line}" for line in traceback_lines[-8:])
@@ -254,7 +256,7 @@ def test_lx_annotate_modules_import_inside_luxnix_worker_threads(
     if completed.returncode != 0 and not result_lines:
         pytest.fail(
             "Worker-thread import sweep exited before reporting results.\n\n"
-            f"stdout/stderr:\n{output}"
+            f"stdout/stderr:\n{output}",
         )
 
     assert result_lines, (

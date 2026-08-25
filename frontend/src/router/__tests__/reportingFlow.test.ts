@@ -50,7 +50,7 @@ describe('reporting routes', () => {
     ['/report-generator', '/reporting'],
     ['/reporting/123/template-requirements', '/reporting/123/findings'],
     ['/reporting/:patient_examination_id/findings', '/reporting'],
-    ['/reporting/case-setup', '/reporting']
+    ['/reporting/case-setup', '/reporting/case-setup']
   ])('resolves %s through the application route configuration', async (from, expected) => {
     const router = createAppRouter(createMemoryHistory())
 

@@ -1134,7 +1134,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.0.22.0"
+version = "1.0.23.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery", extra = ["redis"] },
@@ -1203,9 +1203,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/23/d46e55aeb4b75932435e9d573d116dc5c4d590bc4cb12a2ac1d3731ce185/endoreg_db-1.0.22.0.tar.gz", hash = "sha256:c903785a902832241a5f572fa86b2ad0e52ea05f9806c882f7bd813a0423c8f9", size = 1273193, upload-time = "2026-08-20T12:19:05.932Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/83/06adf7ef6e8ac9c85f744efe3aad5e600a9041486a1b950d21ee3698a9fb/endoreg_db-1.0.23.0.tar.gz", hash = "sha256:15ecfe44ce4700a01c94a1a6eadfe5340aa011c8d5440248e8aa3abc43f74e72", size = 1275142, upload-time = "2026-08-25T13:59:38.502Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/7a/9e02e4928f297e991980954438354aec5cb41ba9bcbfd35ff99af37741e1/endoreg_db-1.0.22.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:49a5b40b513ecff1ab59d5734d1bdd9b043dccc5d22b7c91d11514ed2dfb1aee", size = 2243832, upload-time = "2026-08-20T12:19:02.256Z" },
+    { url = "https://files.pythonhosted.org/packages/31/e3/afd7950dc11d503a6f74889f7aa6a75610b8502bd28318d6b54cab0b9f5c/endoreg_db-1.0.23.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3b9890cc6be24067a020d219d4a7dde51f289814a696e32479ff78ad5bacaebc", size = 2248378, upload-time = "2026-08-25T13:59:35.038Z" },
 ]
 
 [[package]]
@@ -2059,7 +2059,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "1.0.4"
+version = "1.0.5"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
@@ -2152,14 +2152,14 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.0.22.0" },
+    { name = "endoreg-db", specifier = "==1.0.23" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
-    { name = "lx-dtypes", specifier = "==0.2.24" },
+    { name = "lx-dtypes", specifier = ">=0.2.27" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
     { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0.1" },
@@ -2252,7 +2252,7 @@ gpu = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.2.24"
+version = "0.2.27"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bibtexparser" },
@@ -2275,9 +2275,9 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fe/d5/c03da2dc86e7a4908fcee899fea1eb2a7d23b422b8e715cc499d8c3bc233/lx_dtypes-0.2.24.tar.gz", hash = "sha256:fea817db2e1ca5a37252892866be48fefb65ef85f36e92fd6f9f90d4af541c1c", size = 2583217, upload-time = "2026-08-20T11:25:51.923Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/c0/93de3d75923b5b32517a727a05e09bbf30d4f68f73bc0b63fe76208b614f/lx_dtypes-0.2.27.tar.gz", hash = "sha256:8099db2da374f82b16277e741817a5ffab1694eba3211b032fdfb4b3d54292e0", size = 2585393, upload-time = "2026-08-25T13:49:56.632Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/f4/c44ba1e09112aadea0257d582148c95bb9c3283616fce52c6c5b417116fe/lx_dtypes-0.2.24-py3-none-any.whl", hash = "sha256:696d9f8faf7e7f582e60e84e845ecd0251ce5306a7f308f0541956a676061fb5", size = 782680, upload-time = "2026-08-20T11:25:47.288Z" },
+    { url = "https://files.pythonhosted.org/packages/67/58/cedd2fbd73bb866161eaab623d1258d8c43df2985ceb1786bf0ff4acccc3/lx_dtypes-0.2.27-py3-none-any.whl", hash = "sha256:d212967f3274f3c2031bdbdbb909fc0d2203ab234bd7acb90fb520b513253020", size = 783368, upload-time = "2026-08-25T13:49:52.551Z" },
 ]
 
 [[package]]

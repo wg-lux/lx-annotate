@@ -13,6 +13,7 @@ export type TerminologyBundleVersion = {
 }
 
 export type TerminologyBundleListResponse = {
+  revision: string
   active: TerminologyBundleVersion | null
   bundles: TerminologyBundleVersion[]
 }
@@ -20,16 +21,19 @@ export type TerminologyBundleListResponse = {
 export type SelectTerminologyBundlePayload = {
   moduleName: string
   version: string
+  expectedRevision: string
 }
 
 export type SelectTerminologyBundleResponse = {
   ok: boolean
+  revision: string
   active: TerminologyBundleVersion
   counts: Record<string, number>
 }
 
 export type ImportTerminologyBundleResponse = {
   ok: boolean
+  revision: string
   imported: TerminologyBundleVersion
   counts: Record<string, number>
 }

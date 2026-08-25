@@ -57,18 +57,18 @@ describe('reportTemplateBuilderApi', () => {
       })
 
     await expect(
-      publishReportTemplate('report_template_examples', 'custom_template')
+      publishReportTemplate('report_template_examples', '0.1.0', 'custom_template')
     ).resolves.toMatchObject({
       lifecycleStatus: 'published'
     })
     await expect(
-      unpublishReportTemplate('report_template_examples', 'custom_template')
+      unpublishReportTemplate('report_template_examples', '0.1.0', 'custom_template')
     ).resolves.toMatchObject({
       lifecycleStatus: 'draft'
     })
     expect(hoisted.post).toHaveBeenNthCalledWith(
       1,
-      '/dtypes-api/report-templates/builder/templates/report_template_examples/custom_template/publish'
+      '/dtypes-api/report-templates/builder/templates/report_template_examples/custom_template/publish?version=0.1.0'
     )
   })
 
@@ -76,7 +76,7 @@ describe('reportTemplateBuilderApi', () => {
     hoisted.get.mockResolvedValue({
       data: { can_publish: true, lifecycle_status: 'draft', errors: [], warnings: [] }
     })
-    await expect(fetchReportTemplateReadiness('module', 'template')).resolves.toMatchObject({
+    await expect(fetchReportTemplateReadiness('module', '2.0.0', 'template')).resolves.toMatchObject({
       canPublish: true,
       lifecycleStatus: 'draft'
     })
@@ -90,6 +90,7 @@ describe('reportTemplateBuilderApi', () => {
     await expect(
       saveReportTemplateDefinition({
         moduleName: 'report_template_examples',
+        moduleVersion: '0.1.0',
         fileName: 'custom_template.py',
         templateName: 'custom_template',
         examination: 'upper_gi_endoscopy',

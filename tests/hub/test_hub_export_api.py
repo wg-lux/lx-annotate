@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+from typing import Any, cast
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -23,7 +24,7 @@ from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import verify_hub_report_artifact
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
-User = get_user_model()
+User = cast(Any, get_user_model())
 
 os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 

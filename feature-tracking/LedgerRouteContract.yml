@@ -1,0 +1,142 @@
+schema_version: '1.0'
+id: ledger_route_contract
+name: Ledger Validation Route Contract
+description: Keep the ledger-backed report-template validation test aligned with its required query contract.
+owners:
+- lx-annotate maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-ledger-route-20260825
+    changed_at: '2026-08-25T14:07:49.444583Z'
+    note: Aligned the ledger validation regression request with the required version query; focused and
+      module API tests pass.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Existing API contract and generated schema workflow.
+definition_of_done:
+- id: query_contract
+  category: requirements
+  title: Ledger validation supplies its required version query
+  acceptance:
+  - The regression request includes the version required by the mounted Ninja route.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/api/test_base_api_mount.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'tests/api/test_base_api_mount.py: 2 passed'
+    note: Regression request now includes version=0.1.0, matching the required Ninja query parameter.
+    assessed_by: codex-ledger-route-20260825
+    assessed_at: '2026-08-25T14:07:33.907764Z'
+- id: missing_patient_status
+  category: functionality
+  title: Missing ledger patient remains a 404
+  acceptance:
+  - The route reaches domain lookup and returns 404 for an unknown patient examination.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/api/test_base_api_mount.py::test_repo_urls_expose_validate_from_ledger_route
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'test_repo_urls_expose_validate_from_ledger_route: 1 passed'
+    note: Unknown patient examination reaches the route and returns the intended 404.
+    assessed_by: codex-ledger-route-20260825
+    assessed_at: '2026-08-25T14:07:35.230873Z'
+- id: frontend_alignment
+  category: documentation
+  title: Frontend and test use the same route contract
+  acceptance:
+  - The test query matches the frontend API client version parameter.
+  required: true
+  verification:
+    kind: manual
+    instructions: Compare the test URL with validateReportTemplateRuntimeFromLedger.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: tests/api/test_base_api_mount.py and frontend/src/api/reportTemplatesApi.ts
+    note: Test URL and production client both send the route version query.
+    assessed_by: codex-ledger-route-20260825
+    assessed_at: '2026-08-25T14:07:36.553125Z'
+- id: api_suite
+  category: testing
+  title: API mount regressions pass
+  acceptance:
+  - The complete API mount test module passes.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/api/test_base_api_mount.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pytest tests/api/test_base_api_mount.py -q: 2 passed'
+    note: The complete API mount module passes.
+    assessed_by: codex-ledger-route-20260825
+    assessed_at: '2026-08-25T14:07:37.868639Z'
+- id: fail_visible
+  category: security
+  title: Invalid route requests remain visible failures
+  acceptance:
+  - Missing required query fields are not hidden by fallback behavior.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the test request and route signature.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Route signature requires version; test now supplies it explicitly.
+    note: No fallback masks missing query contract failures.
+    assessed_by: codex-ledger-route-20260825
+    assessed_at: '2026-08-25T14:07:39.368783Z'
+- id: reproducible_check
+  category: operations
+  title: The focused route check is reproducible
+  acceptance:
+  - The focused test runs in the repository's configured Django test environment.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/api/test_base_api_mount.py::test_repo_urls_expose_validate_from_ledger_route
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pytest tests/api/test_base_api_mount.py::test_repo_urls_expose_validate_from_ledger_route
+        -q: 1 passed'
+    note: Focused route regression passes in the configured Django test environment.
+    assessed_by: codex-ledger-route-20260825
+    assessed_at: '2026-08-25T14:07:40.819681Z'

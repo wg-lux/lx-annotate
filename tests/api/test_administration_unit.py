@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from django.test import override_settings
@@ -40,7 +41,9 @@ class _ConfiguredFile:
 )
 @override_settings(TEST_TRANSPORT_FILE="/configured")
 def test_transport_file_health_fails_closed(
-    monkeypatch, configured_file: _ConfiguredFile, expected: tuple[bool, bool]
+    monkeypatch,
+    configured_file: _ConfiguredFile,
+    expected: tuple[bool, bool],
 ) -> None:
     monkeypatch.setattr(administration, "Path", lambda _value: configured_file)
     assert administration._configured_readable_file("TEST_TRANSPORT_FILE") == expected
@@ -87,7 +90,8 @@ def superuser_client(django_user_model):
 @pytest.mark.django_db
 @override_settings(DEBUG=True, ALLOWED_HOSTS=["testserver"])
 def test_center_scope_list_returns_forbidden_service_error(
-    superuser_client, monkeypatch
+    superuser_client,
+    monkeypatch,
 ) -> None:
     monkeypatch.setattr(
         administration,
@@ -102,12 +106,15 @@ def test_center_scope_list_returns_forbidden_service_error(
 
 
 @pytest.mark.parametrize(
-    "error", [AccessManagementError("invalid"), ValueError("invalid")]
+    "error",
+    [AccessManagementError("invalid"), ValueError("invalid")],
 )
 @pytest.mark.django_db
 @override_settings(DEBUG=True, ALLOWED_HOSTS=["testserver"])
 def test_center_scope_assignment_returns_bad_request_for_invalid_mutation(
-    superuser_client, monkeypatch, error: Exception
+    superuser_client,
+    monkeypatch,
+    error: Exception,
 ) -> None:
     monkeypatch.setattr(
         administration,
@@ -140,4 +147,4 @@ def test_unassigned_non_superuser_sees_no_transfer_jobs(django_user_model) -> No
     response = client.get("/api/administration/overview/")
 
     assert response.status_code == 200
-    assert response.json()["transfer_monitoring"]["total"] == 0
+    assert cast(Any, response).json()["transfer_monitoring"]["total"] == 0

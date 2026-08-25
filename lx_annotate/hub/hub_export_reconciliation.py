@@ -7,19 +7,24 @@ import requests
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-
 from endoreg_db.models import NetworkNode
 
+from ..models import OutboundHubTransferJob
 from .hub_export_audit import emit_hub_export_audit_event
+from .hub_export_envelope import (
+    PreparedHubExportEnvelope,
+    resolve_hub_export_envelope_config,
+)
 from .hub_export_worker import (
     RemoteTransferAuthorizationError,
     RemoteTransferIntegrityError,
+    _prepare_media_envelope,
+    _validated_envelope_receipt,
     apply_remote_status,
     fetch_remote_transfer_status,
     mark_outbound_job_failure,
     resolve_outbound_node_secret,
 )
-from ..models import OutboundHubTransferJob
 
 
 class HubExportReconciliationSummary(TypedDict):
@@ -74,7 +79,7 @@ def _is_stale(job: OutboundHubTransferJob, *, now=None) -> bool:
 
 def is_retryable_outbound_failure(job: OutboundHubTransferJob) -> bool:
     return int(job.retry_count or 0) < hub_export_max_retries() and str(
-        job.last_error or ""
+        job.last_error or "",
     ).startswith(_RETRYABLE_FAILURE_PREFIXES)
 
 
@@ -109,7 +114,7 @@ def _redispatch_outbound_job(
             lambda: run_outbound_hub_transfer_job_task.delay(
                 job_id,
                 source_node_key,
-            )
+            ),
         )
     return True
 
@@ -176,18 +181,45 @@ def reconcile_outbound_transfer_job(
         )
         return outbound_job
 
+    prepared: PreparedHubExportEnvelope | None = None
     try:
+        validated_receipt = None
+        if remote_status.get("transfer_status") == "applied":
+            prepared = _prepare_media_envelope(
+                outbound_job=outbound_job,
+                source_node=source_node,
+                config=resolve_hub_export_envelope_config(),
+            )
+            validated_receipt = _validated_envelope_receipt(
+                response_data=remote_status,
+                prepared=prepared,
+            )
         apply_remote_status(
             outbound_job,
             remote_status,
             expected_source_node_key=source_node.node_key,
+            validated_receipt=validated_receipt,
         )
+        if prepared is not None:
+            prepared.cleanup()
     except RemoteTransferIntegrityError as exc:
+        if prepared is not None:
+            prepared.cleanup()
         return mark_outbound_job_failure(
             outbound_job,
             error_message=f"Hub transfer acknowledgement inconsistent: {exc}",
             source_node_key=source_node.node_key,
             failure_class="integrity_inconsistency",
+            retryable=False,
+        )
+    except (OSError, ValueError) as exc:
+        if prepared is not None:
+            prepared.cleanup()
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer reconciliation receipt rejected: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="configuration_rejection",
             retryable=False,
         )
     emit_hub_export_audit_event(
@@ -213,7 +245,7 @@ def recover_stale_outbound_transfer_jobs(
         "skipped": 0,
     }
     queryset = OutboundHubTransferJob.objects.filter(
-        local_status__in=_IN_FLIGHT_STATUSES | _REDISPATCH_STATUSES
+        local_status__in=_IN_FLIGHT_STATUSES | _REDISPATCH_STATUSES,
     )
     for job in queryset:
         if not _is_stale(job):

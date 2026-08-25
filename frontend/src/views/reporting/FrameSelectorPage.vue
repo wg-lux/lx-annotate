@@ -234,48 +234,19 @@ import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { reportingApiErrorMessage } from './reportingError'
 import { endpoints } from '@/types/api/endpoints'
+import type { SegmentFrameSelectorResponse } from '@/types/api/openapi'
 
-type SegmentFrameItem = {
-  segmentId: number
-  videoId: number
-  labelId?: number | null
-  labelName?: string | null
-  startFrameNumber: number
-  endFrameNumber: number
-  segmentDurationSeconds?: number | null
-  selectedFrameNumber: number | null | undefined
-  selectedFrame?: {
-    frameId?: number | null
-    frameNumber?: number | null
-    timestamp?: number | string | null
-    relativePath?: string | null
-    fileExists?: boolean
-  } | null
-  controls?: {
-    randomFrameNumber?: number | null
-    stepBackward5FrameNumber?: number | null
-    stepForward5FrameNumber?: number | null
-  } | null
-  attachedFinding?: {
-    patientFindingId?: number | null
-    findingId?: number | null
-    findingName?: string | null
-  } | null
-  selectionMeta?: {
-    updatedAt?: string | null
-    selectionSource?: string | null
-  } | null
-}
+type SegmentFrameItem = SegmentFrameSelectorResponse['results'][number]
 
-type SegmentFrameSelectorState = {
+type SegmentFrameSelectorPatch = {
   patientExaminationId: number
-  reportId: number | null | undefined
-  reportStatus?: string
-  reportTemplateName?: string
-  autoCreatedReport?: boolean
-  storageKey?: string
-  count: number
-  results: SegmentFrameItem[]
+  reportId?: number | null
+  segmentId: number
+  action?: 'set' | 'clear' | 'random' | 'step'
+  frameNumber?: number | null
+  step?: number
+  findingId?: number | null
+  templateName?: string | null
 }
 
 const CLEAR_FINDING_SENTINEL = -1
@@ -287,7 +258,7 @@ const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
 
-const frameSelectorState = ref<SegmentFrameSelectorState | null>(null)
+const frameSelectorState = ref<SegmentFrameSelectorResponse | null>(null)
 const selectedSegmentId = ref<number | null>(null)
 const manualFrameNumber = ref<number | null>(null)
 const selectedFindingIdForSegment = ref<number | null>(null)
@@ -355,7 +326,7 @@ async function loadFrameSelectorState() {
   clearMessages()
   try {
     const res = await axiosInstance.get(url)
-    const state = res.data as SegmentFrameSelectorState
+    const state = res.data as SegmentFrameSelectorResponse
     frameSelectorState.value = state
     if (state.reportId) {
       flow.setActiveReportId(state.reportId)
@@ -372,9 +343,12 @@ async function loadFrameSelectorState() {
   }
 }
 
-function buildPatchBody(base: Record<string, unknown>): Record<string, unknown> | null {
+function buildPatchBody(
+  base: Pick<SegmentFrameSelectorPatch, 'action'> &
+    Partial<Pick<SegmentFrameSelectorPatch, 'frameNumber' | 'step'>>
+): SegmentFrameSelectorPatch | null {
   if (!flow.patientExaminationId || !selectedSegment.value) return null
-  const body: Record<string, unknown> = {
+  const body: SegmentFrameSelectorPatch = {
     patientExaminationId: flow.patientExaminationId,
     ...(flow.activeReportId ? { reportId: flow.activeReportId } : {}),
     segmentId: selectedSegment.value.segmentId,
@@ -402,7 +376,7 @@ async function patchSegmentAction(action: 'random' | 'step' | 'clear', step?: nu
   clearMessages()
   try {
     const res = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body)
-    const state = res.data as SegmentFrameSelectorState
+    const state = res.data as SegmentFrameSelectorResponse
     frameSelectorState.value = state
     if (state.reportId) {
       flow.setActiveReportId(state.reportId)
@@ -437,7 +411,7 @@ async function setFrameManual() {
   clearMessages()
   try {
     const res = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body)
-    const state = res.data as SegmentFrameSelectorState
+    const state = res.data as SegmentFrameSelectorResponse
     frameSelectorState.value = state
     if (state.reportId) {
       flow.setActiveReportId(state.reportId)

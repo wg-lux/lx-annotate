@@ -1,0 +1,488 @@
+schema_version: '1.0'
+id: storage_optimization
+name: LX-Annotate Runtime Storage Optimization
+description: Recover and sustainably protect capacity below /var/lib/lx-annotate through conservative
+  cleanup, policy-controlled transfer of eligible anonymized artifacts, eager playback-ready HLS, and
+  bounded fallback regeneration while preserving clinical data, cryptographic boundaries, service availability,
+  and cross-repository type compatibility.
+owners:
+- lx-annotate maintainers
+- endoreg-db maintainers
+- LuxNix maintainers
+- storage operations
+- security operations
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Canonical protected runtime root, deployment source, and encryption boundaries.
+- path: docs/guides/wheel-deployment.md
+  disposition: reference
+  note: Wheel staging, runtime layout, host-owned storage paths, and secret-file contract.
+- path: docs/guides/hub-storage-load-balancing.md
+  disposition: reference
+  note: Existing typed placement, envelope transfer, lease, reconciliation, and cleanup contracts.
+- path: /home/admin/dev/luxnix/docs/deployment-guide.md
+  disposition: reference
+  note: LuxNix deployment and host verification workflow.
+- path: /home/admin/dev/luxnix/docs/vault-setup.md
+  disposition: reference
+  note: Canonical admin-password import, rotation, export, and validation workflow.
+definition_of_done:
+- id: emergency_capacity_recovery
+  category: operations
+  title: A conservative cleanup restores working headroom before build or test work
+  acceptance:
+  - Record filesystem capacity, the largest bounded subtrees, active service generations, queued and running
+    media jobs, open-file or lease evidence, and rollback artifacts before deleting or moving anything.
+  - The first mutation removes only proven-reclaimable deployment staging, caches, or abandoned temporary
+    artifacts; it does not remove clinical media, the active release, the selected rollback release, unique
+    logs, database state, secrets, Nix store paths, or active Nix garbage-collection roots.
+  - Cleanup uses the owning typed and atomic filesystem interface, records structured JSON evidence for
+    every mutation, is idempotent, and fails closed when ownership, liveness, provenance, or retention
+    is ambiguous.
+  - A configurable warning, work-stop, and emergency reserve policy leaves enough measured headroom for
+    the narrow sequential verification lane before later implementation work begins.
+  - LX-Annotate, PostgreSQL, Redis, Nginx, the watcher, and every configured Celery queue remain healthy
+    throughout cleanup; no service is stopped merely to make cleanup easier.
+  required: true
+  verification:
+    kind: manual
+    instructions: Capture before/after df and bounded inventory evidence, review every reclaimed path
+      against the active generation and rollback set, inspect structured mutation logs, and run service
+      and queue health checks.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: '2026-08-24 baseline: cryptroot was 477 GiB total, 465 GiB used, 8.7 GiB available (99%);
+        the /var/lib/lx-annotate tree was approximately 180 GiB, including approximately 178 GiB under
+        data and 2,420,525,134 bytes across 83 top-level wheel staging artifacts.'
+    - kind: command
+      reference: '2026-08-24 service inspection: lx-annotate 1.0.4 ran from the immutable Nix closure
+        /nix/store/9l9lmzl7p2bjvrpsb9gx0hzg3qgzgihv-lx-annotate-wheel-runtime-1.0.4 while web, PostgreSQL,
+        Redis, Nginx, watcher-related execution, and all configured Celery worker services remained running.'
+    - kind: command
+      reference: '2026-08-25: df -h / => 477G total, 453G used, 20G available, 96%; 83 wheel files =>
+        2,420,525,134 bytes'
+    - kind: test
+      reference: '/home/admin/dev/luxnix: pytest -q -p no:django tests/test_lx_annotate_wheel_runtime_install.py
+        => 3 passed in 0.15s'
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/services/runtime_wheel_staging.py; /home/admin/dev/luxnix/modules/nixos/services/lx-annotate-local/scripts.nix
+    - kind: test
+      reference: 'endoreg cleanup: 5 passed sequentially, Ruff passed, Pyright 0 errors; LuxNix storage/wheel
+        contracts: 7 passed sequentially'
+    - kind: command
+      reference: '2026-08-25 typed live dry-run: scanned_entries=99, candidate_count=83, candidate_bytes=2420525134,
+        removed_count=0, removed_bytes=0; independent post-run count remained 83 and byte total unchanged'
+    - kind: document
+      reference: docs/guides/wheel-deployment.md#deployment-wheel-staging-cleanup
+    - kind: test
+      reference: 'endoreg cleanup: 5 passed sequentially, Ruff passed, Pyright 0 errors; LuxNix storage/wheel/provenance
+        contracts: 8 passed sequentially'
+    - kind: command
+      reference: 'Typed live dry-run: scanned_entries=99, candidate_count=83, candidate_bytes=2420525134,
+        removed_count=0; post-run inventory unchanged'
+    - kind: review
+      reference: Active 1.0.4 installed environment lacks reap_runtime_wheel_staging; runtime.enableObsoleteWheelCleanup
+        defaults false to preserve startup compatibility until coordinated release
+    note: The typed cleanup path identifies exactly 83 obsolete top-level wheel staging files totaling
+      2,420,525,134 bytes and never descends into clinical data. Future staging is bounded to one wheel.
+      LuxNix integration is capability-gated off by default because active LX-Annotate 1.0.4 does not
+      contain the new endoreg command; it can be enabled only with a reviewed coordinated wheel, after
+      which cleanup runs as the service owner following migrations. No live deletion or deployment has
+      occurred.
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T07:58:19.376413Z'
+- id: authoritative_storage_inventory
+  category: requirements
+  title: Runtime bytes have typed identity, provenance, lifecycle, and reclaimability
+  acceptance:
+  - endoreg-db is the source of truth for each managed artifact's stable identity, content hash, size,
+    storage mode, local and remote placement, source generation, retention state, active leases, and last
+    verification.
+  - Persisted inventory and workflow payloads are model-bound typed schemas rather than open dictionaries,
+    and storage routing uses VideoStorageMode or another exhaustive typed enum instead of string dispatch.
+  - Reconciliation distinguishes referenced, transferable, regenerable, cached, temporary, missing, corrupt,
+    ambiguous, and LOST bytes without inferring database truth from filesystem presence or absence alone.
+  - Inventory is bounded and resumable so scanning cannot exhaust the nearly full filesystem, database,
+    memory, or worker queues, and it emits structured capacity and discrepancy metrics without patient
+    identifiers.
+  required: true
+  verification:
+    kind: manual
+    instructions: Reconcile representative raw, processed, HLS, report, model, temporary, missing, corrupt,
+      and concurrently leased artifacts against database rows and filesystem hashes; review typed schemas
+      and exhaustive branches.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/services/video_storage/contracts.py::VideoStorageInventoryReport;
+        endoreg_db/services/video_storage/inventory.py; endoreg_db/management/commands/normalize_video_storage.py
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/services/video_storage/inventory.py converts persisted
+        HLS artifact kinds to VideoArtifactKind, fails closed on unknown values, and caps each HLS artifact
+        inventory scan at 20,000 filesystem entries with explicit incomplete/unreconciled classification;
+        media bytes are never truncated or modified
+    - kind: test
+      reference: 'Focused bounded inventory command lane: 5 passed sequentially, 4 destructive/expensive
+        tests skipped; the resume-safety failure path passed separately (1 passed); Ruff passed; Pyright
+        0 errors'
+    - kind: test
+      reference: 'Unknown HLS artifact kind negative path: 1 passed sequentially; focused Ruff passed;
+        focused Pyright 0 errors'
+    - kind: test
+      reference: 'Per-HLS-artifact entry ceiling: read-only inventory continues with incomplete/unreconciled
+        evidence, reclaimable bytes are zero, media remains immutable, and apply is rejected before mutation;
+        focused command lane 5 passed with 4 destructive/expensive skips'
+    - kind: review
+      reference: Existing hub placement/reconciliation models cover remote reservation, placement, receipt
+        and reconciliation separately; unified lifecycle inventory remains outstanding
+    note: >-
+      endoreg-db already owns typed per-video byte accounting for raw, processed, streamable, and
+      HLS artifacts, cleanup readiness, normalization evidence, references, and missing references. The
+      normalization inventory is now bounded before filesystem traversal with a default batch of 100,
+      hard maximum 1000, and stable primary-key resume cursor. HLS byte routing now converts persisted
+      values into the existing typed enum and rejects unknown kinds instead of silently omitting them.
+      Each HLS artifact traversal is also limited to 20,000 filesystem entries. Reaching the cap no longer
+      aborts read-only inventory: it emits an explicit incomplete/unreconciled scan result, forces reclaimable
+      bytes to zero, and blocks apply and cleanup before mutation. This ceiling affects metadata traversal
+      only; video and HLS media are never truncated, rewritten, moved, or partially stored. Full authoritative
+      status remains open because local inventory is not yet unified with remote placement, transferability,
+      corrupt/ambiguous/LOST classification, hashes, retention state, and last-verification timestamps in one
+      model-bound view.
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T09:10:28Z'
+- id: safe_anonymized_transfer
+  category: security
+  title: Eligible processed media can be transferred without weakening security or integrity
+  acceptance:
+  - Outbound transfer is limited to explicitly validated anonymized processed media; raw media, unvalidated
+    anonymization output, secrets, the long-lived master key, and unrelated runtime state are never exported.
+  - Host-to-host transport requires mTLS when the deployment profile requires it, and standalone transferred
+    artifacts use per-transfer data-encryption keys wrapped to the receiving storage node's public key.
+  - NetworkNode.shared_secret authenticates requests only and is never used for payload encryption.
+  - Transfer persists a typed idempotency key, source and target identities, exact byte size and digest,
+    recipient key version, retry state, and verified receipt before a placement can become readable or
+    cleanup-eligible.
+  - Source reclamation is a separate, deferred operation and cannot run until target verification, atomic
+    placement publication, required replica policy, retention policy, and all active media-operation leases
+    permit it.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise success, replay, interruption, digest mismatch, wrong recipient, missing mTLS,
+      target-full, stale receipt, and source-cleanup races against a production-like encrypted storage
+      node.
+    timeout_seconds: 2400
+  assessment:
+    status: blocked
+    evidence:
+    - kind: command
+      reference: findmnt --mountpoint /mnt/endoreg-client-storage failed and findmnt -T resolved to /dev/mapper/cryptroot
+    - kind: monitoring
+      reference: 'lx-annotate-hub-export-health.service: total_jobs=1, configuration_rejection=1, critical_count=1;
+        ffmpeg/hub workers and core web/database/cache services remain active'
+    - kind: code
+      reference: lx_annotate/models.py; lx_annotate/hub/hub_export_worker.py;
+        lx_annotate/hub/hub_export_reconciliation.py; lx_annotate/hub/hub_export_cleanup.py;
+        lx_annotate/management/commands/reap_verified_hub_exports.py
+    - kind: test
+      reference: '2026-08-25 focused receipt, reconciliation, cleanup, and import-smoke lane: 47 passed;
+        focused Ruff, Pyright (0 errors), compileall, migration-drift, tracker validation, and diff checks passed'
+    note: 'Live transfer cannot be represented as safe or usable: /mnt/endoreg-client-storage resolves
+      to the root cryptroot rather than a separate mounted destination, the configured persisting-storage
+      mount unit lacks STORAGE_PERSISTING_HDD_ID, and hub-export health reports one terminal configuration_rejection.
+      The sender now persists a model-validated envelope receipt, requires it on direct and reconciled applied
+      paths, and exposes bounded dry-run-first processed-video reaping that blocks on digest, size, identity,
+      lease, and active-processing mismatches. Raw media and reports are not reaped. Central AI reads the
+      receiver-managed processed file, or the committed remote placement provider when Hub storage balancing
+      is enabled. No live media deletion or deployment occurred, and the live destination blocker remains.'
+    assessed_by: codex-hub-transfer-20260825
+    assessed_at: '2026-08-25T09:45:00Z'
+- id: lazy_transcoding
+  category: functionality
+  title: Playback-ready HLS is generated eagerly and regenerated safely
+  acceptance:
+  - Successful import, reimport, reanonymization, and completed-duplicate return paths require atomically
+    published raw and processed HLS before returning so time-critical playback does not wait for first-use
+    transcoding.
+  - An authenticated playback request for a legacy, evicted, or reconciled missing rendition creates one
+    idempotent typed fallback request instead of transcoding synchronously in the web process.
+  - Concurrent requests for the same source generation and rendition converge on one bounded worker job,
+    expose pending and failed state honestly, and never publish partial output.
+  - Transcoding writes through typed atomic filesystem helpers, verifies output and source-generation
+    identity, publishes by atomic replacement, emits structured JSON logs, and cleans only its own proven
+    temporary files.
+  - A configurable cache and retention policy can reclaim regenerable renditions only when no lease is
+    active; the validated source, annotation timeline, hashes, provenance, and encryption boundary remain
+    intact.
+  - Playback remains compatible with HTTP range delivery and provides an explicit retryable response while
+    fallback regeneration is being prepared rather than silently falling back to raw-media export.
+  required: true
+  verification:
+    kind: manual
+    instructions: Sequentially test import-time raw and processed readiness, completed-duplicate repair,
+      first playback, cache hit, fallback duplicate demand, worker restart, source replacement, low-space
+      admission, failed transcode, partial-output cleanup, active-lease retention, expiry, and range playback.
+    timeout_seconds: 2400
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/import_files/file_storage/state_management.py; /home/admin/endoreg-db/endoreg_db/import_files/video_import_service.py;
+        /home/admin/endoreg-db/endoreg_db/views/video/hls_stream.py
+    - kind: test
+      reference: TEST_DB_ENGINE=django.db.backends.sqlite3 TEST_DB_REUSE=false RUN_VIDEO_TESTS=true SKIP_EXPENSIVE_TESTS=true
+        pytest -q -n0 focused files => 39 passed, 10 expensive tests skipped in 41.02s
+    - kind: command
+      reference: Focused Ruff passed; focused Pyright 0 errors; git diff --check passed
+    note: 'Per the time-critical runtime requirement, eager HLS readiness is restored: import, reimport,
+      reanonymization, and completed-duplicate paths require raw and processed HLS through the existing
+      typed idempotent materializer before returning. The playlist endpoint retains bounded asynchronous
+      regeneration only for legacy, evicted, or reconciled missing derivatives. Non-expensive database-backed
+      tests, Ruff, Pyright, and diff checks pass; production capacity/load acceptance and expensive media
+      tests remain outstanding.'
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T08:11:20.077258Z'
+- id: bounded_capacity_admission
+  category: operations
+  title: Capacity pressure is controlled before work can fill the root filesystem
+  acceptance:
+  - LuxNix declares warning, admission-stop, emergency-reserve, transfer, eager-HLS, fallback-regeneration,
+    retention, concurrency, bandwidth, and I/O-priority policy with safe per-host defaults and evaluated
+    configuration assertions.
+  - Ingest, extraction, prediction, transcoding, transfer, and cleanup reserve policy-usable bytes before
+    work and release or reconcile reservations after success, failure, cancellation, timeout, and worker
+    restart.
+  - Low capacity blocks new write-amplifying work with an actionable typed reason while read-only viewing
+    and essential services continue where integrity permits; no component silently redirects to an unapproved
+    path.
+  - Alerts distinguish filesystem free bytes, policy-usable bytes, reserved bytes, reclaimable bytes,
+    transfer backlog, transcode backlog, stale telemetry, and cleanup failures without exposing patient
+    data or secrets.
+  - Expensive work remains queue-routed with bounded concurrency and I/O scheduling so recovery cannot
+    create simultaneous transfers, transcodes, test runs, or rebuilds that overwhelm the filesystem.
+  required: true
+  verification:
+    kind: manual
+    instructions: Evaluate the target-host LuxNix configuration and inject warning, stop, reserve exhaustion,
+      stale telemetry, queue restart, reservation leak, and recovery conditions while monitoring all production
+      services.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: /home/admin/dev/luxnix/tests/test_lx_annotate_storage_recovery_contract.py => 3 passed
+        in 0.04s
+    - kind: command
+      reference: nix eval gc-02 system drv succeeded without a rebuild; evaluated warning=42949672960,
+        stop=26843545600, cleanup requires endoreg-mount-persisting-storage.service
+    note: LuxNix now declares typed positive warning/stop byte thresholds with an assertion that stop
+      is lower than warning. gc-02 evaluates to 40 GiB warning and 25 GiB stop; the live 20 GiB free state
+      is below the proposed stop, so new write-amplifying work will fail closed after deployment. Cleanup
+      also requires a separate filesystem by default.
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T07:36:40.708919Z'
+- id: cross_repository_contract_quality
+  category: maintainability
+  title: LX-Annotate, endoreg-db, and LuxNix changes remain minimal, compatible, and type safe
+  acceptance:
+  - endoreg-db owns typed artifact lifecycle, reservations, placement, reconciliation, and filesystem
+    mutations; LX-Annotate owns authenticated API and operator workflows; LuxNix owns host storage, services,
+    schedules, limits, secrets, and deployment policy.
+  - Public contracts are versioned and compatibility-tested across the exact package revisions deployed
+    together; migrations are additive, reversible where practical, and safe for existing rows and workers
+    during rollout.
+  - Python changes pass the repositories' configured Ruff, MyPy or Pyright, schema, migration-drift, and
+    focused unit/integration gates; Nix changes pass formatting, evaluation, and focused contract tests.
+  - The implementation uses existing public helpers and libraries, introduces no raw shutil mutation,
+    non-atomic persistence, silent fallback, fake configuration, unvalidated persisted JSON, or stringly
+    typed storage route.
+  - The final review records exact repository revisions, locked Flake inputs, package versions, target
+    host, dirty state, and artifact digests without claiming unrelated pre-existing worktree changes as
+    feature evidence.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the cross-repository diff and compatibility matrix, then run each repository's
+      narrow static, schema, migration, unit, and contract gates sequentially against the exact pinned
+      dependency revisions.
+    timeout_seconds: 3600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: 'All three repositories: git diff --check passed; lx-annotate and endoreg feature-tracker
+        validation passed'
+    - kind: test
+      reference: 'LuxNix focused storage and wheel tests: 6 passed sequentially across two isolated invocations;
+        endoreg focused Ruff/Pyright/compileall passed'
+    - kind: command
+      reference: 'All three repositories: git diff --check and feature-tracker validation passed'
+    - kind: test
+      reference: endoreg eager-HLS lane 39 passed; bounded inventory lane 3 passed; wheel cleanup lane
+        5 passed; focused Pyright 0 errors and Ruff passed
+    - kind: test
+      reference: LuxNix focused storage/wheel/provenance tests 8 passed; evaluated wheel digest matches
+        active 1.0.4; host derivation evaluated without build
+    note: 'Ownership remains correctly split: endoreg-db owns typed HLS lifecycle, bounded inventory,
+      cleanup and dispatch; LX-Annotate owns authenticated playback/operator contracts; LuxNix owns host
+      thresholds, mount gating, immutable wheel selection, staging and password policy. Focused database,
+      type, lint, Nix evaluation and contract tests pass sequentially. Full compatibility remains open
+      until a coordinated wheel containing these endoreg changes is released, the dirty LuxNix source
+      is reviewed, and production-like transfer/eager-HLS acceptance passes.'
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T08:25:27.424323Z'
+- id: sequential_verification_and_service_continuity
+  category: testing
+  title: Relevant tests pass sequentially without full-system rebuilds or service interruption
+  acceptance:
+  - A written verification matrix maps each changed contract to the narrowest relevant test, type, lint,
+    migration, Nix evaluation, service-health, and production-like acceptance gate in LX-Annotate, endoreg-db,
+    and LuxNix.
+  - Test commands run one at a time with bounded temporary space and resource limits; parallel test execution,
+    repository-wide build matrices, and full-system rebuilds are prohibited for this feature.
+  - Broader integration checks run sequentially only when a changed module boundary requires them and
+    only after capacity is re-measured against the emergency reserve.
+  - All relevant gates pass without stopping production services, consuming protected media as fixtures,
+    leaving unbounded caches or temporary artifacts, or using a checkout or test tree below /tmp as a
+    production source.
+  - Failure-injection covers full target, interrupted transfer, interrupted transcode, restart, stale
+    lease, hash mismatch, ambiguous placement, and low-space admission; failures preserve evidence and
+    fail closed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review timestamps and resource evidence proving serialized execution, inspect before/after
+      capacity and service health, and verify every command and result in the cross-repository matrix.
+    timeout_seconds: 3600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: 'LuxNix storage recovery contract: 3 passed; wheel runtime install: 3 passed; both sequential'
+    - kind: monitoring
+      reference: lx-annotate web, PostgreSQL, Redis, Nginx and maintenance/ffmpeg/frame-extraction/hub-transfer/inference/pipeline
+        Celery workers active; watcher last oneshot exited 0
+    - kind: test
+      reference: 'Eager HLS/import/materialize/playlist focused lane: 39 passed, 10 expensive skipped,
+        sequential'
+    - kind: test
+      reference: 'Bounded inventory command lane: 3 passed, 3 destructive/expensive skipped, sequential'
+    - kind: test
+      reference: 'LuxNix storage/wheel/provenance focused lane: 8 passed, sequential; gc-02 derivation
+        evaluation passed without build'
+    - kind: monitoring
+      reference: Core services and all configured Celery workers active; watcher last oneshot successful;
+        no test DB artifacts remained
+    note: 'Every test invocation used one process or explicit -n0; no full system rebuild ran. Repository-approved
+      isolated, non-reused SQLite enabled database-backed focused lanes without changing PostgreSQL policy:
+      eager-HLS/import/playlist tests and bounded inventory tests pass. Expensive full-media, transfer
+      failure-injection, and production acceptance remain outstanding. Core web, PostgreSQL, Redis, Nginx,
+      all configured Celery workers, and watcher execution remain operational; hub-export health stays
+      red for the recorded configuration rejection.'
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T08:25:06.651392Z'
+- id: production_rollout_and_recovery
+  category: operations
+  title: Rollout, rollback, and recovery are measured and production safe
+  acceptance:
+  - Deployment follows immutable wheel or Nix-closure provenance and records repository paths, Git revisions,
+    locked inputs, target host, LX-Annotate and endoreg-db versions, active generation, and artifact digests.
+  - A canary phase proves transfer, eager import-time HLS, and fallback regeneration under representative
+    load before retention cleanup is enabled, with explicit pause and kill switches that do not discard
+    durable work state.
+  - Rollback preserves schema compatibility, local and remote placement evidence, verified transferred
+    copies, source generations, leases, and structured audit logs; it never guesses or deletes the canonical
+    artifact.
+  - Post-deployment acceptance verifies authenticated application access, protected playback, ingest admission,
+    every worker queue, database, Redis, Nginx, capacity alerts, transfer, eager HLS, fallback regeneration,
+    and restart recovery.
+  - The feature is not marked complete until sustained capacity remains above policy thresholds and a
+    reviewed recovery exercise demonstrates that interrupted work converges safely without full system
+    reconstruction.
+  required: true
+  verification:
+    kind: manual
+    instructions: Perform a reviewed canary, controlled interruption, restart recovery, and rollback exercise
+      on the named target while recording provenance, service health, capacity, audit, and reconciliation
+      evidence.
+    timeout_seconds: 3600
+  assessment:
+    status: blocked
+    evidence:
+    - kind: command
+      reference: './feature-tracking/tracker.py check deployment => NICHT PRODUKTIONSREIF: deployment
+        (0/6)'
+    - kind: review
+      reference: feature-tracking/Deployment.yml; docs/guides/deployment-strategy.md; docs/guides/wheel-deployment.md;
+        /home/admin/dev/luxnix/docs/deployment-guide.md
+    - kind: command
+      reference: gc-02 evaluated wheel /nix/store/ixf75a0c0iaf1zwcvg2xfyn2v6gmdcns-lx_annotate-1.0.4-py3-none-any.whl;
+        sha256 bb8cd013002c7bee361e6f59eb58da6a23b1640fc7f809405f008c3c0a9f8546; matches deployed wheel
+    - kind: command
+      reference: LuxNix revision 1658288bb85eff92d2d87689a667e9208261a53b; flake.lock sha256 3ea0f05365ef457e1bad9e31809aba280a39f0999b2a32b4d78ed98bd2335f87;
+        25 dirty entries require review
+    - kind: test
+      reference: 'LuxNix focused storage/wheel tests: 8 passed sequentially; gc-02 toplevel drv evaluation
+        succeeded without build'
+    - kind: command
+      reference: ./feature-tracking/tracker.py check deployment => not production ready (0/6)
+    note: 'The stale evaluated 0.2.9 default is corrected: LuxNix now selects the authoritative PyPI 1.0.4
+      wheel whose SHA-256 exactly matches the active runtime and Nix-store input. Host derivation evaluation
+      and focused provenance tests pass without a build. Rollout remains prohibited because the governing
+      deployment tracker is 0/6, LuxNix has 25 dirty entries requiring ownership review, no canary/rollback
+      acceptance has run, and the transfer destination is unavailable.'
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T07:56:39.855390Z'
+- id: admin_password_rotation_runbook
+  category: documentation
+  title: The host admin password has a durable secret-managed rotation procedure
+  acceptance:
+  - The current password is never copied into source, tracker evidence, command lines, logs, shell history,
+    chat summaries, or generated documentation and must be treated as disclosed after use in this recovery
+    context.
+  - Durable rotation updates the host entry in the untracked LuxNix ansible/secrets/admin-passwords.yml
+    input, imports and re-encrypts both plaintext and hashed forms through the documented LuxNix Vault
+    bootstrap or update-secret workflow, exports the host-scoped secret, and deploys the resulting managed
+    secret.
+  - Rotation validation uses the LuxNix validate-admin-passwords workflow, confirms restricted secret-file
+    ownership and mode, proves a fresh authenticated session before closing the existing recovery session,
+    and verifies sudo plus subsequent Nix activation retain access.
+  - An interactive passwd change is documented as emergency-only because declarative hashedPasswordFile
+    state can replace it; emergency changes are reconciled into Vault immediately through the durable
+    workflow.
+  - LuxNix removes the hard-coded default admin password hash and plaintext hint from its admin user module
+    and fails closed with an actionable error when the managed hash file is absent.
+  required: true
+  verification:
+    kind: manual
+    instructions: 'Follow /home/admin/dev/luxnix/docs/vault-setup.md without placing the secret on a command
+      line: update the ignored admin-password mapping, run vault-bootstrap with host-scoped export, run
+      validate-admin-passwords, deploy the managed hash, open a fresh login, verify sudo, perform a subsequent
+      Nix activation, and confirm the legacy fallback hash and password hint are absent from evaluated
+      LuxNix sources and closures.'
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: /home/admin/dev/luxnix/docs/vault-setup.md
+    - kind: code
+      reference: /home/admin/dev/luxnix/modules/nixos/admin/admin.nix
+    note: LuxNix documentation now describes managed password rotation through the ignored admin-passwords.yml
+      input, vault bootstrap/export, evaluation, deployment, and fresh login plus sudo verification. The
+      hardcoded fallback hash and plaintext hint were removed and activation fails closed when the managed
+      hash is absent. Rotation itself was not performed; any password shared in chat must be treated as
+      disclosed and replaced.
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T07:36:41.690380Z'

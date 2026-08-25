@@ -1,0 +1,2504 @@
+{
+  "components": {
+    "schemas": {
+      "PExamination": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "examination": {
+            "minLength": 1,
+            "title": "Examination",
+            "type": "string"
+          },
+          "examiners": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Examiners"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "knowledge_base_module": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowledge Base Module"
+          },
+          "knowledge_base_version": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowledge Base Version"
+          },
+          "patient": {
+            "minLength": 1,
+            "title": "Patient",
+            "type": "string"
+          },
+          "patient_findings": {
+            "items": {
+              "$ref": "#/components/schemas/PFinding"
+            },
+            "title": "Patient Findings",
+            "type": "array"
+          },
+          "patient_indications": {
+            "items": {
+              "$ref": "#/components/schemas/PIndication"
+            },
+            "title": "Patient Indications",
+            "type": "array"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "patient",
+          "examination"
+        ],
+        "title": "PExamination",
+        "type": "object"
+      },
+      "PFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "finding": {
+            "title": "Finding",
+            "type": "string"
+          },
+          "patient_examination": {
+            "title": "Patient Examination",
+            "type": "string"
+          },
+          "patient_finding_classifications": {
+            "items": {
+              "$ref": "#/components/schemas/PFindingClassifications"
+            },
+            "title": "Patient Finding Classifications",
+            "type": "array"
+          },
+          "patient_finding_interventions": {
+            "items": {
+              "$ref": "#/components/schemas/PFindingInterventions"
+            },
+            "title": "Patient Finding Interventions",
+            "type": "array"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "finding",
+          "patient_examination"
+        ],
+        "title": "PFinding",
+        "type": "object"
+      },
+      "PFindingClassificationChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "title": "Classification",
+            "type": "string"
+          },
+          "classification_choice": {
+            "title": "Classification Choice",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "patient_finding_classification_choice_descriptors": {
+            "items": {
+              "$ref": "#/components/schemas/PFindingClassificationChoiceDescriptor"
+            },
+            "title": "Patient Finding Classification Choice Descriptors",
+            "type": "array"
+          },
+          "patient_finding_classifications": {
+            "title": "Patient Finding Classifications",
+            "type": "string"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "classification",
+          "classification_choice",
+          "patient_finding_classifications"
+        ],
+        "title": "PFindingClassificationChoice",
+        "type": "object"
+      },
+      "PFindingClassificationChoiceDescriptor": {
+        "additionalProperties": false,
+        "properties": {
+          "classification_choice_descriptor": {
+            "title": "Classification Choice Descriptor",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "descriptor_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Descriptor Value"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "patient_finding_classification_choice": {
+            "title": "Patient Finding Classification Choice",
+            "type": "string"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "descriptor_value",
+          "classification_choice_descriptor",
+          "patient_finding_classification_choice"
+        ],
+        "title": "PFindingClassificationChoiceDescriptor",
+        "type": "object"
+      },
+      "PFindingClassifications": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "patient_finding": {
+            "title": "Patient Finding",
+            "type": "string"
+          },
+          "patient_finding_classification_choices": {
+            "items": {
+              "$ref": "#/components/schemas/PFindingClassificationChoice"
+            },
+            "title": "Patient Finding Classification Choices",
+            "type": "array"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "patient_finding"
+        ],
+        "title": "PFindingClassifications",
+        "type": "object"
+      },
+      "PFindingIntervention": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "intervention": {
+            "title": "Intervention",
+            "type": "string"
+          },
+          "patient_finding_interventions": {
+            "title": "Patient Finding Interventions",
+            "type": "string"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "patient_finding_interventions",
+          "intervention"
+        ],
+        "title": "PFindingIntervention",
+        "type": "object"
+      },
+      "PFindingInterventions": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "patient_finding": {
+            "title": "Patient Finding",
+            "type": "string"
+          },
+          "patient_finding_interventions": {
+            "items": {
+              "$ref": "#/components/schemas/PFindingIntervention"
+            },
+            "title": "Patient Finding Interventions",
+            "type": "array"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "patient_finding"
+        ],
+        "title": "PFindingInterventions",
+        "type": "object"
+      },
+      "PIndication": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "indication": {
+            "title": "Indication",
+            "type": "string"
+          },
+          "patient_examination": {
+            "title": "Patient Examination",
+            "type": "string"
+          },
+          "patient_indication_classifications": {
+            "items": {
+              "$ref": "#/components/schemas/PIndicationClassification"
+            },
+            "title": "Patient Indication Classifications",
+            "type": "array"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "indication",
+          "patient_examination"
+        ],
+        "title": "PIndication",
+        "type": "object"
+      },
+      "PIndicationClassification": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "title": "Classification",
+            "type": "string"
+          },
+          "classification_choice": {
+            "title": "Classification Choice",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "patient_indication": {
+            "title": "Patient Indication",
+            "type": "string"
+          },
+          "patient_indication_classification_descriptors": {
+            "items": {
+              "$ref": "#/components/schemas/PIndicationClassificationDescriptor"
+            },
+            "title": "Patient Indication Classification Descriptors",
+            "type": "array"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "classification",
+          "classification_choice",
+          "patient_indication"
+        ],
+        "title": "PIndicationClassification",
+        "type": "object"
+      },
+      "PIndicationClassificationDescriptor": {
+        "additionalProperties": false,
+        "properties": {
+          "classification_choice_descriptor": {
+            "title": "Classification Choice Descriptor",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "descriptor_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Descriptor Value"
+          },
+          "external_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Ids",
+            "type": "object"
+          },
+          "patient_indication_classification": {
+            "title": "Patient Indication Classification",
+            "type": "string"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Tags"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "uuid",
+                "type": "string"
+              }
+            ],
+            "title": "Uuid"
+          }
+        },
+        "required": [
+          "descriptor_value",
+          "classification_choice_descriptor",
+          "patient_indication_classification"
+        ],
+        "title": "PIndicationClassificationDescriptor",
+        "type": "object"
+      },
+      "PatientFindingClassificationInput": {
+        "properties": {
+          "choice": {
+            "title": "Choice",
+            "type": "integer"
+          },
+          "classification": {
+            "title": "Classification",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "classification",
+          "choice"
+        ],
+        "title": "PatientFindingClassificationInput",
+        "type": "object"
+      },
+      "PatientFindingClassificationsRequest": {
+        "properties": {
+          "classifications": {
+            "items": {
+              "$ref": "#/components/schemas/PatientFindingClassificationInput"
+            },
+            "title": "Classifications",
+            "type": "array"
+          },
+          "replace": {
+            "default": true,
+            "title": "Replace",
+            "type": "boolean"
+          }
+        },
+        "title": "PatientFindingClassificationsRequest",
+        "type": "object"
+      },
+      "PatientFindingCreateRequest": {
+        "properties": {
+          "classifications": {
+            "items": {
+              "$ref": "#/components/schemas/PatientFindingClassificationInput"
+            },
+            "title": "Classifications",
+            "type": "array"
+          },
+          "finding": {
+            "title": "Finding",
+            "type": "integer"
+          },
+          "patient_examination": {
+            "title": "Patient Examination",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient_examination",
+          "finding"
+        ],
+        "title": "PatientFindingCreateRequest",
+        "type": "object"
+      },
+      "PatientFindingUpdateRequest": {
+        "properties": {
+          "classifications": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientFindingClassificationInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classifications"
+          },
+          "finding": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "title": "PatientFindingUpdateRequest",
+        "type": "object"
+      },
+      "ReportTemplateBuilderClassification": {
+        "properties": {
+          "classification": {
+            "minLength": 1,
+            "title": "Classification",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "classification"
+        ],
+        "title": "ReportTemplateBuilderClassification",
+        "type": "object"
+      },
+      "ReportTemplateBuilderField": {
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "source": {
+            "default": "patient",
+            "enum": [
+              "patient",
+              "patient_examination",
+              "history"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "ReportTemplateBuilderField",
+        "type": "object"
+      },
+      "ReportTemplateBuilderFinding": {
+        "properties": {
+          "classifications": {
+            "items": {
+              "$ref": "#/components/schemas/ReportTemplateBuilderClassification"
+            },
+            "title": "Classifications",
+            "type": "array"
+          },
+          "finding": {
+            "minLength": 1,
+            "title": "Finding",
+            "type": "string"
+          },
+          "multiple_allowed": {
+            "default": false,
+            "title": "Multiple Allowed",
+            "type": "boolean"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "validator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportTemplateBuilderFindingValidator"
+              }
+            ]
+          }
+        },
+        "required": [
+          "finding"
+        ],
+        "title": "ReportTemplateBuilderFinding",
+        "type": "object"
+      },
+      "ReportTemplateBuilderFindingValidator": {
+        "properties": {
+          "condition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportTemplateBuilderValidatorCondition"
+              }
+            ]
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "operator": {
+            "default": "exists",
+            "enum": [
+              "exists",
+              "missing",
+              "condition"
+            ],
+            "title": "Operator",
+            "type": "string"
+          }
+        },
+        "title": "ReportTemplateBuilderFindingValidator",
+        "type": "object"
+      },
+      "ReportTemplateBuilderSection": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ReportTemplateBuilderField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/ReportTemplateBuilderFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "section_type": {
+            "enum": [
+              "logo",
+              "patient_info",
+              "clinic_address",
+              "findings"
+            ],
+            "title": "Section Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "section_type",
+          "name"
+        ],
+        "title": "ReportTemplateBuilderSection",
+        "type": "object"
+      },
+      "ReportTemplateBuilderValidatorCondition": {
+        "properties": {
+          "classification": {
+            "default": "",
+            "title": "Classification",
+            "type": "string"
+          },
+          "comparator": {
+            "default": "eq",
+            "enum": [
+              "eq",
+              "ne",
+              "gt",
+              "gte",
+              "lt",
+              "lte",
+              "in",
+              "not_in"
+            ],
+            "title": "Comparator",
+            "type": "string"
+          },
+          "then_requires": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Then Requires",
+            "type": "array"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "title": "ReportTemplateBuilderValidatorCondition",
+        "type": "object"
+      },
+      "SaveReportTemplateRequest": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "examination": {
+            "minLength": 1,
+            "title": "Examination",
+            "type": "string"
+          },
+          "file_name": {
+            "minLength": 1,
+            "title": "File Name",
+            "type": "string"
+          },
+          "module_name": {
+            "minLength": 1,
+            "title": "Module Name",
+            "type": "string"
+          },
+          "module_version": {
+            "minLength": 1,
+            "title": "Module Version",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ReportTemplateBuilderSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "template_name": {
+            "minLength": 1,
+            "title": "Template Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "module_name",
+          "module_version",
+          "file_name",
+          "template_name",
+          "examination"
+        ],
+        "title": "SaveReportTemplateRequest",
+        "type": "object"
+      },
+      "SelectTerminologyBundleRequest": {
+        "properties": {
+          "expected_revision": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Expected Revision",
+            "type": "string"
+          },
+          "module_name": {
+            "title": "Module Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "module_name",
+          "version",
+          "expected_revision"
+        ],
+        "title": "SelectTerminologyBundleRequest",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "",
+    "title": "NinjaAPI",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/dtypes-api/classifications/{classification_id}/choices/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_findings_routes_choices_by_classification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "classification_id",
+            "required": true,
+            "schema": {
+              "title": "Classification Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Examination Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Choices By Classification"
+      }
+    },
+    "/dtypes-api/core-concepts/{module_name}": {
+      "get": {
+        "description": "Return canonical core concept payloads for one KB module.",
+        "operationId": "lx_dtypes_django_api_findings_routes_core_concepts_by_module",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Core Concepts By Module"
+      }
+    },
+    "/dtypes-api/examinations/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_examinations_routes_examinations_catalog",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Examinations Catalog"
+      }
+    },
+    "/dtypes-api/examinations/{examination_id}/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_examinations_routes_examination_detail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "examination_id",
+            "required": true,
+            "schema": {
+              "title": "Examination Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Examination Detail"
+      }
+    },
+    "/dtypes-api/examinations/{examination_id}/findings/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_findings_routes_findings_by_examination",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "examination_id",
+            "required": true,
+            "schema": {
+              "title": "Examination Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Examination Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Findings By Examination"
+      }
+    },
+    "/dtypes-api/examinations/{examination_id}/indications/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_indications_routes_indications_by_examination",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "examination_id",
+            "required": true,
+            "schema": {
+              "title": "Examination Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Examination Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Indications By Examination"
+      }
+    },
+    "/dtypes-api/findings/{finding_id}/classifications/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_findings_routes_classifications_by_finding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Examination Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Classifications By Finding"
+      }
+    },
+    "/dtypes-api/indications/tree/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_indications_routes_indications_tree",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "module_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Examination Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Indications Tree"
+      }
+    },
+    "/dtypes-api/knowledge-bases/{module_name}/{version}/examinations/{examination_name}/reporting-context": {
+      "get": {
+        "description": "Return the closed terminology/template projection for one examination.",
+        "operationId": "lx_dtypes_django_api_knowledge_base_graph_routes_examination_reporting_context",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "examination_name",
+            "required": true,
+            "schema": {
+              "title": "Examination Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Examination Reporting Context"
+      }
+    },
+    "/dtypes-api/knowledge-bases/{module_name}/{version}/graph": {
+      "get": {
+        "description": "Return one deterministic, fully resolved terminology graph snapshot.",
+        "operationId": "lx_dtypes_django_api_knowledge_base_graph_routes_knowledge_base_graph",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Knowledge Base Graph"
+      }
+    },
+    "/dtypes-api/patient-examinations/{patient_examination_id}/dtypes-record/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_get_patient_examination_dtypes_record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_examination_id",
+            "required": true,
+            "schema": {
+              "title": "Patient Examination Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Get Patient Examination Dtypes Record"
+      },
+      "post": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_persist_patient_examination_dtypes_record_route",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_examination_id",
+            "required": true,
+            "schema": {
+              "title": "Patient Examination Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PExamination"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Persist Patient Examination Dtypes Record Route"
+      }
+    },
+    "/dtypes-api/patient-findings/": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_findings_routes_list_patient_findings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_examination",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Examination"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "List Patient Findings"
+      },
+      "post": {
+        "operationId": "lx_dtypes_django_api_findings_routes_create_patient_finding",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientFindingCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Create Patient Finding"
+      }
+    },
+    "/dtypes-api/patient-findings/{patient_finding_id}/": {
+      "delete": {
+        "operationId": "lx_dtypes_django_api_findings_routes_delete_patient_finding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_finding_id",
+            "required": true,
+            "schema": {
+              "title": "Patient Finding Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Delete Patient Finding"
+      },
+      "patch": {
+        "operationId": "lx_dtypes_django_api_findings_routes_patch_patient_finding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_finding_id",
+            "required": true,
+            "schema": {
+              "title": "Patient Finding Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientFindingUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Patch Patient Finding"
+      }
+    },
+    "/dtypes-api/patient-findings/{patient_finding_id}/classifications/": {
+      "post": {
+        "operationId": "lx_dtypes_django_api_findings_routes_set_patient_finding_classifications",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_finding_id",
+            "required": true,
+            "schema": {
+              "title": "Patient Finding Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientFindingClassificationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Set Patient Finding Classifications"
+      }
+    },
+    "/dtypes-api/report-templates/builder/by-examination/{module_name}/{examination_name}": {
+      "get": {
+        "description": "Return preview exports for all builder templates, including drafts.",
+        "operationId": "lx_dtypes_django_api_report_template_routes_builder_report_templates_by_examination",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "examination_name",
+            "required": true,
+            "schema": {
+              "title": "Examination Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Builder Report Templates By Examination"
+      }
+    },
+    "/dtypes-api/report-templates/builder/templates": {
+      "post": {
+        "description": "Persist a new report-template YAML file into one lx_dtypes knowledge-base module.",
+        "operationId": "lx_dtypes_django_api_report_template_routes_save_report_template",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReportTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Save Report Template"
+      }
+    },
+    "/dtypes-api/report-templates/builder/templates/{module_name}/{template_name}/publish": {
+      "post": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_publish_report_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_name",
+            "required": true,
+            "schema": {
+              "title": "Template Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Publish Report Template"
+      }
+    },
+    "/dtypes-api/report-templates/builder/templates/{module_name}/{template_name}/unpublish": {
+      "post": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_unpublish_report_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_name",
+            "required": true,
+            "schema": {
+              "title": "Template Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Unpublish Report Template"
+      }
+    },
+    "/dtypes-api/report-templates/by-examination/{module_name}/{examination_name}": {
+      "get": {
+        "description": "Return all resolved report templates for the given examination in one module.",
+        "operationId": "lx_dtypes_django_api_report_template_routes_report_templates_by_examination",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "examination_name",
+            "required": true,
+            "schema": {
+              "title": "Examination Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Report Templates By Examination"
+      }
+    },
+    "/dtypes-api/report-templates/{module_name}/{template_name}": {
+      "get": {
+        "description": "Return a resolved report template JSON payload by module/template name.",
+        "operationId": "lx_dtypes_django_api_report_template_routes_report_template_by_name",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_name",
+            "required": true,
+            "schema": {
+              "title": "Template Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Report Template By Name"
+      }
+    },
+    "/dtypes-api/report-templates/{module_name}/{template_name}/preview": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_preview_report_template_by_name",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_name",
+            "required": true,
+            "schema": {
+              "title": "Template Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Preview Report Template By Name"
+      }
+    },
+    "/dtypes-api/report-templates/{module_name}/{template_name}/validate": {
+      "post": {
+        "description": "Execute report-template validator logic against typed patient examination state.",
+        "operationId": "lx_dtypes_django_api_report_template_routes_validate_report_template_runtime",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_name",
+            "required": true,
+            "schema": {
+              "title": "Template Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PExamination"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Validate Report Template Runtime"
+      }
+    },
+    "/dtypes-api/report-templates/{module_name}/{template_name}/validate-definition": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_validate_report_template_definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_name",
+            "required": true,
+            "schema": {
+              "title": "Template Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Validate Report Template Definition"
+      }
+    },
+    "/dtypes-api/report-templates/{module_name}/{template_name}/validate-from-ledger/{patient_examination_id}": {
+      "post": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_validate_report_template_runtime_from_ledger",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_name",
+            "required": true,
+            "schema": {
+              "title": "Template Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "patient_examination_id",
+            "required": true,
+            "schema": {
+              "title": "Patient Examination Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Validate Report Template Runtime From Ledger"
+      }
+    },
+    "/dtypes-api/reporting/languages": {
+      "get": {
+        "description": "Return the report languages supported by LXDM concept labels.",
+        "operationId": "lx_dtypes_django_api_main_reporting_languages",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Reporting Languages"
+      }
+    },
+    "/dtypes-api/terminology/active/fhir": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_terminology_routes_export_active_terminology_fhir",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Export Active Terminology Fhir"
+      }
+    },
+    "/dtypes-api/terminology/bundles": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_terminology_routes_list_terminology_bundles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "List Terminology Bundles"
+      }
+    },
+    "/dtypes-api/terminology/bundles/import": {
+      "post": {
+        "operationId": "lx_dtypes_django_api_terminology_routes_import_terminology_bundle",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Import Terminology Bundle"
+      }
+    },
+    "/dtypes-api/terminology/bundles/select": {
+      "post": {
+        "operationId": "lx_dtypes_django_api_terminology_routes_select_terminology_bundle",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectTerminologyBundleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Select Terminology Bundle"
+      }
+    },
+    "/dtypes-api/terminology/bundles/{module_name}/{version}/fhir": {
+      "get": {
+        "operationId": "lx_dtypes_django_api_terminology_routes_export_terminology_bundle_fhir",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Export Terminology Bundle Fhir"
+      }
+    },
+    "/dtypes-api/validators/{module_name}/{validator_kind}/{validator_name}/validate": {
+      "post": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_validate_single_validator_runtime",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_name",
+            "required": true,
+            "schema": {
+              "title": "Module Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "validator_kind",
+            "required": true,
+            "schema": {
+              "title": "Validator Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "validator_name",
+            "required": true,
+            "schema": {
+              "title": "Validator Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PExamination"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Validate Single Validator Runtime"
+      }
+    }
+  },
+  "servers": []
+}

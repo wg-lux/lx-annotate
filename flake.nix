@@ -152,6 +152,8 @@
 
         frontend = pkgs.callPackage ./frontend/default.nix { };
 
+        feature-specifications = pkgs.callPackage ./feature-package.nix { };
+
         runtimeLibs = [
           pkgs.stdenv.cc.cc.lib # Provides libstdc++.so.6, libgcc_s.so.1, libgomp.so.1
           pkgs.tbb # Provides libtbb.so
@@ -161,6 +163,7 @@
 
         lx-annotate = pkgs.callPackage ./package.nix {
           inherit runtimeLibs frontend pythonDeps featureProviders;
+          featureSpecifications = feature-specifications;
         };
 
         nixtestSuite = ntlib.mkNixtest {
@@ -175,7 +178,7 @@
       {
         packages = {
           default = lx-annotate;
-          inherit frontend lx-annotate;
+          inherit frontend feature-specifications lx-annotate;
           nixtest = nixtestSuite;
         };
 

@@ -33,7 +33,6 @@ import type {
   ReportTemplateSectionField,
   ReportTemplateIdentity,
   ReportTemplateReadiness,
-  ReportTemplateLifecycleStatus,
   ReportTemplateValidators,
   ReportConceptApplicabilityStatus,
   ReportConceptCoverage,
@@ -360,7 +359,7 @@ export function normalizeReportTemplateIdentity(payload: unknown): ReportTemplat
     ),
     lifecycleStatus:
       lifecycle === 'draft' || lifecycle === 'published'
-        ? (lifecycle as ReportTemplateLifecycleStatus)
+        ? lifecycle
         : null,
     readiness
   }
@@ -641,30 +640,33 @@ export function normalizeTemplatePayload(payload: unknown): ReportTemplatePayloa
 
 export async function fetchReportTemplateByName(
   moduleName: string,
+  moduleVersion: string,
   templateName: string
 ): Promise<ReportTemplatePayload | null> {
   const response = await axiosInstance.get(
-    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}`
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}?version=${encodeURIComponent(moduleVersion)}`
   )
   return normalizeTemplatePayload(response.data)
 }
 
 export async function fetchReportTemplatePreviewByName(
   moduleName: string,
+  moduleVersion: string,
   templateName: string
 ): Promise<ReportTemplatePayload | null> {
   const response = await axiosInstance.get(
-    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/preview`
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/preview?version=${encodeURIComponent(moduleVersion)}`
   )
   return normalizeTemplatePayload(response.data)
 }
 
 export async function fetchReportTemplatesByExamination(
   moduleName: string,
+  moduleVersion: string,
   examinationName: string
 ): Promise<ReportTemplatePayload[]> {
   const response = await axiosInstance.get(
-    `${REPORT_TEMPLATE_BASE}/by-examination/${encodeURIComponent(moduleName)}/${encodeURIComponent(examinationName)}`
+    `${REPORT_TEMPLATE_BASE}/by-examination/${encodeURIComponent(moduleName)}/${encodeURIComponent(examinationName)}?version=${encodeURIComponent(moduleVersion)}`
   )
   if (!Array.isArray(response.data)) return []
   return response.data
@@ -674,10 +676,11 @@ export async function fetchReportTemplatesByExamination(
 
 export async function fetchBuilderReportTemplatesByExamination(
   moduleName: string,
+  moduleVersion: string,
   examinationName: string
 ): Promise<ReportTemplatePayload[]> {
   const response = await axiosInstance.get(
-    `${REPORT_TEMPLATE_BASE}/builder/by-examination/${encodeURIComponent(moduleName)}/${encodeURIComponent(examinationName)}`
+    `${REPORT_TEMPLATE_BASE}/builder/by-examination/${encodeURIComponent(moduleName)}/${encodeURIComponent(examinationName)}?version=${encodeURIComponent(moduleVersion)}`
   )
   if (!Array.isArray(response.data)) return []
   return response.data
@@ -775,10 +778,11 @@ export function normalizeDefinitionValidationResult(
 
 export async function validateReportTemplateDefinition(
   moduleName: string,
+  moduleVersion: string,
   templateName: string
 ): Promise<ReportTemplateDefinitionValidationResult> {
   const response = await axiosInstance.get(
-    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-definition`
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-definition?version=${encodeURIComponent(moduleVersion)}`
   )
   const normalized = normalizeDefinitionValidationResult(response.data)
   if (!normalized) {
@@ -989,11 +993,15 @@ export function normalizeRuntimeValidationResult(
 
 export async function validateReportTemplateRuntime(
   moduleName: string,
+  moduleVersion: string,
   templateName: string,
   payload: ReportTemplateRuntimePayload
 ): Promise<ReportTemplateRuntimeValidationResult> {
+  if (payload.knowledgeBaseVersion !== moduleVersion) {
+    throw new Error('Die Runtime-Nutzlast gehört nicht zur angeforderten Terminologieversion.')
+  }
   const response = await axiosInstance.post(
-    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate`,
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate?version=${encodeURIComponent(moduleVersion)}`,
     serializeRuntimePayload(payload)
   )
   const normalized = normalizeRuntimeValidationResult(response.data)
@@ -1005,11 +1013,12 @@ export async function validateReportTemplateRuntime(
 
 export async function validateReportTemplateRuntimeFromLedger(
   moduleName: string,
+  moduleVersion: string,
   templateName: string,
   patientExaminationId: number
 ): Promise<ReportTemplateRuntimeValidationResult> {
   const response = await axiosInstance.post(
-    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-from-ledger/${encodeURIComponent(String(patientExaminationId))}`
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-from-ledger/${encodeURIComponent(String(patientExaminationId))}?version=${encodeURIComponent(moduleVersion)}`
   )
   const normalized = normalizeRuntimeValidationResult(response.data)
   if (!normalized) {
@@ -1229,12 +1238,14 @@ async function buildRuntimeValidationFindings(
 
 export async function validatePatientFindingsAgainstTemplate(params: {
   moduleName: string
+  moduleVersion: string
   templateName: string
   patientExaminationId: number
   getFindingById?: (findingId: number) => Finding | undefined
 }): Promise<ReportTemplateRuntimeValidationResult> {
   return validateReportTemplateRuntimeFromLedger(
     params.moduleName,
+    params.moduleVersion,
     params.templateName,
     params.patientExaminationId
   )

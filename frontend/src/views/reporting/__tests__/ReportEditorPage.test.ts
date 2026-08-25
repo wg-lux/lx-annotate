@@ -55,7 +55,7 @@ const hoisted = vi.hoisted(() => {
       activeBundle: {
         moduleName: 'report_template_examples',
         version: '1.0.0'
-      } as { moduleName: string; version: string } | null,
+      },
       activeModuleName: 'report_template_examples',
       activeBundleKey: 'report_template_examples@@1.0.0'
     },
@@ -181,12 +181,13 @@ function buildFlowStore() {
       includeExaminationData: false
     }
   }
+  const initialSelectedExaminationId = (): number | null => 9
   const flow = reactive({
     patientExaminationId: 42,
     selectedPatientId: 7,
-    selectedExaminationId: 9 as number | null,
+    selectedExaminationId: initialSelectedExaminationId(),
     selectedKbModule: 'report_template_examples',
-    selectedReportLanguage: 'de' as 'de' | 'en',
+    selectedReportLanguage: 'de',
     selectedTemplateName: 'star_upper_gi_main',
     activeReportId: null as number | null,
     indications: [{ examinationIndicationId: null, indicationChoiceId: null }],
@@ -235,11 +236,11 @@ function buildFlowStore() {
         ]
       }
     },
-    draftPersistenceStatus: 'saved' as 'idle' | 'saving' | 'saved' | 'error',
+    draftPersistenceStatus: 'saved',
     draftPersistenceError: null as string | null,
-    lastPersistedDraftAt: '2026-03-19T15:01:00.000Z' as string | null,
+    lastPersistedDraftAt: '2026-03-19T15:01:00.000Z',
     savingFinalReport: false,
-    mediaPreload: null as unknown,
+    mediaPreload: null,
     patchLookupSnapshot: vi.fn(),
     setTemplateSelection: vi.fn(),
     setReportLanguage: vi.fn((language: 'de' | 'en') => {
@@ -421,7 +422,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
     await flushPromises()
 
     const saveCall = hoisted.axiosApi.post.mock.calls[0]
-    expect(saveCall[0]).toBe('patient-examination-reports/save-submission/')
+    expect(saveCall[0]).toBe('patient-examination-reports/save-submission')
     const savePayload = saveCall[1]
     expect(savePayload.patientExaminationId).toBe(42)
     expect(savePayload.templateName).toBe('star_upper_gi_main')
@@ -462,7 +463,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
     hoisted.terminologyStore.activeModuleName = 'dgvs_reporting'
     hoisted.terminologyStore.activeBundleKey = 'dgvs_reporting@@0.1.0'
 
-    const wrapper = mountPage()
+    mountPage()
     await flushPromises()
   })
 
@@ -597,7 +598,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
       { note: 'Geänderte Abschnittsnotiz' }
     )
     const manualSaveCall = hoisted.axiosApi.post.mock.calls[0]
-    expect(manualSaveCall[0]).toBe('patient-examination-reports/save-submission/')
+    expect(manualSaveCall[0]).toBe('patient-examination-reports/save-submission')
     expect(manualSaveCall[1].renderedText).toBe('Manuell bearbeiteter deutscher Befundtext.')
     expect(manualSaveCall[1].editorPayload).toMatchObject({ reportTextMode: 'manual' })
   })

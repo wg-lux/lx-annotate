@@ -634,7 +634,6 @@ import {
   type ApplicationSettingsRecord
 } from '@/api/applicationSettingsApi'
 import { isAxiosError } from 'axios'
-import type { MedicalField } from '@/api/terminologyApi'
 import { terminologyBatchImportMessage, useTerminologyStore } from '@/stores/terminologyStore'
 import { useToastStore } from '@/stores/toastStore'
 import { computed, onMounted, reactive, ref } from 'vue'
@@ -929,7 +928,7 @@ async function loadTerminologyBundles() {
 
 function setMedicalField(value: string) {
   if (value === 'gastroenterology') {
-    terminology.setMedicalField(value as MedicalField)
+    terminology.setMedicalField(value)
   }
 }
 

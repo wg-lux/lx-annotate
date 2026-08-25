@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -94,7 +94,7 @@ def test_global_admin_can_stream_only_resolved_verified_storage_artifact(
         f"/api/administration/storage-artifacts/{placement_id}/stream/",
     )
     assert response.status_code == 200
-    assert b"".join(response.streaming_content) == b"payload"
+    assert b"".join(cast(Any, response).streaming_content) == b"payload"
 
 
 @pytest.mark.django_db
@@ -357,9 +357,10 @@ def test_balance_work_cancellation_is_global_admin_typed_and_attributable(
     )
 
     assert response.status_code == 200
-    assert response.json()["rotation_state"] == "failed"
-    assert response.json()["reservation_status"] == "released"
-    assert response.json()["correlation_id"] == "cancel-request-123"
+    response_json = cast(Any, response).json()
+    assert response_json["rotation_state"] == "failed"
+    assert response_json["reservation_status"] == "released"
+    assert response_json["correlation_id"] == "cancel-request-123"
     assert backend.call is not None
     assert backend.call["request"].work_item_id == work_item_id
     assert backend.call["actor"].username == "storage-operator"
@@ -404,9 +405,10 @@ def test_operator_pause_is_global_admin_typed_attributable_and_dispatched(
     )
 
     assert response.status_code == 202
-    assert response.json()["action"] == "pause"
-    assert response.json()["is_paused"] is True
-    assert response.json()["dispatch_queued"] is True
+    response_json = cast(Any, response).json()
+    assert response_json["action"] == "pause"
+    assert response_json["is_paused"] is True
+    assert response_json["dispatch_queued"] is True
     assert backend.call is not None
     assert backend.call["actor"].username == "storage-operator"
 
@@ -444,8 +446,9 @@ def test_operator_intent_survives_initial_broker_submission_failure(
     )
 
     assert response.status_code == 202
-    assert response.json()["dispatch_queued"] is False
-    assert response.json()["receipt_id"]
+    response_json = cast(Any, response).json()
+    assert response_json["dispatch_queued"] is False
+    assert response_json["receipt_id"]
 
 
 @pytest.mark.django_db

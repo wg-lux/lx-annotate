@@ -209,10 +209,10 @@ describe('reportTemplatesApi', () => {
     })
 
     await expect(
-      fetchReportTemplatePreviewByName('report_template_examples', 'draft_template')
+      fetchReportTemplatePreviewByName('report_template_examples', '0.1.0', 'draft_template')
     ).resolves.toMatchObject({ name: 'draft_template', examination: 'colonoscopy' })
     expect(hoisted.get).toHaveBeenCalledWith(
-      '/dtypes-api/report-templates/report_template_examples/draft_template/preview'
+      '/dtypes-api/report-templates/report_template_examples/draft_template/preview?version=0.1.0'
     )
   })
 
@@ -230,10 +230,10 @@ describe('reportTemplatesApi', () => {
     })
 
     await expect(
-      fetchBuilderReportTemplatesByExamination('module', 'colonoscopy')
+      fetchBuilderReportTemplatesByExamination('module', '2.0.0', 'colonoscopy')
     ).resolves.toMatchObject([{ name: 'draft_template' }])
     expect(hoisted.get).toHaveBeenCalledWith(
-      '/dtypes-api/report-templates/builder/by-examination/module/colonoscopy'
+      '/dtypes-api/report-templates/builder/by-examination/module/colonoscopy?version=2.0.0'
     )
   })
 
@@ -506,12 +506,14 @@ describe('reportTemplatesApi', () => {
 
     const result = await validateReportTemplateRuntime(
       'report_template_examples',
+      '0.1.0',
       'star_upper_gi_main',
       {
         patient: 'test_patient',
         examiners: [],
         examination: 'star_upper_gi_endoscopy',
         knowledgeBaseModule: 'report_template_examples',
+        knowledgeBaseVersion: '0.1.0',
         patientFindings: [
           {
             finding: 'esophagus_polyp',
@@ -533,12 +535,13 @@ describe('reportTemplatesApi', () => {
     )
 
     expect(hoisted.post).toHaveBeenCalledWith(
-      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate',
+      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate?version=0.1.0',
       {
         patient: 'test_patient',
         examiners: [],
         examination: 'star_upper_gi_endoscopy',
         knowledge_base_module: 'report_template_examples',
+        knowledge_base_version: '0.1.0',
         patient_findings: [
           {
             finding: 'esophagus_polyp',
@@ -613,12 +616,13 @@ describe('reportTemplatesApi', () => {
 
     const result = await validateReportTemplateRuntimeFromLedger(
       'report_template_examples',
+      '0.1.0',
       'star_upper_gi_main',
       42
     )
 
     expect(hoisted.post).toHaveBeenCalledWith(
-      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42'
+      '/dtypes-api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42?version=0.1.0'
     )
     expect(result.templateName).toBe('star_upper_gi_main')
     expect(result.ok).toBe(true)
@@ -632,14 +636,29 @@ describe('reportTemplatesApi', () => {
     })
 
     await expect(
-      validateReportTemplateRuntime('report_template_examples', 'star_upper_gi_main', {
+      validateReportTemplateRuntime('report_template_examples', '0.1.0', 'star_upper_gi_main', {
         patient: 'test_patient',
         examiners: [],
         examination: 'star_upper_gi_endoscopy',
         knowledgeBaseModule: 'report_template_examples',
+        knowledgeBaseVersion: '0.1.0',
         patientFindings: []
       })
     ).rejects.toThrow('Ungültiges Runtime-Validierungsergebnis.')
+  })
+
+  it('rejects a runtime payload pinned to a different terminology version', async () => {
+    await expect(
+      validateReportTemplateRuntime('report_template_examples', '2.0.0', 'template', {
+        patient: 'test_patient',
+        examiners: [],
+        examination: 'colonoscopy',
+        knowledgeBaseModule: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0',
+        patientFindings: []
+      })
+    ).rejects.toThrow('gehört nicht zur angeforderten Terminologieversion')
+    expect(hoisted.post).not.toHaveBeenCalled()
   })
 
   it('fails closed when the canonical ledger validation endpoint is unavailable', async () => {
@@ -653,6 +672,7 @@ describe('reportTemplatesApi', () => {
     await expect(
       validatePatientFindingsAgainstTemplate({
         moduleName: 'report_template_examples',
+        moduleVersion: '0.1.0',
         templateName: 'star_upper_gi_main',
         patientExaminationId: 42
       })
@@ -672,6 +692,7 @@ describe('reportTemplatesApi', () => {
     await expect(
       validatePatientFindingsAgainstTemplate({
         moduleName: 'report_template_examples',
+        moduleVersion: '0.1.0',
         templateName: 'star_upper_gi_main',
         patientExaminationId: 42
       })
@@ -689,6 +710,7 @@ describe('reportTemplatesApi', () => {
 
     const result = await fetchReportTemplatesByExamination(
       'report_template_examples',
+      '0.1.0',
       'star_upper_gi_endoscopy'
     )
 

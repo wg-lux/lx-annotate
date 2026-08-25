@@ -16,6 +16,7 @@
   frontend,
   pythonDeps,
   featureProviders,
+  featureSpecifications,
 }:
 
 let
@@ -121,46 +122,9 @@ stdenvNoCC.mkDerivation {
         # canonical static root after collectstatic so the django-vite manifest
         # and its referenced assets are preserved exactly.
         cp -r ${frontend}/dist/. "$static_root/"
-        export WG_LUX_FEATURE_SOURCE=${./feature-tracking}
-        export WG_LUX_FEATURE_OUTPUT="$out/share/lx-annotate/features"
-        ${python.interpreter} - <<'PY'
-        import os
-        from pathlib import Path
-        import yaml
-
-        source = Path(os.environ["WG_LUX_FEATURE_SOURCE"])
-        output = Path(os.environ["WG_LUX_FEATURE_OUTPUT"])
-        output.mkdir(parents=True, exist_ok=True)
-        seen = set()
-        top_keys = (
-            "schema_version", "id", "name", "description", "owners",
-            "production_critical", "source_documents", "invariants",
-        )
-        requirement_keys = (
-            "id", "category", "title", "acceptance", "required", "verification",
-        )
-        for path in sorted(source.rglob("*.yml")):
-            if path.name in {
-                "PackagedKnowledgeBaseResources.yml", "policy.yml",
-                "schema.example.yml", "standard.yml",
-            }:
-                continue
-            value = yaml.safe_load(path.read_text(encoding="utf-8"))
-            if not isinstance(value, dict) or not isinstance(value.get("id"), str):
-                continue
-            feature_id = value["id"]
-            if feature_id in seen:
-                raise ValueError(f"duplicate feature id: {feature_id}")
-            seen.add(feature_id)
-            specification = {key: value[key] for key in top_keys if key in value}
-            specification["definition_of_done"] = [
-                {key: requirement[key] for key in requirement_keys if key in requirement}
-                for requirement in value.get("definition_of_done", [])
-            ]
-            (output / f"{feature_id}.yml").write_text(
-                yaml.safe_dump(specification, sort_keys=False), encoding="utf-8"
-            )
-        PY
+        mkdir -p "$out/share/lx-annotate/features"
+        cp -r ${featureSpecifications}/share/lx-annotate/features/. \
+          "$out/share/lx-annotate/features/"
         vite_entry_file="$(LX_ANNOTATE_STATIC_ROOT="$static_root" ${python.interpreter} -c 'import json, os, sys; from pathlib import Path; static_root = Path(os.environ["LX_ANNOTATE_STATIC_ROOT"]); manifest_path = static_root / ".vite" / "manifest.json"; sys.exit(f"missing Vite manifest: {manifest_path}") if not manifest_path.is_file() else None; manifest = json.loads(manifest_path.read_text(encoding="utf-8")); entry = manifest.get("src/main.ts"); sys.exit("Vite manifest is missing the src/main.ts entry") if not isinstance(entry, dict) else None; entry_file = entry.get("file"); sys.exit("Vite manifest src/main.ts entry is missing its file mapping") if not entry_file else None; print(entry_file)')"
         if [ ! -f "$static_root/$vite_entry_file" ]; then
           echo "Vite manifest src/main.ts points to a missing asset: $static_root/$vite_entry_file" >&2
@@ -232,6 +196,7 @@ stdenvNoCC.mkDerivation {
 
   passthru = {
     inherit featureProviders;
+    featurePackage = featureSpecifications;
     runtimeEntrypoints = {
       web = "lx-annotate-web";
       manage = "lx-annotate-manage";

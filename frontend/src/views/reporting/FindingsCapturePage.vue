@@ -346,7 +346,6 @@ import {
 } from '@/api/findings.contract'
 import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi'
 import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
-import type { FindingsCatalogContext } from '@/api/findingsApi'
 import type {
   ReportTemplateFinding,
   ReportTemplateRuntimeClassificationChoiceInput,
@@ -363,7 +362,6 @@ import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useTerminologyStore } from '@/stores/terminologyStore'
 import { reportingApiErrorMessage } from './reportingError'
-import { resolveReportingKnowledgeBaseContext } from './reportingKnowledgeBaseContext'
 import {
   requireResolvedReportingExamination,
   resolveReportingExamination
@@ -403,6 +401,7 @@ const {
   setModuleName
 } = useReportTemplates({
   initialModuleName: terminology.activeBundle ? terminology.activeModuleName : '',
+  initialModuleVersion: terminology.activeBundle?.version || '',
   initialTemplateName: flow.selectedTemplateName,
   language: computed(() => flow.selectedReportLanguage)
 })
@@ -956,7 +955,7 @@ async function refreshTemplatesForExamination() {
       'Vorlagen werden angeboten, sobald eine Terminologie aktiviert wurde.'
     return
   }
-  const reportingContext = getCatalogContext({ allowMismatchFallback: true })
+  const reportingContext = getCatalogContext()
   const examName = selectedExaminationName.value
   if (!examName) return
   const bundle = terminology.activeBundle
@@ -1076,6 +1075,7 @@ async function runRuntimeValidation(forceFeedback = false) {
   try {
     const result = await validateReportTemplateRuntime(
       flow.selectedKbModule,
+      draft.payload.knowledgeBaseVersion || '',
       templateName,
       draft.payload
     )
@@ -1121,6 +1121,7 @@ watch(
   async () => {
     setModuleName(
       terminology.activeBundle ? terminology.activeModuleName : '',
+      terminology.activeBundle?.version || '',
       terminology.activeBundleKey
     )
     if (terminology.activeBundle) await refreshTemplatesForExamination()
@@ -1142,7 +1143,12 @@ watch(
   () => flow.selectedKbModule,
   (moduleName) => {
     if (moduleName === selectedKbModule.value) return
-    setModuleName(moduleName)
+    setModuleName(
+      moduleName,
+      flow.currentRuntimeDraft?.payload.knowledgeBaseVersion ||
+        terminology.activeBundle?.version ||
+        ''
+    )
     void refreshTemplatesForExamination()
   }
 )
@@ -1186,7 +1192,7 @@ onMounted(async () => {
       selectedExaminationId: flow.selectedExaminationId,
       examinationName: currentPayload.value?.examination
     })
-    await ensureCatalogLoaded(examination.id, getCatalogContext({ allowMismatchFallback: true }))
+    await ensureCatalogLoaded(examination.id, getCatalogContext())
     await refreshTemplatesForExamination()
   } catch (error: unknown) {
     errorMessage.value = reportingApiErrorMessage(

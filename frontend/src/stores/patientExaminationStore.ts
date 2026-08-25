@@ -77,7 +77,7 @@ function requestErrorMessage(error: unknown): string {
 
 export const usePatientExaminationStore = defineStore('patientExamination', {
   state: () => ({
-    loading: false as boolean,
+    loading: false,
     error: null as string | null,
     patientExaminations: [] as PatientExamination[],
     selectedPatientExaminationId: null as number | null

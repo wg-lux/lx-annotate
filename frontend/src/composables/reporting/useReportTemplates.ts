@@ -46,16 +46,18 @@ function normalizeSections(
 
 export function useReportTemplates(params?: {
   initialModuleName?: string
+  initialModuleVersion?: string
   initialTemplateName?: string | null
   language?: MaybeRefOrGetter<'de' | 'en'>
 }) {
   const moduleName = ref(params?.initialModuleName?.trim() || '')
+  const moduleVersion = ref(params?.initialModuleVersion?.trim() || '')
   const selectedTemplateName = ref<string | null>(params?.initialTemplateName || null)
   const templateOptions = ref<ReportTemplatePayload[]>([])
   const selectedTemplate = ref<ReportTemplatePayload | null>(null)
   const loading = ref(false)
   const errorMessage = ref<string | null>(null)
-  let contextKey = moduleName.value
+  let contextKey = `${moduleName.value}@@${moduleVersion.value}`
   let requestGeneration = 0
 
   const sectionBlocks = computed(() =>
@@ -73,10 +75,22 @@ export function useReportTemplates(params?: {
     errorMessage.value = null
   }
 
-  function setModuleName(next: string, nextContextKey = next.trim()) {
+  function setModuleName(
+    next: string,
+    nextVersion: string,
+    nextContextKey = `${next.trim()}@@${nextVersion.trim()}`
+  ) {
     const normalized = next.trim()
-    if (moduleName.value === normalized && contextKey === nextContextKey) return
+    const normalizedVersion = nextVersion.trim()
+    if (
+      moduleName.value === normalized &&
+      moduleVersion.value === normalizedVersion &&
+      contextKey === nextContextKey
+    ) {
+      return
+    }
     moduleName.value = normalized
+    moduleVersion.value = normalizedVersion
     contextKey = nextContextKey
     requestGeneration += 1
     loading.value = false
@@ -110,16 +124,29 @@ export function useReportTemplates(params?: {
     opts?: { setAsSelected?: boolean; moduleOverride?: string }
   ): Promise<ReportTemplatePayload | null> {
     const useModule = opts?.moduleOverride || moduleName.value
-    if (!templateName || !useModule) return null
+    const useVersion = moduleVersion.value
+    if (!templateName || !useModule || !useVersion) return null
     const generation = ++requestGeneration
 
     loading.value = true
     clearError()
     try {
-      const payload = await fetchTemplateByNameApi(useModule, templateName)
-      if (generation !== requestGeneration || useModule !== moduleName.value) return null
+      const payload = await fetchTemplateByNameApi(useModule, useVersion, templateName)
+      if (
+        generation !== requestGeneration ||
+        useModule !== moduleName.value ||
+        useVersion !== moduleVersion.value
+      ) {
+        return null
+      }
       if (!payload) {
         throw new Error('Ungültiges Report-Template-Format.')
+      }
+      if (
+        payload.identity.moduleName !== useModule ||
+        payload.identity.knowledgeBaseVersion !== useVersion
+      ) {
+        throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
       }
       const existingIndex = templateOptions.value.findIndex((item) => item.name === payload.name)
       if (existingIndex >= 0) {
@@ -149,7 +176,8 @@ export function useReportTemplates(params?: {
     opts?: { moduleOverride?: string }
   ) {
     const useModule = opts?.moduleOverride || moduleName.value
-    if (!examinationName || !useModule) {
+    const useVersion = moduleVersion.value
+    if (!examinationName || !useModule || !useVersion) {
       templateOptions.value = []
       selectedTemplate.value = null
       return []
@@ -159,8 +187,27 @@ export function useReportTemplates(params?: {
     loading.value = true
     clearError()
     try {
-      const templates = await fetchTemplatesByExaminationApi(useModule, examinationName)
-      if (generation !== requestGeneration || useModule !== moduleName.value) return []
+      const templates = await fetchTemplatesByExaminationApi(
+        useModule,
+        useVersion,
+        examinationName
+      )
+      if (
+        generation !== requestGeneration ||
+        useModule !== moduleName.value ||
+        useVersion !== moduleVersion.value
+      ) {
+        return []
+      }
+      if (
+        templates.some(
+          (template) =>
+            template.identity.moduleName !== useModule ||
+            template.identity.knowledgeBaseVersion !== useVersion
+        )
+      ) {
+        throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
+      }
       applyTemplateOptions(templates)
 
       return templates
@@ -195,6 +242,7 @@ export function useReportTemplates(params?: {
 
   return {
     moduleName,
+    moduleVersion,
     selectedTemplateName,
     templateOptions,
     selectedTemplate,

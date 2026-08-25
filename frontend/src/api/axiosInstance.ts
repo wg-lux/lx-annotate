@@ -103,7 +103,7 @@ export function silentRequestConfig<T extends AxiosRequestConfig = AxiosRequestC
   return {
     ...(config || ({} as T)),
     suppressErrorToast: true
-  } as T & { suppressErrorToast: true }
+  }
 }
 
 import type { AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'

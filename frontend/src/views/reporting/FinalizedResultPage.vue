@@ -148,16 +148,10 @@ const persistedArtifacts = computed(() => latestReportDetail.value?.persistedArt
 const reportDocumentType = computed<string | null>(() => {
   const fromArtifacts =
     (
-      persistedArtifacts.value as {
-        documentType?: string | null
-        document_type?: string | null
-      } | null
+      persistedArtifacts.value
     )?.documentType ||
     (
-      persistedArtifacts.value as {
-        documentType?: string | null
-        document_type?: string | null
-      } | null
+      persistedArtifacts.value
     )?.document_type
   if (typeof fromArtifacts === 'string' && fromArtifacts.trim().length > 0) return fromArtifacts
   const fromDetail =

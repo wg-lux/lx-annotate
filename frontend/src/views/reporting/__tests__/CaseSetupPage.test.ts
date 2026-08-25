@@ -130,9 +130,11 @@ function buildFlowStore(
     caseId: string | null
   }> = {}
 ) {
+  const initialSelectedPatientId = (): number | null => 7
+  const initialSelectedExaminationId = (): number | null => 9
   const flow = reactive({
-    selectedPatientId: 7 as number | null,
-    selectedExaminationId: 9 as number | null,
+    selectedPatientId: initialSelectedPatientId(),
+    selectedExaminationId: initialSelectedExaminationId(),
     patientExaminationId: null as number | null,
     caseId: null as string | null,
     lookupToken: null as string | null,

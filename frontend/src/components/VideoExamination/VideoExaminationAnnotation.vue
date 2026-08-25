@@ -961,9 +961,6 @@
                   >
                     <i class="ni ni-button-play"></i>
                   </button>
-                  <button class="btn btn-sm btn-outline-danger" @click="deleteExamination(exam.id)">
-                    <i class="ni ni-settings-gear-65"></i>
-                  </button>
                 </div>
               </div>
             </div>
@@ -1138,7 +1135,7 @@ function canViewProcessedVideo(videoId: number): boolean {
 
   const video = selectableVideos.value.find((v) => v.id === videoId)
   if (!video) return false
-  const status = video.status?.trim().toLowerCase()
+  const status = video.status.trim().toLowerCase()
   if (!status) return false
 
   return status !== 'in_progress'
@@ -1517,7 +1514,7 @@ const loadSensitiveMetaForVideos = async (videoIds: number[]): Promise<void> => 
         )
         return { id, data }
       } catch {
-        return { id, data: { patient_dob: null, patient_gender_name: null } as VideoSensitiveMeta }
+        return { id, data: { patient_dob: null, patient_gender_name: null } }
       }
     })
   )
@@ -1571,9 +1568,6 @@ const selectedVideo = computed<Video | undefined>(() => {
   return selectableVideos.value.find((v) => v.id === selectedVideoId.value)
 })
 
-const isSelectedVideoValidated = computed(
-  () => selectedVideoId.value != null && isAnnotationFinished(selectedVideoId.value)
-)
 const isSelectedVideoViewable = computed(
   () => selectedVideoId.value != null && canViewProcessedVideo(selectedVideoId.value)
 )
@@ -1674,7 +1668,6 @@ function getVideoValidatedAnnotatorLabel(videoId: number): string {
   return getValidatedAnnotatorLabel(annotators, activeAnnotatorPrincipal.value)
 }
 
-const isSegmentReadOnlyByValidation = computed(() => isSelectedVideoValidated.value)
 const hasSegmentEditOverride = computed(
   () => isSegmentEditingUnlocked.value || isAnnotatorOverrideActive.value
 )
@@ -2493,27 +2486,6 @@ const jumpToExamination = (examination: SavedExamination): void => {
   seekToTime(examination.timestamp)
   currentMarker.value =
     examinationMarkers.value.find((m) => m.id === `exam-${String(examination.id)}`) || null
-}
-
-const deleteExamination = async (examinationId: number): Promise<void> => {
-  try {
-    await axiosInstance.delete(r(`examinations/${String(examinationId)}/`))
-
-    // Remove from local arrays
-    savedExaminations.value = savedExaminations.value.filter((e) => e.id !== examinationId)
-    examinationMarkers.value = examinationMarkers.value.filter(
-      (m) => m.id !== `exam-${String(examinationId)}`
-    )
-
-    // Clear current marker if it was deleted
-    if (currentMarker.value?.id === `exam-${String(examinationId)}`) {
-      currentMarker.value = null
-    }
-
-    showSuccessMessage(`Untersuchung ${String(examinationId)} gelöscht`)
-  } catch (error: unknown) {
-    showErrorMessage(getRequestErrorMessage(error, String(error)), 'danger')
-  }
 }
 
 const sleep = (milliseconds: number): Promise<void> =>

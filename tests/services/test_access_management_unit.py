@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from django.core.exceptions import FieldDoesNotExist
@@ -62,7 +63,8 @@ class _Groups:
     ],
 )
 def test_center_scope_administration_requires_an_exact_trusted_role(
-    user: SimpleNamespace, expected: bool
+    user: SimpleNamespace,
+    expected: bool,
 ) -> None:
     assert user_can_administer_center_scope(user) is expected
 
@@ -74,7 +76,7 @@ def test_center_scope_mutation_normalizes_valid_input() -> None:
             "center_key": "center-a",
             "expected_center_keys": ["center-b", "center-a"],
             "reason": "  Approved clinical access  ",
-        }
+        },
     )
 
     assert mutation.reason == "Approved clinical access"
@@ -111,7 +113,9 @@ def test_plural_center_detection_handles_legacy_model(monkeypatch) -> None:
 
 def test_delegated_admin_requires_exactly_one_center(monkeypatch) -> None:
     monkeypatch.setattr(
-        access_management, "get_portal_info_for_user", lambda _actor: None
+        access_management,
+        "get_portal_info_for_user",
+        lambda _actor: None,
     )
     with pytest.raises(AccessManagementForbidden, match="unambiguous"):
         access_management.delegated_center_for_actor(object())
@@ -161,7 +165,7 @@ def test_assign_preparation_rejects_missing_center_or_incomplete_delegated_user(
     with pytest.raises((AccessManagementError, AccessManagementForbidden)):
         access_management._prepare_assign_operation(
             target_user=object(),
-            **kwargs,
+            **cast(dict[str, Any], kwargs),
         )
 
 
@@ -198,10 +202,12 @@ def test_legacy_assignment_replaces_previous_center(monkeypatch) -> None:
 
 def test_locked_center_rejects_disappeared_center(monkeypatch) -> None:
     query = SimpleNamespace(
-        filter=lambda **_kwargs: SimpleNamespace(first=lambda: None)
+        filter=lambda **_kwargs: SimpleNamespace(first=lambda: None),
     )
     monkeypatch.setattr(
-        access_management.Center.objects, "select_for_update", lambda: query
+        access_management.Center.objects,
+        "select_for_update",
+        lambda: query,
     )
     with pytest.raises(AccessManagementError, match="Center was not found"):
         access_management._locked_center("missing")
@@ -210,7 +216,9 @@ def test_locked_center_rejects_disappeared_center(monkeypatch) -> None:
 def test_apply_center_scope_detects_disappeared_center(monkeypatch) -> None:
     query = SimpleNamespace(order_by=lambda *_args: [])
     monkeypatch.setattr(
-        access_management.Center.objects, "filter", lambda **_kwargs: query
+        access_management.Center.objects,
+        "filter",
+        lambda **_kwargs: query,
     )
     with pytest.raises(RuntimeError, match="center disappeared"):
         access_management._apply_center_scope(
@@ -263,7 +271,9 @@ def test_apply_center_scope_allows_missing_legacy_examiner(monkeypatch) -> None:
     center = SimpleNamespace(center_key="center-a", pk=1)
     query = SimpleNamespace(order_by=lambda *_args: [center])
     monkeypatch.setattr(
-        access_management.Center.objects, "filter", lambda **_kwargs: query
+        access_management.Center.objects,
+        "filter",
+        lambda **_kwargs: query,
     )
     monkeypatch.setattr(access_management, "_has_plural_center_scope", lambda: False)
 

@@ -24,6 +24,9 @@ from lx_dtypes.models.contracts.hub_media_envelope import (
 
 from lx_annotate.hub.hub_export_worker import (
     MultipartUploadStream,
+    RemoteTransferIntegrityError,
+    RemoteTransferStatusPayload,
+    apply_remote_status,
     resolve_hub_transport_config,
     resolve_outbound_node_secret,
     run_outbound_transfer_job,
@@ -271,7 +274,37 @@ class HubExportWorkerTests(TestCase):
         )
         self.assertEqual(result.remote_transfer_status, "applied")
         self.assertEqual(result.remote_transfer_id, "remote-transfer-1")
+        self.assertIsNotNone(result.envelope_receipt)
+        self.assertEqual(
+            result.envelope_receipt["receiver_transfer_id"],
+            "remote-transfer-1",
+        )
         self.assertEqual(post_mock.call_count, 2)
+
+    def test_applied_status_without_validated_receipt_is_rejected(self) -> None:
+        self.job.local_status = OutboundHubTransferJob.LocalStatus.REGISTERING
+        self.job.save(update_fields=["local_status", "updated_at"])
+        applied = self._remote_status(
+            transfer_status="applied",
+            processing_decision="skip_processing_preserved_state",
+        )
+
+        with self.assertRaisesMessage(
+            RemoteTransferIntegrityError,
+            "validated envelope receipt",
+        ):
+            apply_remote_status(
+                self.job,
+                cast(RemoteTransferStatusPayload, applied),
+                expected_source_node_key=self.site_node.node_key,
+            )
+
+        self.job.refresh_from_db()
+        self.assertEqual(
+            self.job.local_status,
+            OutboundHubTransferJob.LocalStatus.REGISTERING,
+        )
+        self.assertIsNone(self.job.envelope_receipt)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_streams_processed_media_upload(

@@ -72,6 +72,42 @@ The runtime layout is intentionally split:
 This split is required for encrypted data storage and tighter filesystem access
 control around patient data.
 
+### Deployment wheel staging cleanup
+
+LuxNix stages the install input at one bounded path below the wheel application
+root: `.install-wheel.whl`. The installed virtual environment and immutable Nix
+source retain deployment provenance; version-named wheel copies below
+`/var/lib/lx-annotate` are staging artifacts, not rollback releases.
+
+After the coordinated endoreg-db command is installed, inventory obsolete
+top-level staging files as the runtime service account. Dry-run is the default:
+
+```bash
+lx-annotate-manage reap_runtime_wheel_staging \
+  --runtime-root /var/lib/lx-annotate
+```
+
+Review `candidate_count`, `candidate_bytes`, and every candidate name. The
+command accepts only valid `lx-annotate` wheel filenames, rejects symlinks,
+malformed matching names, noncanonical roots, oversized inventories, and files
+whose identity changes during the operation. It never descends into the data
+tree. Apply only after the reviewed dry-run and active-generation check:
+
+```bash
+lx-annotate-manage reap_runtime_wheel_staging \
+  --runtime-root /var/lib/lx-annotate \
+  --apply
+```
+
+Each deletion uses the endoreg-db filesystem wrapper and emits a structured
+file-operation event. For a reviewed wheel that contains the command, enable
+`services.luxnix.lxAnnotateLocal.runtime.enableObsoleteWheelCleanup`; LuxNix
+then runs the same apply command as the service owner after successful
+migrations. The option defaults off so an older compatible wheel cannot fail
+startup because it lacks the command. Repeated cleanup runs are idempotent.
+Rollback continues through the selected immutable Nix generation and its
+locked wheel input, not through copies retained in the protected runtime root.
+
 ## Settings And Secretspec
 
 Runtime configuration has three layers:

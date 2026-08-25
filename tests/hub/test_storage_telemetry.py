@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -25,7 +25,7 @@ class _HealthyClient:
 
     def health(self) -> StorageHealth:
         return StorageHealth(
-            contract_version=WIRE_CONTRACT_VERSION,
+            contract_version=cast(Literal["lx-hub-storage-v1"], WIRE_CONTRACT_VERSION),
             node_id=self.peer.node_key,
             status="ready",
             accepting_writes=True,

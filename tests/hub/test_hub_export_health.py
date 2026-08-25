@@ -3,21 +3,20 @@ from __future__ import annotations
 
 import json
 from io import StringIO
+from typing import cast
 
 import pytest
 from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from pydantic import ValidationError
-
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
+from pydantic import ValidationError
 
 from lx_annotate.hub.hub_export_health import (
     HubExportHealthSummary,
     build_hub_export_health_summary,
 )
 from lx_annotate.models import OutboundHubTransferJob
-
 
 pytestmark = pytest.mark.django_db
 
@@ -123,7 +122,7 @@ def test_health_summary_distinguishes_every_terminal_alert_class(
 ) -> None:
     _set_job_state(
         hub_export_report_job,
-        status=OutboundHubTransferJob.LocalStatus.FAILED,
+        status=cast(str, OutboundHubTransferJob.LocalStatus.FAILED),
         failure_class=failure_class,
     )
 
@@ -140,8 +139,8 @@ def test_transient_retry_only_alerts_after_exhaustion(
 ) -> None:
     _set_job_state(
         hub_export_report_job,
-        status=OutboundHubTransferJob.LocalStatus.FAILED,
-        failure_class=OutboundHubTransferJob.FailureClass.TRANSIENT_RETRY,
+        status=cast(str, OutboundHubTransferJob.LocalStatus.FAILED),
+        failure_class=cast(str, OutboundHubTransferJob.FailureClass.TRANSIENT_RETRY),
         retry_count=4,
     )
     retryable = build_hub_export_health_summary(max_retries=5)
@@ -150,8 +149,8 @@ def test_transient_retry_only_alerts_after_exhaustion(
 
     _set_job_state(
         hub_export_report_job,
-        status=OutboundHubTransferJob.LocalStatus.FAILED,
-        failure_class=OutboundHubTransferJob.FailureClass.TRANSIENT_RETRY,
+        status=cast(str, OutboundHubTransferJob.LocalStatus.FAILED),
+        failure_class=cast(str, OutboundHubTransferJob.FailureClass.TRANSIENT_RETRY),
         retry_count=5,
     )
     exhausted = build_hub_export_health_summary(max_retries=5)
@@ -164,8 +163,11 @@ def test_health_command_emits_json_and_fails_closed(
 ) -> None:
     _set_job_state(
         hub_export_report_job,
-        status=OutboundHubTransferJob.LocalStatus.FAILED,
-        failure_class=OutboundHubTransferJob.FailureClass.INTEGRITY_INCONSISTENCY,
+        status=cast(str, OutboundHubTransferJob.LocalStatus.FAILED),
+        failure_class=cast(
+            str,
+            OutboundHubTransferJob.FailureClass.INTEGRITY_INCONSISTENCY,
+        ),
     )
     stdout = StringIO()
 

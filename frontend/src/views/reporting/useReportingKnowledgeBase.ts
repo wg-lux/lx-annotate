@@ -16,8 +16,9 @@ export function useReportingKnowledgeBase(
 
   const pinnedIdentity = computed<ReportingKnowledgeBaseIdentity | null>(() => {
     // 1. Check runtime draft payload in store
-    const payload = flow.currentRuntimeDraft?.payload
-    if (payload?.knowledgeBaseModule && payload?.knowledgeBaseVersion) {
+    const runtimeDraft = flow.currentRuntimeDraft
+    const payload = runtimeDraft ? runtimeDraft.payload : null
+    if (payload && payload.knowledgeBaseModule && payload.knowledgeBaseVersion) {
       return {
         moduleName: payload.knowledgeBaseModule,
         moduleVersion: payload.knowledgeBaseVersion
@@ -25,8 +26,8 @@ export function useReportingKnowledgeBase(
     }
 
     // 2. Check draft template identity in store
-    const templateIdentity = flow.currentRuntimeDraft?.templateIdentity
-    if (templateIdentity?.moduleName && templateIdentity?.knowledgeBaseVersion) {
+    const templateIdentity = runtimeDraft ? runtimeDraft.templateIdentity : null
+    if (templateIdentity && templateIdentity.moduleName && templateIdentity.knowledgeBaseVersion) {
       return {
         moduleName: templateIdentity.moduleName,
         moduleVersion: templateIdentity.knowledgeBaseVersion
@@ -38,9 +39,7 @@ export function useReportingKnowledgeBase(
     return readReportingKnowledgeBaseIdentity(detail)
   })
 
-  function getCatalogContext(options?: {
-    allowMismatchFallback?: boolean
-  }): FindingsCatalogContext | undefined {
+  function getCatalogContext(): FindingsCatalogContext | undefined {
     const bundle = terminology.activeBundle
     const patientExaminationId = flow.patientExaminationId
     if (!bundle || !patientExaminationId) return undefined
@@ -48,8 +47,7 @@ export function useReportingKnowledgeBase(
     return resolveReportingKnowledgeBaseContext({
       patientExaminationId,
       pinnedIdentity: pinnedIdentity.value,
-      activeBundle: bundle,
-      allowMismatchFallback: options?.allowMismatchFallback ?? true
+      activeBundle: bundle
     })
   }
 

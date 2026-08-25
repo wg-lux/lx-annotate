@@ -604,8 +604,6 @@ const datasetSummaryLoading = ref(false)
 const datasetSummaryError = ref('')
 let datasetSummaryRequestId = 0
 
-type TrainingTarget = 'image_multilabel' | 'phi_region_detector'
-
 const annotationSourceOptions: Array<{
   value: AnnotationSourceScope
   label: string
@@ -615,9 +613,13 @@ const annotationSourceOptions: Array<{
   { value: 'segment_only', label: 'Nur Segmente' }
 ]
 
+function defaultAnnotationSourceScope(): AnnotationSourceScope {
+  return 'all'
+}
+
 const form = reactive({
-  trainingTarget: 'image_multilabel' as TrainingTarget,
-  annotationSourceScope: 'all' as AnnotationSourceScope,
+  trainingTarget: 'image_multilabel',
+  annotationSourceScope: defaultAnnotationSourceScope(),
   datasetId: '',
   datasetYaml: '',
   outputDir: '',

@@ -450,7 +450,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import axiosInstance, { dtypesApi, r } from '@/api/axiosInstance'
-import { findingsApi, type FindingsCatalogContext } from '@/api/findingsApi'
+import { findingsApi } from '@/api/findingsApi'
 import {
   getFindingDisplayName,
   mergeFindingClassifications,
@@ -486,7 +486,6 @@ import {
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
 import {
   readReportingKnowledgeBaseIdentity,
-  resolveReportingKnowledgeBaseContext,
   type ReportingKnowledgeBaseIdentity
 } from './reportingKnowledgeBaseContext'
 import {
@@ -557,6 +556,7 @@ const {
   setRequestContext
 } = useReportTemplates({
   initialModuleName: terminology.activeBundle ? terminology.activeModuleName : '',
+  initialModuleVersion: terminology.activeBundle?.version || '',
   initialTemplateName: flow.selectedTemplateName,
   language: computed(() => flow.selectedReportLanguage)
 })
@@ -858,7 +858,12 @@ watch(
   () => flow.selectedKbModule,
   (moduleName) => {
     if (moduleName === selectedKbModule.value) return
-    setModuleName(moduleName)
+    setModuleName(
+      moduleName,
+      flow.currentRuntimeDraft?.payload.knowledgeBaseVersion ||
+        terminology.activeBundle?.version ||
+        ''
+    )
     void refreshTemplatesForExamination()
   }
 )
@@ -868,6 +873,7 @@ watch(
   async () => {
     setModuleName(
       terminology.activeBundle ? terminology.activeModuleName : '',
+      terminology.activeBundle?.version || '',
       terminology.activeBundleKey
     )
     if (terminology.activeBundle) await refreshTemplatesForExamination()
@@ -962,7 +968,7 @@ async function loadIndicationCatalog(context?: EditorContext) {
 
     try {
       const examRes = await axiosInstance.get(
-        r(`${endpoints.router.examinations}${String(selectedExaminationId)}/`)
+        dtypesApi(`examinations/${String(selectedExaminationId)}/`)
       )
       indicationPayloads.push(examRes.data)
     } catch {
@@ -972,7 +978,7 @@ async function loadIndicationCatalog(context?: EditorContext) {
 
   if (selectedExaminationId && !normalizeReportingIndicationOptions(indicationPayloads).length) {
     try {
-      const listRes = await axiosInstance.get<unknown>(r(endpoints.router.examinations))
+      const listRes = await axiosInstance.get<unknown>(dtypesApi('examinations/'))
       const rows = readListPayload(listRes.data)
       const selectedRow = rows.find(
         (entry) => normalizePositiveId(readRecord(entry).id) === selectedExaminationId
@@ -1209,7 +1215,7 @@ async function loadFindingCatalog(context?: EditorContext) {
     findingCatalog.value = []
     return
   }
-  const catalogContext = getCatalogContext({ allowMismatchFallback: true })
+  const catalogContext = getCatalogContext()
 
   try {
     const findings = await findingsApi.getExaminationFindings(examinationId, catalogContext)
@@ -1240,7 +1246,7 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
   }
   const examName = selectedExaminationName.value
   if (!examName) return
-  const reportingContext = getCatalogContext({ allowMismatchFallback: true })
+  const reportingContext = getCatalogContext()
   if (!reportingContext) return
   try {
     const projection = await fetchExaminationReportingContext(
@@ -1271,7 +1277,7 @@ async function loadPatientExaminationKnowledgeBaseIdentity(context: EditorContex
   )
   if (!isEditorContextCurrent(context)) return
   patientExaminationKnowledgeBaseIdentity.value = readReportingKnowledgeBaseIdentity(response.data)
-  getCatalogContext({ allowMismatchFallback: true })
+  getCatalogContext()
 }
 
 function buildDraftFindingsPayload(): SaveReportSubmissionRequest['findings'] {

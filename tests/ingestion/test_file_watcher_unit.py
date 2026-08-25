@@ -61,9 +61,9 @@ def test_processing_stack_preload_tolerates_missing_optional_dependency(
 
 def test_processing_stack_preload_marks_success(monkeypatch) -> None:
     frame_cleaner = ModuleType("lx_anonymizer.frame_cleaner")
-    frame_cleaner.FrameCleaner = object
+    setattr(frame_cleaner, "FrameCleaner", object)
     report_reader = ModuleType("lx_anonymizer.report_reader")
-    report_reader.ReportReader = object
+    setattr(report_reader, "ReportReader", object)
     monkeypatch.setitem(sys.modules, "lx_anonymizer.frame_cleaner", frame_cleaner)
     monkeypatch.setitem(sys.modules, "lx_anonymizer.report_reader", report_reader)
     monkeypatch.setitem(sys.modules, "tesserocr", ModuleType("tesserocr"))
@@ -103,7 +103,8 @@ def test_unsaved_video_cannot_have_materialized_prediction_segments() -> None:
     ],
 )
 def test_prediction_ranges_distinguish_missing_empty_and_materialized_results(
-    sequences: object, expected: bool | None
+    sequences: object,
+    expected: bool | None,
 ) -> None:
     video = SimpleNamespace(sequences=sequences)
     assert file_watcher._prediction_sequences_have_ranges(video) is expected
@@ -157,7 +158,9 @@ def test_missing_sensitive_meta_relation_is_not_treated_as_present() -> None:
     ],
 )
 def test_center_reference_prefers_key_before_legacy_name(
-    monkeypatch, key_match: bool, expected_calls: list[dict[str, str]]
+    monkeypatch,
+    key_match: bool,
+    expected_calls: list[dict[str, str]],
 ) -> None:
     center = object()
     calls: list[dict[str, str]] = []
@@ -178,7 +181,8 @@ def test_center_reference_prefers_key_before_legacy_name(
     ["", "  ", "unknown-center"],
 )
 def test_unknown_or_blank_center_reference_is_rejected(
-    monkeypatch, reference: str
+    monkeypatch,
+    reference: str,
 ) -> None:
     monkeypatch.setattr(
         file_watcher.Center.objects,
