@@ -935,6 +935,14 @@ def queue_all_eligible_videos_for_hub_upload(
 
         eligible_count += 1
         locked_job = OutboundHubTransferJob.objects.select_for_update().get(pk=job.pk)
+        if locked_job.local_status == OutboundHubTransferJob.LocalStatus.FAILED:
+            _queue_failed_job_for_operator_retry(
+                job=locked_job,
+                source_node=source_node,
+                requested_by=authenticated_marker,
+            )
+            queued_count += 1
+            continue
         if _finalize_marked_job(
             locked_job,
             source_node=source_node,
@@ -1012,6 +1020,49 @@ def _validate_failed_job_for_operator_retry(
         )
 
 
+def _queue_failed_job_for_operator_retry(
+    *,
+    job: OutboundHubTransferJob,
+    source_node: NetworkNode,
+    requested_by: Any,
+) -> HubExportRetryResult:
+    _validate_failed_job_for_operator_retry(job, source_node=source_node)
+
+    job.local_status = OutboundHubTransferJob.LocalStatus.QUEUED
+    job.failure_class = OutboundHubTransferJob.FailureClass.NO_FAILURE
+    job.last_error = ""
+    job.queued_at = timezone.now()
+    job.save(
+        update_fields=[
+            "local_status",
+            "failure_class",
+            "last_error",
+            "queued_at",
+            "updated_at",
+        ],
+    )
+    emit_hub_export_audit_event(
+        "hub_export.operator_retry_queued",
+        outbound_job=job,
+        request_user=requested_by,
+        source_node_key=source_node.node_key,
+    )
+    job_id = str(job.pk)
+    source_node_key = str(source_node.node_key)
+
+    def _dispatch() -> None:
+        from lx_annotate.tasks import run_outbound_hub_transfer_job_task
+
+        run_outbound_hub_transfer_job_task.delay(job_id, source_node_key)
+
+    transaction.on_commit(_dispatch)
+    return HubExportRetryResult(
+        outbound_job_id=job_id,
+        transfer_key=str(job.transfer_key),
+        local_status=str(job.local_status),
+    )
+
+
 @transaction.atomic
 def retry_failed_outbound_job(
     *,
@@ -1033,40 +1084,10 @@ def retry_failed_outbound_job(
         raise ValueError(
             "The failed hub transfer target does not match the configured central hub.",
         )
-    _validate_failed_job_for_operator_retry(job, source_node=source_node)
-
-    job.local_status = OutboundHubTransferJob.LocalStatus.QUEUED
-    job.failure_class = OutboundHubTransferJob.FailureClass.NO_FAILURE
-    job.last_error = ""
-    job.queued_at = timezone.now()
-    job.save(
-        update_fields=[
-            "local_status",
-            "failure_class",
-            "last_error",
-            "queued_at",
-            "updated_at",
-        ],
-    )
-    emit_hub_export_audit_event(
-        "hub_export.operator_retry_queued",
-        outbound_job=job,
-        request_user=authenticated_operator,
-        source_node_key=source_node.node_key,
-    )
-    job_id = str(job.pk)
-    source_node_key = str(source_node.node_key)
-
-    def _dispatch() -> None:
-        from lx_annotate.tasks import run_outbound_hub_transfer_job_task
-
-        run_outbound_hub_transfer_job_task.delay(job_id, source_node_key)
-
-    transaction.on_commit(_dispatch)
-    return HubExportRetryResult(
-        outbound_job_id=job_id,
-        transfer_key=str(job.transfer_key),
-        local_status=str(job.local_status),
+    return _queue_failed_job_for_operator_retry(
+        job=job,
+        source_node=source_node,
+        requested_by=authenticated_operator,
     )
 
 

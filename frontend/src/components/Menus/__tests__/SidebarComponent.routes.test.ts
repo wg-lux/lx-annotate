@@ -131,13 +131,9 @@ describe('Sidebar linked routes', () => {
 
     expect(linkedPaths).toEqual(expectedSidebarPaths)
 
-    const errors: string[] = []
-    for (const path of linkedPaths) {
-      const routeError = await getRouteImportError(path)
-      if (routeError) {
-        errors.push(routeError)
-      }
-    }
+    const errors = (
+      await Promise.all([...linkedPaths].map((path) => getRouteImportError(path)))
+    ).filter((routeError): routeError is string => routeError !== null)
 
     expect(errors).toEqual([])
 

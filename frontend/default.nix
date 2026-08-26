@@ -14,7 +14,7 @@ buildNpmPackage rec {
 # specified: the SHA-AA... default
 # (fake) got (your real hash)
 # Replace lib.fakeHash with the returned hash in default.nix
-  npmDepsHash = "sha256-zqeIG954yk/SLH0vP5JLeGHBT/7UiU8wUeuiT3w51kg=";
+  npmDepsHash = "sha256-uXSUUoLe3Q8Er5AzO9DRr8IYpHUz5jwtJnFNE7hdZ88=";
 
   # Keep Nix builds on the same Node/npm toolchain as the development shell.
   # The Nix default Node 20 toolchain rejects this lockfile's optional platform

@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Deployment Strategy" href="deployment-strategy.html"><link rel="prev" title="lx-annotate Documentation" href="../index.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>General Documentation Guide - lx-annotate Documentation</title>
+        <title>OpenAPI type generation - lx-annotate Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -173,7 +173,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -192,8 +192,8 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="current">
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">General Documentation Guide</a></li>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="runtime-environment-contract-test.html">Runtime environment migration and rollback record</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
@@ -236,7 +236,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/guides/general-documentation.md.txt" title="View this page">
+  <a class="muted-link" href="../_sources/guides/openapi-type-generation.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -249,89 +249,46 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="general-documentation-guide">
-<h1>General Documentation Guide<a class="headerlink" href="#general-documentation-guide" title="Link to this heading">¶</a></h1>
-<p>This page is the central orientation for <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> documentation.</p>
-<section id="who-this-is-for">
-<h2>Who This Is For<a class="headerlink" href="#who-this-is-for" title="Link to this heading">¶</a></h2>
+          <section id="openapi-type-generation">
+<h1>OpenAPI type generation<a class="headerlink" href="#openapi-type-generation" title="Link to this heading">¶</a></h1>
+<p>LX-Annotate exposes two independently owned Django Ninja APIs:</p>
 <ul class="simple">
-<li><p>Medical staff documenting examinations and findings</p></li>
-<li><p>Clinical trainers onboarding new users</p></li>
-<li><p>Operations and support staff maintaining day-to-day workflows</p></li>
-<li><p>Developers maintaining APIs and UI modules</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/endoreg-api/</span></code> contains persistence-backed report routes from <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/dtypes-api/</span></code> contains terminology, knowledge-base, and report-template routes from <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code>.</p></li>
 </ul>
-</section>
-<section id="documentation-structure">
-<h2>Documentation Structure<a class="headerlink" href="#documentation-structure" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/reporting-template-requirements-page</span></code>: Reporting workflow, template selection, and requirement-set reference</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/asset-deployment</span></code>: Frontend build/manifest/runtime deployment contract</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/hub-export-workflow</span></code>: Secure outbound transfer and export workflow</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/ai-training-data-export</span></code>: Frame, annotation, AI dataset, and GastroNet-style training exports</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/segment-annotation-workflow</span></code>: Practical video segment review and validation workflow</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/anonymization-validation-correction-workflow</span></code>: Validation/approval and correction flow before reporting</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/dtypes-findings-migration</span></code>: Incremental findings migration plan</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/core-concept-contract</span></code>: Core concept contract and API surface</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/core-concept-readiness-verdict</span></code>: Readiness assessment for structured evaluation</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/core-concept-type-matrix</span></code>: Generated type matrix for core concepts</p></li>
-<li><p><a class="reference external" href="https://github.com/wg-lux/lx-data-models/blob/main/docs/guides/dates-and-times.md">Shared date/time conventions</a>: canonical timezone and serialization rules owned by <code class="docutils literal notranslate"><span class="pre">lx-data-models</span></code></p></li>
-<li><p><a class="reference external" href="https://github.com/wg-lux/lx-data-models/blob/main/docs/guides/pydantic-cheatsheet.md">Shared Pydantic patterns</a>: canonical model and validation guidance owned by <code class="docutils literal notranslate"><span class="pre">lx-data-models</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">api/index</span></code>: API reference entry point</p></li>
-</ul>
-<p>To add documentation to the frontend run these commands:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>make<span class="w"> </span>-C<span class="w"> </span>docs<span class="w"> </span>html
-mkdir<span class="w"> </span>-p<span class="w"> </span>static/docs
-rsync<span class="w"> </span>-a<span class="w"> </span>--delete<span class="w"> </span>docs/_build/html/<span class="w"> </span>static/docs/
-mkdir<span class="w"> </span>-p<span class="w"> </span>staticfiles/docs
-rsync<span class="w"> </span>-a<span class="w"> </span>--delete<span class="w"> </span>docs/_build/html/<span class="w"> </span>staticfiles/docs/
-</pre></div>
-</div>
-</section>
-<section id="recommended-reading-paths">
-<h2>Recommended Reading Paths<a class="headerlink" href="#recommended-reading-paths" title="Link to this heading">¶</a></h2>
-<section id="clinical-documentation-path">
-<h3>Clinical Documentation Path<a class="headerlink" href="#clinical-documentation-path" title="Link to this heading">¶</a></h3>
-<ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/reporting-template-requirements-page</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/anonymization-validation-correction-workflow</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/segment-annotation-workflow</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/ai-training-data-export</span></code></p></li>
-</ol>
-</section>
-<section id="technical-maintenance-path">
-<h3>Technical Maintenance Path<a class="headerlink" href="#technical-maintenance-path" title="Link to this heading">¶</a></h3>
-<ol class="arabic simple">
-<li><p><a class="reference external" href="https://github.com/wg-lux/lx-data-models/blob/main/docs/guides/dates-and-times.md">Shared date/time conventions</a></p></li>
-<li><p><a class="reference external" href="https://github.com/wg-lux/lx-data-models/blob/main/docs/guides/pydantic-cheatsheet.md">Shared Pydantic patterns</a></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/core-concept-contract</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/dtypes-findings-migration</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">api/index</span></code></p></li>
-</ol>
-</section>
-</section>
-<section id="quick-start">
-<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h2>
-<ol class="arabic simple">
-<li><p>Open the reporting workflow from <code class="docutils literal notranslate"><span class="pre">/reporting</span></code>.</p></li>
-<li><p>Create or open a case.</p></li>
-<li><p>Select template and requirement sets.</p></li>
-<li><p>Capture findings and classifications.</p></li>
-<li><p>Complete report editor and finalize artifacts.</p></li>
-</ol>
-</section>
-<section id="support-notes">
-<h2>Support Notes<a class="headerlink" href="#support-notes" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p>If templates are missing, verify selected module and examination type.</p></li>
-<li><p>If requirement sets are empty, ensure a valid <code class="docutils literal notranslate"><span class="pre">patient_examination_id</span></code> and active lookup token exist.</p></li>
-<li><p>If a step is unclear for training, start with <code class="docutils literal notranslate"><span class="pre">guides/reporting-template-requirements-page</span></code> and follow the section order.</p></li>
-</ul>
-</section>
+<p>Run <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">frontend</span> <span class="pre">run</span> <span class="pre">typegen</span></code> from the repository root to export both
+OpenAPI documents offline and regenerate their TypeScript modules. Run
+<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">frontend</span> <span class="pre">run</span> <span class="pre">typegen:check</span></code> in CI to fail when committed schemas or
+generated types are stale.</p>
+<p>The generated files under <code class="docutils literal notranslate"><span class="pre">frontend/openapi/</span></code> and
+<code class="docutils literal notranslate"><span class="pre">frontend/src/types/generated/</span></code> are derived artifacts. Do not edit them by hand.
+Frontend code may import <code class="docutils literal notranslate"><span class="pre">paths</span></code>, <code class="docutils literal notranslate"><span class="pre">operations</span></code>, and <code class="docutils literal notranslate"><span class="pre">components</span></code> from the API it
+actually calls, keeping terminology contracts separate from persistence
+contracts. <code class="docutils literal notranslate"><span class="pre">frontend/src/types/api/openapi.ts</span></code> applies the same recursive
+snake-case to camel-case transformation that <code class="docutils literal notranslate"><span class="pre">axiosInstance.ts</span></code> performs at
+runtime and exposes application-facing aliases for generated schemas.</p>
+<p>The exporter rewrites <code class="docutils literal notranslate"><span class="pre">openapi-typescript</span></code>’s indexed self-reference for the
+backend’s recursive <code class="docutils literal notranslate"><span class="pre">JsonValue</span></code> schema into an equivalent top-level recursive
+alias. This preserves the JSON value contract while avoiding TypeScript error
+TS2502 in generated declarations.</p>
+<p>The exporter uses Django’s test settings for schema introspection only. It does
+not start a server, connect to production, or embed deployment secrets. OpenAPI
+files are persisted through the project’s atomic filesystem wrapper.</p>
+<p>This workflow covers Django Ninja operations. Most media, anonymization, and
+administration routes are Django REST Framework routes; they remain covered by
+the resolver and API contract tests and must not be assumed to exist in these
+Ninja-generated modules.</p>
+<p>Only parameters and request schemas declared in Django Ninja endpoint
+signatures appear in OpenAPI. The current persistence-backed report mutation
+handlers parse their request bodies manually, so their generated operations have
+no <code class="docutils literal notranslate"><span class="pre">requestBody</span></code> type. Keep their existing validated request contracts and
+cross-boundary tests until those handlers are migrated to declared Ninja input
+schemas; do not infer request safety from the response-only generated types.</p>
 </section>
 
         </article>
@@ -339,26 +296,8 @@ rsync<span class="w"> </span>-a<span class="w"> </span>--delete<span class="w"> 
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="deployment-strategy.html">
-              <div class="page-info">
-                <div class="context">
-                  <span>Next</span>
-                </div>
-                <div class="title">Deployment Strategy</div>
-              </div>
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-            </a>
-          <a class="prev-page" href="../index.html">
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-              <div class="page-info">
-                <div class="context">
-                  <span>Previous</span>
-                </div>
-                
-                <div class="title">Home</div>
-                
-              </div>
-            </a>
+          
+          
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -377,35 +316,8 @@ rsync<span class="w"> </span>-a<span class="w"> </span>--delete<span class="w"> 
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">General Documentation Guide</a><ul>
-<li><a class="reference internal" href="#who-this-is-for">Who This Is For</a></li>
-<li><a class="reference internal" href="#documentation-structure">Documentation Structure</a></li>
-<li><a class="reference internal" href="#recommended-reading-paths">Recommended Reading Paths</a><ul>
-<li><a class="reference internal" href="#clinical-documentation-path">Clinical Documentation Path</a></li>
-<li><a class="reference internal" href="#technical-maintenance-path">Technical Maintenance Path</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#quick-start">Quick Start</a></li>
-<li><a class="reference internal" href="#support-notes">Support Notes</a></li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>

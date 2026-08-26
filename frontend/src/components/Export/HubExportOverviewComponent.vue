@@ -821,7 +821,9 @@ const bulkOffloadCandidateCount = computed(
       (item) =>
         item.resourceKind === 'video' &&
         item.eligible &&
-        (!item.outboundStatus || item.outboundStatus === 'marked')
+        (!item.outboundStatus ||
+          item.outboundStatus === 'marked' ||
+          item.outboundStatus === 'failed')
     ).length
 )
 const allSelectableChecked = computed(

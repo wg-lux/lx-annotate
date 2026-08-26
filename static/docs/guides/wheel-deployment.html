@@ -324,6 +324,37 @@ the host.</p>
 </ul>
 <p>This split is required for encrypted data storage and tighter filesystem access
 control around patient data.</p>
+<section id="deployment-wheel-staging-cleanup">
+<h3>Deployment wheel staging cleanup<a class="headerlink" href="#deployment-wheel-staging-cleanup" title="Link to this heading">¶</a></h3>
+<p>LuxNix stages the install input at one bounded path below the wheel application
+root: <code class="docutils literal notranslate"><span class="pre">.install-wheel.whl</span></code>. The installed virtual environment and immutable Nix
+source retain deployment provenance; version-named wheel copies below
+<code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate</span></code> are staging artifacts, not rollback releases.</p>
+<p>After the coordinated endoreg-db command is installed, inventory obsolete
+top-level staging files as the runtime service account. Dry-run is the default:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>lx-annotate-manage<span class="w"> </span>reap_runtime_wheel_staging<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--runtime-root<span class="w"> </span>/var/lib/lx-annotate
+</pre></div>
+</div>
+<p>Review <code class="docutils literal notranslate"><span class="pre">candidate_count</span></code>, <code class="docutils literal notranslate"><span class="pre">candidate_bytes</span></code>, and every candidate name. The
+command accepts only valid <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> wheel filenames, rejects symlinks,
+malformed matching names, noncanonical roots, oversized inventories, and files
+whose identity changes during the operation. It never descends into the data
+tree. Apply only after the reviewed dry-run and active-generation check:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>lx-annotate-manage<span class="w"> </span>reap_runtime_wheel_staging<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--runtime-root<span class="w"> </span>/var/lib/lx-annotate<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--apply
+</pre></div>
+</div>
+<p>Each deletion uses the endoreg-db filesystem wrapper and emits a structured
+file-operation event. For a reviewed wheel that contains the command, enable
+<code class="docutils literal notranslate"><span class="pre">services.luxnix.lxAnnotateLocal.runtime.enableObsoleteWheelCleanup</span></code>; LuxNix
+then runs the same apply command as the service owner after successful
+migrations. The option defaults off so an older compatible wheel cannot fail
+startup because it lacks the command. Repeated cleanup runs are idempotent.
+Rollback continues through the selected immutable Nix generation and its
+locked wheel input, not through copies retained in the protected runtime root.</p>
+</section>
 </section>
 <section id="settings-and-secretspec">
 <h2>Settings And Secretspec<a class="headerlink" href="#settings-and-secretspec" title="Link to this heading">¶</a></h2>
@@ -858,7 +889,10 @@ cache growth on long-lived hosts.</p></li>
 <li><a class="reference internal" href="#">Wheel Deployment</a><ul>
 <li><a class="reference internal" href="#scope">Scope</a></li>
 <li><a class="reference internal" href="#host-packages">Host Packages</a></li>
-<li><a class="reference internal" href="#runtime-contract">Runtime Contract</a></li>
+<li><a class="reference internal" href="#runtime-contract">Runtime Contract</a><ul>
+<li><a class="reference internal" href="#deployment-wheel-staging-cleanup">Deployment wheel staging cleanup</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#settings-and-secretspec">Settings And Secretspec</a><ul>
 <li><a class="reference internal" href="#secretspec-usage">Secretspec Usage</a></li>
 </ul>
@@ -888,7 +922,7 @@ cache growth on long-lived hosts.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=d55fa986"></script>
+</div><script src="../_static/documentation_options.js?v=e2a723ec"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

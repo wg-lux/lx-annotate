@@ -260,6 +260,12 @@
 package and its lock file carry the same version so a release commit identifies
 one application build. Update all three files in the release commit; do not use
 the frontend package version as an independent release stream.</p>
+<p>Use the <code class="docutils literal notranslate"><span class="pre">version:bump</span></code> devenv task to update <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>, the frontend
+manifest and lockfile, and the frontend Nix derivation together. Set
+<code class="docutils literal notranslate"><span class="pre">VERSION_BUMP</span></code> to <code class="docutils literal notranslate"><span class="pre">major</span></code>, <code class="docutils literal notranslate"><span class="pre">minor</span></code>, <code class="docutils literal notranslate"><span class="pre">patch</span></code>, or an exact <code class="docutils literal notranslate"><span class="pre">X.Y.Z</span></code> value:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">VERSION_BUMP=patch devenv tasks run version:bump</span>
+</pre></div>
+</div>
 <p>The <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">package</span></code> workflow builds the frontend and Sphinx documentation before
 creating the wheel and source distribution. Generated frontend files are owned
 by <code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code>; generated documentation is owned by <code class="docutils literal notranslate"><span class="pre">static/docs/</span></code> for the
@@ -357,7 +363,7 @@ actual:   sha256-w4+drE6pSUWLrKiGetBqttaomC9mPEMDwm8ElcpLoVY=
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=d55fa986"></script>
+</div><script src="../_static/documentation_options.js?v=e2a723ec"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

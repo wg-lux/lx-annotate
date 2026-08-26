@@ -30,7 +30,7 @@ endif
 	setup bootstrap update submodules reset-branch migrate load-base-data static \
 	deploy-prod deploy start-app start-watcher start-export shell django-check \
 	test lint frontend-build frontend-build-force frontend-lock-check frontend-npm-deps-hash \
-	backend-server docs-build docs-publish \
+	backend-server docs-build docs-publish package-migrations \
 	migrate-force verify-vite-artifacts verify-vite-manifest package package-check package-upload
 
 help: ## Show available targets
@@ -90,6 +90,9 @@ django-check: check-repo check-tools ## Run Django checks in devenv
 make-migrations: check-repo check-tools
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py makemigrations
 
+package-migrations: check-repo check-tools ## Validate migration state with isolated package settings
+	cd "$(REPO_DIR)" && DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test $(DEVENV_RUN) python manage.py makemigrations
+
 migrate: check-repo check-tools ## Apply database migrations (only when migration files changed)
 	@$(MKDIR_P) "$(CACHE_DIR)"
 	@set -e; \
@@ -140,7 +143,7 @@ frontend-lock-check: check-repo check-tools ## Fail early when frontend package-
 frontend-npm-deps-hash: check-repo check-tools ## Print the Nix hash for the current frontend package-lock.json
 	cd "$(REPO_DIR)" && nix run nixpkgs#prefetch-npm-deps -- frontend/package-lock.json
 
-package: frontend-lock-check verify-vite-artifacts verify-vite-manifest docs-publish make-migrations ## Build sdist and wheel only after frontend artifacts and Sphinx docs are valid
+package: frontend-lock-check verify-vite-artifacts verify-vite-manifest docs-publish package-migrations ## Build sdist and wheel only after frontend artifacts and Sphinx docs are valid
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) uv run --with build python -m build
 
 package-check: ## Validate built sdist and wheel metadata

@@ -620,12 +620,12 @@ raw media, raw report text, absolute paths, or long-lived keys into tickets.
 Disable the affected sender node when authentication or integrity compromise
 is suspected, and resume only with the same transfer identity after the cause
 has been reviewed.</p>
-<p>The current production boundary is Phase 1: anonymized processed artifacts are
-protected in transit by mutual Transport Layer Security (mTLS) and at rest by
-each node’s encrypted storage boundary. Standalone files or blobs must not
-leave that boundary until Phase 2 implements and verifies per-transfer data
-encryption keys wrapped for the receiving hub. Shared secrets and the
-long-lived master key are never payload-encryption substitutes.</p>
+<p>The application implements the Phase 2 transfer boundary: mutual Transport
+Layer Security (mTLS) authenticates and protects the channel, while every
+standalone processed artifact is encrypted with a per-transfer data-encryption
+key wrapped for the receiving hub. Shared secrets authenticate requests only;
+the long-lived master key is never a payload-encryption substitute and never
+leaves its node.</p>
 </section>
 <section id="audit-requirements">
 <h2>Audit Requirements<a class="headerlink" href="#audit-requirements" title="Link to this heading">¶</a></h2>
@@ -655,6 +655,36 @@ cleanup-eligible only after the hub has returned a successful terminal state.</p
 </ul>
 <p>This policy must never delete local artifacts before the sender has a verified
 successful hub outcome.</p>
+<p>The sender persists the validated typed envelope receipt with the completed
+job. Reconciliation must validate and persist the same receipt; an <code class="docutils literal notranslate"><span class="pre">applied</span></code>
+status without a matching receipt is an integrity failure and cannot authorize
+cleanup.</p>
+<p>Local reclamation remains a separate bounded operator action. Dry-run is the
+default:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>lx-annotate-manage<span class="w"> </span>reap_verified_hub_exports<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source-node-key<span class="w"> </span>&lt;site-node-key&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--limit<span class="w"> </span><span class="m">100</span>
+</pre></div>
+</div>
+<p>After reviewing the candidate count and bytes, add <code class="docutils literal notranslate"><span class="pre">--apply</span></code> to remove only the
+local processed-video object. The reaper rechecks the receipt identity,
+plaintext digest and size, takes the video row lock, rejects active media leases
+or processing histories, writes a durable <code class="docutils literal notranslate"><span class="pre">cleaning</span></code> marker, deletes through
+the audited endoreg-db storage wrapper, clears the local <code class="docutils literal notranslate"><span class="pre">processed_file</span></code>
+reference, and records <code class="docutils literal notranslate"><span class="pre">cleaned</span></code>. It never removes raw media. Processed reports
+remain eligible but are not reaped because they do not yet have an equivalent
+lease boundary.</p>
+</section>
+<section id="central-hub-ai-availability">
+<h2>Central Hub AI Availability<a class="headerlink" href="#central-hub-ai-availability" title="Link to this heading">¶</a></h2>
+<p>The receiver atomically publishes the verified anonymized video as its managed
+<code class="docutils literal notranslate"><span class="pre">VideoFile.processed_file</span></code> before returning <code class="docutils literal notranslate"><span class="pre">applied</span></code>. Central temporal
+inference uses the processed frame source through
+<code class="docutils literal notranslate"><span class="pre">iter_video_file_frame_samples</span></code>, which materializes that managed processed
+file. When Hub storage balancing is enabled and the central copy has been moved
+to protected storage, the configured remote processed-video provider retrieves
+the one committed, digest-matching placement under a media lease. Site cleanup
+therefore does not remove the Hub-side AI source.</p>
 </section>
 <section id="summary">
 <h2>Summary<a class="headerlink" href="#summary" title="Link to this heading">¶</a></h2>
@@ -741,6 +771,7 @@ successful hub outcome.</p>
 <li><a class="reference internal" href="#deployment-and-operator-procedure">Deployment And Operator Procedure</a></li>
 <li><a class="reference internal" href="#audit-requirements">Audit Requirements</a></li>
 <li><a class="reference internal" href="#local-cleanup-policy">Local Cleanup Policy</a></li>
+<li><a class="reference internal" href="#central-hub-ai-availability">Central Hub AI Availability</a></li>
 <li><a class="reference internal" href="#summary">Summary</a></li>
 </ul>
 </li>
@@ -753,7 +784,7 @@ successful hub outcome.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=d55fa986"></script>
+</div><script src="../_static/documentation_options.js?v=e2a723ec"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

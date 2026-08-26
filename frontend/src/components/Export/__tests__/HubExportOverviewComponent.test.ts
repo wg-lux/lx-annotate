@@ -841,6 +841,74 @@ describe('HubExportOverviewComponent', () => {
     })
   })
 
+  it('enables the bulk transfer button for an eligible failed video', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [
+          {
+            nodeKey: 'hub-node',
+            displayName: 'Hub',
+            baseUrl: 'https://hub.example',
+            owningCenterKey: 'center-a'
+          }
+        ],
+        configReady: true,
+        configError: '',
+        privacySummary: null,
+        syncSummary: null,
+        items: [
+          {
+            id: 72,
+            resourceKind: 'video',
+            filename: 'failed-video.mp4',
+            anonymizationStatus: 'validated',
+            segmentAnnotationStatus: 'validated',
+            exportIntegrityStatus: 'verified',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: true,
+            markedByUsername: 'hub-operator',
+            markedAt: '2026-08-20T08:00:00Z',
+            outboundJobId: 'job-72',
+            outboundStatus: 'failed',
+            failureClass: 'transient_retry',
+            lastError: 'Hub transfer temporarily failed.',
+            blockedReason: '',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: true,
+            createdAt: null
+          }
+        ]
+      }
+    })
+    hoisted.post.mockResolvedValue({
+      data: {
+        targetNodeKey: 'hub-node',
+        discoveredCount: 1,
+        eligibleCount: 1,
+        queuedCount: 1,
+        alreadyRegisteredCount: 0,
+        skippedCount: 0
+      }
+    })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    const button = wrapper.get('[data-test="hub-export-offload-eligible-videos"]')
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+    await flushPromises()
+
+    expect(hoisted.post).toHaveBeenCalledWith('/api/hub-export/offload-eligible-videos/', {
+      targetNodeKey: 'hub-node'
+    })
+  })
+
   it('filters hub resources by resource type and processed-media storage state', async () => {
     hoisted.get.mockResolvedValue({
       data: {

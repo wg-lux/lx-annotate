@@ -509,6 +509,77 @@ class HubExportApiTests(TestCase):
         self.assertEqual(job.marked_by, self.operator)
         delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
 
+    @override_settings(LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=False)
+    @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
+    def test_bulk_video_offload_retries_existing_failed_job(self, delay_mock):
+        processed_content = b"retryable-anonymized-video"
+        processed_hash = hashlib.sha256(processed_content).hexdigest()
+        video_state = VideoState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            processing_started=True,
+            anonymization_validated=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=True,
+            ready_for_export_at=timezone.now(),
+            ready_for_export_by="test-suite",
+            processed_file_sha256=processed_hash,
+        )
+        video = VideoFile.objects.create(
+            center=self.center,
+            state=video_state,
+            video_hash="retryable-video-hash",
+            processed_video_hash=processed_hash,
+            original_file_name="retryable-video.mp4",
+            processed_file=ContentFile(processed_content, name="retryable-video.mp4"),
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            first_response = self.client.post(
+                "/api/hub-export/offload-eligible-videos/",
+                data={"target_node_key": "hub-node"},
+                content_type="application/json",
+            )
+        self.assertEqual(first_response.status_code, 200)
+        job = OutboundHubTransferJob.objects.get(video_file=video)
+        original_job_id = job.pk
+        original_transfer_key = job.transfer_key
+        job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
+        job.failure_class = OutboundHubTransferJob.FailureClass.TRANSIENT_RETRY
+        job.last_error = "temporary transfer failure"
+        job.save(
+            update_fields=[
+                "local_status",
+                "failure_class",
+                "last_error",
+                "updated_at",
+            ],
+        )
+        delay_mock.reset_mock()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            retry_response = self.client.post(
+                "/api/hub-export/offload-eligible-videos/",
+                data={"target_node_key": "hub-node"},
+                content_type="application/json",
+            )
+
+        self.assertEqual(retry_response.status_code, 200)
+        self.assertEqual(retry_response.json()["queued_count"], 1)
+        self.assertEqual(retry_response.json()["already_registered_count"], 0)
+        job.refresh_from_db()
+        self.assertEqual(job.pk, original_job_id)
+        self.assertEqual(job.transfer_key, original_transfer_key)
+        self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.QUEUED)
+        self.assertEqual(
+            job.failure_class,
+            OutboundHubTransferJob.FailureClass.NO_FAILURE,
+        )
+        self.assertEqual(job.last_error, "")
+        delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
+
     def test_hub_export_overview_reports_not_ready_when_multiple_hubs_exist(self):
         NetworkNode.objects.create(
             display_name="Hub Node 2",

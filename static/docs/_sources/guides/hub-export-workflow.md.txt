@@ -378,12 +378,12 @@ Disable the affected sender node when authentication or integrity compromise
 is suspected, and resume only with the same transfer identity after the cause
 has been reviewed.
 
-The current production boundary is Phase 1: anonymized processed artifacts are
-protected in transit by mutual Transport Layer Security (mTLS) and at rest by
-each node's encrypted storage boundary. Standalone files or blobs must not
-leave that boundary until Phase 2 implements and verifies per-transfer data
-encryption keys wrapped for the receiving hub. Shared secrets and the
-long-lived master key are never payload-encryption substitutes.
+The application implements the Phase 2 transfer boundary: mutual Transport
+Layer Security (mTLS) authenticates and protects the channel, while every
+standalone processed artifact is encrypted with a per-transfer data-encryption
+key wrapped for the receiving hub. Shared secrets authenticate requests only;
+the long-lived master key is never a payload-encryption substitute and never
+leaves its node.
 
 ## Audit Requirements
 
@@ -414,6 +414,40 @@ Allowed sender policies:
 
 This policy must never delete local artifacts before the sender has a verified
 successful hub outcome.
+
+The sender persists the validated typed envelope receipt with the completed
+job. Reconciliation must validate and persist the same receipt; an `applied`
+status without a matching receipt is an integrity failure and cannot authorize
+cleanup.
+
+Local reclamation remains a separate bounded operator action. Dry-run is the
+default:
+
+```bash
+lx-annotate-manage reap_verified_hub_exports \
+  --source-node-key <site-node-key> \
+  --limit 100
+```
+
+After reviewing the candidate count and bytes, add `--apply` to remove only the
+local processed-video object. The reaper rechecks the receipt identity,
+plaintext digest and size, takes the video row lock, rejects active media leases
+or processing histories, writes a durable `cleaning` marker, deletes through
+the audited endoreg-db storage wrapper, clears the local `processed_file`
+reference, and records `cleaned`. It never removes raw media. Processed reports
+remain eligible but are not reaped because they do not yet have an equivalent
+lease boundary.
+
+## Central Hub AI Availability
+
+The receiver atomically publishes the verified anonymized video as its managed
+`VideoFile.processed_file` before returning `applied`. Central temporal
+inference uses the processed frame source through
+`iter_video_file_frame_samples`, which materializes that managed processed
+file. When Hub storage balancing is enabled and the central copy has been moved
+to protected storage, the configured remote processed-video provider retrieves
+the one committed, digest-matching placement under a media lease. Site cleanup
+therefore does not remove the Hub-side AI source.
 
 ## Summary
 
