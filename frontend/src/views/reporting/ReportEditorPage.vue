@@ -29,6 +29,58 @@
       <div class="report-workspace-body">
         <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
         <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
+        <div
+          v-if="flow.draftPersistenceStatus === 'conflict'"
+          class="alert alert-danger draft-revision-conflict"
+          data-testid="draft-revision-conflict"
+          role="alert"
+        >
+          <p class="mb-2">
+            Der Entwurf wurde während Ihrer Bearbeitung von einer anderen Person geändert. Ihre
+            lokalen Änderungen wurden nicht gespeichert und werden nicht automatisch überschrieben.
+          </p>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger"
+            data-testid="discard-conflicted-draft"
+            @click="confirmDiscardConflictedDraft"
+          >
+            Lokalen Entwurf verwerfen und Serverstand neu laden
+          </button>
+        </div>
+        <div
+          v-if="historicalReadOnlyReport"
+          class="alert alert-secondary historical-report-read-only"
+          data-testid="historical-report-read-only"
+        >
+          <div class="d-flex justify-content-between gap-3 align-items-start">
+            <div>
+              <strong>Historischer Bericht (nur lesbar)</strong>
+              <div class="small mt-1">
+                Vorlage {{ historicalReadOnlyReport.templateName || 'unbekannt' }} ·
+                {{ historicalReadOnlyReport.knowledgeBaseModule || 'Modul unbekannt' }}@{{
+                  historicalReadOnlyReport.knowledgeBaseVersion || 'Version unbekannt'
+                }}
+                · Vorlagenversion {{ historicalReadOnlyReport.templateVersion || 'unbekannt' }}
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              data-testid="close-historical-report"
+              @click="historicalReadOnlyReport = null"
+            >
+              Schließen
+            </button>
+          </div>
+          <textarea
+            class="form-control mt-2"
+            rows="8"
+            readonly
+            :value="historicalReadOnlyReport.renderedText || ''"
+            aria-label="Historischer Berichtstext"
+          ></textarea>
+        </div>
 
         <div v-if="sectionCompletionSummary.totalSections" class="report-readiness-strip mb-3">
           <div class="readiness-item is-primary">
@@ -125,10 +177,10 @@
                   {{ templateStatusMessage }}
                 </div>
                 <div
-                  v-if="findingCatalogError || coreConceptsError"
+                  v-if="findingCatalogError || findingCatalogLocalizationWarning || coreConceptsError"
                   class="alert alert-warning py-2 mt-3 mb-0"
                 >
-                  {{ findingCatalogError || coreConceptsError }}
+                  {{ findingCatalogError || findingCatalogLocalizationWarning || coreConceptsError }}
                 </div>
               </template>
             </MedicalBlock>
@@ -448,11 +500,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import axiosInstance, { dtypesApi, r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
 import {
-  getFindingDisplayName,
+  getFindingCatalogLocalizedName,
   mergeFindingClassifications,
   type Finding
 } from '@/api/findings.contract'
@@ -475,6 +527,7 @@ import type {
 import { formatDateOnly } from '@/components/AssistedReporting/reportSubmissionUtils'
 import { usePatientStore } from '@/stores/patientStore'
 import type {
+  ReportTemplatePayload,
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateSectionDraft
 } from '@/types/reportTemplate'
@@ -506,6 +559,10 @@ type PatientExaminationReportListItem = {
   templateName?: string
   updatedAt?: string
   renderedText?: string
+  knowledgeBaseModule?: string
+  knowledgeBaseVersion?: string
+  templateVersion?: string
+  templateHash?: string
 }
 
 type EditorContext = {
@@ -520,6 +577,7 @@ const terminology = useTerminologyStore()
 const patientStore = usePatientStore()
 const examinationStore = useExaminationStore()
 const route = useRoute()
+const router = useRouter()
 const { isDebug } = useDebug()
 
 const loading = ref(false)
@@ -531,8 +589,19 @@ const pendingSaveStatus = ref<ReportSubmissionStatus | null>(null)
 const currentReportVersion = ref<number | null>(null)
 const persistedArtifacts = ref<SaveReportSubmissionResponse['persistedArtifacts']>(null)
 const historyContext = ref<Record<string, unknown> | null>(null)
-const manuallyEditedReportText = ref('')
-const reportTextManuallyEdited = ref(false)
+const historicalReadOnlyReport = ref<PatientExaminationReportListItem | null>(null)
+const manuallyEditedReportText = computed({
+  get: () => flow.renderedReportText,
+  set: (value: string) => {
+    flow.setRenderedReportText(value, flow.reportTextMode)
+  }
+})
+const reportTextManuallyEdited = computed({
+  get: () => flow.reportTextMode === 'manual',
+  set: (value: boolean) => {
+    flow.setRenderedReportText(flow.renderedReportText, value ? 'manual' : 'generated')
+  }
+})
 const findingCatalog = ref<Finding[]>([])
 const findingCatalogError = ref<string | null>(null)
 const coreConcepts = ref<CoreConceptCollection | null>(null)
@@ -667,7 +736,8 @@ const canSave = computed(
   () =>
     !!flow.patientExaminationId &&
     !!selectedTemplateName.value &&
-    draftMatchesSelectedTemplate.value
+    draftMatchesSelectedTemplate.value &&
+    flow.draftPersistenceStatus !== 'conflict'
 )
 const renderedReportPreview = computed(() =>
   reportTextManuallyEdited.value ? manuallyEditedReportText.value : buildGeneratedReportText()
@@ -923,8 +993,35 @@ function requireReportListItem(value: unknown): PatientExaminationReportListItem
     status: row.status,
     ...(typeof row.templateName === 'string' ? { templateName: row.templateName } : {}),
     ...(typeof row.updatedAt === 'string' ? { updatedAt: row.updatedAt } : {}),
-    ...(typeof row.renderedText === 'string' ? { renderedText: row.renderedText } : {})
+    ...(typeof row.renderedText === 'string' ? { renderedText: row.renderedText } : {}),
+    ...(typeof row.knowledgeBaseModule === 'string'
+      ? { knowledgeBaseModule: row.knowledgeBaseModule }
+      : {}),
+    ...(typeof row.knowledgeBaseVersion === 'string'
+      ? { knowledgeBaseVersion: row.knowledgeBaseVersion }
+      : {}),
+    ...(typeof row.templateVersion === 'string'
+      ? { templateVersion: row.templateVersion }
+      : {}),
+    ...(typeof row.templateHash === 'string' ? { templateHash: row.templateHash } : {})
   }
+}
+
+function historicalReportMatchesTemplate(
+  report: PatientExaminationReportListItem,
+  template: ReportTemplatePayload
+): boolean {
+  const identity = template.identity
+  return (
+    !!report.knowledgeBaseModule &&
+    !!report.knowledgeBaseVersion &&
+    !!report.templateVersion &&
+    !!report.templateHash &&
+    report.knowledgeBaseModule === identity.moduleName &&
+    report.knowledgeBaseVersion === identity.knowledgeBaseVersion &&
+    report.templateVersion === identity.templateVersion &&
+    report.templateHash === identity.templateHash
+  )
 }
 
 async function loadIndicationCatalog(context?: EditorContext) {
@@ -1014,6 +1111,16 @@ function clearMessages() {
   successMessage.value = null
 }
 
+function confirmDiscardConflictedDraft() {
+  if (flow.draftPersistenceStatus !== 'conflict') return
+  const accepted = window.confirm(
+    'Lokale, nicht gespeicherte Änderungen werden verworfen. Der aktuelle Serverstand wird danach neu geladen. Fortfahren?'
+  )
+  if (!accepted) return
+  if (!flow.discardConflictedLocalDraft()) return
+  router.go(0)
+}
+
 function getSectionDraft(sectionName: string): ReportTemplateSectionDraft {
   return (
     flow.templateSectionDrafts[sectionName] ?? {
@@ -1029,13 +1136,11 @@ function onSectionDraftNote(sectionName: string, note: string) {
 }
 
 function onRenderedReportInput(value: string) {
-  manuallyEditedReportText.value = value
-  reportTextManuallyEdited.value = true
+  flow.setRenderedReportText(value, 'manual')
 }
 
 function resetRenderedReportText() {
-  manuallyEditedReportText.value = ''
-  reportTextManuallyEdited.value = false
+  flow.setRenderedReportText('', 'generated')
 }
 
 function onSectionDraftToggle(
@@ -1101,7 +1206,9 @@ function getFindingLabel(findingName: string): string {
   const localized = localizedConceptLabel(coreConcepts.value?.finding, findingName)
   if (localized) return localized
   const definition = getFindingDefinition(findingName)
-  return definition ? getFindingDisplayName(definition) : findingName
+  return definition
+    ? getFindingCatalogLocalizedName(definition, flow.selectedReportLanguage)
+    : findingName
 }
 
 function getClassificationLabel(findingName: string, classificationName: string): string {
@@ -1111,7 +1218,9 @@ function getClassificationLabel(findingName: string, classificationName: string)
   const classification = mergeFindingClassifications(definition).find(
     (entry) => entry.name === classificationName
   )
-  return classification?.displayName || classificationName
+  return classification
+    ? getFindingCatalogLocalizedName(classification, flow.selectedReportLanguage)
+    : classificationName
 }
 
 function getClassificationChoiceLabel(
@@ -1126,8 +1235,58 @@ function getClassificationChoiceLabel(
     (entry) => entry.name === classificationName
   )
   const choice = classification?.choices.find((entry) => entry.name === choiceName)
-  return choice?.displayName || choiceName
+  return choice ? getFindingCatalogLocalizedName(choice, flow.selectedReportLanguage) : choiceName
 }
+
+const findingCatalogLocalizationWarning = computed(() => {
+  const language = flow.selectedReportLanguage
+  const hasLocalizedLabel = (
+    concepts: CoreConceptBase[] | undefined,
+    name: string,
+    catalogLabel: string | undefined
+  ) => {
+    if (catalogLabel) return true
+    const concept = concepts?.find((entry) => entry.name === name)
+    return Boolean(concept && (language === 'de' ? concept.nameDe : concept.nameEn))
+  }
+  let missing = 0
+  for (const finding of findingCatalog.value) {
+    if (
+      !hasLocalizedLabel(
+        coreConcepts.value?.finding,
+        finding.name,
+        language === 'de' ? finding.nameDe : finding.nameEn
+      )
+    ) {
+      missing += 1
+    }
+    for (const classification of mergeFindingClassifications(finding)) {
+      if (
+        !hasLocalizedLabel(
+          coreConcepts.value?.classification,
+          classification.name,
+          language === 'de' ? classification.nameDe : classification.nameEn
+        )
+      ) {
+        missing += 1
+      }
+      for (const choice of classification.choices) {
+        if (
+          !hasLocalizedLabel(
+            coreConcepts.value?.classificationChoice,
+            choice.name,
+            language === 'de' ? choice.nameDe : choice.nameEn
+          )
+        ) {
+          missing += 1
+        }
+      }
+    }
+  }
+  if (!missing) return null
+  const languageLabel = language === 'de' ? 'deutsche' : 'englische'
+  return `Für ${String(missing)} Katalogeinträge fehlen ${languageLabel} Bezeichnungen. Es werden stabile Bezeichner angezeigt.`
+})
 
 function getDescriptorLabel(descriptorName: string): string {
   const localized = localizedConceptLabel(
@@ -1221,11 +1380,14 @@ async function loadFindingCatalog(context?: EditorContext) {
     const findings = await findingsApi.getExaminationFindings(examinationId, catalogContext)
     if (!isEditorContextCurrent(context)) return
     findingCatalog.value = findings
-  } catch {
+  } catch (error: unknown) {
     if (!isEditorContextCurrent(context)) return
     findingCatalog.value = []
+    const status = reportingApiError(error).response?.status
     findingCatalogError.value =
-      'Die deutschen Befundbezeichnungen konnten nicht geladen werden. Bitte erneut versuchen.'
+      status === 401 || status === 403
+        ? 'Der Zugriff auf den Befundkatalog wurde abgelehnt. Bitte Anmeldung und Berechtigungen prüfen.'
+        : reportingApiErrorMessage(error, 'Der Befundkatalog konnte nicht geladen werden.')
   }
 }
 
@@ -1363,6 +1525,7 @@ async function loadLatestReportMeta(context?: EditorContext) {
     if (!isEditorContextCurrent(context)) return
     const items = readListPayload(res.data).map(requireReportListItem)
     if (!items.length) {
+      historicalReadOnlyReport.value = null
       flow.setActiveReportId(null)
       currentReportVersion.value = null
       successMessage.value =
@@ -1370,15 +1533,31 @@ async function loadLatestReportMeta(context?: EditorContext) {
       return
     }
     const latest = items[0]
-    flow.setActiveReportId(latest.id)
-    currentReportVersion.value = latest.version
     if (latest.templateName) {
+      const historicalTemplate =
+        (selectedTemplate.value?.name === latest.templateName ? selectedTemplate.value : null) ||
+        templateOptions.value.find((template) => template.name === latest.templateName) ||
+        null
+      if (!historicalTemplate) {
+        historicalReadOnlyReport.value = latest
+        throw new Error(
+          `Die im historischen Bericht referenzierte Vorlage "${latest.templateName}" ist in der aktiven Terminologieversion nicht verfügbar. Der Bericht wurde nicht aktiviert.`
+        )
+      }
+      if (!historicalReportMatchesTemplate(latest, historicalTemplate)) {
+        historicalReadOnlyReport.value = latest
+        throw new Error(
+          `Die Vorlagenidentität des historischen Berichts stimmt nicht mit der aktuell veröffentlichten Vorlage "${latest.templateName}" überein. Der Bericht wurde nicht aktiviert.`
+        )
+      }
       await selectTemplateByName(latest.templateName)
       if (!isEditorContextCurrent(context)) return
     }
+    historicalReadOnlyReport.value = null
+    flow.setActiveReportId(latest.id)
+    currentReportVersion.value = latest.version
     if (typeof latest.renderedText === 'string') {
-      manuallyEditedReportText.value = latest.renderedText
-      reportTextManuallyEdited.value = true
+      flow.setRenderedReportText(latest.renderedText, 'manual')
     }
     successMessage.value = `Der Bericht wurde geladen (Version ${String(latest.version)}).`
   } catch (e: unknown) {
@@ -1548,6 +1727,7 @@ watch(
     flow.setSavingFinalReport(false)
     loading.value = false
     pendingSaveStatus.value = null
+    historicalReadOnlyReport.value = null
     patientExaminationKnowledgeBaseIdentity.value = null
     initializedContextKey = null
     setRequestContext(

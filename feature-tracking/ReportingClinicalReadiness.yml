@@ -1,0 +1,198 @@
+schema_version: '1.0'
+id: reporting_clinical_readiness
+name: Reporting Clinical Readiness
+description: Make the reporting workspace safe and usable for clinical documentation by preserving the
+  complete editable draft, rejecting stale template identities, resolving canonical localized terminology,
+  and supporting large templates in a readable responsive workspace.
+owners:
+- lx-annotate frontend maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Canonical reporting workflow and template contract.
+definition_of_done:
+- id: durable_complete_draft
+  category: data_integrity
+  title: Reload restores the complete editable clinical draft
+  acceptance:
+  - Backend draft persistence includes report text, indications, section notes, inclusion flags, findings,
+    and exact template identity.
+  - Autosave exposes saving, saved, failed, and conflict states and does not silently lose edits on reload
+    or navigation.
+  - Concurrent updates use an explicit revision contract and fail visibly on conflict.
+  required: true
+  verification:
+    kind: manual
+    instructions: Edit every draft field, reload during and after autosave, and exercise a concurrent
+      update conflict.
+    timeout_seconds: 1200
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/models/contracts/report_draft.py
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/serializers/patient_examination/report_draft.py
+    - kind: code
+      reference: frontend/src/stores/reportingFlowStore.ts
+    - kind: test
+      reference: 'frontend integrated: 131 passed; lx_dtypes 15; endoreg endpoint 14'
+    note: Complete document autosave now uses backend compare-and-swap revisions. Stale PUT returns 409
+      without mutation; frontend preserves dirty content, stops retries/navigation, and offers confirmation-gated
+      discard plus fresh server reload. Manual two-session/browser acceptance remains.
+    assessed_by: codex-reporting-clinical-20260826
+    assessed_at: '2026-08-26T13:51:46.641711Z'
+- id: immutable_template_restore
+  category: security
+  title: Historical and restored reports cannot activate a stale template
+  acceptance:
+  - Restore verifies patient examination, module, knowledge-base version, template name, template version,
+    and template digest before enabling editing or save.
+  - An incompatible historical report remains explicitly readable but cannot masquerade as the active
+    editable draft.
+  - Success, warning, and error messages describe the same resolved template state.
+  required: true
+  verification:
+    kind: manual
+    instructions: Restore a report whose template was unpublished or replaced and verify fail-closed read-only
+      behavior.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: canonical_localized_labels
+  category: requirements
+  title: Clinical labels resolve from canonical localized terminology
+  acceptance:
+  - German and English labels use typed name_de and name_en fields from the pinned terminology identity.
+  - Missing localization falls back only to the stable canonical name and never to guessed translations.
+  - Transport, identity, and missing-translation failures have distinct actionable messages.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise German, English, missing-label, malformed-response, and unavailable-catalog
+      paths.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/reportingIndicationContract.ts
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue
+    - kind: test
+      reference: 'indication contract: 8 passed; shell: 39 passed'
+    note: Real bare-array indication DTOs and flat localized classifications now normalize correctly,
+      and shell section titles use the language-aware canonical template helper. Complete name_en preservation
+      and classified catalog error messaging remain.
+    assessed_by: codex-reporting-clinical-20260826
+    assessed_at: '2026-08-26T13:28:58.207122Z'
+- id: large_template_navigation
+  category: functionality
+  title: Large report templates can be searched and filtered
+  acceptance:
+  - Finding navigation supports text search and status filters for open, missing, review, complete, required,
+    and optional items.
+  - Filter state and the active finding remain stable during navigation and empty results are explained.
+  - Rendering remains responsive for representative large clinical templates.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise keyboard and pointer filtering on a representative template with at least 100
+      findings.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue
+    - kind: test
+      reference: ReportingShell 39 passed including 102-finding scenario
+    note: A 102-finding regression verifies all filters, full-set counts, stable ordering/selection, long-label
+      accessibility, and progressive 50-row rendering. Manual keyboard/pointer performance acceptance
+      remains.
+    assessed_by: codex-reporting-clinical-20260826
+    assessed_at: '2026-08-26T13:51:47.157127Z'
+- id: readable_responsive_workspace
+  category: functionality
+  title: Editor, preview, and reference content remain readable at supported widths
+  acceptance:
+  - Long canonical identifiers and clinical labels wrap or expand without being clipped.
+  - The clinical editor remains primary and technical coverage or KB reference can be collapsed at constrained
+    widths.
+  - Keyboard focus, accessible names, and contrast remain usable across responsive layouts.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the reporting workspace at 1920, 1440, 1280, 1024, and 768 pixel widths with
+      long labels.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: clinical_reporting_regressions
+  category: testing
+  title: Clinical reporting recovery and presentation have regression coverage
+  acceptance:
+  - Tests cover reload recovery, autosave failure and conflict, stale template restore, localized label
+    fallback, filters, and responsive long-label behavior.
+  - Frontend type checks and focused reporting suites pass.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - type-check
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: 'frontend: 7 files, 131 passed'
+    - kind: command
+      reference: npm run type-check:component-tests passed
+    - kind: test
+      reference: lx_dtypes 15 passed; endoreg endpoint 14 passed
+    note: Integrated frontend reporting suites pass 131 tests and component-test type-check. Backend contract/endpoint
+      suites pass CAS, legacy upgrade, and two-writer cases. Manual browser-width and end-to-end deployed-profile
+      checks remain.
+    assessed_by: codex-reporting-clinical-20260826
+    assessed_at: '2026-08-26T13:51:46.881832Z'
+- id: observable_recovery_failures
+  category: operations
+  title: Draft recovery and identity failures are observable and actionable
+  acceptance:
+  - Users can distinguish autosave failure, revision conflict, incompatible template, missing localization,
+    and superseded requests.
+  - Structured diagnostics contain technical identity and revision data without patient-identifying content.
+  required: true
+  verification:
+    kind: manual
+    instructions: Trigger each recovery failure and inspect user messages and privacy-safe runtime diagnostics.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: maintained_clinical_contract
+  category: documentation
+  title: Reporting persistence and recovery contracts are documented in English
+  acceptance:
+  - Documentation identifies authoritative draft fields, revision behavior, template compatibility, and
+    localization fallback.
+  - The feature tracker records verification evidence and residual clinical risk.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the reporting requirements guide and feature evidence after implementation.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+    evidence: []

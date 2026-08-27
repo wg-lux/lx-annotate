@@ -1,0 +1,260 @@
+schema_version: '1.0'
+id: hub_export_overview_aaa_test_coverage
+name: Hub Export Overview AAA Test Coverage
+description: Ensure every caller and callee in the HubExportOverview workflow has focused Arrange-Act-Assert
+  unit or contract coverage, from frontend routing through persisted transfer state and LuxNix runtime
+  configuration.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-hub-export-aaa
+    changed_at: '2026-08-27T09:19:36.920187Z'
+    note: Hub Export route/view/component, typed TS service, Pinia state, Django API and overview, production
+      resolver, LuxNix config, and persisted storage/envelope AAA suites all pass; broader Hub Export
+      suite passed 134 tests.
+  - action: reopened
+    changed_by: codex-hub-export-aaa
+    changed_at: '2026-08-27T09:20:52.394179Z'
+    note: Record the unrelated repository-wide frontend type-check blocker explicitly.
+  - action: done
+    changed_by: codex-hub-export-aaa
+    changed_at: '2026-08-27T09:21:16.299132Z'
+    note: All Hub Export AAA boundaries verified; 134 backend Hub Export tests, 29 focused frontend regression
+      tests, 3 LuxNix contracts, and focused lint passed. Global frontend type-check remains blocked only
+      by documented unrelated reporting test errors.
+source_documents:
+- path: docs/guides/hub-export-workflow.md
+  disposition: reference
+  note: Security, operator, transfer, and persistence workflow contract.
+definition_of_done:
+- id: frontend_route_component_aaa
+  category: functionality
+  title: Frontend route, view, and component callers have AAA coverage
+  acceptance:
+  - The /hub-export route resolves the HubExport view.
+  - The view renders HubExportOverviewComponent.
+  - The component suite covers loading, rendering, selection, mutation, retry, readiness, filtering, and
+    errors.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - --run
+    - src/views/__tests__/HubExport.test.ts
+    - src/components/Export/__tests__/HubExportOverviewComponent.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Vitest Hub Export route/view/component coverage: 15 passed'
+    note: The lazy route resolves HubExport.vue, the view owns HubExportOverviewComponent, and the existing
+      13-case component behavior suite passes.
+    assessed_by: codex-hub-export-aaa
+    assessed_at: '2026-08-27T09:17:42.860421Z'
+- id: frontend_service_store_aaa
+  category: testing
+  title: TypeScript service and Pinia store callees have AAA coverage
+  acceptance:
+  - Endpoint construction preserves the canonical API paths and stable UUID job identifiers.
+  - The TypeScript service owns HTTP request shapes for overview and mutations.
+  - The Pinia store owns state transitions, refresh behavior, and surfaced errors.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - --run
+    - src/api/__tests__/hubExportService.test.ts
+    - src/stores/__tests__/hubExportStore.aaa.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Vitest service/store focused run: 15 passed (4 service, 5 AAA store, 6 regression store)'
+    note: HTTP shapes now belong to a typed service; store state, refresh, and failure behavior are independently
+      tested.
+    assessed_by: codex-hub-export-aaa
+    assessed_at: '2026-08-27T09:17:44.150996Z'
+- id: backend_route_overview_aaa
+  category: testing
+  title: Django API routing and overview construction have AAA coverage
+  acceptance:
+  - Named API routes resolve to authenticated Hub Export views.
+  - The overview route passes the selected target to the typed overview builder.
+  - The builder output is validated by HubExportOverview and remains fail-closed for invalid configuration.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
+    - tests/hub/test_hub_export_overview_aaa.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'pytest tests/hub/test_hub_export_overview_aaa.py: 3 passed'
+    note: Canonical URL resolution, selected-target delegation, response propagation, and authentication
+      are covered.
+    assessed_by: codex-hub-export-aaa
+    assessed_at: '2026-08-27T09:17:45.401100Z'
+- id: backend_config_aaa
+  category: security
+  title: Effective backend Hub Export configuration has AAA coverage
+  acceptance:
+  - Production settings expose the complete outbound Hub Export configuration.
+  - Transport resolution fails closed when required mTLS material is absent.
+  - Envelope configuration resolves only protected staging and recipient public-key paths.
+  - No long-lived master key is part of the outbound configuration contract.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
+    - tests/system/test_hub_export_config_resolution_aaa.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Production/config system suite: 9 passed; resolver AAA suite: 3 passed'
+    note: Production export, Secretspec keys, mTLS fail-closed behavior, readable identity paths, and
+      redirect prohibition passed.
+    assessed_by: codex-hub-export-aaa
+    assessed_at: '2026-08-27T09:17:46.599362Z'
+- id: luxnix_config_aaa
+  category: operations
+  title: LuxNix Hub Export configuration has AAA contract coverage
+  acceptance:
+  - LuxNix exposes typed Hub transfer ingress options with secure defaults.
+  - Runtime services receive Hub mode, transport policy, and proxy-verified identity metadata without
+    master-key material.
+  - External persistence storage is an explicit boot dependency when configured.
+  required: true
+  verification:
+    kind: command
+    command:
+    - env
+    - -u
+    - DJANGO_SETTINGS_MODULE
+    - uv
+    - --directory
+    - ../luxnix
+    - run
+    - pytest
+    - tests/test_lx_annotate_hub_export_config_contract.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'LuxNix pytest tests/test_lx_annotate_hub_export_config_contract.py: 3 passed'
+    note: Static module contracts cover secure Hub ingress defaults, runtime metadata export, absence
+      of master-key literals, and external persistence boot ordering.
+    assessed_by: codex-hub-export-aaa
+    assessed_at: '2026-08-27T09:17:47.894136Z'
+- id: persisted_storage_aaa
+  category: functionality
+  title: Finished persistence storage state has AAA coverage
+  acceptance:
+  - Persisted verification is derived from validated hash evidence rather than file presence alone.
+  - Overview serialization preserves persisted_verified for eligible finished resources.
+  - Persisted envelope replay is typed, integrity checked, and idempotent.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
+    - tests/hub/test_hub_export_persisted_storage_aaa.py
+    - tests/hub/test_hub_export_envelope.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Complete tests/hub/test_hub_export*.py suite: 134 passed'
+    note: The regression run includes persisted integrity evidence, typed overview serialization, envelope
+      replay/integrity, API, worker, reconciliation, and security guards.
+    assessed_by: codex-hub-export-aaa
+    assessed_at: '2026-08-27T09:17:49.193329Z'
+- id: aaa_suite_quality
+  category: requirements
+  title: Suites use explicit Arrange-Act-Assert structure
+  acceptance:
+  - New tests visibly separate setup, invocation, and observable assertions.
+  - Tests mock only the adjacent boundary and do not duplicate implementation logic.
+  - Test names describe behavior and failure mode.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the focused suites for explicit Arrange, Act, and Assert sections and boundary-level
+      assertions.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: New suites use explicit Arrange, Act, and Assert sections and mock only adjacent boundaries
+    note: Focused lint passed for all changed frontend and Python test files.
+    assessed_by: codex-hub-export-aaa
+    assessed_at: '2026-08-27T09:17:50.402647Z'
+- id: documented_verification
+  category: documentation
+  title: Tracker records exact cross-repository verification
+  acceptance:
+  - Each verified criterion contains exact test results and assessor identity.
+  - Residual risks and unrelated pre-existing failures remain visible.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review tracker assessments against command output and repository status.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: feature-tracking/HubExportOverviewAAATestCoverage.yml
+    - kind: test
+      reference: Repository-wide frontend type-check reached unrelated untracked reportingResolutionGraph.aaa.test.ts
+        and failed on TS7034/TS7005; Hub Export focused ESLint and tests passed
+    note: 'Exact focused and broad results are recorded. Residual risk: the global frontend type-check
+      is blocked by two implicit-any errors in an unrelated untracked reporting suite; no Hub Export diagnostic
+      was reported.'
+    assessed_by: codex-hub-export-aaa
+    assessed_at: '2026-08-27T09:21:11.952762Z'

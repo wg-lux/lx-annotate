@@ -105,6 +105,7 @@ export interface FindingChoiceDto {
   name: string
   description?: string | null
   name_de?: string
+  name_en?: string
   subcategories?: JsonMap
   numerical_descriptors?: JsonMap
 }
@@ -114,6 +115,7 @@ export interface FindingClassificationDto {
   name: string
   description?: string | null
   name_de?: string
+  name_en?: string
   required?: boolean
   classification_types: string[]
   choices: FindingChoiceDto[]
@@ -124,6 +126,7 @@ export interface FindingDto {
   name: string
   description?: string | null
   name_de?: string
+  name_en?: string
   classifications: FindingClassificationDto[]
   location_classifications: FindingClassificationDto[]
   morphology_classifications: FindingClassificationDto[]
@@ -159,6 +162,7 @@ export interface FindingChoice extends Pick<ClassificationChoiceCore, 'name'> {
   id: number
   description?: string
   nameDe?: string
+  nameEn?: string
   displayName?: string
   subcategories: JsonMap
   numericalDescriptors: JsonMap
@@ -170,6 +174,7 @@ export interface FindingClassification
   name: string
   description?: string
   nameDe?: string
+  nameEn?: string
   displayName?: string
   required: boolean
   classificationTypes: string[]
@@ -180,6 +185,7 @@ export interface Finding extends Pick<FindingCore, 'name'> {
   id: number
   description: string
   nameDe?: string
+  nameEn?: string
   displayName?: string
   examinations: string[]
   patientExaminationId?: number
@@ -231,10 +237,12 @@ export const normalizeFindingChoice = (input: unknown, path = 'findingChoice'): 
   const source = requireRecord(input, path)
   const name = requireName(readKey(source, 'name', 'name'), `${path}.name`)
   const nameDe = optionalName(readKey(source, 'nameDe', 'name_de'), `${path}.nameDe`)
+  const nameEn = optionalName(readKey(source, 'nameEn', 'name_en'), `${path}.nameEn`)
   return {
     id: requirePositiveIntegerValue(readKey(source, 'id', 'id'), `${path}.id`),
     name,
     nameDe,
+    nameEn,
     displayName: nameDe ?? name,
     description: optionalString(
       readKey(source, 'description', 'description'),
@@ -258,11 +266,13 @@ export const normalizeFindingClassification = (
   const source = requireRecord(input, path)
   const name = requireName(readKey(source, 'name', 'name'), `${path}.name`)
   const nameDe = optionalName(readKey(source, 'nameDe', 'name_de'), `${path}.nameDe`)
+  const nameEn = optionalName(readKey(source, 'nameEn', 'name_en'), `${path}.nameEn`)
   const choices = requireArray(readKey(source, 'choices', 'choices'), `${path}.choices`)
   return {
     id: requirePositiveIntegerValue(readKey(source, 'id', 'id'), `${path}.id`),
     name,
     nameDe,
+    nameEn,
     displayName: nameDe ?? name,
     description: optionalString(
       readKey(source, 'description', 'description'),
@@ -311,6 +321,7 @@ export const normalizeFinding = (input: unknown, path = 'finding'): Finding => {
   const source = requireRecord(input, path)
   const name = requireName(readKey(source, 'name', 'name'), `${path}.name`)
   const nameDe = optionalName(readKey(source, 'nameDe', 'name_de'), `${path}.nameDe`)
+  const nameEn = optionalName(readKey(source, 'nameEn', 'name_en'), `${path}.nameEn`)
   const classifications = normalizeFindingClassificationList(
     readKey(source, 'classifications', 'classifications'),
     `${path}.classifications`
@@ -333,6 +344,7 @@ export const normalizeFinding = (input: unknown, path = 'finding'): Finding => {
     id: requirePositiveIntegerValue(readKey(source, 'id', 'id'), `${path}.id`),
     name,
     nameDe,
+    nameEn,
     displayName: nameDe ?? name,
     description:
       optionalString(readKey(source, 'description', 'description'), `${path}.description`) ?? '',
@@ -490,6 +502,17 @@ export const getFindingDisplayName = (
     finding,
     `Finding ${finding?.id === undefined ? 'unknown' : String(finding.id)}`
   )
+
+type LocalizedFindingCatalogEntry = {
+  name: string
+  nameDe?: string
+  nameEn?: string
+}
+
+export const getFindingCatalogLocalizedName = (
+  entry: LocalizedFindingCatalogEntry,
+  language: 'de' | 'en'
+): string => (language === 'de' ? entry.nameDe : entry.nameEn) || entry.name
 
 export const getClassificationDisplayName = (
   classification: Pick<FindingClassification, 'name' | 'nameDe' | 'displayName'> | null | undefined

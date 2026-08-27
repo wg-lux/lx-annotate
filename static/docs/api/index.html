@@ -199,6 +199,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../guides/encrypted-storage-process.html">Encrypted Storage Process</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/hub-storage-load-balancing.html">Hub storage load balancing and production-test runbook</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/wheel-deployment.html">Wheel Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/pypi.html">PyPI Publishing</a></li>
@@ -772,6 +773,16 @@ artifacts in Phase 2, and KMS-backed key management in Phase 3.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">POST</span></code></p></td>
 <td><p>Mark media for hub export.</p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hubExport.offloadEligibleVideos</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">hub-export/offload-eligible-videos/</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">POST</span></code></p></td>
+<td><p>Atomically mark and queue all currently eligible videos for the selected hub.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">hubExport.retry(jobId)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">hub-export/jobs/&lt;jobId&gt;/retry/</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">POST</span></code></p></td>
+<td><p>Requeue an eligible failed outbound job after server-side validation.</p></td>
+</tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hubExport.unmark</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">hub-export/unmark/</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">POST</span></code></p></td>
@@ -1337,7 +1348,7 @@ stay searchable and type-checked.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=e2a723ec"></script>
+</div><script src="../_static/documentation_options.js?v=aec50437"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

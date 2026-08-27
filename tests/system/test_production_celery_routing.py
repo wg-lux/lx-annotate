@@ -6,6 +6,9 @@ import sys
 import textwrap
 from pathlib import Path
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -16,6 +19,24 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
 
     storage_root.mkdir(parents=True)
     static_root.mkdir(parents=True)
+    secret_root = tmp_path / "hub-secrets"
+    secret_root.mkdir(parents=True)
+    client_cert_file = secret_root / "hub-client-cert.pem"
+    client_key_file = secret_root / "hub-client-key.pem"
+    ca_file = secret_root / "hub-ca.pem"
+    recipient_public_key_file = secret_root / "hub-recipient-public.pem"
+    source_node_secret_file = secret_root / "hub-source-node-secret"
+    client_cert_file.write_text("test-client-certificate", encoding="utf-8")
+    client_key_file.write_text("test-client-private-key", encoding="utf-8")
+    ca_file.write_text("test-ca-certificate", encoding="utf-8")
+    recipient_key = X25519PrivateKey.generate()
+    recipient_public_key_file.write_bytes(
+        recipient_key.public_key().public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        ),
+    )
+    source_node_secret_file.write_text("test-node-secret", encoding="utf-8")
     # Prevent a developer-local repository .env.systemd from affecting the
     # isolated production-settings probe.
     (data_root / ".env.systemd").write_text("", encoding="utf-8")
@@ -51,6 +72,20 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
             "LX_ANNOTATE_DATA_DIR": str(data_root),
             "LX_ANNOTATE_ENCRYPTED_DATA_DIR": str(data_root),
             "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE": "false",
+            "LX_ANNOTATE_HUB_EXPORT_CA_FILE": str(ca_file),
+            "LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE": str(client_cert_file),
+            "LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE": str(client_key_file),
+            "LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR": (
+                str(data_root / "hub-export-staging")
+            ),
+            "LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY": ("retain_processed_media"),
+            "LX_ANNOTATE_HUB_EXPORT_MAX_RETRIES": "7",
+            "LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE": str(
+                recipient_public_key_file,
+            ),
+            "LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS": "true",
+            "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS": "2400",
+            "LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE": str(source_node_secret_file),
             "OIDC_RP_CLIENT_SECRET": ("production-routing-test-keycloak-secret"),
             "PROTECTED_MEDIA_ROOT": str(storage_root),
             "STORAGE_DIR": str(storage_root),
@@ -108,6 +143,104 @@ def test_production_settings_export_hub_transfer_routes(tmp_path: Path) -> None:
 
     assert completed.returncode == 0, (
         "Production Celery routing probe failed.\n\n"
+        f"stdout:\n{completed.stdout}\n\n"
+        f"stderr:\n{completed.stderr}"
+    )
+
+
+def test_production_settings_export_hub_transfer_configuration(
+    tmp_path: Path,
+) -> None:
+    probe = textwrap.dedent(
+        """
+        import django
+
+        django.setup()
+
+        from lx_annotate.settings import settings_base
+        from lx_annotate.settings import settings_prod
+        from lx_annotate.hub.hub_export_envelope import (
+            resolve_hub_export_envelope_config,
+        )
+        from lx_annotate.hub.hub_export_worker import (
+            resolve_hub_transport_config,
+            resolve_outbound_node_secret,
+        )
+
+        missing_settings = {
+            name
+            for name in dir(settings_base)
+            if name.isupper() and not hasattr(settings_prod, name)
+        }
+        assert missing_settings == set()
+
+        assert settings_prod.LX_ANNOTATE_ENCRYPTED_DATA_DIR.endswith(
+            "/runtime-data"
+        )
+        assert settings_prod.PROTECTED_MEDIA_ROOT.as_posix().endswith(
+            "/runtime-data/storage"
+        )
+        assert settings_prod.ENDOREG_DEPLOYMENT_ROLE == "site_node"
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE is False
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS is True
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE.endswith(
+            "/hub-secrets/hub-client-cert.pem"
+        )
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE.endswith(
+            "/hub-secrets/hub-client-key.pem"
+        )
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_CA_FILE.endswith(
+            "/hub-secrets/hub-ca.pem"
+        )
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE.endswith(
+            "/hub-secrets/hub-recipient-public.pem"
+        )
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR.endswith(
+            "/hub-export-staging"
+        )
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS == 2400
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_MAX_RETRIES == 7
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY == (
+            "retain_processed_media"
+        )
+
+        # These are the same resolvers called by run_outbound_transfer_job for
+        # both videos and reports. Assert the effective requests/envelope
+        # configuration, not merely the values exported by settings_prod.
+        transport = resolve_hub_transport_config()
+        assert transport.request_kwargs() == {
+            "allow_redirects": False,
+            "cert": (
+                settings_prod.LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE,
+                settings_prod.LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE,
+            ),
+            "verify": settings_prod.LX_ANNOTATE_HUB_EXPORT_CA_FILE,
+        }
+        envelope = resolve_hub_export_envelope_config()
+        assert str(envelope.recipient_public_key_file) == (
+            settings_prod.LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE
+        )
+        assert str(envelope.staging_directory) == (
+            settings_prod.LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR
+        )
+        assert resolve_outbound_node_secret(source_node_key="site-node") == (
+            "test-node-secret"
+        )
+        """,
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=REPO_ROOT,
+        env=_production_settings_environment(tmp_path),
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, (
+        "Production Hub export settings probe failed.\n\n"
         f"stdout:\n{completed.stdout}\n\n"
         f"stderr:\n{completed.stderr}"
     )

@@ -229,8 +229,9 @@ Outbound hub transfer is tracked as a separate sender workflow from ingest.
 - only anonymized resources are eligible for outbound transfer
 - the sender exports processed media only
 - resources must be explicitly marked for upload before they are queued
-- the export UI is planned as a new workflow page derived from the
-  anonymization overview, not from the legacy annotation segment export screen
+- the Hub Export UI is a dedicated workflow page derived from the
+  anonymization overview and remains separate from the legacy annotation
+  segment export screen
 
 The sender-side workflow contract is documented in
 [docs/guides/hub-export-workflow.md](docs/guides/hub-export-workflow.md).

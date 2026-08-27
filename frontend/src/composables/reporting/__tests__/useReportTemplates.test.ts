@@ -138,6 +138,40 @@ describe('useReportTemplates', () => {
     expect(catalog.selectedTemplateName.value).toBe('custom_template')
   })
 
+  it('keeps the verified selection when an explicitly requested template is unavailable', async () => {
+    apiMocks.get.mockRejectedValue({
+      response: { status: 404, data: { detail: 'Published template not found' } }
+    })
+    const catalog = useReportTemplates({
+      initialModuleName: 'report_template_examples',
+      initialModuleVersion: '0.1.0',
+      initialTemplateName: 'verified_template'
+    })
+    const verifiedTemplate = {
+      name: 'verified_template',
+      examination: 'colonoscopy',
+      identity: {
+        moduleName: 'report_template_examples',
+        knowledgeBaseVersion: '0.1.0',
+        templateVersion: '1',
+        templateHash: 'verified-hash',
+        lifecycleStatus: 'published' as const,
+        readiness: null
+      },
+      reportSections: [],
+      validators: { examinationValidators: [], findingsValidators: [] },
+      conceptCoverage: null,
+      conceptCoverageState: 'missing' as const
+    }
+    catalog.applyTemplateOptions([verifiedTemplate])
+
+    await expect(catalog.selectTemplateByName('withdrawn_template')).resolves.toBeNull()
+
+    expect(catalog.selectedTemplateName.value).toBe('verified_template')
+    expect(catalog.selectedTemplate.value?.name).toBe('verified_template')
+    expect(catalog.errorMessage.value).toContain('Published template not found')
+  })
+
   it('normalizes malformed template payloads to stable defaults', async () => {
     apiMocks.get.mockResolvedValue({
       data: [

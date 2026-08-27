@@ -225,19 +225,19 @@ export function useReportTemplates(params?: {
     }
   }
 
-  async function selectTemplateByName(name: string | null) {
+  async function selectTemplateByName(name: string | null): Promise<ReportTemplatePayload | null> {
     if (!name) {
       selectedTemplateName.value = null
       selectedTemplate.value = null
-      return
+      return null
     }
-    selectedTemplateName.value = name
     const local = templateOptions.value.find((item) => item.name === name) || null
     if (local) {
       selectedTemplate.value = local
-      return
+      selectedTemplateName.value = local.name
+      return local
     }
-    await fetchTemplateByName(name, { setAsSelected: true })
+    return fetchTemplateByName(name, { setAsSelected: true })
   }
 
   return {

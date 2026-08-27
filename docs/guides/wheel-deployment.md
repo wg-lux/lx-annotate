@@ -343,7 +343,7 @@ use SQLite, but a shared hub deployment must not.
 If the deployment enables `/api/media/hub/transfers/`, treat it as a stricter
 boundary than `/api/upload/`.
 
-Current Phase 1 contract:
+The channel retains the Phase 1 transport and authentication requirements:
 
 - secure transport is required:
   `ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=true`
@@ -371,12 +371,19 @@ Operationally, this means:
 - plain shared-secret authentication alone is not enough for transfer-enabled
   hub deployments
 
-This is still Phase 1 of the security roadmap:
+The deployed transfer boundary also implements Phase 2 envelope encryption:
 
 - transport confidentiality and node authentication are enforced through TLS
   and mTLS
 - request authentication still uses `NetworkNode.shared_secret`
-- exported artifacts are not yet envelope-encrypted at the application layer
+- every standalone processed artifact is encrypted with a fresh per-transfer
+  data-encryption key before upload
+- the data-encryption key is wrapped to the receiving hub key configured by
+  `LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE`
+- persisted envelope staging must be inside `LX_ANNOTATE_ENCRYPTED_DATA_DIR`;
+  configure it with `LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR`
+- neither the sender nor receiver transmits or reuses a long-lived application
+  master key for payload encryption
 
 ## Deployment
 

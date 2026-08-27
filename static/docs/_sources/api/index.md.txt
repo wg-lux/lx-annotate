@@ -195,6 +195,8 @@ artifacts in Phase 2, and KMS-backed key management in Phase 3.
 | --- | --- | --- | --- |
 | `hubExport.overview` | `hub-export/overview/` | `GET` | List exportable and blocked media. |
 | `hubExport.mark` | `hub-export/mark/` | `POST` | Mark media for hub export. |
+| `hubExport.offloadEligibleVideos` | `hub-export/offload-eligible-videos/` | `POST` | Atomically mark and queue all currently eligible videos for the selected hub. |
+| `hubExport.retry(jobId)` | `hub-export/jobs/<jobId>/retry/` | `POST` | Requeue an eligible failed outbound job after server-side validation. |
 | `hubExport.unmark` | `hub-export/unmark/` | `POST` | Remove media from the export queue. |
 
 ## Runtime

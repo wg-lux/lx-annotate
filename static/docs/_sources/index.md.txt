@@ -16,6 +16,7 @@ guides/runtime-environment-contract-test
 guides/encrypted-storage-process
 guides/secure-backup-disaster-recovery
 guides/hub-export-workflow
+guides/hub-storage-load-balancing
 guides/asset-deployment
 guides/wheel-deployment
 guides/pypi

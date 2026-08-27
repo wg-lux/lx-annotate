@@ -73,6 +73,67 @@ describe('reporting indication contract', () => {
     })
   })
 
+  it('normalizes a bare snake-case indication catalog array with flat classifications', () => {
+    const backendCatalog = [
+      {
+        id: 7,
+        name: 'preventive_colonoscopy',
+        name_de: 'Vorsorgekoloskopie',
+        classifications: [
+          {
+            id: 88,
+            name: 'statutory_screening',
+            name_de: 'Gesetzliche Vorsorge'
+          },
+          {
+            id: 89,
+            name: 'family_history',
+            name_de: 'Positive Familienanamnese'
+          }
+        ]
+      }
+    ]
+
+    expect(normalizeReportingIndicationOptions([backendCatalog])).toEqual([
+      {
+        id: 7,
+        label: 'Vorsorgekoloskopie',
+        choices: [
+          { id: 88, label: 'Gesetzliche Vorsorge' },
+          { id: 89, label: 'Positive Familienanamnese' }
+        ]
+      }
+    ])
+  })
+
+  it('keeps nested classification choice payloads compatible', () => {
+    expect(
+      normalizeReportingIndicationOptions([
+        [
+          {
+            id: 7,
+            name_de: 'Vorsorgekoloskopie',
+            classifications: [
+              {
+                id: 500,
+                name_de: 'Klassifikation',
+                classification_choices: [
+                  { id: 88, name: 'routine', name_de: 'Regelvorsorge' }
+                ]
+              }
+            ]
+          }
+        ]
+      ])
+    ).toEqual([
+      {
+        id: 7,
+        label: 'Vorsorgekoloskopie',
+        choices: [{ id: 88, label: 'Regelvorsorge' }]
+      }
+    ])
+  })
+
   it('prefers canonical German labels over stable semantic names', () => {
     expect(
       normalizeReportingIndicationOptions([

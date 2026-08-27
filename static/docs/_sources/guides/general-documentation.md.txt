@@ -14,6 +14,8 @@ This page is the central orientation for `lx-annotate` documentation.
 - `guides/reporting-template-requirements-page`: Reporting workflow, template selection, and requirement-set reference
 - `guides/asset-deployment`: Frontend build/manifest/runtime deployment contract
 - `guides/hub-export-workflow`: Secure outbound transfer and export workflow
+- `guides/hub-storage-load-balancing`: Central-hub storage placement, rotation,
+  rollback, and production-test runbook
 - `guides/ai-training-data-export`: Frame, annotation, AI dataset, and GastroNet-style training exports
 - `guides/segment-annotation-workflow`: Practical video segment review and validation workflow
 - `guides/anonymization-validation-correction-workflow`: Validation/approval and correction flow before reporting

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   extractFindingId,
+  getFindingCatalogLocalizedName,
   mergeFindingClassifications,
   normalizeFinding,
   normalizeFindingChoice,
@@ -93,6 +94,46 @@ describe('findings contract normalization', () => {
     expect(finding.classifications[0].choices[0].numericalDescriptors).toEqual({ sizeMm: 5 })
     expect(mergeFindingClassifications(finding).map((entry) => entry.id)).toEqual([10, 11])
     expect(finding.FindingClassifications.map((entry) => entry.id)).toEqual([10])
+  })
+
+  it('preserves German and English labels from snake-case catalog payloads', () => {
+    const finding = normalizeFinding(
+      findingPayload({
+        name_de: 'Kolonpolyp',
+        name_en: 'Colon polyp',
+        nameDe: undefined,
+        classifications: [
+          classificationPayload({
+            name_de: 'Größe',
+            name_en: 'Size',
+            choices: [
+              choicePayload({ name_de: 'Klein', name_en: 'Small' })
+            ]
+          })
+        ]
+      })
+    )
+
+    expect(finding).toMatchObject({
+      nameDe: 'Kolonpolyp',
+      nameEn: 'Colon polyp',
+      classifications: [
+        {
+          nameDe: 'Größe',
+          nameEn: 'Size',
+          choices: [{ nameDe: 'Klein', nameEn: 'Small' }]
+        }
+      ]
+    })
+    expect(getFindingCatalogLocalizedName(finding, 'de')).toBe('Kolonpolyp')
+    expect(getFindingCatalogLocalizedName(finding, 'en')).toBe('Colon polyp')
+  })
+
+  it('uses the stable semantic name when the requested localized label is absent', () => {
+    const finding = normalizeFinding(findingPayload({ nameDe: undefined }))
+
+    expect(getFindingCatalogLocalizedName(finding, 'de')).toBe('colon_polyp')
+    expect(getFindingCatalogLocalizedName(finding, 'en')).toBe('colon_polyp')
   })
 
   it('retains direct snake_case compatibility for contract-level fixtures', () => {

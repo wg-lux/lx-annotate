@@ -35,6 +35,7 @@ describe('reportingFlowStore template draft state', () => {
     setActivePinia(createPinia())
     hoisted.reportDraftApi.savePatientExaminationDraft.mockResolvedValue({
       patient_examination_id: 42,
+      revision: 1,
       draft: {
         module_name: 'report_template_examples',
         template_name: 'star_upper_gi_main',
@@ -188,14 +189,103 @@ describe('reportingFlowStore template draft state', () => {
 
     const firstSave = hoisted.reportDraftApi.savePatientExaminationDraft.mock.calls[0][0]
     expect(firstSave.patientExaminationId).toBe(42)
+    expect(firstSave.expectedRevision).toBe(0)
     expect(firstSave.moduleName).toBe('report_template_examples')
     expect(firstSave.templateName).toBe('star_upper_gi_main')
+    expect(firstSave).toMatchObject({
+      indications: [{ examinationIndicationId: null, indicationChoiceId: null }],
+      templateSectionDrafts: {},
+      selectedReportLanguage: 'de',
+      activeReportId: null,
+      reportTextMode: 'generated',
+      renderedText: ''
+    })
     expect(firstSave.payload).toMatchObject({
       patient: 'patient_7',
       examination: 'colonoscopy'
     })
     expect(flow.draftPersistenceStatus).toBe('saved')
+    expect(flow.currentRuntimeDraft?.revision).toBe(1)
     expect(flow.lastPersistedDraftAt).toBe('2026-03-19T14:00:00.000Z')
+  })
+
+  it('uses the server revision recorded during restored draft hydration on the next save', async () => {
+    const flow = useReportingFlowStore()
+    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setRuntimeDraft({
+      draftId: 'draft_42',
+      patientExaminationId: 42,
+      moduleName: 'report_template_examples',
+      templateName: 'star_upper_gi_main',
+      payload: {
+        patient: 'patient_7',
+        examiners: [],
+        examination: 'colonoscopy',
+        patientFindings: []
+      },
+      hydratedFrom: 'draft_api',
+      updatedAt: '2026-03-19T13:55:00.000Z'
+    })
+    flow.markDraftPersistenceHydrated('2026-03-19T14:00:00.000Z', 5)
+    flow.addFinding({ findingName: 'colon_polyp' })
+
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedRevision: 5 })
+    )
+  })
+
+  it('autosaves report configuration changes as part of the complete draft document', async () => {
+    const flow = useReportingFlowStore()
+    flow.bindAuthSubject('oidc:user-1')
+    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setRuntimeDraft({
+      draftId: 'draft_42',
+      patientExaminationId: 42,
+      moduleName: 'report_template_examples',
+      templateName: 'star_upper_gi_main',
+      payload: {
+        patient: 'patient_7',
+        examiners: [],
+        examination: 'colonoscopy',
+        patientFindings: []
+      },
+      hydratedFrom: 'backend_context',
+      updatedAt: '2026-03-19T13:55:00.000Z'
+    })
+    await vi.advanceTimersByTimeAsync(1500)
+    hoisted.reportDraftApi.savePatientExaminationDraft.mockClear()
+
+    flow.updateIndicationRow(0, { examinationIndicationId: 12, indicationChoiceId: 21 })
+    flow.setTemplateSectionDraft('examination_baseline', {
+      note: 'Clinically relevant note',
+      includePatientData: true
+    })
+    flow.setReportLanguage('en')
+    flow.setActiveReportId(88)
+    flow.setRenderedReportText('Klinischer Freitext', 'manual')
+
+    expect(flow.hasUnpersistedDraftChanges).toBe(true)
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        indications: [{ examinationIndicationId: 12, indicationChoiceId: 21 }],
+        templateSectionDrafts: {
+          examination_baseline: {
+            note: 'Clinically relevant note',
+            includePatientData: true,
+            includeExaminationData: false
+          }
+        },
+        selectedReportLanguage: 'en',
+        activeReportId: 88,
+        reportTextMode: 'manual',
+        renderedText: 'Klinischer Freitext'
+      })
+    )
+    expect(flow.hasUnpersistedDraftChanges).toBe(false)
   })
 
   it('tracks whether the current runtime draft has unpersisted changes', async () => {
@@ -303,6 +393,7 @@ describe('reportingFlowStore template draft state', () => {
   it('drains edits made while an autosave request is still in flight', async () => {
     const firstSave = deferred<{
       patient_examination_id: number
+      revision: number
       draft: Record<string, never>
       updated_at: string
     }>()
@@ -310,6 +401,7 @@ describe('reportingFlowStore template draft state', () => {
       .mockImplementationOnce(() => firstSave.promise)
       .mockResolvedValueOnce({
         patient_examination_id: 42,
+        revision: 2,
         draft: {},
         updated_at: '2026-03-19T14:01:00.000Z'
       })
@@ -335,6 +427,7 @@ describe('reportingFlowStore template draft state', () => {
     flow.addFinding({ findingName: 'colon_polyp' })
     firstSave.resolve({
       patient_examination_id: 42,
+      revision: 1,
       draft: {},
       updated_at: '2026-03-19T14:00:00.000Z'
     })
@@ -424,6 +517,7 @@ describe('reportingFlowStore template draft state', () => {
       }
     })
     const flow = useReportingFlowStore()
+    flow.bindAuthSubject('oidc:user-1')
     flow.setPatientExaminationContext({ patientExaminationId: 42 })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
@@ -445,5 +539,75 @@ describe('reportingFlowStore template draft state', () => {
     expect(flow.draftPersistenceStatus).toBe('error')
     expect(flow.draftPersistenceError).toContain('template_identity.readiness')
     expect(flow.hasUnpersistedDraftChanges).toBe(true)
+  })
+
+  it('preserves local content and stops autosave after a stale draft revision conflict', async () => {
+    hoisted.reportDraftApi.savePatientExaminationDraft.mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          detail: 'The report draft was modified by another writer.',
+          current_revision: 7,
+          updated_at: '2026-03-19T14:01:00.000Z'
+        }
+      }
+    })
+    const flow = useReportingFlowStore()
+    flow.bindAuthSubject('oidc:user-1')
+    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setRuntimeDraft({
+      draftId: 'draft_42',
+      patientExaminationId: 42,
+      moduleName: 'report_template_examples',
+      templateName: 'star_upper_gi_main',
+      payload: {
+        patient: 'patient_7',
+        examiners: [],
+        examination: 'colonoscopy',
+        patientFindings: []
+      },
+      hydratedFrom: 'backend_context',
+      updatedAt: '2026-03-19T13:55:00.000Z',
+      revision: 3
+    })
+    flow.setRenderedReportText('Lokaler klinischer Freitext', 'manual')
+    flow.updateIndicationRow(0, { examinationIndicationId: 12, indicationChoiceId: 21 })
+
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedRevision: 3 })
+    )
+    expect(flow.draftPersistenceStatus).toBe('conflict')
+    expect(flow.draftPersistenceError).toContain('nicht überschrieben')
+    expect(flow.draftConflict).toEqual({
+      patientExaminationId: 42,
+      expectedRevision: 3,
+      currentRevision: 7,
+      updatedAt: '2026-03-19T14:01:00.000Z'
+    })
+    expect(flow.renderedReportText).toBe('Lokaler klinischer Freitext')
+    expect(flow.reportTextMode).toBe('manual')
+    expect(flow.indications).toEqual([{ examinationIndicationId: 12, indicationChoiceId: 21 }])
+    expect(flow.currentRuntimeDraft?.revision).toBe(3)
+    expect(flow.hasUnpersistedDraftChanges).toBe(true)
+
+    flow.addFinding({ findingName: 'colon_polyp' })
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledTimes(1)
+    await expect(flow.flushDraftAutosave()).rejects.toMatchObject({
+      name: 'DraftRevisionConflictError'
+    })
+
+    expect(flow.discardConflictedLocalDraft()).toBe(true)
+    expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledTimes(1)
+    expect(flow.currentRuntimeDraft).toBeNull()
+    expect(flow.renderedReportText).toBe('')
+    expect(flow.draftConflict).toBeNull()
+    const persisted = JSON.parse(sessionStorage.getItem('reportingFlowState.v2') || '{}') as {
+      state?: { renderedReportText?: string; runtimeDraftsByPatientExaminationId?: Record<string, unknown> }
+    }
+    expect(persisted.state?.renderedReportText).toBe('')
+    expect(persisted.state?.runtimeDraftsByPatientExaminationId?.['42']).toBeUndefined()
   })
 })

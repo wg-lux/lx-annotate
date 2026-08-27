@@ -439,7 +439,23 @@
       </div>
     </section>
 
-    <div class="reporting-workspace-grid">
+    <div class="reporting-workspace-toolbar">
+      <button
+        class="btn btn-outline-secondary btn-sm"
+        type="button"
+        aria-controls="reporting-technical-inspector"
+        :aria-expanded="isTechnicalInspectorOpen"
+        @click="isTechnicalInspectorOpen = !isTechnicalInspectorOpen"
+      >
+        <i class="fas fa-sliders-h me-1" aria-hidden="true"></i>
+        {{ isTechnicalInspectorOpen ? 'Technische Details ausblenden' : 'Technische Details' }}
+      </button>
+    </div>
+
+    <div
+      class="reporting-workspace-grid"
+      :class="{ 'has-technical-inspector': isTechnicalInspectorOpen }"
+    >
       <aside class="reporting-left-rail">
         <div class="card shadow-sm finding-status-panel">
           <div class="card-header d-flex align-items-center justify-content-between gap-2">
@@ -452,6 +468,45 @@
             </span>
           </div>
           <div class="card-body p-0">
+            <div v-if="findingStatusRows.length" class="finding-status-controls p-3">
+              <label class="form-label small fw-semibold" for="finding-status-search">
+                Befunde filtern
+              </label>
+              <input
+                id="finding-status-search"
+                v-model="findingStatusQuery"
+                class="form-control form-control-sm"
+                type="search"
+                placeholder="Name oder Kennung"
+              />
+              <label class="form-label small fw-semibold mt-2" for="finding-status-filter">
+                Status
+              </label>
+              <select
+                id="finding-status-filter"
+                v-model="findingStatusFilter"
+                class="form-select form-select-sm"
+              >
+                <option value="open">Nur offene</option>
+                <option value="missing">Fehlend</option>
+                <option value="warning">Zu prüfen</option>
+                <option value="all">Alle</option>
+                <option value="complete">Vollständig</option>
+                <option value="required">Erforderlich</option>
+                <option value="optional">Optional</option>
+              </select>
+              <div class="finding-status-filter-summary mt-2" aria-live="polite">
+                {{ filteredFindingStatusSummary }}
+                <button
+                  v-if="hasFindingStatusFilter"
+                  class="btn btn-link btn-sm p-0"
+                  type="button"
+                  @click="resetFindingStatusFilters"
+                >
+                  Filter zurücksetzen
+                </button>
+              </div>
+            </div>
             <div v-if="findingStatusSections.length" class="finding-status-list">
               <section
                 v-for="section in findingStatusSections"
@@ -464,6 +519,9 @@
                   :key="row.key"
                   :to="findingStatusTarget(row)"
                   class="finding-status-row"
+                  :data-finding-key="row.normalizedKey"
+                  :aria-label="`${row.label}: ${row.statusLabel}`"
+                  :title="row.label"
                   :class="[
                     `is-${row.status}`,
                     { 'is-selected': row.normalizedKey === activeReferenceFindingKey }
@@ -480,6 +538,18 @@
                   <span class="finding-status-count">{{ row.instanceCount }}</span>
                 </RouterLink>
               </section>
+            </div>
+            <div v-if="hasMoreFindingStatusRows" class="finding-status-more p-3 pt-2">
+              <button
+                class="btn btn-outline-secondary btn-sm w-100"
+                type="button"
+                @click="showMoreFindingStatusRows"
+              >
+                Weitere Befunde anzeigen
+              </button>
+            </div>
+            <div v-else-if="findingStatusRows.length" class="p-3 small text-muted" role="status">
+              Keine Befunde entsprechen den gewählten Filtern.
             </div>
             <div v-else class="p-3 small text-muted">
               Noch kein Template oder lokaler Befundentwurf für die Statusliste geladen.
@@ -684,7 +754,12 @@
         <RouterView />
       </main>
 
-      <aside class="reporting-right-rail">
+      <aside
+        v-show="isTechnicalInspectorOpen"
+        id="reporting-technical-inspector"
+        class="reporting-right-rail"
+        aria-label="Technische Berichtsdetails"
+      >
         <div class="card shadow-sm concept-coverage-panel mb-3">
           <div class="card-header d-flex justify-content-between align-items-start gap-2">
             <div>
@@ -897,6 +972,7 @@ import {
   fetchKnowledgeBaseGraphSnapshot
 } from '@/api/knowledgeBaseGraphApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
+import type { ReportDraftBlob } from '@/api/reportDraftApi'
 import { createCaseWithExamination, fetchPatientCases, type PatientCase } from '@/api/casesApi'
 import {
   fetchReportingLanguages,
@@ -907,7 +983,8 @@ import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import {
   buildReportTemplateRuntimePayload,
   describeReportTemplateTitle,
-  getReportTemplateDisplayName
+  getReportTemplateDisplayName,
+  getReportTemplateSectionDisplayName
 } from '@/api/reportTemplatesApi'
 import {
   getFindingDisplayName,
@@ -991,6 +1068,19 @@ const reportingVideoElement = ref<HTMLVideoElement | null>(null)
 const selectedVideoArtifactKind = ref<StreamableVideoFileType>('processed')
 const selectedFrameStreamUrl = ref<string | null>(null)
 const isContextPanelOpen = ref(false)
+const isTechnicalInspectorOpen = ref(false)
+const findingStatusQuery = ref('')
+type FindingStatusFilter =
+  | 'open'
+  | 'missing'
+  | 'warning'
+  | 'all'
+  | 'complete'
+  | 'required'
+  | 'optional'
+const findingStatusFilter = ref<FindingStatusFilter>('open')
+const FINDING_STATUS_PAGE_SIZE = 50
+const findingStatusVisibleLimit = ref(FINDING_STATUS_PAGE_SIZE)
 const terminologyLoadPromise = ref<Promise<void> | null>(null)
 const terminologyFolderInput = ref<HTMLInputElement | null>(null)
 const terminologyZipInput = ref<HTMLInputElement | null>(null)
@@ -1606,7 +1696,7 @@ const findingStatusRows = computed<FindingStatusRow[]>(() => {
 
   for (const section of templateSectionsForReference.value) {
     const sectionKey = normalizeKey(section.name)
-    const sectionTitle = formatKnowledgeName(section.name)
+    const sectionTitle = getReportTemplateSectionDisplayName(section, flow.selectedReportLanguage)
     for (const templateFinding of section.findings) {
       rows.push(
         buildFindingStatusRow({
@@ -1633,9 +1723,29 @@ const findingStatusRows = computed<FindingStatusRow[]>(() => {
   )
 })
 
+const filteredFindingStatusRows = computed(() => {
+  const query = normalizeKey(findingStatusQuery.value)
+  return findingStatusRows.value.filter((row) => {
+    const statusMatches =
+      findingStatusFilter.value === 'all' ||
+      (findingStatusFilter.value === 'missing' && row.status === 'missing') ||
+      (findingStatusFilter.value === 'warning' && row.status === 'warning') ||
+      (findingStatusFilter.value === 'complete' && row.status === 'complete') ||
+      (findingStatusFilter.value === 'required' && row.required) ||
+      (findingStatusFilter.value === 'optional' && !row.required) ||
+      (findingStatusFilter.value === 'open' &&
+        (row.status === 'warning' || row.status === 'missing'))
+    if (!statusMatches) return false
+    if (!query) return true
+    return [row.label, row.findingName, row.sectionTitle].some((value) =>
+      normalizeKey(value).includes(query)
+    )
+  })
+})
+
 const findingStatusSections = computed<FindingStatusSection[]>(() => {
   const sections = new Map<string, FindingStatusSection>()
-  for (const row of findingStatusRows.value) {
+  for (const row of filteredFindingStatusRows.value.slice(0, findingStatusVisibleLimit.value)) {
     if (!sections.has(row.sectionKey)) {
       sections.set(row.sectionKey, {
         key: row.sectionKey,
@@ -1646,6 +1756,34 @@ const findingStatusSections = computed<FindingStatusSection[]>(() => {
     sections.get(row.sectionKey)?.rows.push(row)
   }
   return Array.from(sections.values())
+})
+
+const filteredFindingStatusCount = computed(() => filteredFindingStatusRows.value.length)
+
+const hasMoreFindingStatusRows = computed(
+  () => filteredFindingStatusCount.value > findingStatusVisibleLimit.value
+)
+
+const filteredFindingStatusSummary = computed(
+  () =>
+    `${String(filteredFindingStatusCount.value)} von ${String(findingStatusRows.value.length)} Befunden`
+)
+
+const hasFindingStatusFilter = computed(
+  () => findingStatusFilter.value !== 'open' || Boolean(findingStatusQuery.value.trim())
+)
+
+function resetFindingStatusFilters() {
+  findingStatusQuery.value = ''
+  findingStatusFilter.value = 'open'
+}
+
+function showMoreFindingStatusRows() {
+  findingStatusVisibleLimit.value += FINDING_STATUS_PAGE_SIZE
+}
+
+watch([findingStatusQuery, findingStatusFilter], () => {
+  findingStatusVisibleLimit.value = FINDING_STATUS_PAGE_SIZE
 })
 
 const findingProgressSummary = computed(() => {
@@ -3139,9 +3277,15 @@ async function hydrateRuntimeDraftFromDraftApi(
       : null
   const updatedAt = response.updatedAt ?? response.updated_at ?? null
   if (!isRuntimePayload(draft.payload)) {
-    flow.markDraftPersistenceHydrated(updatedAt)
+    flow.markDraftPersistenceHydrated(updatedAt, response.revision)
     return false
   }
+
+  pendingBackendDraftDocuments.set(patientExaminationId, {
+    draft,
+    updatedAt,
+    revision: response.revision
+  })
 
   flow.setTemplateSelection({
     moduleName: context.moduleName,
@@ -3160,7 +3304,7 @@ async function hydrateRuntimeDraftFromDraftApi(
     persistencePolicy: context.moduleName ? 'blocked_until_verified' : 'persistable',
     updatedAt: updatedAt || new Date().toISOString()
   })
-  flow.markDraftPersistenceHydrated(updatedAt)
+  flow.markDraftPersistenceHydrated(updatedAt, response.revision)
   return true
 }
 
@@ -3185,6 +3329,11 @@ function restoredDraftMatchesContext(
   }
   return true
 }
+
+const pendingBackendDraftDocuments = new Map<
+  number,
+  { draft: ReportDraftBlob; updatedAt: string | null; revision: number }
+>()
 
 function restoredDraftMatchesKnowledgeBase(
   draft: ReportingRuntimeDraft,
@@ -3266,6 +3415,7 @@ async function validateRestoredDraftTemplate(
   const matchingTemplate = selected || null
   const selectedIdentity = matchingTemplate?.identity || emptyTemplateIdentity
   if (!restoredDraftMatchesActiveTemplate(detail, draft, matchingTemplate, context)) {
+    pendingBackendDraftDocuments.delete(context.patientExaminationId)
     flow.setTemplateSelection({ templateName: null, templateIdentity: null })
     flow.setRuntimeDraft({
       ...draft,
@@ -3289,6 +3439,15 @@ async function validateRestoredDraftTemplate(
     templateName: matchingTemplate?.name || null,
     templateIdentity: matchingTemplate?.identity || emptyTemplateIdentity
   })
+  const backendDraftDocument = pendingBackendDraftDocuments.get(context.patientExaminationId)
+  if (backendDraftDocument) {
+    flow.applyBackendDraftDocument(backendDraftDocument.draft)
+    flow.markDraftPersistenceHydrated(
+      backendDraftDocument.updatedAt,
+      backendDraftDocument.revision
+    )
+    pendingBackendDraftDocuments.delete(context.patientExaminationId)
+  }
 }
 
 async function loadPatientExaminationDraftContext(
@@ -3650,9 +3809,19 @@ onMounted(() => {
 
 .reporting-workspace-grid {
   display: grid;
-  grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr) minmax(17rem, 22rem);
+  grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+}
+
+.reporting-workspace-grid.has-technical-inspector {
+  grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr) minmax(17rem, 22rem);
+}
+
+.reporting-workspace-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
 }
 
 .reporting-left-rail,
@@ -4030,6 +4199,29 @@ onMounted(() => {
   border-bottom: 1px solid #e5ebf2;
 }
 
+.finding-status-controls {
+  border-bottom: 1px solid #e5ebf2;
+}
+
+.finding-status-filter-summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #66768c;
+  font-size: 0.75rem;
+}
+
+.finding-status-list {
+  overflow: auto;
+  max-height: min(60vh, 42rem);
+}
+
+.finding-status-more {
+  border-top: 1px solid #e5ebf2;
+}
+
 .finding-status-section:last-child {
   border-bottom: 0;
 }
@@ -4101,11 +4293,19 @@ onMounted(() => {
 }
 
 .finding-status-label {
+  display: -webkit-box;
   overflow: hidden;
   font-weight: 700;
   line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.concept-coverage-panel .card-header > div,
+.concept-coverage-panel .card-body .d-flex > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .finding-status-meta,
@@ -4227,6 +4427,10 @@ onMounted(() => {
     grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
   }
 
+  .reporting-workspace-grid.has-technical-inspector {
+    grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
+  }
+
   .reporting-right-rail {
     grid-column: 1 / -1;
     position: static;
@@ -4267,6 +4471,10 @@ onMounted(() => {
 }
 
 @media (max-width: 575.98px) {
+  .reporting-workspace-toolbar .btn {
+    width: 100%;
+  }
+
   .context-case-select .btn {
     width: 100%;
   }

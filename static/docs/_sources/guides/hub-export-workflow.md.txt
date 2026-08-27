@@ -322,6 +322,8 @@ LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=true
 LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE=/run/secrets/hub-client.crt
 LX_ANNOTATE_HUB_EXPORT_CLIENT_KEY_FILE=/run/secrets/hub-client.key
 LX_ANNOTATE_HUB_EXPORT_CA_FILE=/run/secrets/hub-ca.crt
+LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE=/run/secrets/hub-recipient.pub
+LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR=/var/lib/lx-annotate/data/hub-export-envelopes
 LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE=/run/secrets/hub-node-secret
 LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=false
 LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY=retain_processed_media
@@ -335,8 +337,10 @@ false. The target `NetworkNode.base_url` must use `https://`.
 Before enabling queueing, an authenticated operator must:
 
 1. Open the administration overview and confirm that one active site node,
-   exactly one active hub target, an HTTPS target, readable mTLS files, and the
-   configured certificate-authority bundle are reported ready.
+   exactly one active hub target, an HTTPS target, readable mTLS files, the
+   configured certificate-authority bundle, the recipient public key, and an
+   envelope staging directory inside `LX_ANNOTATE_ENCRYPTED_DATA_DIR` are
+   reported ready.
 2. Open the hub-export overview and confirm the displayed operator identity,
    target node, selected resource count, anonymization readiness, and privacy
    summary.
@@ -453,7 +457,8 @@ therefore does not remove the Hub-side AI source.
 
 The sender-side workflow is intentionally explicit:
 
-- processing completion makes a resource eligible
+- processing completion plus the required human validations and persisted
+  integrity proof makes a resource eligible
 - operator marking authorizes export
 - a local transfer ledger tracks progress
 - retries reuse the same deterministic transfer identity

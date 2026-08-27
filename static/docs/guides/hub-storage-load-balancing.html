@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Frontend Asset Deployment Contract" href="asset-deployment.html"><link rel="prev" title="Hub Export Workflow" href="hub-export-workflow.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Hub storage load balancing and production-test runbook - lx-annotate Documentation</title>
@@ -192,13 +192,14 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="runtime-environment-contract-test.html">Runtime environment migration and rollback record</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
 <li class="toctree-l1"><a class="reference internal" href="secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Hub storage load balancing and production-test runbook</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pypi.html">PyPI Publishing</a></li>
@@ -362,10 +363,13 @@ new certificates overlap for the planned rotation window, revocation/expiry
 behavior is known, and private routing/firewall policy has been independently
 verified.</p>
 </section>
-<section id="current-local-readiness-evidence-2026-08-11">
-<h2>Current local readiness evidence (2026-08-11)<a class="headerlink" href="#current-local-readiness-evidence-2026-08-11" title="Link to this heading">¶</a></h2>
-<p>The previously recorded local candidate was typed and regression-tested, but it
-is not yet approved for a production test. Candidate <code class="docutils literal notranslate"><span class="pre">endoreg-db</span> <span class="pre">1.0.10.0</span></code> and <code class="docutils literal notranslate"><span class="pre">lx-annotate</span> <span class="pre">0.9.62</span></code>
+<section id="archived-local-readiness-evidence-2026-08-11">
+<h2>Archived local readiness evidence (2026-08-11)<a class="headerlink" href="#archived-local-readiness-evidence-2026-08-11" title="Link to this heading">¶</a></h2>
+<p>This section records historical candidate evidence; it does not describe the
+current package versions and must not be used as release or production
+approval. The previously recorded local candidate was typed and
+regression-tested, but it was not approved for a production test. Candidate
+<code class="docutils literal notranslate"><span class="pre">endoreg-db</span> <span class="pre">1.0.10.0</span></code> and <code class="docutils literal notranslate"><span class="pre">lx-annotate</span> <span class="pre">0.9.62</span></code>
 wheels migrated a fresh disposable PostgreSQL 17 database through the expected
 leaves (<code class="docutils literal notranslate"><span class="pre">endoreg_db</span> <span class="pre">0047</span></code>, <code class="docutils literal notranslate"><span class="pre">lx_annotate</span> <span class="pre">0004</span></code>, and <code class="docutils literal notranslate"><span class="pre">lx_dtypes_django</span> <span class="pre">0004</span></code>), and
 <code class="docutils literal notranslate"><span class="pre">makemigrations</span> <span class="pre">--check</span> <span class="pre">--dry-run</span></code> reported no drift. A separate real PostgreSQL
@@ -391,7 +395,7 @@ migration 0005/override 0050. Per owner instruction, those latest changes have
 not been executed or re-certified here; the evidence owner must run the commands
 below against the final wheels before this document can support a production-test
 request.</p>
-<p>it adds LX-Annotate migration 0006.
+<p>The later publication delta adds LX-Annotate migration 0006.
 An immutable publication row is keyed by the database resource and its approved
 processed SHA-256 generation. Signals only persist that row; workers receive its
 UUID, reload the resource, require the current video <code class="docutils literal notranslate"><span class="pre">ready_for_export</span></code> proof or
@@ -410,10 +414,10 @@ CORS behavior; raw PDF access remains local. Ready HLS playlist/key/segment
 serving is deliberately unchanged because it is a separate generation-bound
 multi-object lifecycle. No command evidence has been collected for this latest
 delta at the owner’s request.</p>
-<p>The remaining start-of-production-test blockers are external and release-bound:</p>
+<p>The blockers recorded with that candidate were external and release-bound:</p>
 <ul class="simple">
-<li><p>publish and lock the approved <code class="docutils literal notranslate"><span class="pre">endoreg-db</span> <span class="pre">1.0.11.0</span></code> artifact, then build the
-official LX and LuxNix release artifacts from the archived revisions;</p></li>
+<li><p>publish and lock the approved endoreg-db artifact, then build the official LX
+and LuxNix release artifacts from the archived revisions;</p></li>
 <li><p>migrate <code class="docutils literal notranslate"><span class="pre">/archive</span></code> on gs-01 from its current plaintext Btrfs layout to the
 approved encrypted <code class="docutils literal notranslate"><span class="pre">/dev/mapper/gs-01-storage</span></code> mapping, restore it, and verify
 its inventory and hashes;</p></li>
@@ -526,8 +530,26 @@ and tracker output with the production-test approval record.</p>
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="asset-deployment.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Frontend Asset Deployment Contract</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="hub-export-workflow.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Hub Export Workflow</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -563,7 +585,7 @@ and tracker output with the production-test approval record.</p>
 <li><a class="reference internal" href="#ownership-and-data-boundary">Ownership and data boundary</a></li>
 <li><a class="reference internal" href="#lifecycle-invariants">Lifecycle invariants</a></li>
 <li><a class="reference internal" href="#pre-production-gates">Pre-production gates</a></li>
-<li><a class="reference internal" href="#current-local-readiness-evidence-2026-08-11">Current local readiness evidence (2026-08-11)</a></li>
+<li><a class="reference internal" href="#archived-local-readiness-evidence-2026-08-11">Archived local readiness evidence (2026-08-11)</a></li>
 <li><a class="reference internal" href="#production-test-sequence-manual-approval-required">Production test sequence (manual approval required)</a></li>
 <li><a class="reference internal" href="#rollback-and-incident-response">Rollback and incident response</a></li>
 <li><a class="reference internal" href="#commands-for-the-evidence-owner">Commands for the evidence owner</a></li>
@@ -578,7 +600,7 @@ and tracker output with the production-test approval record.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=e2a723ec"></script>
+</div><script src="../_static/documentation_options.js?v=aec50437"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

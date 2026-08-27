@@ -66,7 +66,15 @@ function normalizeChoices(value: unknown): ReportingIndicationChoiceOption[] {
 
 function choicesFromClassifications(value: unknown): ReportingIndicationChoiceOption[] {
   if (!Array.isArray(value)) return []
-  return value.flatMap((entry) => normalizeChoices(asRecord(entry).choices))
+  return value.flatMap((entry) => {
+    const classification = asRecord(entry)
+    const nestedChoices = [
+      ...normalizeChoices(classification.choices),
+      ...normalizeChoices(classification.classificationChoices),
+      ...normalizeChoices(classification.classification_choices)
+    ]
+    return nestedChoices.length ? nestedChoices : normalizeChoices(classification)
+  })
 }
 
 function normalizeIndication(value: unknown): ReportingIndicationOption | null {
@@ -154,6 +162,13 @@ export function normalizeReportingIndicationOptions(
   payloads: readonly unknown[]
 ): ReportingIndicationOption[] {
   const optionsById = new Map<number, ReportingIndicationOption>()
+  for (const payload of payloads) {
+    if (!Array.isArray(payload)) continue
+    for (const entry of payload) {
+      const option = normalizeIndication(entry)
+      if (option) mergeOption(optionsById, option)
+    }
+  }
   const records = payloads.flatMap(payloadRecords)
   for (const record of records) {
     const candidates = [

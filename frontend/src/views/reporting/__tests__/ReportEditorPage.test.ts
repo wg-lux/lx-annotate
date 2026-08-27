@@ -45,7 +45,7 @@ const hoisted = vi.hoisted(() => {
       setModuleName: vi.fn(),
       setRequestContext: vi.fn(),
       applyTemplateOptions: vi.fn(),
-      selectTemplateByName: vi.fn().mockResolvedValue(undefined),
+      selectTemplateByName: vi.fn(),
       fetchTemplatesByExamination: vi.fn().mockResolvedValue([])
     },
     knowledgeBaseGraphApi: {
@@ -63,7 +63,8 @@ const hoisted = vi.hoisted(() => {
       exams: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
       examinationsDropdown: [{ id: 9, name: 'gastroscopy', displayName: 'Gastroskopie' }],
       fetchExaminations: vi.fn().mockResolvedValue(undefined)
-    }
+    },
+    router: { go: vi.fn() }
   }
 })
 
@@ -75,7 +76,8 @@ vi.mock('vue-router', () => ({
     params: {
       patient_examination_id: '42'
     }
-  })
+  }),
+  useRouter: () => hoisted.router
 }))
 
 vi.mock('@/composables/useDebug', () => ({
@@ -190,6 +192,8 @@ function buildFlowStore() {
     selectedReportLanguage: 'de',
     selectedTemplateName: 'star_upper_gi_main',
     activeReportId: null as number | null,
+    reportTextMode: 'generated',
+    renderedReportText: '',
     indications: [{ examinationIndicationId: null, indicationChoiceId: null }],
     templateSectionDrafts,
     currentRuntimeDraft: {
@@ -238,6 +242,12 @@ function buildFlowStore() {
     },
     draftPersistenceStatus: 'saved',
     draftPersistenceError: null as string | null,
+    draftConflict: null as {
+      patientExaminationId: number
+      expectedRevision: number
+      currentRevision: number
+      updatedAt: string | null
+    } | null,
     lastPersistedDraftAt: '2026-03-19T15:01:00.000Z',
     savingFinalReport: false,
     mediaPreload: null,
@@ -261,9 +271,14 @@ function buildFlowStore() {
     setActiveReportId: vi.fn((id: number | null) => {
       flow.activeReportId = id
     }),
+    setRenderedReportText: vi.fn((text: string, mode: 'generated' | 'manual') => {
+      flow.renderedReportText = text
+      flow.reportTextMode = mode
+    }),
     setSavingFinalReport: vi.fn((value: boolean) => {
       flow.savingFinalReport = value
-    })
+    }),
+    discardConflictedLocalDraft: vi.fn(() => false)
   })
 
   return flow
@@ -299,6 +314,10 @@ describe('ReportEditorPage draft-driven workflow', () => {
     vi.clearAllMocks()
     hoisted.debugRef.current = false
     hoisted.flowRef.current = buildFlowStore()
+    hoisted.router.go.mockReset()
+    hoisted.templateControls.selectTemplateByName.mockResolvedValue({
+      name: 'star_upper_gi_main'
+    })
     hoisted.terminologyStore.activeBundle = {
       moduleName: 'report_template_examples',
       version: '1.0.0'
@@ -372,11 +391,14 @@ describe('ReportEditorPage draft-driven workflow', () => {
               id: 1,
               name: 'esophagus_polyp',
               name_de: 'Ösophaguspolyp',
+              location_classifications: [],
+              morphology_classifications: [],
               classifications: [
                 {
                   id: 2,
                   name: 'size_mm',
                   name_de: 'Größe',
+                  required: true,
                   classification_types: [],
                   choices: [{ id: 3, name: 'size_mm', name_de: 'Millimeter' }]
                 }
@@ -444,6 +466,38 @@ describe('ReportEditorPage draft-driven workflow', () => {
     ])
     expect(savePayload.editorPayload).toMatchObject({ reportLanguage: 'de' })
     expect(savePayload.renderedText).toContain('Ösophaguspolyp: Größe: Millimeter')
+  })
+
+  it('requires confirmation before discarding a conflicted local draft and reloading the server state', async () => {
+    const flow = hoisted.flowRef.current
+    flow.draftPersistenceStatus = 'conflict'
+    flow.draftConflict = {
+      patientExaminationId: 42,
+      expectedRevision: 3,
+      currentRevision: 4,
+      updatedAt: '2026-03-19T15:02:00.000Z'
+    }
+    const discard = vi.fn(() => true)
+    flow.discardConflictedLocalDraft = discard
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const wrapper = mountPage()
+    await flushPromises()
+
+    const alert = wrapper.get('[data-testid="draft-revision-conflict"]')
+    expect(alert.text()).toContain('nicht automatisch überschrieben')
+    const reloadButton = wrapper.get('[data-testid="discard-conflicted-draft"]')
+    expect((wrapper.findAll('button').find((button) => button.text().includes('Final speichern'))
+      ?.element as HTMLButtonElement).disabled).toBe(true)
+
+    await reloadButton.trigger('click')
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(discard).not.toHaveBeenCalled()
+    expect(hoisted.router.go).not.toHaveBeenCalled()
+
+    confirm.mockReturnValue(true)
+    await reloadButton.trigger('click')
+    expect(discard).toHaveBeenCalledTimes(1)
+    expect(hoisted.router.go).toHaveBeenCalledWith(0)
   })
 
   it('renders the active knowledge-base module as read-only context', async () => {
@@ -550,6 +604,122 @@ describe('ReportEditorPage draft-driven workflow', () => {
     expect(
       (wrapper.get('[data-testid="report-text-editor"]').element as HTMLTextAreaElement).value
     ).toContain(expected)
+  })
+
+  it('uses bilingual finding-catalog labels when core concept labels are unavailable', async () => {
+    hoisted.flowRef.current.selectedReportLanguage = 'en'
+    const graphImplementation = hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.getMockImplementation()
+    if (!graphImplementation) throw new Error('Expected the graph fixture implementation.')
+    hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementation(
+      (...args: [string, string, string]) => {
+        const response = graphImplementation(...args) as {
+          concepts: Record<string, unknown>
+          [key: string]: unknown
+        }
+        return {
+          ...response,
+          concepts: {
+            ...response.concepts,
+            finding: [],
+            classification: [],
+            classificationChoice: []
+          }
+        }
+      }
+    )
+    const axiosImplementation = hoisted.axiosApi.get.getMockImplementation()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'examinations/9/findings/') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 1,
+              name: 'esophagus_polyp',
+              name_de: 'Ösophaguspolyp',
+              name_en: 'Esophageal polyp catalog',
+              location_classifications: [],
+              morphology_classifications: [],
+              classifications: [
+                {
+                  id: 2,
+                  name: 'size_mm',
+                  name_de: 'Größe',
+                  name_en: 'Size catalog',
+                  required: true,
+                  classification_types: [],
+                  choices: [
+                    {
+                      id: 3,
+                      name: 'size_mm',
+                      name_de: 'Millimeter',
+                      name_en: 'Millimetres catalog'
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        })
+      }
+      return (axiosImplementation?.(url) as unknown) ?? Promise.resolve({ data: [] })
+    })
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(
+      'Esophageal polyp catalog: Size catalog: Millimetres catalog'
+    )
+    expect(wrapper.text()).not.toContain('stabile Bezeichner')
+  })
+
+  it('uses stable names and reports genuinely missing English catalog labels', async () => {
+    hoisted.flowRef.current.selectedReportLanguage = 'en'
+    const graphImplementation = hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.getMockImplementation()
+    if (!graphImplementation) throw new Error('Expected the graph fixture implementation.')
+    hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementation(
+      (...args: [string, string, string]) => {
+        const response = graphImplementation(...args) as {
+          concepts: Record<string, unknown>
+          [key: string]: unknown
+        }
+        return {
+          ...response,
+          concepts: {
+            ...response.concepts,
+            finding: [],
+            classification: [],
+            classificationChoice: []
+          }
+        }
+      }
+    )
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('esophagus_polyp: size_mm: size_mm')
+    expect(wrapper.text()).toContain('Für 3 Katalogeinträge fehlen englische Bezeichnungen')
+  })
+
+  it('reports catalog authorization failures as access errors', async () => {
+    const axiosImplementation = hoisted.axiosApi.get.getMockImplementation()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'examinations/9/findings/') {
+        return Promise.reject(
+          Object.assign(new Error('Request failed with status code 403'), {
+            response: { status: 403 }
+          })
+        )
+      }
+      return (axiosImplementation?.(url) as unknown) ?? Promise.resolve({ data: [] })
+    })
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Der Zugriff auf den Befundkatalog wurde abgelehnt')
+    expect(wrapper.text()).not.toContain('deutschen Befundbezeichnungen konnten nicht geladen')
   })
 
   it('shows missing required classifications as advisory hints without blocking save', async () => {
@@ -689,5 +859,133 @@ describe('ReportEditorPage draft-driven workflow', () => {
 
     expect(hoisted.flowRef.current.activeReportId).toBeNull()
     expect(hoisted.templateControls.selectTemplateByName).not.toHaveBeenCalledWith('late_template')
+  })
+
+  it('does not activate a historical report when its template is unavailable', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    hoisted.templateControls.selectTemplateByName.mockResolvedValueOnce(null)
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'patient-examination-reports/?patient_examination_id=42') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 99,
+              status: 'draft',
+              version: 3,
+              templateName: 'withdrawn_template',
+              renderedText: 'Historischer Berichtstext'
+            }
+          ]
+        })
+      }
+      return Promise.resolve({ data: [] })
+    })
+
+    const refreshButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Letzten Bericht laden')),
+      'the report-refresh button'
+    )
+    await refreshButton.trigger('click')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.activeReportId).toBeNull()
+    expect(wrapper.text()).toContain('Vorlage "withdrawn_template"')
+    expect(wrapper.text()).toContain('Der Bericht wurde nicht aktiviert')
+    expect(wrapper.text()).not.toContain('Der Bericht wurde geladen (Version 3)')
+    expect(wrapper.get('[data-testid="historical-report-read-only"]').text()).toContain(
+      'Historischer Bericht (nur lesbar)'
+    )
+    expect(
+      (wrapper.get('[aria-label="Historischer Berichtstext"]').element as HTMLTextAreaElement)
+        .value
+    ).toBe('Historischer Berichtstext')
+    expect(
+      (wrapper.get('[data-testid="report-text-editor"]').element as HTMLTextAreaElement).value
+    ).not.toContain('Historischer Berichtstext')
+  })
+
+  it('activates historical text only when the complete template identity matches', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'patient-examination-reports/?patient_examination_id=42') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 88,
+              status: 'draft',
+              version: 2,
+              templateName: 'star_upper_gi_main',
+              knowledgeBaseModule: 'report_template_examples',
+              knowledgeBaseVersion: '1.0.0',
+              templateVersion: '1',
+              templateHash: 'hash-1',
+              renderedText: 'Kompatibler historischer Berichtstext'
+            }
+          ]
+        })
+      }
+      return Promise.resolve({ data: [] })
+    })
+
+    const refreshButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Letzten Bericht laden')),
+      'the report-refresh button'
+    )
+    await refreshButton.trigger('click')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.activeReportId).toBe(88)
+    expect(hoisted.flowRef.current.reportTextMode).toBe('manual')
+    expect(hoisted.flowRef.current.renderedReportText).toBe(
+      'Kompatibler historischer Berichtstext'
+    )
+    expect(wrapper.text()).toContain('Der Bericht wurde geladen (Version 2)')
+  })
+
+  it('does not activate same-name historical text from a different template revision', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'patient-examination-reports/?patient_examination_id=42') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 99,
+              status: 'draft',
+              version: 3,
+              templateName: 'star_upper_gi_main',
+              knowledgeBaseModule: 'report_template_examples',
+              knowledgeBaseVersion: '1.0.0',
+              templateVersion: '1',
+              templateHash: 'different-hash',
+              renderedText: 'Text aus einer anderen Vorlagenrevision'
+            }
+          ]
+        })
+      }
+      return Promise.resolve({ data: [] })
+    })
+
+    const refreshButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Letzten Bericht laden')),
+      'the report-refresh button'
+    )
+    await refreshButton.trigger('click')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.activeReportId).toBeNull()
+    expect(hoisted.flowRef.current.renderedReportText).toBe('')
+    expect(wrapper.text()).toContain('Vorlagenidentität')
+    expect(wrapper.text()).toContain('Der Bericht wurde nicht aktiviert')
+    expect(wrapper.text()).not.toContain('Der Bericht wurde geladen (Version 3)')
+    expect(
+      (wrapper.get('[aria-label="Historischer Berichtstext"]').element as HTMLTextAreaElement)
+        .value
+    ).toBe('Text aus einer anderen Vorlagenrevision')
+
+    await wrapper.get('[data-testid="close-historical-report"]').trigger('click')
+    expect(wrapper.find('[data-testid="historical-report-read-only"]').exists()).toBe(false)
   })
 })

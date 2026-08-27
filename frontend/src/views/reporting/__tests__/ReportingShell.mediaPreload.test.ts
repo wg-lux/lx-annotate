@@ -162,7 +162,11 @@ vi.mock('@/api/reportTemplatesApi', () => ({
   buildReportTemplateRuntimePayload: hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload,
   describeReportTemplateTitle: (name: string) => name,
   getReportTemplateDisplayName: (template: { name: string; nameDe?: string }, language: string) =>
-    (language === 'de' && template.nameDe) || template.name
+    (language === 'de' && template.nameDe) || template.name,
+  getReportTemplateSectionDisplayName: (
+    section: { name: string; titleDe?: string; titleEn?: string },
+    language: string
+  ) => (language === 'de' ? section.titleDe : section.titleEn) || section.name
 }))
 
 vi.mock('@/api/knowledgeBaseGraphApi', () => ({
@@ -261,6 +265,7 @@ function buildFlowStore() {
       flow.selectedReportLanguage = language
     }),
     setIndications: vi.fn(),
+    applyBackendDraftDocument: vi.fn(),
     clearRuntimeDraft: vi.fn(() => {
       flow.currentRuntimeDraft = null
       delete flow.runtimeDraftsByPatientExaminationId['314']
@@ -1086,7 +1091,7 @@ describe('ReportingShell media preload', () => {
     )
   })
 
-  it('keeps descriptor-backed medication rules open until a dose is entered', async () => {
+  it('filters and progressively renders a stable 100-plus finding template', async () => {
     hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
       patient: { id: 42 },
       latestReport: null,
@@ -1121,6 +1126,8 @@ describe('ReportingShell media preload', () => {
       reportSections: [
         {
           name: 'indikation_und_sedierung',
+          titleDe: 'Indikation und Sedierung',
+          titleEn: 'Indication and sedation',
           position: 1,
           sectionKind: 'findings',
           fields: [],
@@ -1174,7 +1181,19 @@ describe('ReportingShell media preload', () => {
                   }
                 }
               ]
-            }
+            },
+            {
+              finding: 'required_follow_up',
+              required: true,
+              multipleAllowed: false,
+              classifications: []
+            },
+            ...Array.from({ length: 100 }, (_, index) => ({
+              finding: `stable_finding_${String(index).padStart(3, '0')}_with_a_representative_very_long_clinical_label`,
+              required: false,
+              multipleAllowed: false,
+              classifications: []
+            }))
           ]
         }
       ],
@@ -1230,7 +1249,11 @@ describe('ReportingShell media preload', () => {
                 descriptors: []
               }
             ]
-          }
+          },
+          ...Array.from({ length: 100 }, (_, index) => ({
+            finding: `stable_finding_${String(index).padStart(3, '0')}_with_a_representative_very_long_clinical_label`,
+            classificationChoices: []
+          }))
         ]
       }
     }
@@ -1241,9 +1264,63 @@ describe('ReportingShell media preload', () => {
     const wrapper = mountShell()
     await flushPromises()
 
-    const statusRows = wrapper.findAll('.finding-status-row')
-    expect(statusRows).toHaveLength(1)
-    expect(statusRows[0].classes()).toContain('is-warning')
+    expect(wrapper.get('#finding-status-filter').element).toHaveProperty('value', 'open')
+    expect(wrapper.get('.finding-status-filter-summary').text()).toContain('2 von 102 Befunden')
+    expect(wrapper.get('.finding-status-section-title').text()).toBe('Indikation und Sedierung')
+
+    const search = wrapper.get('#finding-status-search')
+    await search.setValue('endoscopy_medication_administration')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(1)
+    await search.setValue('nicht vorhanden')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(0)
+    expect(wrapper.text()).toContain('Keine Befunde entsprechen den gewählten Filtern.')
+    await search.setValue('')
+
+    await wrapper.get('#finding-status-filter').setValue('missing')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(1)
+    expect(wrapper.get('.finding-status-row').classes()).toContain('is-missing')
+
+    await wrapper.get('#finding-status-filter').setValue('warning')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(1)
+    expect(wrapper.get('.finding-status-row').classes()).toContain('is-warning')
+    await wrapper.get('.finding-status-row').trigger('click')
+
+    await wrapper.get('#finding-status-filter').setValue('required')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(1)
+    expect(wrapper.get('.finding-status-row').classes()).toContain('is-missing')
+
+    await wrapper.get('#finding-status-filter').setValue('optional')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(50)
+    expect(wrapper.get('.finding-status-row').classes()).toContain('is-warning')
+    expect(wrapper.text()).toContain('Weitere Befunde anzeigen')
+
+    await wrapper.get('#finding-status-filter').setValue('all')
+    expect(wrapper.get('.finding-status-filter-summary').text()).toContain('102 von 102 Befunden')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(50)
+    expect(wrapper.findAll('.finding-status-row')[0].attributes('data-finding-key')).toBe(
+      'endoscopy_medication_administration'
+    )
+    expect(wrapper.findAll('.finding-status-row')[2].attributes('data-finding-key')).toBe(
+      'stable_finding_000_with_a_representative_very_long_clinical_label'
+    )
+    expect(wrapper.findAll('.finding-status-row')[2].attributes('title')).toContain(
+      'Stable Finding 000'
+    )
+    expect(wrapper.findAll('.finding-status-row')[2].attributes('aria-label')).toContain(
+      'Stable Finding 000'
+    )
+    expect(wrapper.findAll('.finding-status-row')[0].classes()).toContain('is-selected')
+
+    const showMoreButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Weitere Befunde anzeigen'))
+    await showMoreButton?.trigger('click')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(100)
+    await showMoreButton?.trigger('click')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(102)
+    expect(
+      wrapper.findAll('.finding-status-row')[101].attributes('data-finding-key')
+    ).toBe('stable_finding_099_with_a_representative_very_long_clinical_label')
 
     hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings[0].classificationChoices[0].descriptors.push(
       {
@@ -1253,7 +1330,7 @@ describe('ReportingShell media preload', () => {
     )
     await wrapper.vm.$nextTick()
 
-    expect(statusRows[0].classes()).toContain('is-warning')
+    expect(wrapper.findAll('.finding-status-row')[0].classes()).toContain('is-warning')
 
     hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings[0].classificationChoices[1].descriptors.push(
       {
@@ -1263,7 +1340,50 @@ describe('ReportingShell media preload', () => {
     )
     await wrapper.vm.$nextTick()
 
-    expect(statusRows[0].classes()).toContain('is-complete')
+    expect(wrapper.findAll('.finding-status-row')[0].classes()).toContain('is-complete')
+
+    await wrapper.get('#finding-status-filter').setValue('complete')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(50)
+    expect(wrapper.get('.finding-status-filter-summary').text()).toContain('101 von 102 Befunden')
+
+    await wrapper.get('#finding-status-search').setValue('unbekannt')
+    const resetButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Filter zurücksetzen'))
+    expect(resetButton).toBeDefined()
+    await resetButton?.trigger('click')
+    expect(wrapper.get('#finding-status-filter').element).toHaveProperty('value', 'open')
+    expect(wrapper.findAll('.finding-status-row')).toHaveLength(1)
+    expect(wrapper.get('.finding-status-row').classes()).toContain('is-missing')
+  })
+
+  it('keeps the technical inspector collapsed until explicitly opened', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const toggle = wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Technische Details')
+    expect(toggle).toBeDefined()
+    expect(toggle?.attributes('aria-expanded')).toBe('false')
+    expect(toggle?.attributes('aria-controls')).toBe('reporting-technical-inspector')
+    expect(wrapper.get('#reporting-technical-inspector').attributes('aria-label')).toBe(
+      'Technische Berichtsdetails'
+    )
+    expect(wrapper.get('#reporting-technical-inspector').attributes('style')).toContain(
+      'display: none'
+    )
+    expect(wrapper.get('.reporting-workspace-grid').classes()).not.toContain(
+      'has-technical-inspector'
+    )
+
+    await toggle?.trigger('click')
+
+    expect(toggle?.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('#reporting-technical-inspector').attributes('style') || '').not.toContain(
+      'display: none'
+    )
+    expect(wrapper.get('.reporting-workspace-grid').classes()).toContain('has-technical-inspector')
   })
 
   it('restores a persisted backend draft before rebuilding from patient examination detail', async () => {
@@ -1275,9 +1395,12 @@ describe('ReportingShell media preload', () => {
     })
     hoisted.reportDraftApi.fetchPatientExaminationDraft.mockResolvedValue({
       patient_examination_id: 314,
+      revision: 5,
       draft: {
         module_name: 'report_template_examples',
         template_name: 'persisted_template',
+        reportTextMode: 'manual',
+        renderedText: 'Persistierter Berichtstext',
         templateIdentity: {
           moduleName: 'report_template_examples',
           knowledgeBaseVersion: '1.0.0',
@@ -1329,7 +1452,14 @@ describe('ReportingShell media preload', () => {
       examination: 'colonoscopy'
     })
     expect(hoisted.flowRef.current.markDraftPersistenceHydrated).toHaveBeenCalledWith(
-      '2026-03-19T13:00:00.000Z'
+      '2026-03-19T13:00:00.000Z',
+      5
+    )
+    expect(hoisted.flowRef.current.applyBackendDraftDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reportTextMode: 'manual',
+        renderedText: 'Persistierter Berichtstext'
+      })
     )
   })
 

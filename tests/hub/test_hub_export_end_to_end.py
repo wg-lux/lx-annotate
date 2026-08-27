@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -15,7 +16,6 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from endoreg_db.models import (
@@ -52,6 +52,8 @@ TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 
 @override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
 class HubExportEndToEndTests(TestCase):
+    """Exercise sender/receiver contracts without pretending one DB is two nodes."""
+
     def setUp(self) -> None:
         self.envelope_tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(self.envelope_tempdir.cleanup)
@@ -139,6 +141,93 @@ class HubExportEndToEndTests(TestCase):
         response.url = url
         return response
 
+    def _forward_worker_post_to_receiver(
+        self,
+        url: str,
+        request_kwargs: dict[str, object],
+        *,
+        wire_uploads: list[bytes],
+        forbidden_wire_values: tuple[bytes, ...],
+        attest_mtls: bool = True,
+    ) -> requests.Response:
+        """Send the exact worker multipart bytes through Django's request parser."""
+
+        request_headers = cast(dict[str, str], request_kwargs["headers"])
+        presented_node = NetworkNode.objects.get(
+            node_key=request_headers["X-Network-Node-Key"],
+        )
+        presented_secret = request_headers["X-Network-Node-Secret"]
+        self.assertTrue(presented_node.is_active)
+        self.assertEqual(presented_node.role, NetworkNode.Role.SITE_NODE)
+        self.assertTrue(presented_node.check_shared_secret(presented_secret))
+        self.assertTrue(request_kwargs["verify"])
+        self.assertIsNone(request_kwargs.get("cert"))
+        body_forbidden_values = forbidden_wire_values + (
+            presented_secret.encode("utf-8"),
+        )
+
+        proxy_headers = {
+            key: value
+            for key, value in request_headers.items()
+            if key.lower() not in {"content-length", "content-type"}
+        }
+        if attest_mtls:
+            proxy_headers["X-Client-Cert-Verified"] = "SUCCESS"
+        path = urlparse(url).path
+        json_payload = request_kwargs.get("json")
+        if json_payload is not None:
+            encoded_payload = json.dumps(json_payload, sort_keys=True).encode("utf-8")
+            for forbidden in body_forbidden_values:
+                self.assertNotIn(forbidden, encoded_payload)
+            django_response = self.client.post(
+                path,
+                data=json_payload,
+                content_type="application/json",
+                secure=True,
+                headers=proxy_headers,
+            )
+        else:
+            upload_stream = cast(MultipartUploadStream, request_kwargs["data"])
+            wire_body = b"".join(upload_stream)
+            self.assertEqual(len(wire_body), upload_stream.content_length)
+            self.assertEqual(
+                request_headers["Content-Length"],
+                str(len(wire_body)),
+            )
+            self.assertEqual(
+                request_headers["Content-Type"],
+                upload_stream.content_type,
+            )
+            for forbidden in body_forbidden_values:
+                self.assertNotIn(forbidden, wire_body)
+            wire_uploads.append(wire_body)
+            django_response = self.client.generic(
+                "POST",
+                path,
+                data=wire_body,
+                content_type=upload_stream.content_type,
+                secure=True,
+                headers=proxy_headers,
+            )
+        return self._requests_response_from_django(django_response, url=url)
+
+    def _assert_transfer_ledger_excludes(
+        self,
+        transfer_job: TransferJob,
+        *forbidden_values: bytes,
+    ) -> None:
+        persisted_ledger = json.dumps(
+            {
+                "resource_rows": transfer_job.resource_rows,
+                "processing_snapshot": transfer_job.processing_snapshot,
+                "provenance": transfer_job.provenance,
+                "status_detail": transfer_job.status_detail,
+            },
+            sort_keys=True,
+        ).encode("utf-8")
+        for forbidden in forbidden_values:
+            self.assertNotIn(forbidden, persisted_ledger)
+
     @staticmethod
     def _mock_applied_payload(
         *,
@@ -179,8 +268,12 @@ class HubExportEndToEndTests(TestCase):
             "envelope_receipt": receipt.model_dump(mode="json"),
         }
 
+    @patch.dict(os.environ, {"LX_ANNOTATE_MASTER_KEY": TEST_MASTER_KEY})
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
-    def test_report_mark_then_transfer_completes(self, post_mock: MagicMock) -> None:
+    def test_report_mark_then_mocked_transfer_completes(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
         report_state = RawPdfState.objects.create(
             anonymized=True,
             sensitive_meta_processed=True,
@@ -255,6 +348,88 @@ class HubExportEndToEndTests(TestCase):
     )
     @patch.dict(os.environ, {"LX_ANNOTATE_MASTER_KEY": TEST_MASTER_KEY})
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_receiver_mtls_denial_fails_sender_before_transfer_registration(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        self.site_node.set_shared_secret("super-secret")
+        self.site_node.save(update_fields=["shared_secret_hash", "updated_at"])
+        report_state = RawPdfState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            processing_started=True,
+            anonymization_validated=True,
+        )
+        raw_plaintext = b"%PDF-1.4\nraw-mtls-denied\n%%EOF\n"
+        processed_plaintext = b"%PDF-1.4\nprocessed-mtls-denied\n%%EOF\n"
+        report = RawPdfFile.objects.create(
+            center=self.center,
+            state=report_state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
+            pdf_hash="report-hash-mtls-denied",
+            anonymized_text="Anonymized report denied without mTLS",
+            file=ContentFile(raw_plaintext, name="report-mtls-denied.pdf"),
+            processed_file=ContentFile(
+                processed_plaintext,
+                name="report-mtls-denied-processed.pdf",
+            ),
+        )
+        verify_hub_report_artifact(report)
+        mark_response = self.client.post(
+            "/api/hub-export/mark/",
+            data={
+                "target_node_key": self.hub_node.node_key,
+                "resources": [{"id": report.id, "resource_kind": "report"}],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(mark_response.status_code, 200)
+        outbound_job = OutboundHubTransferJob.objects.get(raw_pdf_file=report)
+        wire_uploads: list[bytes] = []
+
+        def _receiver_post(url: str, **kwargs: object) -> requests.Response:
+            return self._forward_worker_post_to_receiver(
+                url,
+                kwargs,
+                wire_uploads=wire_uploads,
+                forbidden_wire_values=(
+                    raw_plaintext,
+                    processed_plaintext,
+                    TEST_MASTER_KEY.encode("ascii"),
+                ),
+                attest_mtls=False,
+            )
+
+        post_mock.side_effect = _receiver_post
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(outbound_job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(
+            result.failure_class,
+            OutboundHubTransferJob.FailureClass.AUTHORIZATION_DENIAL,
+        )
+        self.assertEqual(result.retry_count, 0)
+        self.assertIn("authorization denied", result.last_error.lower())
+        self.assertEqual(wire_uploads, [])
+        self.assertFalse(
+            TransferJob.objects.filter(transfer_key=outbound_job.transfer_key).exists(),
+        )
+        post_mock.assert_called_once()
+
+    @override_settings(
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
+        ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS=True,
+        ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
+        ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
+        ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
+        ENDOREG_HUB_TRANSFER_MTLS_META_VALUE="SUCCESS",
+    )
+    @patch.dict(os.environ, {"LX_ANNOTATE_MASTER_KEY": TEST_MASTER_KEY})
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_report_worker_recovers_lost_ack_and_rejects_changed_replay(
         self,
         post_mock: MagicMock,
@@ -291,52 +466,25 @@ class HubExportEndToEndTests(TestCase):
         self.assertEqual(mark_response.status_code, 200)
         outbound_job = OutboundHubTransferJob.objects.get(raw_pdf_file=report)
         lose_upload_ack = True
-        transmitted_ciphertext: list[bytes] = []
+        transmitted_wire_uploads: list[bytes] = []
+        processed_plaintext = b"%PDF-1.4\nprocessed-real\n%%EOF\n"
+        forbidden_wire_values = (
+            b"%PDF-1.4\nraw\n%%EOF\n",
+            processed_plaintext,
+            TEST_MASTER_KEY.encode("ascii"),
+            b"super-secret",
+        )
 
         def _receiver_post(url: str, **kwargs: object) -> requests.Response:
             nonlocal lose_upload_ack
-            request_headers = cast(dict[str, str], kwargs["headers"])
-            proxy_headers = {
-                key: value
-                for key, value in request_headers.items()
-                if key.lower()
-                not in {
-                    "content-length",
-                    "content-type",
-                }
-            } | {
-                "X-Client-Cert-Verified": "SUCCESS",
-            }
-            path = urlparse(url).path
-            json_payload = kwargs.get("json")
-            if json_payload is not None:
-                django_response = self.client.post(
-                    path,
-                    data=json_payload,
-                    content_type="application/json",
-                    secure=True,
-                    headers=proxy_headers,
-                )
-            else:
-                upload_stream = cast(MultipartUploadStream, kwargs["data"])
-                ciphertext = upload_stream.media_path.read_bytes()
-                transmitted_ciphertext.append(ciphertext)
-                django_response = self.client.post(
-                    path,
-                    data={
-                        "media_role": upload_stream.media_role,
-                        "envelope": upload_stream.envelope_json,
-                        "file": SimpleUploadedFile(
-                            upload_stream.upload_file_name,
-                            ciphertext,
-                            content_type="application/octet-stream",
-                        ),
-                    },
-                    secure=True,
-                    headers=proxy_headers,
-                )
-            response = self._requests_response_from_django(django_response, url=url)
-            if json_payload is None and lose_upload_ack:
+            is_upload = kwargs.get("json") is None
+            response = self._forward_worker_post_to_receiver(
+                url,
+                kwargs,
+                wire_uploads=transmitted_wire_uploads,
+                forbidden_wire_values=forbidden_wire_values,
+            )
+            if is_upload and lose_upload_ack:
                 lose_upload_ack = False
                 self.assertEqual(response.status_code, 200, response.content)
                 raise requests.ConnectionError(
@@ -373,19 +521,19 @@ class HubExportEndToEndTests(TestCase):
             receiver_job.transfer_status,
             TransferJob.TransferStatus.APPLIED,
         )
+        self._assert_transfer_ledger_excludes(
+            receiver_job,
+            b"%PDF-1.4\nraw\n%%EOF\n",
+            processed_plaintext,
+            TEST_MASTER_KEY.encode("ascii"),
+            b"super-secret",
+        )
         self.assertEqual(lost_ack_result.retry_count, 1)
         self.assertEqual(
             sha256_file(report.processed_file),
             hashlib.sha256(b"%PDF-1.4\nprocessed-real\n%%EOF\n").hexdigest(),
         )
-        self.assertTrue(transmitted_ciphertext)
-        self.assertEqual(len(transmitted_ciphertext), 1)
-        self.assertTrue(
-            all(
-                b"%PDF-1.4\nprocessed-real\n%%EOF\n" not in ciphertext
-                for ciphertext in transmitted_ciphertext
-            ),
-        )
+        self.assertEqual(len(transmitted_wire_uploads), 1)
 
         exact_replay_result = run_outbound_transfer_job(
             outbound_job_id=str(outbound_job.id),
@@ -546,9 +694,25 @@ class HubExportEndToEndTests(TestCase):
         )
         self.assertEqual(post_mock.call_count, 5)
 
+    @override_settings(
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
+        ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS=True,
+        ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
+        ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
+        ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
+        ENDOREG_HUB_TRANSFER_MTLS_META_VALUE="SUCCESS",
+    )
+    @patch.dict(os.environ, {"LX_ANNOTATE_MASTER_KEY": TEST_MASTER_KEY})
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
-    def test_video_mark_then_transfer_completes(self, post_mock: MagicMock) -> None:
-        processed_hash = hashlib.sha256(b"processed-video").hexdigest()
+    def test_video_in_process_lifecycle_uses_worker_wire_multipart(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        # Arrange
+        self.site_node.set_shared_secret("super-secret")
+        self.site_node.save(update_fields=["shared_secret_hash", "updated_at"])
+        plaintext_media = b"processed-video"
+        processed_hash = hashlib.sha256(plaintext_media).hexdigest()
         video_state = VideoState.objects.create(
             anonymized=True,
             sensitive_meta_processed=True,
@@ -576,10 +740,33 @@ class HubExportEndToEndTests(TestCase):
             width=320,
             height=240,
             processed_file=ContentFile(
-                b"processed-video",
+                plaintext_media,
                 name="video-1-processed.mp4",
             ),
         )
+        observed_sender_states: list[str] = []
+        observed_request_paths: list[str] = []
+        transmitted_wire_uploads: list[bytes] = []
+        forbidden_wire_values = (
+            plaintext_media,
+            TEST_MASTER_KEY.encode("ascii"),
+            b"super-secret",
+        )
+
+        def _receiver_post(url: str, **kwargs: object) -> requests.Response:
+            outbound_job = OutboundHubTransferJob.objects.get(video_file=video)
+            observed_sender_states.append(str(outbound_job.local_status))
+            observed_request_paths.append(urlparse(url).path)
+            return self._forward_worker_post_to_receiver(
+                url,
+                kwargs,
+                wire_uploads=transmitted_wire_uploads,
+                forbidden_wire_values=forbidden_wire_values,
+            )
+
+        post_mock.side_effect = _receiver_post
+
+        # Act
         mark_response = self.client.post(
             "/api/hub-export/mark/",
             data={
@@ -588,39 +775,71 @@ class HubExportEndToEndTests(TestCase):
             },
             content_type="application/json",
         )
-        self.assertEqual(mark_response.status_code, 200)
-
-        register_response = MagicMock()
         job = OutboundHubTransferJob.objects.get(video_file=video)
+        marked_status = str(job.local_status)
+        with patch(
+            "endoreg_db.services.hub.transfers._decide_video_processing",
+            return_value=(
+                TransferJob.ProcessingDecision.WAIT_FOR_MISSING_MEDIA,
+                TransferJob.TransferStatus.AWAITING_MEDIA,
+                "Receiver artifact store is empty at registration",
+            ),
+        ):
+            result = run_outbound_transfer_job(
+                outbound_job_id=str(job.id),
+                source_node_key=self.site_node.node_key,
+                source_secret="super-secret",
+            )
+
+        # Assert
+        receiver_job = TransferJob.objects.get(transfer_key=job.transfer_key)
+        self.assertEqual(mark_response.status_code, 200)
         self.assertEqual(job.marked_by, self.operator)
-        self._assert_sender_payload_accepted_by_receiver(job)
-        register_response.json.return_value = hub_transfer_status_payload(
-            job=job,
-            source_node_key=self.site_node.node_key,
-            remote_transfer_id="remote-transfer-2",
-            transfer_status="awaiting_media",
-            processing_decision="wait_for_missing_media",
+        self.assertEqual(
+            marked_status,
+            OutboundHubTransferJob.LocalStatus.MARKED,
         )
-        register_response.raise_for_status.return_value = None
-
-        upload_response = MagicMock()
-        upload_response.json.side_effect = lambda: self._mock_applied_payload(
-            job=job,
-            source_node_key=self.site_node.node_key,
-            remote_transfer_id="remote-transfer-2",
-            upload_stream=post_mock.call_args.kwargs["data"],
+        self.assertEqual(
+            observed_sender_states,
+            [
+                OutboundHubTransferJob.LocalStatus.REGISTERING,
+                OutboundHubTransferJob.LocalStatus.UPLOADING,
+            ],
         )
-        upload_response.raise_for_status.return_value = None
-        post_mock.side_effect = [register_response, upload_response]
-
-        result = run_outbound_transfer_job(
-            outbound_job_id=str(job.id),
-            source_node_key=self.site_node.node_key,
-            source_secret="super-secret",
+        self.assertEqual(
+            observed_request_paths,
+            [
+                "/api/media/hub/transfers/",
+                f"/api/media/hub/transfers/{job.transfer_key}/media/",
+            ],
         )
-
         self.assertEqual(
             result.local_status,
             OutboundHubTransferJob.LocalStatus.COMPLETED,
         )
         self.assertEqual(result.remote_transfer_status, "applied")
+        self.assertEqual(result.remote_transfer_id, str(receiver_job.id))
+        self.assertEqual(
+            receiver_job.transfer_status,
+            TransferJob.TransferStatus.APPLIED,
+        )
+        self.assertIsNotNone(receiver_job.target_object_id)
+        receiver_video = VideoFile.objects.get(pk=receiver_job.target_object_id)
+        self.assertEqual(receiver_video.video_hash, video.video_hash)
+        self.assertEqual(
+            receiver_job.resource_rows["video_file"]["processed_video_hash"],
+            processed_hash,
+        )
+        self._assert_transfer_ledger_excludes(
+            receiver_job,
+            plaintext_media,
+            TEST_MASTER_KEY.encode("ascii"),
+            b"super-secret",
+        )
+        self.assertIsNotNone(result.envelope_receipt)
+        self.assertEqual(
+            result.envelope_receipt["receiver_transfer_id"],
+            str(receiver_job.id),
+        )
+        self.assertEqual(len(transmitted_wire_uploads), 1)
+        self.assertEqual(post_mock.call_count, 2)

@@ -194,6 +194,22 @@ export default {
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
   z-index: 2;
 }
+/* Ensure the parent toolbar acts as the absolute anchor */
+.sidebar-shell__toolbar {
+  position: relative;
+  width: 100%;
+}
+
+/* For Top-Left Placement We Use The Most Specific Selector */
+.g-sidenav-show .sidebar-shell--open .sidebar-toggle-button--open {
+  position: absolute !important;
+  top: 0.75rem !important;
+  left: 0.75rem !important;
+  right: auto !important;
+  color: #ffffff;
+  margin: 0 !important;
+  z-index: 10;
+}
 
 .sidebar-toggle-button--open:hover,
 .sidebar-toggle-button--open:focus {

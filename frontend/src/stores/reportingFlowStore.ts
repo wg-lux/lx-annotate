@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { savePatientExaminationDraft } from '@/api/reportDraftApi'
+import type { ReportDraftBlob, ReportDraftTextMode } from '@/api/reportDraftApi'
 import type {
   ReportTemplateRuntimeClassificationChoiceInput,
   ReportTemplateRuntimeDescriptorInput,
@@ -34,6 +35,8 @@ export type ReportingRuntimeDraft = {
   payload: ReportTemplateRuntimePayload
   hydratedFrom: 'session_storage' | 'backend_context' | 'draft_api'
   updatedAt: string
+  /** Last server revision observed for optimistic draft persistence. */
+  revision?: number
 }
 
 export function isVerifiedRuntimeDraftForBundle(
@@ -58,6 +61,8 @@ type PersistedReportingFlowState = {
   selectedPatientId: number | null
   selectedExaminationId: number | null
   activeReportId: number | null
+  reportTextMode: ReportDraftTextMode
+  renderedReportText: string
   indications: ReportingIndicationRow[]
   selectedKbModule: string
   selectedReportLanguage: ReportLanguageCode
@@ -127,7 +132,56 @@ function normalizeRuntimePayloadIds(
   }
 }
 
+export type DraftRevisionConflict = {
+  patientExaminationId: number
+  expectedRevision: number
+  currentRevision: number
+  updatedAt: string | null
+}
+
+export class DraftRevisionConflictError extends Error {
+  readonly conflict: DraftRevisionConflict
+
+  constructor(conflict: DraftRevisionConflict) {
+    super(
+      'Der Reporting-Entwurf wurde zwischenzeitlich von einer anderen Bearbeitung geändert. Ihre lokalen Änderungen wurden nicht überschrieben.'
+    )
+    this.name = 'DraftRevisionConflictError'
+    this.conflict = conflict
+  }
+}
+
+function safeRevision(value: unknown): number | null {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null
+}
+
+function draftRevisionConflict(error: unknown, params: {
+  patientExaminationId: number
+  expectedRevision: number
+}): DraftRevisionConflict | null {
+  const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const response =
+    errorRecord.response && typeof errorRecord.response === 'object'
+      ? (errorRecord.response as Record<string, unknown>)
+      : {}
+  if (response.status !== 409) return null
+  const data =
+    response.data && typeof response.data === 'object'
+      ? (response.data as Record<string, unknown>)
+      : {}
+  const currentRevision = safeRevision(data.currentRevision ?? data.current_revision)
+  if (currentRevision === null) return null
+  const updatedAt = data.updatedAt ?? data.updated_at
+  return {
+    patientExaminationId: params.patientExaminationId,
+    expectedRevision: params.expectedRevision,
+    currentRevision,
+    updatedAt: typeof updatedAt === 'string' || updatedAt === null ? updatedAt : null
+  }
+}
+
 function draftPersistenceErrorMessage(error: unknown): string {
+  if (error instanceof DraftRevisionConflictError) return error.message
   const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
   const response =
     errorRecord.response && typeof errorRecord.response === 'object'
@@ -263,7 +317,8 @@ function isReportingRuntimeDraft(value: unknown): value is ReportingRuntimeDraft
     (value.hydratedFrom === 'session_storage' ||
       value.hydratedFrom === 'backend_context' ||
       value.hydratedFrom === 'draft_api') &&
-    typeof value.updatedAt === 'string'
+    typeof value.updatedAt === 'string' &&
+    (value.revision === undefined || safeRevision(value.revision) !== null)
   )
 }
 
@@ -320,6 +375,9 @@ function normalizePersistedState(
     selectedExaminationId:
       typeof parsed.selectedExaminationId === 'number' ? parsed.selectedExaminationId : null,
     activeReportId: typeof parsed.activeReportId === 'number' ? parsed.activeReportId : null,
+    reportTextMode: parsed.reportTextMode === 'manual' ? 'manual' : 'generated',
+    renderedReportText:
+      typeof parsed.renderedReportText === 'string' ? parsed.renderedReportText : '',
     indications,
     selectedKbModule:
       typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
@@ -376,6 +434,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const selectedPatientId = ref<number | null>(null)
   const selectedExaminationId = ref<number | null>(null)
   const activeReportId = ref<number | null>(null)
+  const reportTextMode = ref<ReportDraftTextMode>('generated')
+  const renderedReportText = ref('')
   const selectedKbModule = ref<string>('')
   const selectedReportLanguage = ref<ReportLanguageCode>('de')
   const selectedTemplateName = ref<string | null>(null)
@@ -400,8 +460,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const runtimeDraftsByPatientExaminationId = ref<
     Partial<Record<string, ReportingRuntimeDraft>>
   >({})
-  const draftPersistenceStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const draftPersistenceStatus = ref<'idle' | 'saving' | 'saved' | 'error' | 'conflict'>('idle')
   const draftPersistenceError = ref<string | null>(null)
+  const draftConflict = ref<DraftRevisionConflict | null>(null)
   const lastPersistedDraftAt = ref<string | null>(null)
   const draftAutosaveTimer = ref<ReturnType<typeof setTimeout> | null>(null)
   const draftAutosaveSignature = ref<string | null>(null)
@@ -512,19 +573,31 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function setRuntimeDraft(draft: ReportingRuntimeDraft) {
+    const existingDraft = runtimeDraftsByPatientExaminationId.value[
+      String(draft.patientExaminationId)
+    ]
     runtimeDraftsByPatientExaminationId.value = {
       ...runtimeDraftsByPatientExaminationId.value,
       [String(draft.patientExaminationId)]: {
         ...draft,
+        // A missing legacy/browser revision can only attempt revision zero. The server
+        // rejects any non-zero draft rather than allowing a stale client to overwrite it.
+        revision: draft.revision ?? existingDraft?.revision ?? 0,
         templateIdentity: draft.templateIdentity ?? selectedTemplateIdentity.value,
         payload: normalizeRuntimePayloadIds(draft.payload)
       }
     }
   }
 
-  function markDraftPersistenceHydrated(updatedAt: string | null) {
+  function markDraftPersistenceHydrated(updatedAt: string | null, revision?: number) {
+    const currentDraft = currentRuntimeDraft.value
+    const normalizedRevision = safeRevision(revision)
+    if (currentDraft && normalizedRevision !== null) {
+      setRuntimeDraft({ ...currentDraft, revision: normalizedRevision })
+    }
     draftPersistenceStatus.value = updatedAt ? 'saved' : 'idle'
     draftPersistenceError.value = null
+    draftConflict.value = null
     lastPersistedDraftAt.value = updatedAt
     draftAutosaveSignature.value = currentDraftPersistenceSignature.value
   }
@@ -634,6 +707,40 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     )
   }
 
+  /**
+   * Deliberately discard the conflicted browser copy before a full server rehydrate.
+   * This never writes the local document or adopts the server's revision as permission
+   * to overwrite it; the caller must obtain explicit user confirmation first.
+   */
+  function discardConflictedLocalDraft(): boolean {
+    const conflict = draftConflict.value
+    const draft = currentRuntimeDraft.value
+    if (!conflict || !draft || conflict.patientExaminationId !== draft.patientExaminationId) {
+      return false
+    }
+
+    draftPersistenceGeneration += 1
+    cancelDraftAutosave()
+    clearRuntimeDraft(conflict.patientExaminationId)
+    activeReportId.value = null
+    reportTextMode.value = 'generated'
+    renderedReportText.value = ''
+    indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
+    selectedReportLanguage.value = 'de'
+    selectedTemplateName.value = null
+    selectedTemplateIdentity.value = null
+    templateSectionDrafts.value = {}
+    findingsRevision.value = 0
+    lastFindingsEvent.value = null
+    draftPersistenceStatus.value = 'idle'
+    draftPersistenceError.value = null
+    draftConflict.value = null
+    lastPersistedDraftAt.value = null
+    draftAutosaveSignature.value = null
+    persistCurrentFlowState()
+    return true
+  }
+
   const currentDraftPersistencePayload = computed(() => {
     const draft = currentRuntimeDraft.value
     if (
@@ -645,18 +752,26 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     }
     return {
       patientExaminationId: draft.patientExaminationId,
+      expectedRevision: draft.revision ?? 0,
       moduleName: draft.moduleName,
       templateName: draft.templateName,
       ...((draft.templateIdentity ?? selectedTemplateIdentity.value)
         ? { templateIdentity: draft.templateIdentity ?? selectedTemplateIdentity.value }
         : {}),
+      indications: indications.value,
+      templateSectionDrafts: templateSectionDrafts.value,
+      selectedReportLanguage: selectedReportLanguage.value,
+      activeReportId: activeReportId.value,
+      reportTextMode: reportTextMode.value,
+      renderedText: renderedReportText.value,
       payload: draft.payload
     }
   })
 
   const currentDraftPersistenceSignature = computed(() => {
     if (!currentDraftPersistencePayload.value) return null
-    return JSON.stringify(currentDraftPersistencePayload.value)
+    const { expectedRevision: _expectedRevision, ...document } = currentDraftPersistencePayload.value
+    return JSON.stringify(document)
   })
 
   const hasUnpersistedDraftChanges = computed(() => {
@@ -676,10 +791,17 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   async function persistCurrentRuntimeDraft() {
     if (savingFinalReport.value) return
     if (!currentRuntimeDraft.value?.patientExaminationId) return
+    if (draftConflict.value?.patientExaminationId === currentRuntimeDraft.value.patientExaminationId) {
+      throw new DraftRevisionConflictError(draftConflict.value)
+    }
     if (draftPersistencePromise.value) {
       return draftPersistencePromise.value
     }
     const generation = draftPersistenceGeneration
+    let lastAttempt: {
+      patientExaminationId: number
+      expectedRevision: number
+    } | null = null
     draftPersistenceStatus.value = 'saving'
     draftPersistenceError.value = null
     const request: Promise<void> = (async () => {
@@ -687,15 +809,23 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         while (generation === draftPersistenceGeneration && !savingFinalReport.value) {
           const currentPayload = currentDraftPersistencePayload.value
           if (!currentPayload) return
-          const signatureToPersist = JSON.stringify(currentPayload)
-          const payloadSnapshot = JSON.parse(signatureToPersist) as typeof currentPayload
+          const signatureToPersist = currentDraftPersistenceSignature.value
+          if (!signatureToPersist) return
+          const payloadSnapshot = JSON.parse(JSON.stringify(currentPayload)) as typeof currentPayload
           if (signatureToPersist === draftAutosaveSignature.value) break
 
+          lastAttempt = {
+            patientExaminationId: payloadSnapshot.patientExaminationId,
+            expectedRevision: payloadSnapshot.expectedRevision
+          }
           const response = await savePatientExaminationDraft(payloadSnapshot)
           if (generation !== draftPersistenceGeneration) return
           if (patientExaminationId.value === payloadSnapshot.patientExaminationId) {
             lastPersistedDraftAt.value = response.updatedAt ?? response.updated_at ?? null
+            const persistedDraft = currentRuntimeDraft.value
+            if (persistedDraft) setRuntimeDraft({ ...persistedDraft, revision: response.revision })
             draftAutosaveSignature.value = signatureToPersist
+            draftConflict.value = null
           }
         }
         if (
@@ -706,6 +836,17 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         }
       } catch (error: unknown) {
         if (generation === draftPersistenceGeneration) {
+          const conflict = draftRevisionConflict(error, {
+            patientExaminationId: lastAttempt?.patientExaminationId ?? 0,
+            expectedRevision: lastAttempt?.expectedRevision ?? 0
+          })
+          if (conflict) {
+            const conflictError = new DraftRevisionConflictError(conflict)
+            draftConflict.value = conflict
+            draftPersistenceStatus.value = 'conflict'
+            draftPersistenceError.value = draftPersistenceErrorMessage(conflictError)
+            throw conflictError
+          }
           draftPersistenceStatus.value = 'error'
           draftPersistenceError.value = draftPersistenceErrorMessage(error)
         }
@@ -723,6 +864,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   function scheduleDraftAutosave() {
     cancelDraftAutosave()
     if (savingFinalReport.value) return
+    if (draftConflict.value?.patientExaminationId === currentRuntimeDraft.value?.patientExaminationId) {
+      return
+    }
     draftAutosaveTimer.value = setTimeout(() => {
       draftAutosaveTimer.value = null
       if (savingFinalReport.value) return
@@ -763,6 +907,22 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   function setActiveReportId(id: number | null) {
     activeReportId.value = id
+  }
+
+  function setRenderedReportText(text: string, mode: ReportDraftTextMode) {
+    renderedReportText.value = text
+    reportTextMode.value = mode
+  }
+
+  function applyBackendDraftDocument(draft: ReportDraftBlob) {
+    if (draft.indications) setIndications(draft.indications)
+    if (draft.templateSectionDrafts) {
+      templateSectionDrafts.value = draft.templateSectionDrafts
+    }
+    if (draft.selectedReportLanguage) selectedReportLanguage.value = draft.selectedReportLanguage
+    if (draft.activeReportId !== undefined) activeReportId.value = draft.activeReportId
+    if (draft.reportTextMode) reportTextMode.value = draft.reportTextMode
+    if (draft.renderedText !== undefined) renderedReportText.value = draft.renderedText
   }
 
   function setSessionStatus(status: SessionStatus) {
@@ -828,6 +988,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedPatientId.value = persisted?.selectedPatientId ?? null
     selectedExaminationId.value = persisted?.selectedExaminationId ?? null
     activeReportId.value = persisted?.activeReportId ?? null
+    reportTextMode.value = persisted?.reportTextMode ?? 'generated'
+    renderedReportText.value = persisted?.renderedReportText ?? ''
     indications.value = persisted?.indications.length
       ? persisted.indications
       : [{ examinationIndicationId: null, indicationChoiceId: null }]
@@ -858,6 +1020,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     patientExaminationId.value = null
     selectedExaminationId.value = null
     activeReportId.value = null
+    reportTextMode.value = 'generated'
+    renderedReportText.value = ''
     sessionStatus.value = 'idle'
     indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
     lookupSnapshot.value = null
@@ -873,6 +1037,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     mediaPreloadError.value = null
     draftPersistenceStatus.value = 'idle'
     draftPersistenceError.value = null
+    draftConflict.value = null
     lastPersistedDraftAt.value = null
     draftAutosaveSignature.value = null
     draftPersistencePromise.value = null
@@ -891,6 +1056,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedPatientId.value = null
     selectedExaminationId.value = null
     activeReportId.value = null
+    reportTextMode.value = 'generated'
+    renderedReportText.value = ''
     sessionStatus.value = 'idle'
     indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
     lookupSnapshot.value = null
@@ -908,6 +1075,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     mediaPreloadError.value = null
     draftPersistenceStatus.value = 'idle'
     draftPersistenceError.value = null
+    draftConflict.value = null
     lastPersistedDraftAt.value = null
     draftAutosaveSignature.value = null
     draftPersistencePromise.value = null
@@ -1013,6 +1181,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedPatientId: selectedPatientId.value,
     selectedExaminationId: selectedExaminationId.value,
     activeReportId: activeReportId.value,
+    reportTextMode: reportTextMode.value,
+    renderedReportText: renderedReportText.value,
     indications: indications.value,
     selectedKbModule: selectedKbModule.value,
     selectedReportLanguage: selectedReportLanguage.value,
@@ -1022,20 +1192,24 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     runtimeDraftsByPatientExaminationId: runtimeDraftsByPatientExaminationId.value
   }))
 
+  function persistCurrentFlowState() {
+    if (!authSubject.value) {
+      clearPersistedState()
+      return
+    }
+    const envelope: PersistedReportingFlowEnvelope = {
+      ownerSub: authSubject.value,
+      expiresAt: Date.now() + STORAGE_TTL_MS,
+      state: persistable.value
+    }
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(envelope))
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
+  }
+
   watch(
     persistable,
-    (state) => {
-      if (!authSubject.value) {
-        clearPersistedState()
-        return
-      }
-      const envelope: PersistedReportingFlowEnvelope = {
-        ownerSub: authSubject.value,
-        expiresAt: Date.now() + STORAGE_TTL_MS,
-        state
-      }
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(envelope))
-      localStorage.removeItem(LEGACY_STORAGE_KEY)
+    () => {
+      persistCurrentFlowState()
     },
     { deep: true }
   )
@@ -1055,6 +1229,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedPatientId,
     selectedExaminationId,
     activeReportId,
+    reportTextMode,
+    renderedReportText,
     selectedKbModule,
     selectedReportLanguage,
     selectedTemplateName,
@@ -1072,6 +1248,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     mediaPreloadError,
     draftPersistenceStatus,
     draftPersistenceError,
+    draftConflict,
     lastPersistedDraftAt,
     hasUnpersistedDraftChanges,
     savingFinalReport,
@@ -1087,11 +1264,14 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     flushDraftAutosave,
     setSavingFinalReport,
     clearRuntimeDraft,
+    discardConflictedLocalDraft,
     addFinding,
     removeFinding,
     updateClassificationValue,
     setCaseSelection,
     setActiveReportId,
+    setRenderedReportText,
+    applyBackendDraftDocument,
     setSessionStatus,
     setTemplateSelection,
     setReportLanguage,

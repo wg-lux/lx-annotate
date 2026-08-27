@@ -9,7 +9,9 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from endoreg_db.models import (
     Center,
@@ -214,7 +216,7 @@ class HubExportApiTests(TestCase):
         self.assertNotIn("/protected/clinical", item["last_error"])
 
     @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
-    def test_operator_retry_requeues_same_failed_job_and_transfer_key(
+    def test_operator_retry_locks_base_row_and_requeues_same_failed_job(
         self,
         delay_mock,
     ) -> None:
@@ -235,12 +237,13 @@ class HubExportApiTests(TestCase):
         job.last_error = "Outbound hub transfer requires mTLS client files."
         job.save(update_fields=["local_status", "failure_class", "last_error"])
 
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                f"/api/hub-export/jobs/{job.pk}/retry/",
-                data={},
-                content_type="application/json",
-            )
+        with CaptureQueriesContext(connection) as queries:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    f"/api/hub-export/jobs/{job.pk}/retry/",
+                    data={},
+                    content_type="application/json",
+                )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -261,6 +264,15 @@ class HubExportApiTests(TestCase):
         )
         self.assertEqual(job.last_error, "")
         delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
+        job_selects = [
+            query["sql"]
+            for query in queries.captured_queries
+            if query["sql"].lstrip().upper().startswith("SELECT")
+            and OutboundHubTransferJob._meta.db_table in query["sql"]
+        ]
+        self.assertGreaterEqual(len(job_selects), 2)
+        self.assertNotIn(" JOIN ", job_selects[0].upper())
+        self.assertIn(" JOIN ", job_selects[1].upper())
 
     @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
     def test_operator_retry_rejects_non_failed_job(self, delay_mock) -> None:

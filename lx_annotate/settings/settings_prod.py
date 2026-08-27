@@ -5,13 +5,13 @@ Production settings.
 from __future__ import annotations
 
 import os
+from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
 from lx_annotate.settings import config as config_module
 from lx_annotate.settings.config import AppConfig
 
-from . import settings_base as base_settings
 from .settings_base import (
     APP_DATA_DIR,
     BASE_DIR,
@@ -30,6 +30,15 @@ from .settings_base import (
     TEMPLATES,
     config,
 )
+
+base_settings = import_module("lx_annotate.settings.settings_base")
+
+# Django exposes only uppercase names from the active settings module. Keep the
+# complete base contract available in production, including settings whose
+# values were resolved from environment variables in settings_base.
+for _base_setting_name in dir(base_settings):
+    if _base_setting_name.isupper():
+        globals()[_base_setting_name] = getattr(base_settings, _base_setting_name)
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)

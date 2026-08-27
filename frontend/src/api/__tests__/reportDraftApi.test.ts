@@ -26,9 +26,22 @@ describe('reportDraftApi', () => {
     hoisted.axios.get.mockResolvedValue({
       data: {
         patient_examination_id: 314,
+        revision: 4,
         draft: {
           module_name: 'report_template_examples',
           template_name: 'star_upper_gi_main',
+          indications: [{ examination_indication_id: 12, indication_choice_id: 21 }],
+          template_section_drafts: {
+            examination_baseline: {
+              note: 'Stable baseline',
+              includePatientData: true,
+              includeExaminationData: false
+            }
+          },
+          selected_report_language: 'de',
+          active_report_id: 88,
+          report_text_mode: 'manual',
+          rendered_text: 'Klinischer Freitext',
           payload: {}
         },
         updated_at: '2026-03-19T14:00:00.000Z'
@@ -41,15 +54,31 @@ describe('reportDraftApi', () => {
       `/api/${endpoints.examination.patientExaminationDraft(314)}`
     )
     expect(result.draft.template_name ?? result.draft.templateName).toBe('star_upper_gi_main')
+    expect(result.revision).toBe(4)
+    expect(result.draft).toMatchObject({
+      indications: [{ examinationIndicationId: 12, indicationChoiceId: 21 }],
+      templateSectionDrafts: {
+        examination_baseline: {
+          note: 'Stable baseline',
+          includePatientData: true,
+          includeExaminationData: false
+        }
+      },
+      selectedReportLanguage: 'de',
+      activeReportId: 88,
+      reportTextMode: 'manual',
+      renderedText: 'Klinischer Freitext'
+    })
   })
 
   it('normalizes a missing draft to an empty draft', async () => {
     hoisted.axios.get.mockResolvedValue({
-      data: { patient_examination_id: 314, updated_at: null }
+      data: { patient_examination_id: 314, revision: 0, updated_at: null }
     })
 
     await expect(fetchPatientExaminationDraft(314)).resolves.toMatchObject({
       patient_examination_id: 314,
+      revision: 0,
       draft: {},
       updated_at: null
     })
@@ -67,6 +96,7 @@ describe('reportDraftApi', () => {
     hoisted.axios.put.mockResolvedValue({
       data: {
         patient_examination_id: 314,
+        revision: 5,
         draft: {
           module_name: 'report_template_examples',
           template_name: 'star_upper_gi_main',
@@ -83,6 +113,7 @@ describe('reportDraftApi', () => {
 
     const result = await savePatientExaminationDraft({
       patientExaminationId: 314,
+      expectedRevision: 4,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       templateIdentity: {
@@ -98,6 +129,18 @@ describe('reportDraftApi', () => {
           raw: { can_publish: true }
         }
       },
+      indications: [{ examinationIndicationId: 12, indicationChoiceId: 21 }],
+      templateSectionDrafts: {
+        examination_baseline: {
+          note: 'Stable baseline',
+          includePatientData: true,
+          includeExaminationData: false
+        }
+      },
+      selectedReportLanguage: 'de',
+      activeReportId: 88,
+      reportTextMode: 'manual',
+      renderedText: 'Klinischer Freitext',
       payload: {
         patient: 'patient_42',
         examiners: ['dr_house'],
@@ -109,6 +152,7 @@ describe('reportDraftApi', () => {
     expect(hoisted.axios.put).toHaveBeenCalledWith(
       `/api/${endpoints.examination.patientExaminationDraft(314)}`,
       {
+        expectedRevision: 4,
         moduleName: 'report_template_examples',
         templateName: 'star_upper_gi_main',
         templateIdentity: {
@@ -118,6 +162,18 @@ describe('reportDraftApi', () => {
           templateHash: 'sha256:template',
           lifecycleStatus: 'published'
         },
+        indications: [{ examinationIndicationId: 12, indicationChoiceId: 21 }],
+        templateSectionDrafts: {
+          examination_baseline: {
+            note: 'Stable baseline',
+            includePatientData: true,
+            includeExaminationData: false
+          }
+        },
+        selectedReportLanguage: 'de',
+        activeReportId: 88,
+        reportTextMode: 'manual',
+        renderedText: 'Klinischer Freitext',
         payload: {
           patient: 'patient_42',
           examiners: ['dr_house'],
@@ -128,6 +184,7 @@ describe('reportDraftApi', () => {
     )
     expect(result).toMatchObject({
       patient_examination_id: 314,
+      revision: 5,
       draft: {
         module_name: 'report_template_examples',
         template_name: 'star_upper_gi_main'
@@ -142,8 +199,15 @@ describe('reportDraftApi', () => {
     await expect(
       savePatientExaminationDraft({
         patientExaminationId: 314,
+        expectedRevision: 0,
         moduleName: 'report_template_examples',
         templateName: 'star_upper_gi_main',
+        indications: [],
+        templateSectionDrafts: {},
+        selectedReportLanguage: 'de',
+        activeReportId: null,
+        reportTextMode: 'generated',
+        renderedText: '',
         payload: {
           patient: 'patient_42',
           examiners: [],

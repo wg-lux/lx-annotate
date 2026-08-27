@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
-import axiosInstance, { r } from '@/api/axiosInstance'
 import axios from 'axios'
-import { endpoints } from '@/types/api/endpoints'
+import { hubExportService, type HubExportResourceRef } from '@/api/hubExportService'
 
 export interface HubNodeSummary {
   nodeKey: string
@@ -209,11 +208,7 @@ export const useHubExportStore = defineStore('hubExport', {
       this.loading = true
       this.error = null
       try {
-        const params = targetNodeKey ? { target_node_key: targetNodeKey } : undefined
-        const { data } = await axiosInstance.get<HubExportOverviewResponse>(
-          r(endpoints.hubExport.overview),
-          { params }
-        )
+        const data = await hubExportService.fetchOverview(targetNodeKey)
         this.selectedTargetNodeKey = data.selectedTargetNodeKey
         this.sourceNodeKey = data.sourceNodeKey
         this.hubNodes = data.hubNodes
@@ -235,16 +230,13 @@ export const useHubExportStore = defineStore('hubExport', {
         this.loading = false
       }
     },
-    async markResources(resources: Array<{ id: number; resourceKind: 'video' | 'report' }>) {
+    async markResources(resources: HubExportResourceRef[]) {
       if (!this.selectedTargetNodeKey) {
         throw new Error('Kein Hub-Ziel ausgewählt.')
       }
       this.mutationError = null
       try {
-        await axiosInstance.post(r(endpoints.hubExport.mark), {
-          targetNodeKey: this.selectedTargetNodeKey,
-          resources
-        })
+        await hubExportService.markResources(this.selectedTargetNodeKey, resources)
         await this.fetchOverview(this.selectedTargetNodeKey)
       } catch (error: unknown) {
         this.mutationError = mutationErrorMessage(
@@ -254,16 +246,13 @@ export const useHubExportStore = defineStore('hubExport', {
         throw error
       }
     },
-    async unmarkResources(resources: Array<{ id: number; resourceKind: 'video' | 'report' }>) {
+    async unmarkResources(resources: HubExportResourceRef[]) {
       if (!this.selectedTargetNodeKey) {
         throw new Error('Kein Hub-Ziel ausgewählt.')
       }
       this.mutationError = null
       try {
-        await axiosInstance.post(r(endpoints.hubExport.unmark), {
-          targetNodeKey: this.selectedTargetNodeKey,
-          resources
-        })
+        await hubExportService.unmarkResources(this.selectedTargetNodeKey, resources)
         await this.fetchOverview(this.selectedTargetNodeKey)
       } catch (error: unknown) {
         this.mutationError = mutationErrorMessage(
@@ -279,10 +268,7 @@ export const useHubExportStore = defineStore('hubExport', {
       }
       this.mutationError = null
       try {
-        const { data } = await axiosInstance.post<HubEligibleVideoOffloadResult>(
-          r(endpoints.hubExport.offloadEligibleVideos),
-          { targetNodeKey: this.selectedTargetNodeKey }
-        )
+        const data = await hubExportService.offloadEligibleVideos(this.selectedTargetNodeKey)
         await this.fetchOverview(this.selectedTargetNodeKey)
         return data
       } catch (error: unknown) {
@@ -296,9 +282,7 @@ export const useHubExportStore = defineStore('hubExport', {
     async retryFailedJob(outboundJobId: string): Promise<HubExportRetryResult> {
       this.mutationError = null
       try {
-        const { data } = await axiosInstance.post<HubExportRetryResult>(
-          r(endpoints.hubExport.retry(outboundJobId))
-        )
+        const data = await hubExportService.retryFailedJob(outboundJobId)
         await this.fetchOverview(this.selectedTargetNodeKey)
         return data
       } catch (error: unknown) {
@@ -314,11 +298,7 @@ export const useHubExportStore = defineStore('hubExport', {
     ): Promise<VideoExportReadinessResult> {
       this.mutationError = null
       const results = await Promise.allSettled(
-        videos.map((video) =>
-          axiosInstance.post(r(endpoints.media.videoMarkReadyForExport(video.id)), {
-            centerKey: video.centerKey
-          })
-        )
+        videos.map((video) => hubExportService.checkVideoReadiness(video))
       )
       const failures = results.filter(
         (result): result is PromiseRejectedResult => result.status === 'rejected'

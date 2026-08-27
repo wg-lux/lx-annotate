@@ -113,10 +113,13 @@ new certificates overlap for the planned rotation window, revocation/expiry
 behavior is known, and private routing/firewall policy has been independently
 verified.
 
-## Current local readiness evidence (2026-08-11)
+## Archived local readiness evidence (2026-08-11)
 
-The previously recorded local candidate was typed and regression-tested, but it
-is not yet approved for a production test. Candidate `endoreg-db 1.0.10.0` and `lx-annotate 0.9.62`
+This section records historical candidate evidence; it does not describe the
+current package versions and must not be used as release or production
+approval. The previously recorded local candidate was typed and
+regression-tested, but it was not approved for a production test. Candidate
+`endoreg-db 1.0.10.0` and `lx-annotate 0.9.62`
 wheels migrated a fresh disposable PostgreSQL 17 database through the expected
 leaves (`endoreg_db 0047`, `lx_annotate 0004`, and `lx_dtypes_django 0004`), and
 `makemigrations --check --dry-run` reported no drift. A separate real PostgreSQL
@@ -145,7 +148,7 @@ not been executed or re-certified here; the evidence owner must run the commands
 below against the final wheels before this document can support a production-test
 request.
 
- it adds LX-Annotate migration 0006.
+The later publication delta adds LX-Annotate migration 0006.
 An immutable publication row is keyed by the database resource and its approved
 processed SHA-256 generation. Signals only persist that row; workers receive its
 UUID, reload the resource, require the current video `ready_for_export` proof or
@@ -166,10 +169,10 @@ serving is deliberately unchanged because it is a separate generation-bound
 multi-object lifecycle. No command evidence has been collected for this latest
 delta at the owner's request.
 
-The remaining start-of-production-test blockers are external and release-bound:
+The blockers recorded with that candidate were external and release-bound:
 
-- publish and lock the approved `endoreg-db 1.0.11.0` artifact, then build the
-  official LX and LuxNix release artifacts from the archived revisions;
+- publish and lock the approved endoreg-db artifact, then build the official LX
+  and LuxNix release artifacts from the archived revisions;
 - migrate `/archive` on gs-01 from its current plaintext Btrfs layout to the
   approved encrypted `/dev/mapper/gs-01-storage` mapping, restore it, and verify
   its inventory and hashes;

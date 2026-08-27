@@ -1074,11 +1074,14 @@ def retry_failed_outbound_job(
     if source_node is None:
         raise ValueError("No active site node is configured for outbound hub export.")
 
-    job = (
-        OutboundHubTransferJob.objects.select_for_update()
-        .select_related("target_node", "video_file__state", "raw_pdf_file__state")
-        .get(pk=outbound_job_id)
+    locked_job = OutboundHubTransferJob.objects.select_for_update().get(
+        pk=outbound_job_id,
     )
+    job = OutboundHubTransferJob.objects.select_related(
+        "target_node",
+        "video_file__state",
+        "raw_pdf_file__state",
+    ).get(pk=locked_job.pk)
     active_target = require_normal_sender_target_hub()
     if job.target_node_id != active_target.pk:
         raise ValueError(
