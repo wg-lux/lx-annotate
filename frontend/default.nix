@@ -5,7 +5,7 @@
 
 buildNpmPackage rec {
   pname = "lx-annotate-frontend";
-  version = "1.1.3";
+  version = "1.1.4";
 
   src = ./.;
 

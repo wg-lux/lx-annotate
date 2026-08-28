@@ -389,6 +389,86 @@ class HubExportWorkerTests(TestCase):
         self.assertNotIn(b"%PDF-1.4\nprocessed\n%%EOF\n", body)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_large_report_logs_safe_dimensions_and_streams_bounded_media_chunks(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        # Arrange
+        large_anonymized_text = ("Anonymized clinical text. " * 100_000).strip()
+        large_processed_pdf = b"%PDF-1.4\n" + (b"x" * (3 * 1024 * 1024)) + b"\n%%EOF\n"
+        self.report.anonymized_text = large_anonymized_text
+        self.report.processed_file.save(
+            "large-report-processed.pdf",
+            ContentFile(large_processed_pdf),
+            save=False,
+        )
+        self.report.save(update_fields=["anonymized_text", "processed_file"])
+        self.report_state.processed_file_sha256 = ""
+        self.report_state.save(update_fields=["processed_file_sha256"])
+        verify_hub_report_artifact(self.report)
+
+        register_response = MagicMock()
+        register_response.json.return_value = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
+        register_response.raise_for_status.return_value = None
+        upload_response = MagicMock()
+        captured_registration: dict[str, object] = {}
+        captured_upload_chunks: list[bytes] = []
+
+        def _post_side_effect(*args: object, **kwargs: object) -> MagicMock:
+            del args
+            if "json" in kwargs:
+                captured_registration.update(cast(dict[str, object], kwargs["json"]))
+                return register_response
+            upload_stream = cast(MultipartUploadStream, kwargs["data"])
+            captured_upload_chunks.extend(list(upload_stream))
+            upload_response.json.return_value = self._applied_payload(upload_stream)
+            upload_response.raise_for_status.return_value = None
+            return upload_response
+
+        post_mock.side_effect = _post_side_effect
+
+        # Act
+        with self.assertLogs("lx_annotate.hub_export.audit", level="INFO") as logs:
+            result = run_outbound_transfer_job(
+                outbound_job_id=str(self.job.id),
+                source_node_key=self.site_node.node_key,
+                source_secret="super-secret",
+            )
+
+        # Assert
+        self.assertEqual(
+            result.local_status,
+            OutboundHubTransferJob.LocalStatus.COMPLETED,
+        )
+        resource_rows = cast(dict[str, object], captured_registration["resource_rows"])
+        raw_pdf_file = cast(dict[str, object], resource_rows["raw_pdf_file"])
+        self.assertEqual(raw_pdf_file["anonymized_text"], large_anonymized_text)
+        self.assertGreater(len(captured_upload_chunks), 5)
+        self.assertLessEqual(max(map(len, captured_upload_chunks)), 1024 * 1024)
+
+        events = [json.loads(record.getMessage()) for record in logs.records]
+        register_event = next(
+            event for event in events if event["event"] == "hub_export.register_started"
+        )
+        upload_event = next(
+            event for event in events if event["event"] == "hub_export.upload_started"
+        )
+        self.assertEqual(
+            register_event["registration_anonymized_text_characters"],
+            len(large_anonymized_text),
+        )
+        self.assertEqual(
+            register_event["registration_collection_counts"], {"reports": 0}
+        )
+        self.assertEqual(register_event["request_timeout_seconds"], 21600)
+        self.assertEqual(upload_event["plaintext_bytes"], len(large_processed_pdf))
+        self.assertEqual(upload_event["upload_chunk_bytes"], 1024 * 1024)
+        self.assertNotIn(large_anonymized_text, "\n".join(logs.output))
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_is_noop_for_completed_job(
         self,
         post_mock: MagicMock,

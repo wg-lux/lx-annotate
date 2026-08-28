@@ -618,6 +618,14 @@ configure it with <code class="docutils literal notranslate"><span class="pre">L
 <li><p>neither the sender nor receiver transmits or reuses a long-lived application
 master key for payload encryption</p></li>
 </ul>
+<p>Hub registration synchronously validates and imports the complete annotation
+graph. Large videos can therefore hold the registration response open for much
+longer than an ordinary API call. Keep
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS</span></code> aligned with the dedicated
+Nginx <code class="docutils literal notranslate"><span class="pre">/api/media/hub/transfers/</span></code> read/send timeouts; the packaged deployment
+contract defaults all three to 21600 seconds. Stale transfer recovery must use
+a strictly larger window and defaults to 25200 seconds. This HTTP timeout
+budget is independent of Redis and the Celery worker broker.</p>
 </section>
 <section id="deployment">
 <h2>Deployment<a class="headerlink" href="#deployment" title="Link to this heading">¶</a></h2>

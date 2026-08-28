@@ -385,6 +385,15 @@ The deployed transfer boundary also implements Phase 2 envelope encryption:
 - neither the sender nor receiver transmits or reuses a long-lived application
   master key for payload encryption
 
+Hub registration synchronously validates and imports the complete annotation
+graph. Large videos can therefore hold the registration response open for much
+longer than an ordinary API call. Keep
+`LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS` aligned with the dedicated
+Nginx `/api/media/hub/transfers/` read/send timeouts; the packaged deployment
+contract defaults all three to 21600 seconds. Stale transfer recovery must use
+a strictly larger window and defaults to 25200 seconds. This HTTP timeout
+budget is independent of Redis and the Celery worker broker.
+
 ## Deployment
 
 1. Copy the built wheel from CI to the server. Record its release version and

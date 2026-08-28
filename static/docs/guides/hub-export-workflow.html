@@ -575,6 +575,8 @@ at least:</p>
 <span class="nv">LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR</span><span class="o">=</span>/var/lib/lx-annotate/data/hub-export-envelopes
 <span class="nv">LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE</span><span class="o">=</span>/run/secrets/hub-node-secret
 <span class="nv">LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE</span><span class="o">=</span><span class="nb">false</span>
+<span class="nv">LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS</span><span class="o">=</span><span class="m">21600</span>
+<span class="nv">LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS</span><span class="o">=</span><span class="m">25200</span>
 <span class="nv">LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY</span><span class="o">=</span>retain_processed_media
 </pre></div>
 </div>
@@ -582,6 +584,15 @@ at least:</p>
 <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_&lt;NORMALIZED_NODE_KEY&gt;_FILE</span></code> setting when a
 deployment has more than one sender identity. Never set TLS verification to
 false. The target <code class="docutils literal notranslate"><span class="pre">NetworkNode.base_url</span></code> must use <code class="docutils literal notranslate"><span class="pre">https://</span></code>.</p>
+<p>Registration is synchronous: the hub validates and imports the complete typed
+annotation graph before returning. The sender timeout and the reverse proxy’s
+read/send timeouts must therefore cover the largest expected annotation import
+and encrypted media apply. The packaged sender and deployment example default
+to 21600 seconds. Stale recovery defaults to 25200 seconds so it cannot race a
+request that is still legitimately importing. A timeout is a transient transfer
+failure; retry the same deterministic transfer key so the receiver can reuse
+the existing ledger entry.
+Redis availability does not control this synchronous HTTP registration path.</p>
 <p>Before enabling queueing, an authenticated operator must:</p>
 <ol class="arabic simple">
 <li><p>Open the administration overview and confirm that one active site node,

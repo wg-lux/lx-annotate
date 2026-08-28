@@ -211,6 +211,32 @@ def hub_transfer_status_url(target_node: NetworkNode, transfer_key: str) -> str:
     return urljoin(base, f"{transfer_key}/status/")
 
 
+def _registration_payload_metrics(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return privacy-safe payload dimensions for operational diagnostics."""
+    resource_rows = payload.get("resource_rows")
+    if not isinstance(resource_rows, dict):
+        return {
+            "registration_anonymized_text_characters": 0,
+            "registration_collection_counts": {},
+        }
+
+    raw_pdf_file = resource_rows.get("raw_pdf_file")
+    anonymized_text = (
+        raw_pdf_file.get("anonymized_text") if isinstance(raw_pdf_file, dict) else None
+    )
+    collection_counts = {
+        key: len(value)
+        for key, value in resource_rows.items()
+        if isinstance(value, list)
+    }
+    return {
+        "registration_anonymized_text_characters": (
+            len(anonymized_text) if isinstance(anonymized_text, str) else 0
+        ),
+        "registration_collection_counts": collection_counts,
+    }
+
+
 def _multipart_header_value(value: str) -> str:
     return (
         str(value)
@@ -636,6 +662,8 @@ def run_outbound_transfer_job(
         "hub_export.register_started",
         outbound_job=outbound_job,
         source_node_key=source_node_key,
+        request_timeout_seconds=resolved_request_timeout_s,
+        **_registration_payload_metrics(cast(dict[str, Any], payload)),
     )
 
     try:
@@ -756,6 +784,10 @@ def run_outbound_transfer_job(
             "hub_export.upload_started",
             outbound_job=outbound_job,
             source_node_key=source_node.node_key,
+            request_timeout_seconds=resolved_request_timeout_s,
+            plaintext_bytes=prepared.envelope.plaintext_size,
+            ciphertext_bytes=prepared.ciphertext_size,
+            upload_chunk_bytes=_MULTIPART_UPLOAD_CHUNK_SIZE,
         )
 
         upload_stream = MultipartUploadStream(
