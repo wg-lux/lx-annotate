@@ -34,12 +34,22 @@ export interface StudyCohortVideo {
   availability: string
 }
 
-export interface StudyCohortCase {
+export interface StudyCohortExamination {
   patientExaminationId: number
   caseHash: string
+  examinationName: string
+  examinationDate: string | null
+}
+
+export interface StudyCohortCase {
+  patientExaminationId: number
+  patientExaminationIds: number[]
+  caseHash: string
+  caseHashes: string[]
   patientHash: string
   examinationName: string | null
   examinationDate: string | null
+  examinations: StudyCohortExamination[]
   centerKeys: string[]
   findings: string[]
   annotationLabels: string[]

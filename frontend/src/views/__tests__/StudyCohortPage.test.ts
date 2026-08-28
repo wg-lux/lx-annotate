@@ -1,15 +1,21 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const hoisted = vi.hoisted(() => ({
-  fetchStudyCohortPreview: vi.fn()
+  fetchStudyCohortPreview: vi.fn(),
+  routerPush: vi.fn()
 }))
 
 vi.mock('@/api/studyApi', () => ({
   fetchStudyCohortPreview: hoisted.fetchStudyCohortPreview
 }))
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: hoisted.routerPush })
+}))
 
 import StudyCohortPage from '@/views/studies/StudyCohortPage.vue'
+import { useStudyCohortExportStore } from '@/stores/studyCohortExportStore'
 
 const response = {
   schemaVersion: '1.0',
@@ -29,10 +35,26 @@ const response = {
   cases: [
     {
       patientExaminationId: 314,
+      patientExaminationIds: [314, 315],
       caseHash: 'case-abc',
+      caseHashes: ['case-abc', 'case-follow-up'],
       patientHash: 'patient-xyz',
       examinationName: 'colonoscopy',
       examinationDate: '2026-04-01',
+      examinations: [
+        {
+          patientExaminationId: 314,
+          caseHash: 'case-abc',
+          examinationName: 'colonoscopy',
+          examinationDate: '2026-04-01'
+        },
+        {
+          patientExaminationId: 315,
+          caseHash: 'case-follow-up',
+          examinationName: 'gastroscopy',
+          examinationDate: '2026-05-01'
+        }
+      ],
       centerKeys: ['center-a'],
       findings: ['polyp'],
       annotationLabels: ['adenoma'],
@@ -65,6 +87,7 @@ const response = {
 describe('StudyCohortPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setActivePinia(createPinia())
     hoisted.fetchStudyCohortPreview.mockResolvedValue(response)
   })
 
@@ -111,6 +134,20 @@ describe('StudyCohortPage', () => {
     expect(wrapper.get('a[href="/processed/report/73"]').attributes('rel')).toBe(
       'noopener noreferrer'
     )
+    expect(useStudyCohortExportStore().definition).toMatchObject({
+      studyName: 'Polypenregister 2026',
+      patientExaminationIds: [314, 315],
+      filters: { centerKey: 'center-a', finding: 'polyp' }
+    })
+
+    // Act
+    await wrapper.get('[data-test="open-cohort-export"]').trigger('click')
+
+    // Assert
+    expect(hoisted.routerPush).toHaveBeenCalledWith({
+      path: '/export',
+      query: { mode: 'cohort' }
+    })
   })
 
   it('requires a hypothesis before querying the backend', async () => {
@@ -136,5 +173,26 @@ describe('StudyCohortPage', () => {
 
     expect(wrapper.get('[data-test="study-error"]').text()).toContain('Cohort preview unavailable')
     expect(wrapper.find('[data-test="cohort-case"]').exists()).toBe(false)
+  })
+
+  it('fails loudly when the cohort response contains invalid examination IDs', async () => {
+    // Arrange
+    hoisted.fetchStudyCohortPreview.mockResolvedValue({
+      ...response,
+      cases: [{ ...response.cases[0], patientExaminationIds: [0] }]
+    })
+    const wrapper = mount(StudyCohortPage)
+    await wrapper.get('[data-test="study-name"]').setValue('Register')
+    await wrapper.get('[data-test="study-hypothesis"]').setValue('Prüfbare Hypothese')
+
+    // Act
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    // Assert
+    expect(wrapper.get('[data-test="study-error"]').text()).toContain(
+      'invalid patient examination ID'
+    )
+    expect(useStudyCohortExportStore().definition).toBeNull()
   })
 })

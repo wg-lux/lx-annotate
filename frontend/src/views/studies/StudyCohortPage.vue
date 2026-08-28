@@ -242,6 +242,18 @@
         </div>
       </section>
 
+      <div class="d-flex justify-content-end mt-3">
+        <button
+          type="button"
+          class="btn btn-success mb-0"
+          :disabled="preview.cases.length === 0"
+          data-test="open-cohort-export"
+          @click="openCohortExport"
+        >
+          Kohorte exportieren
+        </button>
+      </div>
+
       <section class="card shadow-sm mt-4">
         <div class="card-header d-flex justify-content-between align-items-center gap-3">
           <div>
@@ -356,13 +368,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   fetchStudyCohortPreview,
   type StudyCohortPreviewFilters,
   type StudyCohortPreviewResponse
 } from '@/api/studyApi'
+import { useStudyCohortExportStore } from '@/stores/studyCohortExportStore'
 
+const router = useRouter()
+const cohortExportStore = useStudyCohortExportStore()
 const studyName = ref('')
 const hypothesis = ref('')
 const hasReportFilter = ref<'' | 'true' | 'false'>('')
@@ -402,6 +418,16 @@ const summaryMetrics = computed(() => {
     { key: 'video-count', label: 'Videos', value: summary?.videoCount ?? 0 }
   ]
 })
+
+watch(
+  [studyName, hypothesis, hasReportFilter, hasVideoFilter, filters],
+  () => {
+    if (!preview.value) return
+    preview.value = null
+    cohortExportStore.clear()
+  },
+  { deep: true }
+)
 
 function triState(value: '' | 'true' | 'false'): boolean | null {
   if (value === 'true') return true
@@ -451,12 +477,16 @@ async function previewCohort(): Promise<void> {
     return
   }
 
+  cohortExportStore.clear()
+  preview.value = null
   activeController?.abort()
   const controller = new AbortController()
   activeController = controller
   loading.value = true
   try {
-    preview.value = await fetchStudyCohortPreview(requestFilters())
+    const result = await fetchStudyCohortPreview(requestFilters())
+    cohortExportStore.capture(studyName.value, hypothesis.value, result)
+    preview.value = result
   } catch (error) {
     if (!controller.signal.aborted) errorMessage.value = readableError(error)
   } finally {
@@ -465,6 +495,11 @@ async function previewCohort(): Promise<void> {
       loading.value = false
     }
   }
+}
+
+async function openCohortExport(): Promise<void> {
+  if (!preview.value?.cases.length || !cohortExportStore.definition) return
+  await router.push({ path: '/export', query: { mode: 'cohort' } })
 }
 
 function formatDate(value: string | null): string {

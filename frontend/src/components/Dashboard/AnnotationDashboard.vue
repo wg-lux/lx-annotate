@@ -5,6 +5,105 @@
         <h2 class="dashboard-title mb-1">Dashboard</h2>
         <p class="dashboard-subtitle mb-0">Status, offene Arbeitspakete und Schnellzugriffe an einem Ort.</p>
       </div>
+      <button
+        class="btn btn-outline-primary btn-sm mb-0"
+        type="button"
+        :disabled="loadingOperationalState"
+        data-test="refresh-operational-state"
+        @click="refreshOperationalState"
+      >
+        {{ loadingOperationalState ? 'Aktualisiere …' : 'Status aktualisieren' }}
+      </button>
+    </section>
+
+    <section class="operational-state-grid mb-4" aria-label="Aktueller Betriebszustand">
+      <article class="state-card" data-test="dataset-state">
+        <div class="state-card-heading">
+          <div>
+            <p class="state-kicker">Datensätze</p>
+            <h3>Dataset Collections</h3>
+          </div>
+          <router-link to="/ai-dataset-settings" class="state-link">Verwalten</router-link>
+        </div>
+        <p v-if="datasetState.loading" class="state-message">Datensätze werden geladen …</p>
+        <p v-else-if="datasetState.error" class="state-message text-danger" role="status">
+          Datensatzstatus ist derzeit nicht verfügbar.
+        </p>
+        <template v-else>
+          <div class="state-metric">
+            <strong>{{ datasetState.items.length }}</strong>
+            <span>{{ activeDatasetCount }} aktiv</span>
+          </div>
+          <div v-if="datasetState.items.length" class="state-tags" aria-label="Datensatznamen">
+            <span
+              v-for="dataset in datasetState.items"
+              :key="dataset.id"
+              class="state-tag"
+              :class="{ 'state-tag-inactive': !dataset.isActive }"
+            >
+              {{ dataset.label }} · {{ dataset.datasetType === 'video' ? 'Video' : 'Bild' }}
+            </span>
+          </div>
+          <p v-else class="state-message mb-0">Keine Dataset Collections angelegt.</p>
+        </template>
+      </article>
+
+      <article class="state-card" data-test="cohort-state">
+        <div class="state-card-heading">
+          <div>
+            <p class="state-kicker">Registerstudie</p>
+            <h3>Aktuelle Studienkohorte</h3>
+          </div>
+          <router-link to="/studies" class="state-link">Öffnen</router-link>
+        </div>
+        <p v-if="cohortState.loading" class="state-message">Kohorte wird geladen …</p>
+        <p v-else-if="cohortState.error" class="state-message text-danger" role="status">
+          Kohortenstatus ist derzeit nicht verfügbar.
+        </p>
+        <div v-else-if="cohortState.summary" class="cohort-metrics">
+          <div><strong>{{ cohortState.summary.caseCount }}</strong><span>Fälle</span></div>
+          <div><strong>{{ cohortState.summary.patientCount }}</strong><span>Patienten</span></div>
+          <div><strong>{{ cohortState.summary.reportCount }}</strong><span>Befunde</span></div>
+          <div><strong>{{ cohortState.summary.videoCount }}</strong><span>Videos</span></div>
+        </div>
+      </article>
+
+      <article class="state-card" data-test="hub-state">
+        <div class="state-card-heading">
+          <div>
+            <p class="state-kicker">Hub</p>
+            <h3>Hub-Zustand</h3>
+          </div>
+          <router-link to="/administration" class="state-link">Details</router-link>
+        </div>
+        <p v-if="hubState.loading" class="state-message">Hub-Zustand wird geladen …</p>
+        <p v-else-if="hubState.error" class="state-message text-danger" role="status">
+          Hub-Zustand ist derzeit nicht verfügbar.
+        </p>
+        <template v-else-if="hubState.health">
+          <div class="hub-readiness">
+            <span class="badge" :class="hubState.health.ready ? 'bg-success' : 'bg-danger'">
+              {{ hubState.health.ready ? 'Betriebsbereit' : 'Nicht bereit' }}
+            </span>
+            <span>{{ hubState.health.transport.requireMtls ? 'mTLS' : 'TLS' }}</span>
+          </div>
+          <dl class="state-details mb-0">
+            <div>
+              <dt>Quellknoten</dt>
+              <dd>{{ hubState.health.sourceNodeKey || 'nicht konfiguriert' }}</dd>
+            </div>
+            <div>
+              <dt>Aktive Hubs</dt>
+              <dd>{{ hubState.health.hubNodes.length }}</dd>
+            </div>
+          </dl>
+          <div v-if="hubState.health.hubNodes.length" class="state-tags mt-3">
+            <span v-for="node in hubState.health.hubNodes" :key="node.nodeKey" class="state-tag">
+              {{ node.displayName }} · {{ node.httpsConfigured ? 'HTTPS' : 'kein HTTPS' }}
+            </span>
+          </div>
+        </template>
+      </article>
     </section>
 
     <!-- Einheitliche Annotation-Statistiken -->
@@ -327,7 +426,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
 import AnnotationStatsComponent from '@/components/Stats/AnnotationStatsComponent.vue';
@@ -335,6 +434,9 @@ import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toas
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 import { createRuntimeLogger } from '@/utils/runtimeLogger';
+import { fetchAiDatasetOptions } from '@/api/aiDatasetApi';
+import { fetchStudyCohortPreview } from '@/api/studyApi';
+import { fetchAdministrationOverview } from '@/api/administrationApi';
 
 const logger = createRuntimeLogger('annotation-dashboard');
 
@@ -346,6 +448,14 @@ const annotationStatsStore = useAnnotationStatsStore();
 const segments = ref([]);
 const examinations = ref([]);
 const sensitiveMetaData = ref([]);
+const datasetState = ref({ loading: true, error: false, items: [] });
+const cohortState = ref({ loading: true, error: false, summary: null });
+const hubState = ref({ loading: true, error: false, health: null });
+const loadingOperationalState = ref(false);
+
+const activeDatasetCount = computed(
+  () => datasetState.value.items.filter((dataset) => dataset.isActive).length
+);
 
 // Loading states
 const loadingSegments = ref(false);
@@ -363,6 +473,54 @@ const showError = (message) => {
     source: 'dashboard'
   });
   toast.error(message) 
+};
+
+const loadDatasetState = async () => {
+  datasetState.value = { ...datasetState.value, loading: true, error: false };
+  try {
+    const items = await fetchAiDatasetOptions();
+    datasetState.value = { loading: false, error: false, items };
+  } catch (error) {
+    logger.error('dashboard-dataset-state-load-failed', error, {
+      operation: 'read',
+      outcome: 'rejected'
+    });
+    datasetState.value = { loading: false, error: true, items: [] };
+  }
+};
+
+const loadCohortState = async () => {
+  cohortState.value = { ...cohortState.value, loading: true, error: false };
+  try {
+    const cohort = await fetchStudyCohortPreview({ limit: 1 });
+    cohortState.value = { loading: false, error: false, summary: cohort.summary };
+  } catch (error) {
+    logger.error('dashboard-cohort-state-load-failed', error, {
+      operation: 'read',
+      outcome: 'rejected'
+    });
+    cohortState.value = { loading: false, error: true, summary: null };
+  }
+};
+
+const loadHubState = async () => {
+  hubState.value = { ...hubState.value, loading: true, error: false };
+  try {
+    const overview = await fetchAdministrationOverview();
+    hubState.value = { loading: false, error: false, health: overview.hubHealth };
+  } catch (error) {
+    logger.error('dashboard-hub-state-load-failed', error, {
+      operation: 'read',
+      outcome: 'rejected'
+    });
+    hubState.value = { loading: false, error: true, health: null };
+  }
+};
+
+const refreshOperationalState = async () => {
+  loadingOperationalState.value = true;
+  await Promise.all([loadDatasetState(), loadCohortState(), loadHubState()]);
+  loadingOperationalState.value = false;
 };
 
 // Methods for fetching detailed data
@@ -627,11 +785,9 @@ const formatDate = (dateString) => {
 
 // Initialize data on mount
 onMounted(async () => {
-  // Load statistics first
-  await annotationStatsStore.fetchAnnotationStats();
-  
-  // Load detailed data in parallel
   await Promise.all([
+    annotationStatsStore.fetchAnnotationStats(),
+    refreshOperationalState(),
     refreshSegments(),
     refreshExaminations(),
     refreshSensitiveMeta()
@@ -649,6 +805,141 @@ onMounted(async () => {
   border: 1px solid var(--dashboard-border);
   border-radius: 14px;
   padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.operational-state-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.state-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 24px rgba(26, 36, 59, 0.06);
+}
+
+.state-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.state-card h3 {
+  margin: 0;
+  color: #2d3047;
+  font-size: 1rem;
+}
+
+.state-kicker {
+  margin: 0 0 0.2rem;
+  color: #63748a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.state-link {
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.state-message {
+  color: #63748a;
+}
+
+.state-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.state-metric strong {
+  color: #2d3047;
+  font-size: 1.8rem;
+}
+
+.state-metric span,
+.hub-readiness > span:last-child {
+  color: #63748a;
+  font-size: 0.8rem;
+}
+
+.state-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-height: 6.5rem;
+  overflow-y: auto;
+}
+
+.state-tag {
+  padding: 0.3rem 0.5rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #344767;
+  font-size: 0.72rem;
+}
+
+.state-tag-inactive {
+  background: #f2f3f5;
+  color: #7b809a;
+}
+
+.cohort-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.cohort-metrics div {
+  display: flex;
+  flex-direction: column;
+}
+
+.cohort-metrics strong {
+  color: #2d3047;
+  font-size: 1.25rem;
+}
+
+.cohort-metrics span,
+.state-details dt {
+  color: #63748a;
+  font-size: 0.72rem;
+}
+
+.hub-readiness {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.state-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.state-details dd {
+  margin: 0;
+  color: #344767;
+  font-size: 0.78rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-title {
@@ -741,6 +1032,12 @@ onMounted(async () => {
 
   .dashboard-hero {
     padding: 0.9rem 1rem;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .operational-state-grid {
+    grid-template-columns: 1fr;
   }
   
   .table-responsive {

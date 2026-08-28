@@ -162,16 +162,22 @@ def test_options_only_include_concepts_from_pseudonymous_cases(
 def test_xlsx_uses_or_within_categories_and_and_across_categories(
     annotated_cases: dict[str, object],
 ) -> None:
+    # Arrange
+    request_query = [
+        ("examination", "colonoscopy"),
+        ("examination", "gastroscopy"),
+        ("finding", "polyp"),
+        ("indication", "screening"),
+    ]
+
+    # Act
     response = Client().get(
         "/endoreg-api/media/studies/case-export.xlsx",
-        [
-            ("examination", "colonoscopy"),
-            ("examination", "gastroscopy"),
-            ("finding", "polyp"),
-            ("indication", "screening"),
-        ],
+        request_query,
+        HTTP_ACCEPT="application/json",
     )
 
+    # Assert
     assert response.status_code == 200
     assert response["Content-Type"] == (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -270,6 +276,108 @@ def test_xlsx_can_export_one_row_per_matching_examination(
         None,
     )
     assert metadata["Grouping"] == "examination"
+
+
+def test_xlsx_exports_the_exact_reviewed_study_cohort_snapshot(
+    annotated_cases: dict[str, object],
+) -> None:
+    # Arrange
+    matching_case = cast(PatientExamination, annotated_cases["matching_case"])
+    payload = {
+        "mode": "cohort",
+        "group_by": "patient",
+        "study_name": "Polyp registry 2026",
+        "hypothesis": "Polyps are more frequent in the selected cohort.",
+        "cohort_schema_version": "1.0",
+        "patient_examination_id": [matching_case.pk],
+        "date_from": "2026-01-01",
+        "date_to": "2026-12-31",
+        "center_key": "center-a",
+        "examination_name": "colonoscopy",
+        "finding": "polyp",
+        "has_report": True,
+        "has_video": False,
+        "limit": 100,
+    }
+
+    # Act
+    response = Client().post(
+        "/endoreg-api/media/studies/case-export.xlsx",
+        payload,
+        content_type="application/json",
+        HTTP_ACCEPT="application/json",
+    )
+
+    # Assert
+    assert response.status_code == 200
+    assert response["X-Export-Row-Count"] == "1"
+    assert "pseudonymous-study-cohort-" in response["Content-Disposition"]
+    workbook = load_workbook(BytesIO(response.content), read_only=True)
+    cases = list(workbook["Cases"].iter_rows(values_only=True))
+    metadata = dict(workbook["Export metadata"].iter_rows(values_only=True))
+    assert len(cases) == 2
+    assert cases[1][2] == str(matching_case.pk)
+    assert cases[1][5] == "colonoscopy"
+    assert cases[1][8] is None
+    assert metadata["Export mode"] == "cohort"
+    assert metadata["Study name"] == "Polyp registry 2026"
+    assert metadata["Hypothesis"] == (
+        "Polyps are more frequent in the selected cohort."
+    )
+    assert metadata["Center"] == "center-a"
+    assert metadata["Has report"] == "True"
+    assert metadata["Has video"] == "False"
+    assert metadata["Filter semantics"] == "Exact reviewed StudyCohortPage snapshot"
+
+
+@pytest.mark.parametrize(
+    ("query", "message"),
+    [
+        (
+            {"mode": "cohort", "group_by": "patient"},
+            "require study_name and hypothesis",
+        ),
+        (
+            {
+                "mode": "cohort",
+                "group_by": "examination",
+                "study_name": "Register",
+                "hypothesis": "Hypothesis",
+                "patient_examination_id": "1",
+            },
+            "must use patient grouping",
+        ),
+        (
+            {
+                "mode": "cohort",
+                "group_by": "patient",
+                "study_name": "Register",
+                "hypothesis": "Hypothesis",
+                "patient_examination_id": "999999",
+            },
+            "unavailable patient examination",
+        ),
+    ],
+)
+def test_xlsx_rejects_invalid_study_cohort_snapshots(
+    annotated_cases: dict[str, object],
+    query: dict[str, str],
+    message: str,
+) -> None:
+    # Arrange
+    del annotated_cases
+
+    # Act
+    response = Client().post(
+        "/endoreg-api/media/studies/case-export.xlsx",
+        query,
+        content_type="application/json",
+        HTTP_ACCEPT="application/json",
+    )
+
+    # Assert
+    assert response.status_code == 400
+    assert message in response.json()["error"]
 
 
 @pytest.mark.parametrize(

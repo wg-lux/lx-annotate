@@ -15,6 +15,17 @@
       <button
         type="button"
         class="btn"
+        :class="activeExport === 'cohort' ? 'btn-primary' : 'btn-outline-primary'"
+        role="tab"
+        :aria-selected="activeExport === 'cohort'"
+        data-test="cohort-export-tab"
+        @click="activeExport = 'cohort'"
+      >
+        Studienkohorte
+      </button>
+      <button
+        type="button"
+        class="btn"
         :class="activeExport === 'segments' ? 'btn-primary' : 'btn-outline-primary'"
         role="tab"
         :aria-selected="activeExport === 'segments'"
@@ -26,16 +37,23 @@
     </div>
 
     <CaseStudyExcelExport v-if="activeExport === 'cases'" />
+    <StudyCohortExcelExport v-else-if="activeExport === 'cohort'" />
     <ExportAnnotations v-else />
   </main>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRoute } from 'vue-router'
 import CaseStudyExcelExport from '@/components/Export/CaseStudyExcelExport.vue'
+import StudyCohortExcelExport from '@/components/Export/StudyCohortExcelExport.vue'
 import ExportAnnotations from '@/components/VideoExamination/ExportAnnotations.vue'
 
-const activeExport = ref<'cases' | 'segments'>('cases')
+type ExportMode = 'cases' | 'cohort' | 'segments'
+
+const route = useRoute()
+const requestedMode = route.query.mode
+const activeExport = ref<ExportMode>(requestedMode === 'cohort' ? 'cohort' : 'cases')
 </script>
 
 <style scoped>

@@ -238,12 +238,13 @@
                       Erneut versuchen
                     </button>
 
-                    <!-- Video Correction -->
+                    <!-- Media Correction -->
                     <button
-                      v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')"
+                      v-if="(file.mediaType === 'video' || file.mediaType === 'pdf') && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')"
+                      data-test="correction-button"
                       class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
-                      @click="correctVideo(file.id)"
+                      @click="correctFile(file)"
                     >
                       <i class="ni ni-single-copy-04"></i>
                       Korrektur
@@ -624,23 +625,12 @@ const startAnonymization = async (fileId: number) => {
   }
 };
 
-const correctVideo = (fileId: number) => {
-  // Find the file to set it in MediaStore for consistency
-  const file = availableFiles.value.find(f => f.id === fileId);
-  if (file) {
-    mediaStore.setCurrentItem(toMediaItem(file));
-  }
-  else {
-    runtimeLogger.warn('correction-file-missing');
-    return;
-  }
+const correctFile = (file: FileItem) => {
+  mediaStore.setCurrentItem(toMediaItem(file));
 
-
-
-  // Navigate directly to the correction component with the video ID
   void router.push({
     name: 'Anonymisierung Korrektur',
-    params: { fileId: String(fileId) },
+    params: { fileId: String(file.id) },
     query: { mediaType: file.mediaType }
   });
 };

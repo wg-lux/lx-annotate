@@ -19,6 +19,10 @@ from endoreg_db.models import (
     RawPdfFile,
     VideoFile,
 )
+from endoreg_db.services.study_cohort import (
+    StudyCohortFilters,
+    parse_study_cohort_filters,
+)
 from endoreg_db.utils.permissions import EnvironmentAwarePermission, is_debug_mode
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
@@ -32,6 +36,7 @@ from rest_framework.response import Response
 MAX_STUDY_EXPORT_ROWS: Final = 25_000
 FORMULA_PREFIXES: Final = ("=", "+", "-", "@")
 type StudyExportGrouping = Literal["patient", "examination"]
+type StudyExportMode = Literal["criteria", "cohort"]
 
 
 class StudyExportOptions(TypedDict):
@@ -43,10 +48,16 @@ class StudyExportOptions(TypedDict):
 
 @dataclass(frozen=True)
 class StudyExportSelection:
+    mode: StudyExportMode = "criteria"
     examinations: tuple[str, ...] = ()
     findings: tuple[str, ...] = ()
     indications: tuple[str, ...] = ()
     group_by: StudyExportGrouping = "patient"
+    study_name: str = ""
+    hypothesis: str = ""
+    cohort_schema_version: str = ""
+    patient_examination_ids: tuple[int, ...] = ()
+    cohort_filters: StudyCohortFilters | None = None
 
     @property
     def has_criteria(self) -> bool:
@@ -127,10 +138,13 @@ def build_study_export_options() -> StudyExportOptions:
 
 def _query_values(query_params: Mapping[str, Any], key: str) -> tuple[str, ...]:
     getlist = getattr(query_params, "getlist", None)
-    raw_values = cast(
-        Iterable[Any],
-        getlist(key) if callable(getlist) else [query_params.get(key, "")],
-    )
+    raw_value = query_params.get(key, "")
+    if callable(getlist):
+        raw_values = cast(Iterable[Any], getlist(key))
+    elif isinstance(raw_value, (list, tuple)):
+        raw_values = raw_value
+    else:
+        raw_values = [raw_value]
     values: list[str] = []
     for raw_value in raw_values:
         value = str(raw_value or "").strip()
@@ -139,10 +153,66 @@ def _query_values(query_params: Mapping[str, Any], key: str) -> tuple[str, ...]:
     return tuple(values)
 
 
+def _query_positive_ints(query_params: Mapping[str, Any], key: str) -> tuple[int, ...]:
+    values = _query_values(query_params, key)
+    parsed: list[int] = []
+    for value in values:
+        try:
+            parsed_value = int(value)
+        except ValueError as exc:
+            raise ValueError(f"{key} must contain positive integers.") from exc
+        if parsed_value < 1:
+            raise ValueError(f"{key} must contain positive integers.")
+        if parsed_value not in parsed:
+            parsed.append(parsed_value)
+    return tuple(parsed)
+
+
+def _cohort_filter_mapping(query_params: Mapping[str, Any]) -> Mapping[str, Any]:
+    normalized = dict(query_params)
+    for key in ("has_report", "has_video"):
+        value = normalized.get(key)
+        if isinstance(value, bool):
+            normalized[key] = "true" if value else "false"
+    return normalized
+
+
 def parse_study_export_selection(
     query_params: Mapping[str, Any],
 ) -> StudyExportSelection:
+    mode = str(query_params.get("mode", "criteria") or "criteria").strip()
+    if mode not in {"criteria", "cohort"}:
+        raise ValueError("mode must be criteria or cohort.")
+    if mode == "cohort":
+        if _parse_grouping(query_params) != "patient":
+            raise ValueError("Study cohort exports must use patient grouping.")
+        study_name = str(query_params.get("study_name", "") or "").strip()
+        hypothesis = str(query_params.get("hypothesis", "") or "").strip()
+        patient_examination_ids = _query_positive_ints(
+            query_params, "patient_examination_id"
+        )
+        if not study_name or not hypothesis:
+            raise ValueError("Study cohort exports require study_name and hypothesis.")
+        if not patient_examination_ids:
+            raise ValueError(
+                "Study cohort exports require at least one patient_examination_id."
+            )
+        return StudyExportSelection(
+            mode="cohort",
+            group_by="patient",
+            study_name=study_name,
+            hypothesis=hypothesis,
+            cohort_schema_version=str(
+                query_params.get("cohort_schema_version", "") or ""
+            ).strip(),
+            patient_examination_ids=patient_examination_ids,
+            cohort_filters=parse_study_cohort_filters(
+                _cohort_filter_mapping(query_params)
+            ),
+        )
+
     selection = StudyExportSelection(
+        mode="criteria",
         examinations=_query_values(query_params, "examination"),
         findings=_query_values(query_params, "finding"),
         indications=_query_values(query_params, "indication"),
@@ -224,6 +294,26 @@ def _export_cases(
         Prefetch("raw_pdf_files", queryset=eligible_report_files),
         Prefetch("video_files", queryset=eligible_videos),
     )
+    if selection.mode == "cohort":
+        cases = _pseudonymous_cases().filter(pk__in=selection.patient_examination_ids)
+        if cases.count() != len(selection.patient_examination_ids):
+            raise ValueError(
+                "The study cohort contains an unavailable patient examination."
+            )
+        row_count = (
+            cases.values("patient__center_id", "patient__patient_hash")
+            .distinct()
+            .count()
+        )
+        return (
+            cases.prefetch_related(*prefetches).order_by(
+                "patient__center__center_key",
+                "patient__patient_hash",
+                "date_start",
+                "pk",
+            ),
+            row_count,
+        )
     if selection.group_by == "examination":
         return (
             matching_cases.prefetch_related(*prefetches).order_by(
@@ -338,7 +428,33 @@ def _styled_header_cell(worksheet: Any, value: str) -> Any:
 
 
 def _selection_rows(selection: StudyExportSelection) -> list[tuple[str, str]]:
+    if selection.mode == "cohort":
+        filters = selection.cohort_filters or StudyCohortFilters()
+        return [
+            ("Export mode", "cohort"),
+            ("Grouping", selection.group_by),
+            ("Study name", selection.study_name),
+            ("Hypothesis", selection.hypothesis),
+            ("Cohort schema version", selection.cohort_schema_version),
+            ("Date from", filters.date_from.isoformat() if filters.date_from else ""),
+            ("Date to", filters.date_to.isoformat() if filters.date_to else ""),
+            ("Center", filters.center_key),
+            ("Examination", filters.examination_name),
+            ("Document type", filters.document_type),
+            ("Finding", filters.finding),
+            ("Annotation label", filters.annotation_label),
+            (
+                "Has report",
+                str(filters.has_report) if filters.has_report is not None else "",
+            ),
+            (
+                "Has video",
+                str(filters.has_video) if filters.has_video is not None else "",
+            ),
+            ("Preview limit", str(filters.limit)),
+        ]
     return [
+        ("Export mode", "criteria"),
         ("Grouping", selection.group_by),
         ("Examinations", _joined(selection.examinations)),
         ("Findings", _joined(selection.findings)),
@@ -447,9 +563,12 @@ def build_study_export_workbook(
     metadata_sheet.append(["Schema version", "1.0"])
     metadata_sheet.append(["Pseudonymous", "Yes"])
     metadata_sheet.append(["Row count", row_count])
-    metadata_sheet.append(
-        ["Filter semantics", "OR within categories; AND across categories"]
+    filter_semantics = (
+        "Exact reviewed StudyCohortPage snapshot"
+        if selection.mode == "cohort"
+        else "OR within categories; AND across categories"
     )
+    metadata_sheet.append(["Filter semantics", filter_semantics])
     for label, values in _selection_rows(selection):
         metadata_sheet.append([label, _safe_cell(values)])
     metadata_sheet.append(["Generated at (UTC)", now().isoformat()])
@@ -460,10 +579,13 @@ def build_study_export_workbook(
 
 
 def _selection_from_request(request: Request) -> StudyExportSelection:
-    query_params = cast(object, request.query_params)
+    request_values = cast(
+        object,
+        request.data if request.method == "POST" else request.query_params,
+    )
     mapping = (
-        cast(Mapping[str, Any], query_params)
-        if isinstance(query_params, Mapping)
+        cast(Mapping[str, Any], request_values)
+        if isinstance(request_values, Mapping)
         else {}
     )
     return parse_study_export_selection(mapping)
@@ -476,15 +598,15 @@ def study_export_options(request: Request) -> Response:
     return Response(build_study_export_options(), status=status.HTTP_200_OK)
 
 
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 @permission_classes([EnvironmentAwarePermission, StudyExportPatientReadPermission])
 def study_export_xlsx(request: Request) -> Response | HttpResponse:
     try:
         selection = _selection_from_request(request)
+        cases, row_count = _export_cases(selection)
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    cases, row_count = _export_cases(selection)
     if row_count == 0:
         return Response(
             {"error": "No pseudonymous cases match the selected criteria."},
@@ -510,7 +632,8 @@ def study_export_xlsx(request: Request) -> Response | HttpResponse:
         selection=selection,
         row_count=row_count,
     )
-    filename = f"pseudonymous-study-cases-{localdate().isoformat()}.xlsx"
+    export_label = "cohort" if selection.mode == "cohort" else "cases"
+    filename = f"pseudonymous-study-{export_label}-{localdate().isoformat()}.xlsx"
     response = HttpResponse(
         workbook,
         content_type=(

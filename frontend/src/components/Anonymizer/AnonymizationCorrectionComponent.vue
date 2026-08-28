@@ -276,6 +276,93 @@
             </div>
           </div>
 
+          <div v-if="isValidatedVideoCorrection" class="row mb-4">
+            <div class="col-12">
+              <div class="card border-warning" data-test="validated-video-recovery">
+                <div class="card-header">
+                  <h5 class="mb-0">Validierte Annotation korrigieren</h5>
+                </div>
+                <div class="card-body">
+                  <div v-if="recoveryError" class="alert alert-danger" role="alert">
+                    {{ recoveryError }}
+                  </div>
+                  <div v-if="recoveryMessage" class="alert alert-info" role="status">
+                    {{ recoveryMessage }}
+                  </div>
+                  <div class="row g-3">
+                    <div class="col-lg-6">
+                      <h6>Außerhalb-Segmente schwärzen</h6>
+                      <p class="small text-muted">
+                        Verwendet ausschließlich bereits validierte Outside-Segmente und startet die
+                        bestehende Nachverarbeitung erneut.
+                      </p>
+                      <button
+                        type="button"
+                        class="btn btn-outline-dark btn-sm"
+                        data-test="correction-blacken-outside"
+                        :disabled="!canBlackenOutsideSegments"
+                        :aria-busy="isBlackeningOutsideSegments ? 'true' : 'false'"
+                        @click="blackenOutsideSegments"
+                      >
+                        {{
+                          isBlackeningOutsideSegments
+                            ? 'Schwärzung wird gestartet...'
+                            : 'Außerhalb-Segmente schwärzen'
+                        }}
+                      </button>
+                      <p v-if="!segmentRecoveryStateLoaded" class="small text-muted mt-2 mb-0">
+                        Segmentvalidierung wird geprüft.
+                      </p>
+                      <p
+                        v-else-if="!canBlackenOutsideSegments"
+                        class="small text-muted mt-2 mb-0"
+                      >
+                        Keine vollständig validierten Outside-Segmente verfügbar.
+                      </p>
+                    </div>
+                    <div class="col-lg-6">
+                      <label for="correction-annotator-override" class="form-label">
+                        Annotator-Scope
+                      </label>
+                      <input
+                        id="correction-annotator-override"
+                        v-model.trim="annotatorOverrideInput"
+                        type="text"
+                        class="form-control form-control-sm"
+                        data-test="correction-annotator-override-input"
+                        :placeholder="baseAnnotatorPrincipal"
+                      />
+                      <div class="d-flex flex-wrap gap-2 mt-2">
+                        <button
+                          type="button"
+                          class="btn btn-outline-primary btn-sm"
+                          data-test="correction-annotator-override-apply"
+                          :disabled="!canRestartAnnotationAsOverride"
+                          @click="restartAnnotationAsOverride"
+                        >
+                          Annotation als anderer Nutzer neu starten
+                        </button>
+                        <button
+                          v-if="isAnnotatorOverrideActive"
+                          type="button"
+                          class="btn btn-outline-secondary btn-sm"
+                          data-test="correction-annotator-override-revert"
+                          @click="revertAnnotatorOverride"
+                        >
+                          Zurück zu meinem Nutzer
+                        </button>
+                      </div>
+                      <p class="small text-muted mt-2 mb-0">
+                        Der Neustart öffnet dieses Video in der Segmentannotation mit explizitem
+                        Bearbeitungsmodus.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Release anonymization strategy -->
           <div class="row mb-4">
             <div class="col-12">
@@ -717,12 +804,19 @@ import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
+import { useAuthKcStore } from '@/stores/auth_kc';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { isAxiosError } from 'axios';
 import { endpoints } from '@/types/api/endpoints';
 import { buildPdfStreamUrl, type StreamableVideoFileType } from '@/utils/mediaUrls';
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream';
 import { createRuntimeLogger } from '@/utils/runtimeLogger';
+import {
+  clearAnnotatorOverride,
+  getAnnotatorPrincipalFromAuthUser,
+  loadAnnotatorOverride,
+  saveAnnotatorOverride,
+} from '@/utils/annotationPrincipal';
 import type {
   VideoAnonymizationRequest,
   VideoAnonymizationStatus,
@@ -735,6 +829,7 @@ const router = useRouter();
 const route = useRoute();
 const anonymizationStore = useAnonymizationStore();
 const mediaStore = useMediaTypeStore();
+const authStore = useAuthKcStore();
 const logger = createRuntimeLogger('anonymization-correction');
 
 // Reactive state
@@ -747,6 +842,14 @@ const processingProgress = ref(0);
 const processingStatus = ref('');
 const previewMode = ref<'original' | 'processed'>('original');
 const videoElement = ref<HTMLVideoElement | null>(null);
+const segmentRecoveryStateLoaded = ref(false);
+const segmentValidationComplete = ref(false);
+const validatedOutsideSegmentCount = ref(0);
+const isBlackeningOutsideSegments = ref(false);
+const recoveryMessage = ref('');
+const recoveryError = ref('');
+const annotatorOverrideInput = ref('');
+const annotatorOverride = ref<string | null>(null);
 
 // Video data from anonymization store
 type CorrectionMedia = {
@@ -772,6 +875,9 @@ const stringFromUnknown = (value: unknown, fallback = ''): string => {
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   return fallback;
 };
+
+const recordFromUnknown = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === 'object' ? value as Record<string, unknown> : {};
 
 const currentVideo = ref<CorrectionMedia | null>(null);
 interface VideoMetadata {
@@ -979,6 +1085,27 @@ const resolvedMediaType = computed<CorrectionMediaType>(() => {
 });
 
 const isPdfCorrection = computed(() => resolvedMediaType.value === 'pdf');
+const isValidatedVideoCorrection = computed(
+  () => !isPdfCorrection.value && currentVideo.value?.anonymizationStatus === 'validated'
+);
+const baseAnnotatorPrincipal = computed(() =>
+  getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
+);
+const annotatorOverrideScope = computed(() => `video:${String(props.fileId)}`);
+const isAnnotatorOverrideActive = computed(() => annotatorOverride.value !== null);
+const canRestartAnnotationAsOverride = computed(() => {
+  const normalized = annotatorOverrideInput.value.trim();
+  return normalized.length > 0 &&
+    normalized !== baseAnnotatorPrincipal.value &&
+    normalized !== annotatorOverride.value;
+});
+const canBlackenOutsideSegments = computed(
+  () => isValidatedVideoCorrection.value &&
+    segmentRecoveryStateLoaded.value &&
+    segmentValidationComplete.value &&
+    validatedOutsideSegmentCount.value > 0 &&
+    !isBlackeningOutsideSegments.value
+);
 
 const totalPdfBoxCount = computed(() => {
   return Object.values(pdfPageBoxes.value).reduce(
@@ -988,6 +1115,110 @@ const totalPdfBoxCount = computed(() => {
 });
 
 // Methods
+const syncAnnotatorOverride = () => {
+  annotatorOverride.value = loadAnnotatorOverride(
+    annotatorOverrideScope.value,
+    baseAnnotatorPrincipal.value
+  );
+  annotatorOverrideInput.value = annotatorOverride.value ?? '';
+};
+
+const loadSegmentRecoveryState = async (videoId: number) => {
+  segmentRecoveryStateLoaded.value = false;
+  segmentValidationComplete.value = false;
+  validatedOutsideSegmentCount.value = 0;
+  try {
+    const response = await axiosInstance.get(
+      r(endpoints.media.videoSegmentsValidationStatus(videoId))
+    );
+    const responseData = recordFromUnknown(response.data);
+    const byLabel = recordFromUnknown(responseData.byLabel ?? responseData.by_label);
+    const outside = recordFromUnknown(byLabel.outside);
+    segmentValidationComplete.value = Boolean(
+      responseData.validationComplete ?? responseData.validation_complete
+    );
+    validatedOutsideSegmentCount.value = Number(outside.validated ?? 0);
+  } catch (err: unknown) {
+    recoveryError.value = 'Segmentvalidierung konnte nicht geladen werden.';
+    logger.error('segment-recovery-state-load-failed', err);
+  } finally {
+    segmentRecoveryStateLoaded.value = true;
+  }
+};
+
+const restartAnnotationAsOverride = () => {
+  const normalized = annotatorOverrideInput.value.trim();
+  if (!canRestartAnnotationAsOverride.value) return;
+  saveAnnotatorOverride(
+    annotatorOverrideScope.value,
+    baseAnnotatorPrincipal.value,
+    normalized
+  );
+  annotatorOverride.value = normalized;
+  void router.push({
+    name: 'Video-Untersuchung',
+    query: { video: String(props.fileId), editSegments: '1' }
+  });
+};
+
+const revertAnnotatorOverride = () => {
+  clearAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value);
+  annotatorOverride.value = null;
+  annotatorOverrideInput.value = '';
+};
+
+const blackenOutsideSegments = async () => {
+  if (!canBlackenOutsideSegments.value) return;
+  if (!confirm(`Außerhalb-Segmente für Video ${String(props.fileId)} erneut schwärzen?`)) {
+    return;
+  }
+
+  isBlackeningOutsideSegments.value = true;
+  recoveryError.value = '';
+  recoveryMessage.value = '';
+  try {
+    const response = await axiosInstance.post(
+      r(endpoints.media.videoSegmentsBlackenOutside(props.fileId)),
+      { onlyValidated: true }
+    );
+    const responseData = recordFromUnknown(response.data);
+    const job = recordFromUnknown(
+      responseData.postProcessingJob ?? responseData.post_processing_job
+    );
+    const status = stringFromUnknown(job.status ?? responseData.status);
+    const outsideCount = Number(
+      responseData.outsideSegmentCount ?? responseData.outside_segment_count ?? 0
+    );
+
+    if (status === 'completed') {
+      recoveryMessage.value =
+        `Außerhalb-Segmente geschwärzt (${String(outsideCount)} Segmente).`;
+    } else if (status === 'queued') {
+      recoveryMessage.value =
+        `Schwärzung der Außerhalb-Segmente gestartet (${String(outsideCount)} Segmente).`;
+    } else if (status === 'already_queued') {
+      recoveryMessage.value = 'Schwärzung der Außerhalb-Segmente läuft bereits.';
+    } else if (status === 'busy') {
+      recoveryError.value = 'Ein anderer Verarbeitungsvorgang für dieses Video läuft bereits.';
+    } else if (status === 'noop' || (!status && outsideCount === 0)) {
+      recoveryMessage.value = 'Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.';
+    } else {
+      recoveryError.value = stringFromUnknown(
+        responseData.error ?? responseData.message,
+        'Unerwarteter Status beim Schwärzen der Außerhalb-Segmente.'
+      );
+    }
+  } catch (err: unknown) {
+    recoveryError.value = getApiErrorMessage(
+      err,
+      'Schwärzung der Außerhalb-Segmente fehlgeschlagen.'
+    );
+    logger.error('outside-segment-blackening-failed', err);
+  } finally {
+    isBlackeningOutsideSegments.value = false;
+  }
+};
+
 const goBack = () => {
   void router.push('/anonymisierung/uebersicht');
 };
@@ -1069,6 +1300,9 @@ const loadPdfDetails = async (pdfId: number) => {
 const loadVideoDetails = async (videoId: number) => {
   loading.value = true;
   error.value = '';
+  recoveryError.value = '';
+  recoveryMessage.value = '';
+  segmentRecoveryStateLoaded.value = false;
 
   try {
     // Load video metadata and processing history
@@ -1096,6 +1330,11 @@ const loadVideoDetails = async (videoId: number) => {
       mediaType: currentVideo.value.mediaType,
       scope: currentVideo.value.mediaType,
     });
+
+    syncAnnotatorOverride();
+    if (currentVideo.value.anonymizationStatus === 'validated') {
+      await loadSegmentRecoveryState(videoId);
+    }
 
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler beim Laden der Video-Details');

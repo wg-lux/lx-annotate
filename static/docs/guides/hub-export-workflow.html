@@ -593,6 +593,12 @@ request that is still legitimately importing. A timeout is a transient transfer
 failure; retry the same deterministic transfer key so the receiver can reuse
 the existing ledger entry.
 Redis availability does not control this synchronous HTTP registration path.</p>
+<p>Large report registration retains the complete validated <code class="docutils literal notranslate"><span class="pre">anonymized_text</span></code>
+field. Operational events record only its character count and collection row
+counts, never the text itself. Processed PDF and video media remain envelope
+encrypted and are uploaded from disk in bounded 1 MiB chunks; upload events
+include plaintext/ciphertext byte counts, the chunk size, and request timeout so
+operators can distinguish expected large-transfer latency from a stalled job.</p>
 <p>Before enabling queueing, an authenticated operator must:</p>
 <ol class="arabic simple">
 <li><p>Open the administration overview and confirm that one active site node,
@@ -801,7 +807,7 @@ integrity proof makes a resource eligible</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=cb7bf70b"></script>
+</div><script src="../_static/documentation_options.js?v=00f267c6"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

@@ -172,6 +172,49 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.text()).toContain('Video-ID: 17')
   })
 
+  it('keeps media type in correction identity when a PDF and video share an id', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildPdfFile({ id: 3, anonymizationStatus: 'validated' }),
+      buildVideoFile({ id: 3, anonymizationStatus: 'validated' })
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    const videoRow = wrapper
+      .findAll('tbody tr')
+      .find((row) => row.text().includes('study-video.mp4'))
+    if (!videoRow) throw new Error('Expected the colliding video row to be rendered.')
+
+    await videoRow.get('[data-test="correction-button"]').trigger('click')
+
+    expect(hoisted.mediaStoreRef.current.setCurrentItem).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 3, mediaType: 'video' })
+    )
+    expect(hoisted.routerPush).toHaveBeenCalledWith({
+      name: 'Anonymisierung Korrektur',
+      params: { fileId: '3' },
+      query: { mediaType: 'video' }
+    })
+  })
+
+  it('offers correction for an anonymized PDF', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildPdfFile({ anonymizationStatus: 'done_processing_anonymization' })
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    await wrapper.get('[data-test="correction-button"]').trigger('click')
+
+    expect(hoisted.routerPush).toHaveBeenCalledWith({
+      name: 'Anonymisierung Korrektur',
+      params: { fileId: '23' },
+      query: { mediaType: 'pdf' }
+    })
+  })
+
   it('shows authorization errors without the misleading empty-state message', async () => {
     hoisted.anonymizationStoreRef.current.error =
       'Fehler beim Laden der Übersicht (403): Keine Center-Zuordnung'

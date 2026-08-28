@@ -33,6 +33,26 @@ tracking:
     changed_at: '2026-08-27T14:39:06.313816Z'
     note: Selectable center-scoped patient-history and per-matching-examination XLSX grouping modes implemented
       and verified.
+  - action: reopened
+    changed_by: codex-export-grouping-20260828
+    changed_at: '2026-08-28T10:49:37.787891Z'
+    note: Captured browser export requests return HTTP 406 because the XLSX-only Accept header cannot
+      be negotiated by DRF; reopen for frontend/backend contract correction and AAA coverage.
+  - action: done
+    changed_by: codex-export-grouping-20260828
+    changed_at: '2026-08-28T10:53:11.149817Z'
+    note: XLSX download negotiation fixed without changing current grouping shape; frontend and backend
+      AAA contract suites plus static checks pass.
+  - action: reopened
+    changed_by: codex-export-grouping-20260828
+    changed_at: '2026-08-28T10:57:04.190674Z'
+    note: Add a separate export-page mode for the exact server-reviewed StudyCohortPage snapshot with
+      AAA frontend/backend coverage.
+  - action: done
+    changed_by: codex-export-grouping-20260828
+    changed_at: '2026-08-28T11:12:25.602185Z'
+    note: Separate reviewed StudyCohortPage snapshot mode implemented on Export.vue with typed JSON POST,
+      exact-ID backend validation, visible cohort metadata, and passing AAA/static verification.
 source_documents:
 - path: docs/guides/ai-training-data-export.md
   disposition: reference
@@ -66,11 +86,11 @@ definition_of_done:
     evidence:
     - kind: command
       reference: uv run --no-sync --with pytest --with pytest-django python -m pytest tests/api/test_study_excel_export.py
-        -q (6 passed)
-    note: 'Backend workbook suite: 6 passed; workbook inspection excludes direct identity fields and neutralizes
-      formula prefixes.'
-    assessed_by: codex-filtered-case-xlsx
-    assessed_at: '2026-08-27T14:26:11.787411Z'
+        -q (12 passed, 2026-08-28)
+    note: Both ad-hoc and reviewed-cohort workbooks remain pseudonymous; cohort IDs are resolved only
+      through the existing pseudonymous case scope and metadata cells use formula neutralization.
+    assessed_by: codex-export-grouping-20260828
+    assessed_at: '2026-08-28T11:12:07.929007Z'
 - id: clinical_filters
   category: requirements
   title: Practitioners can filter study rows by annotated clinical concepts
@@ -81,6 +101,8 @@ definition_of_done:
   - A matching examination includes all initial and follow-up examinations for the same center-scoped
     patient pseudonym when patient-history grouping is selected.
   - Patients without an examination matching the submitted criteria are not written to the workbook.
+  - A reviewed StudyCohortPage preview can be exported as an exact examination-ID snapshot without reinterpreting
+    its cohort filters.
   required: true
   verification:
     kind: command
@@ -102,15 +124,14 @@ definition_of_done:
     status: verified
     evidence:
     - kind: command
-      reference: tests/api/test_study_excel_export.py (6 passed)
+      reference: tests/api/test_study_excel_export.py::test_xlsx_exports_the_exact_reviewed_study_cohort_snapshot
+        (passed, 2026-08-28)
     - kind: command
-      reference: tests/api/test_study_excel_export.py (6 passed, grouped follow-up workbook row asserted)
-    - kind: command
-      reference: tests/api/test_study_excel_export.py (8 passed)
-    note: 'Both row groupings verified: patient mode aggregates center-scoped follow-ups after an identity
-      matches; examination mode emits only examinations matching all selected category filters.'
-    assessed_by: codex-filtered-case-xlsx
-    assessed_at: '2026-08-27T14:38:50.685879Z'
+      reference: tests/api/test_study_excel_export.py (12 passed, 2026-08-28)
+    note: Patient/examination ad-hoc grouping is unchanged; cohort mode exports exactly the server-reviewed
+      StudyCohortPage examination IDs and does not expand to unselected follow-ups.
+    assessed_by: codex-export-grouping-20260828
+    assessed_at: '2026-08-28T11:12:09.535416Z'
 - id: excel_download
   category: functionality
   title: Export.vue offers a usable Excel download workflow
@@ -118,6 +139,8 @@ definition_of_done:
   - The export page loads available clinical concepts from persisted annotated cases.
   - The browser downloads a valid XLSX response and reports empty or invalid selections visibly.
   - Grouped rows expose pseudonymous examination, report, and processed-media references without raw media.
+  - The export page exposes the prepared study cohort as a separate mode from ad-hoc case-list and training-data
+    exports.
   required: true
   verification:
     kind: command
@@ -136,17 +159,21 @@ definition_of_done:
     status: verified
     evidence:
     - kind: command
-      reference: frontend export tests 7 passed; full vue-tsc build passed
-    note: Frontend exposes a radio segmented grouping control and sends the typed group_by parameter;
-      workbook metadata records the selected mode.
-    assessed_by: codex-filtered-case-xlsx
-    assessed_at: '2026-08-27T14:38:52.088276Z'
+      reference: frontend focused study export AAA suite (16 passed, 2026-08-28)
+    - kind: command
+      reference: backend study export suite (12 passed, 2026-08-28)
+    note: StudyCohortPage captures its normalized reviewed snapshot, routes to a separate Studienkohorte
+      export mode, displays the active filters, and downloads through a bounded JSON POST contract.
+    assessed_by: codex-export-grouping-20260828
+    assessed_at: '2026-08-28T11:12:11.092732Z'
 - id: typed_boundary
   category: testing
   title: API and UI boundaries are typed and regression tested
   acceptance:
   - Query parsing rejects missing criteria and unknown values.
   - Frontend request and binary response handling are covered by focused tests.
+  - Study cohort names, hypotheses, normalized filters, and patient-examination IDs are validated at their
+    frontend and backend boundaries.
   required: true
   verification:
     kind: command
@@ -161,11 +188,19 @@ definition_of_done:
     status: verified
     evidence:
     - kind: command
-      reference: npm --prefix frontend run type-check (passed)
-    note: Full frontend OpenAPI freshness, Vue TypeScript build, and repository ESLint completed successfully;
-      scoped Pyright and Ruff pass.
-    assessed_by: codex-filtered-case-xlsx
-    assessed_at: '2026-08-27T14:26:21.820463Z'
+      reference: npm --prefix frontend run type-check (passed, 2026-08-28)
+    - kind: command
+      reference: frontend focused study export AAA suite (16 passed, 2026-08-28)
+    - kind: command
+      reference: uv run --no-sync --with ruff ruff check lx_annotate/views/study_export.py tests/api/test_study_excel_export.py
+        (passed, 2026-08-28)
+    - kind: command
+      reference: uv run --no-sync --with pyright pyright lx_annotate/views/study_export.py (0 errors,
+        2026-08-28)
+    note: Frontend rejects malformed cohort IDs; backend validates mode, patient grouping, study metadata,
+      normalized cohort filters, positive ID arrays, and pseudonymous ID availability.
+    assessed_by: codex-export-grouping-20260828
+    assessed_at: '2026-08-28T11:12:12.888544Z'
 - id: authorization
   category: security
   title: Export access uses the existing patient-read authorization boundary
@@ -213,11 +248,12 @@ definition_of_done:
     status: verified
     evidence:
     - kind: review
-      reference: frontend/src/components/Export/CaseStudyExcelExport.vue and lx_annotate/views/study_export.py
-    note: Reviewed UI labels, two workbook sheets, pseudonymous metadata, filter semantics, response headers,
-      and filename.
-    assessed_by: codex-filtered-case-xlsx
-    assessed_at: '2026-08-27T14:26:27.209014Z'
+      reference: frontend/src/views/Export.vue, frontend/src/components/Export/StudyCohortExcelExport.vue,
+        and lx_annotate/views/study_export.py (reviewed 2026-08-28)
+    note: Reviewed the separate Studienkohorte mode, reviewed-filter summary, workbook cohort metadata,
+      exact-snapshot semantics, and distinct cohort filename.
+    assessed_by: codex-export-grouping-20260828
+    assessed_at: '2026-08-28T11:12:14.538827Z'
 - id: bounded_operation
   category: operations
   title: Workbook generation is bounded and leaves no server-side artifact
