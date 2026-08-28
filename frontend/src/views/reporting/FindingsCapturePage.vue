@@ -398,6 +398,7 @@ const {
   loading: templateLoading,
   errorMessage: templateErrorMessage,
   applyTemplateOptions,
+  selectTemplateByName,
   setModuleName
 } = useReportTemplates({
   initialModuleName: terminology.activeBundle ? terminology.activeModuleName : '',
@@ -1129,14 +1130,17 @@ watch(
 )
 
 watch(
-  [selectedKbModule, selectedTemplateName, selectedTemplate],
-  ([moduleName, templateName, template]) => {
-    flow.setTemplateSelection({
-      moduleName,
-      templateName,
-      templateIdentity: template?.identity || null
-    })
-  }
+  () => flow.selectedTemplateName,
+  async (templateName) => {
+    if (
+      templateName === selectedTemplateName.value &&
+      (templateName === null || selectedTemplate.value?.name === templateName)
+    ) {
+      return
+    }
+    await selectTemplateByName(templateName)
+  },
+  { immediate: true }
 )
 
 watch(

@@ -27,6 +27,7 @@ from lx_annotate.hub.hub_export_worker import (
     RemoteTransferIntegrityError,
     RemoteTransferStatusPayload,
     apply_remote_status,
+    resolve_hub_request_timeout_seconds,
     resolve_hub_transport_config,
     resolve_outbound_node_secret,
     run_outbound_transfer_job,
@@ -202,6 +203,16 @@ class HubExportWorkerTests(TestCase):
         self.assertEqual(transport.cert, (str(cert_file), str(key_file)))
         self.assertEqual(transport.verify, str(ca_file))
 
+    @override_settings(LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS=21600)
+    def test_hub_request_timeout_defaults_to_long_running_transfer_budget(self):
+        self.assertEqual(resolve_hub_request_timeout_seconds(), 21600)
+        self.assertEqual(resolve_hub_request_timeout_seconds(45), 45)
+
+    @override_settings(LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS=0)
+    def test_hub_request_timeout_rejects_non_positive_configuration(self):
+        with self.assertRaisesMessage(ValueError, "must be positive"):
+            resolve_hub_request_timeout_seconds()
+
     def test_run_outbound_transfer_job_records_non_https_configuration_rejection(
         self,
     ) -> None:
@@ -280,6 +291,8 @@ class HubExportWorkerTests(TestCase):
             "remote-transfer-1",
         )
         self.assertEqual(post_mock.call_count, 2)
+        self.assertEqual(post_mock.call_args_list[0].kwargs["timeout"], 21600)
+        self.assertEqual(post_mock.call_args_list[1].kwargs["timeout"], 21600)
 
     def test_applied_status_without_validated_receipt_is_rejected(self) -> None:
         self.job.local_status = OutboundHubTransferJob.LocalStatus.REGISTERING
@@ -440,6 +453,30 @@ class HubExportWorkerTests(TestCase):
             OutboundHubTransferJob.FailureClass.AUTHORIZATION_DENIAL,
         )
         self.assertEqual(result.retry_count, 0)
+        self.assertEqual(post_mock.call_count, 1)
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_run_outbound_transfer_job_records_http_400_as_configuration_rejection(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        rejected_response = MagicMock()
+        rejected_response.status_code = 400
+        post_mock.return_value = rejected_response
+
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(
+            result.failure_class,
+            OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION,
+        )
+        self.assertEqual(result.retry_count, 0)
+        self.assertIn("HTTP 400", result.last_error)
         self.assertEqual(post_mock.call_count, 1)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import os
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -7,8 +9,8 @@ import requests
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
-
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
+
 from lx_annotate.hub.hub_export_reconciliation import (
     reconcile_outbound_transfer_job,
     recover_stale_outbound_transfer_jobs,
@@ -18,9 +20,6 @@ from tests.hub_payload_helpers import (
     hub_transfer_status_payload,
     verify_hub_report_artifact,
 )
-
-import base64
-import os
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 
@@ -148,7 +147,7 @@ class HubExportReconciliationTests(TestCase):
             last_attempt_at=timezone.now() - timedelta(minutes=5),
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
+        with getattr(self, "captureOnCommitCallbacks")(execute=True):
             summary = recover_stale_outbound_transfer_jobs(
                 source_node_key=self.site_node.node_key,
                 source_secret="super-secret",
@@ -177,7 +176,7 @@ class HubExportReconciliationTests(TestCase):
             queued_at=timezone.now() - timedelta(minutes=5),
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
+        with getattr(self, "captureOnCommitCallbacks")(execute=True):
             summary = recover_stale_outbound_transfer_jobs(
                 source_node_key=self.site_node.node_key,
                 source_secret="super-secret",
@@ -235,7 +234,7 @@ class HubExportReconciliationTests(TestCase):
             last_attempt_at=timezone.now() - timedelta(minutes=5),
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
+        with getattr(self, "captureOnCommitCallbacks")(execute=True):
             summary = recover_stale_outbound_transfer_jobs(
                 source_node_key=self.site_node.node_key,
                 source_secret="super-secret",

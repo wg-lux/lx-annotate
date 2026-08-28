@@ -79,7 +79,9 @@ export const endpoints = {
   },
 
   study: {
-    cohortPreview: 'media/studies/cohort-preview/'
+    cohortPreview: 'media/studies/cohort-preview/',
+    caseExportOptions: 'media/studies/case-export/options/',
+    caseExportXlsx: 'media/studies/case-export.xlsx'
   },
 
   upload: {

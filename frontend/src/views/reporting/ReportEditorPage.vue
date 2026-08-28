@@ -1024,6 +1024,18 @@ function historicalReportMatchesTemplate(
   )
 }
 
+async function loadReportRenderedText(reportId: number): Promise<string | undefined> {
+  const response = await axiosInstance.get<unknown>(
+    r(endpoints.report.patientExaminationReportById(reportId))
+  )
+  const report = readRecord(response.data)
+  if (report.renderedText === undefined) return undefined
+  if (typeof report.renderedText !== 'string') {
+    throw new TypeError('Der Bericht enthält keinen gültigen Berichtstext.')
+  }
+  return report.renderedText
+}
+
 async function loadIndicationCatalog(context?: EditorContext) {
   const patientExaminationId = context?.patientExaminationId ?? flow.patientExaminationId
   const selectedExaminationId = context?.selectedExaminationId ?? flow.selectedExaminationId
@@ -1553,11 +1565,16 @@ async function loadLatestReportMeta(context?: EditorContext) {
       await selectTemplateByName(latest.templateName)
       if (!isEditorContextCurrent(context)) return
     }
+    const renderedText =
+      typeof latest.renderedText === 'string'
+        ? latest.renderedText
+        : await loadReportRenderedText(latest.id)
+    if (!isEditorContextCurrent(context)) return
     historicalReadOnlyReport.value = null
     flow.setActiveReportId(latest.id)
     currentReportVersion.value = latest.version
-    if (typeof latest.renderedText === 'string') {
-      flow.setRenderedReportText(latest.renderedText, 'manual')
+    if (typeof renderedText === 'string') {
+      flow.setRenderedReportText(renderedText, 'manual')
     }
     successMessage.value = `Der Bericht wurde geladen (Version ${String(latest.version)}).`
   } catch (e: unknown) {

@@ -480,6 +480,21 @@ describe('FindingsCapturePage runtime draft flow', () => {
     })
   })
 
+  it('consumes a template selected in the reporting shell while remaining mounted', async () => {
+    mountPage()
+    await flushPromises()
+    hoisted.templateControls.selectTemplateByName.mockClear()
+    hoisted.flowRef.current.setTemplateSelection.mockClear()
+
+    hoisted.flowRef.current.selectedTemplateName = 'star_upper_gi_follow_up'
+    await flushPromises()
+
+    expect(hoisted.templateControls.selectTemplateByName).toHaveBeenCalledWith(
+      'star_upper_gi_follow_up'
+    )
+    expect(hoisted.flowRef.current.setTemplateSelection).not.toHaveBeenCalled()
+  })
+
   it('renders the active knowledge-base module as read-only context', async () => {
     const wrapper = mountPage()
     await flushPromises()

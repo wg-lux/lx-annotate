@@ -203,6 +203,20 @@ def test_static_and_media_handoff_is_pinned_to_nginx_contract():
     assert "Daphne should not serve static bundles directly" in guide
 
 
+def test_hub_transfer_proxy_allows_long_registration_and_media_apply():
+    nginx_conf = _read("deployment_example/nginx-lx-annotate.conf")
+
+    assert "location /api/media/hub/transfers/" in nginx_conf
+    transfer_location = nginx_conf.split("location /api/media/hub/transfers/", 1)[
+        1
+    ].split("location /", 1)[0]
+    assert "client_body_timeout 21600s;" in transfer_location
+    assert "proxy_request_buffering off;" in transfer_location
+    assert "proxy_read_timeout 21600s;" in transfer_location
+    assert "proxy_send_timeout 21600s;" in transfer_location
+    assert "send_timeout 21600s;" in transfer_location
+
+
 def test_protected_media_nginx_contract_is_explicitly_documented():
     nginx_conf = _read("deployment_example/nginx-lx-annotate.conf")
     guide = _read("docs/guides/wheel-deployment.md")

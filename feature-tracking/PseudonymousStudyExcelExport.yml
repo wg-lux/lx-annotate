@@ -1,0 +1,253 @@
+schema_version: '1.0'
+id: pseudonymous_study_excel_export
+name: Pseudonymous Study Excel Export
+description: Allow practitioners to select examinations, findings, and indications and download matching
+  center-scoped pseudonymous patient histories as an Excel workbook.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-filtered-case-xlsx
+    changed_at: '2026-08-27T14:26:52.931119Z'
+    note: Filtered pseudonymous XLSX case export implemented and verified across backend, frontend, typing,
+      lint, authorization, and API route contracts.
+  - action: reopened
+    changed_by: codex-filtered-case-xlsx
+    changed_at: '2026-08-27T14:28:59.627886Z'
+    note: New reviewed requirement groups initial and follow-up examinations into one center-scoped patient
+      row.
+  - action: done
+    changed_by: codex-filtered-case-xlsx
+    changed_at: '2026-08-27T14:34:40.315115Z'
+    note: Center-scoped pseudonymous patient-history XLSX export verified with follow-up examination,
+      report, and validated processed-media aggregation.
+  - action: reopened
+    changed_by: codex-filtered-case-xlsx
+    changed_at: '2026-08-27T14:35:16.223422Z'
+    note: User requested both patient-history and per-examination XLSX grouping modes.
+  - action: done
+    changed_by: codex-filtered-case-xlsx
+    changed_at: '2026-08-27T14:39:06.313816Z'
+    note: Selectable center-scoped patient-history and per-matching-examination XLSX grouping modes implemented
+      and verified.
+source_documents:
+- path: docs/guides/ai-training-data-export.md
+  disposition: reference
+  note: Existing privacy and annotation export context; the case-list workbook is a separate export profile.
+definition_of_done:
+- id: pseudonymous_contract
+  category: security
+  title: Workbook rows contain pseudonymous case data only
+  acceptance:
+  - Patient names, dates of birth, raw media, and direct patient identifiers are not exported.
+  - Spreadsheet formula prefixes in database-backed text are neutralized.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --no-sync
+    - --with
+    - pytest
+    - --with
+    - pytest-django
+    - python
+    - -m
+    - pytest
+    - tests/api/test_study_excel_export.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: uv run --no-sync --with pytest --with pytest-django python -m pytest tests/api/test_study_excel_export.py
+        -q (6 passed)
+    note: 'Backend workbook suite: 6 passed; workbook inspection excludes direct identity fields and neutralizes
+      formula prefixes.'
+    assessed_by: codex-filtered-case-xlsx
+    assessed_at: '2026-08-27T14:26:11.787411Z'
+- id: clinical_filters
+  category: requirements
+  title: Practitioners can filter study rows by annotated clinical concepts
+  acceptance:
+  - Examinations, findings, and indications can each be selected independently.
+  - Values within a category use OR semantics and selected categories use AND semantics.
+  - Practitioners can choose one row per center-scoped patient history or one row per matching examination.
+  - A matching examination includes all initial and follow-up examinations for the same center-scoped
+    patient pseudonym when patient-history grouping is selected.
+  - Patients without an examination matching the submitted criteria are not written to the workbook.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --no-sync
+    - --with
+    - pytest
+    - --with
+    - pytest-django
+    - python
+    - -m
+    - pytest
+    - tests/api/test_study_excel_export.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: tests/api/test_study_excel_export.py (6 passed)
+    - kind: command
+      reference: tests/api/test_study_excel_export.py (6 passed, grouped follow-up workbook row asserted)
+    - kind: command
+      reference: tests/api/test_study_excel_export.py (8 passed)
+    note: 'Both row groupings verified: patient mode aggregates center-scoped follow-ups after an identity
+      matches; examination mode emits only examinations matching all selected category filters.'
+    assessed_by: codex-filtered-case-xlsx
+    assessed_at: '2026-08-27T14:38:50.685879Z'
+- id: excel_download
+  category: functionality
+  title: Export.vue offers a usable Excel download workflow
+  acceptance:
+  - The export page loads available clinical concepts from persisted annotated cases.
+  - The browser downloads a valid XLSX response and reports empty or invalid selections visibly.
+  - Grouped rows expose pseudonymous examination, report, and processed-media references without raw media.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/api/__tests__/studyExportApi.test.ts
+    - src/components/Export/__tests__/CaseStudyExcelExport.test.ts
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: frontend export tests 7 passed; full vue-tsc build passed
+    note: Frontend exposes a radio segmented grouping control and sends the typed group_by parameter;
+      workbook metadata records the selected mode.
+    assessed_by: codex-filtered-case-xlsx
+    assessed_at: '2026-08-27T14:38:52.088276Z'
+- id: typed_boundary
+  category: testing
+  title: API and UI boundaries are typed and regression tested
+  acceptance:
+  - Query parsing rejects missing criteria and unknown values.
+  - Frontend request and binary response handling are covered by focused tests.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - type-check
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: npm --prefix frontend run type-check (passed)
+    note: Full frontend OpenAPI freshness, Vue TypeScript build, and repository ESLint completed successfully;
+      scoped Pyright and Ruff pass.
+    assessed_by: codex-filtered-case-xlsx
+    assessed_at: '2026-08-27T14:26:21.820463Z'
+- id: authorization
+  category: security
+  title: Export access uses the existing patient-read authorization boundary
+  acceptance:
+  - Anonymous production requests are denied.
+  - The export does not introduce a weaker permission profile than the study cohort preview.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --no-sync
+    - --with
+    - pytest
+    - --with
+    - pytest-django
+    - python
+    - -m
+    - pytest
+    - tests/api/test_study_excel_export.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: tests/api/test_study_excel_export.py::test_export_permission_requires_patient_read_outside_debug
+        (passed)
+    note: Production-mode permission test denies anonymous and video-only roles and accepts patient:read.
+    assessed_by: codex-filtered-case-xlsx
+    assessed_at: '2026-08-27T14:26:24.343851Z'
+- id: scope_documentation
+  category: documentation
+  title: Export behavior is explicit in code and UI language
+  acceptance:
+  - The workbook identifies its pseudonymous scope and active filter criteria.
+  - UI labels distinguish this case-list export from the training-data segment export.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the export component labels, workbook sheets, and response filename.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: frontend/src/components/Export/CaseStudyExcelExport.vue and lx_annotate/views/study_export.py
+    note: Reviewed UI labels, two workbook sheets, pseudonymous metadata, filter semantics, response headers,
+      and filename.
+    assessed_by: codex-filtered-case-xlsx
+    assessed_at: '2026-08-27T14:26:27.209014Z'
+- id: bounded_operation
+  category: operations
+  title: Workbook generation is bounded and leaves no server-side artifact
+  acceptance:
+  - The export enforces a documented maximum row count and fails visibly when exceeded.
+  - XLSX bytes are returned directly without persisting a plaintext workbook on the server.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --no-sync
+    - --with
+    - pytest
+    - --with
+    - pytest-django
+    - python
+    - -m
+    - pytest
+    - tests/api/test_study_excel_export.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: tests/api/test_study_excel_export.py::test_xlsx_reports_empty_and_over_limit_selections
+        (passed)
+    note: Export rejects over-limit cohorts at 25,000 rows and creates XLSX bytes in memory without filesystem
+      mutation.
+    assessed_by: codex-filtered-case-xlsx
+    assessed_at: '2026-08-27T14:26:30.074514Z'

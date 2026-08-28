@@ -54,7 +54,9 @@ _RETRYABLE_FAILURE_PREFIXES = (
 
 
 def hub_export_stale_after() -> timedelta:
-    seconds = int(getattr(settings, "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS", 1800))
+    seconds = int(
+        getattr(settings, "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS", 25200)
+    )
     return timedelta(seconds=max(seconds, 60))
 
 

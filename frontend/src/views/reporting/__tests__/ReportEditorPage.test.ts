@@ -944,6 +944,45 @@ describe('ReportEditorPage draft-driven workflow', () => {
     expect(wrapper.text()).toContain('Der Bericht wurde geladen (Version 2)')
   })
 
+  it('loads historical report text from the report detail when the list omits it', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'patient-examination-reports/?patient_examination_id=42') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 88,
+              status: 'draft',
+              version: 2,
+              templateName: 'star_upper_gi_main',
+              knowledgeBaseModule: 'report_template_examples',
+              knowledgeBaseVersion: '1.0.0',
+              templateVersion: '1',
+              templateHash: 'hash-1'
+            }
+          ]
+        })
+      }
+      if (url === 'patient-examination-reports/88') {
+        return Promise.resolve({ data: { renderedText: 'Berichtstext aus dem Detail.' } })
+      }
+      return Promise.resolve({ data: [] })
+    })
+
+    const refreshButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('Letzten Bericht laden')),
+      'the report-refresh button'
+    )
+    await refreshButton.trigger('click')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.renderedReportText).toBe('Berichtstext aus dem Detail.')
+    expect(
+      (wrapper.get('[data-testid="report-text-editor"]').element as HTMLTextAreaElement).value
+    ).toBe('Berichtstext aus dem Detail.')
+  })
+
   it('does not activate same-name historical text from a different template revision', async () => {
     const wrapper = mountPage()
     await flushPromises()

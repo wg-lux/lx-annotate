@@ -326,6 +326,8 @@ LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE=/run/secrets/hub-recipient.pub
 LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR=/var/lib/lx-annotate/data/hub-export-envelopes
 LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE=/run/secrets/hub-node-secret
 LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=false
+LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS=21600
+LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS=25200
 LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY=retain_processed_media
 ```
 
@@ -333,6 +335,16 @@ Use the node-specific
 `LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_<NORMALIZED_NODE_KEY>_FILE` setting when a
 deployment has more than one sender identity. Never set TLS verification to
 false. The target `NetworkNode.base_url` must use `https://`.
+
+Registration is synchronous: the hub validates and imports the complete typed
+annotation graph before returning. The sender timeout and the reverse proxy's
+read/send timeouts must therefore cover the largest expected annotation import
+and encrypted media apply. The packaged sender and deployment example default
+to 21600 seconds. Stale recovery defaults to 25200 seconds so it cannot race a
+request that is still legitimately importing. A timeout is a transient transfer
+failure; retry the same deterministic transfer key so the receiver can reuse
+the existing ledger entry.
+Redis availability does not control this synchronous HTTP registration path.
 
 Before enabling queueing, an authenticated operator must:
 

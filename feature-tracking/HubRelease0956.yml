@@ -97,11 +97,22 @@ definition_of_done:
     - kind: document
       reference: docs/guides/hub-export-workflow.md (import-to-transfer Mermaid DAG and exact eligibility
         gates)
-    note: Verified the local import-to-queue reachability contract and fail-closed intermediate states.
-      Full installed-wheel sender/receiver and live mutual TLS acceptance remain outstanding, so this
-      criterion is not verified.
-    assessed_by: codex-lx-hub-transfer-state-tests
-    assessed_at: '2026-08-17T07:00:19.270110Z'
+    - kind: command
+      reference: .devenv/state/venv/bin/pytest tests/hub/test_hub_export*.py tests/hub/test_hub_transfer_security.py
+        tests/hub/test_hub_url_aliases.py -q (149 passed in 61.80s, 2026-08-28)
+    - kind: command
+      reference: .devenv/state/venv/bin/pytest tests/hub/test_hub_export_worker.py tests/hub/test_hub_export_reconciliation.py
+        tests/system/test_production_celery_routing.py tests/system/test_secretspec_environment_contract.py
+        tests/system/test_wheel_deployment_acceptance.py -q (49 passed in 18.33s, 2026-08-28)
+    - kind: command
+      reference: 'LuxNix gc-02 direct nix eval: requestTimeoutSeconds=21600, staleAfterSeconds=25200,
+        both exported to lx-annotate-celery-hub-transfer-worker; broader selected eval tests 1 passed
+        and 2 failed later on pre-existing host-provisioning/envelope-preflight assertions.'
+    note: Observed registration failure was synchronous HTTP timeout while the hub imported 35,786 annotations,
+      not Redis. Sender and proxy budgets now align at 21,600 seconds and stale recovery at 25,200 seconds;
+      live installed-wheel mTLS acceptance remains outstanding.
+    assessed_by: codex-hub-large-transfer-20260828
+    assessed_at: '2026-08-28T07:48:13.335350Z'
 - id: fail_closed_security_boundary
   category: security
   title: Hub transfer remains fail closed across hostile internal networks

@@ -201,13 +201,16 @@ class HubExportEndToEndTests(TestCase):
             for forbidden in body_forbidden_values:
                 self.assertNotIn(forbidden, wire_body)
             wire_uploads.append(wire_body)
-            django_response = self.client.generic(
-                "POST",
-                path,
-                data=wire_body,
-                content_type=upload_stream.content_type,
-                secure=True,
-                headers=proxy_headers,
+            django_response = cast(
+                Any,
+                self.client.generic(
+                    "POST",
+                    path,
+                    data=wire_body,
+                    content_type=upload_stream.content_type,
+                    secure=True,
+                    headers=proxy_headers,
+                ),
             )
         return self._requests_response_from_django(django_response, url=url)
 

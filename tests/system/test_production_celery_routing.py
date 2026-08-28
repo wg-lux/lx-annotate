@@ -84,7 +84,8 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
                 recipient_public_key_file,
             ),
             "LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS": "true",
-            "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS": "2400",
+            "LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS": "21600",
+            "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS": "25200",
             "LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE": str(source_node_secret_file),
             "OIDC_RP_CLIENT_SECRET": ("production-routing-test-keycloak-secret"),
             "PROTECTED_MEDIA_ROOT": str(storage_root),
@@ -198,7 +199,8 @@ def test_production_settings_export_hub_transfer_configuration(
         assert settings_prod.LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR.endswith(
             "/hub-export-staging"
         )
-        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS == 2400
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS == 21600
+        assert settings_prod.LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS == 25200
         assert settings_prod.LX_ANNOTATE_HUB_EXPORT_MAX_RETRIES == 7
         assert settings_prod.LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY == (
             "retain_processed_media"
@@ -244,3 +246,28 @@ def test_production_settings_export_hub_transfer_configuration(
         f"stdout:\n{completed.stdout}\n\n"
         f"stderr:\n{completed.stderr}"
     )
+
+
+def test_production_settings_reject_stale_window_that_can_race_request(
+    tmp_path: Path,
+) -> None:
+    env = _production_settings_environment(tmp_path)
+    env["LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS"] = env[
+        "LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS"
+    ]
+
+    completed = subprocess.run(
+        [sys.executable, "-c", "import lx_annotate.settings.settings_base"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert (
+        "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS must exceed "
+        "LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS"
+    ) in completed.stderr

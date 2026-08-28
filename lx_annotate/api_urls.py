@@ -22,8 +22,19 @@ from lx_annotate.views.hub_export import (
     hub_export_unmark,
 )
 from lx_annotate.views.quarantine import quarantine_overview
+from lx_annotate.views.study_export import study_export_options, study_export_xlsx
 
 urlpatterns = [
+    path(
+        "media/studies/case-export/options/",
+        study_export_options,
+        name="study-case-export-options",
+    ),
+    path(
+        "media/studies/case-export.xlsx",
+        study_export_xlsx,
+        name="study-case-export-xlsx",
+    ),
     path(
         "settings/application/",
         primary_annotation_settings_detail,

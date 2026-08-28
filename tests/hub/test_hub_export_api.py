@@ -238,7 +238,7 @@ class HubExportApiTests(TestCase):
         job.save(update_fields=["local_status", "failure_class", "last_error"])
 
         with CaptureQueriesContext(connection) as queries:
-            with self.captureOnCommitCallbacks(execute=True):
+            with getattr(self, "captureOnCommitCallbacks")(execute=True):
                 response = self.client.post(
                     f"/api/hub-export/jobs/{job.pk}/retry/",
                     data={},
@@ -450,7 +450,7 @@ class HubExportApiTests(TestCase):
     @override_settings(LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=True)
     @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
     def test_mark_dispatches_secure_transfer_worker(self, delay_mock):
-        with self.captureOnCommitCallbacks(execute=True):
+        with getattr(self, "captureOnCommitCallbacks")(execute=True):
             response = self.client.post(
                 "/api/hub-export/mark/",
                 data={
@@ -497,7 +497,7 @@ class HubExportApiTests(TestCase):
             original_file_name="ineligible-video.mp4",
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
+        with getattr(self, "captureOnCommitCallbacks")(execute=True):
             response = self.client.post(
                 "/api/hub-export/offload-eligible-videos/",
                 data={"target_node_key": "hub-node"},
@@ -548,7 +548,7 @@ class HubExportApiTests(TestCase):
             processed_file=ContentFile(processed_content, name="retryable-video.mp4"),
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
+        with getattr(self, "captureOnCommitCallbacks")(execute=True):
             first_response = self.client.post(
                 "/api/hub-export/offload-eligible-videos/",
                 data={"target_node_key": "hub-node"},
@@ -571,7 +571,7 @@ class HubExportApiTests(TestCase):
         )
         delay_mock.reset_mock()
 
-        with self.captureOnCommitCallbacks(execute=True):
+        with getattr(self, "captureOnCommitCallbacks")(execute=True):
             retry_response = self.client.post(
                 "/api/hub-export/offload-eligible-videos/",
                 data={"target_node_key": "hub-node"},

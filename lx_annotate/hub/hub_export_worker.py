@@ -67,6 +67,10 @@ class RemoteTransferAuthorizationError(requests.RequestException):
     """The authenticated hub rejected the source node identity or scope."""
 
 
+class RemoteTransferConfigurationError(requests.RequestException):
+    """The hub deterministically rejected the transfer request."""
+
+
 def _normalize_env_suffix(node_key: str) -> str:
     return str(node_key or "").strip().upper().replace("-", "_")
 
@@ -149,11 +153,30 @@ def resolve_hub_transport_config() -> HubTransportConfig:
     return HubTransportConfig(cert=cert, verify=verify)
 
 
+def resolve_hub_request_timeout_seconds(explicit_timeout: int | None = None) -> int:
+    timeout_seconds = (
+        explicit_timeout
+        if explicit_timeout is not None
+        else getattr(settings, "LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS", 21600)
+    )
+    if not isinstance(timeout_seconds, int) or isinstance(timeout_seconds, bool):
+        raise ValueError(
+            "LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS must be an integer.",
+        )
+    if timeout_seconds <= 0:
+        raise ValueError("request_timeout_s must be positive.")
+    return timeout_seconds
+
+
 def _raise_for_hub_response(response: requests.Response) -> None:
     status_code = response.status_code
     if status_code in {401, 403}:
         raise RemoteTransferAuthorizationError(
             f"Hub transfer authorization denied with HTTP {status_code}.",
+        )
+    if status_code == 400:
+        raise RemoteTransferConfigurationError(
+            f"Hub transfer request rejected with HTTP {status_code}.",
         )
     if isinstance(status_code, int) and 300 <= status_code < 400:
         raise requests.RequestException(
@@ -537,10 +560,9 @@ def run_outbound_transfer_job(
     outbound_job_id: str,
     source_node_key: str,
     source_secret: str | None = None,
-    request_timeout_s: int = 60,
+    request_timeout_s: int | None = None,
 ) -> OutboundHubTransferJob:
-    if request_timeout_s <= 0:
-        raise ValueError("request_timeout_s must be positive.")
+    resolved_request_timeout_s = resolve_hub_request_timeout_seconds(request_timeout_s)
     outbound_job = OutboundHubTransferJob.objects.select_related(
         "video_file__state",
         "video_file__sensitive_meta",
@@ -624,7 +646,7 @@ def run_outbound_transfer_job(
             # cannot express this TypedDict boundary without a narrow cast.
             json=cast(Any, payload),
             headers=hub_headers(source_node=source_node, source_secret=secret),
-            timeout=request_timeout_s,
+            timeout=resolved_request_timeout_s,
             **transport.request_kwargs(),
         )
         if register_response.status_code == 409:
@@ -688,6 +710,18 @@ def run_outbound_transfer_job(
             failure_class="authorization_denial",
             retryable=False,
         )
+    except RemoteTransferConfigurationError as exc:
+        cleanup_persisted_hub_export_envelope(
+            config=envelope_config,
+            transfer_key=str(outbound_job.transfer_key),
+        )
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer registration rejected: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="configuration_rejection",
+            retryable=False,
+        )
     except requests.RequestException as exc:
         return mark_outbound_job_failure(
             outbound_job,
@@ -740,7 +774,7 @@ def run_outbound_transfer_job(
             ),
             data=upload_stream,
             headers=headers,
-            timeout=request_timeout_s,
+            timeout=resolved_request_timeout_s,
             **transport.request_kwargs(),
         )
         _raise_for_hub_response(media_response)
@@ -775,6 +809,16 @@ def run_outbound_transfer_job(
             error_message=str(exc),
             source_node_key=source_node.node_key,
             failure_class="authorization_denial",
+            retryable=False,
+        )
+    except RemoteTransferConfigurationError as exc:
+        if prepared is not None:
+            prepared.cleanup()
+        return mark_outbound_job_failure(
+            outbound_job,
+            error_message=f"Hub transfer media upload rejected: {exc}",
+            source_node_key=source_node.node_key,
+            failure_class="configuration_rejection",
             retryable=False,
         )
     except requests.RequestException as exc:

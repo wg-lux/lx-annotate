@@ -148,11 +148,11 @@
                       <p class="mt-2 mb-0">PDF-Seite wird gerendert...</p>
                     </div>
 
-                    <div v-else-if="pdfRenderError" class="alert alert-danger mb-0" role="alert">
+                    <div v-if="pdfRenderError" class="alert alert-danger mb-0" role="alert">
                       {{ pdfRenderError }}
                     </div>
 
-                    <div v-else class="pdf-editor-stage">
+                    <div v-show="!pdfRenderError" class="pdf-editor-stage">
                       <canvas ref="pdfPageCanvas" class="pdf-page-canvas"></canvas>
                       <canvas
                         ref="pdfOverlayCanvas"
@@ -713,7 +713,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
@@ -1053,12 +1053,16 @@ const loadPdfDetails = async (pdfId: number) => {
     };
 
     mediaStore.setCurrentByKey('pdf', pdfId);
-    await loadPdfDocument(pdfId);
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler beim Laden der PDF-Details');
     logger.error('pdf-details-load-failed', err);
   } finally {
     loading.value = false;
+  }
+
+  if (!error.value) {
+    await nextTick();
+    await loadPdfDocument(pdfId);
   }
 };
 
