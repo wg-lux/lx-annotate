@@ -133,41 +133,24 @@
                   </div>
                   <div class="col-md-4">
                     <label class="form-label">Vorlage</label>
-                      <select
-                        class="form-select"
-                        data-testid="report-template-select"
-                        :value="flow.selectedTemplateName ?? ''"
-                        :disabled="templateLoading || !availableTemplates.length"
-                        aria-label="Berichtsvorlage auswählen"
-                        @change="
-                          onTemplateSelectionChange(
-                            ($event.target as HTMLSelectElement).value,
-                            $event.target as HTMLSelectElement
-                          )
-                        "
+                    <select
+                      class="form-select"
+                      :value="selectedTemplateName || ''"
+                      disabled
+                      title="Vorlagen werden im Reporting-Kontext oberhalb der Seite gewechselt."
+                    >
+                      <option value="" disabled>
+                        {{ templateLoading ? 'Vorlagen laden...' : 'Vorlage wählen' }}
+                      </option>
+                      <option
+                        v-for="template in templateOptions"
+                        :key="template.name"
+                        :value="template.name"
                       >
-                        <option value="">
-                          {{
-                            templateLoading
-                              ? 'Vorlagen werden geladen...'
-                              : availableTemplates.length
-                                ? 'Bitte Vorlage wählen'
-                                : 'Keine veröffentlichte Vorlage verfügbar'
-                          }}
-                        </option>
-                        <option
-                          v-for="template in availableTemplates"
-                          :key="template.name"
-                          :value="template.name"
-                        >
-                          {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage)
-                          }}{{
-                            template.identity?.knowledgeBaseVersion
-                              ? ` · ${template.identity.knowledgeBaseVersion}`
-                              : ''
-                          }}
-                        </option>
-                      </select>
+                        {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage) }}
+                      </option>
+                    </select>
+                    <div class="form-text">Vorlage oben im Reporting-Kontext wechseln.</div>
                   </div>
                 </div>
 
