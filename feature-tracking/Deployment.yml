@@ -90,8 +90,25 @@ definition_of_done:
       and disposable-host rollout and rollback using one recorded source identity.
     timeout_seconds: 3600
   assessment:
-    status: not_assessed
-    evidence: []
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: LuxNix 8b0b8a556e3f2c7d30d91530cd5a5a1628a4b984; flake.lock sha256 aac5cc82ffc23649a62dde7fd515b1a2f7131e816e6c69cdb075866380ca8d36;
+        focused nixtest lx-annotate-large-hub-transfer-timeouts-are-ordered passed
+    - kind: command
+      reference: gc-02 rendered worker ExecStart includes --soft-time-limit=46800 --time-limit=50400;
+        requestTimeoutSeconds=43200; staleAfterSeconds=54000; complete gc-02 NixOS toplevel build passed
+    - kind: command
+      reference: gs-02 transfer API rendered client_body_timeout/proxy_read_timeout/proxy_send_timeout/send_timeout=43200s;
+        affected Nginx and lx-annotate unit derivations built; full toplevel build stopped during unrelated
+        llama-cpp CUDA compilation
+    note: 'Focused LuxNix hub-transfer timeout alignment is implemented and verified for gc-02 and gs-02.
+      Full production readiness remains open: no host was switched, the repository contains pre-existing
+      unrelated documentation changes, and the gs-02 whole-system build was intentionally interrupted
+      during an unrelated multi-architecture llama-cpp CUDA rebuild after the affected units had evaluated
+      successfully.'
+    assessed_by: codex-clinical-readiness-tracker
+    assessed_at: '2026-08-31T06:32:29.584933Z'
 - id: protected_temporary_boundary
   category: security
   title: Temporary storage never becomes a protected-data or secret boundary

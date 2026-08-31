@@ -23,7 +23,7 @@ from lx_dtypes.models.contracts.hub_media_envelope import (
 )
 
 from lx_annotate.hub.hub_export_worker import (
-    MultipartUploadStream,
+    CiphertextUploadStream,
     RemoteTransferIntegrityError,
     RemoteTransferStatusPayload,
     apply_remote_status,
@@ -111,6 +111,17 @@ class HubExportWorkerTests(TestCase):
             transfer_key="site-node__report__report-hash-1__processed_v1",
         )
 
+    def test_ciphertext_upload_stream_rejects_oversized_envelope_header(self) -> None:
+        ciphertext_path = Path(self.envelope_tempdir.name) / "ciphertext.bin"
+        ciphertext_path.write_bytes(b"ciphertext")
+
+        with self.assertRaisesRegex(ValueError, "header limit"):
+            CiphertextUploadStream(
+                media_path=ciphertext_path,
+                media_role="processed",
+                envelope_json="x" * (4 * 1024 + 1),
+            )
+
     def _remote_status(
         self,
         *,
@@ -127,7 +138,7 @@ class HubExportWorkerTests(TestCase):
 
     def _applied_payload(
         self,
-        upload_stream: MultipartUploadStream,
+        upload_stream: CiphertextUploadStream,
     ) -> dict[str, object]:
         envelope = HubMediaEnvelopeMetadata.model_validate_json(
             upload_stream.envelope_json,
@@ -349,7 +360,7 @@ class HubExportWorkerTests(TestCase):
             content_type = str(
                 headers.get("Content-Type", headers.get("content-type", "")),
             )
-            if content_type.startswith("multipart/form-data; boundary="):
+            if content_type == "application/octet-stream":
                 body_chunks = list(cast("Iterable[bytes]", kwargs["data"]))
                 captured_upload["kwargs"] = kwargs
                 captured_upload["body"] = b"".join(body_chunks)
@@ -378,14 +389,13 @@ class HubExportWorkerTests(TestCase):
         content_type = str(
             headers.get("Content-Type", headers.get("content-type", "")),
         )
-        self.assertTrue(
-            content_type.startswith("multipart/form-data; boundary="),
-        )
+        self.assertEqual(content_type, "application/octet-stream")
         self.assertEqual(int(headers["Content-Length"]), len(body))
-        self.assertIn(b'name="media_role"', body)
-        self.assertIn(b"\r\nprocessed\r\n", body)
-        self.assertIn(b'name="envelope"', body)
-        self.assertIn(b'name="file"; filename=', body)
+        self.assertEqual(headers["X-Hub-Media-Role"], "processed")
+        envelope = HubMediaEnvelopeMetadata.model_validate_json(
+            headers["X-Hub-Media-Envelope"],
+        )
+        self.assertEqual(envelope.transfer_key, self.job.transfer_key)
         self.assertNotIn(b"%PDF-1.4\nprocessed\n%%EOF\n", body)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
@@ -422,7 +432,7 @@ class HubExportWorkerTests(TestCase):
             if "json" in kwargs:
                 captured_registration.update(cast(dict[str, object], kwargs["json"]))
                 return register_response
-            upload_stream = cast(MultipartUploadStream, kwargs["data"])
+            upload_stream = cast(CiphertextUploadStream, kwargs["data"])
             captured_upload_chunks.extend(list(upload_stream))
             upload_response.json.return_value = self._applied_payload(upload_stream)
             upload_response.raise_for_status.return_value = None
@@ -446,7 +456,7 @@ class HubExportWorkerTests(TestCase):
         resource_rows = cast(dict[str, object], captured_registration["resource_rows"])
         raw_pdf_file = cast(dict[str, object], resource_rows["raw_pdf_file"])
         self.assertEqual(raw_pdf_file["anonymized_text"], large_anonymized_text)
-        self.assertGreater(len(captured_upload_chunks), 5)
+        self.assertGreaterEqual(len(captured_upload_chunks), 4)
         self.assertLessEqual(max(map(len, captured_upload_chunks)), 1024 * 1024)
 
         events = [json.loads(record.getMessage()) for record in logs.records]
@@ -667,8 +677,8 @@ class HubExportWorkerTests(TestCase):
             OutboundHubTransferJob.LocalStatus.COMPLETED,
         )
         upload_stream = post_mock.call_args.kwargs["data"]
-        self.assertIsInstance(upload_stream, MultipartUploadStream)
-        self.assertTrue(upload_stream.upload_file_name.endswith(".bin"))
+        self.assertIsInstance(upload_stream, CiphertextUploadStream)
+        self.assertEqual(upload_stream.content_type, "application/octet-stream")
         self.assertFalse(upload_stream.media_path.exists())
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
@@ -687,7 +697,7 @@ class HubExportWorkerTests(TestCase):
         def first_attempt(*args: object, **kwargs: object) -> MagicMock:
             del args
             upload_stream = kwargs.get("data")
-            if isinstance(upload_stream, MultipartUploadStream):
+            if isinstance(upload_stream, CiphertextUploadStream):
                 applied_payload.update(self._applied_payload(upload_stream))
                 raise requests.ConnectionError("lost applied acknowledgement")
             return register_response

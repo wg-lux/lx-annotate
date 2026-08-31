@@ -147,13 +147,17 @@ definition_of_done:
   - Sender retries reuse one atomically persisted mode-0600 ciphertext envelope for the same immutable
     transfer; plaintext media is never materialized outside the approved protected storage boundary or
     transmitted on the wire.
+  - Processed-media ciphertext uses a fixed-length application/octet-stream request body with bounded
+    sender chunks. Envelope metadata and media role use size-bounded headers; neither sender nor receiver
+    constructs a multipart body for the media artifact.
   - The receiver requires envelope metadata and its private unwrap key, rejects plaintext and malformed,
     tampered, wrong-recipient, or replay-inconsistent uploads before model-file publication, validates
     the decrypted digest and size, and persists through its own encrypted storage using its local master
     key.
   - Granular tests cover success, exact retry, changed-source replay, missing keys and metadata, wrong
-    key, authenticated-metadata tampering, ciphertext tampering, truncation, atomic cleanup, and absence
-    of source or receiver master keys from payloads, logs, configuration, and transfer records.
+    key, authenticated-metadata tampering, ciphertext tampering, truncation, multipart rejection, bounded
+    raw-body streaming, atomic cleanup, and absence of source or receiver master keys from payloads, logs,
+    configuration, and transfer records.
   required: true
   verification:
     kind: manual

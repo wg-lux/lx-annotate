@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import uuid
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
@@ -30,7 +29,11 @@ from .hub_export_envelope import (
 from .hub_export_payloads import build_transfer_payload, validate_transfer_payload
 from .transfer_transport import TransferTransportConfig
 
-_MULTIPART_UPLOAD_CHUNK_SIZE = 1024 * 1024
+_RAW_UPLOAD_CHUNK_SIZE = 1024 * 1024
+_HUB_MEDIA_CONTENT_TYPE = "application/octet-stream"
+_HUB_MEDIA_ROLE_HEADER = "X-Hub-Media-Role"
+_HUB_MEDIA_ENVELOPE_HEADER = "X-Hub-Media-Envelope"
+_MAX_ENVELOPE_HEADER_BYTES = 4 * 1024
 HubExportFailureClass = Literal[
     "configuration_rejection",
     "authorization_denial",
@@ -237,64 +240,35 @@ def _registration_payload_metrics(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _multipart_header_value(value: str) -> str:
-    return (
-        str(value)
-        .replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\r", "")
-        .replace("\n", "")
-    )
-
-
-class MultipartUploadStream:
+class CiphertextUploadStream:
     def __init__(
         self,
         *,
         media_path: Path,
         media_role: str,
-        upload_file_name: str,
         envelope_json: str,
-        chunk_size: int = _MULTIPART_UPLOAD_CHUNK_SIZE,
+        chunk_size: int = _RAW_UPLOAD_CHUNK_SIZE,
     ) -> None:
         self.media_path = media_path
         self.media_role = media_role
-        self.upload_file_name = Path(upload_file_name).name
         self.envelope_json = envelope_json
         self.chunk_size = chunk_size
-        self.boundary = f"lx-annotate-{uuid.uuid4().hex}"
-        self.content_type = f"multipart/form-data; boundary={self.boundary}"
-        self._prefix = self._build_prefix()
-        self._suffix = f"\r\n--{self.boundary}--\r\n".encode()
-        self.content_length = (
-            len(self._prefix) + media_path.stat().st_size + len(self._suffix)
-        )
-
-    def _build_prefix(self) -> bytes:
-        file_name = _multipart_header_value(self.upload_file_name)
-        media_role = _multipart_header_value(self.media_role)
-        return (
-            f"--{self.boundary}\r\n"
-            'Content-Disposition: form-data; name="media_role"\r\n\r\n'
-            f"{media_role}\r\n"
-            f"--{self.boundary}\r\n"
-            'Content-Disposition: form-data; name="envelope"\r\n'
-            "Content-Type: application/json\r\n\r\n"
-            f"{self.envelope_json}\r\n"
-            f"--{self.boundary}\r\n"
-            f'Content-Disposition: form-data; name="file"; filename="{file_name}"\r\n'
-            "Content-Type: application/octet-stream\r\n\r\n"
-        ).encode()
+        self.content_type = _HUB_MEDIA_CONTENT_TYPE
+        self.content_length = media_path.stat().st_size
+        try:
+            envelope_header_bytes = envelope_json.encode("ascii")
+        except UnicodeEncodeError as exc:
+            raise ValueError("Hub media envelope header must contain ASCII JSON.") from exc
+        if len(envelope_header_bytes) > _MAX_ENVELOPE_HEADER_BYTES:
+            raise ValueError("Hub media envelope metadata exceeds the header limit.")
 
     def __iter__(self) -> Iterator[bytes]:
-        yield self._prefix
         with self.media_path.open("rb") as media_handle:
             while True:
                 chunk = media_handle.read(self.chunk_size)
                 if not chunk:
                     break
                 yield chunk
-        yield self._suffix
 
     def __len__(self) -> int:
         return self.content_length
@@ -787,18 +761,19 @@ def run_outbound_transfer_job(
             request_timeout_seconds=resolved_request_timeout_s,
             plaintext_bytes=prepared.envelope.plaintext_size,
             ciphertext_bytes=prepared.ciphertext_size,
-            upload_chunk_bytes=_MULTIPART_UPLOAD_CHUNK_SIZE,
+            upload_chunk_bytes=_RAW_UPLOAD_CHUNK_SIZE,
         )
 
-        upload_stream = MultipartUploadStream(
+        upload_stream = CiphertextUploadStream(
             media_path=prepared.ciphertext_path,
             media_role=media_role,
-            upload_file_name=f"{prepared.ciphertext_sha256}.bin",
             envelope_json=prepared.envelope.model_dump_json(),
         )
         headers = hub_headers(source_node=source_node, source_secret=secret)
         headers["Content-Type"] = upload_stream.content_type
         headers["Content-Length"] = str(upload_stream.content_length)
+        headers[_HUB_MEDIA_ROLE_HEADER] = upload_stream.media_role
+        headers[_HUB_MEDIA_ENVELOPE_HEADER] = upload_stream.envelope_json
         media_response = requests.post(
             hub_transfer_media_url(
                 outbound_job.target_node,

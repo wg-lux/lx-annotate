@@ -36,7 +36,7 @@ from lx_dtypes.models.contracts.hub_media_envelope import (
 
 from lx_annotate.hub.hub_export_payloads import build_transfer_payload
 from lx_annotate.hub.hub_export_worker import (
-    MultipartUploadStream,
+    CiphertextUploadStream,
     run_outbound_transfer_job,
 )
 from lx_annotate.models import OutboundHubTransferJob
@@ -150,7 +150,7 @@ class HubExportEndToEndTests(TestCase):
         forbidden_wire_values: tuple[bytes, ...],
         attest_mtls: bool = True,
     ) -> requests.Response:
-        """Send the exact worker multipart bytes through Django's request parser."""
+        """Send the exact raw worker ciphertext through the receiver boundary."""
 
         request_headers = cast(dict[str, str], request_kwargs["headers"])
         presented_node = NetworkNode.objects.get(
@@ -187,7 +187,7 @@ class HubExportEndToEndTests(TestCase):
                 headers=proxy_headers,
             )
         else:
-            upload_stream = cast(MultipartUploadStream, request_kwargs["data"])
+            upload_stream = cast(CiphertextUploadStream, request_kwargs["data"])
             wire_body = b"".join(upload_stream)
             self.assertEqual(len(wire_body), upload_stream.content_length)
             self.assertEqual(
@@ -197,6 +197,14 @@ class HubExportEndToEndTests(TestCase):
             self.assertEqual(
                 request_headers["Content-Type"],
                 upload_stream.content_type,
+            )
+            self.assertEqual(
+                request_headers["X-Hub-Media-Role"],
+                upload_stream.media_role,
+            )
+            self.assertEqual(
+                request_headers["X-Hub-Media-Envelope"],
+                upload_stream.envelope_json,
             )
             for forbidden in body_forbidden_values:
                 self.assertNotIn(forbidden, wire_body)
@@ -209,7 +217,11 @@ class HubExportEndToEndTests(TestCase):
                     data=wire_body,
                     content_type=upload_stream.content_type,
                     secure=True,
-                    headers=proxy_headers,
+                    headers={
+                        **proxy_headers,
+                        "X-Hub-Media-Role": upload_stream.media_role,
+                        "X-Hub-Media-Envelope": upload_stream.envelope_json,
+                    },
                 ),
             )
         return self._requests_response_from_django(django_response, url=url)
@@ -237,7 +249,7 @@ class HubExportEndToEndTests(TestCase):
         job: OutboundHubTransferJob,
         source_node_key: str,
         remote_transfer_id: str,
-        upload_stream: MultipartUploadStream,
+        upload_stream: CiphertextUploadStream,
     ) -> dict[str, object]:
         envelope = HubMediaEnvelopeMetadata.model_validate_json(
             upload_stream.envelope_json,
@@ -707,7 +719,7 @@ class HubExportEndToEndTests(TestCase):
     )
     @patch.dict(os.environ, {"LX_ANNOTATE_MASTER_KEY": TEST_MASTER_KEY})
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
-    def test_video_in_process_lifecycle_uses_worker_wire_multipart(
+    def test_video_in_process_lifecycle_uses_raw_ciphertext_contract(
         self,
         post_mock: MagicMock,
     ) -> None:
