@@ -66,7 +66,6 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
             "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_prod",
             "DJANGO_STATIC_ROOT": str(static_root),
             "ENDOREG_DEPLOYMENT_ROLE": "site_node",
-            "ENDOREG_ENABLE_HUB_TRANSFERS": "false",
             "ENDOREG_HUB_MODE": "false",
             "ENFORCE_AUTH": "0",
             "LX_ANNOTATE_DATA_DIR": str(data_root),

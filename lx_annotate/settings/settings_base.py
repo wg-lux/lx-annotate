@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import Any, cast
 
 from django.db import models
+from endoreg_db.config.env import (
+    get_hub_transfer_recipient_private_key_files,
+    get_hub_transfer_require_root_owned_private_keys,
+)
 from endoreg_db.utils.file_operations import ensure_directory
 from kombu import Exchange, Queue
 
@@ -270,6 +274,12 @@ ENDOREG_HUB_TRANSFER_MTLS_META_VALUE = str(
 ENDOREG_HUB_TRANSFER_MAX_UPLOAD_BYTES = max(
     int(os.getenv("ENDOREG_HUB_TRANSFER_MAX_UPLOAD_BYTES", str(50 * 1024**3))),
     1,
+)
+ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES: tuple[Path, ...] = (
+    get_hub_transfer_recipient_private_key_files()
+)
+ENDOREG_HUB_TRANSFER_REQUIRE_ROOT_OWNED_PRIVATE_KEYS = (
+    get_hub_transfer_require_root_owned_private_keys()
 )
 LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE = os.getenv(
     "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE",
@@ -662,6 +672,14 @@ def _validate_hub_transfer_security_contract() -> None:
             "ENDOREG_DEPLOYMENT_ROLE=central_hub requires "
             "ENDOREG_HUB_TRANSFER_MTLS_META_KEY and "
             "ENDOREG_HUB_TRANSFER_MTLS_META_VALUE.",
+        )
+    if (
+        ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS
+        and not ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES
+    ):
+        raise RuntimeError(
+            "ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS=true requires at least one "
+            "ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES path.",
         )
     if ENDOREG_ENABLE_STORAGE_BALANCING:
         for variable in (

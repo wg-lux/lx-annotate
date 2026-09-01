@@ -72,6 +72,15 @@ system design.
   inconsistent, fail loudly, mark as `LOST` where applicable, and preserve
   logs. Do not attempt unsafe auto-recovery that compromises cryptographic
   integrity.
+  
+## Environment Variable Lifecycle
+
+Configuration and secret management across the environment operate across four distinct lifecycle layers:
+
+* **Application Contract (`secretspec.toml`):** Declares variable names, descriptions, safe defaults, and file handles for local development. Never store production secret material in this specification.
+* **Systemd & Host Provisioning (LuxNix):** Resolves production values and renders them into `/var/lib/lx-annotate/.env.systemd` along with a compatibility copy below the protected data root. Ensures both systemd services and interactive maintenance commands receive the identical environment contract.
+* **Django Settings Conversion (`lx_annotate.settings.settings_base`):** Converts external environment strings into typed, uppercase Django settings. Application code in `endoreg_db` reads these uppercase settings directly from `django.conf.settings`; defining an environment variable in systemd is insufficient if the Django settings module does not explicitly parse and export it.
+* **Runtime Verification:** Validates the target secret file's existence, format, file permissions, ownership, and cryptographic identity during initialization. A configured path or environment variable confirms only that the handle was propagated, not that the underlying key or secret is valid and usable.
 
 ### Prime Cryptographic Directives
 

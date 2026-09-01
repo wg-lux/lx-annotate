@@ -344,6 +344,57 @@ def test_settings_base_requires_central_hub_for_enabled_transfer_api(monkeypatch
         importlib.import_module("lx_annotate.settings.settings_base")
 
 
+def test_settings_base_exports_typed_hub_recipient_keyring(monkeypatch):
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("ENDOREG_DEPLOYMENT_ROLE", "standalone")
+    monkeypatch.setenv(
+        "ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES",
+        "/run/keys/current.pem,/run/keys/retiring.pem",
+    )
+    monkeypatch.setenv(
+        "ENDOREG_HUB_TRANSFER_REQUIRE_ROOT_OWNED_PRIVATE_KEYS",
+        "true",
+    )
+    sys.modules.pop("lx_annotate.settings.settings_base", None)
+
+    settings_base = importlib.import_module("lx_annotate.settings.settings_base")
+
+    assert settings_base.ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES == (
+        Path("/run/keys/current.pem"),
+        Path("/run/keys/retiring.pem"),
+    )
+    assert settings_base.ENDOREG_HUB_TRANSFER_REQUIRE_ROOT_OWNED_PRIVATE_KEYS is True
+
+
+def test_settings_base_rejects_enabled_receiver_without_recipient_keyring(
+    monkeypatch,
+):
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("ENDOREG_DEPLOYMENT_ROLE", "central_hub")
+    monkeypatch.setenv("ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS", "true")
+    monkeypatch.setenv("ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT", "true")
+    monkeypatch.setenv("ENDOREG_HUB_TRANSFER_REQUIRE_MTLS", "true")
+    monkeypatch.setenv(
+        "ENDOREG_HUB_TRANSFER_MTLS_META_KEY",
+        "HTTP_X_CLIENT_CERT_VERIFIED",
+    )
+    monkeypatch.setenv("ENDOREG_HUB_TRANSFER_MTLS_META_VALUE", "SUCCESS")
+    monkeypatch.delenv(
+        "ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES",
+        raising=False,
+    )
+    sys.modules.pop("lx_annotate.settings.settings_base", None)
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS=true requires at least one "
+            "ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES path"
+        ),
+    ):
+        importlib.import_module("lx_annotate.settings.settings_base")
+
+
 def test_development_secret_key_returns_empty_when_secret_file_env_is_set(
     monkeypatch,
 ):

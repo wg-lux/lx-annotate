@@ -570,6 +570,56 @@ class HubExportWorkerTests(TestCase):
         self.assertEqual(post_mock.call_count, 1)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_media_rejection_records_safe_remote_context(
+        self,
+        post_mock: MagicMock,
+    ) -> None:
+        register_response = MagicMock()
+        register_response.status_code = 201
+        register_response.json.return_value = self._remote_status(
+            transfer_status="awaiting_media",
+            processing_decision="wait_for_missing_media",
+        )
+        register_response.raise_for_status.return_value = None
+
+        rejected_payload = {
+            "detail": "sensitive receiver detail",
+            "error_fields": ["envelope"],
+            "rejection_code": "recipient_key_unavailable",
+            "rejection_phase": "recipient_key_unwrap",
+        }
+        rejected_response = MagicMock()
+        rejected_response.status_code = 400
+        rejected_response.content = json.dumps(rejected_payload).encode("utf-8")
+        rejected_response.json.return_value = rejected_payload
+        post_mock.side_effect = [register_response, rejected_response]
+
+        with self.assertLogs("lx_annotate.hub_export.audit", level="INFO") as logs:
+            result = run_outbound_transfer_job(
+                outbound_job_id=str(self.job.id),
+                source_node_key=self.site_node.node_key,
+                source_secret="super-secret",
+            )
+
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(
+            result.failure_class,
+            OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION,
+        )
+        self.assertIn("HTTP 400", result.last_error)
+        self.assertIn("code=recipient_key_unavailable", result.last_error)
+        self.assertIn("phase=recipient_key_unwrap", result.last_error)
+        self.assertNotIn("sensitive receiver detail", result.last_error)
+        event = json.loads(logs.records[-1].getMessage())
+        self.assertEqual(event["event"], "hub_export.failed")
+        self.assertEqual(event["remote_http_status"], 400)
+        self.assertEqual(event["rejection_code"], "recipient_key_unavailable")
+        self.assertEqual(event["rejection_phase"], "recipient_key_unwrap")
+        self.assertEqual(event["rejection_error_fields"], ["envelope"])
+        self.assertNotIn("sensitive receiver detail", logs.output[-1])
+        self.assertEqual(post_mock.call_count, 2)
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_marks_failure_on_network_error(
         self,
         post_mock: MagicMock,

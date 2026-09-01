@@ -168,5 +168,26 @@ definition_of_done:
       this tracker together; then run the tracker registry validation.
     timeout_seconds: 600
   assessment:
-    status: not_assessed
-    evidence: []
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_focused_coverage.py
+        tests/system/test_secretspec_environment_contract.py tests/system/test_production_celery_routing.py;
+        38 passed on 2026-08-31
+    - kind: command
+      reference: LuxNix focused Hub environment-contract pytest; 4 passed, including a real Nix
+        module evaluation with recipientPrivateKeyFiles configured
+    - kind: command
+      reference: nix-instantiate --parse succeeded for the five changed LuxNix module, host, and
+        nixtest files; full gs-02 toplevel evaluation remains blocked by the unrelated existing
+        modules/nixos/luxnix/nvidia-default/default.nix undefined variable nvidia-x11
+    - kind: document
+      reference: docs/guides/wheel-deployment.md and LuxNix docs/deployment-guide.md now document
+        Secretspec ownership, production rendering, typed Django export, runtime key validation,
+        key rotation, restart requirements, and safe verification without printing secrets
+    note: The inbound Hub environment contract is now explicit from Secretspec through LuxNix and
+      Django settings. The obsolete ENDOREG_ENABLE_HUB_TRANSFERS compatibility alias is not rendered;
+      ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS is the only receiver switch. Readiness remains in progress
+      because these dirty-worktree changes have not been released, deployed, or accepted on gs-02.
+    assessed_by: 01a056b7-c453-77a0-ae95-bed12f17d130
+    assessed_at: '2026-08-31T13:24:10Z'

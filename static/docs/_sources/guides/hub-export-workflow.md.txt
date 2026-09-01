@@ -349,8 +349,11 @@ Redis availability does not control this synchronous HTTP registration path.
 Large report registration retains the complete validated `anonymized_text`
 field. Operational events record only its character count and collection row
 counts, never the text itself. Processed PDF and video media remain envelope
-encrypted and are uploaded from disk in bounded 1 MiB chunks; upload events
-include plaintext/ciphertext byte counts, the chunk size, and request timeout so
+encrypted and are uploaded as a fixed-length `application/octet-stream` body
+from disk in bounded 1 MiB chunks. The `X-Hub-Media-Role` and
+`X-Hub-Media-Envelope` headers carry the small, size-bounded control metadata;
+multipart media uploads are not supported. Upload events include
+plaintext/ciphertext byte counts, the chunk size, and request timeout so
 operators can distinguish expected large-transfer latency from a stalled job.
 
 Before enabling queueing, an authenticated operator must:

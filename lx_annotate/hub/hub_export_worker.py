@@ -73,6 +73,21 @@ class RemoteTransferAuthorizationError(requests.RequestException):
 class RemoteTransferConfigurationError(requests.RequestException):
     """The hub deterministically rejected the transfer request."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int,
+        rejection_code: str | None = None,
+        rejection_phase: str | None = None,
+        error_fields: tuple[str, ...] = (),
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.rejection_code = rejection_code
+        self.rejection_phase = rejection_phase
+        self.error_fields = error_fields
+
 
 def _normalize_env_suffix(node_key: str) -> str:
     return str(node_key or "").strip().upper().replace("-", "_")
@@ -171,6 +186,45 @@ def resolve_hub_request_timeout_seconds(explicit_timeout: int | None = None) -> 
     return timeout_seconds
 
 
+def _safe_rejection_token(value: object) -> str | None:
+    if not isinstance(value, str) or not 1 <= len(value) <= 64:
+        return None
+    if not value.isascii() or not value[0].isalpha():
+        return None
+    if any(
+        character not in "abcdefghijklmnopqrstuvwxyz0123456789_" for character in value
+    ):
+        return None
+    return value
+
+
+def _remote_rejection_context(
+    response: requests.Response,
+) -> tuple[str | None, str | None, tuple[str, ...]]:
+    content = response.content
+    if isinstance(content, bytes) and len(content) > 16 * 1024:
+        return None, None, ()
+    try:
+        payload = response.json()
+    except (requests.JSONDecodeError, TypeError, ValueError):
+        return None, None, ()
+    if not isinstance(payload, dict):
+        return None, None, ()
+    rejection_code = _safe_rejection_token(payload.get("rejection_code"))
+    rejection_phase = _safe_rejection_token(payload.get("rejection_phase"))
+    raw_error_fields = payload.get("error_fields")
+    error_fields = (
+        tuple(
+            field
+            for item in raw_error_fields[:8]
+            if (field := _safe_rejection_token(item)) is not None
+        )
+        if isinstance(raw_error_fields, list)
+        else ()
+    )
+    return rejection_code, rejection_phase, error_fields
+
+
 def _raise_for_hub_response(response: requests.Response) -> None:
     status_code = response.status_code
     if status_code in {401, 403}:
@@ -178,8 +232,21 @@ def _raise_for_hub_response(response: requests.Response) -> None:
             f"Hub transfer authorization denied with HTTP {status_code}.",
         )
     if status_code == 400:
+        rejection_code, rejection_phase, error_fields = _remote_rejection_context(
+            response
+        )
+        context_parts = [f"code={rejection_code}"] if rejection_code else []
+        if rejection_phase:
+            context_parts.append(f"phase={rejection_phase}")
+        if error_fields:
+            context_parts.append(f"fields={','.join(error_fields)}")
+        context = f" ({'; '.join(context_parts)})" if context_parts else ""
         raise RemoteTransferConfigurationError(
-            f"Hub transfer request rejected with HTTP {status_code}.",
+            f"Hub transfer request rejected with HTTP {status_code}{context}.",
+            status_code=status_code,
+            rejection_code=rejection_code,
+            rejection_phase=rejection_phase,
+            error_fields=error_fields,
         )
     if isinstance(status_code, int) and 300 <= status_code < 400:
         raise requests.RequestException(
@@ -258,7 +325,9 @@ class CiphertextUploadStream:
         try:
             envelope_header_bytes = envelope_json.encode("ascii")
         except UnicodeEncodeError as exc:
-            raise ValueError("Hub media envelope header must contain ASCII JSON.") from exc
+            raise ValueError(
+                "Hub media envelope header must contain ASCII JSON."
+            ) from exc
         if len(envelope_header_bytes) > _MAX_ENVELOPE_HEADER_BYTES:
             raise ValueError("Hub media envelope metadata exceeds the header limit.")
 
@@ -506,8 +575,23 @@ def mark_outbound_job_failure(
     source_node_key: str,
     failure_class: HubExportFailureClass,
     retryable: bool = True,
+    remote_http_status: int | None = None,
+    rejection_code: str | None = None,
+    rejection_phase: str | None = None,
+    rejection_error_fields: tuple[str, ...] = (),
 ) -> OutboundHubTransferJob:
     attempt_number = int(outbound_job.retry_count or 0) + 1
+    remote_rejection_context: dict[str, object] = {}
+    if remote_http_status is not None:
+        remote_rejection_context["remote_http_status"] = remote_http_status
+    if rejection_code is not None:
+        remote_rejection_context["rejection_code"] = rejection_code
+    if rejection_phase is not None:
+        remote_rejection_context["rejection_phase"] = rejection_phase
+    if rejection_error_fields:
+        remote_rejection_context["rejection_error_fields"] = list(
+            rejection_error_fields
+        )
     outbound_job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
     outbound_job.failure_class = failure_class
     outbound_job.last_error = error_message
@@ -532,6 +616,7 @@ def mark_outbound_job_failure(
         failure_class=failure_class,
         retry_count=int(outbound_job.retry_count or 0),
         attempt_number=attempt_number,
+        **remote_rejection_context,
     )
     return outbound_job
 
@@ -723,6 +808,10 @@ def run_outbound_transfer_job(
             source_node_key=source_node.node_key,
             failure_class="configuration_rejection",
             retryable=False,
+            remote_http_status=exc.status_code,
+            rejection_code=exc.rejection_code,
+            rejection_phase=exc.rejection_phase,
+            rejection_error_fields=exc.error_fields,
         )
     except requests.RequestException as exc:
         return mark_outbound_job_failure(
@@ -827,6 +916,10 @@ def run_outbound_transfer_job(
             source_node_key=source_node.node_key,
             failure_class="configuration_rejection",
             retryable=False,
+            remote_http_status=exc.status_code,
+            rejection_code=exc.rejection_code,
+            rejection_phase=exc.rejection_phase,
+            rejection_error_fields=exc.error_fields,
         )
     except requests.RequestException as exc:
         return mark_outbound_job_failure(
