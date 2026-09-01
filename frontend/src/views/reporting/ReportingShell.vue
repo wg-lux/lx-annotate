@@ -144,6 +144,53 @@
             </button>
           </div>
 
+          <div class="reporting-template-control mt-3" data-testid="report-template-control">
+            <label class="form-label form-label-sm mb-1" for="report-template-select">
+              Berichtsvorlage
+              <span class="text-danger" aria-hidden="true">*</span>
+            </label>
+            <select
+              id="report-template-select"
+              class="form-select"
+              data-testid="report-template-select"
+              :value="flow.selectedTemplateName ?? ''"
+              :disabled="templateLoading || !availableTemplates.length"
+              aria-label="Berichtsvorlage auswählen"
+              required
+              @change="
+                onTemplateSelectionChange(
+                  ($event.target as HTMLSelectElement).value,
+                  $event.target as HTMLSelectElement
+                )
+              "
+            >
+              <option value="">
+                {{
+                  templateLoading
+                    ? 'Vorlagen werden geladen...'
+                    : availableTemplates.length
+                      ? 'Bitte Vorlage wählen'
+                      : 'Keine veröffentlichte Vorlage verfügbar'
+                }}
+              </option>
+              <option
+                v-for="template in availableTemplates"
+                :key="template.name"
+                :value="template.name"
+              >
+                {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage)
+                }}{{
+                  template.identity?.knowledgeBaseVersion
+                    ? ` · ${template.identity.knowledgeBaseVersion}`
+                    : ''
+                }}
+              </option>
+            </select>
+            <small class="form-text">
+              Die erste passende veröffentlichte Vorlage wird automatisch vorausgewählt.
+            </small>
+          </div>
+
           <details class="reporting-secondary-controls mt-3" data-testid="reporting-options">
             <summary>Weitere Einstellungen und Import</summary>
             <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2 mt-2">
@@ -200,41 +247,6 @@
                   :value="terminology.bundleKey(bundle)"
                 >
                   {{ bundle.moduleName }} · {{ bundle.version }}
-                </option>
-              </select>
-              <select
-                class="form-select"
-                data-testid="report-template-select"
-                :value="flow.selectedTemplateName ?? ''"
-                :disabled="templateLoading || !availableTemplates.length"
-                aria-label="Berichtsvorlage auswählen"
-                @change="
-                  onTemplateSelectionChange(
-                    ($event.target as HTMLSelectElement).value,
-                    $event.target as HTMLSelectElement
-                  )
-                "
-              >
-                <option value="">
-                  {{
-                    templateLoading
-                      ? 'Vorlagen werden geladen...'
-                      : availableTemplates.length
-                        ? 'Bitte Vorlage wählen'
-                        : 'Keine veröffentlichte Vorlage verfügbar'
-                  }}
-                </option>
-                <option
-                  v-for="template in availableTemplates"
-                  :key="template.name"
-                  :value="template.name"
-                >
-                  {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage)
-                  }}{{
-                    template.identity?.knowledgeBaseVersion
-                      ? ` · ${template.identity.knowledgeBaseVersion}`
-                      : ''
-                  }}
                 </option>
               </select>
               <select
@@ -3107,6 +3119,7 @@ async function resolveBootstrapDraft(
   const selectedTemplate =
     (context.selectedTemplateName &&
       templates.templates.find((template) => template.name === context.selectedTemplateName)) ||
+    (!context.selectedTemplateName ? templates.templates[0] : null) ||
     null
   if (!selectedTemplate) {
     if (!context.allowMissingTemplate) {
@@ -3930,6 +3943,18 @@ onMounted(() => {
 .reporting-resolved-context .btn {
   grid-column: 1 / -1;
   width: fit-content;
+}
+
+.reporting-template-control {
+  padding: 0.75rem;
+  border: 1px solid #9bc7ad;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.reporting-template-control .form-text {
+  display: block;
+  margin-top: 0.35rem;
 }
 
 .required-field-step {

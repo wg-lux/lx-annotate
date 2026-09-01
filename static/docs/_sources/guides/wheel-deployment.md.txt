@@ -248,6 +248,69 @@ The application should not generate or manage encryption keys itself. A
 dedicated LuxNix service or external KMS/secrets system should own key
 management and unlock policy.
 
+### Environment-variable lifecycle
+
+There are four distinct layers. Treating them as interchangeable is the main
+source of deployment-only configuration bugs:
+
+1. `secretspec.toml` is the application contract and local-development catalog.
+   It declares names, descriptions, safe defaults, and file handles. It never
+   contains production secret material.
+2. LuxNix host options select production values. LuxNix renders those values
+   into `/var/lib/lx-annotate/.env.systemd` and the compatibility copy below the
+   protected data root. Systemd services and maintenance commands must receive
+   the same contract.
+3. `lx_annotate.settings.settings_base` converts external strings once into
+   typed Django settings. Code in `endoreg_db` reads those uppercase Django
+   settings; defining an environment variable alone is insufficient if the
+   settings module does not export it.
+4. Runtime validation checks the referenced secret file's existence, format,
+   permissions, ownership, and cryptographic identity. A configured path proves
+   only that the handle was propagated, not that the key is usable.
+
+The inbound Hub receiver requires this complete set:
+
+| Variable | Owner and format | Purpose |
+| --- | --- | --- |
+| `ENDOREG_DEPLOYMENT_ROLE` | host; enum | Must be `central_hub` for intake. |
+| `ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS` | host; boolean | The single Django receiver switch; no compatibility alias is rendered. |
+| `ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT` | host; boolean | Keeps HTTPS enforcement fail closed. |
+| `ENDOREG_HUB_TRANSFER_REQUIRE_MTLS` | host; boolean | Requires the reverse proxy's verified client identity. |
+| `ENDOREG_HUB_TRANSFER_MTLS_META_KEY` / `..._VALUE` | host; strings | Django META key and expected success marker forwarded by Nginx. |
+| `ENDOREG_HUB_TRANSFER_MAX_UPLOAD_BYTES` | host; positive integer bytes | Django's encrypted-envelope limit; align it with Nginx. |
+| `ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES` | host; comma-separated absolute paths | Current key first, optionally followed by retiring keys during rotation. Values are PEM file handles, never PEM contents. Paths may not contain commas. |
+| `ENDOREG_HUB_TRANSFER_REQUIRE_ROOT_OWNED_PRIVATE_KEYS` | host; boolean | Normally `true`; permits only root-owned recipient private keys. |
+
+The sender uses the public counterpart through
+`LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE`. Never copy the Hub private
+key to a sender, put it into `secretspec.toml`, write it into the Nix store, or
+embed it in an environment variable. Environment files containing only secret
+paths are still sensitive configuration and should remain mode `0640` or
+stricter.
+
+For rotation, install the new private key before publishing its public key to
+senders, render both private-key paths on the Hub, restart and verify the Hub,
+then switch senders. Remove the retiring key only after every envelope created
+with its public key has either completed or expired. Restart affected services
+after any env-file or keyring-list change; a file replacement at the same path
+still needs an operational verification of the loaded key identity.
+
+Before allowing a large retry, verify the effective process contract rather
+than only the interactive shell:
+
+```bash
+systemctl show lx-annotate --property=EnvironmentFiles --property=Environment
+sudo -u endoreg-service test -r /etc/secrets/vault/hub-pki/hub-recipient-current.pem
+sudo -u endoreg-service python -m django check \
+  --settings=lx_annotate.settings.settings_prod
+```
+
+Do not print secret contents during diagnosis. Record variable names, resolved
+paths, boolean policy, file metadata, public-key fingerprints, application
+version, and service restart time. A startup failure for a missing receiver
+keyring is intentional: it prevents a multi-gigabyte upload from failing only
+after transfer.
+
 ## Knowledge-base startup gate
 
 Before migrations or any Django service starts, run the CLI shipped by the

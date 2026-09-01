@@ -485,6 +485,97 @@ aliases and storage subdirectories.</p>
 dedicated LuxNix service or external KMS/secrets system should own key
 management and unlock policy.</p>
 </section>
+<section id="environment-variable-lifecycle">
+<h3>Environment-variable lifecycle<a class="headerlink" href="#environment-variable-lifecycle" title="Link to this heading">¶</a></h3>
+<p>There are four distinct layers. Treating them as interchangeable is the main
+source of deployment-only configuration bugs:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code> is the application contract and local-development catalog.
+It declares names, descriptions, safe defaults, and file handles. It never
+contains production secret material.</p></li>
+<li><p>LuxNix host options select production values. LuxNix renders those values
+into <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code> and the compatibility copy below the
+protected data root. Systemd services and maintenance commands must receive
+the same contract.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx_annotate.settings.settings_base</span></code> converts external strings once into
+typed Django settings. Code in <code class="docutils literal notranslate"><span class="pre">endoreg_db</span></code> reads those uppercase Django
+settings; defining an environment variable alone is insufficient if the
+settings module does not export it.</p></li>
+<li><p>Runtime validation checks the referenced secret file’s existence, format,
+permissions, ownership, and cryptographic identity. A configured path proves
+only that the handle was propagated, not that the key is usable.</p></li>
+</ol>
+<p>The inbound Hub receiver requires this complete set:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Variable</p></th>
+<th class="head"><p>Owner and format</p></th>
+<th class="head"><p>Purpose</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_DEPLOYMENT_ROLE</span></code></p></td>
+<td><p>host; enum</p></td>
+<td><p>Must be <code class="docutils literal notranslate"><span class="pre">central_hub</span></code> for intake.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS</span></code></p></td>
+<td><p>host; boolean</p></td>
+<td><p>The single Django receiver switch; no compatibility alias is rendered.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT</span></code></p></td>
+<td><p>host; boolean</p></td>
+<td><p>Keeps HTTPS enforcement fail closed.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_REQUIRE_MTLS</span></code></p></td>
+<td><p>host; boolean</p></td>
+<td><p>Requires the reverse proxy’s verified client identity.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_MTLS_META_KEY</span></code> / <code class="docutils literal notranslate"><span class="pre">..._VALUE</span></code></p></td>
+<td><p>host; strings</p></td>
+<td><p>Django META key and expected success marker forwarded by Nginx.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_MAX_UPLOAD_BYTES</span></code></p></td>
+<td><p>host; positive integer bytes</p></td>
+<td><p>Django’s encrypted-envelope limit; align it with Nginx.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_RECIPIENT_PRIVATE_KEY_FILES</span></code></p></td>
+<td><p>host; comma-separated absolute paths</p></td>
+<td><p>Current key first, optionally followed by retiring keys during rotation. Values are PEM file handles, never PEM contents. Paths may not contain commas.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_REQUIRE_ROOT_OWNED_PRIVATE_KEYS</span></code></p></td>
+<td><p>host; boolean</p></td>
+<td><p>Normally <code class="docutils literal notranslate"><span class="pre">true</span></code>; permits only root-owned recipient private keys.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The sender uses the public counterpart through
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE</span></code>. Never copy the Hub private
+key to a sender, put it into <code class="docutils literal notranslate"><span class="pre">secretspec.toml</span></code>, write it into the Nix store, or
+embed it in an environment variable. Environment files containing only secret
+paths are still sensitive configuration and should remain mode <code class="docutils literal notranslate"><span class="pre">0640</span></code> or
+stricter.</p>
+<p>For rotation, install the new private key before publishing its public key to
+senders, render both private-key paths on the Hub, restart and verify the Hub,
+then switch senders. Remove the retiring key only after every envelope created
+with its public key has either completed or expired. Restart affected services
+after any env-file or keyring-list change; a file replacement at the same path
+still needs an operational verification of the loaded key identity.</p>
+<p>Before allowing a large retry, verify the effective process contract rather
+than only the interactive shell:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>systemctl<span class="w"> </span>show<span class="w"> </span>lx-annotate<span class="w"> </span>--property<span class="o">=</span>EnvironmentFiles<span class="w"> </span>--property<span class="o">=</span>Environment
+sudo<span class="w"> </span>-u<span class="w"> </span>endoreg-service<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-r<span class="w"> </span>/etc/secrets/vault/hub-pki/hub-recipient-current.pem
+sudo<span class="w"> </span>-u<span class="w"> </span>endoreg-service<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>django<span class="w"> </span>check<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--settings<span class="o">=</span>lx_annotate.settings.settings_prod
+</pre></div>
+</div>
+<p>Do not print secret contents during diagnosis. Record variable names, resolved
+paths, boolean policy, file metadata, public-key fingerprints, application
+version, and service restart time. A startup failure for a missing receiver
+keyring is intentional: it prevents a multi-gigabyte upload from failing only
+after transfer.</p>
+</section>
 </section>
 <section id="knowledge-base-startup-gate">
 <h2>Knowledge-base startup gate<a class="headerlink" href="#knowledge-base-startup-gate" title="Link to this heading">¶</a></h2>
@@ -911,6 +1002,7 @@ cache growth on long-lived hosts.</p></li>
 </li>
 <li><a class="reference internal" href="#settings-and-secretspec">Settings And Secretspec</a><ul>
 <li><a class="reference internal" href="#secretspec-usage">Secretspec Usage</a></li>
+<li><a class="reference internal" href="#environment-variable-lifecycle">Environment-variable lifecycle</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#knowledge-base-startup-gate">Knowledge-base startup gate</a></li>
@@ -938,7 +1030,7 @@ cache growth on long-lived hosts.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=370aedac"></script>
+</div><script src="../_static/documentation_options.js?v=df104e6e"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

@@ -757,16 +757,24 @@ describe('ReportingShell media preload', () => {
       '1.0.0',
       'colonoscopy'
     )
-    expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
+    expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        moduleName: 'report_template_examples',
+        patientExaminationId: 314,
+        examination: 'colonoscopy'
+      })
+    )
     expect(hoisted.flowRef.current.setRuntimeDraft).toHaveBeenCalledWith(
       expect.objectContaining({
         patientExaminationId: 314,
         moduleName: 'report_template_examples',
-        templateName: null,
-        verificationStatus: 'unverified'
+        templateName: 'default_template',
+        verificationStatus: 'verified'
       })
     )
     const templateSelect = wrapper.get('[data-testid="report-template-select"]')
+    expect((templateSelect.element as HTMLSelectElement).value).toBe('default_template')
+    expect(templateSelect.element.closest('details')).toBeNull()
     expect(
       templateSelect
         .findAll('option')
@@ -1763,7 +1771,17 @@ describe('ReportingShell media preload', () => {
   })
 
   it('keeps the current draft when an explicitly selected template was depublished', async () => {
+    hoisted.flowRef.current.selectedTemplateName = 'current_template'
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValueOnce([
+      {
+        name: 'current_template',
+        examination: 'colonoscopy',
+        identity: {
+          moduleName: 'report_template_examples',
+          knowledgeBaseVersion: '1.0.0',
+          lifecycleStatus: 'published'
+        }
+      },
       {
         name: 'replacement_template',
         examination: 'colonoscopy',

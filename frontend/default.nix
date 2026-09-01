@@ -5,7 +5,7 @@
 
 buildNpmPackage rec {
   pname = "lx-annotate-frontend";
-  version = "1.1.7";
+  version = "1.1.8";
 
   src = ./.;
 
@@ -14,7 +14,7 @@ buildNpmPackage rec {
 # specified: the SHA-AA... default
 # (fake) got (your real hash)
 # Replace lib.fakeHash with the returned hash in default.nix
-  npmDepsHash = "sha256-dwyN4xHVgJEpph7aonXBgV5w7TkgawZkkf6f99Zk3w0=";
+  npmDepsHash = "sha256-7NM6K9LNBvmzN/lKzwEPdnYJdOlXYKouLBemjxERVs4=";
 
   # Keep Nix builds on the same Node/npm toolchain as the development shell.
   # The Nix default Node 20 toolchain rejects this lockfile's optional platform
