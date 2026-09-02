@@ -1582,7 +1582,6 @@ const canBlackenOutsideSegments = computed(
   () =>
     selectedVideoId.value !== null &&
     hasValidatedOutsideSegments(selectedVideoId.value) &&
-    !isSegmentCleanupPending(selectedVideoId.value) &&
     !outsideBlackeningRequestVideoIds.value.has(selectedVideoId.value)
 )
 

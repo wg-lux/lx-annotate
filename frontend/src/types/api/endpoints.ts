@@ -117,6 +117,8 @@ export const endpoints = {
   },
 
   runtime: {
+    videoStateRepair: 'runtime/videos/repair/',
+    videoStateRepairOne: (pk: Id) => `runtime/videos/${pathId(pk)}/repair/`,
     quarantine: 'runtime/quarantine/'
   },
 
@@ -149,7 +151,6 @@ export const endpoints = {
     videoDetail: (pk: Id) => `media/videos/${pathId(pk)}/details/`,
     videoStream: (pk: Id) => `media/videos/${pathId(pk)}/stream/`,
     videoHlsPlaylist: (pk: Id) => `media/videos/${pathId(pk)}/hls/playlist/`,
-    videoReimport: (pk: Id) => `media/videos/${pathId(pk)}/reimport/`,
     videoMarkReadyForExport: (pk: Id) => `media/videos/${pathId(pk)}/mark-ready-for-export/`,
     exportAnnotated: 'media/videos/export-annotated/',
 

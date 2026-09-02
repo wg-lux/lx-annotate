@@ -1879,7 +1879,9 @@ const reprocessVideo = async () => {
   if (!currentVideo.value) return;
 
   try {
-    await axiosInstance.post(r(endpoints.media.videoReimport(currentVideo.value.id)));
+    await axiosInstance.post(r(endpoints.runtime.videoStateRepairOne(currentVideo.value.id)), {
+      dryRun: false
+    });
     await refreshCurrentVideo();
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err, 'Fehler bei der Neuverarbeitung');
