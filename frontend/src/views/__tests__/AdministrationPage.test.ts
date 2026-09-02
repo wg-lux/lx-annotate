@@ -45,6 +45,36 @@ const attentionJob = {
 }
 
 const overview = {
+  hostStatus: {
+    total: 2,
+    active: 1,
+    hosts: [
+      {
+        nodeKey: 'site-node',
+        displayName: 'Site Node',
+        role: 'site_node',
+        roleLabel: 'Site Node',
+        owningCenterKey: 'center-a',
+        owningCenterName: 'Center A',
+        active: true,
+        baseUrlConfigured: false,
+        httpsConfigured: false,
+        updatedAt: '2026-08-11T10:00:00Z'
+      },
+      {
+        nodeKey: 'retired-node',
+        displayName: 'Retired Node',
+        role: 'storage_node',
+        roleLabel: 'Storage Node',
+        owningCenterKey: null,
+        owningCenterName: null,
+        active: false,
+        baseUrlConfigured: true,
+        httpsConfigured: true,
+        updatedAt: '2026-08-10T10:00:00Z'
+      }
+    ]
+  },
   storageBalancing: {
     contractAvailable: true,
     controlPlaneReady: false,
@@ -242,6 +272,21 @@ describe('AdministrationPage', () => {
       'center_scope:admin'
     )
     expect(wrapper.text()).toContain('Keycloak-Rollen ändern')
+    expect(wrapper.get('[data-test="effective-permissions"]').text()).toContain(
+      'Realm-Rolle direkt in Keycloak'
+    )
+    wrapper.unmount()
+  })
+
+  it('shows every configured host including inactive hosts', async () => {
+    const wrapper = mount(AdministrationPage)
+    await flushPromises()
+
+    const hosts = wrapper.get('[data-test="host-status"]')
+    expect(hosts.text()).toContain('1 / 2 aktiv')
+    expect(hosts.text()).toContain('Site Node')
+    expect(hosts.text()).toContain('Retired Node')
+    expect(wrapper.get('[data-test="host-status-retired-node"]').text()).toBe('Inaktiv')
     wrapper.unmount()
   })
 

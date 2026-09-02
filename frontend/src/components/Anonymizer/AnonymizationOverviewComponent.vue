@@ -539,7 +539,7 @@ const getOriginalFileDeletionState = (file: FileItem): OriginalFileDeletionState
     return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
   }
 
-  const cleanupStatus = file.uploadJob?.cleanupStatus?.toLowerCase();
+  const cleanupStatus = file.uploadJob?.cleanupStatus.toLowerCase();
   if (cleanupStatus === 'completed') return 'deleted';
   if (cleanupStatus === 'pending' || cleanupStatus === 'eligible') return 'present';
   if (file.rawFile?.trim()) return 'present';
@@ -825,11 +825,7 @@ const canUseImportAction = (
   action: 'safe_reimport' | 'delete'
 ) => {
   if (!file.uploadJob) return true;
-  if (file.uploadJob.allowedActions) {
-    return file.uploadJob.allowedActions.includes(action);
-  }
-  if (isUploadJobActive(file) || isDuplicateKeyImportError(file)) return false;
-  return action === 'delete' || ['error', 'lost'].includes(file.uploadJob.status);
+  return file.uploadJob.allowedActions.includes(action);
 };
 
 const getFileIcon = (mediaType: string) => {
@@ -972,8 +968,8 @@ const getUploadJobNotice = (file: FileItem) => {
   }
 
   if (file.uploadJob.status === 'retrying') {
-    const retryCount = file.uploadJob.retryCount ?? 0;
-    const maxRetries = file.uploadJob.maxRetries ?? 0;
+    const retryCount = file.uploadJob.retryCount;
+    const maxRetries = file.uploadJob.maxRetries;
     const schedule = file.uploadJob.nextRetryAt
       ? ` Nächster Versuch: ${formatDate(file.uploadJob.nextRetryAt)}.`
       : '';
@@ -1036,10 +1032,8 @@ const getUploadJobOriginLabel = (uploadJob: UploadJobOverview) => {
   const parts: string[] = [];
   if (uploadJob.ingestMode === 'watcher') {
     parts.push('Ordnerimport');
-  } else if (uploadJob.ingestMode === 'api') {
+  } else {
     parts.push('API');
-  } else if (uploadJob.ingestMode) {
-    parts.push(`Importweg: ${uploadJob.ingestMode}`);
   }
 
   if (uploadJob.sourceSystem) {
@@ -1064,16 +1058,11 @@ const getUploadJobCleanupStatusText = (status: string) => {
 };
 
 const getUploadJobCleanupLabel = (uploadJob: UploadJobOverview) => {
-  const sourceLabel =
-    typeof uploadJob.sourceFilePersisted === 'boolean'
-      ? uploadJob.sourceFilePersisted
-        ? 'Quelle vorhanden'
-        : 'Quelle bereinigt'
-      : '';
+  const sourceLabel = uploadJob.sourceFilePersisted
+    ? 'Quelle vorhanden'
+    : 'Quelle bereinigt';
 
-  const cleanupLabel = uploadJob.cleanupStatus
-    ? getUploadJobCleanupStatusText(uploadJob.cleanupStatus)
-    : '';
+  const cleanupLabel = getUploadJobCleanupStatusText(uploadJob.cleanupStatus);
 
   return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
 };

@@ -69,6 +69,56 @@ vi.mock('@/api/mediaManagement', () => ({
   })
 }))
 
+function buildUploadJob(overrides: Record<string, unknown> = {}) {
+  const status = typeof overrides.status === 'string' ? overrides.status : 'pending'
+  const errorCode =
+    typeof overrides.errorCode === 'string'
+      ? overrides.errorCode
+      : status === 'error' || status === 'lost' || status === 'quarantined'
+        ? 'processing_failed'
+        : ''
+  const allowedActions =
+    overrides.allowedActions ??
+    (status === 'anonymized'
+      ? ['delete']
+      : (status === 'error' || status === 'lost') && errorCode !== 'duplicate_content'
+        ? ['safe_reimport', 'delete']
+        : [])
+
+  return {
+    id: 'upload-job',
+    status,
+    ingestMode: 'api',
+    sourceSystem: 'test-suite',
+    sourceCenterKey: null,
+    originalFilename: 'study-video.mp4',
+    sourceFilePersisted: true,
+    cleanupStatus: 'pending',
+    allowedActions,
+    errorCode,
+    errorDetail: errorCode ? 'Safe operator message.' : '',
+    retryable: false,
+    retryCount: 0,
+    maxRetries: 3,
+    nextRetryAt: null,
+    lastAttemptAt: null,
+    createdAt: '2026-05-15T07:20:22Z',
+    updatedAt: '2026-05-15T07:20:22Z',
+    ...overrides
+  }
+}
+
+function normalizeFileOverrides(overrides: Record<string, unknown>) {
+  const uploadJob = overrides.uploadJob
+  if (!uploadJob || typeof uploadJob !== 'object' || Array.isArray(uploadJob)) {
+    return overrides
+  }
+  return {
+    ...overrides,
+    uploadJob: buildUploadJob(uploadJob as Record<string, unknown>)
+  }
+}
+
 function buildVideoFile(overrides: Record<string, unknown> = {}) {
   return {
     id: 17,
@@ -79,7 +129,7 @@ function buildVideoFile(overrides: Record<string, unknown> = {}) {
     createdAt: '2026-04-30T08:00:00Z',
     metadataImported: true,
     rawFile: 'raw/study-video.mp4',
-    ...overrides
+    ...normalizeFileOverrides(overrides)
   }
 }
 
@@ -93,7 +143,7 @@ function buildPdfFile(overrides: Record<string, unknown> = {}) {
     createdAt: '2026-04-30T08:15:00Z',
     metadataImported: true,
     rawFile: 'raw/study-report.pdf',
-    ...overrides
+    ...normalizeFileOverrides(overrides)
   }
 }
 
@@ -115,7 +165,7 @@ function buildQuarantinedVideoFile(overrides: Record<string, unknown> = {}) {
     quarantineNextAction: 'review_required',
     quarantineOrphaned: false,
     errorDetail: 'Die Datei wurde unter Quarantäne gestellt.',
-    uploadJob: {
+    uploadJob: buildUploadJob({
       id: 'lx_annotate_quarantine:quarantined-video.mov',
       status: 'quarantined',
       ingestMode: 'watcher',
@@ -124,8 +174,8 @@ function buildQuarantinedVideoFile(overrides: Record<string, unknown> = {}) {
       cleanupStatus: 'skipped',
       errorCode: 'processing_failed',
       errorDetail: 'Die Datei wurde unter Quarantäne gestellt.'
-    },
-    ...overrides
+    }),
+    ...normalizeFileOverrides(overrides)
   }
 }
 

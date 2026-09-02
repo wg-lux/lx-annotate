@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore'
+import {
+  useAnonymizationStore,
+  type ApiUploadJobOverview,
+  type FileItem
+} from '@/stores/anonymizationStore'
 
 const hoisted = vi.hoisted(() => ({
   get: vi.fn(),
@@ -17,6 +21,32 @@ vi.mock('@/api/axiosInstance', () => ({
   silentRequestConfig: () => ({ suppressErrorToast: true })
 }))
 
+function buildUploadJob(
+  overrides: Partial<ApiUploadJobOverview> = {}
+): ApiUploadJobOverview {
+  return {
+    id: 'upload-job',
+    status: 'pending',
+    ingestMode: 'api',
+    sourceSystem: 'test-suite',
+    sourceCenterKey: 'test-center',
+    originalFilename: 'stale-import.mp4',
+    sourceFilePersisted: true,
+    cleanupStatus: 'pending',
+    allowedActions: [],
+    errorCode: '',
+    errorDetail: '',
+    retryable: false,
+    retryCount: 0,
+    maxRetries: 3,
+    nextRetryAt: null,
+    lastAttemptAt: '2026-05-28T08:00:00Z',
+    createdAt: '2026-05-28T08:00:00Z',
+    updatedAt: '2026-05-28T08:00:00Z',
+    ...overrides
+  }
+}
+
 function buildVideoFile(overrides: Partial<FileItem> = {}): FileItem {
   return {
     id: 42,
@@ -26,11 +56,13 @@ function buildVideoFile(overrides: Partial<FileItem> = {}): FileItem {
     annotationStatus: 'not_started',
     createdAt: '2026-05-28T08:00:00Z',
     metadataImported: false,
-    uploadJob: {
+    uploadJob: buildUploadJob({
       id: 'failed-upload-job',
       status: 'error',
-      cleanupStatus: 'pending'
-    },
+      allowedActions: ['safe_reimport', 'delete'],
+      errorCode: 'processing_failed',
+      errorDetail: 'Import processing failed.'
+    }),
     ...overrides
   }
 }
@@ -59,10 +91,10 @@ describe('anonymizationStore video reimport', () => {
     const store = useAnonymizationStore()
     store.overview = [
       buildVideoFile({
-        uploadJob: {
+        uploadJob: buildUploadJob({
           id: 'active-upload-job',
           status: 'processing'
-        }
+        })
       })
     ]
     const startPolling = vi.spyOn(store, 'startPolling').mockImplementation(() => undefined)

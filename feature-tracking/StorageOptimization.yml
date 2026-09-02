@@ -486,3 +486,96 @@ definition_of_done:
       disclosed and replaced.
     assessed_by: codex-storage-optimization-20260824
     assessed_at: '2026-08-25T07:36:41.690380Z'
+- id: hls_celery_delivery_and_timeout_contract
+  category: functionality
+  title: WP-LX-01 Celery delivery semantics cover the longest supported HLS task
+  acceptance:
+  - Production Django settings explicitly configure Redis visibility longer than the maximum supported HLS
+    execution and acknowledgement interval.
+  - Celery soft and hard limits, the application FFmpeg timeout, visibility, stale-attempt detection, and
+    LuxNix worker-stop timeout form one documented relationship and fail settings validation when inconsistent.
+  - The canonical HLS task has an explicit queue route even when a caller does not supply queue and routing-key
+    overrides.
+  - Runtime probes verify the resolved Celery application configuration, not merely environment-variable presence.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - pytest
+    - -q
+    - tests/system/test_production_celery_routing.py
+    timeout_seconds: 600
+  assessment:
+    status: blocked
+    evidence:
+    - kind: code
+      reference: lx_annotate/settings/settings_base.py:341-438,616-619
+      note: Production settings define long task limits but no CELERY_BROKER_TRANSPORT_OPTIONS and no
+        declarative route for endoreg_db.tasks.video_hls_materialization.
+    - kind: command
+      reference: isolated production-settings probe
+      note: broker_transport_options resolved to an empty mapping while HLS hard and soft limits resolved
+        to 21600 and 18000 seconds.
+    note: This package must land with Endoreg WP-ER-01 because early redelivery currently enters an HLS
+      state machine that cannot reclaim the orphaned materializing attempt.
+    assessed_by: codex-gc10-hls-investigate
+    assessed_at: '2026-09-02T09:00:00Z'
+- id: hls_runtime_dependency_attestation
+  category: security
+  title: WP-LX-02 Runtime HLS code has one verifiable package identity
+  acceptance:
+  - The lx-annotate wheel metadata, lock, Nix source input, installed Endoreg distribution, and exported
+    runtime attestation resolve to the same approved Endoreg version and immutable digest.
+  - Packaging and deployment fail when the installed Endoreg version or import path differs from the
+    declared HLS implementation.
+  - Dependency installation runs an integrity check and cannot silently resolve an unpinned online transitive
+    Endoreg artifact in production.
+  - Operator diagnostics report versions, revisions, digests, and import locations without exposing secrets
+    or media paths.
+  required: true
+  verification:
+    kind: manual
+    instructions: Build the immutable wheel/runtime closure, inspect METADATA and the imported endoreg_db
+      distribution, run dependency consistency checks, and compare the result with LuxNix WP-LN-04 attestation.
+    timeout_seconds: 1200
+  assessment:
+    status: blocked
+    evidence:
+    - kind: code
+      reference: pyproject.toml:55; uv.lock:1154-1225; flake.nix:14-17,148-150; package.nix:70,114,175,197-200
+      note: The Python runtime is supplied by locked wheel dependencies while the separate Endoreg flake
+        input is exposed as metadata and does not select imported HLS code.
+    note: Local lx-annotate currently imports Endoreg 1.1.5 matching the reviewed checkout, but the packaging
+      contract does not prove that identity for a deployment.
+    assessed_by: codex-gc10-hls-investigate
+    assessed_at: '2026-09-02T09:00:00Z'
+- id: hls_packaged_runtime_failure_injection
+  category: testing
+  title: WP-LX-03 Packaged production settings are tested with real HLS task outcomes
+  acceptance:
+  - Tests load the same settings module and installed Endoreg distribution used by production Celery workers.
+  - An integration lane proves explicit and implicit HLS routing, visibility behavior, worker-loss redelivery,
+    terminal failure reporting, and restart convergence against Redis-compatible broker semantics.
+  - Cross-package tests use the real materializer statuses for import and correction; mocks cannot invent
+    statuses outside the typed result contract.
+  - The lane records the imported Endoreg version, module path, and artifact digest and fails on attestation drift.
+  required: true
+  verification:
+    kind: manual
+    instructions: After WP-LX-01 and WP-LX-02 and Endoreg WP-ER-01 through WP-ER-03 are complete, run the
+      packaged production-settings lane with a disposable broker and record exact task/database outcomes.
+    timeout_seconds: 1800
+  assessment:
+    status: blocked
+    evidence:
+    - kind: test
+      reference: tests/system/test_production_celery_routing.py; tests/hub/test_tasks.py;
+        /home/admin/endoreg-db/tests/test_tasks.py
+      note: Existing coverage does not assert the visibility-to-task-duration relationship or crash/redelivery
+        behavior through the installed package boundary.
+    note: This is the lx-annotate release gate for the HLS remediation and depends on WP-LX-01, WP-LX-02,
+      and the corresponding Endoreg state-machine and caller-contract work packages.
+    assessed_by: codex-gc10-hls-investigate
+    assessed_at: '2026-09-02T09:00:00Z'

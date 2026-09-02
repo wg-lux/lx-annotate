@@ -100,9 +100,21 @@ const hoisted = vi.hoisted(() => {
         return options.find((option) => option.type === 'processed')?.url ?? null
       })
     },
-    useAuthenticatedVideoStream: vi.fn<UseAuthenticatedVideoStream>()
+    useAuthenticatedVideoStream: vi.fn<UseAuthenticatedVideoStream>(),
+    runtimeLogger: {
+      debug: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
+      info: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
+      warn: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
+      error: vi.fn<
+        (event: string, error?: unknown, context?: Record<string, unknown>) => void
+      >()
+    }
   }
 })
+
+vi.mock('@/utils/runtimeLogger', () => ({
+  createRuntimeLogger: () => hoisted.runtimeLogger
+}))
 
 vi.mock('@/stores/reportingFlowStore', () => ({
   isVerifiedRuntimeDraftForBundle: (
@@ -386,6 +398,7 @@ describe('ReportingShell media preload', () => {
     }
     hoisted.terminologyStore.activeModuleName = 'report_template_examples'
     hoisted.terminologyStore.activeBundleKey = 'report_template_examples@@1.0.0'
+    Object.assign(hoisted.terminologyStore, { registryRevision: 'registry-sha-1' })
     hoisted.terminologyStore.selectedMedicalField = 'gastroenterology'
     hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined)
     hoisted.flowRef.current = reactive(buildFlowStore())
@@ -656,7 +669,7 @@ describe('ReportingShell media preload', () => {
     })
     hoisted.flowRef.current.selectedTemplateName = 'default_template'
 
-    mountShell()
+    const wrapper = mountShell()
     await vi.waitFor(() => {
       expect(hoisted.axiosApi.get).toHaveBeenCalledWith('patient-examinations/314/')
     })
@@ -680,6 +693,22 @@ describe('ReportingShell media preload', () => {
     expect(verifiedDraftCalls.some((draft) => draft.patientExaminationId === 315)).toBe(true)
     expect(verifiedDraftCalls.some((draft) => draft.patientExaminationId === 314)).toBe(false)
     expect(hoisted.flowRef.current.patientExaminationId).toBe(315)
+    expect(wrapper.get('[data-testid="superseded-evaluation-notice"]').text()).toContain(
+      'veraltete Reporting-Anfrage wurde verworfen'
+    )
+    const supersededLog = hoisted.runtimeLogger.warn.mock.calls.find(
+      ([event]) => event === 'evaluation-superseded'
+    )
+    expect(supersededLog?.[1]).toMatchObject({
+      patientExaminationId: 314,
+      pinnedIdentity: null,
+      requestedIdentity: 'report_template_examples@1.0.0',
+      responseIdentity: null,
+      registryRevision: 'registry-sha-1',
+      reasonCode: 'superseded',
+      supersessionReason: 'dag-context-changed'
+    })
+    expect(supersededLog?.[1]?.evaluationId).toMatch(/^reporting-314-\d+$/)
   })
 
   it('flushes the current draft before switching examinations', async () => {
@@ -2058,6 +2087,17 @@ describe('ReportingShell media preload', () => {
     expect(hoisted.reportTemplatesApi.fetchReportTemplatesByExamination).not.toHaveBeenCalled()
     expect(restored.text()).toContain(
       'Die Patientenuntersuchung #314 ist an report_template_examples@1.0.0 gebunden'
+    )
+    expect(hoisted.runtimeLogger.warn).toHaveBeenCalledWith(
+      'evaluation-identity-mismatch',
+      expect.objectContaining({
+        patientExaminationId: 314,
+        pinnedIdentity: 'report_template_examples@1.0.0',
+        requestedIdentity: 'gastro_v2@2.0.0',
+        responseIdentity: 'report_template_examples@1.0.0',
+        registryRevision: 'registry-sha-1',
+        reasonCode: 'knowledge-base-identity-mismatch'
+      })
     )
     const rehydratedSelect = restored.get('[data-testid="terminology-bundle-select"]')
     expect((rehydratedSelect.element as HTMLSelectElement).value).toBe('gastro_v2@@2.0.0')

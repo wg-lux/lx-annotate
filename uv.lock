@@ -1152,7 +1152,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.1.4"
+version = "1.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery", extra = ["redis"] },
@@ -1219,9 +1219,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f0/3e/dd0b1536724978cc402bb94d18bb28c7e1c83bdbbcbf9308752cd277333c/endoreg_db-1.1.4.tar.gz", hash = "sha256:2b2db2df2942b58df73ba2d0e3c48585b70e4b7fb3b2f6e422b170be9871ca35", size = 1288990, upload-time = "2026-09-01T12:35:36.437Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/86/db/e1377ba477e92c4abc1cab5854153739658f1eee4da69ddef064a408432e/endoreg_db-1.1.6.tar.gz", hash = "sha256:9b4eb8de4f09786979060f4e105405277e81060e73f381dce8576697eede992e", size = 1306612, upload-time = "2026-09-02T16:24:35.602Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d1/17/7d5a2eebb080a78e8e8dac0b752fd979688df7292ac43a380c8e2b48df83/endoreg_db-1.1.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:21976ba525bb35c83f24e61a2078b7c3531d3aebe6a81db5f88a560f6374b738", size = 2264435, upload-time = "2026-09-01T12:35:32.446Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/c8/d03ef0c7cfdf983d21bffa8ea570cb4f72c94a8080dd6b5e3034b2f51a71/endoreg_db-1.1.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:71a11c08c451688e05b3177f4f0769fb7b2b257c308d8302c5427341681d1288", size = 2288422, upload-time = "2026-09-02T16:21:13.186Z" },
 ]
 
 [[package]]
@@ -2084,7 +2084,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "1.1.8"
+version = "1.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
@@ -2182,7 +2182,7 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "djangorestframework-types", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.1.4" },
+    { name = "endoreg-db", specifier = "==1.1.6" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2285,7 +2285,7 @@ gpu = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.2.33"
+version = "0.2.34"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bibtexparser" },
@@ -2294,7 +2294,6 @@ dependencies = [
     { name = "django-stubs", extra = ["compatible-mypy"] },
     { name = "django-stubs-ext" },
     { name = "icecream" },
-    { name = "lx-annotate" },
     { name = "numpy" },
     { name = "openpyxl" },
     { name = "pandas" },
@@ -2309,9 +2308,9 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/51/ca/e813d2c024ab350e6f34ce4c65fceb0a3c8b5655ecb1b58e57b9733abcfb/lx_dtypes-0.2.33.tar.gz", hash = "sha256:c0811ac95cb5c57e34cf9dd61d7d0fd5ba86248f6f7376ab83df8ed29706e544", size = 2588298, upload-time = "2026-09-01T08:54:54.947Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/62/44/c3c53d8e54ef308825fd36b40433764536bac0e65f697961f669ab1ce105/lx_dtypes-0.2.34.tar.gz", hash = "sha256:d2ada4c6dc248109d62f2c5e57b1674867fc3376e4fd635d4839520e31921a59", size = 2588294, upload-time = "2026-09-01T13:03:55.792Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/60/13/5c57db565ce6994ef91a2ff45cf716da0bc7894ad73b6ad665e38f031ecf/lx_dtypes-0.2.33-py3-none-any.whl", hash = "sha256:4b96a7d9619155c71a29aee289d1c57b86005d9087079f516b6624fbb6750d09", size = 786216, upload-time = "2026-09-01T08:54:49.088Z" },
+    { url = "https://files.pythonhosted.org/packages/96/0d/76427e8238a7f2ba5686e9eaaae48139be88dcc331f13873daace28d7dfa/lx_dtypes-0.2.34-py3-none-any.whl", hash = "sha256:9589d48e78ce0213fa46def610c23410add277a5452ca52c57ed1f798043db4d", size = 786201, upload-time = "2026-09-01T13:03:51.537Z" },
 ]
 
 [[package]]

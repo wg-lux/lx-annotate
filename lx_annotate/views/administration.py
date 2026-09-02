@@ -119,6 +119,29 @@ def _hub_node_health(node: NetworkNode) -> dict[str, Any]:
     }
 
 
+def _network_node_status(node: NetworkNode) -> dict[str, Any]:
+    parsed = urlparse(str(node.base_url or ""))
+    owning_center = node.owning_center
+    return {
+        "node_key": str(node.node_key),
+        "display_name": str(node.display_name),
+        "role": str(node.role),
+        "role_label": str(NetworkNode.Role(node.role).label),
+        "owning_center_key": (
+            str(owning_center.center_key) if owning_center is not None else None
+        ),
+        "owning_center_name": (
+            str(owning_center.display_name or owning_center.name)
+            if owning_center is not None
+            else None
+        ),
+        "active": bool(node.is_active),
+        "base_url_configured": bool(parsed.scheme and parsed.netloc),
+        "https_configured": parsed.scheme.lower() == "https" and bool(parsed.netloc),
+        "updated_at": node.updated_at.isoformat(),
+    }
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def administration_overview(request):
@@ -148,6 +171,17 @@ def administration_overview(request):
     )[:25]
     source_node = get_default_source_node()
     hub_nodes = list(get_active_hub_nodes().select_related("owning_center"))
+    global_center_admin = user_has_global_center_scope_admin(request.user)
+    network_nodes = (
+        list(
+            NetworkNode.objects.select_related("owning_center").order_by(
+                "display_name",
+                "pk",
+            )
+        )
+        if global_center_admin
+        else []
+    )
     roles = sorted(request.user.groups.values_list("name", flat=True))
     current_access = serialize_user_access(request.user, portal_info)
     storage_monitor_read = _user_can_monitor_storage(request.user)
@@ -157,6 +191,11 @@ def administration_overview(request):
     )
     return Response(
         {
+            "host_status": {
+                "total": len(network_nodes),
+                "active": sum(1 for node in network_nodes if node.is_active),
+                "hosts": [_network_node_status(node) for node in network_nodes],
+            },
             "hub_health": {
                 "ready": bool(source_node)
                 and len(hub_nodes) == 1
@@ -218,9 +257,7 @@ def administration_overview(request):
                 "hub_monitor_read": True,
                 "storage_monitor_read": storage_monitor_read,
                 "center_scope_admin": user_can_administer_center_scope(request.user),
-                "center_scope_global_admin": user_has_global_center_scope_admin(
-                    request.user,
-                ),
+                "center_scope_global_admin": global_center_admin,
                 "center_scope_roles": {
                     "delegated": CENTER_SCOPE_ADMIN_ROLE,
                     "global": GLOBAL_CENTER_SCOPE_ADMIN_ROLE,

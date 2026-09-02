@@ -7,6 +7,7 @@ const SAFE_CONTEXT_KEY_LIST = [
   'count',
   'currentStatus',
   'durationMs',
+  'evaluationId',
   'expectedStatus',
   'fileType',
   'httpStatus',
@@ -14,11 +15,17 @@ const SAFE_CONTEXT_KEY_LIST = [
   'mode',
   'operation',
   'outcome',
+  'patientExaminationId',
+  'pinnedIdentity',
   'queue',
   'reasonCode',
+  'registryRevision',
+  'requestedIdentity',
+  'responseIdentity',
   'retryCount',
   'source',
   'state',
+  'supersessionReason',
   'taskType'
 ] as const
 

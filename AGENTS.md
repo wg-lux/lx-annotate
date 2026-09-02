@@ -92,6 +92,34 @@ Configuration and secret management across the environment operate across four d
 - Outbound transfer is permitted only for anonymized processed media. Raw media
   export is prohibited.
 
+### Encrypted Runtime File Consumption
+
+- Treat application-managed `FileField` artifacts as ciphertext at rest even
+  when their filename extension names a plaintext parser format such as
+  `.safetensors`, `.pt`, `.pdf`, or `.mp4`. An `LXENC01` file must never be
+  passed directly to a model loader, media parser, or other plaintext consumer.
+- Do not use `field_file.path`, `Path(field_file.path)`, or an equivalent raw
+  storage path as a plaintext interface. Read through the configured storage
+  backend or use the existing scoped materialization helpers, such as
+  `materialized_plaintext_field_file`, so authenticated decryption occurs before
+  consumption.
+- Keep plaintext materialization bounded to the smallest context-manager scope
+  that covers the consumer. Temporary plaintext must use restrictive access,
+  must not be written back into protected storage as if it were ciphertext, and
+  must be removed through the typed filesystem wrappers on success and failure.
+- Writes and imports of protected artifacts must enter the encrypted storage
+  backend through its supported interface. Raw filesystem copies that bypass
+  encryption, atomic publication, structured logging, or key-identity checks are
+  prohibited.
+- Fail closed on a missing key, wrong key identity, authentication-tag failure,
+  malformed encrypted header, or cleanup failure. Preserve non-secret
+  structured diagnostics, but never log plaintext, key material, or decrypted
+  payload fragments.
+- Tests for encrypted artifact consumers must cover ciphertext-at-rest input,
+  successful scoped decryption, wrong-key and tamper rejection, cleanup after
+  loader exceptions, and confirmation that no persistent plaintext artifact is
+  left behind.
+
 ### Evolutionary Roadmap
 
 Before proposing communication or storage changes, locate the system's current

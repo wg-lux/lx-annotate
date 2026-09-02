@@ -575,6 +575,14 @@
             <span class="small text-muted">{{ currentStepLabel }}</span>
           </div>
           <div class="card-body p-3">
+            <div
+              v-if="supersededEvaluationNotice"
+              class="alert alert-info py-2 mb-3"
+              role="status"
+              data-testid="superseded-evaluation-notice"
+            >
+              {{ supersededEvaluationNotice }}
+            </div>
             <div v-if="draftBootstrapError" class="alert alert-warning py-2 mb-3">
               {{ draftBootstrapError }}
             </div>
@@ -1035,7 +1043,7 @@ import {
   readReportingKnowledgeBaseIdentity,
   type ReportingKnowledgeBaseIdentity
 } from './reportingKnowledgeBaseContext'
-import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import { createRuntimeLogger, type SafeLogContext } from '@/utils/runtimeLogger'
 import {
   reportTemplateLifecycleContextKey,
   type ReportTemplateLifecycleChange
@@ -1158,6 +1166,7 @@ const patientExaminationCreationLoading = ref(false)
 const patientExaminationCreationError = ref<string | null>(null)
 const draftBootstrapInFlight = ref<{ key: string; promise: Promise<void> } | null>(null)
 const draftBootstrapError = ref<string | null>(null)
+const supersededEvaluationNotice = ref<string | null>(null)
 const patientExaminationDetail = ref<Record<string, unknown> | null>(null)
 const patientExaminationIdentityLoadedId = ref<number | null>(null)
 const templateReference = ref<ReportTemplatePayload | null>(null)
@@ -1414,6 +1423,44 @@ function assertBootstrapContextCurrent(context?: DraftBootstrapContext): void {
   if (context && !isBootstrapContextCurrent(context)) {
     throw new SupersededReportingContextError('Reporting context changed during loading.')
   }
+}
+
+function formatEvaluationIdentity(identity: ReportingKnowledgeBaseIdentity | null): string | null {
+  return identity ? `${identity.moduleName}@${identity.moduleVersion}` : null
+}
+
+function evaluationLogContext(
+  context: DraftBootstrapContext,
+  responseIdentity: ReportingKnowledgeBaseIdentity | null = null,
+  extra: SafeLogContext = {}
+): SafeLogContext {
+  return {
+    evaluationId: `reporting-${String(context.patientExaminationId)}-${String(context.generation)}`,
+    patientExaminationId: context.patientExaminationId,
+    pinnedIdentity: formatEvaluationIdentity(context.pinnedIdentity),
+    requestedIdentity:
+      context.moduleName && context.moduleVersion
+        ? `${context.moduleName}@${context.moduleVersion}`
+        : null,
+    responseIdentity: formatEvaluationIdentity(responseIdentity),
+    registryRevision: terminology.registryRevision ?? null,
+    ...extra
+  }
+}
+
+function reportSupersededEvaluation(
+  context: DraftBootstrapContext,
+  supersessionReason: string
+): void {
+  supersededEvaluationNotice.value =
+    'Eine veraltete Reporting-Anfrage wurde verworfen; der aktuelle Untersuchungskontext bleibt unverändert.'
+  logger.warn(
+    'evaluation-superseded',
+    evaluationLogContext(context, null, {
+      reasonCode: 'superseded',
+      supersessionReason
+    })
+  )
 }
 
 const draftSummaryLabel = computed(() => {
@@ -2499,6 +2546,14 @@ function assertPatientExaminationKnowledgeBaseCompatibility(
     pinned &&
     (pinned.moduleName !== context.moduleName || pinned.moduleVersion !== context.moduleVersion)
   ) {
+    logger.warn(
+      'evaluation-identity-mismatch',
+      evaluationLogContext(
+        { ...context, pinnedIdentity: pinned },
+        readReportingKnowledgeBaseIdentity(detail),
+        { reasonCode: 'knowledge-base-identity-mismatch' }
+      )
+    )
     throw new ReportingKnowledgeBaseMismatchError({
       patientExaminationId: context.patientExaminationId,
       pinnedIdentity: pinned,
@@ -3205,6 +3260,10 @@ async function bootstrapRuntimeDraft(
   allowMissingTemplate = true
 ) {
   if (!context.moduleName || !context.moduleVersion) {
+    logger.warn(
+      'evaluation-registry-unavailable',
+      evaluationLogContext(context, null, { reasonCode: 'missing-active-registry' })
+    )
     throw new Error(
       'Keine verifizierte aktive Knowledge Base ist im Terminologieregister ausgewählt.'
     )
@@ -3241,6 +3300,14 @@ async function bootstrapRuntimeDraft(
             option?.examinationId ?? detailExaminationId ?? flow.selectedExaminationId
         })
         if (!resolved.selectedTemplate || !resolved.payload) {
+          logger.info(
+            'evaluation-annotation-only',
+            evaluationLogContext(
+              context,
+              readReportingKnowledgeBaseIdentity(resolved.detail),
+              { reasonCode: 'no-published-template' }
+            )
+          )
           setAnnotationOnlyRuntimeDraft(patientExaminationId, resolved.detail, context)
           return
         }
@@ -3268,6 +3335,12 @@ async function bootstrapRuntimeDraft(
           persistencePolicy: 'persistable',
           updatedAt: new Date().toISOString()
         })
+        logger.info(
+          'evaluation-committed',
+          evaluationLogContext(context, readReportingKnowledgeBaseIdentity(resolved.detail), {
+            reasonCode: 'committed'
+          })
+        )
       }
     })
   } finally {
@@ -3599,10 +3672,11 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
   const generation = ++draftBootstrapGeneration
   const task = (async () => {
     draftBootstrapError.value = null
+    supersededEvaluationNotice.value = null
+    let context: DraftBootstrapContext | null = null
     try {
       await ensureTerminologyBundlesLoaded()
-      if (generation !== draftBootstrapGeneration) return
-      const context: DraftBootstrapContext = Object.freeze({
+      context = Object.freeze({
         generation,
         patientExaminationId,
         bundleKey: activeBundleIdentityKey.value,
@@ -3610,6 +3684,10 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
         moduleVersion: activeKbVersion.value,
         pinnedIdentity: pinnedIdentity.value ? Object.freeze({ ...pinnedIdentity.value }) : null
       })
+      if (generation !== draftBootstrapGeneration) {
+        reportSupersededEvaluation(context, 'terminology-load-completed-after-context-change')
+        return
+      }
       assertBootstrapContextCurrent(context)
       await ensureRuntimeDraft(patientExaminationId, context)
     } catch (error: unknown) {
@@ -3617,9 +3695,27 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
         error instanceof SupersededReportingContextError ||
         error instanceof SupersededReportingDagError
       ) {
+        if (context) {
+          reportSupersededEvaluation(
+            context,
+            error instanceof SupersededReportingDagError
+              ? 'dag-context-changed'
+              : 'reporting-context-changed'
+          )
+        }
         return
       }
-      if (generation !== draftBootstrapGeneration) return
+      if (generation !== draftBootstrapGeneration) {
+        if (context) reportSupersededEvaluation(context, 'failure-after-context-change')
+        return
+      }
+      if (context) {
+        logger.error(
+          'evaluation-failed',
+          error,
+          evaluationLogContext(context, null, { reasonCode: 'bootstrap-failed' })
+        )
+      }
       draftBootstrapError.value = reportingApiErrorMessage(
         error,
         'Der lokale Reporting-Entwurf konnte nicht initialisiert werden.'

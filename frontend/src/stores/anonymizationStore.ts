@@ -12,27 +12,65 @@ const runtimeLogger = createRuntimeLogger('anonymization-store')
 /* Typen                                                               */
 /* ------------------------------------------------------------------ */
 
-// New interface for file overview
-export interface UploadJobOverview {
+export type UploadJobMonitoringStatus =
+  | 'pending'
+  | 'processing'
+  | 'retrying'
+  | 'anonymized'
+  | 'error'
+  | 'lost'
+export type UploadJobIngestMode = 'api' | 'watcher'
+export type UploadJobCleanupStatus =
+  | 'pending'
+  | 'eligible'
+  | 'deleting'
+  | 'completed'
+  | 'skipped'
+export type ImportErrorCode =
+  | ''
+  | 'dispatch_unavailable'
+  | 'duplicate_content'
+  | 'invalid_configuration'
+  | 'invalid_input'
+  | 'media_integrity_failed'
+  | 'processing_failed'
+  | 'source_missing'
+export type HlsMaterializationErrorCode =
+  | ''
+  | 'dispatch_failed'
+  | 'inconsistent_artifact'
+  | 'materialization_failed'
+  | 'validation_failed'
+  | 'stale_attempt'
+
+// Canonical camelCase representation of OverviewUploadJobMonitoringData.
+export interface ApiUploadJobOverview {
   id: string
-  status: string
-  ingestMode?: string
-  sourceSystem?: string
-  sourceCenterKey?: string | null
-  originalFilename?: string
-  sourceFilePersisted?: boolean
-  cleanupStatus?: string
-  allowedActions?: Array<'safe_reimport' | 'delete'>
-  errorCode?: string
-  errorDetail?: string
-  retryable?: boolean
-  retryCount?: number
-  maxRetries?: number
-  nextRetryAt?: string | null
-  lastAttemptAt?: string | null
-  createdAt?: string | null
-  updatedAt?: string | null
+  status: UploadJobMonitoringStatus
+  ingestMode: UploadJobIngestMode
+  sourceSystem: string
+  sourceCenterKey: string | null
+  originalFilename: string
+  sourceFilePersisted: boolean
+  cleanupStatus: UploadJobCleanupStatus
+  allowedActions: Array<'safe_reimport' | 'delete'>
+  errorCode: ImportErrorCode
+  errorDetail: string
+  retryable: boolean
+  retryCount: number
+  maxRetries: number
+  nextRetryAt: string | null
+  lastAttemptAt: string | null
+  createdAt: string
+  updatedAt: string
 }
+
+export interface QuarantineUploadJobOverview
+  extends Omit<ApiUploadJobOverview, 'status'> {
+  status: 'quarantined'
+}
+
+export type UploadJobOverview = ApiUploadJobOverview | QuarantineUploadJobOverview
 
 export interface HlsMaterializationOverview {
   artifactKind: 'raw' | 'processed'
@@ -41,7 +79,7 @@ export interface HlsMaterializationOverview {
   sourceGenerationId: string
   targetGenerationId: string
   segmentCount: number
-  errorCode: string
+  errorCode: HlsMaterializationErrorCode
   createdAt: string
   updatedAt: string
 }
@@ -249,11 +287,18 @@ function buildQuarantineOverviewRows(
         status: 'quarantined',
         ingestMode: 'watcher',
         sourceSystem: file.directoryLabel,
+        sourceCenterKey: null,
+        originalFilename: file.filename,
         sourceFilePersisted: true,
         cleanupStatus: 'skipped',
         allowedActions: [],
         errorCode: 'processing_failed',
         errorDetail: reason,
+        retryable: false,
+        retryCount: 0,
+        maxRetries: 0,
+        nextRetryAt: null,
+        lastAttemptAt: null,
         createdAt: quarantineTimestamp,
         updatedAt: file.modifiedAt || quarantineTimestamp
       },

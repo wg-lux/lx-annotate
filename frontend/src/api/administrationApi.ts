@@ -27,12 +27,7 @@ export interface TransferMonitoringJob {
 }
 
 export type StorageAction = 'drain' | 'resume'
-export type StorageOperatorControlAction =
-  | 'pause'
-  | 'resume'
-  | 'reconcile'
-  | 'rebalance'
-  | 'retry'
+export type StorageOperatorControlAction = 'pause' | 'resume' | 'reconcile' | 'rebalance' | 'retry'
 
 export interface StorageNodeOverview {
   nodeKey: string
@@ -193,6 +188,22 @@ export interface StoragePlanPreview {
 }
 
 export interface AdministrationOverview {
+  hostStatus: {
+    total: number
+    active: number
+    hosts: Array<{
+      nodeKey: string
+      displayName: string
+      role: 'central_hub' | 'site_node' | 'storage_node' | 'standalone'
+      roleLabel: string
+      owningCenterKey: string | null
+      owningCenterName: string | null
+      active: boolean
+      baseUrlConfigured: boolean
+      httpsConfigured: boolean
+      updatedAt: string
+    }>
+  }
   storageBalancing: StorageBalancingOverview
   hubHealth: {
     ready: boolean

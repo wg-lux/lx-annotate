@@ -52,6 +52,73 @@
       </section>
 
       <section
+        v-if="overview.effectivePermissions.centerScopeGlobalAdmin"
+        class="admin-card mt-4"
+        data-test="host-status"
+      >
+        <div class="section-heading">
+          <div>
+            <h2>Host-Status</h2>
+            <p>
+              Alle registrierten Netzwerk-Knoten. Der Status zeigt die lokale Aktivierung und
+              Konfiguration; es wird kein Remote-Liveness-Probe ausgelöst.
+            </p>
+          </div>
+          <span class="badge bg-secondary">
+            {{ overview.hostStatus.active }} / {{ overview.hostStatus.total }} aktiv
+          </span>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Host</th>
+                <th>Rolle</th>
+                <th>Center</th>
+                <th>Status</th>
+                <th>Verbindung</th>
+                <th>Aktualisiert</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="host in overview.hostStatus.hosts" :key="host.nodeKey">
+                <td>
+                  <strong>{{ host.displayName }}</strong>
+                  <small class="d-block text-muted">{{ host.nodeKey }}</small>
+                </td>
+                <td>{{ host.roleLabel }}</td>
+                <td>{{ host.owningCenterName || host.owningCenterKey || '—' }}</td>
+                <td>
+                  <span
+                    class="badge"
+                    :class="host.active ? 'bg-success' : 'bg-secondary'"
+                    :data-test="`host-status-${host.nodeKey}`"
+                  >
+                    {{ host.active ? 'Aktiv' : 'Inaktiv' }}
+                  </span>
+                </td>
+                <td>
+                  {{
+                    host.httpsConfigured
+                      ? 'HTTPS konfiguriert'
+                      : host.baseUrlConfigured
+                        ? 'ohne HTTPS'
+                        : 'keine URL'
+                  }}
+                </td>
+                <td>{{ formatDate(host.updatedAt) }}</td>
+              </tr>
+              <tr v-if="!overview.hostStatus.hosts.length">
+                <td colspan="6" class="text-center text-muted py-4">
+                  Keine Netzwerk-Knoten registriert.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section
         v-if="overview.effectivePermissions.storageMonitorRead"
         class="admin-card mt-4"
         data-test="storage-balancing"
@@ -78,7 +145,9 @@
         <div class="storage-control-grid mb-3" data-test="storage-planner-status">
           <div>
             <span class="status-label">Platzierungsplaner</span>
-            <strong :class="overview.storageBalancing.planner.compatible ? 'text-warning' : 'text-danger'">
+            <strong
+              :class="overview.storageBalancing.planner.compatible ? 'text-warning' : 'text-danger'"
+            >
               {{ storagePlannerLabel }}
             </strong>
             <small>
@@ -99,19 +168,29 @@
           </div>
           <div>
             <span class="status-label">Queue-Ausführung</span>
-            <strong :class="overview.storageBalancing.planner.queueExecutionEnabled ? 'text-success' : 'text-danger'">
-              {{ overview.storageBalancing.planner.queueExecutionEnabled ? 'Aktiv' : 'Deaktiviert' }}
+            <strong
+              :class="
+                overview.storageBalancing.planner.queueExecutionEnabled
+                  ? 'text-success'
+                  : 'text-danger'
+              "
+            >
+              {{
+                overview.storageBalancing.planner.queueExecutionEnabled ? 'Aktiv' : 'Deaktiviert'
+              }}
             </strong>
             <small>
-              Fehler: {{ overview.storageBalancing.failedTransferCount }},
-              überfällige Reservierungen: {{ overview.storageBalancing.overdueReservationCount }},
-              auslaufende Schlüsselobjekte: {{ overview.storageBalancing.retiredTransferCount }}
+              Fehler: {{ overview.storageBalancing.failedTransferCount }}, überfällige
+              Reservierungen: {{ overview.storageBalancing.overdueReservationCount }}, auslaufende
+              Schlüsselobjekte: {{ overview.storageBalancing.retiredTransferCount }}
             </small>
           </div>
           <div>
             <span class="status-label">Reconciliation</span>
             <strong
-              :class="overview.storageBalancing.reconciliationCriticalCount ? 'text-danger' : 'text-muted'"
+              :class="
+                overview.storageBalancing.reconciliationCriticalCount ? 'text-danger' : 'text-muted'
+              "
             >
               {{ overview.storageBalancing.reconciliationCriticalCount }} kritisch ·
               {{ overview.storageBalancing.reconciliationWarningCount }} Warnungen
@@ -131,9 +210,17 @@
             class="btn btn-sm btn-outline-warning mb-0"
             type="button"
             :disabled="storageOperatorPending !== null"
-            @click="runStorageOperatorControl(overview.storageBalancing.planner.operatorPaused ? 'resume' : 'pause')"
+            @click="
+              runStorageOperatorControl(
+                overview.storageBalancing.planner.operatorPaused ? 'resume' : 'pause'
+              )
+            "
           >
-            {{ overview.storageBalancing.planner.operatorPaused ? 'Balancing fortsetzen' : 'Balancing pausieren' }}
+            {{
+              overview.storageBalancing.planner.operatorPaused
+                ? 'Balancing fortsetzen'
+                : 'Balancing pausieren'
+            }}
           </button>
           <button
             class="btn btn-sm btn-outline-secondary mb-0"
@@ -146,7 +233,9 @@
           <button
             class="btn btn-sm btn-outline-primary mb-0"
             type="button"
-            :disabled="storageOperatorPending !== null || overview.storageBalancing.planner.operatorPaused"
+            :disabled="
+              storageOperatorPending !== null || overview.storageBalancing.planner.operatorPaused
+            "
             @click="runStorageOperatorControl('rebalance')"
           >
             Rebalance anfordern
@@ -187,8 +276,8 @@
                           : !node.acceptingWrites
                             ? 'bg-info text-dark'
                             : node.isDraining
-                        ? 'bg-warning text-dark'
-                        : 'bg-success'
+                              ? 'bg-warning text-dark'
+                              : 'bg-success'
                     "
                   >
                     {{
@@ -250,7 +339,9 @@
                 <tr v-for="work in overview.storageBalancing.workItems" :key="work.workItemId">
                   <td>
                     <strong>{{ work.artifactKey }}</strong>
-                    <small class="d-block text-muted">{{ work.artifactKind }} · {{ work.reason }}</small>
+                    <small class="d-block text-muted"
+                      >{{ work.artifactKind }} · {{ work.reason }}</small
+                    >
                   </td>
                   <td>{{ work.sourceNodeKey }} → {{ work.targetNodeKey ?? 'kein Ziel' }}</td>
                   <td>
@@ -341,7 +432,8 @@
           bei der nächsten Anmeldung durch <code>/centers/&lt;center_key&gt;</code>-Gruppen ersetzt
           werden. Globale Keycloak-Administration erfordert
           <code>{{ overview.effectivePermissions.centerScopeRoles.global }}</code
-          >.
+          >. Weisen Sie diese Rolle als Realm-Rolle direkt in Keycloak zu; diese Anwendung verändert
+          keine Keycloak-Rollen.
         </div>
       </section>
 
@@ -837,7 +929,9 @@ const storagePlannerLabel = computed(() => {
   const planner = overview.value?.storageBalancing.planner
   if (!planner || planner.status === 'contract_unavailable') return 'Vertrag nicht verfügbar'
   if (!planner.compatible) return 'Vertrag inkompatibel'
-  return planner.queueExecutionEnabled ? 'Planung und Ausführung aktiv' : 'Nur Planung · keine Ausführung'
+  return planner.queueExecutionEnabled
+    ? 'Planung und Ausführung aktiv'
+    : 'Nur Planung · keine Ausführung'
 })
 const formatStateCounts = (counts: Record<string, number>) => {
   const entries = Object.entries(counts)

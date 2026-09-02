@@ -7,8 +7,13 @@ owners:
 - lx-annotate maintainers
 production_critical: true
 tracking:
-  state: active
-  history: []
+  state: done
+  history:
+  - action: done
+    changed_by: codex-root-20260902-feature-advance
+    changed_at: '2026-09-02T11:30:04.990953Z'
+    note: Completed after manual rollout review, 11 focused migration-history tests, tracker validation,
+      and production-readiness check all passed.
 source_documents:
 - path: docs/guides/deployment-strategy.md
   disposition: reference
@@ -138,8 +143,18 @@ definition_of_done:
     instructions: Review the canonical migration history safety section of the deployment guide.
     timeout_seconds: 300
   assessment:
-    status: not_assessed
-    evidence: []
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/deployment-strategy.md
+    - kind: test
+      reference: tests/system/test_legacy_migration_history_repair.py
+    note: 'Reviewed the canonical migration history safety procedure: recognized contiguous legacy prefixes
+      are planned read-only, atomically recorded only through reviewed canonical checkpoints, and canonical
+      identities are retained when operators restore the preceding release during rollback. Focused repair
+      tests passed (11 tests).'
+    assessed_by: codex-root-20260902-feature-advance
+    assessed_at: '2026-09-02T11:29:19.386553Z'
 - id: documentation
   category: documentation
   title: Operator documentation names exact commands and stop conditions

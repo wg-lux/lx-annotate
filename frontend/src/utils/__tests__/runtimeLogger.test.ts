@@ -71,6 +71,38 @@ describe('runtimeLogger', () => {
     expect(record.context).toEqual({ count: 2 })
   })
 
+  it('allows reporting evaluation identities while rejecting patient-identifying context', () => {
+    vi.stubEnv('VITE_ENABLE_TEST_LOGS', 'true')
+    const sink = vi.fn<RuntimeLogSink>()
+    const logger = createRuntimeLogger('reporting-shell', sink)
+    const context = {
+      evaluationId: 'reporting-314-7',
+      patientExaminationId: 314,
+      pinnedIdentity: 'clinical-reporting@1.0.0',
+      requestedIdentity: 'clinical-reporting@2.0.0',
+      responseIdentity: 'clinical-reporting@1.0.0',
+      registryRevision: 'registry-sha-1',
+      reasonCode: 'superseded',
+      supersessionReason: 'dag-context-changed',
+      patientName: 'Jane Doe'
+    }
+
+    Reflect.apply(logger.warn, undefined, ['evaluation-superseded', context])
+
+    const record = sink.mock.calls[0][0]
+    expect(record.context).toEqual({
+      evaluationId: 'reporting-314-7',
+      patientExaminationId: 314,
+      pinnedIdentity: 'clinical-reporting@1.0.0',
+      requestedIdentity: 'clinical-reporting@2.0.0',
+      responseIdentity: 'clinical-reporting@1.0.0',
+      registryRevision: 'registry-sha-1',
+      reasonCode: 'superseded',
+      supersessionReason: 'dag-context-changed'
+    })
+    expect(JSON.stringify(record)).not.toContain('Jane Doe')
+  })
+
   it('gates debug output behind the explicit frontend debug flag', () => {
     vi.stubEnv('VITE_ENABLE_TEST_LOGS', 'true')
     const sink = vi.fn<RuntimeLogSink>()

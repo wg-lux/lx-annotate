@@ -1,72 +1,44 @@
 schema_version: '1.0'
 id: reporting_shell_race_conditions
 name: Reporting Shell Terminology And Template Race Conditions
-description: |-
-  Graph-based analysis of ReportingShell evaluation, with emphasis on the
-  distinction between a patient-examination's persisted knowledge-base identity
-  and the mutable process-wide active terminology selection.
-
-  ```mermaid
-  flowchart TD
-    U["Route or terminology event"] --> C["Freeze evaluation token: generation, examination, module, version, bundle key, pinned identity"]
-    C --> K["Kahn cycle validation and immutable wave plan"]
-    K --> W0["Wave 0: patient-examination detail"]
-    W0 --> X{"Pinned identity equals evaluation token?"}
-    X -- no --> FF["Fail closed: no template discovery and no state commit"]
-    X -- yes --> W1A["Wave 1A: version-qualified template graph"]
-    X -- yes --> W1B["Wave 1B: version-qualified finding catalog"]
-    W1A --> BAR["Promise.all barrier"]
-    W1B --> BAR
-    BAR --> W2["Wave 2: pure draft resolution"]
-    W2 --> CUR{"Token still current?"}
-    CUR -- no --> DROP["Discard superseded evaluation"]
-    CUR -- yes --> COMMIT["One synchronous Vue/Pinia commit"]
-
-    NONE["No published template"] --> AO["Annotation-only draft pinned to token identity"]
-    AO --> SW["User changes terminology later"]
-    SW --> BLOCK["Keep original identity; mark persistence blocked"]
-
-    FC["Background catalog response"] --> FG{"Generation, examination, and bundle key match?"}
-    FG -- no --> DROP
-    FG -- yes --> COMMIT
-    TB["Builder list/detail response"] --> TG{"Generation, examination, module, version, and response identity match?"}
-    TG -- no --> DROP
-    TG -- yes --> COMMIT
-
-    UI["User explicitly selects bundle"] --> REV["Read registry revision"]
-    REV --> CAS["Select with expected_revision under file lock"]
-    CAS -->|revision matches| S["Atomic replace, new revision, cache clear"]
-    CAS -->|409 conflict| RELOAD["Reload current selection; require explicit retry"]
-    E["Template list, detail, preview, validation, publish, unpublish"] --> EV["Require exact version in URL"]
-    EV --> ID["Backend verifies loaded module and version"]
-    NR["No registry, blank version, or unavailable template"] --> FCLOSED["Explicit failure or annotation-only state"]
-    EX["Installed report_template_examples"] -. "example data only; never implicit resolver fallback" .-> FCLOSED
-
-    C -.-> M2["F2 mitigated: immutable identity and strict mismatch"]
-    SW -.-> M5["F5 mitigated: hydration never auto-selects global bundle"]
-    FG -.-> M6["F6 mitigated: bundle-aware commit guard"]
-    TG -.-> M7["F7 mitigated: stale builder response guard"]
-    CAS -.-> M1["F1 mitigated: serialized revision CAS"]
-    EV -.-> M3["F3 mitigated: all template operations version-qualified"]
-    FCLOSED -.-> M4["F4 mitigated: example fallback removed"]
-
-    classDef mitigated fill:#d3f9d8,stroke:#2b8a3e,color:#123d1b;
-    class M1,M2,M3,M4,M5,M6,M7 mitigated;
-  ```
-
-  The active registry pointer remains an explicitly deployment-wide preference,
-  but selection is serialized with a revision compare-and-swap contract. A
-  conflict reloads the winning state and requires a new explicit user action;
-  it is never retried automatically. Existing evaluations remain pinned to their
-  immutable module and version and therefore do not follow later preference changes.
-
-  Construction notes: ReportingShell now validates and executes an immutable
-  DAG in three waves. Only the final guarded commit mutates Vue/Pinia state.
-  Production bootstraps a registry of immutable
-  packaged providers. Versioned resolution without a configured registry or
-  explicit source directories now fails closed. report_template_examples remains
-  packaged test/example data but is not an implicit clinical resolver or builder
-  fallback. Every template route and builder mutation requires the exact version.
+description: "Graph-based analysis of ReportingShell evaluation, with emphasis on the\ndistinction between\
+  \ a patient-examination's persisted knowledge-base identity\nand the mutable process-wide active terminology\
+  \ selection.\n\n```mermaid\nflowchart TD\n  U[\"Route or terminology event\"] --> C[\"Freeze evaluation\
+  \ token: generation, examination, module, version, bundle key, pinned identity\"]\n  C --> K[\"Kahn\
+  \ cycle validation and immutable wave plan\"]\n  K --> W0[\"Wave 0: patient-examination detail\"]\n\
+  \  W0 --> X{\"Pinned identity equals evaluation token?\"}\n  X -- no --> FF[\"Fail closed: no template\
+  \ discovery and no state commit\"]\n  X -- yes --> W1A[\"Wave 1A: version-qualified template graph\"\
+  ]\n  X -- yes --> W1B[\"Wave 1B: version-qualified finding catalog\"]\n  W1A --> BAR[\"Promise.all barrier\"\
+  ]\n  W1B --> BAR\n  BAR --> W2[\"Wave 2: pure draft resolution\"]\n  W2 --> CUR{\"Token still current?\"\
+  }\n  CUR -- no --> DROP[\"Discard superseded evaluation\"]\n  CUR -- yes --> COMMIT[\"One synchronous\
+  \ Vue/Pinia commit\"]\n\n  NONE[\"No published template\"] --> AO[\"Annotation-only draft pinned to\
+  \ token identity\"]\n  AO --> SW[\"User changes terminology later\"]\n  SW --> BLOCK[\"Keep original\
+  \ identity; mark persistence blocked\"]\n\n  FC[\"Background catalog response\"] --> FG{\"Generation,\
+  \ examination, and bundle key match?\"}\n  FG -- no --> DROP\n  FG -- yes --> COMMIT\n  TB[\"Builder\
+  \ list/detail response\"] --> TG{\"Generation, examination, module, version, and response identity match?\"\
+  }\n  TG -- no --> DROP\n  TG -- yes --> COMMIT\n\n  UI[\"User explicitly selects bundle\"] --> REV[\"\
+  Read registry revision\"]\n  REV --> CAS[\"Select with expected_revision under file lock\"]\n  CAS -->|revision\
+  \ matches| S[\"Atomic replace, new revision, cache clear\"]\n  CAS -->|409 conflict| RELOAD[\"Reload\
+  \ current selection; require explicit retry\"]\n  E[\"Template list, detail, preview, validation, publish,\
+  \ unpublish\"] --> EV[\"Require exact version in URL\"]\n  EV --> ID[\"Backend verifies loaded module\
+  \ and version\"]\n  NR[\"No registry, blank version, or unavailable template\"] --> FCLOSED[\"Explicit\
+  \ failure or annotation-only state\"]\n  EX[\"Installed report_template_examples\"] -. \"example data\
+  \ only; never implicit resolver fallback\" .-> FCLOSED\n\n  C -.-> M2[\"F2 mitigated: immutable identity\
+  \ and strict mismatch\"]\n  SW -.-> M5[\"F5 mitigated: hydration never auto-selects global bundle\"\
+  ]\n  FG -.-> M6[\"F6 mitigated: bundle-aware commit guard\"]\n  TG -.-> M7[\"F7 mitigated: stale builder\
+  \ response guard\"]\n  CAS -.-> M1[\"F1 mitigated: serialized revision CAS\"]\n  EV -.-> M3[\"F3 mitigated:\
+  \ all template operations version-qualified\"]\n  FCLOSED -.-> M4[\"F4 mitigated: example fallback removed\"\
+  ]\n\n  classDef mitigated fill:#d3f9d8,stroke:#2b8a3e,color:#123d1b;\n  class M1,M2,M3,M4,M5,M6,M7 mitigated;\n\
+  ```\n\nThe active registry pointer remains an explicitly deployment-wide preference,\nbut selection\
+  \ is serialized with a revision compare-and-swap contract. A\nconflict reloads the winning state and\
+  \ requires a new explicit user action;\nit is never retried automatically. Existing evaluations remain\
+  \ pinned to their\nimmutable module and version and therefore do not follow later preference changes.\n\
+  \nConstruction notes: ReportingShell now validates and executes an immutable\nDAG in three waves. Only\
+  \ the final guarded commit mutates Vue/Pinia state.\nProduction bootstraps a registry of immutable\n\
+  packaged providers. Versioned resolution without a configured registry or\nexplicit source directories\
+  \ now fails closed. report_template_examples remains\npackaged test/example data but is not an implicit\
+  \ clinical resolver or builder\nfallback. Every template route and builder mutation requires the exact\
+  \ version."
 owners:
 - lx-annotate frontend maintainers
 - lx-dtypes maintainers
@@ -90,8 +62,8 @@ definition_of_done:
   required: true
   verification:
     kind: manual
-    instructions: Review every ReportingShell bootstrap, restore, validation, export, and finalization path
-      against one immutable evaluation identity.
+    instructions: Review every ReportingShell bootstrap, restore, validation, export, and finalization
+      path against one immutable evaluation identity.
     timeout_seconds: 900
   assessment:
     status: in_progress
@@ -117,8 +89,8 @@ definition_of_done:
   acceptance:
   - Define whether active terminology is deployment-wide, tenant-wide, user-wide, or evaluation-local.
   - Do not let report hydration automatically mutate a deployment-wide active registry pointer.
-  - Protect mutable registry state with authorization, serialization, and an explicit revision or
-    compare-and-swap contract.
+  - Protect mutable registry state with authorization, serialization, and an explicit revision or compare-and-swap
+    contract.
   required: true
   verification:
     kind: manual
@@ -152,8 +124,8 @@ definition_of_done:
   required: true
   verification:
     kind: manual
-    instructions: Switch between two versions of the same module while delaying every report-template API
-      operation and confirm that no response is evaluated against the other version.
+    instructions: Switch between two versions of the same module while delaying every report-template
+      API operation and confirm that no response is evaluated against the other version.
     timeout_seconds: 1200
   assessment:
     status: verified
@@ -171,8 +143,8 @@ definition_of_done:
     - kind: test
       reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/django/api/test_report_templates_api.py
     note: List, detail, preview, definition/runtime validation, ledger validation, builder save, readiness,
-      publish, and unpublish all require an exact version. Frontend loaders reject response identities that
-      differ from their immutable request and builder async commits are generation and identity guarded.
+      publish, and unpublish all require an exact version. Frontend loaders reject response identities
+      that differ from their immutable request and builder async commits are generation and identity guarded.
     assessed_by: codex-reporting-dag-refactor
     assessed_at: '2026-08-25T10:16:31+02:00'
 - id: no_example_source_fallback
@@ -211,8 +183,8 @@ definition_of_done:
   - Tests use deferred promises or barriers to cover active-bundle changes before detail response, between
     detail and template response, after an empty template response, and during restored-draft validation.
   - Tests cover two tabs or users selecting different bundles and two versions of the same module.
-  - Tests cover late finding-catalog responses and late template-builder list or detail responses after a
-    module, version, or examination change.
+  - Tests cover late finding-catalog responses and late template-builder list or detail responses after
+    a module, version, or examination change.
   - Tests assert both positive UI state and forbidden calls or mutations for stale contexts.
   required: true
   verification:
@@ -255,17 +227,28 @@ definition_of_done:
       actionable UI messages.
     timeout_seconds: 900
   assessment:
-    status: in_progress
+    status: verified
     evidence:
     - kind: code
       reference: frontend/src/views/reporting/ReportingShell.vue
     - kind: code
-      reference: /home/admin/lx-data-models/lx_dtypes/django/api/terminology_routes.py
-    note: Registry conflicts now have a distinct actionable UI error and the current registry revision is
-      retained in the frontend store. Superseded reads are intentionally silent, and structured evaluation
-      logging with every requested and response identity remains outstanding.
-    assessed_by: codex-reporting-dag-refactor
-    assessed_at: '2026-08-25T10:16:31+02:00'
+      reference: frontend/src/utils/runtimeLogger.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/ReportingShell.mediaPreload.test.ts
+    - kind: test
+      reference: frontend/src/utils/__tests__/runtimeLogger.test.ts
+    - kind: command
+      reference: 'Reporting matrix: 69 files, 461 tests passed'
+    - kind: command
+      reference: Frontend application and component-test type checks passed; scoped ESLint passed
+    note: Reporting evaluations now emit structured non-PHI diagnostics for identity mismatches, missing
+      registries, successful or annotation-only commits, failures, and supersession. Each record carries
+      the evaluation ID, patient-examination ID, pinned/requested/response knowledge-base identities,
+      registry revision, and a bounded reason code where applicable. Superseded work remains unable to
+      commit and is shown as a non-blocking UI status; existing UI states continue to distinguish no templates,
+      incompatible pinned identity, missing registry, and unavailable sources.
+    assessed_by: codex-feature-advance-20260902
+    assessed_at: '2026-09-02T11:43:20.862429Z'
 - id: maintained_race_reference
   category: documentation
   title: The evaluation graph and source-selection rules remain current

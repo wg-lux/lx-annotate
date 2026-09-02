@@ -75,9 +75,42 @@ class AdministrationApiTests(TestCase):
         self.assertFalse(payload["hub_health"]["ready"])
         self.assertTrue(payload["hub_health"]["transport"]["require_mtls"])
         self.assertTrue(payload["effective_permissions"]["center_scope_admin"])
+        self.assertEqual(payload["host_status"]["total"], 2)
+        self.assertEqual(payload["host_status"]["active"], 2)
+        self.assertEqual(
+            {host["node_key"] for host in payload["host_status"]["hosts"]},
+            {"site-node", "hub-node"},
+        )
         serialized = response.content.decode("utf-8")
         self.assertNotIn("CLIENT_KEY_FILE", serialized)
         self.assertNotIn("shared_secret", serialized)
+
+    def test_overview_includes_inactive_hosts_without_exposing_connection_details(self):
+        inactive = NetworkNode.objects.create(
+            display_name="Retired storage host",
+            node_key="storage-retired",
+            role=NetworkNode.Role.STORAGE_NODE,
+            owning_center=self.other_center,
+            base_url="http://storage.internal/",
+            is_active=False,
+        )
+        cast(Any, self.client).force_authenticate(user=self.actor)
+
+        response = self.client.get("/api/administration/overview/")
+
+        self.assertEqual(response.status_code, 200)
+        host = next(
+            item
+            for item in response.json()["host_status"]["hosts"]
+            if item["node_key"] == inactive.node_key
+        )
+        self.assertEqual(host["role"], NetworkNode.Role.STORAGE_NODE)
+        self.assertEqual(host["owning_center_key"], "center-b")
+        self.assertFalse(host["active"])
+        self.assertTrue(host["base_url_configured"])
+        self.assertFalse(host["https_configured"])
+        self.assertNotIn("base_url", host)
+        self.assertNotIn("shared_secret", response.content.decode("utf-8"))
 
     def test_broad_roles_do_not_authorize_center_scope_administration(self):
         broad_user = User.objects.create_user(username="broad-user")
@@ -89,6 +122,11 @@ class AdministrationApiTests(TestCase):
         response = self.client.get("/api/administration/center-scopes/")
 
         self.assertEqual(response.status_code, 403)
+
+        overview = self.client.get("/api/administration/overview/")
+        self.assertEqual(overview.status_code, 200)
+        self.assertEqual(overview.json()["host_status"]["hosts"], [])
+        self.assertEqual(overview.json()["host_status"]["total"], 0)
 
     def test_superuser_does_not_require_a_redundant_center_scope_group(self):
         superuser = User.objects.create_user(username="plain-superuser")
@@ -127,6 +165,14 @@ class AdministrationApiTests(TestCase):
         self.assertEqual(
             {center["center_key"] for center in response.json()["user"]["centers"]},
             {"center-b"},
+        )
+
+        overview = self.client.get("/api/administration/overview/")
+        self.assertEqual(overview.status_code, 200)
+        self.assertEqual(overview.json()["host_status"]["total"], 2)
+        self.assertEqual(
+            {host["node_key"] for host in overview.json()["host_status"]["hosts"]},
+            {"site-node", "hub-node"},
         )
 
     def test_global_admin_can_add_and_revoke_one_plural_center_membership(self):

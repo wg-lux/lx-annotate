@@ -194,5 +194,19 @@ definition_of_done:
     instructions: Review the reporting requirements guide and feature evidence after implementation.
     timeout_seconds: 600
   assessment:
-    status: not_assessed
-    evidence: []
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: docs/guides/reporting-template-requirements-page.md
+    - kind: document
+      reference: docs/guides/reporting-shell-aaa-testing.md
+    - kind: review
+      reference: Reviewed reporting guide sections on draft lifecycle, unpublished-template handling,
+        and localization fallback; reviewed shell matrix rows for draft revision/conflict coverage
+    note: Reviewed the English reporting guide and shell test matrix. The guide documents authoritative
+      draft content, draft/final lifecycle, template publication/compatibility behavior, and canonical
+      localization fallback. The shell matrix documents revision/CAS behavior and recovery test ownership.
+      Explicit end-to-end documentation of revision conflict behavior and a consolidated residual clinical-risk
+      statement is still needed before verification.
+    assessed_by: codex-feature-advance-20260902
+    assessed_at: '2026-09-02T13:19:40.636357Z'

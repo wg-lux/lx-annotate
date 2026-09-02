@@ -80,8 +80,28 @@ definition_of_done:
       an annotated frame from its durable video source, and verify missing-source failure behavior.
     timeout_seconds: 900
   assessment:
-    status: not_assessed
-    evidence: []
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: lx_annotate/views/frame_annotation.py
+    - kind: code
+      reference: frontend/src/views/FrameAnnotation.vue
+    - kind: code
+      reference: frontend/src/stores/annotationQueue.ts
+    - kind: document
+      reference: docs/guides/frame-annotation-availability.md
+    - kind: test
+      reference: tests/api/test_frame_annotation_availability.py (9 passed)
+    - kind: test
+      reference: frontend/src/views/__tests__/FrameAnnotationPage.test.ts; frontend/src/stores/__tests__/annotationQueue.test.ts;
+        frontend/tests/stores/annotationQueue.frameTask.test.ts (39 passed)
+    note: 'Focused review confirms processed-video preference, requested-frame-only delivery, no persistent
+      decoded-frame corpus, bounded browser object URLs, and documented retention intent. Remaining acceptance
+      gaps: no complete owning endoreg_db test evidence was found for excluding tasks without an accessible
+      permitted source, typed warming/unavailable behavior after source disappearance, and retention pinning
+      while dataset membership or annotations depend on the processed artifact; these prevent verification.'
+    assessed_by: codex-feature-advance-20260902
+    assessed_at: '2026-09-02T12:50:29.659947Z'
 - id: bounded_decode_backpressure
   category: operations
   title: Decode and prefetch work is bounded independently from durable storage
