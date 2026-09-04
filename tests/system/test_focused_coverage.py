@@ -623,6 +623,7 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
     }
     assert module.config.keycloak_client_secret == "oidc-secret-from-service"
     assert bool(module.OIDC_RP_CLIENT_SECRET)
+    assert module.OIDC_RP_SCOPES.split().count("groups") == 1
     assert module.DEBUG is False
 
 

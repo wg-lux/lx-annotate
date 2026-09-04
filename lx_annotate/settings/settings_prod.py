@@ -11,6 +11,7 @@ from typing import Any, cast
 
 from lx_annotate.settings import config as config_module
 from lx_annotate.settings.config import AppConfig
+from lx_annotate.settings.oidc import oidc_scopes_with_center_groups
 
 from .settings_base import (
     APP_DATA_DIR,
@@ -242,7 +243,7 @@ try:
     OIDC_OP_USER_ENDPOINT = KEYCLOAK.OIDC_OP_USER_ENDPOINT
     OIDC_OP_JWKS_ENDPOINT = KEYCLOAK.OIDC_OP_JWKS_ENDPOINT
     OIDC_VERIFY_SSL = KEYCLOAK.OIDC_VERIFY_SSL
-    OIDC_RP_SCOPES = KEYCLOAK.OIDC_RP_SCOPES
+    OIDC_RP_SCOPES = oidc_scopes_with_center_groups(KEYCLOAK.OIDC_RP_SCOPES)
     OIDC_RP_SIGN_ALGO = KEYCLOAK.OIDC_RP_SIGN_ALGO
     OIDC_OP_LOGOUT_ENDPOINT = KEYCLOAK.OIDC_OP_LOGOUT_ENDPOINT
     OIDC_STORE_ID_TOKEN = KEYCLOAK.OIDC_STORE_ID_TOKEN
