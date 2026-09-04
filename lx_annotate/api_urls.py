@@ -22,9 +22,20 @@ from lx_annotate.views.hub_export import (
     hub_export_unmark,
 )
 from lx_annotate.views.quarantine import quarantine_overview
+from lx_annotate.views.video_state_repair import VideoStateRepairView
 from lx_annotate.views.study_export import study_export_options, study_export_xlsx
 
 urlpatterns = [
+    path(
+        "runtime/videos/repair/",
+        VideoStateRepairView.as_view(),
+        name="runtime-video-state-repair-all",
+    ),
+    path(
+        "runtime/videos/<int:pk>/repair/",
+        VideoStateRepairView.as_view(),
+        name="runtime-video-state-repair",
+    ),
     path(
         "media/studies/case-export/options/",
         study_export_options,

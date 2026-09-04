@@ -73,18 +73,40 @@ describe('anonymizationStore video reimport', () => {
     setActivePinia(createPinia())
   })
 
-  it('posts reimport for a stale extracting-frames video with missing metadata', async () => {
-    hoisted.post.mockResolvedValue({ data: { status: 'queued' } })
+  it('posts annotation-safe repair for a stale extracting-frames video', async () => {
+    hoisted.post.mockResolvedValue({
+      data: {
+        items: [{ status: 'repaired', missing: [] }],
+        summary: { repaired: 1, consistent: 0, reimport_required: 0 },
+        annotationsPreserved: true
+      }
+    })
+    hoisted.get.mockResolvedValue({ data: [] })
 
     const store = useAnonymizationStore()
     store.overview = [buildVideoFile()]
-    const startPolling = vi.spyOn(store, 'startPolling').mockImplementation(() => undefined)
-
     await expect(store.reimportVideo(42)).resolves.toBe(true)
 
-    expect(hoisted.post).toHaveBeenCalledWith('api/media/videos/42/reimport/')
-    expect(startPolling).toHaveBeenCalledWith(42)
-    expect(store.reimportQueuedIds).toContain(42)
+    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/42/repair/', { dryRun: false })
+  })
+
+  it('reports required re-import without changing annotation state', async () => {
+    hoisted.post.mockResolvedValue({
+      data: {
+        items: [{ status: 'reimport_required', missing: ['source_media'] }],
+        summary: { repaired: 0, consistent: 0, reimport_required: 1 },
+        annotationsPreserved: true
+      }
+    })
+    const store = useAnonymizationStore()
+    const file = buildVideoFile({ anonymizationStatus: 'failed', annotationStatus: 'validated' })
+    store.overview = [file]
+
+    await expect(store.reimportVideo(42)).resolves.toBe(false)
+
+    expect(file.anonymizationStatus).toBe('failed')
+    expect(file.annotationStatus).toBe('validated')
+    expect(store.error).toContain('muss neu importiert werden')
   })
 
   it('does not post reimport while the upload job is still active', async () => {
@@ -103,5 +125,24 @@ describe('anonymizationStore video reimport', () => {
 
     expect(hoisted.post).not.toHaveBeenCalled()
     expect(startPolling).toHaveBeenCalledWith(42)
+  })
+
+  it('repairs all video states through the annotation-safe endpoint', async () => {
+    hoisted.post.mockResolvedValue({
+      data: {
+        dryRun: false,
+        count: 1,
+        summary: { repaired: 1, consistent: 0, reimport_required: 0 },
+        items: [],
+        annotationsPreserved: true
+      }
+    })
+    hoisted.get.mockResolvedValue({ data: [] })
+
+    const store = useAnonymizationStore()
+    const result = await store.repairAllVideoStates()
+
+    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/repair/', { dryRun: false })
+    expect(result?.annotationsPreserved).toBe(true)
   })
 })

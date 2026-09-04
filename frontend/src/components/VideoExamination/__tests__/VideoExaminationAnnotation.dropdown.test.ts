@@ -697,6 +697,34 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     expect(wrapper.find('[data-cy="label-select"]').attributes('disabled')).toBeDefined()
   })
 
+  it('allows the blackening dispatch to be retried while backend status is pending', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    apiMocks.post.mockResolvedValueOnce(
+      apiResponse({
+        status: 'already_queued',
+        outside_segment_count: 1,
+        post_processing_job: { status: 'already_queued' }
+      })
+    )
+    const wrapper = mountComponent()
+    try {
+      await flushPromises()
+      await selectVideoFromDropdown(wrapper, 'cleanup-running.mp4')
+
+      const button = wrapper.find('[data-test="blacken-outside-segments-button"]')
+      expect(button.attributes('disabled')).toBeUndefined()
+      await button.trigger('click')
+      await flushPromises()
+
+      expect(apiMocks.post).toHaveBeenCalledWith('media/videos/14/segments/blacken-outside/', {
+        onlyValidated: true
+      })
+      expect(wrapper.text()).toContain('läuft bereits')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('polls queued manual outside blackening and surfaces async failure details', async () => {
     vi.useFakeTimers()
     let mediaVideoRequests = 0

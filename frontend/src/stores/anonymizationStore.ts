@@ -144,6 +144,21 @@ export interface QuarantineOverviewResponse {
   files: QuarantineFileItem[]
 }
 
+export interface VideoStateRepairResponse {
+  dryRun: boolean
+  count: number
+  summary: Record<'repaired' | 'consistent' | 'reimport_required', number>
+  items: Array<{
+    videoId: number
+    filename: string
+    status: 'repaired' | 'consistent' | 'reimport_required'
+    changes: string[]
+    missing: string[]
+    annotationsPreserved: true
+  }>
+  annotationsPreserved: true
+}
+
 export interface AnonymizationState {
   anonymizationStatus: string
   loading: boolean
@@ -218,10 +233,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 interface AnonymizationStatusResponse {
   anonymizationStatus?: unknown
-}
-
-interface VideoReimportResponse {
-  status?: string
 }
 
 interface PdfReimportResponse {
@@ -346,18 +357,8 @@ const FINAL_ANONYMIZATION_STATUSES = new Set([
   'failed'
 ])
 const ACTIVE_UPLOAD_JOB_STATUSES = new Set(['pending', 'processing', 'retrying'])
-const ACTIVE_ANONYMIZATION_STATUSES = new Set([
-  'processing_anonymization',
-  'extracting_frames',
-  'predicting_segments'
-])
-
 function isUploadJobActive(file: FileItem): boolean {
   return ACTIVE_UPLOAD_JOB_STATUSES.has((file.uploadJob?.status || '').toLowerCase())
-}
-
-function hasMissingVideoMetadata(file: FileItem): boolean {
-  return file.mediaType === 'video' && (file.sensitiveMetaId == null || file.metadataImported === false)
 }
 
 function statusPollIntervalMs(fileId: number): number {
@@ -829,9 +830,25 @@ export const useAnonymizationStore = defineStore('anonymization', {
       await this.fetchOverview()
     },
 
-    /**
-     * Re-import a video file to regenerate metadata
-     */
+    async repairAllVideoStates(dryRun = false): Promise<VideoStateRepairResponse | null> {
+      this.error = null
+      try {
+        const { data } = await axiosInstance.post<VideoStateRepairResponse>(
+          r(endpoints.runtime.videoStateRepair),
+          { dryRun }
+        )
+        await this.fetchOverview()
+        return data
+      } catch (err: unknown) {
+        const detail = axios.isAxiosError<unknown>(err)
+          ? axiosErrorField(err, 'error') || err.message
+          : unknownErrorMessage(err, 'Unbekannter Fehler.')
+        this.error = `Videozustände konnten nicht repariert werden: ${detail}`
+        return null
+      }
+    },
+
+    /** Annotation-safe repair; reports when operator re-import is unavoidable. */
     async reimportVideo(fileId: number) {
       const file = this.overview.find((f) => f.id === fileId)
       if (!file) {
@@ -844,54 +861,33 @@ export const useAnonymizationStore = defineStore('anonymization', {
         return false
       }
 
-      if (this.reimportQueuedIds.includes(fileId) || isUploadJobActive(file)) {
-        this.startPolling(fileId)
-        return true
-      }
-
-      if (ACTIVE_ANONYMIZATION_STATUSES.has(file.anonymizationStatus) && !hasMissingVideoMetadata(file)) {
+      if (isUploadJobActive(file)) {
         this.startPolling(fileId)
         return true
       }
 
       try {
-        runtimeLogger.debug('media-reimport-started', { fileType: 'video' })
-
-        // Optimistic UI update - set to processing to show user feedback
-        file.anonymizationStatus = 'processing_anonymization'
-        file.metadataImported = false
-        if (!this.reimportQueuedIds.includes(fileId)) {
-          this.reimportQueuedIds.push(fileId)
+        const { data } = await axiosInstance.post<VideoStateRepairResponse>(
+          r(endpoints.runtime.videoStateRepairOne(fileId)),
+          { dryRun: false }
+        )
+        if (data.items.length !== 1) {
+          throw new Error('Die Reparaturantwort enthält keinen eindeutigen Videozustand.')
         }
-
-        // Trigger re-import via backend
-        const response = await axiosInstance.post<VideoReimportResponse>(r(endpoints.media.videoReimport(fileId)))
-        runtimeLogger.info('media-reimport-accepted', { fileType: 'video' })
-
-        runtimeLogger.debug('media-reimport-poll-started', { fileType: 'video' })
-        this.startPolling(fileId)
-
-        const jobStatus = response.data.status
-        if (jobStatus === 'completed') {
-          this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => id !== fileId)
-        } else if (jobStatus === 'queued' || jobStatus === 'already_queued') {
-          runtimeLogger.debug('media-reimport-queued', { fileType: 'video' })
+        const item = data.items[0]
+        if (item.status === 'reimport_required') {
+          this.error = `Video ${String(fileId)} muss neu importiert werden (${item.missing.join(', ')}). Annotationen wurden nicht gelöscht.`
+          return false
         }
-
+        await this.fetchOverview()
         return true
       } catch (err: unknown) {
-        runtimeLogger.error('media-reimport-failed', err, { fileType: 'video' })
-
-        // Revert optimistic update
-        file.anonymizationStatus = 'failed'
-        file.metadataImported = false
-        this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => id !== fileId)
-
+        runtimeLogger.error('video-state-repair-failed', err)
         if (axios.isAxiosError<unknown>(err)) {
           const errorMessage = axiosErrorField(err, 'error') || err.message
-          this.error = `Fehler beim erneuten Importieren (${axiosStatus(err)}): ${errorMessage}`
+          this.error = `Fehler beim Reparieren (${axiosStatus(err)}): ${errorMessage}`
         } else {
-          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim erneuten Importieren.')
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim Reparieren.')
         }
         return false
       }

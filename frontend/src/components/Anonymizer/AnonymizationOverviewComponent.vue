@@ -5,6 +5,15 @@
         <h4 class="mb-0">Anonymisierungs-Übersicht</h4>
         <div class="d-flex gap-2">
           <button
+            class="btn btn-outline-warning btn-sm"
+            data-test="repair-all-video-states"
+            :disabled="isRefreshing || isRepairingVideoStates"
+            title="Repariert ableitbare Datenbankzustände, ohne Annotationen zu löschen"
+            @click="repairAllVideoStates"
+          >
+            {{ isRepairingVideoStates ? 'Reparatur läuft…' : 'Videozustände reparieren' }}
+          </button>
+          <button
             class="btn btn-outline-primary btn-sm"
             :disabled="isRefreshing"
             @click="refreshOverview"
@@ -17,6 +26,9 @@
       </div>
 
       <div class="card-body">
+        <div v-if="videoStateRepairMessage" class="alert alert-info" role="status">
+          {{ videoStateRepairMessage }}
+        </div>
         <!-- Error State -->
         <div v-if="anonymizationStore.error" class="alert alert-danger" role="alert">
           <strong>Fehler:</strong> {{ anonymizationStore.error }}
@@ -519,6 +531,8 @@ const normalizeMediaType = (mediaType: string): MediaType =>
 
 // Local state
 const isRefreshing = ref(false);
+const isRepairingVideoStates = ref(false);
+const videoStateRepairMessage = ref('');
 const processingFiles = ref<Set<number>>(new Set());
 const monitoringRefreshHandle = ref<ReturnType<typeof setTimeout> | null>(null);
 const tableScrollElement = ref<HTMLElement | null>(null);
@@ -600,6 +614,25 @@ const refreshOverview = async () => {
     updateStickyScrollbar();
   } finally {
     isRefreshing.value = false;
+  }
+};
+
+const repairAllVideoStates = async () => {
+  isRepairingVideoStates.value = true;
+  videoStateRepairMessage.value = '';
+  try {
+    const result = await anonymizationStore.repairAllVideoStates(false);
+    if (!result) return;
+    const mustReimport = result.items
+      .filter((item) => item.status === 'reimport_required')
+      .map((item) => `ID ${String(item.videoId)}${item.filename ? ` (${item.filename})` : ''}`);
+    videoStateRepairMessage.value =
+      `${String(result.summary.repaired)} repariert, ${String(result.summary.consistent)} bereits konsistent. ` +
+      (mustReimport.length
+        ? `Neuimport erforderlich: ${mustReimport.join(', ')}. Annotationen wurden nicht gelöscht.`
+        : 'Kein Neuimport erforderlich. Annotationen wurden nicht gelöscht.');
+  } finally {
+    isRepairingVideoStates.value = false;
   }
 };
 

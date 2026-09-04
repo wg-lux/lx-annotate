@@ -211,13 +211,12 @@ export const MediaManagementAPI = {
     return response.data
   },
 
-  /**
-   * Re-import a video file to regenerate metadata
-   * Uses the modern media framework endpoint aligned with PDF reimport
-   * @param fileId - ID of the video file to re-import
-   */
+  /** Annotation-safe video state repair; never invokes destructive re-import. */
   async reimportVideo(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post<ProcessingResponse>(endoregApi(endpoints.media.videoReimport(fileId)))
+    const response = await api.post<ProcessingResponse>(
+      endoregApi(endpoints.runtime.videoStateRepairOne(fileId)),
+      { dryRun: false }
+    )
     return response.data
   },
 
