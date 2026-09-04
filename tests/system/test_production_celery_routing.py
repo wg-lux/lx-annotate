@@ -300,6 +300,101 @@ def test_production_settings_reject_stale_window_that_can_race_request(
     ) in completed.stderr
 
 
+def test_celery_reduced_settings_keep_complete_visibility_contract() -> None:
+    probe = textwrap.dedent(
+        """
+        from django.conf import settings
+
+        settings.configure(CELERY_BROKER_URL="redis://localhost:6379/1")
+
+        from lx_annotate.celery import app
+
+        expected = 90000
+        assert app.conf.visibility_timeout == expected
+        assert app.conf.broker_transport_options == {
+            "visibility_timeout": expected,
+        }
+        assert app.conf.result_backend_transport_options == {
+            "visibility_timeout": expected,
+        }
+        assert app.connection_for_read().transport_options == {
+            "visibility_timeout": expected,
+        }
+        """,
+    )
+    env = os.environ.copy()
+    env.pop("DJANGO_SETTINGS_MODULE", None)
+    env.pop("CELERY_VISIBILITY_TIMEOUT_SECONDS", None)
+
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, (
+        "Reduced-settings Celery visibility probe failed.\n\n"
+        f"stdout:\n{completed.stdout}\n\n"
+        f"stderr:\n{completed.stderr}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("broker_options", "result_options"),
+    [
+        ({"visibility_timeout": 3600}, {"visibility_timeout": 90000}),
+        ({}, {"visibility_timeout": 90000}),
+        (None, {"visibility_timeout": 90000}),
+        ({"visibility_timeout": 90000}, {"visibility_timeout": 7200}),
+        ({"visibility_timeout": 90000}, {}),
+        ({"visibility_timeout": 90000}, None),
+    ],
+)
+def test_celery_rejects_incomplete_or_conflicting_transport_visibility(
+    broker_options: dict[str, object] | None,
+    result_options: dict[str, object] | None,
+) -> None:
+    probe = textwrap.dedent(
+        f"""
+        from django.conf import settings
+
+        settings.configure(
+            CELERY_BROKER_URL="redis://localhost:6379/1",
+            CELERY_VISIBILITY_TIMEOUT=90000,
+            CELERY_BROKER_TRANSPORT_OPTIONS={broker_options!r},
+            CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS={result_options!r},
+        )
+
+        import lx_annotate.celery
+        """,
+    )
+    env = os.environ.copy()
+    env.pop("DJANGO_SETTINGS_MODULE", None)
+
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert any(
+        message in completed.stderr
+        for message in (
+            "visibility_timeout must equal CELERY_VISIBILITY_TIMEOUT",
+            "must be a mapping",
+        )
+    )
+
+
 @pytest.mark.parametrize("value", ["not-an-integer", "0", "-1", "86400"])
 def test_production_settings_reject_unsafe_visibility_timeout(
     tmp_path: Path,
