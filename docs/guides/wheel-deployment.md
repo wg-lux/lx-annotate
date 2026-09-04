@@ -239,6 +239,12 @@ its secret manager:
   `DJANGO_DB_PASSWORD_FILE`, `LX_ANNOTATE_MASTER_KEY_FILE`, `DJANGO_DB_*`,
   `OIDC_RP_CLIENT_ID`, `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`, and
   `CELERY_BROKER_URL`.
+- worker-delivery policy: `CELERY_VISIBILITY_TIMEOUT_SECONDS`. Keep the same
+  value on every Celery consumer sharing a Redis broker. It must be strictly
+  greater than every late-ack task limit and `FFMPEG_TRANSCODE_TIMEOUT_SECONDS`;
+  the production default is 90000 seconds for the 86400-second FFmpeg ceiling.
+  Restart all consumers together after changing it because Kombu captures the
+  value when each broker channel is created.
 
 For new deployment code and operator docs, prefer
 `LX_ANNOTATE_ENCRYPTED_DATA_DIR` and let the app derive the compatibility

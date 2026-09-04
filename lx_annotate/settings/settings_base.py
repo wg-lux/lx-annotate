@@ -12,6 +12,7 @@ from typing import Any, cast
 
 from django.db import models
 from endoreg_db.config.env import (
+    get_ffmpeg_transcode_timeout_seconds,
     get_hub_transfer_recipient_private_key_files,
     get_hub_transfer_require_root_owned_private_keys,
 )
@@ -341,6 +342,30 @@ LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY = str(
 CELERY_BROKER_URL = str(os.getenv("CELERY_BROKER_URL", "") or "").strip()
 CELERY_RESULT_BACKEND = None
 CELERY_TASK_IGNORE_RESULT = True
+_CELERY_MINIMUM_VISIBILITY_TIMEOUT_SECONDS = max(
+    60 * 60 * 24,
+    get_ffmpeg_transcode_timeout_seconds(),
+) + (60 * 60)
+try:
+    CELERY_VISIBILITY_TIMEOUT = int(
+        os.getenv("CELERY_VISIBILITY_TIMEOUT_SECONDS", str(60 * 60 * 25)),
+    )
+except (TypeError, ValueError) as error:
+    raise RuntimeError(
+        "CELERY_VISIBILITY_TIMEOUT_SECONDS must be an integer number of seconds.",
+    ) from error
+if CELERY_VISIBILITY_TIMEOUT < _CELERY_MINIMUM_VISIBILITY_TIMEOUT_SECONDS:
+    raise RuntimeError(
+        "CELERY_VISIBILITY_TIMEOUT_SECONDS must be at least one hour longer "
+        "than the longest late-ack task or FFmpeg execution window "
+        f"({_CELERY_MINIMUM_VISIBILITY_TIMEOUT_SECONDS} seconds).",
+    )
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": CELERY_VISIBILITY_TIMEOUT,
+}
+CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {
+    "visibility_timeout": CELERY_VISIBILITY_TIMEOUT,
+}
 _celery_default_queue = os.getenv(
     "CELERY_TASK_DEFAULT_QUEUE",
     os.getenv("CELERY_DEFAULT_QUEUE", "default"),
@@ -392,6 +417,10 @@ CELERY_TASK_QUEUES = tuple(
     )
 )
 CELERY_TASK_ROUTES = {
+    "endoreg_db.tasks.video_hls_materialization": {
+        "queue": CELERY_FFMPEG_MEDIA_QUEUE,
+        "routing_key": CELERY_FFMPEG_MEDIA_QUEUE,
+    },
     "endoreg_db.video_upload_import": {
         "queue": CELERY_FFMPEG_MEDIA_QUEUE,
         "routing_key": CELERY_FFMPEG_MEDIA_QUEUE,

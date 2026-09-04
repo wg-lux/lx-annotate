@@ -170,6 +170,9 @@ Operational requirements:
 - `SERVE_WITH_NGINX=true` and `NGINX_PROTECTED_MEDIA_URL` must match the Nginx
   protected-media configuration
 - the `ffmpeg_media` Celery worker must be running and able to reach Redis
+- every worker on that Redis broker must use the same
+  `CELERY_VISIBILITY_TIMEOUT_SECONDS` value, and it must exceed both the
+  longest late-ack task and `FFMPEG_TRANSCODE_TIMEOUT_SECONDS`
 - the master key must be readable for encrypted storage and HLS key operations
 - `check_production_hls_readiness` must pass against the production database
 
