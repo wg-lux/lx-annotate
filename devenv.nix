@@ -106,6 +106,7 @@ let
       VIDEO_POST_VALIDATION_JOB_MODE = secret "VIDEO_POST_VALIDATION_JOB_MODE" "celery";
 
       # --- Runtime policy and tool overrides ---
+      CELERY_VISIBILITY_TIMEOUT_SECONDS = secret "CELERY_VISIBILITY_TIMEOUT_SECONDS" "90000";
       RUST_BACKTRACE = secret "RUST_BACKTRACE" "1";
       LOG_LEVEL = secret "LOG_LEVEL" "DEBUG";
       DRF_THROTTLE_ANON = secret "DRF_THROTTLE_ANON" "100/day";

@@ -6,6 +6,7 @@ import sys
 import textwrap
 from pathlib import Path
 
+import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
@@ -47,6 +48,7 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
             "CELERY_BROKER_URL": "redis://localhost:6379/1",
             "CELERY_DEFAULT_QUEUE": "default",
             "CELERY_HUB_TRANSFER_QUEUE": "hub_transfer",
+            "CELERY_VISIBILITY_TIMEOUT_SECONDS": "93600",
             "DATA_DIR": str(data_root),
             "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
             "DJANGO_CORS_ALLOWED_ORIGINS": "http://127.0.0.1",
@@ -68,6 +70,7 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
             "ENDOREG_DEPLOYMENT_ROLE": "site_node",
             "ENDOREG_HUB_MODE": "false",
             "ENFORCE_AUTH": "0",
+            "FFMPEG_TRANSCODE_TIMEOUT_SECONDS": "86400",
             "LX_ANNOTATE_DATA_DIR": str(data_root),
             "LX_ANNOTATE_ENCRYPTED_DATA_DIR": str(data_root),
             "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE": "false",
@@ -98,6 +101,7 @@ def test_production_settings_export_hub_transfer_routes(tmp_path: Path) -> None:
     probe = textwrap.dedent(
         """
         from celery import Celery
+        from lx_annotate.celery import app as production_app
         from lx_annotate.settings import settings_prod
 
         app = Celery("production-routing-test")
@@ -106,11 +110,30 @@ def test_production_settings_export_hub_transfer_routes(tmp_path: Path) -> None:
         assert app.conf.broker_url == "redis://localhost:6379/1"
         assert app.conf.task_default_queue == "default"
         assert app.conf.task_create_missing_queues is False
+        assert settings_prod.CELERY_VISIBILITY_TIMEOUT == 93600
+        assert settings_prod.CELERY_BROKER_TRANSPORT_OPTIONS == {
+            "visibility_timeout": 93600,
+        }
+        assert settings_prod.CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS == {
+            "visibility_timeout": 93600,
+        }
+        assert app.conf.broker_transport_options == {"visibility_timeout": 93600}
+        assert app.conf.result_backend_transport_options == {
+            "visibility_timeout": 93600,
+        }
+        assert production_app.conf.visibility_timeout == 93600
+        assert production_app.conf.broker_transport_options == {
+            "visibility_timeout": 93600,
+        }
+        assert production_app.conf.result_backend_transport_options == {
+            "visibility_timeout": 93600,
+        }
         assert "hub_transfer" in {
             queue.name for queue in app.conf.task_queues
         }
 
         for task_name in (
+            "endoreg_db.tasks.video_hls_materialization",
             "lx_annotate.run_outbound_hub_transfer_job",
             "lx_annotate.reconcile_outbound_hub_transfer_job",
             "lx_annotate.recover_stale_outbound_hub_transfer_jobs",
@@ -123,8 +146,13 @@ def test_production_settings_export_hub_transfer_routes(tmp_path: Path) -> None:
             )
             queue = route.get("queue")
             queue_name = getattr(queue, "name", queue)
-            assert queue_name == "hub_transfer", (task_name, route)
-            assert route.get("routing_key") == "hub_transfer", (
+            expected_queue = (
+                "ffmpeg_media"
+                if task_name == "endoreg_db.tasks.video_hls_materialization"
+                else "hub_transfer"
+            )
+            assert queue_name == expected_queue, (task_name, route)
+            assert route.get("routing_key") == expected_queue, (
                 task_name,
                 route,
             )
@@ -270,3 +298,163 @@ def test_production_settings_reject_stale_window_that_can_race_request(
         "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS must exceed "
         "LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS"
     ) in completed.stderr
+
+
+def test_celery_reduced_settings_keep_complete_visibility_contract() -> None:
+    probe = textwrap.dedent(
+        """
+        from django.conf import settings
+
+        settings.configure(CELERY_BROKER_URL="redis://localhost:6379/1")
+
+        from lx_annotate.celery import app
+
+        expected = 90000
+        assert app.conf.visibility_timeout == expected
+        assert app.conf.broker_transport_options == {
+            "visibility_timeout": expected,
+        }
+        assert app.conf.result_backend_transport_options == {
+            "visibility_timeout": expected,
+        }
+        assert app.connection_for_read().transport_options == {
+            "visibility_timeout": expected,
+        }
+        """,
+    )
+    env = os.environ.copy()
+    env.pop("DJANGO_SETTINGS_MODULE", None)
+    env.pop("CELERY_VISIBILITY_TIMEOUT_SECONDS", None)
+
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, (
+        "Reduced-settings Celery visibility probe failed.\n\n"
+        f"stdout:\n{completed.stdout}\n\n"
+        f"stderr:\n{completed.stderr}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("broker_options", "result_options"),
+    [
+        ({"visibility_timeout": 3600}, {"visibility_timeout": 90000}),
+        ({}, {"visibility_timeout": 90000}),
+        (None, {"visibility_timeout": 90000}),
+        ({"visibility_timeout": 90000}, {"visibility_timeout": 7200}),
+        ({"visibility_timeout": 90000}, {}),
+        ({"visibility_timeout": 90000}, None),
+    ],
+)
+def test_celery_rejects_incomplete_or_conflicting_transport_visibility(
+    broker_options: dict[str, object] | None,
+    result_options: dict[str, object] | None,
+) -> None:
+    probe = textwrap.dedent(
+        f"""
+        from django.conf import settings
+
+        settings.configure(
+            CELERY_BROKER_URL="redis://localhost:6379/1",
+            CELERY_VISIBILITY_TIMEOUT=90000,
+            CELERY_BROKER_TRANSPORT_OPTIONS={broker_options!r},
+            CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS={result_options!r},
+        )
+
+        import lx_annotate.celery
+        """,
+    )
+    env = os.environ.copy()
+    env.pop("DJANGO_SETTINGS_MODULE", None)
+
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert any(
+        message in completed.stderr
+        for message in (
+            "visibility_timeout must equal CELERY_VISIBILITY_TIMEOUT",
+            "must be a mapping",
+        )
+    )
+
+
+@pytest.mark.parametrize("value", ["not-an-integer", "0", "-1", "86400"])
+def test_production_settings_reject_unsafe_visibility_timeout(
+    tmp_path: Path,
+    value: str,
+) -> None:
+    env = _production_settings_environment(tmp_path)
+    env["CELERY_VISIBILITY_TIMEOUT_SECONDS"] = value
+
+    completed = subprocess.run(
+        [sys.executable, "-c", "import lx_annotate.settings.settings_base"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert "CELERY_VISIBILITY_TIMEOUT_SECONDS" in completed.stderr
+
+
+def test_production_visibility_exceeds_registered_late_ack_tasks(
+    tmp_path: Path,
+) -> None:
+    probe = textwrap.dedent(
+        """
+        import django
+
+        django.setup()
+
+        from lx_annotate.celery import app
+
+        app.loader.import_default_modules()
+        late_ack_limits = {
+            name: int(task.time_limit or app.conf.task_time_limit)
+            for name, task in app.tasks.items()
+            if name.startswith(("endoreg_db.", "lx_annotate."))
+            and task.acks_late
+            and (task.time_limit or app.conf.task_time_limit) is not None
+        }
+        assert "endoreg_db.model_training" in late_ack_limits
+        assert late_ack_limits
+        assert max(late_ack_limits.values()) == 86400
+        assert max(late_ack_limits.values()) < app.conf.visibility_timeout
+        """,
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=REPO_ROOT,
+        env=_production_settings_environment(tmp_path),
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, (
+        "Production Celery late-ack timeout probe failed.\n\n"
+        f"stdout:\n{completed.stdout}\n\n"
+        f"stderr:\n{completed.stderr}"
+    )
