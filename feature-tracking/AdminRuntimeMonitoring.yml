@@ -1,0 +1,157 @@
+schema_version: '1.0'
+id: admin_runtime_monitoring
+name: Admin runtime monitoring
+description: One privacy-safe operational snapshot reused by the administrator API, UI and management
+  command. No new monitoring stack.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Repository architecture and operational boundaries.
+definition_of_done:
+- id: contract
+  category: requirements
+  title: Canonical monitoring contract
+  acceptance:
+  - Typed checks and snapshot define deterministic status aggregation; unknown never aggregates healthy.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused verification evidence and deployment boundary.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/admin-monitoring.yml
+    note: Typed schema, uniqueness and backend aggregation verified by focused tests; 89 backend tests
+      passed.
+    assessed_by: codex-gc10-hls-20260909
+    assessed_at: '2026-09-09T08:59:04.936574Z'
+- id: diagnostics
+  category: functionality
+  title: Existing runtime truth
+  acceptance:
+  - Read-only bounded checks cover application/version, database, migration safety, packaged resources,
+    storage and aggregate job health.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused verification evidence and deployment boundary.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/admin-monitoring.yml
+    note: Existing read-only diagnostics verified across application/DB/migrations/resources/storage/four
+      processing ledgers; 89 backend tests passed.
+    assessed_by: codex-gc10-hls-20260909
+    assessed_at: '2026-09-09T08:59:26.499071Z'
+- id: authorization
+  category: security
+  title: Administrator-only sanitized output
+  acceptance:
+  - Only authenticated superusers or exact global administration role can read diagnostics; no secrets,
+    paths, filenames, identifiers, raw exceptions or commands are accepted/exposed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused verification evidence and deployment boundary.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/admin-monitoring.yml
+    note: Both API mounts tested against anonymous, ordinary, staff, local admin and data writer principals;
+      only global admin or superuser accepted. Sanitization and forbidden query/mutation tests passed.
+    assessed_by: codex-gc10-hls-20260909
+    assessed_at: '2026-09-09T08:59:28.914648Z'
+- id: frontend
+  category: functionality
+  title: Operational admin page
+  acceptance:
+  - Typed status rendering, timestamp/version, grouped checks, manual refresh, denied routing and stale-result
+    clearing are tested.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused verification evidence and deployment boundary.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/admin-monitoring.yml
+    note: 29 frontend tests passed; status groups, refresh failures, late responses, route denial and
+      admin navigation covered. Type check and build passed.
+    assessed_by: codex-gc10-hls-20260909
+    assessed_at: '2026-09-09T08:59:31.152673Z'
+- id: runtime
+  category: operations
+  title: Declarative Nix integration
+  acceptance:
+  - Nix describes expected services/storage/thresholds/revision through validated JSON; systemd access
+    stays read-only and bounded without privilege changes.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused verification evidence and deployment boundary.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: docs/guides/admin-monitoring.yml
+    note: 'Final gc-10 Nix JSON built and validated by actual Python model: schema1,10 services,5 paths,
+      local PostgreSQL/Redis included; digest recorded in runbook. No privilege changes. Live service-identity/HTTP
+      rollout acceptance remains unverified; no deployment.'
+    assessed_by: codex-gc10-hls-20260909
+    assessed_at: '2026-09-09T09:05:31.799738Z'
+- id: tests
+  category: testing
+  title: Failure and integration verification
+  acceptance:
+  - Focused backend/API/command/frontend tests cover healthy and unhealthy behavior, authorization, sanitization
+    and aggregation; type checks and build pass or unrelated blockers are documented.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused verification evidence and deployment boundary.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/admin-monitoring.yml
+    note: Final90 backend,29 frontend and3 Nix contract tests passed; full pyright, Ruff, frontend type
+      check/build passed. Django check exit0 with four documented warnings; unhealthy development command
+      exit2. Final Nix-generated JSON passed real Python model validation.
+    assessed_by: codex-gc10-hls-20260909
+    assessed_at: '2026-09-09T09:05:37.673611Z'
+- id: runbook
+  category: documentation
+  title: Operator contract
+  acceptance:
+  - Document API, command exit statuses, configuration, service privilege boundary, check limits and deployment
+    verification.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused verification evidence and deployment boundary.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/admin-monitoring.yml
+    note: English YAML documents canonical API, statuses, command exits, config/privilege boundary, implementation
+      files, verification and limitations.
+    assessed_by: codex-gc10-hls-20260909
+    assessed_at: '2026-09-09T08:59:35.271237Z'

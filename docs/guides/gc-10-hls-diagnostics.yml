@@ -1,0 +1,275 @@
+schema_version: '1.0'
+incident: gc-10 web unresponsive and HLS materialization backlog
+observed_at: '2026-09-09T09:17:00+02:00'
+assessor: codex-gc10-hls-20260909
+host: gc-10
+address: 172.16.255.110
+profile: site-client
+outcome: web_restored_hls_backlog_and_validation_failures_remain
+observations:
+  web:
+    systemd: active_running
+    pid: 122467
+    direct_http: connection timed out after 15 seconds on 127.0.0.1:8117
+    nginx_https: timed out after 15 seconds with no response bytes
+    nginx_static_manifest_http_status: 200
+    listener: receive backlog 51 with configured backlog 50 on port 8117
+    last_application_log: '2026-09-08T17:57:19+02:00'
+    last_application_warning: Processed HLS playlist requests for videos 13 and 14 took too long to shut down and were killed by the ASGI server.
+    interpretation: Application process is unresponsive; a causal connection to HLS requires process-stack and database inspection.
+    privileged_inspection:
+      main_thread_kernel_wait: futex_wait_queue
+      database: 56 idle connections; no application active queries or lock waits at inspection time
+      python_stack: Not captured; py-spy unavailable on host
+  hls:
+    worker_unit: lx-annotate-celery-ffmpeg-worker.service
+    queue: ffmpeg_media
+    redis_database: 1
+    queued_messages: 39
+    unacknowledged_messages: 1
+    active_task_id: db3d34e4-4704-4103-b33c-68b9240d8d1f
+    active_encoder_pid: 282227
+    encoder_cpu_percent: 599
+    configured_cpu_quota: six CPU equivalents
+    worker_concurrency: 1
+    successful_raw_video_ids: [37, 39, 40, 41, 42]
+    successful_task_duration_seconds: [12918.858, 7484.864, 7577.329, 8412.981, 13336.313]
+    failures:
+      - video_id: 44
+        artifact_kind: raw
+        task_id: 0124a759-52cf-4fbd-9e04-918c0bf68976
+        status: failed_validation
+        retryable: false
+        error_code: video_storage_validation_failed
+        persisted_error: Output frame count drifted from 171414 to 171913
+        note: Celery logs succeeded because the task returns a terminal failure payload; this is not successful HLS publication.
+      - task_id: 93153932-39b6-4180-8193-8693370cc67c
+        error: HLS reserved attempt is no longer active
+        location: installed endoreg_db/services/hls_media.py, _prepare_artifact_record, line 982
+    backfill:
+      unit: lx-annotate-hls-backfill.service
+      result: exec-condition
+      reason: The deployed condition skips when any UploadJob is pending, processing, or retrying.
+      note: This is an intentional skip, not a failed unit; subsequent privileged inspection identified expired import leases.
+      subsequent_database_check:
+        processing_imports: 2
+        lease_expiry_utc:
+          - '2026-09-08T14:29:25.211069+00:00'
+          - '2026-09-08T14:53:03.520012+00:00'
+        interpretation: Stale processing rows keep the condition false even though their leases expired.
+    additional_validation_failures:
+      - video_id: 44
+        artifact_kind: processed
+        observed_in_database_since: '2026-07-30'
+        persisted_error: Output frame count drifted from 171414 to 171913
+      - video_id: 50
+        artifact_kind: processed
+        observed_in_database_since: '2026-07-29'
+        persisted_error: Output nominal FPS drifted from 59.7982 to 59.9401
+    active_video_id: 38
+    database_attempt_counts:
+      raw: {ready: 25, queued: 9, materializing: 1}
+      processed: {ready: 24, queued: 26}
+    database_count_note: These are historical attempt counts, not a current-source playback-readiness verdict.
+  resources:
+    root_free_gib: 87
+    root_used_percent: 90
+    available_memory_gib: 22
+    failed_systemd_units: 0
+commands:
+  - systemctl list-units 'lx-annotate*' --all --no-pager
+  - systemctl --failed --no-pager
+  - systemctl show lx-annotate.service -p MainPID -p TasksCurrent -p MemoryCurrent
+  - journalctl --namespace=lx-annotate -u lx-annotate.service -n 35 --no-pager
+  - journalctl --namespace=lx-annotate -u lx-annotate-celery-ffmpeg-worker.service --since '18 hours ago' --no-pager
+  - journalctl --namespace=lx-annotate -u lx-annotate-hls-backfill.service -n 60 --no-pager
+  - redis-cli -n 1 LLEN ffmpeg_media
+  - redis-cli -n 1 HLEN unacked
+  - ss -ltn
+  - curl --max-time 15 -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8117/
+  - curl --max-time 15 -sS --cacert /run/lx-annotate-ssl/lx-annotate-selfsigned.crt --resolve lx-annotate.local:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://lx-annotate.local/
+  - curl --max-time 10 -sS --cacert /run/lx-annotate-ssl/lx-annotate-selfsigned.crt --resolve lx-annotate.local:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://lx-annotate.local/static/.vite/manifest.json
+initial_access_blockers:
+  - sudo -n requires a password for the admin SSH account.
+  - Root SSH public-key authentication was denied.
+  - systemctl --no-ask-password restart lx-annotate.service was denied by authorization policy; no restart occurred.
+  - Read-only database inspection could not connect because the configured password file is not readable by admin.
+access_resolution: User identified a local recovery credential; privileged authentication succeeded without printing its contents.
+recovery:
+  requested_at: '2026-09-09T09:14:44+02:00'
+  command: sudo systemctl restart --no-block lx-annotate.service
+  request_exit_code: 0
+  progress: Systemd killed the unresponsive original process after its configured 90-second stop timeout and started a replacement.
+  listening_at: '2026-09-09T09:16:52+02:00'
+  new_web_pid: 286619
+  startup_migrations: No migrations to apply.
+  ffmpeg_worker: Remained active with the same encoding process.
+  verification:
+    web_unit: active_running
+    direct_http_status: 301
+    direct_http_seconds: 0.007630
+    trusted_https_status: 302
+    trusted_https_repeat_seconds: 0.010148
+    unauthenticated_processed_hls_status: 302
+    unauthenticated_processed_hls_seconds: 0.015718
+    interpretation: Web and HLS route respond with authentication redirects; authenticated playback was not tested.
+    listener_receive_backlog: 0
+    failed_systemd_units: 0
+    nginx_postgresql_redis_ffmpeg: active
+    ffmpeg_queue_length: 39
+    unacknowledged_tasks: 1
+next_steps:
+  - Verify authenticated HLS playback and monitor for recurrence of the web hang.
+  - If the hang recurs, capture Python thread stacks before restarting; the kernel stack alone cannot identify the code holding the lock.
+  - Reproduce the frame-count and nominal-FPS validation mismatches in an isolated test environment before changing the encoder or retrying deterministic failures.
+  - Inspect the rejected reservation's state and source identity before choosing any retry.
+  - Review pending import ages to determine whether backfill deferral is appropriate.
+not_verified:
+  - Exact Python call stack responsible for the web hang
+  - Identity of the rejected inactive reservation
+  - Authenticated browser playback
+  - Production deployment acceptance
+prevention_change:
+  tracked_in: feature-tracking/StorageOptimization.yml#hls_packaged_runtime_failure_injection
+  source_repository: /home/admin/dev/lx-annotate
+  source_base_revision: 0b450b3479a6cba32693597207e51d5c0d6012d9
+  source_state: Existing staged changes preserved; prevention changes remain unstaged.
+  application_version: 1.2.3
+  dependency_requirement: asgiref>=3.12.1,<4
+  locked_dependency_version: 3.12.1
+  dependency_wheel_sha256: fe386d1c2bff7259ea95929266d12a8cf9a8b5a1c2598402967d8792e7a7c094
+  uv_lock_sha256: bb26627a9c5e6c0d435ae354345ccde94b1e824ea21f1e8c289faf0862a54a54
+  flake_lock_sha256: 3f755aa25b0b9aacdfb3f261a41ad94ae97e95df892541e53dc1619c4aea345d
+  upstream:
+    - https://github.com/django/asgiref/blob/3.12.1/CHANGELOG.txt
+    - https://github.com/django/asgiref/pull/563
+  mechanism: >-
+    Older ThreadSensitiveContext cleanup synchronously joins the executor thread on the ASGI event
+    loop. A disconnected request whose synchronous work remains active can therefore freeze every
+    request. Version 3.12.1 includes the upstream fix that joins off the event loop without occupying
+    the default executor. This reproduces the observed class of hang; the original production Python
+    stack was not captured, so attribution of that individual incident remains inferential.
+  regression:
+    file: tests/system/test_asgi_request_cancellation.py
+    isolation: Real application ASGI entrypoint with test-only Django routes and no clinical models, database, media, or credentials.
+    old_dependency_result: asgiref 3.11.1 deadlocked after server cancellation; parent killed child at 12 seconds.
+    old_dependency_stack: Django ASGIHandler.__call__ -> ThreadSensitiveContext.__aexit__ -> ThreadPoolExecutor.shutdown -> Thread.join
+    fixed_dependency_result: Four scenarios passed in 2.23 seconds with asgiref 3.12.1.
+    cases:
+      - One disconnected synchronous request
+      - Four concurrent disconnected synchronous requests
+      - One disconnected request with the default executor occupied
+      - Four disconnected requests with the default executor occupied
+    assertions:
+      - Unrelated HTTP requests complete before blocked synchronous work is released.
+      - Cancelled requests and their synchronous work drain after release.
+      - Subsequent HTTP requests succeed.
+  verification:
+    - command: /home/admin/endoreg-db/.devenv/state/venv/bin/pyright tests/system/test_asgi_request_cancellation.py
+      result: 0 errors, 0 warnings
+    - command: .devenv/state/venv/bin/ruff check tests/system/test_asgi_request_cancellation.py
+      result: passed
+    - command: .devenv/state/venv/bin/ruff format --check tests/system/test_asgi_request_cancellation.py
+      result: passed
+    - command: uv lock --check
+      result: passed; only asgiref changed version in the lockfile
+    - command: .devenv/state/venv/bin/pytest -q tests/system/test_asgi_request_cancellation.py
+      result: 4 passed
+    - command: .devenv/state/venv/bin/pytest -q tests/system/test_oidc_settings.py tests/system/test_production_celery_routing.py tests/api/test_video_lifecycle_readiness.py
+      result: 16 passed, 26 failed due to the unavailable can_dismiss_upload_job import in the existing pinned Endoreg wheel.
+    - command: PYTHONPATH=/home/admin/.cache/lx-annotate/asgi-regression-3.11.1:. .devenv/state/venv/bin/pytest -q --maxfail=1 --tb=line tests/api/test_video_lifecycle_readiness.py::test_mounted_import_dismissal_hides_only_the_row_and_preserves_source
+      result: The same ImportError also occurs with asgiref 3.11.1; this is independent of the upgrade.
+  rollout:
+    performed: false
+    reasons:
+      - Existing staged overview code requires can_dismiss_upload_job, absent from the locked endoreg-db 1.2.0 wheel.
+      - tracker.py check deployment_source_hygiene exited 1 with 0/6 required criteria verified.
+    gc10_dependency: Still asgiref 3.11.1; production dependency files were not changed during this prevention work.
+    final_host_check: Web and FFmpeg units active; trusted HTTPS returned 302 in 0.004772 seconds.
+    required_followup: Resolve the Endoreg release contract, package the tested ASGI requirement into the reviewed release, and perform the governed gc-10 rollout and authenticated playback acceptance.
+hls_throughput_tuning:
+  date: '2026-09-09'
+  assessor: codex-gc10-hls-20260909
+  target: gc-10
+  hardware:
+    cpu: Intel Core i7-11800H; 8 physical cores, 16 logical CPUs
+    gpu: NVIDIA GeForce RTX 3070 Laptop GPU; 8192 MiB VRAM
+  initial_encoder:
+    pid: 282227
+    video_id: 38
+    codec: libx264
+    threads: 14
+    preset: medium
+    crf: 18
+    frame_timing: passthrough
+    hls_segment_seconds: 4
+    worker_concurrency: 1
+  applied_change:
+    unit: lx-annotate-celery-ffmpeg-worker.service
+    property: CPUQuota
+    original: 600%
+    selected: 1400%
+    command: sudo systemctl set-property --runtime lx-annotate-celery-ffmpeg-worker.service CPUQuota=1400%
+    rollback_command: sudo systemctl set-property --runtime lx-annotate-celery-ffmpeg-worker.service CPUQuota=600%
+    restart_performed: false
+    structured_journal_tag: lx-annotate-hls-tuning
+    persistence: Runtime override only; reboot or a stream-throttle mode transition can replace it.
+    playback_guard: Existing stream-aware throttling remains enabled; its streaming profile remains unchanged.
+  throughput_samples:
+    method: Thirty-second deltas of worker cgroup cpu.stat and active FFmpeg /proc/PID/io counters.
+    caveat: Different portions of the same running video; byte rates are not a controlled whole-job encoding benchmark.
+    measurements:
+      - quota_percent: 600
+        cpu_equivalents: 6.0
+        throttled_period_fraction: 1.0
+        input_mib_per_second: 1.249
+        output_mib_per_second: 0.950
+      - quota_percent: 1200
+        cpu_equivalents: 11.6
+        throttled_period_fraction: 0.633
+        input_mib_per_second: 2.392
+        output_mib_per_second: 1.526
+      - quota_percent: 1400
+        cpu_equivalents: 12.21
+        throttled_period_fraction: 0.05
+        input_mib_per_second: 2.599
+        output_mib_per_second: 1.575
+    segment_creation_comparison:
+      method: Count new seg_*.ts files in the active encoder's staging output; do not read media payloads.
+      at_1400_percent: 7 new segment files in 30 seconds; nominal 0.933 media seconds per wall second
+      at_600_percent: 2 new segment files in 30 seconds; nominal 0.267 media seconds per wall second
+      caveat: Short, quantized samples from different video portions; these are staged files, not proof of validated publication or a guaranteed whole-job speedup.
+      final_action: Restored CPUQuota=1400% after the comparison; stream throttle remained in normal mode.
+  resource_checks:
+    memory_high_gib: 10
+    memory_max_gib: 12
+    worker_anonymous_memory_gib: 1.47
+    worker_file_cache_gib: 8.36
+    oom_events: 0
+    memory_pressure_avg10: 0.0
+    highest_sampled_thermal_zone_celsius: 87.05
+    later_highest_sampled_thermal_zone_celsius: 82.05
+    root_free_gib: 87
+    root_used_percent: 91
+    web_https_status: 302
+    web_https_seconds_at_1400_percent: 0.008513
+    note: Worker memory usage was primarily file cache, with no current memory pressure; memory limits were retained.
+  gpu_findings:
+    deployed_profile: clinical_h264_libx264_crf_v1
+    supported_gpu_profile: clinical_h264_nvenc_cq_v1
+    deployed_preflight_frame: 64x64 at 1 fps
+    deployed_preflight_result: Encoder rejected frame dimensions below its supported minimum; exit 234.
+    larger_frame_probe: 256x256 at 1 fps; only frame dimensions changed from the deployed preflight
+    larger_frame_probe_result: NVENC succeeded as endoreg-service-user with isolated GPU 0; exit 0.
+    probe_output: FFmpeg null muxer; generated color frame only, no clinical input or persistent output.
+    not_enabled_reason: >-
+      The installed HLS reservation and playback checks compare encoding_profile_name with the global
+      configured profile. Switching that setting alone would conflict with existing queued reservations
+      and make CPU-profile READY artifacts fail readiness checks. GPU activation requires a corrected
+      preflight and a coordinated profile transition through the release workflow.
+  unchanged:
+    - Current encode and its reserved attempt
+    - Encryption, source identity and timeline validation
+    - Encoder quality and bitrate limits
+    - Worker concurrency and memory limits
+    - Production package files and Nix deployment source

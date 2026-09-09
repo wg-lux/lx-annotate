@@ -1,0 +1,202 @@
+schema_version: 1
+title: Administrator runtime monitoring
+feature: admin_runtime_monitoring
+architecture:
+  contract: lx_annotate.monitoring.contracts.MonitoringSnapshot
+  implementation: lx_annotate.monitoring.service.build_monitoring_snapshot
+  consumers:
+    - GET /endoreg-api/administration/monitoring/
+    - GET /api/administration/monitoring/ (compatibility mount)
+    - python manage.py monitoring_status --format json
+    - /administration/monitoring (administrator UI)
+  persistence: Existing application ledgers only; no new tables, task queue or daemon.
+api:
+  schema_version: 1
+  snapshot_fields: [schema_version, status, observed_at, version, checks]
+  check_fields: [key, status, summary, detail, observed_at, metadata]
+  statuses: [ok, warning, error, unknown]
+  overall_statuses: [ok, warning, error]
+  timestamps: UTC ISO 8601
+  successful_diagnostic_request: HTTP 200 even when the snapshot reports an error.
+  parameters: None; query parameters are rejected with HTTP 400.
+  methods: GET only; mutation methods return HTTP 405.
+  cache: private, no-store
+  authorization: Authenticated superuser or exact center_scope:global_admin group through existing RBAC.
+  excluded_roles: Staff alone, ordinary users, center_scope:admin and data:write do not grant access.
+  frontend: Existing axios snake_case to camelCase conversion; health is never inferred from summaries.
+aggregation:
+  error: Any error check.
+  warning: No errors, but at least one warning or unknown check, or no checks.
+  ok: Every check is ok.
+checks:
+  application:
+    - Django application registry readiness.
+    - Installed lx-annotate, Django, endoreg-db and lx-dtypes versions.
+    - Deployment revision from validated host configuration; absent revision is unknown.
+    - Existing native capability, environment readiness and protected-media configuration checks.
+  database:
+    - Actual SELECT 1 query.
+    - Existing migration-history safety helper plus Django migration graph consistency.
+    - Unknown recorded migrations or incompatible legacy history are errors.
+    - Unapplied migrations are a warning; no automatic migration or history repair.
+    - Database failure is error; dependent checks become unknown.
+  resources:
+    - Public lx_dtypes packaged resource catalog and verified_resource_directory API.
+    - Active provider identity and content digest when a registry is configured; otherwise packaged defaults.
+    - Verification cached in process for at most 300 seconds, invalidated by registry stat signature.
+    - Resolution or integrity failures are errors. Custom filesystem/remote providers are unknown.
+  storage:
+    - Only declared required locations, or existing application settings when no declaration exists.
+    - Directory existence, effective read/execute/write access, read-only mount flag and statvfs.
+    - Available bytes and free percentage; no directory enumeration or write probe.
+    - Required access unavailable is error; optional access unavailable is warning.
+    - Disk free percentage at or below error/warning thresholds produces the corresponding status.
+  processing:
+    - UploadJob ingestion, VideoHlsArtifact HLS, VideoProcessingHistory and ReportImportAttempt.
+    - One aggregate SELECT per ledger; pending, processing, failed and recent failures.
+    - Oldest pending timestamp/age and overdue flag.
+    - Expired active leases where the existing model supplies a lease expiry.
+    - Failures, overdue pending work and expired leases are warnings.
+    - Unleased active work is not declared stalled merely from its age.
+  services:
+    - Explicit deployment-owned unit list; no browser-selected units or commands.
+    - One bounded read-only systemctl show invocation with an absolute executable and no shell.
+    - Required unavailable service is error; optional unavailable service is warning.
+    - Inaccessible systemd metadata is unknown; no sudo or polkit permission widening.
+    - Loaded inactive units are healthy only when expected_active is explicitly false.
+    - LuxNix omits disabled workers and monitors the activation timer for scheduled workers.
+runtime_configuration:
+  application_setting: LX_ANNOTATE_MONITORING_CONFIG_FILE
+  environment_contract:
+    - secretspec.toml
+    - lx_annotate/settings/settings_base.py
+    - nix/runtime-environment.nix
+  nix_provider: LuxNix services.luxnix.lxAnnotateLocal.runtime.monitoring
+  nix_sources:
+    - modules/nixos/services/lx-annotate-local/options/monitoring.nix
+    - modules/nixos/services/lx-annotate-local/config.nix
+    - modules/nixos/services/lx-annotate-local/scripts/env.nix
+  format: Immutable generated JSON, schema_version 1; unknown fields rejected.
+  fields:
+    deployment_revision: Null or hexadecimal revision of 7 to 64 characters.
+    services: Up to 40 unique aliases with unit, required and expected_active flags (both flags default true).
+    storage: Up to 24 unique aliases with absolute path, required and writable flags.
+    systemctl_path: Absolute Nix systemctl executable.
+    systemctl_timeout_seconds: Integer 1 to 5; default 3.
+    disk_warning_free_percent: Default 10; greater than error threshold and below 100.
+    disk_error_free_percent: Default 5; nonnegative and below warning threshold.
+    pending_warning_seconds: Default 3600; range 60 to 604800.
+    recent_failure_window_seconds: Default 86400; range 60 to 604800.
+  absent_configuration: Storage uses application settings; service expectations and revision remain unknown.
+  invalid_configuration: Error; no unvalidated paths or commands are used.
+cost_and_security:
+  postgres: Isolated connection, 2 second connect timeout, 2 second per-statement timeout and read-only transactions.
+  ui: Manual refresh only. Leaving the page discards pending results. Failed refresh clears old status.
+  output: Stable keys, aggregate counts and allowlisted state values; no patient data, filenames, storage paths or raw exceptions.
+  logs: Debug-level structured check/subsystem/reason codes; no exception text or repetitive warning-level refresh logs.
+  systemd_boundary: Preserve service sandboxing. Unknown observation is preferable to granting new privileges.
+command:
+  default_format: json
+  formats: [json, text]
+  exit_codes:
+    0: Every check healthy.
+    1: Warning or unknown check without errors.
+    2: Error check.
+  environment: Use the same provisioned environment and service identity as Django.
+  startup: Exempt from fail-fast application runtime guard so it can diagnose broken deployments.
+  stderr: Generic nonzero-status message; diagnostic JSON remains on stdout.
+verification:
+  backend: .devenv/state/venv/bin/python -m pytest tests/system/test_admin_monitoring.py tests/api/test_admin_monitoring_api.py tests/system/test_environment_checks.py tests/system/test_migration_compatibility.py tests/api/test_administration_api.py
+  typing: pyright lx_annotate
+  frontend_tests: npm --prefix frontend run test:unit -- --run src/views/__tests__/MonitoringPage.test.ts src/views/__tests__/AdministrationPage.test.ts src/router/__tests__
+  frontend_types: npm --prefix frontend run type-check
+  frontend_build: npm --prefix frontend run build-only
+  operator_acceptance:
+    - Evaluate generated host JSON against MonitoringConfiguration before release.
+    - Run monitoring_status using the provisioned service identity and environment.
+    - Verify authorized HTTP response and denied ordinary-user response after rollout.
+    - Confirm declared paths, services and revision match the selected release.
+    - Resolve unknown checks before claiming the host is healthy.
+limitations:
+  - HTTP authentication itself may depend on the database; use the local command if authentication is unavailable.
+  - statvfs and access checks cannot prove successful future writes, quota headroom or remote filesystem responsiveness.
+  - Systemd active state does not prove application-level worker responsiveness; processing ledgers provide complementary evidence.
+  - Failure counts describe retained ledger state, not a complete log history; old failures can keep a warning visible.
+  - Custom resource providers require their own verification; this endpoint never downloads or materializes them.
+  - Development test settings print their existing startup banner before management output; production command consumers use the provisioned runtime settings.
+  - Implementation verification is distinct from a production deployment or rollout acceptance.
+outside_scope:
+  - Workflow duration instrumentation, metrics exporters, Prometheus, Grafana and alert routing.
+  - HLS regeneration, database rewrites, automatic service restarts and deployment.
+implementation_files:
+  backend:
+    - lx_annotate/monitoring/__init__.py
+    - lx_annotate/monitoring/contracts.py
+    - lx_annotate/monitoring/configuration.py
+    - lx_annotate/monitoring/database.py
+    - lx_annotate/monitoring/runtime.py
+    - lx_annotate/monitoring/service.py
+    - lx_annotate/views/monitoring.py
+    - lx_annotate/management/commands/monitoring_status.py
+    - lx_annotate/api_urls.py
+    - lx_annotate/apps.py
+    - lx_annotate/checks.py
+    - lx_annotate/permissions.py
+  environment:
+    - lx_annotate/settings/settings_base.py
+    - secretspec.toml
+    - nix/runtime-environment.nix
+    - conf_template/default.env
+    - deployment_example/.env.systemd.example
+  frontend:
+    - frontend/src/api/monitoringApi.ts
+    - frontend/src/stores/monitoring.ts
+    - frontend/src/router/monitoring.ts
+    - frontend/src/router/index.ts
+    - frontend/src/types/api/endpoints.ts
+    - frontend/src/views/MonitoringPage.vue
+    - frontend/src/views/AdministrationPage.vue
+  tests:
+    - tests/system/test_admin_monitoring.py
+    - tests/api/test_admin_monitoring_api.py
+    - frontend/src/views/__tests__/MonitoringPage.test.ts
+    - frontend/src/views/__tests__/AdministrationPage.test.ts
+  tracking_and_documentation:
+    - feature-tracking/AdminRuntimeMonitoring.yml
+    - docs/guides/admin-monitoring.yml
+implementation_verification:
+  date: '2026-09-09'
+  assessor: codex-gc10-hls-20260909
+  source:
+    repository: /home/admin/dev/lx-annotate
+    base_revision: 0b450b3479a6cba32693597207e51d5c0d6012d9
+    flake_lock_sha256: 3f755aa25b0b9aacdfb3f261a41ad94ae97e95df892541e53dc1619c4aea345d
+    application_version: 1.2.3
+    state: Reviewed shared dirty checkout; unrelated staged work preserved. No release produced.
+  results:
+    backend: 90 passed, including environment-contract tests in addition to the documented backend command.
+    frontend: 29 passed across monitoring, administration and routing suites.
+    nix_contract_tests: Three LuxNix monitoring contract tests passed using the application test environment; pytest reported a harmless cache-directory permission warning for the /dev/null configuration root.
+    pyright: Full lx_annotate check; zero errors or warnings.
+    ruff: New monitoring modules, command, API and backend tests passed.
+    frontend_type_check: OpenAPI freshness, vue-tsc and ESLint passed.
+    frontend_build: Passed; existing large-chunk advisory remains.
+    django_check: Exit 0 with four development warnings (missing test Vite manifest, unset Celery broker and two duplicate URL namespaces).
+    monitoring_status: Development settings returned an error snapshot and exit 2; command tests verify JSON and exits 0, 1 and 2.
+    diff_check: Passed.
+    feature_validation: All 44 feature definitions valid at final verification.
+    readiness_gate: admin_runtime_monitoring check exits 1 with 6 of 7 criteria verified; live runtime acceptance remains pending.
+  rollout: Not deployed; service-identity and authenticated live HTTP acceptance remain rollout work.
+  nix_configuration:
+    repository: /home/admin/luxnix
+    base_revision: 469620aa86e8f326bb200cf07fff485081e3b6f8
+    flake_lock_sha256: aac5cc82ffc23649a62dde7fd515b1a2f7131e816e6c69cdb075866380ca8d36
+    target: gc-10
+    build_command: >-
+      nix build --impure --no-link --print-out-paths --expr
+      '(builtins.getFlake "path:/home/admin/luxnix").nixosConfigurations.gc-10.config.environment.etc."lx-annotate/monitoring.json".source'
+    artifact: /nix/store/g3pa916r36slp4pxa63999mk0m2wvkb9-lx-annotate-monitoring-config-v1.json
+    sha256: e68883845a79b5d5abe09ffbc4f1d00cb67ef92aa99327f2384b6cfd3c6f503f
+    validation: MonitoringConfiguration.model_validate_json passed against the generated artifact; schema 1, ten services, five storage locations, local broker and database included.
+    deployment_revision_in_artifact: 7e2ce39085863c6aae5afbe3ad9b10466694ec75
+    state: Shared dirty Nix checkout evaluated for configuration-contract verification only; not a deployed release.

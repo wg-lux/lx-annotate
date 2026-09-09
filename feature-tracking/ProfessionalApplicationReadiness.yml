@@ -1,0 +1,155 @@
+schema_version: '1.0'
+id: professional_application_readiness
+name: Professional application readiness
+description: Standardize the non-functional requirements that make lx-annotate predictable, resilient, secure, observable, accessible, performant, and maintainable in production.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Repository-wide security, reliability, storage, and frontend workflow invariants.
+definition_of_done:
+- id: nonfunctional_requirements_contract
+  category: requirements
+  title: Production quality requirements are explicit and measurable
+  acceptance:
+  - Resilience, security and privacy, observability, accessibility, performance, data integrity, delivery quality, and maintainability are treated as release requirements rather than optional polish.
+  - Each requirement has an owner, a reproducible verification method, and evidence that can be reviewed independently of subjective completion percentages.
+  - Production readiness is blocked when a required criterion is unverified, even when the application happy path works.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the feature definition, ownership, acceptance statements, and readiness policy for complete coverage and measurable release gates.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: resilient_error_handling
+  category: functionality
+  title: Failures are recoverable and actionable
+  acceptance:
+  - Network drops, API timeouts, invalid inputs, and server errors produce stable user-facing error states rather than crashes or cryptic technical output.
+  - Failed operations preserve safe user state, identify whether retry or correction is appropriate, and do not silently discard unsaved work.
+  - Retry, cancellation, timeout, and stale-response behavior is deterministic and does not duplicate mutations.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review error boundaries and request lifecycle code; run focused negative-path tests for timeout, malformed input, retry, cancellation, and stale responses.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+- id: security_privacy
+  category: security
+  title: Security and privacy are enforced by default
+  acceptance:
+  - Sensitive data is encrypted at rest and protected in transit with the deployment-required transport security; long-lived master keys are never transmitted or stored in application configuration.
+  - Authentication, authorization, input validation, output sanitization, and least-privilege boundaries are enforced at every relevant API and UI boundary.
+  - Protected artifacts are consumed through authenticated decryption and scoped plaintext materialization, with fail-closed behavior for missing keys, tampering, malformed headers, and cleanup failures.
+  required: true
+  verification:
+    kind: manual
+    instructions: Perform a security review of transport, secret handling, authorization, validation, encrypted artifact consumption, and negative-path tests against the repository security invariants.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+- id: observability_telemetry
+  category: observability
+  title: Runtime behavior is diagnosable without exposing secrets
+  acceptance:
+  - Application errors, background-job failures, key workflow transitions, and performance regressions emit structured, privacy-safe diagnostics with correlation context.
+  - Crash reporting, logs, health signals, and operational metrics distinguish user errors, dependency failures, authorization failures, and internal defects.
+  - Telemetry is bounded, access-controlled, retention-aware, and excludes secrets, plaintext protected payloads, and unnecessary clinical identifiers.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review logging and monitoring contracts; exercise representative failures and confirm that diagnostics are actionable, correlated, privacy-safe, and visible to operators.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+- id: design_system_accessibility
+  category: functionality
+  title: The interface is consistent and accessible
+  acceptance:
+  - Shared design tokens and components provide consistent hierarchy, spacing, typography, color semantics, loading states, empty states, and error presentation.
+  - Core workflows support keyboard navigation, visible focus, screen readers, semantic structure, sufficient contrast, and accessible names and descriptions.
+  - Accessibility behavior and responsive states are covered by automated checks and focused user-interface tests for the highest-risk workflows.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the design-system usage and test representative workflows with keyboard and screen-reader semantics; run the repository accessibility and UI test gates.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+- id: performance_responsiveness
+  category: operations
+  title: The application remains responsive under realistic conditions
+  acceptance:
+  - Loading, refresh, mutation, and offline or degraded-network states provide immediate and truthful feedback through appropriate skeleton, progress, or pending states.
+  - Request, render, and asset-loading behavior uses bounded concurrency, safe caching, and deduplication without serving stale data as current.
+  - Performance budgets and representative slow-network or low-resource checks detect regressions in startup, critical workflows, and interaction latency.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review performance-sensitive paths and caching policies; run production builds and representative slow-network, repeated-request, and interaction-performance checks.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+- id: deterministic_data_integrity
+  category: data_integrity
+  title: State transitions and mutations are deterministic
+  acceptance:
+  - State ownership, request identity, ordering, and invalidation rules prevent race conditions, ghost reads, stale overwrites, and contradictory UI states.
+  - Mutations are idempotent or protected against double submission, and authoritative success or failure is represented before dependent actions proceed.
+  - Persisted JSON, workflow, provenance, and storage-routing data are validated through typed contracts at system boundaries.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review state and mutation boundaries against backend contracts and typed persistence rules; run concurrency, duplicate-submit, stale-response, and round-trip integrity tests.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+- id: automated_delivery_quality
+  category: testing
+  title: Changes are protected by automated quality gates
+  acceptance:
+  - Unit, integration, API, and end-to-end tests cover happy paths, failure paths, authorization boundaries, accessibility-critical flows, and data-integrity invariants.
+  - CI runs formatting, linting, type checking, security-sensitive checks, migrations or contract checks, and the relevant test suites on supported environments.
+  - Release automation is reproducible, verifies artifacts and provenance, supports safe rollback, and fails closed when required checks or deployment inputs are missing.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect CI/CD workflow definitions and run the complete applicable quality gates, including failure-path and release-artifact verification.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+- id: maintainability_documentation
+  category: maintainability
+  title: Architecture and operational contracts remain understandable
+  acceptance:
+  - Modules have clear ownership boundaries, typed API contracts, consistent helpers, and documented error, state, security, and lifecycle semantics.
+  - Documentation explains setup, configuration, deployment, troubleshooting, recovery, accessibility expectations, and limitations in English.
+  - New behavior includes focused tests and reviewable evidence so another maintainer can reproduce, operate, and safely change it.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review changed modules, public contracts, tests, and operator or contributor documentation for consistency, completeness, and reproducibility.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+- id: operational_documentation
+  category: documentation
+  title: Production behavior and recovery are documented
+  acceptance:
+  - English contributor and operator documentation describes configuration, failure handling, observability signals, accessibility expectations, testing gates, deployment, rollback, and recovery.
+  - Documentation identifies data and security boundaries, user-visible states, escalation paths, and known limitations without exposing secrets or sensitive payloads.
+  - Documentation examples and commands are kept aligned with the implemented contracts and are reproducible by a maintainer.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the linked contributor, operator, deployment, and recovery documentation against the accepted production behavior and run documented checks where applicable.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
