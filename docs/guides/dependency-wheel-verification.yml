@@ -1,0 +1,69 @@
+assessor: codex-wheel-hygiene-20260907
+date: '2026-09-07'
+scope: Published dependency replacement and local Git input cleanup
+repository:
+  path: /home/admin/dev/lx-annotate
+  head: 0b450b3479a6cba32693597207e51d5c0d6012d9
+  state: Pre-existing staged application, frontend, documentation, and workflow changes preserved.
+  lx_annotate_version: 1.2.2
+  flake_lock_sha256: 3f755aa25b0b9aacdfb3f261a41ad94ae97e95df892541e53dc1619c4aea345d
+  uv_lock_sha256: af515451aad25285fcc12f8cd735dd95ef026821479cbab6ffcd5e5a9eab91be
+target_host: null
+artifacts:
+  - package: endoreg-db
+    version: 1.1.8
+    local_path: /home/admin/endoreg-db/dist/endoreg_db-1.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+    sha256: 64acbd1b001df301c5f1be185cc7284f9d25eb0e765778125435acc0a799cf05
+    registry_metadata: https://pypi.org/pypi/endoreg-db/1.1.8/json
+    published_digest_matches: true
+    verified_record_entries: 1091
+    installed_python_and_native_files_matching_wheel: 862
+    reviewed_candidate_comparison: >-
+      authz/auth.py, authz/backends.py, import_files/file_storage/state_management.py,
+      and services/hub/upload_job_import_lease.py match the prior candidate exactly.
+      Reviewed differences in services/hls_media.py, services/hub/ingest.py, and
+      tasks.py retain candidate changes and add database recovery, upload
+      idempotency, and media-integrity handling.
+  - package: lx-dtypes
+    version: 0.2.36
+    local_path: /home/admin/lx-data-models/dist/lx_dtypes-0.2.36-py3-none-any.whl
+    sha256: c84f15cd867d1f95e1e6b65b395e9cd1c0115dd6ef76d4006e4fe9378b6a5ad0
+    registry_metadata: https://pypi.org/pypi/lx-dtypes/0.2.36/json
+    published_digest_matches: true
+    verified_record_entries: 681
+    installed_python_and_native_files_matching_wheel: 436
+verification:
+  archive_integrity: Both ZIP CRC checks and all hashed RECORD entries passed.
+  resolution: >-
+    Initial targeted refresh reported the new backend release unavailable.
+    uv lock --refresh --index-url https://pypi.org/simple succeeded;
+    subsequent uv lock --check and uv sync --locked --extra dev passed.
+  regression_command: >-
+    .devenv/state/venv/bin/python -m pytest -q
+    tests/system/test_installed_video_segments_contract.py
+    tests/system/test_candidate_dependency_workflows.py
+    tests/system/test_production_celery_redis_recovery.py
+    tests/system/test_migration_compatibility.py
+  regression_result: 19 passed in 19.84s
+  native_extension: >-
+    Direct endoreg_db.endoreg_rust_backend.build_expected_frame_records(2, 'jpg')
+    returned [(0, 'frame_0000000.jpg'), (1, 'frame_0000001.jpg')].
+  packaging: uv build --sdist passed; archive inventory contains no vendor files.
+  lint: Ruff check of the changed workflow regression test passed.
+  tracker_validation: 42 feature definitions valid.
+  git_cleanup: All five vendor files removed from the index, retained locally, and ignored.
+follow_up_regressions:
+  assessor: codex-wheel-hygiene-20260907
+  fixes:
+    - Finalize the current video.state in the Hub payload fixture after segment edits refresh and invalidate it.
+    - Enable database access for the authentication test's real transaction boundary.
+    - Check publication archive selection and CI command ordering instead of obsolete cleanup strings and command counts.
+  focused_result: 33 passed, 1 skipped in 15.45s across the three affected test files.
+  full_suite_command: .devenv/state/venv/bin/python -m pytest -q
+  full_suite_result: 772 passed, 2 skipped in 247.01s
+  static_checks: Ruff lint and formatting checks passed for all three changed test files.
+  application_behavior_changed: false
+production_readiness:
+  command: ./feature-tracking/tracker.py check deployment_source_hygiene
+  result: 'Exit 1: existing readiness gate incomplete, 0/6 required criteria.'
+  deployment_performed: false

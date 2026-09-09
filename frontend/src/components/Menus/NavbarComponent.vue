@@ -7,7 +7,7 @@
         type="button" 
         aria-controls="sidenav-main"
         :aria-expanded="isSidebarOpen"
-        aria-label="Navigation öffnen"
+        :aria-label="isSidebarOpen ? 'Navigation schließen' : 'Navigation öffnen'"
         @click="toggleSidebar"
       >
         <span class="navbar-toggler-icon">
@@ -68,14 +68,14 @@
           </li>
           <li v-if="isAuthenticated" class="nav-item d-flex align-items-center">
             <button type="button" class="nav-link account-action" @click="handleLogout">
-              <i class="ni ni-circle-08 me-sm-1"></i>
-              <span class="d-sm-inline d-none">Logout</span>
+              <i class="ni ni-circle-08 me-sm-1" aria-hidden="true"></i>
+              <span>Logout</span>
             </button>
           </li>
           <li v-else class="nav-item d-flex align-items-center">
             <button type="button" class="nav-link account-action" @click="handleLogin">
-              <i class="ni ni-circle-08 me-sm-1"></i>
-              <span class="d-sm-inline d-none">Login</span>
+              <i class="ni ni-circle-08 me-sm-1" aria-hidden="true"></i>
+              <span>Login</span>
             </button>
           </li>
           <li v-if="isAuthenticated" class="nav-item d-flex align-items-center">
@@ -406,6 +406,7 @@ onUnmounted(() => {
 
   .app-topbar-content {
     gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .app-breadcrumb-eyebrow {

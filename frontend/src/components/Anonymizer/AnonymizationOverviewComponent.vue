@@ -204,16 +204,16 @@
                       Jetzt erneut versuchen
                     </button>
 
-                    <!-- Re-import for videos with missing/incorrect metadata -->
+                    <!-- Reconcile persisted state without regenerating metadata -->
                     <button
                       v-if="!file.importOnly && file.mediaType === 'video' && needsReimport(file) && canUseImportAction(file, 'safe_reimport')"
                       class="btn btn-outline-info"
                       :disabled="isProcessing(file.id)"
-                      title="Video erneut importieren und Metadaten aktualisieren"
+                      title="Gespeicherten Zustand prüfen und reparieren; fehlende Metadaten werden nicht neu erzeugt"
                       @click="reimportVideo(file.id)"
                     >
                       <i class="ni ni-bold-right"></i>
-                      Erneut importieren
+                      Zustand reparieren
                     </button>
 
                     <!-- Re-import for PDFs (using reset-status for now) -->
@@ -262,7 +262,18 @@
                       Korrektur
                     </button>
 
-                    <!-- Delete Button - Show for all files -->
+                    <button
+                      v-if="file.importOnly && file.uploadJob && file.canDismissImport && !file.quarantined"
+                      data-test="dismiss-import-button"
+                      class="btn btn-outline-secondary"
+                      :disabled="isProcessing(file.id)"
+                      title="Fehlgeschlagenen Import ausblenden; Quelldatei und Verlauf bleiben erhalten"
+                      @click="dismissImport(file)"
+                    >
+                      Aus Übersicht entfernen
+                    </button>
+
+                    <!-- Delete managed media through its separate endpoint. -->
                     <button
                       v-if="!file.importOnly && canUseImportAction(file, 'delete')"
                       data-test="delete-file-button"
@@ -329,11 +340,11 @@
                 <!-- HTTP Live Streaming Materialization -->
                 <td>
                   <div
-                    v-if="file.hlsMaterializations?.length"
+                    v-if="visibleHlsMaterializations(file).length"
                     class="hls-materialization-summary"
                   >
                     <div
-                      v-for="materialization in file.hlsMaterializations"
+                      v-for="materialization in visibleHlsMaterializations(file)"
                       :key="materialization.artifactKind"
                       class="mb-1"
                     >
@@ -511,6 +522,11 @@ import { type MediaType } from '../../stores/mediaTypeStore';
 import { createRuntimeLogger } from '@/utils/runtimeLogger';
 
 const runtimeLogger = createRuntimeLogger('anonymization-overview');
+
+const visibleHlsMaterializations = (file: FileItem) =>
+  (file.hlsMaterializations ?? []).filter(materialization =>
+    file.anonymizationStatus !== 'validated' || materialization.artifactKind === 'processed'
+  );
 
 // Composables
 const router = useRouter();
@@ -737,9 +753,9 @@ const reimportVideo = async (fileId: number) => {
       // Refresh overview to get updated status
       await refreshOverview();
 
-      runtimeLogger.info('media-reimport-completed', { fileType: 'video' });
+      runtimeLogger.info('video-state-repair-completed');
     } else {
-      runtimeLogger.warn('media-reimport-rejected', { fileType: 'video' });
+      runtimeLogger.warn('video-state-repair-rejected');
     }
   } finally {
     processingFiles.value.delete(fileId);
@@ -770,6 +786,18 @@ const retryUploadJob = async (file: FileItem) => {
   processingFiles.value.add(file.id);
   try {
     await anonymizationStore.retryUploadJob(file.uploadJob.id);
+    scheduleMonitoringRefresh();
+  } finally {
+    processingFiles.value.delete(file.id);
+  }
+};
+
+const dismissImport = async (file: FileItem) => {
+  if (!file.importOnly || !file.uploadJob || !file.canDismissImport || file.quarantined) return;
+  if (!confirm(`Import "${getFileDisplayName(file)}" aus der Übersicht entfernen? Quelldatei und Importverlauf bleiben erhalten.`)) return;
+  processingFiles.value.add(file.id);
+  try {
+    await anonymizationStore.dismissUploadJob(file.uploadJob.id);
   } finally {
     processingFiles.value.delete(file.id);
   }
@@ -979,7 +1007,7 @@ const getUploadJobStatusText = (status: string) => {
   return texts[status] || `Unbekannter Importstatus (${status})`;
 };
 
-const DUPLICATE_IMPORT_NOTICE = 'Duplikat erkannt. Die vorhandene validierte Annotation bleibt erhalten.';
+const DUPLICATE_IMPORT_NOTICE = 'Duplikat erkannt. Der vorhandene Validierungsstatus bleibt unverändert.';
 const IMPORT_ERROR_NOTICE = 'Importfehler. Details sind im Server-Log verfügbar.';
 
 const isUploadJobError = (uploadJob: UploadJobOverview) => {

@@ -9,6 +9,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, VideoFile
 from endoreg_db.models.state.video_segment_validation import SegmentAnnotationStatus
+from rest_framework.exceptions import PermissionDenied
 
 from ..models import OutboundHubTransferJob
 from .hub_export_audit import emit_hub_export_audit_event
@@ -569,6 +570,7 @@ def _collect_video_overview(
     privacy_records: list[HubExportPrivacyRecord],
     rejections: list[HubSyncRejection],
     duplicates: list[HubSyncDuplicate],
+    allowed_center_ids: frozenset[int] | None = None,
 ) -> None:
     videos = VideoFile.objects.select_related(
         "state",
@@ -577,6 +579,8 @@ def _collect_video_overview(
         "sensitive_meta__pseudo_patient",
         "sensitive_meta__pseudo_patient__gender",
     ).order_by("-date_created")
+    if allowed_center_ids is not None:
+        videos = videos.filter(center_id__in=allowed_center_ids)
     for video in videos:
         video_id = int(video.pk)
         readiness = resolve_video_hub_export_state(video)
@@ -643,6 +647,7 @@ def _collect_report_overview(
     privacy_records: list[HubExportPrivacyRecord],
     rejections: list[HubSyncRejection],
     duplicates: list[HubSyncDuplicate],
+    allowed_center_ids: frozenset[int] | None = None,
 ) -> None:
     reports = RawPdfFile.objects.select_related(
         "state",
@@ -651,6 +656,8 @@ def _collect_report_overview(
         "sensitive_meta__pseudo_patient",
         "sensitive_meta__pseudo_patient__gender",
     ).order_by("-date_created")
+    if allowed_center_ids is not None:
+        reports = reports.filter(center_id__in=allowed_center_ids)
     for report in reports:
         report_id = int(report.pk)
         report_job = jobs_by_key.get(("report", report_id))
@@ -766,6 +773,7 @@ def _build_center_sync_summary(
     processed_files_by_center: dict[str, list[HubProcessedFile]],
     rejections: list[HubSyncRejection],
     duplicates: list[HubSyncDuplicate],
+    allowed_center_ids: frozenset[int] | None = None,
 ) -> HubFileSyncSummary:
     active_nodes_by_center = _active_node_keys_by_center()
     center_states = [
@@ -777,6 +785,7 @@ def _build_center_sync_summary(
             duplicates=duplicates,
         )
         for center in Center.objects.order_by("center_key", "pk")
+        if allowed_center_ids is None or center.pk in allowed_center_ids
     ]
     return HubFileSyncSummary(
         centers=center_states,
@@ -789,7 +798,9 @@ def _build_center_sync_summary(
     )
 
 
-def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, Any]:
+def build_hub_export_overview(
+    *, target_node: NetworkNode | None, allowed_center_ids: frozenset[int] | None = None
+) -> dict[str, Any]:
     source_node = get_default_source_node()
     hub_nodes = list(get_active_hub_nodes().select_related("owning_center"))
     selected_target, config_error = _resolve_overview_target(target_node, hub_nodes)
@@ -798,7 +809,9 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
     items: list[dict[str, Any]] = []
     privacy_records: list[HubExportPrivacyRecord] = []
     processed_files_by_center: dict[str, list[HubProcessedFile]] = {
-        center.center_key: [] for center in Center.objects.order_by("center_key", "pk")
+        center.center_key: []
+        for center in Center.objects.order_by("center_key", "pk")
+        if allowed_center_ids is None or center.pk in allowed_center_ids
     }
     rejections: list[HubSyncRejection] = []
     duplicates: list[HubSyncDuplicate] = []
@@ -807,6 +820,7 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
         selected_target=selected_target,
         jobs_by_key=jobs_by_key,
         processed_files_by_center=processed_files_by_center,
+        allowed_center_ids=allowed_center_ids,
         items=items,
         privacy_records=privacy_records,
         rejections=rejections,
@@ -816,6 +830,7 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
         selected_target=selected_target,
         jobs_by_key=jobs_by_key,
         processed_files_by_center=processed_files_by_center,
+        allowed_center_ids=allowed_center_ids,
         items=items,
         privacy_records=privacy_records,
         rejections=rejections,
@@ -825,6 +840,7 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
     items.sort(key=lambda item: (not bool(item["eligible"]), item["filename"]))
     sync_summary = _build_center_sync_summary(
         processed_files_by_center=processed_files_by_center,
+        allowed_center_ids=allowed_center_ids,
         rejections=rejections,
         duplicates=duplicates,
     )
@@ -868,6 +884,7 @@ def mark_resources_for_hub_upload(
     resource_refs: list[dict[str, Any]],
     target_node: NetworkNode,
     marked_by=None,
+    allowed_center_ids: frozenset[int] | None = None,
 ) -> list[OutboundHubTransferJob]:
     authenticated_marker = _authenticated_marker(marked_by)
     source_node = get_default_source_node()
@@ -878,6 +895,7 @@ def mark_resources_for_hub_upload(
     for ref in resource_refs:
         resource_kind = _resource_ref_kind(ref)
         resource_id = _resource_ref_id(ref)
+        _require_resource_center(resource_kind, resource_id, allowed_center_ids)
 
         if resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO:
             job, created = _mark_video_for_hub_upload(
@@ -911,18 +929,25 @@ def queue_all_eligible_videos_for_hub_upload(
     *,
     target_node: NetworkNode,
     marked_by: Any,
+    allowed_center_ids: frozenset[int] | None = None,
 ) -> HubEligibleVideoOffloadResult:
     authenticated_marker = _authenticated_marker(marked_by)
     source_node = get_default_source_node()
     if source_node is None:
         raise ValueError("No active site node is configured for outbound hub export.")
 
-    video_ids = list(VideoFile.objects.order_by("pk").values_list("pk", flat=True))
+    videos = VideoFile.objects.order_by("pk")
+    if allowed_center_ids is not None:
+        videos = videos.filter(center_id__in=allowed_center_ids)
+    video_ids = list(videos.values_list("pk", flat=True))
     eligible_count = 0
     queued_count = 0
     already_registered_count = 0
 
     for video_id in video_ids:
+        _require_resource_center(
+            HubExportResourceKind.VIDEO, video_id, allowed_center_ids
+        )
         try:
             job, created = _mark_video_for_hub_upload(
                 resource_id=int(video_id),
@@ -1068,6 +1093,7 @@ def retry_failed_outbound_job(
     *,
     outbound_job_id: str,
     requested_by: Any,
+    allowed_center_ids: frozenset[int] | None = None,
 ) -> HubExportRetryResult:
     authenticated_operator = _authenticated_marker(requested_by)
     source_node = get_default_source_node()
@@ -1082,6 +1108,17 @@ def retry_failed_outbound_job(
         "video_file__state",
         "raw_pdf_file__state",
     ).get(pk=locked_job.pk)
+    match HubExportResourceKind(job.resource_kind):
+        case HubExportResourceKind.VIDEO:
+            resource = job.video_file
+        case HubExportResourceKind.REPORT:
+            resource = job.raw_pdf_file
+    if allowed_center_ids is not None and (
+        resource is None
+        or resource.center_id not in allowed_center_ids
+        or job.source_center_id not in allowed_center_ids
+    ):
+        raise PermissionDenied("Hub transfer is outside the assigned center scope.")
     active_target = require_normal_sender_target_hub()
     if job.target_node_id != active_target.pk:
         raise ValueError(
@@ -1179,11 +1216,13 @@ def unmark_resources_for_hub_upload(
     *,
     resource_refs: list[dict[str, Any]],
     target_node: NetworkNode,
+    allowed_center_ids: frozenset[int] | None = None,
 ) -> int:
     deleted = 0
     for ref in resource_refs:
         resource_kind = _resource_ref_kind(ref)
         resource_id = _resource_ref_id(ref)
+        _require_resource_center(resource_kind, resource_id, allowed_center_ids)
         filters: dict[str, Any] = {"target_node": target_node}
         if resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO:
             filters["video_file_id"] = resource_id
@@ -1197,3 +1236,22 @@ def unmark_resources_for_hub_upload(
             local_status=OutboundHubTransferJob.LocalStatus.MARKED,
         ).delete()[0]
     return deleted
+
+
+def _require_resource_center(
+    resource_kind: str, resource_id: int, allowed_center_ids: frozenset[int] | None
+) -> None:
+    if allowed_center_ids is None:
+        return
+    kind = HubExportResourceKind(resource_kind)
+    match kind:
+        case HubExportResourceKind.VIDEO:
+            resources = VideoFile.objects
+        case HubExportResourceKind.REPORT:
+            resources = RawPdfFile.objects
+    if (
+        not resources.select_for_update()
+        .filter(pk=resource_id, center_id__in=allowed_center_ids)
+        .exists()
+    ):
+        raise PermissionDenied("Resource is outside the assigned center scope.")

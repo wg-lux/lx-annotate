@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { formatTime, parseTime, isValidTimeRange, calculateDuration } from '../timeUtils'
+import { formatTime as formatTimeFromHelpers } from '../timeHelpers'
+
+const formatTimeImplementations = [
+  ['timeUtils', formatTime],
+  ['timeHelpers', formatTimeFromHelpers]
+] as const
 
 describe('timeUtils', () => {
-  describe('formatTime', () => {
+  describe.each(formatTimeImplementations)('formatTime (%s)', (_moduleName, formatTime) => {
     it('should format seconds to MM:SS format', () => {
       expect(formatTime(0)).toBe('00:00')
       expect(formatTime(30)).toBe('00:30')

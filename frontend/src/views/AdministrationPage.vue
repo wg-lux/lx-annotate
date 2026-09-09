@@ -19,6 +19,7 @@
     </div>
 
     <template v-if="overview">
+      <RouterLink v-if="overview.effectivePermissions.centerScopeGlobalAdmin" to="/administration/monitoring" class="btn btn-outline-primary mt-4">Application monitoring</RouterLink>
       <section class="status-grid mt-4" aria-label="Hub-Status">
         <article class="status-card">
           <span class="status-label">Hub-Konfiguration</span>
@@ -653,6 +654,7 @@
 </template>
 
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import {

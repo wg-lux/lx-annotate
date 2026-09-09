@@ -85,7 +85,7 @@ describe('anonymizationStore quarantine overview', () => {
     expect(quarantined?.uploadJob?.status).toBe('quarantined')
   })
 
-  it('preserves validated status for existing videos when a later duplicate import fails', async () => {
+  it.each(['failed', 'done_processing_anonymization', 'validated'])('preserves backend status %s when a duplicate import fails', async (anonymizationStatus) => {
     hoisted.get.mockImplementation((url: string) => {
       if (url === 'api/anonymization/items/overview/') {
         return resolvedData([
@@ -93,7 +93,7 @@ describe('anonymizationStore quarantine overview', () => {
               id: 17,
               filename: 'previously-annotated.mp4',
               mediaType: 'video',
-              anonymizationStatus: 'failed',
+              anonymizationStatus,
               annotationStatus: 'not_started',
               createdAt: '2026-05-15T07:00:00Z',
               metadataImported: true,
@@ -123,8 +123,8 @@ describe('anonymizationStore quarantine overview', () => {
     expect(overview).toHaveLength(1)
     expect(store.overview[0]).toMatchObject({
       filename: 'previously-annotated.mp4',
-      anonymizationStatus: 'validated',
-      annotationStatus: 'validated',
+      anonymizationStatus,
+      annotationStatus: 'not_started',
       uploadJob: {
         status: 'error'
       }

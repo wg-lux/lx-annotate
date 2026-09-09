@@ -386,6 +386,52 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     })
   })
 
+  it('blocks segment mutations while validation has not responded', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    let finish!: (value: AxiosResponse<unknown>) => void
+    apiMocks.post.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    await requireDefined(findButtonByText(wrapper, 'Alle Segmente validieren'), 'Validate').trigger('click')
+    await flushPromises()
+    expect(apiMocks.post).toHaveBeenCalledWith('media/videos/8/segments/validate-bulk/', expect.anything())
+    expect(requireDefined(findButtonByText(wrapper, 'Segmentänderungen speichern'), 'Save').attributes('disabled')).toBeDefined()
+    expect(requireDefined(findButtonByText(wrapper, 'KI neu berechnen'), 'KI rerun').attributes('disabled')).toBeDefined()
+    finish(apiResponse({ status: 'completed', segmentAnnotationStatus: 'validated' }))
+    await flushPromises()
+    wrapper.unmount()
+  })
+
+  it('keeps delayed KI submission bound to its original video', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    const videoStore = useVideoStore()
+    let finish!: (value: Awaited<ReturnType<typeof videoStore.rerunPredictionSegments>>) => void
+    const rerun = vi.spyOn(videoStore, 'rerunPredictionSegments').mockImplementation(
+      () => new Promise(resolve => { finish = resolve })
+    )
+    const history = vi.spyOn(videoStore, 'fetchPredictionProcessingHistory')
+    const model = videoStore.predictionModels.at(0)
+    if (!model) throw new Error('Missing prediction model fixture')
+    await requireDefined(findButtonByText(wrapper, 'KI neu berechnen'), 'KI rerun').trigger('click')
+    await flushPromises()
+    expect(rerun).toHaveBeenCalledWith(8, expect.anything())
+    expect(requireDefined(findButtonByText(wrapper, 'Segmentänderungen speichern'), 'Save').attributes('disabled')).toBeDefined()
+    await selectVideoFromDropdown(wrapper, 'already-segment-validated.mp4')
+    finish({
+      success: true, status: 'queued', queued: true, pending: false,
+      videoId: 8, modelMeta: model,
+      job: { taskId: 'task-a', historyId: 81, mode: 'prediction', queue: 'inference' },
+      deletedPredictionSegments: 0, predictionSegmentsCount: 0
+    })
+    await flushPromises()
+    expect(history).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('KI-Vorhersagen neu berechnet')
+    wrapper.unmount()
+  })
+
   it('starts FPS normalization automatically before loading segments', async () => {
     fpsNormalizationStateFactory = () => ({ status: 'required', fps: 60, maxFps: 50 })
     apiMocks.post.mockResolvedValueOnce(

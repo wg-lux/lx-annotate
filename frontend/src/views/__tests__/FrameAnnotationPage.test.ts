@@ -332,6 +332,23 @@ describe('FrameAnnotation route', () => {
     installGetMock()
   })
 
+  it.each(['array', 'results', 'labels', 'labelSets', 'label_sets', 'groups', 'empty', 'invalid'])(
+    'preserves label-list filtering and wrapper precedence for %s', async (shape) => {
+      // Arrange
+      const rows = [null, false, 'invalid', { id: 3, name: 'Upper GI' }]
+      const data = shape === 'array' ? rows : shape === 'invalid' ? null
+        : shape === 'empty' ? { results: [], labels: rows }
+          : { results: false, [shape]: rows, groups: shape === 'groups' ? rows : [] }
+      hoisted.get.mockResolvedValueOnce({ data })
+      // Act
+      const wrapper = mountFrameAnnotation()
+      await flushPromises()
+      // Assert
+      expect(wrapper.findAll('#label-group-id option').map((option) => option.attributes('value')))
+        .toEqual(shape === 'empty' || shape === 'invalid' ? [] : ['', '3'])
+    }
+  )
+
   it('loads label groups and submits multilabel frame annotations through the route API', async () => {
     hoisted.post.mockResolvedValue({ data: { ok: true } })
 

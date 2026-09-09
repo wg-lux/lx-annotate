@@ -15,12 +15,14 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from endoreg_db.models import (
     Center,
     NetworkNode,
+    PortalUserInfo,
     RawPdfFile,
     RawPdfState,
     TransferJob,
@@ -93,6 +95,10 @@ class HubExportEndToEndTests(TestCase):
         self.center = Center.objects.create(
             name="Test Center",
             center_key="test-center",
+        )
+        self.operator.groups.add(Group.objects.get_or_create(name="data:write")[0])
+        PortalUserInfo.objects.get_or_create(user=self.operator)[0].centers.add(
+            self.center
         )
         self.site_node = NetworkNode.objects.create(
             display_name="Site Node",

@@ -1680,31 +1680,9 @@ function extractListPayload(payload: unknown): Array<Record<string, unknown>> {
     )
   }
   if (!payload || typeof payload !== 'object') return []
-  const obj = payload as Record<string, unknown>
-  if (Array.isArray(obj.results)) {
-    return obj.results.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
-    )
-  }
-  if (Array.isArray(obj.labels)) {
-    return obj.labels.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
-    )
-  }
-  if (Array.isArray(obj.labelSets)) {
-    return obj.labelSets.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
-    )
-  }
-  if (Array.isArray(obj.label_sets)) {
-    return obj.label_sets.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
-    )
-  }
-  if (Array.isArray(obj.groups)) {
-    return obj.groups.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
-    )
+  for (const key of ['results', 'labels', 'labelSets', 'label_sets', 'groups']) {
+    const rows = (payload as Record<string, unknown>)[key]
+    if (Array.isArray(rows)) return extractListPayload(rows)
   }
   return []
 }

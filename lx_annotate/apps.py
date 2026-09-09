@@ -1,9 +1,12 @@
-from django.apps import AppConfig
-from django.conf import settings
+from __future__ import annotations
+
 import os
-from pathlib import Path
 import sys
 import threading
+from pathlib import Path
+
+from django.apps import AppConfig
+from django.conf import settings
 
 
 class LxAnnotateConfig(AppConfig):
@@ -12,6 +15,7 @@ class LxAnnotateConfig(AppConfig):
 
     _SKIP_RUNTIME_CHECK_COMMANDS = {
         "check",
+        "check_migration_compatibility",
         "collectstatic",
         "dbshell",
         "emergency_storage_relief",
@@ -49,8 +53,10 @@ class LxAnnotateConfig(AppConfig):
 
     # This is running in development server only. On luxnix, filewatcher is started via systemd service.
     def ready(self):
-        from . import checks
-        from . import signals  # noqa: F401
+        from . import (
+            checks,
+            signals,  # noqa: F401
+        )  # type: ignore
 
         command = sys.argv[1] if len(sys.argv) > 1 else ""
         if not self._should_skip_runtime_checks(command):

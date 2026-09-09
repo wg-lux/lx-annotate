@@ -15,6 +15,11 @@ from django.db.utils import OperationalError, ProgrammingError
 from endoreg_db.services.environment_readiness import check_environment_readiness
 from endoreg_db.utils.rust_backend import has_native_capability
 
+from lx_annotate.migration_history_safety import (
+    MigrationHistorySafetyError,
+    check_migration_compatibility,
+)
+
 
 class DatabaseIntrospectionWithDescriptions(Protocol):
     def table_names(self) -> list[str]: ...
@@ -538,10 +543,25 @@ def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unuse
     return messages
 
 
+def lx_annotate_migration_compatibility_checks(app_configs, **kwargs):
+    """Guard package rollback independently of required-column checks."""
+    try:
+        check_migration_compatibility(connections[DEFAULT_DB_ALIAS])
+    except MigrationHistorySafetyError as exc:
+        return [
+            Critical(
+                str(exc),
+                id="lx_annotate.migration_history_incompatible",
+            ),
+        ]
+    return []
+
+
 def assert_runtime_checks_pass() -> None:
     critical_messages = [
         message
         for check in (
+            lx_annotate_migration_compatibility_checks,
             lx_annotate_endoreg_db_schema_checks,
             lx_annotate_endoreg_db_constraint_checks,
             lx_annotate_environment_checks,

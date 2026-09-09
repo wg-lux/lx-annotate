@@ -4,8 +4,10 @@ from typing import Any, cast
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import resolve
+from endoreg_db.models import Center, PortalUserInfo
 
 from lx_annotate.views.hub_export import (
     hub_export_mark,
@@ -48,6 +50,11 @@ class HubExportOverviewRouteAAATests(TestCase):
     ) -> None:
         # Arrange
         operator = User.objects.create_user(username="overview-operator")
+        operator.groups.add(Group.objects.get_or_create(name="data:read")[0])
+        center = Center.objects.create(
+            name="overview-center", center_key="overview-center"
+        )
+        PortalUserInfo.objects.get_or_create(user=operator)[0].centers.add(center)
         self.client.force_login(operator)
         target = object()
         payload = {
@@ -87,7 +94,9 @@ class HubExportOverviewRouteAAATests(TestCase):
         # Assert
         assert response.status_code == 200
         resolve_target.assert_called_once_with(target_node_key="hub-1")
-        build_overview.assert_called_once_with(target_node=target)
+        build_overview.assert_called_once_with(
+            target_node=target, allowed_center_ids=frozenset({center.pk})
+        )
         assert response.json() == payload
 
     @patch("lx_annotate.views.hub_export.build_hub_export_overview")

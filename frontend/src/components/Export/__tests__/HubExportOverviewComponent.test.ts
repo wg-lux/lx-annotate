@@ -40,6 +40,36 @@ describe('HubExportOverviewComponent', () => {
     setActivePinia(createPinia())
   })
 
+  it.each(['queued', 'failed'])('resumes retained %s transfers after remount', async (outboundStatus) => {
+    vi.useFakeTimers()
+    hoisted.get.mockResolvedValue({ data: {
+      selectedTargetNodeKey: 'hub-node', sourceNodeKey: 'site-node', hubNodes: [],
+      configReady: true, configError: '',
+      items: [{
+        id: 11, resourceKind: 'report', filename: 'report.pdf',
+        anonymizationStatus: 'validated', processedMediaPresent: true,
+        sourceCenterKey: 'center-a', sourceCenterName: 'Center A',
+        markedForUpload: true, outboundStatus, lastError: '',
+        lastTransferTimestamp: null, targetNodeKey: 'hub-node', eligible: true,
+        createdAt: '2026-04-08T12:00:00Z'
+      }]
+    } })
+    const first = mount(HubExportOverviewComponent)
+    await flushPromises()
+    first.unmount()
+    const second = mount(HubExportOverviewComponent)
+    try {
+      await flushPromises()
+      const requests = hoisted.get.mock.calls.length
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+      expect(hoisted.get).toHaveBeenCalledTimes(requests + 1)
+    } finally {
+      second.unmount()
+      vi.useRealTimers()
+    }
+  })
+
   it('bulk-marks selected eligible items', async () => {
     hoisted.get.mockResolvedValue({
       data: {

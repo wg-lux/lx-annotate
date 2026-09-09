@@ -302,6 +302,24 @@ describe('AnonymizationValidationComponent', () => {
     expect(wrapper.text()).not.toContain('PDF-ID: 99')
   })
 
+  it('disables Skip and Reject until the submitted approval completes', async () => {
+    let complete!: (value: AxiosResponse<unknown>) => void
+    hoisted.axiosPost.mockImplementation(() => new Promise(resolve => { complete = resolve }))
+    const wrapper = mountComponent()
+    await flushPromises()
+    await wrapper.find('button.btn.btn-success').trigger('click')
+    await flushPromises()
+    const skip = wrapper.findAll('button').find(button => button.text() === 'Überspringen')
+    const reject = wrapper.findAll('button').find(button => button.text() === 'Ablehnen')
+    if (!skip || !reject) throw new Error('Approval navigation buttons are missing')
+    expect(skip.attributes('disabled')).toBeDefined()
+    expect(reject.attributes('disabled')).toBeDefined()
+    complete(apiResponse({ case_resolution: { patient_examination_id: 42 } }))
+    await flushPromises()
+    expect(hoisted.routerPush).toHaveBeenCalledWith('/reporting/42/report-editor')
+    wrapper.unmount()
+  })
+
   it('shows backend validation errors when approval fails', async () => {
     hoisted.axiosPost.mockRejectedValue({
       response: {

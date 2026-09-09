@@ -12,6 +12,7 @@ const hoisted = vi.hoisted(() => ({
       overview: Array<Record<string, unknown>>
       fetchOverview: ReturnType<typeof vi.fn>
       retryUploadJob: ReturnType<typeof vi.fn>
+      dismissUploadJob: ReturnType<typeof vi.fn>
       setCurrentForValidation: ReturnType<typeof vi.fn>
       isVideoReimportQueued: ReturnType<typeof vi.fn>
       startPolling: ReturnType<typeof vi.fn>
@@ -189,6 +190,7 @@ describe('AnonymizationOverviewComponent', () => {
       overview: [buildVideoFile()],
       fetchOverview: vi.fn().mockResolvedValue(undefined),
       retryUploadJob: vi.fn().mockResolvedValue(true),
+      dismissUploadJob: vi.fn().mockResolvedValue(true),
       setCurrentForValidation: vi.fn().mockResolvedValue(true),
       isVideoReimportQueued: vi.fn().mockReturnValue(false),
       startPolling: vi.fn(),
@@ -481,6 +483,36 @@ describe('AnonymizationOverviewComponent', () => {
     ])
   })
 
+  it('removes an import-only row by UUID after confirmation, without media deletion', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const jobId = 'db0a99ff-0129-4c13-b5c9-f584bf21d1b2'
+    hoisted.anonymizationStoreRef.current.overview = [buildVideoFile({
+      id: -123, importOnly: true, canDismissImport: true, anonymizationStatus: 'failed',
+      uploadJob: { id: jobId, status: 'error', errorCode: 'duplicate_content', allowedActions: [] }
+    })]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    expect(wrapper.find('[data-test="delete-file-button"]').exists()).toBe(false)
+    await wrapper.get('[data-test="dismiss-import-button"]').trigger('click')
+    expect(hoisted.anonymizationStoreRef.current.dismissUploadJob).not.toHaveBeenCalled()
+    confirm.mockReturnValue(true)
+    await wrapper.get('[data-test="dismiss-import-button"]').trigger('click')
+    await flushPromises()
+    expect(hoisted.anonymizationStoreRef.current.dismissUploadJob).toHaveBeenCalledWith(jobId)
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Quelldatei und Importverlauf bleiben erhalten'))
+    confirm.mockRestore()
+  })
+
+  it('does not offer dismissal when the server disallows it', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [buildVideoFile({
+      id: -123, importOnly: true, canDismissImport: false, anonymizationStatus: 'failed',
+      uploadJob: { status: 'lost', errorCode: 'source_missing' }
+    })]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    expect(wrapper.find('[data-test="dismiss-import-button"]').exists()).toBe(false)
+  })
+
   it('renders quarantined videos as visible read-only overview rows', async () => {
     hoisted.anonymizationStoreRef.current.overview = [
       buildVideoFile({ id: 17 }),
@@ -530,6 +562,7 @@ describe('AnonymizationOverviewComponent', () => {
   })
 
   it('shows an unattached storage failure and retries it by upload-job id', async () => {
+    vi.useFakeTimers()
     hoisted.anonymizationStoreRef.current.overview = [
       buildVideoFile({
         id: -123,
@@ -562,12 +595,24 @@ describe('AnonymizationOverviewComponent', () => {
     expect(retryButton.text()).toContain('Jetzt erneut versuchen')
     expect(wrapper.find('[data-test="delete-file-button"]').exists()).toBe(false)
 
+    hoisted.anonymizationStoreRef.current.retryUploadJob.mockImplementation(() => {
+      hoisted.anonymizationStoreRef.current.overview = [buildVideoFile({
+        id: -123, importOnly: true, anonymizationStatus: 'processing_anonymization',
+        uploadJob: buildUploadJob({ status: 'processing' })
+      })]
+      return Promise.resolve(true)
+    })
     await retryButton.trigger('click')
     await flushPromises()
 
     expect(
       hoisted.anonymizationStoreRef.current.retryUploadJob
     ).toHaveBeenCalledWith('db0a99ff-0129-4c13-b5c9-f584bf21d1b2')
+    const refreshes = hoisted.anonymizationStoreRef.current.fetchOverview.mock.calls.length
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(hoisted.anonymizationStoreRef.current.fetchOverview).toHaveBeenCalledTimes(refreshes + 1)
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 
   it.each([
@@ -637,6 +682,32 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.text()).toContain('Anonymisiert: Fehlgeschlagen')
     expect(wrapper.text()).toContain('HLS-Erzeugung fehlgeschlagen')
     expect(wrapper.text()).not.toContain('materialization_failed')
+  })
+
+  it.each([
+    ['ready', 'Bereit'],
+    ['queued', 'Wartet'],
+    ['failed', 'Fehlgeschlagen']
+  ])('shows only the processed derivative for a validated video with %s HLS', async (status, label) => {
+    const materialization = (artifactKind: string, state: string) => ({
+      artifactKind, status: state, triggeringUploadJobId: null,
+      sourceGenerationId: '63d82006-b275-4b40-b383-ae41855c1163',
+      targetGenerationId: '3f6ed855-eb27-4386-a08d-fd8e99d89c06',
+      segmentCount: 0, errorCode: state === 'failed' ? 'materialization_failed' : '',
+      createdAt: '2026-09-08T07:20:22Z', updatedAt: '2026-09-08T07:21:22Z'
+    })
+    hoisted.anonymizationStoreRef.current.overview = [buildVideoFile({
+      id: 12, anonymizationStatus: 'validated', annotationStatus: 'validated',
+      hlsMaterializations: [materialization('raw', 'failed'), materialization('processed', status)]
+    })]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Rohvideo:')
+    expect(wrapper.text()).toContain(`Anonymisiert: ${label}`)
+    expect(wrapper.find('.hls-materialization-summary').text().includes('HLS-Erzeugung fehlgeschlagen')).toBe(status === 'failed')
+    expect(hoisted.anonymizationStoreRef.current.overview[0].hlsMaterializations).toHaveLength(2)
   })
 
   it('shows queued and materializing HTTP Live Streaming as active states', async () => {

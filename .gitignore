@@ -179,3 +179,5 @@ docs/_build/
 # Feature-tracking coordination state is local and must not enter releases.
 feature-tracking/.locks/
 feature-tracking/.messages/
+# Local dependency artifacts and retired candidate evidence.
+/vendor/wheels/

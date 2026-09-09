@@ -23,6 +23,7 @@ const deferred = <Value>(): Deferred<Value> => {
 }
 
 const hoisted = vi.hoisted(() => ({
+  buildPdfCorrection: vi.fn(),
   axiosGet: vi.fn(),
   axiosPost: vi.fn(),
   getDocument: vi.fn(),
@@ -33,6 +34,8 @@ const hoisted = vi.hoisted(() => ({
   useAuthenticatedVideoStream: vi.fn(),
   routeQuery: { mediaType: 'pdf' }
 }))
+
+vi.mock('@/utils/pdfCorrection', () => ({ build_pdf_correction: hoisted.buildPdfCorrection }))
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
@@ -93,9 +96,9 @@ describe('AnonymizationCorrectionComponent PDF rendering', () => {
         return Promise.resolve({
           data: {
             filename: 'report.pdf',
-            is_validated: false,
-            file_size: 1024,
-            uploaded_at: '2026-08-27T08:00:00Z'
+            isValidated: false,
+            fileSize: 1024,
+            uploadedAt: '2026-08-27T08:00:00Z'
           }
         })
       }
@@ -106,6 +109,10 @@ describe('AnonymizationCorrectionComponent PDF rendering', () => {
     })
 
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      setLineDash: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      strokeRect: vi.fn(),
       clearRect: vi.fn(),
       fillRect: vi.fn()
     } as unknown as CanvasRenderingContext2D)
@@ -142,6 +149,102 @@ describe('AnonymizationCorrectionComponent PDF rendering', () => {
     expect(wrapper.text()).not.toContain('PDF-Seite wird gerendert...')
     expect(wrapper.find('[data-test="validated-video-recovery"]').exists()).toBe(false)
 
+    wrapper.unmount()
+  })
+
+  it('saves a PDF correction as a source-bound revision on the existing report', async () => {
+    hoisted.getPage.mockResolvedValue({
+      getViewport: () => ({ width: 640, height: 800 }),
+      render: () => ({ promise: Promise.resolve() })
+    })
+    hoisted.getDocument.mockReturnValue({
+      promise: Promise.resolve({ numPages: 1, getPage: hoisted.getPage })
+    })
+    const manifest = { version: 1, normalized: true, pages: [{ page: 1, boxes: [{ x: 0.1, y: 0.1, width: 0.2, height: 0.2 }] }] }
+    hoisted.buildPdfCorrection.mockResolvedValue({ bytes: new Uint8Array([1, 2]), source_sha256: 'a'.repeat(64), manifest })
+    hoisted.axiosPost.mockResolvedValue({ data: { fileId: 5, revisionId: 9, status: 'done_processing_anonymization', anonymizationValidated: false } })
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:pdf'), revokeObjectURL: vi.fn() }))
+    const wrapper = mount(AnonymizationCorrectionComponent, { props: { fileId: 5, mediaType: 'pdf' } })
+    await flushPromises()
+    const overlay = wrapper.get('canvas.pdf-overlay-canvas')
+    vi.spyOn(overlay.element, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 640, height: 800 } as DOMRect)
+    await overlay.trigger('mousedown', { clientX: 64, clientY: 80 })
+    await overlay.trigger('mousemove', { clientX: 192, clientY: 240 })
+    await overlay.trigger('mouseup')
+    const generate = wrapper.findAll('button').find(button => button.text().includes('Anonymisierte PDF erzeugen'))
+    expect(generate).toBeDefined()
+    await generate?.trigger('click')
+    await flushPromises()
+    const save = wrapper.findAll('button').find(button => button.text().includes('Korrektur am Bericht speichern'))
+    await save?.trigger('click')
+    await flushPromises()
+    expect(hoisted.axiosPost).toHaveBeenCalledOnce()
+    const [url, form] = hoisted.axiosPost.mock.calls[0] as [string, FormData]
+    expect(url).toBe('media/pdfs/5/apply-redactions/')
+    expect(form.get('source_type')).toBe('raw')
+    expect(form.get('client_source_sha256')).toBe('a'.repeat(64))
+    expect(form.get('redaction_manifest')).toBe(JSON.stringify(manifest))
+    expect(wrapper.text()).toContain('Erneute Anonymisierungsprüfung erforderlich')
+    const stream = hoisted.useAuthenticatedVideoStream.mock.calls[0]?.[0] as { videoId: { value: number | null } }
+    expect(stream.videoId.value).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('ignores a late report response after selecting another report', async () => {
+    const pending = deferred<{ data: { filename: string } }>()
+    hoisted.axiosGet.mockImplementation((url: string) => {
+      if (url === 'media/pdfs/5/') return pending.promise
+      if (url === 'media/pdfs/6/') return Promise.resolve({ data: { filename: 'current.pdf' } })
+      if (url.includes('/stream/')) return Promise.reject(new Error('source unavailable'))
+      throw new Error(url)
+    })
+    const wrapper = mount(AnonymizationCorrectionComponent, { props: { fileId: 5, mediaType: 'pdf' } })
+    await wrapper.setProps({ fileId: 6 })
+    await flushPromises()
+    pending.resolve({ data: { filename: 'stale.pdf' } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('current.pdf')
+    expect(wrapper.text()).not.toContain('stale.pdf')
+    wrapper.unmount()
+  })
+
+  it('keeps a running video correction bound to its submitted video after navigation', async () => {
+    hoisted.routeQuery.mediaType = 'video'
+    const pending = deferred<{ data: Record<string, unknown> }>()
+    const status = {
+      strategies: ['detector_assisted'], defaultStrategy: 'detector_assisted',
+      selectedStrategy: 'detector_assisted', ocrEngines: [], reviewRequired: true,
+      processedArtifact: { available: false }
+    }
+    let old_status_reads = 0
+    hoisted.axiosGet.mockImplementation((url: string) => {
+      if (url.endsWith('/metadata/')) return Promise.resolve({ data: {} })
+      if (url.endsWith('/processing-history/')) return Promise.resolve({ data: [] })
+      if (url.endsWith('/anonymization/')) {
+        if (url.includes('/7/')) {
+          old_status_reads += 1
+          if (old_status_reads === 2) return pending.promise
+        }
+        return Promise.resolve({ data: status })
+      }
+      const id = url.endsWith('/7') ? 7 : 8
+      return Promise.resolve({ data: { id, filename: `video-${String(id)}.mp4`, mediaType: 'video', anonymizationStatus: 'not_started' } })
+    })
+    hoisted.axiosPost.mockResolvedValue({ data: { ...status, job: { historyId: 99, videoId: 7 } } })
+    const wrapper = mount(AnonymizationCorrectionComponent, { props: { fileId: 7, mediaType: 'video' } })
+    await flushPromises()
+    const button = wrapper.findAll('button').find(item => item.text().includes('Anonymisierung anwenden'))
+    expect(button).toBeDefined()
+    await button?.trigger('click')
+    await flushPromises()
+    expect(old_status_reads).toBe(2)
+    await wrapper.setProps({ fileId: 8 })
+    await flushPromises()
+    pending.resolve({ data: { ...status, processedArtifact: { available: true }, latestRun: { id: 99, status: 'success' } } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('video-8.mp4')
+    expect(wrapper.text()).not.toContain('Anonymisierung abgeschlossen')
+    expect(hoisted.axiosPost.mock.calls[0]?.[0]).toBe('media/videos/video-correction/7/anonymization/')
     wrapper.unmount()
   })
 

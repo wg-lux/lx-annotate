@@ -748,7 +748,7 @@
               v-if="isAnnotatorOverrideActive"
               type="button"
               class="btn btn-outline-primary btn-sm ms-auto validation-edit-button"
-              :disabled="segmentSourceMode === 'prediction' || isValidatingSegments"
+              :disabled="segmentSourceMode === 'prediction' || isValidatingSegments || isRerunningPredictionSegments"
               :aria-busy="isValidatingSegments ? 'true' : 'false'"
               @click="handleValidateAndMark(selectedVideoId)"
             >
@@ -813,7 +813,7 @@
               selectedVideoId !== null &&
               !isSegmentCleanupPending(selectedVideoId) &&
               !isAnnotationFinished(selectedVideoId) &&
-              canMutateSelectedSegments
+              (canMutateSelectedSegments || selectedVideoId === validationRequestVideoId)
             "
             class="d-flex flex-column align-items-center"
           >
@@ -1674,6 +1674,7 @@ const canMutateSelectedSegments = computed(() => {
   if (selectedVideoId.value === null) return false
   if (!canViewProcessedVideo(selectedVideoId.value)) return false
   if (fpsNormalizationVideoId.value !== null) return false
+  if (validationRequestVideoId.value !== null || isRerunningPredictionSegments.value) return false
   if (isSegmentCleanupPending(selectedVideoId.value)) return false
 
   const videoId = selectedVideoId.value
@@ -1977,6 +1978,12 @@ useAuthenticatedVideoStream({
 })
 
 function getSegmentMutationBlockedMessage(): string {
+  if (validationRequestVideoId.value !== null) {
+    return 'Die Segmentvalidierung läuft. Bitte warten Sie auf den Abschluss.'
+  }
+  if (isRerunningPredictionSegments.value) {
+    return 'Die KI-Berechnung läuft. Segmentänderungen sind bis zum Abschluss gesperrt.'
+  }
   if (fpsNormalizationVideoId.value !== null) {
     return 'Die FPS-Normalisierung läuft. Die Segmentansicht wird danach automatisch geladen.'
   }
@@ -2490,17 +2497,19 @@ const jumpToExamination = (examination: SavedExamination): void => {
 const sleep = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 
-const pollPredictionRerun = async (videoId: number, historyId: number): Promise<boolean> => {
+const pollPredictionRerun = async (videoId: number, historyId: number, loadSerial: number): Promise<boolean> => {
   const maxAttempts = 120
   const intervalMs = 5000
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    if (selectedVideoId.value !== videoId) return false
+    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) return false
     if (attempt > 0) await sleep(intervalMs)
+    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) return false
 
     const history = await videoStore.fetchPredictionProcessingHistory(videoId, historyId)
     if (history === null || history.status === 'pending' || history.status === 'running') {
       continue
     }
+    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) return false
     if (history.status === 'success') return true
     throw new Error(history.details || 'Die KI-Segmentberechnung ist fehlgeschlagen.')
   }
@@ -3005,6 +3014,8 @@ const importPredictionSegmentsToCorrection = async (): Promise<void> => {
 const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
   if (!selectedVideoId.value || !canRerunPredictionSegments.value) return
 
+  const videoId = selectedVideoId.value
+  const loadSerial = selectedVideoLoadSerial
   isRerunningPredictionSegments.value = true
   try {
     const payload =
@@ -3021,8 +3032,9 @@ const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
             deleteFramesAfter: true
           }
 
-    const response = await videoStore.rerunPredictionSegments(selectedVideoId.value, payload)
+    const response = await videoStore.rerunPredictionSegments(videoId, payload)
     await videoStore.fetchPredictionModels()
+    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) return
     if (response.status !== 'completed') {
       if (
         response.status !== 'queued' &&
@@ -3039,16 +3051,18 @@ const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
           ? 'KI-Berechnung startet nach Abschluss der Videoverarbeitung.'
           : 'KI-Berechnung wurde gestartet.'
       )
-      const completed = await pollPredictionRerun(selectedVideoId.value, response.job.historyId)
+      const completed = await pollPredictionRerun(videoId, response.job.historyId, loadSerial)
       if (!completed) return
     }
+    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) return
     segmentSourceMode.value = 'prediction'
     await loadVideoSegments()
+    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) return
     showSuccessMessage(
       `KI-Vorhersagen neu berechnet (${String(timelineSegmentsForSelectedVideo.value.length)} Segmente)`
     )
   } catch (error: unknown) {
-    await guarded(rejectedUnknown(error))
+    if (selectedVideoId.value === videoId && selectedVideoLoadSerial === loadSerial) await guarded(rejectedUnknown(error))
   } finally {
     isRerunningPredictionSegments.value = false
   }

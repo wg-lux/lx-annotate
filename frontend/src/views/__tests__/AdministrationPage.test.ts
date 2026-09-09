@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AdministrationPage from '../AdministrationPage.vue'
@@ -258,8 +258,10 @@ describe('AdministrationPage', () => {
   })
 
   it('shows sanitized monitoring and read-only effective roles', async () => {
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
+
+    expect(wrapper.getComponent(RouterLinkStub).props('to')).toBe('/administration/monitoring')
 
     expect(wrapper.get('[data-test="transfer-monitoring"]').text()).toContain('TLS failed')
     expect(wrapper.get('[data-test="transfer-monitoring"]').text()).toContain('job-1')
@@ -278,8 +280,19 @@ describe('AdministrationPage', () => {
     wrapper.unmount()
   })
 
+  it('hides runtime monitoring navigation without global administrator scope', async () => {
+    api.fetchOverview.mockResolvedValue({
+      ...overview,
+      effectivePermissions: { ...overview.effectivePermissions, centerScopeGlobalAdmin: false }
+    })
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
+    await flushPromises()
+    expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('shows every configured host including inactive hosts', async () => {
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     const hosts = wrapper.get('[data-test="host-status"]')
@@ -291,7 +304,7 @@ describe('AdministrationPage', () => {
   })
 
   it('shows a single storage node as non-redundant and does not imply a data plane', async () => {
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     const storage = wrapper.get('[data-test="storage-balancing"]')
@@ -309,7 +322,7 @@ describe('AdministrationPage', () => {
     const inactiveOverview = structuredClone(overview)
     inactiveOverview.storageBalancing.nodes[0].active = false
     api.fetchOverview.mockResolvedValue(inactiveOverview)
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     const badge = wrapper.get('[data-test="storage-node-status-storage-1"]')
@@ -320,7 +333,7 @@ describe('AdministrationPage', () => {
   })
 
   it('submits an explicitly confirmed storage drain with a reason', async () => {
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     await wrapper.get('[data-test="storage-node-action-storage-1"]').trigger('click')
@@ -341,7 +354,7 @@ describe('AdministrationPage', () => {
   })
 
   it('shows and explicitly cancels only compensatable balance work', async () => {
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     const work = wrapper.get('[data-test="storage-balance-work"]')
@@ -360,7 +373,7 @@ describe('AdministrationPage', () => {
   })
 
   it('persists an explicitly confirmed operator pause intent', async () => {
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     await wrapper.get('[data-test="storage-operator-controls"] button').trigger('click')
@@ -375,7 +388,7 @@ describe('AdministrationPage', () => {
   })
 
   it('submits an explicit center assignment with the conflict token and reason', async () => {
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     await wrapper
@@ -413,7 +426,7 @@ describe('AdministrationPage', () => {
         }
       ]
     })
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     await wrapper
@@ -457,7 +470,7 @@ describe('AdministrationPage', () => {
         }
       ]
     })
-    const wrapper = mount(AdministrationPage)
+    const wrapper = mount(AdministrationPage, { global: { stubs: { RouterLink: RouterLinkStub } } })
     await flushPromises()
 
     const revokeCenterB = wrapper

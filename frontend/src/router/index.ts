@@ -1,3 +1,4 @@
+import { enterMonitoringRoute } from '@/router/monitoring'
 import { useToastStore } from '@/stores/toastStore'
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
@@ -161,6 +162,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
         meta: {
           description: 'Standardwerte für Zentrum, Prozessor und Berichtsvorlagen verwalten.'
         }
+      },
+      {
+        path: '/administration/monitoring',
+        name: 'Runtime Monitoring',
+        component: () => import('@/views/MonitoringPage.vue'),
+        beforeEnter: enterMonitoringRoute,
+        meta: { description: 'Administrator-only runtime health snapshot.' }
       },
       {
         path: '/administration',

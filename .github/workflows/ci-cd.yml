@@ -81,10 +81,13 @@ jobs:
       - name: Install runtime system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-deu libgl1 libglib2.0-0 libxcb1
+          sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-deu libgl1 libglib2.0-0 libxcb1 redis-server
 
       - name: Install backend dependencies
-        run: uv sync --frozen --extra dev --no-install-project
+        run: |
+          rustc --version
+          cargo --version
+          uv sync --frozen --extra dev --no-install-project
 
       - name: Run backend static checks
         run: |
@@ -95,9 +98,15 @@ jobs:
       - name: Run backend tests with coverage gate
         run: >-
           uv run --no-sync pytest
+          --ignore=tests/system/test_production_celery_redis_recovery.py
           --cov=lx_annotate
           --cov-report=term-missing
           --cov-fail-under=75
+
+      - name: Verify production Celery Redis recovery
+        run: |
+          command -v redis-server
+          uv run --no-sync pytest -q -s tests/system/test_production_celery_redis_recovery.py
 
   frontend-tests:
     name: Frontend Tests
@@ -163,7 +172,10 @@ jobs:
           sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-deu libgl1 libglib2.0-0 libxcb1
 
       - name: Install backend dependencies
-        run: uv sync --frozen --extra dev --no-install-project
+        run: |
+          rustc --version
+          cargo --version
+          uv sync --frozen --extra dev --no-install-project
 
       - name: Install frontend dependencies
         run: npm --prefix frontend ci

@@ -12,6 +12,11 @@ from lx_annotate.views.administration import (
     storage_operator_control,
     storage_placement_preview,
 )
+from lx_annotate.views.anonymization_overview import (
+    LifecycleAnonymizationOverviewView,
+    LifecycleUploadJobDismissView,
+    LifecycleUploadJobRetryView,
+)
 from lx_annotate.views.application_settings import primary_annotation_settings_detail
 from lx_annotate.views.frame_annotation import BoundedDecodedFrameStreamView
 from lx_annotate.views.hub_export import (
@@ -22,10 +27,25 @@ from lx_annotate.views.hub_export import (
     hub_export_unmark,
 )
 from lx_annotate.views.quarantine import quarantine_overview
-from lx_annotate.views.video_state_repair import VideoStateRepairView
 from lx_annotate.views.study_export import study_export_options, study_export_xlsx
+from lx_annotate.views.video_state_repair import VideoStateRepairView
 
 urlpatterns = [
+    path(
+        "anonymization/upload-jobs/<uuid:job_id>/dismiss/",
+        LifecycleUploadJobDismissView.as_view(),
+        name="anonymization_upload_job_dismiss",
+    ),
+    path(
+        "anonymization/items/overview/",
+        LifecycleAnonymizationOverviewView.as_view(),
+        name="anonymization_items_overview",
+    ),
+    path(
+        "anonymization/upload-jobs/<uuid:job_id>/retry/",
+        LifecycleUploadJobRetryView.as_view(),
+        name="anonymization_upload_job_retry",
+    ),
     path(
         "runtime/videos/repair/",
         VideoStateRepairView.as_view(),

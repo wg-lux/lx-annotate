@@ -195,7 +195,7 @@
               </p>
             </div>
             <span class="badge bg-light text-dark" data-test="hub-transfer-refresh-state">
-              {{ activeTransferCount ? 'Automatische Aktualisierung aktiv' : 'Aktuell' }}
+              {{ needsTransferPolling ? 'Automatische Aktualisierung aktiv' : 'Aktuell' }}
             </span>
           </div>
 
@@ -766,6 +766,9 @@ const activeTransferCount = computed(
   () =>
     transferItems.value.filter((item) => ACTIVE_TRANSFER_STATUSES.has(item.outboundStatus)).length
 )
+const needsTransferPolling = computed(
+  () => activeTransferCount.value > 0 || transferItems.value.some(item => item.outboundStatus === 'failed')
+)
 const completedTransferCount = computed(
   () =>
     transferItems.value.filter((item) => COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus))
@@ -1057,10 +1060,14 @@ watch(
   }
 )
 
-watch(activeTransferCount, (count) => {
-  if (count > 0) startPolling()
-  else stopPolling()
-})
+watch(
+  needsTransferPolling,
+  (needsPolling) => {
+    if (needsPolling) startPolling()
+    else stopPolling()
+  },
+  { immediate: true }
+)
 
 onMounted(async () => {
   await refreshOverview()

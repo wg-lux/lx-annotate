@@ -1,5 +1,6 @@
 <template>
   <div class="g-sidenav-show app-shell" :class="{ 'app-shell--nav-open': isMenuOpen }">
+    <a class="app-skip-link" href="#page-content" @click.prevent="focusContent">Zum Inhalt springen</a>
     <button
       v-if="isMenuOpen"
       type="button"
@@ -13,6 +14,7 @@
         <div class="g-sidenav-hidden">
           <div class="sidenav m-1">
             <button
+              ref="sidebarOpener"
               type="button"
               class="btn border-0 sidebar-toggle-button sidebar-toggle-button--closed"
               aria-label="Sidebar öffnen"
@@ -32,9 +34,10 @@
     </template>
 
     <template v-if="isMenuOpen">
-      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs border-0 fixed-start sidebar-shell sidebar-shell--open">
+      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs border-0 fixed-start sidebar-shell sidebar-shell--open" aria-label="Hauptnavigation" @keydown.esc.stop.prevent="closeMenu">
         <div class="sidebar-shell__toolbar">
           <button
+            ref="sidebarCloser"
             type="button"
             class="btn mb-0 sidebar-toggle-button sidebar-toggle-button--open"
             aria-label="Sidebar schließen"
@@ -56,7 +59,7 @@
         :is-sidebar-open="isMenuOpen"
         @toggle-sidebar="toggleMenu"
       />
-      <div class="container-fluid w-100 app-content">
+      <div id="page-content" ref="pageContent" tabindex="-1" class="container-fluid w-100 app-content">
         <div class="row">
           <div class="col-12">
             <router-view />
@@ -88,20 +91,60 @@ export default {
   data() {
     return {
       isMenuOpen: false,
+      menuOpener: null,
     };
   },
   methods: {
     toggleMenu() {
-      this.isMenuOpen = !this.isMenuOpen;
+      if (this.isMenuOpen) {
+        this.closeMenu();
+        return;
+      }
+      this.menuOpener = document.activeElement;
+      this.isMenuOpen = true;
+      this.$nextTick(() => this.$refs.sidebarCloser?.focus());
     },
     closeMenu() {
       this.isMenuOpen = false;
+      this.$nextTick(() => {
+        const opener = this.menuOpener;
+        if (opener instanceof HTMLElement && opener.isConnected && opener !== document.body) {
+          opener.focus();
+        } else {
+          this.$refs.sidebarOpener?.focus();
+        }
+        this.menuOpener = null;
+      });
+    },
+    focusContent() {
+      this.isMenuOpen = false;
+      this.menuOpener = null;
+      this.$nextTick(() => this.$refs.pageContent.focus());
     }
   }
 };
 </script>
 
 <style>
+.app-skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 1rem;
+  z-index: 1060;
+  padding: 0.75rem 1rem;
+  color: #ffffff;
+  background: #173b42;
+  border-radius: var(--lx-corner-radius);
+  transform: translateY(calc(-100% - 1rem));
+}
+
+.app-skip-link:focus {
+  transform: translateY(0);
+  color: #ffffff;
+  outline: 3px solid #9dc2ff;
+  outline-offset: 2px;
+}
+
 .g-sidenav-show > aside.sidenav.navbar.sidebar-shell--collapsed {
   width: 4.5rem !important;
   min-width: 4.5rem;

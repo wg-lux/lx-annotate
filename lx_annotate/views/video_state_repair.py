@@ -7,12 +7,13 @@ from typing import Any
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from endoreg_db.models import UploadJob, VideoFile, VideoState
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from endoreg_db.models import UploadJob, VideoFile, VideoState
+from lx_annotate.permissions import LifecyclePolicyPermission, lifecycle_center_ids
 
 
 def _stored_file_exists(field_file: Any) -> bool:
@@ -42,7 +43,9 @@ def _repair_upload_jobs(video: VideoFile, *, dry_run: bool) -> int:
     if not identity:
         return 0
 
-    jobs = UploadJob.objects.filter(identity, status__in=["error", "lost"])
+    jobs = UploadJob.objects.filter(
+        identity, source_center_id=video.center_id, status__in=["error", "lost"]
+    )
     count = jobs.count()
     if count and not dry_run:
         jobs.update(
@@ -92,19 +95,19 @@ def repair_video_state(video: VideoFile, *, dry_run: bool = False) -> dict[str, 
     if changes and not dry_run:
         state.save()
 
-    durable_success = bool(
-        video.sensitive_meta_id or video.video_meta_id or processed_exists or ready_hls
+    durable_success = bool(processed_exists or "processed" in ready_hls)
+    repaired_jobs = (
+        _repair_upload_jobs(video, dry_run=dry_run) if durable_success else 0
     )
-    repaired_jobs = _repair_upload_jobs(video, dry_run=dry_run) if durable_success else 0
     if repaired_jobs:
         changes.append("upload_job")
 
     missing: list[str] = []
     if not raw_exists and not processed_exists and not ready_hls:
         missing.append("source_media")
-    if not video.video_meta_id and not raw_exists:
+    if not video.video_meta_id:
         missing.append("technical_metadata")
-    if not video.sensitive_meta_id and not raw_exists:
+    if not video.sensitive_meta_id:
         missing.append("sensitive_metadata")
 
     return {
@@ -122,13 +125,16 @@ def repair_video_state(video: VideoFile, *, dry_run: bool = False) -> dict[str, 
 
 
 class VideoStateRepairView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, LifecyclePolicyPermission]
 
     def post(self, request, pk: int | None = None) -> Response:
+        center_ids = lifecycle_center_ids(request.user)
         dry_run = bool(request.data.get("dry_run", False))
         videos = VideoFile.objects.select_related(
             "state", "video_meta", "sensitive_meta"
         ).order_by("pk")
+        if center_ids is not None:
+            videos = videos.filter(center_id__in=center_ids)
         if pk is not None:
             videos = videos.filter(pk=pk)
             if not videos.exists():

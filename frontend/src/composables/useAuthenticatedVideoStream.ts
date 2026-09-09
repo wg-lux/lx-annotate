@@ -16,12 +16,13 @@ import { buildVideoPlaybackUrls, type StreamableVideoFileType } from '@/utils/me
 
 type ReadableRef<T> = Ref<T> | ComputedRef<T>
 
-export type AuthenticatedVideoPlaybackMode = 'idle' | 'hls' | 'native_hls' | 'error'
+export type AuthenticatedVideoPlaybackMode = 'idle' | 'preparing' | 'hls' | 'native_hls' | 'error'
 
 export type AuthenticatedVideoStreamErrorReason =
   | 'hls_playlist_unauthorized'
   | 'hls_playlist_forbidden'
   | 'hls_playlist_unavailable'
+  | 'hls_preparation_timeout'
   | 'hls_playlist_invalid_response'
   | 'hls_playlist_request_failed'
   | 'hls_playback_failed'
@@ -139,32 +140,75 @@ function validateSameOriginMediaUrl(url: string): string {
   return parsedUrl.toString()
 }
 
-async function validateHlsPlaylist(url: string, signal: AbortSignal): Promise<void> {
+function waitForPreparation(milliseconds: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      window.clearTimeout(timer)
+      reject(new DOMException('Playback cancelled', 'AbortError'))
+    }
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', abort)
+      resolve()
+    }, milliseconds)
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) abort()
+  })
+}
+
+async function validateHlsPlaylist(
+  url: string,
+  signal: AbortSignal,
+  onPreparing: () => void
+): Promise<void> {
+  const deadline = Date.now() + 120_000
   try {
-    const response = await axiosInstance.get<string>(
-      url,
-      silentRequestConfig({
-        headers: {
-          Accept: HLS_PLAYLIST_ACCEPT
-        },
-        responseType: 'text',
-        signal,
-        withCredentials: true
-      })
-    )
-    const contentType = String(response.headers['content-type'] || '')
-      .split(';', 1)[0]
-      .trim()
-      .toLowerCase()
-    if (
-      !HLS_PLAYLIST_CONTENT_TYPES.has(contentType) ||
-      !response.data.trimStart().startsWith('#EXTM3U')
-    ) {
-      throw new AuthenticatedVideoStreamError(
-        'hls_playlist_invalid_response',
-        'The encrypted HLS playlist response is invalid.',
-        { url }
+    while (!signal.aborted) {
+      const response = await axiosInstance.get<string>(
+        url,
+        silentRequestConfig({
+          headers: {
+            Accept: HLS_PLAYLIST_ACCEPT
+          },
+          responseType: 'text',
+          timeout: Math.max(1, deadline - Date.now()),
+          signal,
+          withCredentials: true
+        })
       )
+      if (response.status === 202) {
+        onPreparing()
+        const remaining = deadline - Date.now()
+        const retryAfter = String(response.headers['retry-after'] ?? '').trim()
+        const seconds = Number(retryAfter)
+        const requestedDelay = retryAfter && Number.isFinite(seconds)
+          ? seconds * 1000
+          : Date.parse(retryAfter) - Date.now()
+        const delay = Number.isFinite(requestedDelay) ? Math.max(1000, requestedDelay) : 2000
+        if (remaining <= 0 || delay >= remaining) {
+          throw new AuthenticatedVideoStreamError(
+            'hls_preparation_timeout',
+            'Video preparation timed out. Please reopen the video to retry.',
+            { status: 202, url }
+          )
+        }
+        await waitForPreparation(delay, signal)
+        continue
+      }
+      const contentType = String(response.headers['content-type'] || '')
+        .split(';', 1)[0]
+        .trim()
+        .toLowerCase()
+      if (
+        !HLS_PLAYLIST_CONTENT_TYPES.has(contentType) ||
+        !response.data.trimStart().startsWith('#EXTM3U')
+      ) {
+        throw new AuthenticatedVideoStreamError(
+          'hls_playlist_invalid_response',
+          'The encrypted HLS playlist response is invalid.',
+          { url }
+        )
+      }
+      return
     }
   } catch (error) {
     if (error instanceof AuthenticatedVideoStreamError) {
@@ -317,7 +361,9 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     const abortController = new AbortController()
     playlistAbortController = abortController
     try {
-      await validateHlsPlaylist(hlsPlaylistUrl, abortController.signal)
+      await validateHlsPlaylist(hlsPlaylistUrl, abortController.signal, () => {
+        if (serial === loadSerial) playbackMode.value = 'preparing'
+      })
     } catch (error) {
       if (serial !== loadSerial) {
         return

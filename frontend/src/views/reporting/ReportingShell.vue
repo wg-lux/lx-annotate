@@ -1,5 +1,6 @@
 <template>
   <div class="reporting-shell container-fluid py-4">
+    <a class="reporting-skip-link" href="#reporting-workspace">Zum Arbeitsbereich springen</a>
     <section class="reporting-command-bar mb-3" aria-label="Reporting-Kontext">
       <div class="reporting-command-main">
         <div class="small text-uppercase text-muted fw-semibold tracking-label">Reporting</div>
@@ -24,8 +25,8 @@
                 }}
               </strong>
               <small v-if="!flow.caseId">
-                Wählen Sie Patient und Untersuchung aus. Persistiert wird erst die daraus
-                angelegte Patientenuntersuchung.
+                Wählen Sie Patient und Untersuchung aus und klicken Sie anschließend auf
+                „Patientenuntersuchung anlegen“.
               </small>
               <small v-else-if="!activePatientExaminationId">
                 Der Patient ist gewählt. Wählen Sie jetzt die Untersuchung aus und legen Sie die
@@ -119,8 +120,8 @@
                 Patientenuntersuchung anlegen
               </button>
               <small class="text-muted">
-                Patient und Untersuchung werden erst durch diesen Schritt als Patientenuntersuchung
-                in EndoReg DB persistiert.
+                Mit „Patientenuntersuchung anlegen“ speichern Sie die Auswahl und beginnen den
+                Bericht.
               </small>
             </div>
           </div>
@@ -194,81 +195,105 @@
           <details class="reporting-secondary-controls mt-3" data-testid="reporting-options">
             <summary>Weitere Einstellungen und Import</summary>
             <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2 mt-2">
-              <select
-                class="form-select"
-                data-testid="case-select"
-                :value="flow.caseId ?? ''"
-                :disabled="caseOptionsLoading || !caseOptions.length"
-                aria-label="Persistierten Patientenfall auswählen"
-                @change="onCaseSelect(($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">Persistierten Fall wählen</option>
-                <option
-                  v-for="patientCase in caseOptions"
-                  :key="patientCase.caseId"
-                  :value="patientCase.caseId"
+              <div class="reporting-setting-field">
+                <label class="form-label form-label-sm mb-1" for="reporting-existing-case"
+                  >Vorhandener Fall</label
                 >
-                  {{ formatCaseLabel(patientCase) }}
-                </option>
-              </select>
-              <select
-                class="form-select"
-                data-testid="patient-examination-select"
-                :value="selectedPatientExaminationId"
-                :disabled="
-                  !flow.caseId ||
-                  patientExaminationOptionsLoading ||
-                  !patientExaminationOptions.length
-                "
-                aria-label="Persistierte Patientenuntersuchung auswählen"
-                @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">Persistierte Patientenuntersuchung wählen</option>
-                <option
-                  v-for="option in patientExaminationOptions"
-                  :key="option.id"
-                  :value="option.id"
+                <select
+                  id="reporting-existing-case"
+                  class="form-select"
+                  data-testid="case-select"
+                  :value="flow.caseId ?? ''"
+                  :disabled="caseOptionsLoading || !caseOptions.length"
+                  aria-label="Persistierten Patientenfall auswählen"
+                  @change="onCaseSelect(($event.target as HTMLSelectElement).value)"
                 >
-                  {{ option.label }}
-                </option>
-              </select>
-              <select
-                class="form-select"
-                data-testid="terminology-bundle-select"
-                :value="activeBundleIdentityKey"
-                :disabled="terminology.selecting || !visibleTerminologyBundles.length"
-                aria-label="Terminologiepaket auswählen"
-                @change="onTerminologyBundleSelect(($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">Keine aktive Terminologie</option>
-                <option
-                  v-for="bundle in visibleTerminologyBundles"
-                  :key="terminology.bundleKey(bundle)"
-                  :value="terminology.bundleKey(bundle)"
+                  <option value="">Persistierten Fall wählen</option>
+                  <option
+                    v-for="patientCase in caseOptions"
+                    :key="patientCase.caseId"
+                    :value="patientCase.caseId"
+                  >
+                    {{ formatCaseLabel(patientCase) }}
+                  </option>
+                </select>
+              </div>
+              <div class="reporting-setting-field">
+                <label class="form-label form-label-sm mb-1" for="reporting-existing-examination"
+                  >Vorhandene Patientenuntersuchung</label
                 >
-                  {{ bundle.moduleName }} · {{ bundle.version }}
-                </option>
-              </select>
-              <select
-                class="form-select"
-                data-testid="report-language-select"
-                :value="flow.selectedReportLanguage"
-                :disabled="reportLanguagesLoading || !reportLanguageOptions.length"
-                aria-label="Berichtssprache auswählen"
-                @change="
-                  flow.setReportLanguage(
-                    ($event.target as HTMLSelectElement).value as ReportLanguageCode
-                  )
-                "
-              >
-                <option
-                  v-for="language in reportLanguageOptions"
-                  :key="language.code"
-                  :value="language.code"
+                <select
+                  id="reporting-existing-examination"
+                  class="form-select"
+                  data-testid="patient-examination-select"
+                  :value="selectedPatientExaminationId"
+                  :disabled="
+                    !flow.caseId ||
+                    patientExaminationOptionsLoading ||
+                    !patientExaminationOptions.length
+                  "
+                  aria-label="Persistierte Patientenuntersuchung auswählen"
+                  @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
                 >
-                  {{ language.label }}
-                </option>
-              </select>
+                  <option value="">Persistierte Patientenuntersuchung wählen</option>
+                  <option
+                    v-for="option in patientExaminationOptions"
+                    :key="option.id"
+                    :value="option.id"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="reporting-setting-field">
+                <label class="form-label form-label-sm mb-1" for="reporting-terminology-bundle"
+                  >Terminologiepaket</label
+                >
+                <select
+                  id="reporting-terminology-bundle"
+                  class="form-select"
+                  data-testid="terminology-bundle-select"
+                  :value="activeBundleIdentityKey"
+                  :disabled="terminology.selecting || !visibleTerminologyBundles.length"
+                  aria-label="Terminologiepaket auswählen"
+                  @change="onTerminologyBundleSelect(($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="">Keine aktive Terminologie</option>
+                  <option
+                    v-for="bundle in visibleTerminologyBundles"
+                    :key="terminology.bundleKey(bundle)"
+                    :value="terminology.bundleKey(bundle)"
+                  >
+                    {{ bundle.moduleName }} · {{ bundle.version }}
+                  </option>
+                </select>
+              </div>
+              <div class="reporting-setting-field">
+                <label class="form-label form-label-sm mb-1" for="reporting-report-language"
+                  >Berichtssprache</label
+                >
+                <select
+                  id="reporting-report-language"
+                  class="form-select"
+                  data-testid="report-language-select"
+                  :value="flow.selectedReportLanguage"
+                  :disabled="reportLanguagesLoading || !reportLanguageOptions.length"
+                  aria-label="Berichtssprache auswählen"
+                  @change="
+                    flow.setReportLanguage(
+                      ($event.target as HTMLSelectElement).value as ReportLanguageCode
+                    )
+                  "
+                >
+                  <option
+                    v-for="language in reportLanguageOptions"
+                    :key="language.code"
+                    :value="language.code"
+                  >
+                    {{ language.label }}
+                  </option>
+                </select>
+              </div>
               <input
                 ref="terminologyFolderInput"
                 class="visually-hidden"
@@ -320,6 +345,8 @@
               <button
                 class="btn btn-outline-secondary"
                 type="button"
+                aria-controls="reporting-context-panel"
+                :aria-expanded="isContextPanelOpen"
                 @click="isContextPanelOpen = !isContextPanelOpen"
               >
                 <i class="ni ni-settings-gear-65 me-1" aria-hidden="true"></i>
@@ -469,6 +496,56 @@
       :class="{ 'has-technical-inspector': isTechnicalInspectorOpen }"
     >
       <aside class="reporting-left-rail">
+        <div class="card shadow-sm workflow-panel">
+          <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="mb-0">Ablauf</h6>
+            <span class="small text-muted">{{ currentStepLabel }}</span>
+          </div>
+          <div class="card-body p-3">
+            <div
+              v-if="supersededEvaluationNotice"
+              class="alert alert-info py-2 mb-3"
+              role="status"
+              data-testid="superseded-evaluation-notice"
+            >
+              {{ supersededEvaluationNotice }}
+            </div>
+            <div v-if="draftBootstrapError" class="alert alert-warning py-2 mb-3">
+              {{ draftBootstrapError }}
+            </div>
+            <nav class="nav flex-column gap-1" aria-label="Berichtsablauf">
+              <template v-for="(item, index) in navItems" :key="item.to">
+                <RouterLink
+                  v-if="!isStepDisabled(item)"
+                  :to="item.to"
+                  class="workflow-step-btn btn btn-sm text-start"
+                  :aria-current="isActive(item.to) ? 'page' : undefined"
+                  :class="
+                    isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive'
+                  "
+                >
+                  <span class="workflow-step-index">{{ index + 1 }}</span>
+                  <span class="workflow-step-copy">
+                    <span>{{ item.label }}</span>
+                    <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
+                  </span>
+                </RouterLink>
+                <div
+                  v-else
+                  class="workflow-step-btn btn btn-sm text-start is-disabled"
+                  aria-disabled="true"
+                >
+                  <span class="workflow-step-index">{{ index + 1 }}</span>
+                  <span class="workflow-step-copy">
+                    <span>{{ item.label }}</span>
+                    <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
+                  </span>
+                </div>
+              </template>
+            </nav>
+          </div>
+        </div>
+
         <div class="card shadow-sm finding-status-panel">
           <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <div>
@@ -568,56 +645,19 @@
             </div>
           </div>
         </div>
-
-        <div class="card shadow-sm workflow-panel">
-          <div class="card-header d-flex align-items-center justify-content-between gap-2">
-            <h6 class="mb-0">Ablauf</h6>
-            <span class="small text-muted">{{ currentStepLabel }}</span>
-          </div>
-          <div class="card-body p-3">
-            <div
-              v-if="supersededEvaluationNotice"
-              class="alert alert-info py-2 mb-3"
-              role="status"
-              data-testid="superseded-evaluation-notice"
-            >
-              {{ supersededEvaluationNotice }}
-            </div>
-            <div v-if="draftBootstrapError" class="alert alert-warning py-2 mb-3">
-              {{ draftBootstrapError }}
-            </div>
-            <nav class="nav flex-column gap-1">
-              <template v-for="(item, index) in navItems" :key="item.to">
-                <RouterLink
-                  v-if="!isStepDisabled(item)"
-                  :to="item.to"
-                  class="workflow-step-btn btn btn-sm text-start"
-                  :aria-current="isActive(item.to) ? 'page' : undefined"
-                  :class="
-                    isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive'
-                  "
-                >
-                  <span class="workflow-step-index">{{ index + 1 }}</span>
-                  <span class="workflow-step-copy">
-                    <span>{{ item.label }}</span>
-                    <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
-                  </span>
-                </RouterLink>
-                <div v-else class="workflow-step-btn btn btn-sm text-start is-disabled">
-                  <span class="workflow-step-index">{{ index + 1 }}</span>
-                  <span class="workflow-step-copy">
-                    <span>{{ item.label }}</span>
-                    <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
-                  </span>
-                </div>
-              </template>
-            </nav>
-          </div>
-        </div>
       </aside>
 
-      <main class="reporting-main-region">
-        <div v-if="isContextPanelOpen" class="card shadow-sm mb-3 context-panel">
+      <main
+        id="reporting-workspace"
+        class="reporting-main-region"
+        tabindex="-1"
+        aria-label="Bericht bearbeiten"
+      >
+        <div
+          v-if="isContextPanelOpen"
+          id="reporting-context-panel"
+          class="card shadow-sm mb-3 context-panel"
+        >
           <div class="card-header d-flex justify-content-between align-items-center gap-3">
             <div>
               <h6 class="mb-0">Arbeitskontext</h6>
@@ -3912,6 +3952,28 @@ onMounted(() => {
   isolation: isolate;
 }
 
+.reporting-skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  background: #172234;
+  border-radius: 6px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.reporting-skip-link:focus {
+  clip-path: none;
+}
+
+.reporting-setting-field {
+  width: 100%;
+  min-width: 0;
+}
+
 .reporting-shell .row > [class*='col-'] {
   min-width: 0;
 }
@@ -3945,8 +4007,7 @@ onMounted(() => {
   gap: 1rem;
 }
 
-.reporting-right-rail,
-.workflow-panel {
+.reporting-right-rail {
   position: sticky;
   top: 1rem;
 }
@@ -4539,6 +4600,13 @@ onMounted(() => {
   letter-spacing: 0.04em;
 }
 
+@media (min-width: 992px) {
+  .reporting-setting-field {
+    flex: 1 1 16rem;
+    width: auto;
+  }
+}
+
 @media (max-width: 1199.98px) {
   .reporting-command-bar {
     grid-template-columns: 1fr;
@@ -4567,8 +4635,14 @@ onMounted(() => {
 }
 
 @media (max-width: 767.98px) {
-  .reporting-required-fields {
+  .reporting-required-fields,
+  .reporting-resolved-context {
     grid-template-columns: 1fr;
+  }
+
+  .reporting-persistence-action {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
@@ -4577,7 +4651,8 @@ onMounted(() => {
     padding-inline: 0.5rem;
   }
 
-  .reporting-workspace-grid {
+  .reporting-workspace-grid,
+  .reporting-workspace-grid.has-technical-inspector {
     grid-template-columns: 1fr;
   }
 

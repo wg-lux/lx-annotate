@@ -9,6 +9,26 @@ application is built in CI as a Python wheel with frontend staticfiles included.
 - Production installs the wheel into a regular Python virtualenv.
 - Production still needs host-level binaries for media and OCR workloads.
 
+## Published Dependencies
+
+The application pins published `endoreg-db==1.1.8` and `lx-dtypes==0.2.36`.
+These releases replace the local remote-session and JSON frame-range candidates.
+`uv sync --locked` consumes registry artifacts and hashes recorded in `uv.lock`.
+Local files under `vendor/wheels/` are ignored and excluded from distributions.
+
+Verification evidence is recorded in `dependency-wheel-verification.yml` beside
+this guide. CI records the lockfile digest and installed dependency versions
+with the application artifact. Install the reviewed application wheel with:
+
+```bash
+python -m pip install ./dist/lx_annotate-1.2.2-py3-none-any.whl
+```
+
+Use the actual reviewed application wheel filename. Platforms without a matching
+backend wheel need the configured Rust/Cargo and C-linker toolchain to build the
+published source distribution. Artifact verification does not replace host
+rollout, migration, browser acceptance, or rollback gates.
+
 ## Host Packages
 
 For Debian/Ubuntu hosts:
@@ -107,6 +127,30 @@ migrations. The option defaults off so an older compatible wheel cannot fail
 startup because it lacks the command. Repeated cleanup runs are idempotent.
 Rollback continues through the selected immutable Nix generation and its
 locked wheel input, not through copies retained in the protected runtime root.
+
+### Database compatibility and stale boot generations
+
+Before migration, legacy-history repair, or runtime startup, the reviewed release
+must run `lx-annotate-manage check_migration_compatibility`. This read-only command
+rejects applied dependency migrations absent from the installed canonical or
+explicitly supported legacy contract. Recognized legacy history still uses the
+existing explicit repair procedure; the check never rewrites migration records.
+Passing this check does not establish physical schema equivalence or replace
+normal migrations and runtime schema checks.
+
+The September 7 gc-10 incident demonstrated why selecting an older immutable
+generation is insufficient for safe rollback: its installer downgraded the shared
+environment to lx-annotate 0.9.51/endoreg-db 1.0.8.0 while the database retained
+migrations through 0076 and the package stopped at 0056. Required HLS columns were
+then absent from the model. Repeating those inserts cannot repair incompatibility.
+Do not drop constraints, add database defaults, or rewrite history to hide it.
+
+LuxNix must reject package downgrades before replacing the shared environment.
+Previously deployed boot generations retain their old installer scripts and do
+not acquire new safeguards automatically. Recovery therefore requires a reviewed
+schema-compatible release and generation selection, followed by durable unit,
+archive, worker, capacity, and browser acceptance before job replay. Temporary
+overrides under `/run/systemd/system.control` do not establish reboot readiness.
 
 ## Settings And Secretspec
 

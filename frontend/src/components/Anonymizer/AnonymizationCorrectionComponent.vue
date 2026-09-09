@@ -32,7 +32,7 @@
         </div>
 
         <!-- Error State -->
-        <div v-else-if="error" class="alert alert-danger" role="alert">
+        <div v-else-if="error && !currentVideo" class="alert alert-danger" role="alert">
           <strong>Fehler:</strong> {{ error }}
         </div>
 
@@ -44,7 +44,9 @@
 
         <!-- Main Content -->
         <template v-else>
+          <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
           <template v-if="isPdfCorrection">
+            <div v-if="processingStatus" class="alert alert-info" role="status">{{ processingStatus }}</div>
             <!-- PDF Information -->
             <div class="row mb-4">
               <div class="col-12">
@@ -73,7 +75,7 @@
                           </button>
                           <button
                             class="btn btn-success btn-sm"
-                            :disabled="isRenderingPdf || totalPdfBoxCount === 0"
+                            :disabled="isRenderingPdf || isProcessing || totalPdfBoxCount === 0"
                             @click="generateRedactedPdf"
                           >
                             <i class="ni ni-check-bold me-1"></i>
@@ -93,7 +95,7 @@
                             @click="uploadRedactedPdf"
                           >
                             <i class="ni ni-cloud-upload-96 me-1"></i>
-                            Als neue Datei hochladen
+                            Korrektur am Bericht speichern
                           </button>
                         </div>
                       </div>
@@ -266,7 +268,7 @@
                           @click="reprocessVideo"
                         >
                           <i class="ni ni-bold-right me-1"></i>
-                          Erneut verarbeiten
+                          Importzustand prüfen und reparieren
                         </button>
                       </div>
                     </div>
@@ -669,7 +671,7 @@
                       @click="cancelProcessing"
                     >
                       <i class="ni ni-settings-gear-65 me-1"></i>
-                      Abbrechen
+                      Beobachtung beenden
                     </button>
                   </div>
                 </div>
@@ -800,9 +802,10 @@
 </template>
 
 <script setup lang="ts">
+import { build_pdf_correction, type PdfCorrectionArtifact } from '@/utils/pdfCorrection';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useAnonymizationStore } from '@/stores/anonymizationStore';
+import { useAnonymizationStore, type VideoStateRepairResponse } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import { useAuthKcStore } from '@/stores/auth_kc';
 import axiosInstance, { r } from '@/api/axiosInstance';
@@ -861,11 +864,11 @@ type CorrectionMedia = {
   createdAt: string | null;
 };
 
-type ApiErrorPayload = { error?: string };
+type ApiErrorPayload = { error?: string; detail?: string };
 
 const getApiErrorMessage = (error: unknown, fallback: string): string => {
   if (isAxiosError<ApiErrorPayload>(error)) {
-    return error.response?.data.error || error.message || fallback;
+    return error.response?.data.detail || error.response?.data.error || error.message || fallback;
   }
   return error instanceof Error ? error.message : fallback;
 };
@@ -890,14 +893,16 @@ interface VideoMetadata {
 
 interface PdfDetailsResponse {
   filename?: string;
-  is_validated?: boolean;
-  file_size?: number | null;
-  uploaded_at?: string | null;
+  isValidated?: boolean;
+  fileSize?: number | null;
+  uploadedAt?: string | null;
 }
 
-interface UploadResponse {
-  uploadId?: string | number;
-  upload_id?: string | number;
+interface PdfCorrectionResponse {
+  fileId: number;
+  revisionId: number;
+  status: string;
+  anonymizationValidated: boolean;
 }
 
 interface FrameRemovalResponse {
@@ -998,6 +1003,9 @@ const pdfPageBoxes = ref<Partial<Record<number, PdfRedactionBox[]>>>({});
 const pdfSourceBytes = ref<Uint8Array | null>(null);
 const redactedPdfBytes = ref<Uint8Array | null>(null);
 const redactedPdfUrl = ref('');
+let pdf_correction: PdfCorrectionArtifact | null = null;
+let selection_generation = 0;
+let operation_generation = 0;
 const isDrawingPdfBox = ref(false);
 const drawStart = ref<{ x: number; y: number } | null>(null);
 const drawCurrent = ref<{ x: number; y: number } | null>(null);
@@ -1049,7 +1057,9 @@ const hasProcessedVersion = computed(() => {
   );
 });
 
-const correctionVideoId = computed<number | null>(() => currentVideo.value?.id ?? null);
+const correctionVideoId = computed<number | null>(() =>
+  currentVideo.value?.mediaType === 'video' ? currentVideo.value.id : null
+);
 const correctionArtifactKind = computed<StreamableVideoFileType>(() =>
   previewMode.value === 'processed' && hasProcessedVersion.value ? 'processed' : 'raw'
 );
@@ -1247,6 +1257,12 @@ const refreshCurrentVideo = async () => {
 };
 
 const loadCurrentItemDetails = async (fileId: number) => {
+  selection_generation += 1;
+  operation_generation += 1;
+  isProcessing.value = false;
+  currentVideo.value = null;
+  anonymizationStatus.value = null;
+  processingHistory.value = [];
   if (isPdfCorrection.value) {
     await loadPdfDetails(fileId);
     return;
@@ -1255,10 +1271,13 @@ const loadCurrentItemDetails = async (fileId: number) => {
 };
 
 const loadPdfDetails = async (pdfId: number) => {
+  const generation = selection_generation;
   loading.value = true;
   error.value = '';
   pdfRenderError.value = '';
   pdfDocument = null;
+  pdfSourceBytes.value = null;
+  pdf_correction = null;
   pdfPageBoxes.value = {};
   pdfPageCount.value = 0;
   activePdfPage.value = 1;
@@ -1272,32 +1291,35 @@ const loadPdfDetails = async (pdfId: number) => {
     const response = await axiosInstance.get<PdfDetailsResponse>(
       r(`media/pdfs/${String(pdfId)}/`)
     );
+    if (generation !== selection_generation) return;
     const details = response.data;
 
     currentVideo.value = {
       id: pdfId,
       mediaType: 'pdf',
       filename: details.filename || `document_${String(pdfId)}.pdf`,
-      anonymizationStatus: details.is_validated ? 'validated' : 'done_processing_anonymization',
-      fileSize: details.file_size ?? null,
-      createdAt: details.uploaded_at || null,
+      anonymizationStatus: anonymizationStore.overview.find(item => item.id === pdfId && item.mediaType === 'pdf')?.anonymizationStatus ?? 'unknown',
+      fileSize: details.fileSize ?? null,
+      createdAt: details.uploadedAt || null,
     };
 
     mediaStore.setCurrentByKey('pdf', pdfId);
   } catch (err: unknown) {
+    if (generation !== selection_generation) return;
     error.value = getApiErrorMessage(err, 'Fehler beim Laden der PDF-Details');
     logger.error('pdf-details-load-failed', err);
   } finally {
-    loading.value = false;
+    if (generation === selection_generation) loading.value = false;
   }
 
-  if (!error.value) {
+  if (generation === selection_generation && !error.value) {
     await nextTick();
     await loadPdfDocument(pdfId);
   }
 };
 
 const loadVideoDetails = async (videoId: number) => {
+  const generation = selection_generation;
   loading.value = true;
   error.value = '';
   recoveryError.value = '';
@@ -1315,6 +1337,7 @@ const loadVideoDetails = async (videoId: number) => {
       )
     ]);
 
+    if (generation !== selection_generation) return;
     currentVideo.value = videoResponse.data;
     videoMetadata.value = metadataResponse.data;
     processingHistory.value = normalizeProcessingHistory(historyResponse.data);
@@ -1337,10 +1360,11 @@ const loadVideoDetails = async (videoId: number) => {
     }
 
   } catch (err: unknown) {
+    if (generation !== selection_generation) return;
     error.value = getApiErrorMessage(err, 'Fehler beim Laden der Video-Details');
     logger.error('video-details-load-failed', err);
   } finally {
-    loading.value = false;
+    if (generation === selection_generation) loading.value = false;
   }
 };
 
@@ -1355,6 +1379,7 @@ const ensurePdfJs = async () => {
 };
 
 const loadPdfDocument = async (pdfId: number) => {
+  const generation = selection_generation;
   isRenderingPdf.value = true;
   pdfRenderError.value = '';
   try {
@@ -1363,25 +1388,32 @@ const loadPdfDocument = async (pdfId: number) => {
       responseType: 'arraybuffer',
     });
 
+    if (generation !== selection_generation) return;
     const source = new Uint8Array(response.data);
     pdfSourceBytes.value = source;
     if (!pdfJsLib) throw new Error('PDF.js konnte nicht initialisiert werden.');
-    const loadingTask = pdfJsLib.getDocument({ data: source });
-    pdfDocument = await loadingTask.promise;
+    const loadingTask = pdfJsLib.getDocument({ data: source.slice() });
+    const loaded_document = await loadingTask.promise;
+    if (generation !== selection_generation) {
+      await loaded_document.destroy();
+      return;
+    }
+    pdfDocument = loaded_document;
     pdfPageCount.value = pdfDocument.numPages;
     activePdfPage.value = 1;
     await renderCurrentPdfPage();
   } catch (err: unknown) {
-    pdfRenderError.value = 'PDF konnte nicht geladen werden.';
+    if (generation !== selection_generation) return;
+    pdfRenderError.value = getApiErrorMessage(err, 'PDF konnte nicht geladen werden.');
     logger.error('pdf-document-load-failed', err);
   } finally {
-    isRenderingPdf.value = false;
+    if (generation === selection_generation) isRenderingPdf.value = false;
   }
 };
 
 const reloadPdfDocument = async () => {
-  if (!currentVideo.value) return;
-  await loadPdfDocument(currentVideo.value.id);
+  if (!currentVideo.value || isProcessing.value) return;
+  await loadCurrentItemDetails(currentVideo.value.id);
 };
 
 const getCurrentPageBoxCount = () => {
@@ -1429,12 +1461,14 @@ const drawPdfOverlay = () => {
 };
 
 const renderCurrentPdfPage = async () => {
+  const generation = selection_generation;
   if (!pdfDocument || !pdfPageCanvas.value || !pdfOverlayCanvas.value) return;
 
   isRenderingPdf.value = true;
   pdfRenderError.value = '';
   try {
     const page = await pdfDocument.getPage(activePdfPage.value);
+    if (generation !== selection_generation) return;
     const viewport = page.getViewport({ scale: pdfScale.value });
 
     const canvas = pdfPageCanvas.value;
@@ -1453,6 +1487,7 @@ const renderCurrentPdfPage = async () => {
       viewport,
     };
     await page.render(renderContext).promise;
+    if (generation !== selection_generation) return;
 
     const overlay = pdfOverlayCanvas.value;
     overlay.width = canvas.width;
@@ -1461,10 +1496,11 @@ const renderCurrentPdfPage = async () => {
     overlay.style.height = canvas.style.height;
     drawPdfOverlay();
   } catch (err: unknown) {
+    if (generation !== selection_generation) return;
     pdfRenderError.value = 'PDF-Seite konnte nicht gerendert werden.';
     logger.error('pdf-page-render-failed', err);
   } finally {
-    isRenderingPdf.value = false;
+    if (generation === selection_generation) isRenderingPdf.value = false;
   }
 };
 
@@ -1479,11 +1515,11 @@ const getOverlayPoint = (event: MouseEvent) => {
   }
   const x = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width);
   const y = Math.min(Math.max(event.clientY - bounds.top, 0), bounds.height);
-  return { x, y, width: bounds.width, height: bounds.height };
+  return { x: x * overlay.width / bounds.width, y: y * overlay.height / bounds.height, width: overlay.width, height: overlay.height };
 };
 
 const onPdfOverlayMouseDown = (event: MouseEvent) => {
-  if (isRenderingPdf.value) return;
+  if (isRenderingPdf.value || isProcessing.value) return;
   const point = getOverlayPoint(event);
   if (!point) return;
   isDrawingPdfBox.value = true;
@@ -1549,6 +1585,7 @@ const nextPdfPage = async () => {
 };
 
 const undoLastPdfBox = () => {
+  if (isProcessing.value) return;
   const boxes = pdfPageBoxes.value[activePdfPage.value] ?? [];
   if (!boxes.length) return;
   pdfPageBoxes.value[activePdfPage.value] = boxes.slice(0, -1);
@@ -1556,17 +1593,20 @@ const undoLastPdfBox = () => {
 };
 
 const clearCurrentPdfPageBoxes = () => {
+  if (isProcessing.value) return;
   pdfPageBoxes.value[activePdfPage.value] = [];
   drawPdfOverlay();
 };
 
 const clearAllPdfBoxes = () => {
+  if (isProcessing.value) return;
   pdfPageBoxes.value = {};
   drawPdfOverlay();
 };
 
 const generateRedactedPdf = async () => {
-  if (!pdfSourceBytes.value) return;
+  if (!pdfSourceBytes.value || isProcessing.value) return;
+  const generation = selection_generation;
 
   isProcessing.value = true;
   currentOperation.value = 'pdf_redaction';
@@ -1574,33 +1614,13 @@ const generateRedactedPdf = async () => {
   processingStatus.value = 'Anonymisierte PDF wird erzeugt...';
 
   try {
-    const { PDFDocument, rgb } = await import('pdf-lib');
-    const doc = await PDFDocument.load(pdfSourceBytes.value);
-    const pages = doc.getPages();
-
-    Object.entries(pdfPageBoxes.value).forEach(([pageNumber, boxes]) => {
-      if (!boxes) return;
-      const index = Number(pageNumber) - 1;
-      if (!Number.isInteger(index) || index < 0 || index >= pages.length) {
-        return;
-      }
-      const page = pages[index];
-      const pageWidth = page.getWidth();
-      const pageHeight = page.getHeight();
-
-      for (const box of boxes) {
-        page.drawRectangle({
-          x: box.x * pageWidth,
-          y: (1 - box.y - box.height) * pageHeight,
-          width: box.width * pageWidth,
-          height: box.height * pageHeight,
-          color: rgb(0, 0, 0),
-          borderWidth: 0,
-        });
-      }
-    });
-
-    const output = await doc.save();
+    const source = pdfSourceBytes.value;
+    const document = pdfDocument;
+    if (!document) throw new Error('PDF-Quelle ist nicht verfügbar.');
+    const generated = await build_pdf_correction(source, document, pdfPageBoxes.value);
+    if (generation !== selection_generation) return;
+    pdf_correction = generated;
+    const output = generated.bytes;
     redactedPdfBytes.value = output;
     if (redactedPdfUrl.value) {
       URL.revokeObjectURL(redactedPdfUrl.value);
@@ -1619,11 +1639,14 @@ const generateRedactedPdf = async () => {
       details: `${String(totalPdfBoxCount.value)} Box(en) angewendet`,
     });
   } catch (err: unknown) {
+    if (generation !== selection_generation) return;
     error.value = 'Fehler beim Erzeugen der anonymisierten PDF';
     logger.error('pdf-redaction-failed', err);
   } finally {
-    isProcessing.value = false;
-    currentOperation.value = '';
+    if (generation === selection_generation) {
+      isProcessing.value = false;
+      currentOperation.value = '';
+    }
   }
 };
 
@@ -1646,7 +1669,10 @@ const downloadRedactedPdf = () => {
 };
 
 const uploadRedactedPdf = async () => {
-  if (!redactedPdfBytes.value || !currentVideo.value) return;
+  if (!redactedPdfBytes.value || !currentVideo.value || !pdf_correction || isProcessing.value) return;
+  const target = currentVideo.value;
+  const artifact = pdf_correction;
+  const generation = selection_generation;
 
   isProcessing.value = true;
   currentOperation.value = 'pdf_upload';
@@ -1654,38 +1680,51 @@ const uploadRedactedPdf = async () => {
   processingStatus.value = 'Anonymisierte PDF wird hochgeladen...';
 
   try {
-    const originalName = currentVideo.value.filename || `document_${String(currentVideo.value.id)}.pdf`;
+    const originalName = target.filename || `document_${String(target.id)}.pdf`;
     const uploadName = originalName.toLowerCase().endsWith('.pdf')
       ? `${originalName.slice(0, -4)}_anonymized.pdf`
       : `${originalName}_anonymized.pdf`;
-    const file = new File([redactedPdfBytes.value], uploadName, { type: 'application/pdf' });
+    const file = new File([artifact.bytes], uploadName, { type: 'application/pdf' });
 
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axiosInstance.post<UploadResponse>(r('upload/'), formData, {
+    formData.append('source_type', 'raw');
+    formData.append('redaction_manifest', JSON.stringify(artifact.manifest));
+    formData.append('client_source_sha256', artifact.source_sha256);
+    const response = await axiosInstance.post<PdfCorrectionResponse>(r(`media/pdfs/${String(target.id)}/apply-redactions/`), formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
+    if (generation !== selection_generation) return;
     processingProgress.value = 100;
-    processingStatus.value = 'Upload erfolgreich gestartet';
+    if (response.data.fileId !== target.id || response.data.anonymizationValidated || response.data.status !== 'done_processing_anonymization') {
+      throw new Error('Unerwartete Antwort für die Berichtskorrektur.');
+    }
+    currentVideo.value.anonymizationStatus = response.data.status;
+    processingStatus.value = 'Korrektur gespeichert. Erneute Anonymisierungsprüfung erforderlich.';
     processingHistory.value.unshift({
       id: Date.now(),
       timestamp: new Date().toISOString(),
       operation: 'pdf_upload',
       status: 'success',
-      details: `Upload-ID: ${String(response.data.uploadId ?? response.data.upload_id ?? 'n/a')}`,
+      details: `Revision: ${String(response.data.revisionId)}`,
     });
   } catch (err: unknown) {
+    if (generation !== selection_generation) return;
     error.value = getApiErrorMessage(err, 'Fehler beim Upload der anonymisierten PDF');
     logger.error('pdf-upload-failed', err);
   } finally {
-    isProcessing.value = false;
-    currentOperation.value = '';
+    if (generation === selection_generation) {
+      isProcessing.value = false;
+      currentOperation.value = '';
+    }
   }
 };
 
 const applyMasking = async () => {
-  if (!currentVideo.value) return;
+  if (!currentVideo.value || isProcessing.value) return;
+  const video_id = currentVideo.value.id;
+  const generation = ++operation_generation;
 
   isProcessing.value = true;
   currentOperation.value = 'masking';
@@ -1714,26 +1753,36 @@ const applyMasking = async () => {
     };
 
     const response = await axiosInstance.post<VideoAnonymizationStatus>(
-      r(endpoints.media.videoCorrectionAnonymization(currentVideo.value.id)),
+      r(endpoints.media.videoCorrectionAnonymization(video_id)),
       payload
     );
 
+    if (generation !== operation_generation) return;
     const historyId = response.data.job?.historyId;
     processingStatus.value = response.data.message || 'Anonymisierung wurde eingereiht...';
     anonymizationStatus.value = historyId
-      ? await pollAnonymizationCorrection(historyId)
+      ? await pollAnonymizationCorrection(historyId, video_id, generation)
       : response.data;
+    if (generation !== operation_generation) return;
+    if (anonymizationStatus.value.latestRun?.status !== 'success' ||
+        !anonymizationStatus.value.processedArtifact.available) {
+      throw new Error('Die korrigierte Videogeneration ist noch nicht erfolgreich verfügbar.');
+    }
     selectedStrategy.value =
       anonymizationStatus.value.selectedStrategy || selectedStrategy.value;
     processingProgress.value = 100;
     processingStatus.value = 'Anonymisierung abgeschlossen';
     previewMode.value = 'processed';
-    await refreshCurrentVideo();
+    const refresh = refreshCurrentVideo();
+    const refresh_generation = selection_generation;
+    await refresh;
+    if (refresh_generation !== selection_generation) return;
     if (videoElement.value) videoElement.value.load();
     isProcessing.value = false;
     currentOperation.value = '';
 
   } catch (err: unknown) {
+    if (generation !== operation_generation) return;
     error.value = getApiErrorMessage(err, 'Fehler bei der Anonymisierung');
     logger.error('video-anonymization-failed', err);
     isProcessing.value = false;
@@ -1742,7 +1791,7 @@ const applyMasking = async () => {
 };
 
 const pollAnonymizationCorrection = async (
-  historyId: number
+  historyId: number, video_id: number, generation: number
 ): Promise<VideoAnonymizationStatus> => {
   if (!currentVideo.value) {
     throw new Error('Video für die Anonymisierung ist nicht mehr ausgewählt.');
@@ -1750,10 +1799,11 @@ const pollAnonymizationCorrection = async (
 
   const pollInterval = 5000;
   const maxPolls = 4320;
-  for (let polls = 0; polls < maxPolls && isProcessing.value; polls += 1) {
+  for (let polls = 0; polls < maxPolls && isProcessing.value && generation === operation_generation; polls += 1) {
     const { data } = await axiosInstance.get<VideoAnonymizationStatus>(
-      r(endpoints.media.videoCorrectionAnonymization(currentVideo.value.id))
+      r(endpoints.media.videoCorrectionAnonymization(video_id))
     );
+    if (generation !== operation_generation) throw new Error('Beobachtung beendet.');
     const latestRun = data.latestRun;
     if (String(latestRun?.id ?? '') === String(historyId)) {
       if (latestRun?.status === 'success') {
@@ -1868,7 +1918,8 @@ const finalizeCorrectionProcessing = async (
 };
 
 const cancelProcessing = () => {
-  // Implementation depends on backend support for task cancellation
+  operation_generation += 1;
+  // Stop observation only; the server keeps ownership of the running job.
   isProcessing.value = false;
   currentOperation.value = '';
   processingProgress.value = 0;
@@ -1877,14 +1928,20 @@ const cancelProcessing = () => {
 
 const reprocessVideo = async () => {
   if (!currentVideo.value) return;
+  const generation = selection_generation;
 
   try {
-    await axiosInstance.post(r(endpoints.runtime.videoStateRepairOne(currentVideo.value.id)), {
+    const { data } = await axiosInstance.post<VideoStateRepairResponse>(r(endpoints.runtime.videoStateRepairOne(currentVideo.value.id)), {
       dryRun: false
     });
+    if (generation !== selection_generation) return;
+    if (data.items.length !== 1 || data.items[0].status === 'reimport_required') {
+      throw new Error('Ein Neuimport ist erforderlich. Die Zustandsreparatur hat keine Medien neu verarbeitet.');
+    }
     await refreshCurrentVideo();
   } catch (err: unknown) {
-    error.value = getApiErrorMessage(err, 'Fehler bei der Neuverarbeitung');
+    if (generation !== selection_generation) return;
+    error.value = getApiErrorMessage(err, 'Fehler bei der Zustandsreparatur');
     logger.error('video-reprocessing-failed', err);
   }
 };
@@ -1958,6 +2015,7 @@ const getStatusBadgeClass = (status: string) => {
 
 const getStatusText = (status: string) => {
   const texts: { [key: string]: string } = {
+    'unknown': 'Nicht verfügbar',
     'not_started': 'Nicht gestartet',
     'processing': 'In Bearbeitung',
     'processing_anonymization': 'In Bearbeitung',
@@ -2016,12 +2074,19 @@ onMounted(async () => {
 });
 
 // Watchers
-watch(() => props.fileId, async (newId) => {
+watch(() => [props.fileId, resolvedMediaType.value] as const, async ([newId]) => {
   if (newId && !isNaN(newId)) {
     mediaStore.setCurrentByKey(resolvedMediaType.value, newId);
     await loadCurrentItemDetails(newId);
   }
 });
+
+watch(pdfPageBoxes, () => {
+  pdf_correction = null;
+  redactedPdfBytes.value = null;
+  if (redactedPdfUrl.value) URL.revokeObjectURL(redactedPdfUrl.value);
+  redactedPdfUrl.value = '';
+}, { deep: true });
 
 watch(pdfScale, async () => {
   if (!isPdfCorrection.value || !pdfDocument) return;
@@ -2034,6 +2099,9 @@ watch(activePdfPage, () => {
 });
 
 onUnmounted(() => {
+  selection_generation += 1;
+  operation_generation += 1;
+  isProcessing.value = false;
   if (redactedPdfUrl.value) {
     URL.revokeObjectURL(redactedPdfUrl.value);
   }

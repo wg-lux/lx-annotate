@@ -145,8 +145,7 @@ definition_of_done:
     - kind: review
       reference: Existing hub placement/reconciliation models cover remote reservation, placement, receipt
         and reconciliation separately; unified lifecycle inventory remains outstanding
-    note: >-
-      endoreg-db already owns typed per-video byte accounting for raw, processed, streamable, and
+    note: 'endoreg-db already owns typed per-video byte accounting for raw, processed, streamable, and
       HLS artifacts, cleanup readiness, normalization evidence, references, and missing references. The
       normalization inventory is now bounded before filesystem traversal with a default batch of 100,
       hard maximum 1000, and stable primary-key resume cursor. HLS byte routing now converts persisted
@@ -156,8 +155,8 @@ definition_of_done:
       bytes to zero, and blocks apply and cleanup before mutation. This ceiling affects metadata traversal
       only; video and HLS media are never truncated, rewritten, moved, or partially stored. Full authoritative
       status remains open because local inventory is not yet unified with remote placement, transferability,
-      corrupt/ambiguous/LOST classification, hashes, retention state, and last-verification timestamps in one
-      model-bound view.
+      corrupt/ambiguous/LOST classification, hashes, retention state, and last-verification timestamps
+      in one model-bound view.'
     assessed_by: codex-storage-optimization-20260824
     assessed_at: '2026-08-25T09:10:28Z'
 - id: safe_anonymized_transfer
@@ -191,20 +190,21 @@ definition_of_done:
       reference: 'lx-annotate-hub-export-health.service: total_jobs=1, configuration_rejection=1, critical_count=1;
         ffmpeg/hub workers and core web/database/cache services remain active'
     - kind: code
-      reference: lx_annotate/models.py; lx_annotate/hub/hub_export_worker.py;
-        lx_annotate/hub/hub_export_reconciliation.py; lx_annotate/hub/hub_export_cleanup.py;
-        lx_annotate/management/commands/reap_verified_hub_exports.py
+      reference: lx_annotate/models.py; lx_annotate/hub/hub_export_worker.py; lx_annotate/hub/hub_export_reconciliation.py;
+        lx_annotate/hub/hub_export_cleanup.py; lx_annotate/management/commands/reap_verified_hub_exports.py
     - kind: test
       reference: '2026-08-25 focused receipt, reconciliation, cleanup, and import-smoke lane: 47 passed;
-        focused Ruff, Pyright (0 errors), compileall, migration-drift, tracker validation, and diff checks passed'
+        focused Ruff, Pyright (0 errors), compileall, migration-drift, tracker validation, and diff checks
+        passed'
     note: 'Live transfer cannot be represented as safe or usable: /mnt/endoreg-client-storage resolves
       to the root cryptroot rather than a separate mounted destination, the configured persisting-storage
       mount unit lacks STORAGE_PERSISTING_HDD_ID, and hub-export health reports one terminal configuration_rejection.
-      The sender now persists a model-validated envelope receipt, requires it on direct and reconciled applied
-      paths, and exposes bounded dry-run-first processed-video reaping that blocks on digest, size, identity,
-      lease, and active-processing mismatches. Raw media and reports are not reaped. Central AI reads the
-      receiver-managed processed file, or the committed remote placement provider when Hub storage balancing
-      is enabled. No live media deletion or deployment occurred, and the live destination blocker remains.'
+      The sender now persists a model-validated envelope receipt, requires it on direct and reconciled
+      applied paths, and exposes bounded dry-run-first processed-video reaping that blocks on digest,
+      size, identity, lease, and active-processing mismatches. Raw media and reports are not reaped. Central
+      AI reads the receiver-managed processed file, or the committed remote placement provider when Hub
+      storage balancing is enabled. No live media deletion or deployment occurred, and the live destination
+      blocker remains.'
     assessed_by: codex-hub-transfer-20260825
     assessed_at: '2026-08-25T09:45:00Z'
 - id: lazy_transcoding
@@ -286,12 +286,18 @@ definition_of_done:
     - kind: command
       reference: nix eval gc-02 system drv succeeded without a rebuild; evaluated warning=42949672960,
         stop=26843545600, cleanup requires endoreg-mount-persisting-storage.service
-    note: LuxNix now declares typed positive warning/stop byte thresholds with an assertion that stop
-      is lower than warning. gc-02 evaluates to 40 GiB warning and 25 GiB stop; the live 20 GiB free state
-      is below the proposed stop, so new write-amplifying work will fail closed after deployment. Cleanup
-      also requires a separate filesystem by default.
-    assessed_by: codex-storage-optimization-20260824
-    assessed_at: '2026-08-25T07:36:40.708919Z'
+    - kind: test
+      reference: '/home/admin/luxnix/tests/lx-annotate/test_persisting_storage_contract.py plus evaluated
+        named-host identity: final7 passed; preceding propagation/error/relief lane8 passed'
+    note: Existing worker CPU/memory/concurrency bounds retained; no arbitrary retuning. Current gc05
+      read-only measurement53GiB free89% with workers stopped does not prove capacity under load. Confirmed
+      NixOS mount identity was incorrectly sourced only from Devenv secretspec; typed host-owned device
+      ID/partition now feed mount and relief consistently. gc05 exact by-id/part3 verified live and persisted
+      in canonical inventory/generated config. Mount failures, unavailable devices and stale MAJ:MIN mismatches
+      fail visibly; no automatic unmount/remount, relocation or cleanup enabled. Archive recovery and
+      load/pressure admission acceptance remain unverified.
+    assessed_by: codex-remote-review-20260907
+    assessed_at: '2026-09-07T09:20:53.262746Z'
 - id: cross_repository_contract_quality
   category: maintainability
   title: LX-Annotate, endoreg-db, and LuxNix changes remain minimal, compatible, and type safe
@@ -384,14 +390,17 @@ definition_of_done:
     - kind: monitoring
       reference: Core services and all configured Celery workers active; watcher last oneshot successful;
         no test DB artifacts remained
-    note: 'Every test invocation used one process or explicit -n0; no full system rebuild ran. Repository-approved
-      isolated, non-reused SQLite enabled database-backed focused lanes without changing PostgreSQL policy:
-      eager-HLS/import/playlist tests and bounded inventory tests pass. Expensive full-media, transfer
-      failure-injection, and production acceptance remain outstanding. Core web, PostgreSQL, Redis, Nginx,
-      all configured Celery workers, and watcher execution remain operational; hub-export health stays
-      red for the recorded configuration rejection.'
-    assessed_by: codex-storage-optimization-20260824
-    assessed_at: '2026-08-25T08:25:06.651392Z'
+    - kind: test
+      reference: '/home/admin/luxnix/tests/lx-annotate/test_hls_startup_ordering.py: 5 passed on 2026-09-07'
+    note: LuxNix web/preflight no longer depend on HLS corpus scan. Background reconciliation starts after
+      web, cryptographic preflight and FFmpeg/Redis prerequisites; mandatory timer retained. ExecCondition
+      distinguishes active-import skip from real runtime/database failure. gc-05 evaluated startup regression
+      5 passed; existing layout/resource/storage/warm-shutdown checks 6 passed; documentation 26 passed.
+      No live services changed. The initial gc05 SSH timeout was resolved by VPN restoration; subsequent
+      host diagnostics are recorded under production_rollout_and_recovery. Browser responsiveness and
+      cold-boot continuity remain unverified on gc05 and gc10.
+    assessed_by: codex-remote-review-20260907
+    assessed_at: '2026-09-07T09:03:10.438948Z'
 - id: production_rollout_and_recovery
   category: operations
   title: Rollout, rollback, and recovery are measured and production safe
@@ -437,13 +446,36 @@ definition_of_done:
         succeeded without build'
     - kind: command
       reference: ./feature-tracking/tracker.py check deployment => not production ready (0/6)
-    note: 'The stale evaluated 0.2.9 default is corrected: LuxNix now selects the authoritative PyPI 1.0.4
-      wheel whose SHA-256 exactly matches the active runtime and Nix-store input. Host derivation evaluation
-      and focused provenance tests pass without a build. Rollout remains prohibited because the governing
-      deployment tracker is 0/6, LuxNix has 25 dirty entries requiring ownership review, no canary/rollback
-      acceptance has run, and the transfer destination is unavailable.'
-    assessed_by: codex-storage-optimization-20260824
-    assessed_at: '2026-08-25T07:56:39.855390Z'
+    - kind: command
+      reference: 'ssh -o BatchMode=yes -o ConnectTimeout=8 admin@172.16.255.105: exit 255, Connection
+        timed out, 2026-09-07'
+    - kind: command
+      reference: '2026-09-07 gc-05 read-only SSH diagnostics after VPN restoration: services, import/HLS
+        state, queue counts, package versions, OIDC scope, findmnt/lsblk/by-id, HTTPS302'
+    - kind: command
+      reference: '2026-09-07 gc-10 read-only SSH verification at172.16.255.110: active system
+        /nix/store/xhb4icbnsfzw62jfrl3kzziha9kljfsk-nixos-system-gc-10-25.11.20260125.1cd347b;
+        installed lx-annotate0.9.51/endoreg-db1.0.8.0/lx-dtypes0.2.8; installed migrations0056,
+        database0076; HLS model omits two required database columns. Web/nginx/PostgreSQL/Redis
+        active, HTTPS302; web/preflight fragments under /run/systemd/system.control are temporary.
+        Archive mount and HLS backfill failed; processing workers inactive; FFmpeg queue46;
+        storage27GiBfree97%. Upload jobs error2473/lost10/anonymized25; HLS ready51/queued43/
+        materializing1 and failures24 materialization,19 stale attempt,2 validation. These aggregate
+        failures are not all attributed to the downgrade. No host mutation performed.'
+    note: 'User restored VPN on September 7; gc-05 inventory SSH address is reachable. Read-only live
+      check: web/nginx/PostgreSQL/Redis active and HTTPS302; runtime lx-annotate1.2.1/endoreg-db1.1.6/lx-dtypes0.2.35,
+      scopes openid email profile, user martin locally has rbk_stuttgart plus endoregdb_user. FFmpeg/pipeline/inference/frame-extraction/maintenance
+      workers stopped since September4; FFmpeg queue2, maintenance4106. Video4 remains processing with
+      expired September4 lease, retry3/nonretryable, processed HLS queued. Storage53GiBfree89%; stale
+      archive mount device8:3 differs from currently verified USB partition8:19, UUID96c09eae-57cb-4e5c-95e1-9050a32abcc4.
+      Current deployed mount service lacks HDD_ID. Canonical LuxNix now persists verified gc05 identity
+      and fails closed on stale binding; no live repair/restart/deployment performed. Reviewed candidate
+      rollout, controlled stale-mount recovery, queue recovery, fresh browser login and human validation
+      remain required. Additional gc10 signal establishes an incompatible code/database downgrade;
+      restoring schema-compatible packages and durable startup configuration precedes any job replay.
+      Temporary frontend availability does not establish worker, archive, reboot, or capacity acceptance.'
+    assessed_by: codex-remote-review-20260907
+    assessed_at: '2026-09-07T09:20:51.828673Z'
 - id: admin_password_rotation_runbook
   category: documentation
   title: The host admin password has a durable secret-managed rotation procedure
@@ -490,13 +522,15 @@ definition_of_done:
   category: functionality
   title: WP-LX-01 Celery delivery semantics cover the longest supported HLS task
   acceptance:
-  - Production Django settings explicitly configure Redis visibility longer than the maximum supported HLS
-    execution and acknowledgement interval.
-  - Celery soft and hard limits, the application FFmpeg timeout, visibility, stale-attempt detection, and
-    LuxNix worker-stop timeout form one documented relationship and fail settings validation when inconsistent.
+  - Production Django settings explicitly configure Redis visibility longer than the maximum supported
+    HLS execution and acknowledgement interval.
+  - Celery soft and hard limits, the application FFmpeg timeout, visibility, stale-attempt detection,
+    and LuxNix worker-stop timeout form one documented relationship and fail settings validation when
+    inconsistent.
   - The canonical HLS task has an explicit queue route even when a caller does not supply queue and routing-key
     overrides.
-  - Runtime probes verify the resolved Celery application configuration, not merely environment-variable presence.
+  - Runtime probes verify the resolved Celery application configuration, not merely environment-variable
+    presence.
   required: true
   verification:
     kind: command
@@ -508,7 +542,7 @@ definition_of_done:
     - tests/system/test_production_celery_routing.py
     timeout_seconds: 600
   assessment:
-    status: blocked
+    status: in_progress
     evidence:
     - kind: code
       reference: lx_annotate/settings/settings_base.py:341-438,616-619
@@ -518,18 +552,23 @@ definition_of_done:
       reference: isolated production-settings probe
       note: broker_transport_options resolved to an empty mapping while HLS hard and soft limits resolved
         to 21600 and 18000 seconds.
-    note: This package must land with Endoreg WP-ER-01 because early redelivery currently enters an HLS
-      state machine that cannot reclaim the orphaned materializing attempt.
-    assessed_by: codex-gc10-hls-investigate
-    assessed_at: '2026-09-02T09:00:00Z'
+    - kind: test
+      reference: 'tests/system/test_oidc_settings.py tests/system/test_production_celery_routing.py: 17
+        passed on 2026-09-07'
+    note: 'The September 2 missing-timeout assessment is superseded: production Celery now applies matching
+      top-level, broker and result-backend visibility >=90000 seconds and explicitly routes HLS; 17 OIDC/production-routing
+      tests passed on September 7. Real broker loss/redelivery and complete cross-repository runtime attestation
+      remain under verification; no live gc-05 acceptance claimed.'
+    assessed_by: codex-remote-review-20260907
+    assessed_at: '2026-09-07T08:54:45.833596Z'
 - id: hls_runtime_dependency_attestation
   category: security
   title: WP-LX-02 Runtime HLS code has one verifiable package identity
   acceptance:
   - The lx-annotate wheel metadata, lock, Nix source input, installed Endoreg distribution, and exported
     runtime attestation resolve to the same approved Endoreg version and immutable digest.
-  - Packaging and deployment fail when the installed Endoreg version or import path differs from the
-    declared HLS implementation.
+  - Packaging and deployment fail when the installed Endoreg version or import path differs from the declared
+    HLS implementation.
   - Dependency installation runs an integrity check and cannot silently resolve an unpinned online transitive
     Endoreg artifact in production.
   - Operator diagnostics report versions, revisions, digests, and import locations without exposing secrets
@@ -541,16 +580,27 @@ definition_of_done:
       distribution, run dependency consistency checks, and compare the result with LuxNix WP-LN-04 attestation.
     timeout_seconds: 1200
   assessment:
-    status: blocked
+    status: in_progress
     evidence:
     - kind: code
       reference: pyproject.toml:55; uv.lock:1154-1225; flake.nix:14-17,148-150; package.nix:70,114,175,197-200
       note: The Python runtime is supplied by locked wheel dependencies while the separate Endoreg flake
         input is exposed as metadata and does not select imported HLS code.
-    note: Local lx-annotate currently imports Endoreg 1.1.5 matching the reviewed checkout, but the packaging
-      contract does not prove that identity for a deployment.
-    assessed_by: codex-gc10-hls-investigate
-    assessed_at: '2026-09-02T09:00:00Z'
+    - kind: document
+      reference: vendor/wheels/lx-dtypes-json-frame-ranges.yml; vendor/wheels/endoreg-db-remote-session.yml
+    - kind: test
+      reference: '2026-09-07 final installed candidate lane: 87 passed, including JSON model roundtrip,
+        production settings, Redis worker loss/RECORD attestation and candidate workflow integrity tests'
+    note: 'Installed candidate set now matches declared exact requirements and uv sources: lx-annotate1.2.2,
+      endoreg-db1.1.7+remote.05294c74642b, lx-dtypes0.2.35+g93b0b62. Published dtype0.2.35 lacks the committed
+      JSON normalization fix; vendored candidate explicitly includes it. Source/native archives and reviewed
+      backend patch are digest-recorded in YAML, seven runtime modules match canonical reviewed changes,
+      native extension smoke and resolver checks pass. Application sdist carries verified dependencies
+      and lock; CI transports/verifies wheelhouse separately and excludes dependencies from application
+      publication. Production still imports old packages; no activated closure attestation or deployment
+      approval claimed.'
+    assessed_by: codex-remote-review-20260907
+    assessed_at: '2026-09-07T09:19:03.597755Z'
 - id: hls_packaged_runtime_failure_injection
   category: testing
   title: WP-LX-03 Packaged production settings are tested with real HLS task outcomes
@@ -560,22 +610,34 @@ definition_of_done:
     terminal failure reporting, and restart convergence against Redis-compatible broker semantics.
   - Cross-package tests use the real materializer statuses for import and correction; mocks cannot invent
     statuses outside the typed result contract.
-  - The lane records the imported Endoreg version, module path, and artifact digest and fails on attestation drift.
+  - The lane records the imported Endoreg version, module path, and artifact digest and fails on attestation
+    drift.
   required: true
   verification:
     kind: manual
-    instructions: After WP-LX-01 and WP-LX-02 and Endoreg WP-ER-01 through WP-ER-03 are complete, run the
-      packaged production-settings lane with a disposable broker and record exact task/database outcomes.
+    instructions: After WP-LX-01 and WP-LX-02 and Endoreg WP-ER-01 through WP-ER-03 are complete, run
+      the packaged production-settings lane with a disposable broker and record exact task/database outcomes.
     timeout_seconds: 1800
   assessment:
-    status: blocked
+    status: in_progress
     evidence:
     - kind: test
-      reference: tests/system/test_production_celery_routing.py; tests/hub/test_tasks.py;
-        /home/admin/endoreg-db/tests/test_tasks.py
+      reference: tests/system/test_production_celery_routing.py; tests/hub/test_tasks.py; /home/admin/endoreg-db/tests/test_tasks.py
       note: Existing coverage does not assert the visibility-to-task-duration relationship or crash/redelivery
         behavior through the installed package boundary.
-    note: This is the lx-annotate release gate for the HLS remediation and depends on WP-LX-01, WP-LX-02,
-      and the corresponding Endoreg state-machine and caller-contract work packages.
-    assessed_by: codex-gc10-hls-investigate
-    assessed_at: '2026-09-02T09:00:00Z'
+    - kind: test
+      reference: 'tests/system/test_production_celery_redis_recovery.py: 1 passed in24.09s on 2026-09-07
+        using endoreg-db1.1.7 and lx-dtypes0.2.35+g93b0b62'
+    - kind: code
+      reference: .github/workflows/ci-cd.yml; .github/workflows/wheel-testpypi.yml; tests/system/test_production_celery_redis_recovery.py
+    - kind: test
+      reference: '2026-09-07: final 87-test installed candidate lane passed in51.43s with endoreg-db1.1.7+remote.05294c74642b
+        and lx-dtypes0.2.35+g93b0b62'
+    note: 'Final installed candidate rerun passed within 87-test application lane: real Redis visibility
+      expiry, implicit/explicit routing, prefork worker SIGKILL redelivery, real missing-reservation failure
+      and terminal ACK restart. Installed task/HLS/import/ingest/dtype modules attest against wheel RECORD.
+      CI wheelhouse verification also tests valid/missing/tampered/unexpected artifacts. Separate backend
+      suites cover real materialization and DB state transitions, but successful full media pipeline through
+      production PostgreSQL+Redis and live recovery/load acceptance remain unverified.'
+    assessed_by: codex-remote-review-20260907
+    assessed_at: '2026-09-07T09:19:05.348030Z'

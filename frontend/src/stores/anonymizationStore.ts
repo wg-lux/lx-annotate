@@ -119,6 +119,7 @@ export interface FileItem {
   quarantineOrphaned?: boolean
   errorDetail?: string
   importOnly?: boolean
+  canDismissImport?: boolean
 }
 
 export interface QuarantineFileItem {
@@ -321,28 +322,6 @@ function buildQuarantineOverviewRows(
       quarantineNextAction: file.nextAction,
       quarantineOrphaned: file.orphaned,
       errorDetail: reason
-    }
-  })
-}
-
-function hasDuplicateKeyUploadError(file: FileItem): boolean {
-  const status = (file.uploadJob?.status || '').toLowerCase()
-  if (status !== 'error' && status !== 'lost') {
-    return false
-  }
-  return file.uploadJob?.errorCode === 'duplicate_content'
-}
-
-function preserveValidatedDuplicateVideoRows(files: FileItem[]): FileItem[] {
-  return files.map((file) => {
-    if (file.mediaType !== 'video' || !hasDuplicateKeyUploadError(file)) {
-      return file
-    }
-
-    return {
-      ...file,
-      anonymizationStatus: 'validated',
-      annotationStatus: 'validated'
     }
   })
 }
@@ -553,7 +532,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
           runtimeLogger.warn('quarantine-overview-unavailable', { operation: 'fetch-overview' })
         }
 
-        const overviewData = preserveValidatedDuplicateVideoRows([...data, ...quarantineRows])
+        const overviewData = [...data, ...quarantineRows]
 
         // Update overview and available files
         this.overview = overviewData
@@ -565,7 +544,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         availableFiles.value = [...overviewData]
 
         const needsValidation = overviewData
-          .filter((f) => f.anonymizationStatus === 'done_processing_anonymization' && f.annotationStatus !== 'validated')
+          .filter((f) => f.anonymizationStatus === 'done_processing_anonymization')
           .map((f) => f.id)
         this.needsValidationIds = needsValidation
 
@@ -603,6 +582,19 @@ export const useAnonymizationStore = defineStore('anonymization', {
         return []
       } finally {
         this.loading = false
+      }
+    },
+
+    async dismissUploadJob(jobId: string): Promise<boolean> {
+      this.error = null
+      try {
+        await axiosInstance.post(r(endpoints.anonymization.dismissUploadJob(jobId)))
+        await this.fetchOverview()
+        return true
+      } catch (err: unknown) {
+        runtimeLogger.error('upload-job-dismiss-failed', err)
+        this.error = 'Der Import konnte nicht aus der Übersicht entfernt werden. Bitte aktualisieren und erneut versuchen.'
+        return false
       }
     },
 

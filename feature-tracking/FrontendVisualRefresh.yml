@@ -41,6 +41,16 @@ tracking:
     changed_at: '2026-08-14T07:28:25.303586Z'
     note: Unified application corner rounding under one shared token and verified the focused frontend
       surface.
+  - action: reopened
+    changed_by: codex-usability-20260908-a
+    changed_at: '2026-09-08T06:21:39.160392Z'
+    note: Add direct keyboard access to content, sidebar Escape dismissal, and mobile account labels.
+  - action: done
+    changed_by: codex-usability-20260908-a
+    changed_at: '2026-09-08T06:25:03.217569Z'
+    note: 'Shared navigation usability pass complete: skip-to-content, sidebar keyboard focus and Escape
+      dismissal, mobile account labels. 16 navigation tests, full frontend build/type-check/lint, final
+      build-only and tracker validation passed. Browser visual review remains unperformed.'
 source_documents:
 - path: AGENTS.md
   disposition: reference
@@ -124,16 +134,15 @@ definition_of_done:
     status: verified
     evidence:
     - kind: command
-      reference: 'corner-radius-build-20260814: npm --prefix frontend run build-only exited 0; existing
-        chunk-size advisory remains'
+      reference: '2026-09-08: npm --prefix frontend run build: exit 0 (OpenAPI freshness, Vue type check,
+        ESLint and Vite); final build-only rerun: exit 0'
     - kind: test
-      reference: 'corner-radius-focused-tests-20260814: App, Navbar, Sidebar, AnonymizationOverview, and
-        HubExport suites passed 42/42; Sidebar suite passed 5/5 in isolation after parallel load timeout'
-    note: Scoped ESLint, TypeScript checking, 42 focused component tests, and production build passed.
-      The Sidebar route-import test timed out only in the combined parallel run and passed 5/5 when rerun
-      in isolation.
-    assessed_by: codex-corner-radius-20260814
-    assessed_at: '2026-08-14T07:28:05.878821Z'
+      reference: '2026-09-08: App, Navbar and Sidebar navigation suites: 3 files, 16 tests passed'
+    note: Shared navigation usability verified with focus restoration and skip-link behavior tests. Scoped
+      lint and diff whitespace checks pass. Build retains bundle-size advisory and Django test-environment
+      warnings; no real-browser visual or assistive-technology review performed.
+    assessed_by: codex-usability-20260908-a
+    assessed_at: '2026-09-08T06:25:01.960544Z'
 - id: accessibility_contract
   category: security
   title: Keyboard and motion accessibility remain explicit
@@ -148,12 +157,17 @@ definition_of_done:
   assessment:
     status: verified
     evidence:
-    - kind: review
-      reference: frontend/src/App.vue and frontend/src/components/Menus/*.vue
-    note: Interactive shell controls retain accessible names and visible focus; reduced-motion rules disable
-      non-essential motion.
-    assessed_by: codex-ui-config-20260813
-    assessed_at: '2026-08-13T09:51:37.842054Z'
+    - kind: test
+      reference: 'App.navigation.test.ts, NavbarComponent.annotationStats.test.ts, SidebarComponent.routes.test.ts:
+        16/16 passed on 2026-09-08'
+    - kind: command
+      reference: 'Scoped ESLint for App.vue, NavbarComponent.vue and App.navigation.test.ts: exit 0'
+    note: Added a focus-visible skip link that closes navigation and focuses page content, sidebar Escape
+      dismissal with keyboard focus restoration, a named navigation landmark, state-aware toggle labels,
+      and persistent mobile login/logout text. Existing reduced-motion rules remain unchanged. Automated
+      DOM checks pass; real-browser mobile and assistive-technology review was not performed.
+    assessed_by: codex-usability-20260908-a
+    assessed_at: '2026-09-08T06:24:29.719259Z'
 - id: workflow_regression
   category: operations
   title: Clinical workflow presentation semantics are preserved

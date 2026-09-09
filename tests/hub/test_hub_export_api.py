@@ -8,6 +8,7 @@ from typing import Any, cast
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.files.base import ContentFile
 from django.db import connection
 from django.test import TestCase, override_settings
@@ -16,6 +17,7 @@ from django.utils import timezone
 from endoreg_db.models import (
     Center,
     NetworkNode,
+    PortalUserInfo,
     RawPdfFile,
     RawPdfState,
     VideoFile,
@@ -38,6 +40,10 @@ class HubExportApiTests(TestCase):
         self.center = Center.objects.create(
             name="Test Center",
             center_key="test-center",
+        )
+        self.operator.groups.add(Group.objects.get_or_create(name="data:write")[0])
+        PortalUserInfo.objects.get_or_create(user=self.operator)[0].centers.add(
+            self.center
         )
         self.site_node = NetworkNode.objects.create(
             display_name="Site Node",
@@ -111,8 +117,7 @@ class HubExportApiTests(TestCase):
         centers_by_key = {
             center["center_key"]: center for center in sync_summary["centers"]
         }
-        self.assertIn(empty_center.center_key, centers_by_key)
-        self.assertEqual(centers_by_key[empty_center.center_key]["processed_files"], [])
+        self.assertNotIn(empty_center.center_key, centers_by_key)
         self.assertEqual(
             centers_by_key[self.center.center_key]["active_node_keys"],
             ["hub-node", "site-node"],
@@ -382,7 +387,7 @@ class HubExportApiTests(TestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 403)
         self.assertFalse(
             OutboundHubTransferJob.objects.filter(raw_pdf_file=self.report).exists(),
         )
@@ -439,6 +444,10 @@ class HubExportApiTests(TestCase):
         self.assertEqual(mark_response.status_code, 200)
 
         reviewing_operator = User.objects.create_user(username="reviewing-operator")
+        reviewing_operator.groups.add(Group.objects.get_or_create(name="data:read")[0])
+        PortalUserInfo.objects.get_or_create(user=reviewing_operator)[0].centers.add(
+            self.center
+        )
         self.client.force_login(reviewing_operator)
         overview = self.client.get("/api/hub-export/overview/")
 
@@ -607,3 +616,80 @@ class HubExportApiTests(TestCase):
         payload = response.json()
         self.assertFalse(payload["config_ready"])
         self.assertIn("exactly one active central hub node", payload["config_error"])
+
+    def test_wrong_center_mark_and_unmark_are_atomic(self):
+        other_center = Center.objects.create(name="Other", center_key="other")
+        other_report = RawPdfFile.objects.create(
+            center=other_center, pdf_hash="other-report"
+        )
+        body = {
+            "target_node_key": "hub-node",
+            "resources": [{"id": self.report.pk, "resource_kind": "report"}],
+        }
+        self.assertEqual(
+            self.client.post(
+                "/api/hub-export/mark/", body, content_type="application/json"
+            ).status_code,
+            200,
+        )
+        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
+        body["resources"].append({"id": other_report.pk, "resource_kind": "report"})
+        for action in ("mark", "unmark"):
+            response = self.client.post(
+                f"/api/hub-export/{action}/", body, content_type="application/json"
+            )
+            self.assertEqual(response.status_code, 403)
+        self.assertTrue(OutboundHubTransferJob.objects.filter(pk=job.pk).exists())
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(raw_pdf_file=other_report).exists()
+        )
+
+    def test_wrong_center_retry_is_denied(self):
+        body = {
+            "target_node_key": "hub-node",
+            "resources": [{"id": self.report.pk, "resource_kind": "report"}],
+        }
+        self.assertEqual(
+            self.client.post(
+                "/api/hub-export/mark/", body, content_type="application/json"
+            ).status_code,
+            200,
+        )
+        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
+        job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
+        job.save(update_fields=["local_status"])
+        other_center = Center.objects.create(name="Other", center_key="other")
+        PortalUserInfo.objects.get(user=self.operator).centers.set([other_center])
+        response = self.client.post(
+            f"/api/hub-export/jobs/{job.pk}/retry/", {}, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 403)
+        job.refresh_from_db()
+        self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+
+    def test_bulk_offload_and_overview_only_discover_allowed_centers(self):
+        other_center = Center.objects.create(name="Other", center_key="other")
+        hidden = VideoFile.objects.create(center=other_center, video_hash="other-video")
+        own = VideoFile.objects.create(center=self.center, video_hash="own-video")
+        overview = self.client.get("/api/hub-export/overview/")
+        self.assertEqual(overview.status_code, 200)
+        video_ids = [
+            item["id"]
+            for item in overview.json()["items"]
+            if item["resource_kind"] == "video"
+        ]
+        self.assertEqual(video_ids, [own.pk])
+        response = self.client.post(
+            "/api/hub-export/offload-eligible-videos/",
+            {},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["discovered_count"], 1)
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(video_file=hidden).exists()
+        )
+
+    def test_overview_denies_centerless_operator(self):
+        PortalUserInfo.objects.get(user=self.operator).centers.clear()
+        self.assertEqual(self.client.get("/api/hub-export/overview/").status_code, 403)

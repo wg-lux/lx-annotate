@@ -267,6 +267,23 @@ application is built in CI as a Python wheel with frontend staticfiles included.
 <li><p>Production still needs host-level binaries for media and OCR workloads.</p></li>
 </ul>
 </section>
+<section id="published-dependencies">
+<h2>Published Dependencies<a class="headerlink" href="#published-dependencies" title="Link to this heading">¶</a></h2>
+<p>The application pins published <code class="docutils literal notranslate"><span class="pre">endoreg-db==1.1.8</span></code> and <code class="docutils literal notranslate"><span class="pre">lx-dtypes==0.2.36</span></code>.
+These releases replace the local remote-session and JSON frame-range candidates.
+<code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span> <span class="pre">--locked</span></code> consumes registry artifacts and hashes recorded in <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code>.
+Local files under <code class="docutils literal notranslate"><span class="pre">vendor/wheels/</span></code> are ignored and excluded from distributions.</p>
+<p>Verification evidence is recorded in <code class="docutils literal notranslate"><span class="pre">dependency-wheel-verification.yml</span></code> beside
+this guide. CI records the lockfile digest and installed dependency versions
+with the application artifact. Install the reviewed application wheel with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>./dist/lx_annotate-1.2.2-py3-none-any.whl
+</pre></div>
+</div>
+<p>Use the actual reviewed application wheel filename. Platforms without a matching
+backend wheel need the configured Rust/Cargo and C-linker toolchain to build the
+published source distribution. Artifact verification does not replace host
+rollout, migration, browser acceptance, or rollback gates.</p>
+</section>
 <section id="host-packages">
 <h2>Host Packages<a class="headerlink" href="#host-packages" title="Link to this heading">¶</a></h2>
 <p>For Debian/Ubuntu hosts:</p>
@@ -355,6 +372,28 @@ migrations. The option defaults off so an older compatible wheel cannot fail
 startup because it lacks the command. Repeated cleanup runs are idempotent.
 Rollback continues through the selected immutable Nix generation and its
 locked wheel input, not through copies retained in the protected runtime root.</p>
+</section>
+<section id="database-compatibility-and-stale-boot-generations">
+<h3>Database compatibility and stale boot generations<a class="headerlink" href="#database-compatibility-and-stale-boot-generations" title="Link to this heading">¶</a></h3>
+<p>Before migration, legacy-history repair, or runtime startup, the reviewed release
+must run <code class="docutils literal notranslate"><span class="pre">lx-annotate-manage</span> <span class="pre">check_migration_compatibility</span></code>. This read-only command
+rejects applied dependency migrations absent from the installed canonical or
+explicitly supported legacy contract. Recognized legacy history still uses the
+existing explicit repair procedure; the check never rewrites migration records.
+Passing this check does not establish physical schema equivalence or replace
+normal migrations and runtime schema checks.</p>
+<p>The September 7 gc-10 incident demonstrated why selecting an older immutable
+generation is insufficient for safe rollback: its installer downgraded the shared
+environment to lx-annotate 0.9.51/endoreg-db 1.0.8.0 while the database retained
+migrations through 0076 and the package stopped at 0056. Required HLS columns were
+then absent from the model. Repeating those inserts cannot repair incompatibility.
+Do not drop constraints, add database defaults, or rewrite history to hide it.</p>
+<p>LuxNix must reject package downgrades before replacing the shared environment.
+Previously deployed boot generations retain their old installer scripts and do
+not acquire new safeguards automatically. Recovery therefore requires a reviewed
+schema-compatible release and generation selection, followed by durable unit,
+archive, worker, capacity, and browser acceptance before job replay. Temporary
+overrides under <code class="docutils literal notranslate"><span class="pre">/run/systemd/system.control</span></code> do not establish reboot readiness.</p>
 </section>
 </section>
 <section id="settings-and-secretspec">
@@ -477,6 +516,12 @@ flags.</p></li>
 <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_PASSWORD_FILE</span></code>, <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_MASTER_KEY_FILE</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_*</span></code>,
 <code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_ID</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_KEYCLOAK_CLIENT_SECRET_FILE</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">CELERY_BROKER_URL</span></code>.</p></li>
+<li><p>worker-delivery policy: <code class="docutils literal notranslate"><span class="pre">CELERY_VISIBILITY_TIMEOUT_SECONDS</span></code>. Keep the same
+value on every Celery consumer sharing a Redis broker. It must be strictly
+greater than every late-ack task limit and <code class="docutils literal notranslate"><span class="pre">FFMPEG_TRANSCODE_TIMEOUT_SECONDS</span></code>;
+the production default is 90000 seconds for the 86400-second FFmpeg ceiling.
+Restart all consumers together after changing it because Kombu captures the
+value when each broker channel is created.</p></li>
 </ul>
 <p>For new deployment code and operator docs, prefer
 <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> and let the app derive the compatibility
@@ -995,9 +1040,11 @@ cache growth on long-lived hosts.</p></li>
             <ul>
 <li><a class="reference internal" href="#">Wheel Deployment</a><ul>
 <li><a class="reference internal" href="#scope">Scope</a></li>
+<li><a class="reference internal" href="#published-dependencies">Published Dependencies</a></li>
 <li><a class="reference internal" href="#host-packages">Host Packages</a></li>
 <li><a class="reference internal" href="#runtime-contract">Runtime Contract</a><ul>
 <li><a class="reference internal" href="#deployment-wheel-staging-cleanup">Deployment wheel staging cleanup</a></li>
+<li><a class="reference internal" href="#database-compatibility-and-stale-boot-generations">Database compatibility and stale boot generations</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#settings-and-secretspec">Settings And Secretspec</a><ul>
@@ -1030,7 +1077,7 @@ cache growth on long-lived hosts.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=6efca38a"></script>
+</div><script src="../_static/documentation_options.js?v=590429e0"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

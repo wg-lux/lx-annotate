@@ -60,7 +60,7 @@ jobs:
       - name: Install runtime system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-deu libgl1 libglib2.0-0 libxcb1
+          sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-deu libgl1 libglib2.0-0 libxcb1 redis-server
 
       - name: Create unique development version
         id: version
@@ -104,7 +104,10 @@ jobs:
           PY
 
       - name: Install backend build dependencies
-        run: uv sync --frozen --extra dev --no-install-project
+        run: |
+          rustc --version
+          cargo --version
+          uv sync --frozen --extra dev --no-install-project
 
       - name: Install frontend dependencies
         run: npm --prefix frontend ci
@@ -118,9 +121,15 @@ jobs:
       - name: Run backend tests with coverage gate
         run: >-
           uv run --no-sync pytest
+          --ignore=tests/system/test_production_celery_redis_recovery.py
           --cov=lx_annotate
           --cov-report=term-missing
           --cov-fail-under=75
+
+      - name: Verify production Celery Redis recovery
+        run: |
+          command -v redis-server
+          uv run --no-sync pytest -q -s tests/system/test_production_celery_redis_recovery.py
 
       - name: Run frontend tests and static checks
         run: |
@@ -180,6 +189,7 @@ jobs:
                   }
                   for artifact in artifacts
               ],
+              "uv_lock_sha256": hashlib.sha256(Path("uv.lock").read_bytes()).hexdigest(),
           }
           (dist / "RELEASE_EVIDENCE.json").write_text(
               json.dumps(evidence, indent=2, sort_keys=True) + "\n",
@@ -255,7 +265,12 @@ jobs:
           if expected_hashes.get(wheels[0].name) != actual_hash:
               raise SystemExit(f"wheel SHA-256 mismatch: {wheels[0].name}")
 
-          subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
+          subprocess.check_call(["rustc", "--version"])
+          subprocess.check_call(["cargo", "--version"])
+          subprocess.check_call([
+              str(python), "-m", "pip", "install",
+              str(wheels[0]),
+          ])
           pip_check = subprocess.run(
               [str(python), "-m", "pip", "check"],
               capture_output=True,
@@ -362,13 +377,16 @@ jobs:
           name: python-package-distributions
           path: dist
 
-      - name: Remove workflow metadata from publish directory
-        run: rm -f dist/PACKAGE_VERSION.txt dist/RELEASE_EVIDENCE.json
+      - name: Select application distributions for publication
+        run: |
+          mkdir publish-dist
+          cp dist/lx_annotate-*.whl dist/lx_annotate-*.tar.gz publish-dist/
 
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@v1.14.0
         with:
           repository-url: https://test.pypi.org/legacy/
+          packages-dir: publish-dist/
 
   publish-pypi:
     name: Publish Verified Release To PyPI
@@ -389,11 +407,15 @@ jobs:
           name: python-package-distributions
           path: dist
 
-      - name: Remove workflow metadata from publish directory
-        run: rm -f dist/PACKAGE_VERSION.txt dist/RELEASE_EVIDENCE.json
+      - name: Select application distributions for publication
+        run: |
+          mkdir publish-dist
+          cp dist/lx_annotate-*.whl dist/lx_annotate-*.tar.gz publish-dist/
 
       - name: Publish verified artifacts to PyPI
         uses: pypa/gh-action-pypi-publish@v1.14.0
+        with:
+          packages-dir: publish-dist/
 
   test-testpypi-install:
     name: Install TestPyPI Build On ${{ matrix.os }}
@@ -480,7 +502,12 @@ jobs:
           if expected_hashes.get(wheels[0].name) != actual_hash:
               raise SystemExit(f"TestPyPI wheel SHA-256 mismatch: {wheels[0].name}")
 
-          subprocess.check_call([str(python), "-m", "pip", "install", str(wheels[0])])
+          subprocess.check_call(["rustc", "--version"])
+          subprocess.check_call(["cargo", "--version"])
+          subprocess.check_call([
+              str(python), "-m", "pip", "install",
+              str(wheels[0]),
+          ])
           pip_check = subprocess.run(
               [str(python), "-m", "pip", "check"],
               capture_output=True,

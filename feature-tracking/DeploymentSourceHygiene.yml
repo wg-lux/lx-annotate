@@ -1,6 +1,6 @@
 schema_version: '1.0'
-id: deployment
-name: Deployment
+id: deployment_source_hygiene
+name: Deployment Source Hygiene
 description: Govern attributable release inputs, temporary deployment artifacts, release worktrees, Nix
   roots, and post-deployment cleanup for LX-Annotate across the LuxNix clinical fleet.
 owners:
@@ -24,6 +24,13 @@ definition_of_done:
   acceptance:
   - The deployment record identifies the LuxNix commit, selected host, locked Flake inputs, LX-Annotate
     version, and immutable wheel or Nix closure digest.
+  - Record exact repository paths and revisions, application lockfile identity, and installed
+    lx-annotate, endoreg-db, and lx-dtypes versions and artifact identities; verify that the
+    installed dependency set contains the reviewed fixes. Local checkout versions alone are
+    not release evidence.
+  - Any emergency runtime patch is incorporated into the reviewed release source and artifact
+    before promotion; verify that service imports resolve to that artifact without unexplained
+    differences from the reviewed source.
   - Operators review repository status and reject unrelated or unexplained changes before evaluation.
   - Evaluation, build, and deployment use the same reviewed source path.
   - Shared module and default changes are reviewed for their fleet-wide impact, not only for the named
@@ -82,6 +89,21 @@ definition_of_done:
   - LX-Annotate package and deployment contract tests run against the exact version selected by LuxNix.
   - A production-like rollout proves migration, startup, live acceptance, and rollback behavior before
     fleet promotion.
+  - Reject application or dependency downgrades before replacing a shared runtime environment. Compare
+    applied database migrations with the installed migration contract before migration and runtime
+    startup, preserving explicitly supported legacy histories without silently repairing unknown history.
+  - Rollback acceptance includes a database newer than the selected package and stale NixOS boot pins;
+    reject incompatible code without dropping constraints, rewriting migration records, or retrying
+    deterministic schema failures as transient work. Previously deployed installer scripts need a
+    separate reviewed generation and shared-runtime recovery procedure.
+  - From the intended user's browser and client network, a fresh login synchronizes the expected
+    center and permits a populated overview, playback, anonymization approval using JSON frame
+    ranges, and annotation save and reload while background processing is active. Record the
+    selected host, release identity, workload, measured response times, result, and assessor
+    without retaining clinical payloads or credentials in deployment evidence.
+  - Background HLS backfill does not block web startup; competing import and backfill work and
+    worker interruption recover without duplicate imports, lost artifacts, or premature queue
+    redelivery. Verify capacity and archive I/O health on the selected host before acceptance.
   - Test output records commands, revisions, artifact identities, results, and the assessor.
   required: true
   verification:
@@ -92,6 +114,31 @@ definition_of_done:
   assessment:
     status: in_progress
     evidence:
+    - kind: review
+      reference: 'codex://threads/01a07b15-3574-7743-96e0-730210c51406; 2026-09-07 gc-10 read-only
+        verification: lx-annotate0.9.51/endoreg-db1.0.8.0/lx-dtypes0.2.8, installed backend migrations
+        through0056 versus database through0076. VideoHLSArtifact model omits encoding_profile_name
+        and source_content_hash; both database columns are NOT NULL without database defaults.
+        Thread installer logs show lx-annotate1.2.1 to0.9.51 and endoreg-db1.1.6 to1.0.8.0 downgrade.
+        Why the stale boot generation was selected remains unverified.'
+    - kind: test
+      reference: '2026-09-07 application migration guard: 37 focused tests passed, then9 new-guard
+        tests passed after the final inaccessible-database case was added (38 distinct tests).
+        Includes read-only rejection of database0076/package0056, canonical/legacy/squashed
+        histories, runtime failure and non-secret database diagnostics. Focused Mypy and Ruff passed.'
+    - kind: test
+      reference: '2026-09-07 final application integration after migration guard: .devenv/state/venv/bin/pytest
+        -q tests/system/test_oidc_settings.py tests/system/test_production_celery_routing.py
+        tests/system/test_installed_video_segments_contract.py tests/system/test_secretspec_environment_contract.py
+        tests/system/test_config_unit.py tests/system/test_environment_checks.py
+        tests/system/test_candidate_dependency_workflows.py tests/system/test_production_celery_redis_recovery.py
+        =>87 passed in69.93s. No live deployment or successful clinical-media recovery claimed.'
+    - kind: test
+      reference: '2026-09-07 canonical /home/admin/luxnix: downgrade/shared-runtime/encryption suite24
+        passed; startup/module-layout/documentation suite33 passed. Rendered gc05 wrapper guard and
+        typed filesystem helper bytes match source and import; migration/preflight ordering verified.
+        Independent review confirms exact constraints on every install step and projected override
+        validation, including already-installed downgrade targets. No live installer executed.'
     - kind: command
       reference: LuxNix 8b0b8a556e3f2c7d30d91530cd5a5a1628a4b984; flake.lock sha256 aac5cc82ffc23649a62dde7fd515b1a2f7131e816e6c69cdb075866380ca8d36;
         focused nixtest lx-annotate-large-hub-transfer-timeouts-are-ordered passed
@@ -106,9 +153,12 @@ definition_of_done:
       Full production readiness remains open: no host was switched, the repository contains pre-existing
       unrelated documentation changes, and the gs-02 whole-system build was intentionally interrupted
       during an unrelated multi-architecture llama-cpp CUDA rebuild after the affected units had evaluated
-      successfully.'
-    assessed_by: codex-clinical-readiness-tracker
-    assessed_at: '2026-08-31T06:32:29.584933Z'
+      successfully. September7 gc10 evidence adds a confirmed code/database downgrade blocker.
+      Read-only migration compatibility guards and application regressions now pass locally; this does
+      not approve the installed gc10 runtime, temporary systemd overrides, or job recovery. The new
+      application guard must be packaged in the same reviewed release as the LuxNix command wiring.'
+    assessed_by: codex-remote-review-20260907
+    assessed_at: '2026-09-07T09:36:52Z'
 - id: protected_temporary_boundary
   category: security
   title: Temporary storage never becomes a protected-data or secret boundary

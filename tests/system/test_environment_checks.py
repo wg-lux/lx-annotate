@@ -378,6 +378,11 @@ def test_constraint_checks_skip_queries_until_required_columns_exist(monkeypatch
 def test_assert_runtime_checks_pass_fails_closed_on_critical_messages(monkeypatch):
     monkeypatch.setattr(
         checks_module,
+        "lx_annotate_migration_compatibility_checks",
+        lambda app_configs: [],
+    )
+    monkeypatch.setattr(
+        checks_module,
         "lx_annotate_endoreg_db_schema_checks",
         lambda app_configs: [
             checks_module.Critical(

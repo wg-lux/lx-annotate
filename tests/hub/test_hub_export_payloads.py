@@ -439,6 +439,9 @@ class HubExportPayloadTests(TestCase):
             export_segment=True,
         )
         segment.mark_validated(information_source_name="manual_annotation")
+        # Segment edits invalidate export readiness on the video's cached state.
+        # Finalize that same state instance before serializing the fixture.
+        state = video.state
         state.segment_annotations_created = True
         state.segment_annotations_validated = True
         state.outside_segments_removed = True

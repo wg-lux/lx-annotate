@@ -9,6 +9,10 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from importlib import resources
 
+from django.db import DatabaseError
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.db.migrations.recorder import MigrationRecorder
+
 _MIGRATION_FILENAME = re.compile(r"^(?P<name>\d{4}_.+)\.py$")
 
 
@@ -482,3 +486,24 @@ def build_repair_plan(
             ),
         )
     return tuple(plans)
+
+
+def check_migration_compatibility(
+    connection: BaseDatabaseWrapper,
+    contracts: Collection[MigrationHistoryContract] = CONTRACTS,
+) -> tuple[MigrationHistoryRepairPlan, ...]:
+    """Reject newer/unknown recorded histories without changing the database.
+
+    Fresh databases and recognized legacy prefixes remain eligible for the
+    explicit migration/repair workflow. This does not declare pending migrations
+    applied or prove physical schema equivalence.
+    """
+    manifests = verify_canonical_contract_manifests(contracts)
+    try:
+        applied = MigrationRecorder(connection).applied_migrations()
+    except DatabaseError as exc:
+        raise MigrationHistorySafetyError(
+            "Unable to inspect recorded migration history "
+            f"({type(exc).__name__}); refusing an unverified runtime.",
+        ) from exc
+    return build_repair_plan(set(applied), contracts, manifests)

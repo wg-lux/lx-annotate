@@ -3,9 +3,6 @@ repos:
     rev: v0.14.7
     hooks:
       - id: ruff
-        args: ["--fix", "lx_annotate", "tests"]
-        pass_filenames: false
-      - id: ruff
         name: ruff import sorting
         args:
           - --fix
@@ -57,14 +54,5 @@ repos:
         name: frontend type-check
         entry: devenv shell -- npm --prefix frontend run type-check
         language: system
-        pass_filenames: false
-  -   repo: https://github.com/PyCQA/flake8
-      rev: 7.3.0
-      hooks:
-      -   id: flake8
-  -   repo: https://github.com/pre-commit/mirrors-mypy
-      rev: v2.3.0
-      hooks:
-      -   id: mypy
-          additional_dependencies: [types-pyyaml]
-          exclude: ^testing/resources/
+
+

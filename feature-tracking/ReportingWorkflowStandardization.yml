@@ -268,7 +268,7 @@ definition_of_done:
       viewport widths.
     timeout_seconds: 900
   assessment:
-    status: verified
+    status: in_progress
     evidence:
     - kind: code
       reference: frontend/src/views/reporting/ReportingShell.vue and ReportEditorPage.vue
@@ -282,8 +282,17 @@ definition_of_done:
       reference: 'CaseSetupPage.test.ts and ReportingShell.mediaPreload.test.ts: 38 passed'
     - kind: command
       reference: frontend type-check, component-test type-check, scoped ESLint, and git diff --check passed
-    note: Reporting entry now exposes only the required patient/fall and examination selectors; template,
-      terminology, import, technical IDs, and media context are collapsed by default. Required fields
-      are numbered and announced immediately.
-    assessed_by: codex-reporting-shell-focus-20260814
-    assessed_at: '2026-08-14T08:28:19.038798Z'
+    - kind: test
+      reference: '2026-09-08: ReportingShell.mediaPreload.test.ts and reportingShellPresentation.test.ts:
+        2 files, 46 tests passed.'
+    - kind: command
+      reference: '2026-09-08: frontend vue-tsc --build --force and scoped ESLint for ReportingShell.vue
+        passed (exit 0).'
+    note: Shell navigation now precedes findings in DOM and visual order. Added a focus-revealed workspace
+      skip link, persistent settings labels, context disclosure state, and clearer setup copy. Narrow
+      layouts stack resolved context and creation actions; opening the technical inspector no longer restores
+      two columns below 992px. Existing clinical gates and script logic are unchanged. Automated verification
+      passed; desktop/mobile visual inspection and real-browser keyboard verification remain outstanding
+      for this increment.
+    assessed_by: codex-reporting-usability-20260908
+    assessed_at: '2026-09-08T06:23:16.835965Z'

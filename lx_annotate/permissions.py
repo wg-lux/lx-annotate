@@ -43,3 +43,34 @@ class ExactCenterScopeAdminPermission(BasePermission):
     def has_permission(self, request: "Request", view: "APIView") -> bool:
         del view
         return user_can_administer_center_scope(request.user)
+
+
+class LifecyclePolicyPermission(BasePermission):
+    """Enforce the governed route policy for recovery/export even in DEBUG."""
+
+    def has_permission(self, request: "Request", view: "APIView") -> bool:
+        from endoreg_db.authz.policy import get_needed_role, satisfies
+
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        match = request.resolver_match
+        route = match.url_name if match is not None else type(view).__name__
+        method = request.method
+        if route is None or method is None:
+            return False
+        needed = get_needed_role(route, method)
+        groups = getattr(user, "groups", None)
+        if groups is None:
+            return False
+        return satisfies(set(groups.values_list("name", flat=True)), needed)
+
+
+def lifecycle_center_ids(user: Any) -> frozenset[int] | None:
+    from endoreg_db.services.center_access import resolve_allowed_center_ids
+    from rest_framework.exceptions import PermissionDenied
+
+    center_ids = resolve_allowed_center_ids(user)
+    if center_ids == frozenset():
+        raise PermissionDenied("No center membership is assigned.")
+    return center_ids

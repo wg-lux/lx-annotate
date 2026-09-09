@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, ref } from 'vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
@@ -131,6 +131,8 @@ function axiosError(status: number): unknown {
 }
 
 describe('useAuthenticatedVideoStream', () => {
+  afterEach(() => vi.useRealTimers())
+
   beforeEach(() => {
     hlsMock.instances.length = 0
     hlsMock.MockHls.isSupported.mockReturnValue(true)
@@ -140,6 +142,53 @@ describe('useAuthenticatedVideoStream', () => {
     })
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  })
+
+  it('waits for HTTP 202 Retry-After before configuring playback', async () => {
+    vi.useFakeTimers()
+    axiosMock.get.mockResolvedValueOnce({
+      status: 202, data: '{"status":"preparing"}',
+      headers: { 'content-type': 'application/json', 'retry-after': '3' }
+    })
+    const wrapper = mountHost()
+    await flushPromises()
+    expect(requireHostVm(wrapper).playbackMode).toBe('preparing')
+    expect(hlsMock.instances).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(hlsMock.instances).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(1)
+    await flushPromises()
+    expect(requireHostVm(wrapper).playbackMode).toBe('hls')
+    wrapper.unmount()
+  })
+
+  it('cancels preparation waiting when the target changes or unmounts', async () => {
+    vi.useFakeTimers()
+    axiosMock.get.mockResolvedValue({ status: 202, data: '{}', headers: { 'retry-after': '3' } })
+    const fatalError = vi.fn()
+    const wrapper = mountHost(fatalError)
+    await flushPromises()
+    requireHostVm(wrapper).videoId = 43
+    await flushPromises()
+    const requests = axiosMock.get.mock.calls.length
+    wrapper.unmount()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(axiosMock.get).toHaveBeenCalledTimes(requests)
+    expect(hlsMock.instances).toHaveLength(0)
+    expect(fatalError).not.toHaveBeenCalled()
+  })
+
+  it('bounds repeated preparation responses and reports a timeout', async () => {
+    vi.useFakeTimers()
+    axiosMock.get.mockResolvedValue({ status: 202, data: '{}', headers: { 'retry-after': '10' } })
+    const fatalError = vi.fn()
+    const wrapper = mountHost(fatalError)
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(requireHostVm(wrapper).playbackMode).toBe('error')
+    expect(fatalError).toHaveBeenCalledWith(expect.objectContaining({ reason: 'hls_preparation_timeout' }))
+    expect(hlsMock.instances).toHaveLength(0)
+    wrapper.unmount()
   })
 
   it('uses hls.js with credentialed playlist, key, and segment requests', async () => {

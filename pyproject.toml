@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "lx-annotate"
 
-version = "1.2.2"
+version = "1.2.3"
 description = "This webapp provides a frontend interface for pseudonymizing and annotating data and applying AI predictions."
 authors = [
     { name = "Max Hild", email = "hild_m@ukw.de"},
@@ -52,7 +52,7 @@ dependencies = [
     "daphne>=4.2.1",
     "psycopg[binary,pool]>=3.2.12",
     "mozilla-django-oidc>=4.0.1",
-    "endoreg-db==1.1.6",
+    "endoreg-db==1.2.0",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
     "sops>=1.18",
@@ -60,7 +60,7 @@ dependencies = [
     "cryptography>=45.0.0",
     "django-linear-migrations>=2.19.0",
     "redis>=5.0.3,<6.5",
-    "lx-dtypes>=0.2.27",
+    "lx-dtypes==0.2.37",
     "pre-commit[dev]>=4.6.1",
     "pylint-django>=2.8.0",
 ]
@@ -102,6 +102,7 @@ include = [
   "/manage.py",
   "/lx_annotate",
   "/staticfiles",
+  "/uv.lock",
 ]
 
 [tool.hatch.build.targets.sdist.force-include]
@@ -155,7 +156,11 @@ line-length = 88
 target-version = ["py312"]
 [tool.mypy]
 ignore_missing_imports = true
-exclude = ["venv", ".devenv"]
+exclude = ["venv", ".devenv", "lx_annotate/migrations"]
+plugins = ["mypy_django_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "lx_annotate.settings.settings_test"
 
 [[tool.mypy.overrides]]
 module = [

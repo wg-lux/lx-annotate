@@ -15,9 +15,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import Client
 from django.urls import Resolver404, resolve
+from endoreg_db.utils.file_operations import atomic_write_file
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIRequestFactory, force_authenticate
-from endoreg_db.utils.file_operations import atomic_write_file
 
 from lx_annotate.apps import LxAnnotateConfig
 from lx_annotate.management.commands import export_route_manifest as route_cmd
@@ -106,6 +106,7 @@ def test_keycloak_authenticate_returns_none_without_bearer():
     assert auth.authenticate(req) is None
 
 
+@pytest.mark.django_db
 def test_keycloak_authenticate_returns_user_tuple(monkeypatch):
     import endoreg_db.authz.auth as keycloak_auth_mod
 

@@ -73,6 +73,27 @@ describe('anonymizationStore video reimport', () => {
     setActivePinia(createPinia())
   })
 
+  it('dismisses an import by UUID and refreshes the overview', async () => {
+    hoisted.post.mockResolvedValue({ status: 204 })
+    hoisted.get.mockResolvedValue({ data: [] })
+    const store = useAnonymizationStore()
+    store.overview = [buildVideoFile()]
+    expect(await store.dismissUploadJob('db0a99ff-0129-4c13-b5c9-f584bf21d1b2')).toBe(true)
+    expect(hoisted.post).toHaveBeenCalledWith('api/anonymization/upload-jobs/db0a99ff-0129-4c13-b5c9-f584bf21d1b2/dismiss/')
+    expect(store.overview).toEqual([])
+  })
+
+  it('keeps the row and reports an error when dismissal fails', async () => {
+    hoisted.post.mockRejectedValue(new Error('conflict'))
+    const store = useAnonymizationStore()
+    const row = buildVideoFile()
+    store.overview = [row]
+    expect(await store.dismissUploadJob('db0a99ff-0129-4c13-b5c9-f584bf21d1b2')).toBe(false)
+    expect(store.overview).toEqual([row])
+    expect(store.error).toContain('nicht aus der Übersicht entfernt')
+    expect(hoisted.get).not.toHaveBeenCalled()
+  })
+
   it('posts annotation-safe repair for a stale extracting-frames video', async () => {
     hoisted.post.mockResolvedValue({
       data: {

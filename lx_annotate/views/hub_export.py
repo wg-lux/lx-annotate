@@ -26,6 +26,7 @@ from lx_annotate.hub.hub_export_jobs import (
     retry_failed_outbound_job,
     unmark_resources_for_hub_upload,
 )
+from lx_annotate.permissions import LifecyclePolicyPermission, lifecycle_center_ids
 
 
 def _resolve_target_node(target_node_key: str | None) -> NetworkNode | None:
@@ -54,22 +55,26 @@ def _validation_errors(exc: ValidationError) -> object:
 
 @api_view(["GET"])
 @authentication_classes([SessionAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
 def hub_export_overview(request):
+    center_ids = lifecycle_center_ids(request.user)
     target_node_key = request.query_params.get("target_node_key")
     target_node = (
         resolve_target_hub_node(target_node_key=target_node_key)
         if str(target_node_key or "").strip()
         else _resolve_target_node(None)
     )
-    payload = build_hub_export_overview(target_node=target_node)
+    payload = build_hub_export_overview(
+        target_node=target_node, allowed_center_ids=center_ids
+    )
     return Response(payload, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
 @authentication_classes([SessionAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
 def hub_export_mark(request):
+    center_ids = lifecycle_center_ids(request.user)
     try:
         mutation = _parse_mutation_request(request.data or {})
     except ValidationError as exc:
@@ -95,6 +100,7 @@ def hub_export_mark(request):
             ],
             target_node=target_node,
             marked_by=request.user,
+            allowed_center_ids=center_ids,
         )
     except (ObjectDoesNotExist, ValueError) as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -110,8 +116,9 @@ def hub_export_mark(request):
 
 @api_view(["POST"])
 @authentication_classes([SessionAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
 def hub_export_offload_eligible_videos(request):
+    center_ids = lifecycle_center_ids(request.user)
     try:
         mutation = _parse_eligible_video_offload_request(request.data or {})
     except ValidationError as exc:
@@ -134,6 +141,7 @@ def hub_export_offload_eligible_videos(request):
         result = queue_all_eligible_videos_for_hub_upload(
             target_node=target_node,
             marked_by=request.user,
+            allowed_center_ids=center_ids,
         )
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -143,12 +151,14 @@ def hub_export_offload_eligible_videos(request):
 
 @api_view(["POST"])
 @authentication_classes([SessionAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
 def hub_export_retry(request, outbound_job_id):
+    center_ids = lifecycle_center_ids(request.user)
     try:
         result = retry_failed_outbound_job(
             outbound_job_id=str(outbound_job_id),
             requested_by=request.user,
+            allowed_center_ids=center_ids,
         )
     except ObjectDoesNotExist:
         return Response(
@@ -165,8 +175,9 @@ def hub_export_retry(request, outbound_job_id):
 
 @api_view(["POST"])
 @authentication_classes([SessionAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
 def hub_export_unmark(request):
+    center_ids = lifecycle_center_ids(request.user)
     try:
         mutation = _parse_mutation_request(request.data or {})
     except ValidationError as exc:
@@ -191,6 +202,7 @@ def hub_export_unmark(request):
                 resource.model_dump(mode="json") for resource in mutation.resources
             ],
             target_node=target_node,
+            allowed_center_ids=center_ids,
         )
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

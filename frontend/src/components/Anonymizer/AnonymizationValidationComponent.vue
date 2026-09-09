@@ -544,6 +544,9 @@ v-model="editedAnonymizedText"
                           >
                             Ihr Browser unterstützt dieses Video-Format nicht.
                           </video>
+                          <div v-if="rawVideoPlaybackMode === 'preparing'" class="alert alert-info" role="status">
+                            Video wird vorbereitet. Die Wiedergabe startet automatisch.
+                          </div>
                           <div
                             v-if="rawVideoPlaybackError"
                             class="alert alert-danger py-2 mt-2 mb-0"
@@ -578,6 +581,9 @@ v-model="editedAnonymizedText"
                           >
                             Ihr Browser unterstützt dieses Video-Format nicht.
                           </video>
+                          <div v-if="anonymizedVideoPlaybackMode === 'preparing'" class="alert alert-info" role="status">
+                            Video wird vorbereitet. Die Wiedergabe startet automatisch.
+                          </div>
                           <div
                             v-if="anonymizedVideoPlaybackError"
                             class="alert alert-danger py-2 mt-2 mb-0"
@@ -700,7 +706,7 @@ v-model="editedAnonymizedText"
           <!-- Action Buttons -->
           <div class="row">
             <div class="col-12 d-flex justify-content-between">
-              <button class="btn btn-secondary" @click="skipItem">
+              <button class="btn btn-secondary" :disabled="isApproving" @click="skipItem">
                 Überspringen
               </button>
               <div class="d-flex gap-2">
@@ -725,7 +731,7 @@ v-model="editedAnonymizedText"
                   </span>
                 </button>
 
-                <button class="btn btn-danger me-2" @click="rejectItem">
+                <button class="btn btn-danger me-2" :disabled="isApproving" @click="rejectItem">
                   Ablehnen
                 </button>
 
@@ -847,7 +853,7 @@ v-model="editedAnonymizedText"
 
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizationStore';
 import {useVideoStore} from '@/stores/videoStore';
@@ -1615,6 +1621,7 @@ const anonymizedVideoElement = ref<HTMLVideoElement | null>(null);
 const validationVideoId = computed(() => isVideo.value ? sourceFileId.value : null);
 
 const {
+  playbackMode: rawVideoPlaybackMode,
   playbackError: rawVideoPlaybackError,
   playbackSourceUrl: rawVideoPlaybackSourceUrl
 } = useAuthenticatedVideoStream({
@@ -1625,6 +1632,7 @@ const {
 });
 
 const {
+  playbackMode: anonymizedVideoPlaybackMode,
   playbackError: anonymizedVideoPlaybackError,
   playbackSourceUrl: anonymizedVideoPlaybackSourceUrl
 } = useAuthenticatedVideoStream({
@@ -2041,6 +2049,8 @@ const canSave = computed(() => {
 
 // Concurrency guards
 const isApproving = ref(false);
+let approvalViewActive = true;
+onBeforeUnmount(() => { approvalViewActive = false; });
 
 
 const toggleImage = () => {
@@ -2169,30 +2179,10 @@ function clearValidationErrors() {
 
 
 const skipItem = async () => {
+  if (isApproving.value) return;
   if (currentItem.value) {
     await fetchNextItem();
   }
-};
-
-const navigateToSegmentation = () => {
-  if (!currentItem.value) {
-    toast.error({ text: 'Kein Video zur Segmentierung ausgewählt.' });
-    return;
-  }
-
-  const videoFileId = resolveFileIdFromContext();
-  if (videoFileId === null) {
-    toast.error({ text: 'Video-Datei-ID konnte nicht bestimmt werden.' });
-    return;
-  }
-
-  // Navigate with video ID as query parameter to ensure correct video selection
-  void router.push({
-    name: 'Video-Untersuchung',
-    query: { video: String(videoFileId) }
-  });
-
-  logger.debug('video-examination-navigation-started');
 };
 
 function toPositiveInteger(value: unknown): number | null {
@@ -2291,14 +2281,15 @@ function extractPatientId(payload: unknown): number | null {
 
 async function resolvePatientExaminationIdForPdf(
   pdfFileId: number,
-  validateResponseData: unknown
+  validateResponseData: unknown,
+  approvedItem: unknown
 ): Promise<number | null> {
   const fromValidateResponse = extractPatientExaminationId(validateResponseData);
   if (fromValidateResponse !== null) {
     return fromValidateResponse;
   }
 
-  const fromCurrentItem = extractPatientExaminationId(currentItem.value);
+  const fromCurrentItem = extractPatientExaminationId(approvedItem);
   if (fromCurrentItem !== null) {
     return fromCurrentItem;
   }
@@ -2313,7 +2304,7 @@ async function resolvePatientExaminationIdForPdf(
     }
 
     const patientId =
-      extractPatientId(pdfDetail) ?? extractPatientId(currentItem.value);
+      extractPatientId(pdfDetail) ?? extractPatientId(approvedItem);
     if (patientId === null) {
       return null;
     }
@@ -2345,14 +2336,16 @@ async function resolvePatientExaminationIdForPdf(
 
 const navigateAfterApproval = async (
   mediaKind: 'pdf' | 'video',
+  approvedFileId: number,
+  explicitPatientExaminationId: number | null,
+  approvedItem: unknown,
   validateResponseData?: unknown
 ) => {
   if (mediaKind === 'video') {
-    navigateToSegmentation();
+    await router.push({ name: 'Video-Untersuchung', query: { video: String(approvedFileId) } });
     return;
   }
 
-  const explicitPatientExaminationId = selectedPatientExaminationIdForRouting.value;
   if (explicitPatientExaminationId !== null) {
     sessionStorage.setItem(
       'last:patientExaminationId',
@@ -2366,9 +2359,12 @@ const navigateAfterApproval = async (
   }
 
   const resolvedPatientExaminationId = await resolvePatientExaminationIdForPdf(
-    resolveFileIdFromContext() ?? 0,
-    validateResponseData
+    approvedFileId,
+    validateResponseData,
+    approvedItem
   );
+
+  if (!approvalViewActive || resolveFileIdFromContext() !== approvedFileId) return;
 
   if (resolvedPatientExaminationId !== null) {
     sessionStorage.setItem(
@@ -2496,6 +2492,8 @@ const approveItem = async () => {
     toast.error({ text: 'Datei-ID konnte nicht bestimmt werden. Bitte Datei aus der Übersicht erneut öffnen.' });
     return;
   }
+  const approvedItem = currentItem.value;
+  const approvedExaminationId = selectedPatientExaminationIdForRouting.value;
   isApproving.value = true;
   try {
     logger.info('approval-started');
@@ -2503,12 +2501,13 @@ const approveItem = async () => {
       r(endpoints.anonymization.validate(validationFileId)),
       validationPayload
     );
+    if (!approvalViewActive || resolveFileIdFromContext() !== validationFileId) return;
     persistApprovedReportFileId(response.data);
 
     logger.info('approval-complete');
     toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
 
-    await navigateAfterApproval(mediaKind, response.data);
+    await navigateAfterApproval(mediaKind, validationFileId, approvedExaminationId, approvedItem, response.data);
 
   } catch (error: unknown) {
     logger.error('approval-failed', error);
@@ -2520,6 +2519,7 @@ const approveItem = async () => {
 
 
 const rejectItem = async () => {
+  if (isApproving.value) return;
   if (currentItem.value) {
     await fetchNextItem();
   }

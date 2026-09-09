@@ -106,6 +106,7 @@ export const endpoints = {
   },
 
   administration: {
+    monitoring: 'administration/monitoring/',
     overview: 'administration/overview/',
     storageActions: 'administration/storage-balancing/actions/',
     storagePlacementPreview: 'administration/storage-balancing/placement-preview/',
@@ -125,6 +126,7 @@ export const endpoints = {
   anonymization: {
     itemsOverview: 'anonymization/items/overview/',
     retryUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${jobId}/retry/`,
+    dismissUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${jobId}/dismiss/`,
     documentTypesDropdown: 'anonymization/document-types/dropdown/',
     current: (fileId: Id) => `anonymization/${pathId(fileId)}/current/`,
     start: (fileId: Id) => `anonymization/${pathId(fileId)}/start/`,
