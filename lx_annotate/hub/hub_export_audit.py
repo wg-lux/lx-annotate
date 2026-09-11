@@ -6,7 +6,6 @@ from typing import Any
 
 from endoreg_db.utils.structured_logging import emit_structured_event
 
-
 logger = logging.getLogger("lx_annotate.hub_export.audit")
 
 

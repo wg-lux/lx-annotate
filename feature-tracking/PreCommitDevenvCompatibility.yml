@@ -1,0 +1,133 @@
+schema_version: '1.0'
+id: pre_commit_devenv_compatibility
+name: Pre-Commit Devenv Compatibility
+description: Keep pre-commit hooks usable after devenv recreates the Python environment.
+owners:
+- lx-annotate maintainers
+production_critical: false
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: dependency_sync
+  category: requirements
+  title: Shell installs locked development dependencies
+  acceptance:
+  - Shell installs locked development dependencies.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'devenv shell -- python -c "import endoreg_db, pre_commit, pytest": exit 0'
+    note: Enabled uv.sync with dev/docs extras and --locked; the shell uses the configured Nix Python
+      interpreter.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486776+00:00'
+- id: hook_execution
+  category: functionality
+  title: Local hooks execute through devenv
+  acceptance:
+  - Local hooks execute through devenv.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run <hook> --all-files --verbose: all six local commands start successfully'
+    note: Every local hook enters devenv; frontend-typecheck has pass_filenames=false.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486794+00:00'
+- id: verification
+  category: testing
+  title: Configured checks pass
+  acceptance:
+  - Configured checks pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: blocked
+    evidence:
+    - kind: command
+      reference: 'Pyright: 0 errors; runtime bundle: passed; Vitest: 963 passed; API contracts: 9 passed;
+        Ruff format --check: 206 files already formatted'
+    - kind: command
+      reference: 'frontend-typecheck: OpenAPI freshness, vue-tsc and ESLint completed without command
+        errors on both runs; pre-commit exit 1 due to workspace changes during execution'
+    note: 'Full pytest: 880 passed, 2 skipped, 5 failed. Four failures in tests/api/test_central_hub_training_access.py
+      concern missing training annotations; test_watcher_video_import_with_ultrashort_mp4_passes_integrity_checks
+      also fails. Pinned Ruff import check in non-mutating --diff mode reports 73 violations. No application/test
+      changes or lint suppressions were made. A clean frontend-typecheck pre-commit result remains unverified
+      because tracked workspace/index changes occurred during both runs, including assessment documentation
+      edits during the retry.'
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486799+00:00'
+- id: failure_propagation
+  category: security
+  title: Hook failures remain visible
+  acceptance:
+  - Hook failures remain visible.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run pytest --all-files --verbose: exit 1 for five failed tests'
+    note: Failures propagate through devenv and pre-commit. Dependency synchronization uses --locked without
+      a success fallback.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486802+00:00'
+- id: installed_hook
+  category: operations
+  title: Git pre-commit launcher resolves its interpreter
+  acceptance:
+  - Git pre-commit launcher resolves its interpreter.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit validate-config and pre-commit install: exit 0'
+    note: Git launcher installed using .devenv/state/venv/bin/python; dependencies were restored after
+      the devenv update.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486805+00:00'
+- id: results
+  category: documentation
+  title: Verification results and blockers are recorded
+  acceptance:
+  - Verification results and blockers are recorded.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: feature-tracking/PreCommitDevenvCompatibility.yml
+    note: Exact results are recorded here; full local output is in .devenv/precommit-verification/*.log.
+      Application changes already staged by the user remain untouched.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486808+00:00'

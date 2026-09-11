@@ -126,6 +126,9 @@ def _verified_source_events(
 
 
 class CopyThroughFrameCleaner:
+    def __init__(self, *, quality_profile: str) -> None:
+        assert quality_profile == "exhaustive"
+
     def clean_video(
         self,
         *,
@@ -151,12 +154,13 @@ def test_watcher_video_import_with_ultrashort_mp4_passes_integrity_checks(
     paths = _configure_isolated_runtime(monkeypatch, settings, tmp_path)
     _reset_video_file_storages()
 
-    import lx_annotate.file_watcher as file_watcher
     import lx_anonymizer
     from endoreg_db.import_files.processing.video_processing import video_anonymization
     from endoreg_db.models import Center, EndoscopyProcessor, UploadJob, VideoFile
     from endoreg_db.services.hub.ingest import _run_video_upload_import_job
     from endoreg_db.utils.file_operations import atomic_move_file
+
+    import lx_annotate.file_watcher as file_watcher
 
     monkeypatch.setattr(lx_anonymizer, "FrameCleaner", CopyThroughFrameCleaner)
     monkeypatch.setattr(

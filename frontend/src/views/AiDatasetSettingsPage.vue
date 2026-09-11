@@ -3,7 +3,7 @@
     <section class="page-heading">
       <div>
         <p class="section-kicker">KI-Datensatz</p>
-        <h1>Training-Manifest</h1>
+        <h1 class="page-heading__title">Training-Manifest</h1>
         <p class="heading-copy">
           Verwalten Sie Datensätze und prüfen Sie die Manifest-Konfiguration für das Modelltraining.
         </p>
@@ -22,8 +22,11 @@
     <div class="settings-layout">
       <section class="settings-panel">
         <div class="panel-heading">
-          <h2>Datensatz</h2>
-          <span class="status-chip" :class="{ 'status-chip-busy': isBusy }">
+          <h2 class="panel-heading__title">Datensatz</h2>
+          <span
+            class="status-chip"
+            :class="{ 'status-chip-busy': isBusy }"
+          >
             {{ statusLabel }}
           </span>
         </div>
@@ -34,8 +37,8 @@
           @submit.prevent="createDataset"
         >
           <div>
-            <h3>Neuen Datensatz erstellen</h3>
-            <p>
+            <h3 class="create-dataset-panel__title">Neuen Datensatz erstellen</h3>
+            <p class="create-dataset-panel__description">
               Erstellt einen leeren Datensatz und wählt ihn direkt für die Manifest-Vorschau aus.
             </p>
           </div>
@@ -71,12 +74,16 @@
               data-test="create-dataset-button"
               :disabled="!canCreateDataset"
             >
-              {{ creatingDataset ? 'Datensatz wird erstellt...' : 'Datensatz erstellen' }}
+              {{ createDatasetLabel }}
             </button>
           </div>
         </form>
 
-        <div v-if="createdDatasetMessage" class="alert alert-success mb-0 mt-3" role="status">
+        <div
+          v-if="createdDatasetMessage"
+          class="alert alert-success mb-0 mt-3"
+          role="status"
+        >
           {{ createdDatasetMessage }}
         </div>
 
@@ -86,7 +93,7 @@
           @submit.prevent="attachExistingAnnotations"
         >
           <div>
-            <h3>Bestehende Annotationen hinzufügen</h3>
+            <h3 class="attach-annotations-panel__title">Bestehende Annotationen hinzufügen</h3>
           </div>
           <div class="attach-options-grid">
             <label class="check-row">
@@ -115,16 +122,16 @@
               data-test="attach-existing-annotations"
               :disabled="!canAttachExistingAnnotations"
             >
-              {{
-                attachingAnnotations
-                  ? 'Annotationen werden hinzugefügt...'
-                  : 'Annotationen hinzufügen'
-              }}
+              {{ attachAnnotationsLabel }}
             </button>
           </div>
         </form>
 
-        <div v-if="attachmentMessage" class="alert alert-success mb-0 mt-3" role="status">
+        <div
+          v-if="attachmentMessage"
+          class="alert alert-success mb-0 mt-3"
+          role="status"
+        >
           {{ attachmentMessage }}
         </div>
 
@@ -158,7 +165,11 @@
               :disabled="isBusy"
             >
               <option value="">Automatisch erkennen</option>
-              <option v-for="group in labelSetOptions" :key="group.id" :value="String(group.id)">
+              <option
+                v-for="group in labelSetOptions"
+                :key="group.id"
+                :value="String(group.id)"
+              >
                 {{ group.name }} v{{ group.version }} - {{ group.labelCount }} Labels
               </option>
             </select>
@@ -239,7 +250,11 @@
           </div>
         </div>
 
-        <div v-if="errorMessage" class="alert alert-warning mb-0 mt-3" role="alert">
+        <div
+          v-if="errorMessage"
+          class="alert alert-warning mb-0 mt-3"
+          role="alert"
+        >
           {{ errorMessage }}
         </div>
 
@@ -251,7 +266,7 @@
             :disabled="isBusy || !selectedDatasetId"
             @click="buildManifest"
           >
-            {{ buildingManifest ? 'Manifest wird erstellt...' : 'Manifest-Vorschau erstellen' }}
+            {{ buildManifestLabel }}
           </button>
           <button
             type="button"
@@ -266,7 +281,7 @@
 
       <section class="settings-panel summary-panel">
         <div class="panel-heading">
-          <h2>Manifest-Zusammenfassung</h2>
+          <h2 class="panel-heading__title">Manifest-Zusammenfassung</h2>
           <span
             v-if="manifestPreview"
             class="status-chip status-chip-ready"
@@ -276,44 +291,53 @@
           </span>
         </div>
 
-        <div v-if="!manifestPreview" class="empty-state">
+        <div
+          v-if="!manifestPreview"
+          class="empty-state"
+        >
           Noch keine Manifest-Vorschau vorhanden.
         </div>
 
         <template v-else>
-          <div class="summary-grid" data-test="manifest-summary">
+          <div
+            class="summary-grid"
+            data-test="manifest-summary"
+          >
             <div class="metric-tile">
-              <span>Labels</span>
-              <strong>{{ manifestPreview.summary.labelCount }}</strong>
+              <span class="metric-tile__label">Labels</span>
+              <strong class="metric-tile__value">{{ manifestPreview.summary.labelCount }}</strong>
             </div>
             <div class="metric-tile">
-              <span>Beispiele</span>
-              <strong>{{ manifestPreview.summary.sampleCount }}</strong>
+              <span class="metric-tile__label">Beispiele</span>
+              <strong class="metric-tile__value">{{ manifestPreview.summary.sampleCount }}</strong>
             </div>
             <div class="metric-tile">
-              <span>Frame-Prüfung</span>
-              <strong>{{ frameFormatLabel }}</strong>
+              <span class="metric-tile__label">Frame-Prüfung</span>
+              <strong class="metric-tile__value">{{ frameFormatLabel }}</strong>
             </div>
             <div class="metric-tile">
-              <span>Crop-Vorlagen</span>
-              <strong>{{ cropTemplateCount }}</strong>
+              <span class="metric-tile__label">Crop-Vorlagen</span>
+              <strong class="metric-tile__value">{{ cropTemplateCount }}</strong>
             </div>
           </div>
 
-          <dl class="format-list" data-test="frame-format-summary">
-            <div>
-              <dt>Format</dt>
-              <dd>{{ frameFormatDetail }}</dd>
+          <dl
+            class="format-list"
+            data-test="frame-format-summary"
+          >
+            <div class="format-list__item">
+              <dt class="format-list__term">Format</dt>
+              <dd class="format-list__value">{{ frameFormatDetail }}</dd>
             </div>
-            <div>
-              <dt>Vorverarbeitung</dt>
-              <dd>
+            <div class="format-list__item">
+              <dt class="format-list__term">Vorverarbeitung</dt>
+              <dd class="format-list__value">
                 {{ strategyLabel(manifestPreview.summary.frameFormat.preprocessingStrategy) }}
               </dd>
             </div>
-            <div>
-              <dt>Modelleingabe</dt>
-              <dd>
+            <div class="format-list__item">
+              <dt class="format-list__term">Modelleingabe</dt>
+              <dd class="format-list__value">
                 {{
                   strategyLabel(manifestPreview.summary.frameFormat.recommendedModelInputStrategy)
                 }}
@@ -322,8 +346,11 @@
           </dl>
 
           <details class="manifest-json">
-            <summary>lx-ai-core-Payload</summary>
-            <pre data-test="lx-ai-core-manifest-json">{{ lxAiCoreManifestJson }}</pre>
+            <summary class="manifest-json__disclosure">lx-ai-core-Payload</summary>
+            <pre
+              class="manifest-json__content"
+              data-test="lx-ai-core-manifest-json"
+              >{{ lxAiCoreManifestJson }}</pre>
           </details>
         </template>
       </section>
@@ -414,45 +441,65 @@ const form = reactive<AiDatasetTrainingManifestConfig>({
   informationSourceNames: null
 })
 
-const isBusy = computed(() => {
-  return (
+const createDatasetLabel = computed(() =>
+  creatingDataset.value ? 'Datensatz wird erstellt...' : 'Datensatz erstellen'
+)
+const attachAnnotationsLabel = computed(() =>
+  attachingAnnotations.value ? 'Annotationen werden hinzugefügt...' : 'Annotationen hinzufügen'
+)
+const buildManifestLabel = computed(() =>
+  buildingManifest.value ? 'Manifest wird erstellt...' : 'Manifest-Vorschau erstellen'
+)
+
+const isBusy = computed(
+  () =>
     loadingOptions.value ||
     buildingManifest.value ||
     creatingDataset.value ||
     attachingAnnotations.value
-  )
-})
+)
 
-const canCreateDataset = computed(() => {
-  return createDatasetForm.name.trim().length > 0 && !isBusy.value
-})
+const canCreateDataset = computed(() => createDatasetForm.name.trim().length > 0 && !isBusy.value)
 
-const canAttachExistingAnnotations = computed(() => {
-  return (
+const canAttachExistingAnnotations = computed(
+  () =>
     Boolean(selectedDatasetId.value) &&
     (attachForm.includeFrameAnnotations || attachForm.includeVideoAnnotations) &&
     !isBusy.value
-  )
-})
+)
 
 const statusLabel = computed(() => {
-  if (loadingOptions.value) return 'Optionen werden geladen'
-  if (creatingDataset.value) return 'Datensatz wird erstellt'
-  if (attachingAnnotations.value) return 'Annotationen werden hinzugefügt'
-  if (buildingManifest.value) return 'Vorschau wird erstellt'
+  if (loadingOptions.value) {
+    return 'Optionen werden geladen'
+  }
+  if (creatingDataset.value) {
+    return 'Datensatz wird erstellt'
+  }
+  if (attachingAnnotations.value) {
+    return 'Annotationen werden hinzugefügt'
+  }
+  if (buildingManifest.value) {
+    return 'Vorschau wird erstellt'
+  }
   return 'Bereit'
 })
 
 const frameFormatLabel = computed(() => {
   const status = manifestPreview.value?.summary.frameFormat.status
-  if (status === 'passed') return 'Bestanden'
-  if (status === 'failed') return 'Fehlgeschlagen'
+  if (status === 'passed') {
+    return 'Bestanden'
+  }
+  if (status === 'failed') {
+    return 'Fehlgeschlagen'
+  }
   return 'Nicht geprüft'
 })
 
 const frameFormatDetail = computed(() => {
   const frameFormat = manifestPreview.value?.summary.frameFormat
-  if (!frameFormat || frameFormat.status === 'not_checked') return 'Nicht geprüft'
+  if (!frameFormat || frameFormat.status === 'not_checked') {
+    return 'Nicht geprüft'
+  }
   const dimensions =
     frameFormat.expectedWidth && frameFormat.expectedHeight
       ? `${String(frameFormat.expectedWidth)} x ${String(frameFormat.expectedHeight)}`
@@ -468,12 +515,16 @@ const cropTemplateCount = computed(() => {
 })
 
 const lxAiCoreManifestJson = computed(() => {
-  if (!manifestPreview.value) return ''
+  if (!manifestPreview.value) {
+    return ''
+  }
   return JSON.stringify(manifestPreview.value.lxAiCoreManifest, null, 2)
 })
 
 function strategyLabel(strategy: AiDatasetFrameFormatStrategy): string {
-  if (strategy === 'crop_to_endoscope_roi') return 'Endoskop-ROI zuschneiden'
+  if (strategy === 'crop_to_endoscope_roi') {
+    return 'Endoskop-ROI zuschneiden'
+  }
   return 'Dimensionen mit schwarzer Maske beibehalten'
 }
 
@@ -482,7 +533,9 @@ function datasetTypeLabel(datasetType: AiDatasetType): string {
 }
 
 function aiModelTypeForDatasetType(datasetType: AiDatasetType): AiDatasetModelType {
-  if (datasetType === 'video') return 'video_segment_classification'
+  if (datasetType === 'video') {
+    return 'video_segment_classification'
+  }
   return 'image_multilabel_classification'
 }
 
@@ -520,7 +573,9 @@ async function loadOptions(): Promise<void> {
 }
 
 async function createDataset(): Promise<void> {
-  if (!canCreateDataset.value) return
+  if (!canCreateDataset.value) {
+    return
+  }
 
   creatingDataset.value = true
   errorMessage.value = ''
@@ -556,14 +611,16 @@ async function createDataset(): Promise<void> {
 }
 
 async function attachExistingAnnotations(): Promise<void> {
-  if (!canAttachExistingAnnotations.value) return
+  if (!canAttachExistingAnnotations.value) {
+    return
+  }
 
   attachingAnnotations.value = true
   errorMessage.value = ''
   createdDatasetMessage.value = ''
   attachmentMessage.value = ''
   attachmentResult.value = null
-    manifestPreview.value = null
+  manifestPreview.value = null
   try {
     attachmentResult.value = await attachAiDatasetAnnotations(selectedDatasetId.value, {
       includeAllAnnotations: true,
@@ -590,7 +647,9 @@ async function attachExistingAnnotations(): Promise<void> {
 }
 
 async function buildManifest(): Promise<void> {
-  if (!selectedDatasetId.value) return
+  if (!selectedDatasetId.value) {
+    return
+  }
 
   buildingManifest.value = true
   errorMessage.value = ''
@@ -653,12 +712,12 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.page-heading h1,
-.panel-heading h2 {
+.page-heading .page-heading__title,
+.panel-heading .panel-heading__title {
   margin: 0;
 }
 
-.page-heading h1 {
+.page-heading .page-heading__title {
   font-size: 2rem;
   font-weight: 700;
 }
@@ -668,7 +727,7 @@ onMounted(() => {
   color: #5d7085;
 }
 
-.panel-heading h2 {
+.panel-heading .panel-heading__title {
   font-size: 1.1rem;
   font-weight: 700;
 }
@@ -706,19 +765,19 @@ onMounted(() => {
   border-top: 1px solid #d9e2ec;
 }
 
-.create-dataset-panel h3 {
+.create-dataset-panel .create-dataset-panel__title {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
 }
 
-.attach-annotations-panel h3 {
+.attach-annotations-panel .attach-annotations-panel__title {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
 }
 
-.create-dataset-panel p {
+.create-dataset-panel .create-dataset-panel__description {
   margin: 0.3rem 0 0;
   color: #64748b;
   font-size: 0.9rem;
@@ -818,15 +877,15 @@ onMounted(() => {
   padding: 0.8rem;
 }
 
-.metric-tile span,
-.format-list dt {
+.metric-tile .metric-tile__label,
+.format-list .format-list__term {
   color: #64748b;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.metric-tile strong {
+.metric-tile .metric-tile__value {
   display: block;
   margin-top: 0.25rem;
   font-size: 1.35rem;
@@ -838,23 +897,23 @@ onMounted(() => {
   margin: 0 0 1rem;
 }
 
-.format-list div {
+.format-list .format-list__item {
   display: grid;
   gap: 0.2rem;
 }
 
-.format-list dd {
+.format-list .format-list__value {
   margin: 0;
   overflow-wrap: anywhere;
 }
 
-.manifest-json summary {
+.manifest-json .manifest-json__disclosure {
   cursor: pointer;
   font-weight: 700;
   margin-bottom: 0.75rem;
 }
 
-.manifest-json pre {
+.manifest-json .manifest-json__content {
   max-height: 28rem;
   overflow: auto;
   border-radius: 8px;

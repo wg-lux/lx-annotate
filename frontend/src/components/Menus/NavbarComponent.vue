@@ -1,5 +1,10 @@
 <template>
-  <nav id="navbarBlur" class="navbar navbar-main app-topbar position-sticky" navbar-scroll="true" aria-label="Seitennavigation">
+  <nav
+    id="navbarBlur"
+    class="navbar navbar-main app-topbar position-sticky"
+    navbar-scroll="true"
+    aria-label="Seitennavigation"
+  >
     <div class="container-fluid app-topbar-inner">
       <!-- Mobile sidebar toggle button -->
       <button 
@@ -17,14 +22,20 @@
         </span>
       </button>
       
-      <div id="navbar" class="navbar-collapse app-topbar-content">
+      <div
+        id="navbar"
+        class="navbar-collapse app-topbar-content"
+      >
         <div class="app-page-context">
           <nav aria-label="breadcrumb">
             <ol class="breadcrumb app-breadcrumb">
               <li class="breadcrumb-item app-breadcrumb-eyebrow">
                 Arbeitsbereich
               </li>
-              <li class="breadcrumb-item active app-breadcrumb-current" aria-current="page">
+              <li
+                class="breadcrumb-item active app-breadcrumb-current"
+                aria-current="page"
+              >
                 {{ currentRouteName }}
               </li>
             </ol>
@@ -66,21 +77,47 @@
               </span>
             </router-link>
           </li>
-          <li v-if="isAuthenticated" class="nav-item d-flex align-items-center">
-            <button type="button" class="nav-link account-action" @click="handleLogout">
-              <i class="ni ni-circle-08 me-sm-1" aria-hidden="true"></i>
+          <li
+            v-if="isAuthenticated"
+            class="nav-item d-flex align-items-center"
+          >
+            <button
+              type="button"
+              class="nav-link account-action"
+              @click="handleLogout"
+            >
+              <i
+                class="ni ni-circle-08 me-sm-1"
+                aria-hidden="true"
+              ></i>
               <span>Logout</span>
             </button>
           </li>
-          <li v-else class="nav-item d-flex align-items-center">
-            <button type="button" class="nav-link account-action" @click="handleLogin">
-              <i class="ni ni-circle-08 me-sm-1" aria-hidden="true"></i>
+          <li
+            v-else
+            class="nav-item d-flex align-items-center"
+          >
+            <button
+              type="button"
+              class="nav-link account-action"
+              @click="handleLogin"
+            >
+              <i
+                class="ni ni-circle-08 me-sm-1"
+                aria-hidden="true"
+              ></i>
               <span>Login</span>
             </button>
           </li>
-          <li v-if="isAuthenticated" class="nav-item d-flex align-items-center">
+          <li
+            v-if="isAuthenticated"
+            class="nav-item d-flex align-items-center"
+          >
             <span class="nav-link account-identity">
-              <span class="account-presence" aria-hidden="true"></span>
+              <span
+                class="account-presence"
+                aria-hidden="true"
+              ></span>
               <span class="d-sm-inline d-none">{{ username }}</span>
             </span>
           </li>
@@ -138,8 +175,12 @@ const showPendingCount = computed(
 )
 
 const annotationStatsStatusTitle = computed(() => {
-  if (annotationStatsStore.isLoading) return 'Annotationsstatistik wird aktualisiert'
-  if (annotationStatsStore.hasError) return 'Annotationsstatistik ist derzeit nicht verfügbar'
+  if (annotationStatsStore.isLoading) {
+    return 'Annotationsstatistik wird aktualisiert'
+  }
+  if (annotationStatsStore.hasError) {
+    return 'Annotationsstatistik ist derzeit nicht verfügbar'
+  }
   if (totalPendingAnnotations.value > 0) {
     return `${String(totalPendingAnnotations.value)} ausstehende Annotationen`
   }
@@ -170,7 +211,9 @@ const toggleSidebar = () => {
 onMounted(async () => {
   await annotationStatsStore.fetchAnnotationStats()
 
-  if (isUnmounted) return
+  if (isUnmounted) {
+    return
+  }
 
   // Auto-refresh every 5 minutes
   annotationStatsRefreshTimer = setInterval(() => {

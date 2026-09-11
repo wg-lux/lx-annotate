@@ -109,8 +109,12 @@ function findingsCatalogParams(context: FindingsCatalogContext): {
 }
 
 function optionalBoolean(value: unknown, path: string): boolean | undefined {
-  if (value === undefined) return undefined
-  if (typeof value !== 'boolean') throw new TypeError(`${path} must be a boolean.`)
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'boolean') {
+    throw new TypeError(`${path} must be a boolean.`)
+  }
   return value
 }
 
@@ -130,23 +134,41 @@ function requireSelection(
 function normalizeSelections(
   selections: ClassificationSelection[] | undefined
 ): ClassificationSelection[] | undefined {
-  if (selections === undefined) return undefined
-  if (!Array.isArray(selections)) throw new TypeError('classifications must be an array.')
+  if (selections === undefined) {
+    return undefined
+  }
+  if (!Array.isArray(selections)) {
+    throw new TypeError('classifications must be an array.')
+  }
   return selections.map(requireSelection)
 }
 
 function requireArrayPayload(value: unknown, path: string): unknown[] {
-  if (Array.isArray(value)) return value
-  if (isRecord(value) && Array.isArray(value.results)) return value.results
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (isRecord(value) && Array.isArray(value.results)) {
+    return value.results
+  }
   throw new TypeError(`${path} must be an array or an object with a results array.`)
 }
 
 function parseMessages(data: unknown): string[] {
-  if (!data) return []
-  if (typeof data === 'string') return data.trim() ? [data] : []
-  if (!isRecord(data)) return []
-  if (typeof data.message === 'string' && data.message.trim()) return [data.message]
-  if (typeof data.detail === 'string' && data.detail.trim()) return [data.detail]
+  if (!data) {
+    return []
+  }
+  if (typeof data === 'string') {
+    return data.trim() ? [data] : []
+  }
+  if (!isRecord(data)) {
+    return []
+  }
+  if (typeof data.message === 'string' && data.message.trim()) {
+    return [data.message]
+  }
+  if (typeof data.detail === 'string' && data.detail.trim()) {
+    return [data.detail]
+  }
 
   const messages: string[] = []
   for (const [key, value] of Object.entries(data)) {

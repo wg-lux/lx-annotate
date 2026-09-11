@@ -5,7 +5,10 @@
       <p class="text-muted mb-0">Wähle Segmente für einen PTS-sicheren Trainingsdatenexport aus.</p>
     </div>
     <div class="card-body">
-      <div v-if="!selectedVideoId" class="text-muted">Bitte zuerst ein Video auswählen.</div>
+      <div
+        v-if="!selectedVideoId"
+        class="text-muted"
+      >Bitte zuerst ein Video auswählen.</div>
 
       <label class="form-label">Video auswählen:</label>
       <select
@@ -15,22 +18,32 @@
         @change="onVideoChange"
       >
         <option :value="null">
-          {{ hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar' }}
+          {{ videoSelectionPlaceholder }}
         </option>
-        <option v-for="video in annotatableVideos" :key="video.id" :value="video.id">
+        <option
+          v-for="video in annotatableVideos"
+          :key="video.id"
+          :value="video.id"
+        >
           📹 {{ video.original_file_name || 'Video Nr. ' + video.id }}
           {{ getVideoStatusIndicator(video.id) }}
           | Center: {{ video.centerName || 'Unbekannt' }} | Processor:
           {{ video.processorName || 'Unbekannt' }}
         </option>
       </select>
-      <small v-if="!hasVideos" class="text-muted">
+      <small
+        v-if="!hasVideos"
+        class="text-muted"
+      >
         {{ noVideosMessage }}
       </small>
 
       <template v-else>
         <div class="export-toggle">
-          <label class="form-check-label" for="export-all-video">
+          <label
+            class="form-check-label"
+            for="export-all-video"
+          >
             Alle Segmente dieses Videos für den Export markieren
           </label>
           <div class="form-check form-switch">
@@ -50,11 +63,18 @@
             <span>Segmente</span>
           </div>
 
-          <div v-if="sortedSegments.length === 0" class="text-muted mt-2">
+          <div
+            v-if="sortedSegments.length === 0"
+            class="text-muted mt-2"
+          >
             Keine Segmente vorhanden.
           </div>
 
-          <div v-for="segment in sortedSegments" :key="segment.id" class="export-segment">
+          <div
+            v-for="segment in sortedSegments"
+            :key="segment.id"
+            class="export-segment"
+          >
             <div class="export-segment-info">
               <span class="segment-label">
                 {{ getTranslationForLabel(segment.label) }}
@@ -76,7 +96,10 @@
         </div>
       </template>
 
-      <div v-if="selectedVideoId" class="export-controls mt-4">
+      <div
+        v-if="selectedVideoId"
+        class="export-controls mt-4"
+      >
         <div
           class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3"
         >
@@ -86,7 +109,10 @@
           </div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <label class="form-label mb-0">Format</label>
-            <select v-model="selectedFormat" class="form-select form-select-sm">
+            <select
+              v-model="selectedFormat"
+              class="form-select form-select-sm"
+            >
               <option value="csv">CSV</option>
               <option value="json">JSON</option>
             </select>
@@ -97,7 +123,10 @@
                 class="form-check-input"
                 type="checkbox"
               />
-              <label class="form-check-label" for="use-export-flags">
+              <label
+                class="form-check-label"
+                for="use-export-flags"
+              >
                 Export-Flags verwenden
               </label>
             </div>
@@ -111,7 +140,10 @@
               class="form-check-input"
               type="checkbox"
             />
-            <label class="form-check-label" for="export-videos"> Video-Dateien exportieren </label>
+            <label
+              class="form-check-label"
+              for="export-videos"
+            > Video-Dateien exportieren </label>
           </div>
           <div class="form-check form-switch">
             <input
@@ -120,7 +152,10 @@
               class="form-check-input"
               type="checkbox"
             />
-            <label class="form-check-label" for="export-frames"> Frames exportieren </label>
+            <label
+              class="form-check-label"
+              for="export-frames"
+            > Frames exportieren </label>
           </div>
           <div class="form-check form-switch">
             <input
@@ -129,7 +164,10 @@
               class="form-check-input"
               type="checkbox"
             />
-            <label class="form-check-label" for="use-frame-pk-paths">
+            <label
+              class="form-check-label"
+              for="use-frame-pk-paths"
+            >
               use_frame_pk_paths verwenden
             </label>
           </div>
@@ -143,13 +181,19 @@
               :checked="true"
               disabled
             />
-            <label class="form-check-label" for="transcode-frames">
+            <label
+              class="form-check-label"
+              for="transcode-frames"
+            >
               PTS-genau aus verarbeitetem Video extrahieren
             </label>
           </div>
           <div class="transcode-options row gx-2 mt-2">
             <div class="col-6 col-md-3">
-              <label class="form-label mb-0" for="transcode-quality">Quality</label>
+              <label
+                class="form-label mb-0"
+                for="transcode-quality"
+              >Quality</label>
               <input
                 id="transcode-quality"
                 v-model.number="transcodeQuality"
@@ -160,7 +204,10 @@
               />
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label mb-0" for="transcode-ext">Extension</label>
+              <label
+                class="form-label mb-0"
+                for="transcode-ext"
+              >Extension</label>
               <input
                 id="transcode-ext"
                 v-model="transcodeExt"
@@ -265,7 +312,9 @@ const effectiveSegments = computed<Segment[]>(() => {
   if (props.videoId !== null) {
     return props.segments
   }
-  if (!selectedVideoId.value) return []
+  if (!selectedVideoId.value) {
+    return []
+  }
   return videoStore.allSegments
 })
 
@@ -274,13 +323,19 @@ const sortedSegments = computed(() => {
 })
 
 const allSegmentsSelected = computed(() => {
-  if (!selectedVideoId.value) return false
-  if (sortedSegments.value.length === 0) return false
+  if (!selectedVideoId.value) {
+    return false
+  }
+  if (sortedSegments.value.length === 0) {
+    return false
+  }
   return sortedSegments.value.every((s) => s.exportSegment === true)
 })
 
 const formatTime = (value: number | undefined) => {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '00:00'
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return '00:00'
+  }
   return formatTimeHelper(value)
 }
 
@@ -289,8 +344,10 @@ const isSegmentUpdating = (segmentId: number) => updatingSegments.value.has(segm
 const onToggleAllSegments = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const nextValue = target.checked
-  const ok = await selectAllSegments(nextValue)
-  if (!ok) target.checked = !nextValue
+  const updateSucceeded = await selectAllSegments(nextValue)
+  if (!updateSucceeded) {
+    target.checked = !nextValue
+  }
 }
 
 const onToggleSegmentExport = async (segmentId: number, event: Event) => {
@@ -298,8 +355,8 @@ const onToggleSegmentExport = async (segmentId: number, event: Event) => {
   const nextValue = target.checked
   updatingSegments.value.add(segmentId)
   try {
-    const ok = await videoStore.setSegmentExportFlag(segmentId, nextValue)
-    if (!ok) {
+    const updateSucceeded = await videoStore.setSegmentExportFlag(segmentId, nextValue)
+    if (!updateSucceeded) {
       target.checked = !nextValue
       toast.error({ text: 'Segment-Export-Flag konnte nicht gespeichert werden.' })
     }
@@ -309,15 +366,19 @@ const onToggleSegmentExport = async (segmentId: number, event: Event) => {
 }
 
 const selectAllSegments = async (flag: boolean): Promise<boolean> => {
-  if (sortedSegments.value.length === 0) return false
+  if (sortedSegments.value.length === 0) {
+    return false
+  }
   isBulkUpdating.value = true
   let okAll = true
   try {
     for (const segment of sortedSegments.value) {
-      if (segment.exportSegment === flag) continue
+      if (segment.exportSegment === flag) {
+        continue
+      }
       updatingSegments.value.add(segment.id)
-      const ok = await videoStore.setSegmentExportFlag(segment.id, flag)
-      if (!ok) {
+      const updateSucceeded = await videoStore.setSegmentExportFlag(segment.id, flag)
+      if (!updateSucceeded) {
         toast.error({ text: `Segment ${String(segment.id)} konnte nicht aktualisiert werden.` })
         okAll = false
         break
@@ -333,7 +394,9 @@ const selectAllSegments = async (flag: boolean): Promise<boolean> => {
 
 const getVideoStatusIndicator = (videoId: number): string => {
   const item = overview.value.find((o) => o.id === videoId && o.mediaType === 'video')
-  if (!item) return ''
+  if (!item) {
+    return ''
+  }
 
   const statusIndicators: Record<string, string> = {
     not_started: '⏳ Wartend',
@@ -348,7 +411,9 @@ const getVideoStatusIndicator = (videoId: number): string => {
 }
 
 const loadSelectedVideo = async () => {
-  if (isExternalSelection.value) return
+  if (isExternalSelection.value) {
+    return
+  }
   if (!selectedVideoId.value) {
     videoStore.clearVideo()
     return
@@ -369,8 +434,12 @@ const onVideoChange = async () => {
 }
 
 const autoSelectInitialVideo = async () => {
-  if (isExternalSelection.value) return
-  if (selectedVideoId.value) return
+  if (isExternalSelection.value) {
+    return
+  }
+  if (selectedVideoId.value) {
+    return
+  }
   const firstVideo = annotatableVideos.value.at(0)
   if (firstVideo) {
     selectedVideoId.value = firstVideo.id
@@ -427,7 +496,9 @@ const exportBaseDir = computed(() => {
 })
 
 const exportOutputDir = computed(() => {
-  if (!selectedVideoId.value) return exportBaseDir.value
+  if (!selectedVideoId.value) {
+    return exportBaseDir.value
+  }
   return `${exportBaseDir.value}/video_${String(selectedVideoId.value)}_annotated`
 })
 
@@ -438,8 +509,12 @@ const exportSegmentIds = computed(() =>
 )
 
 const getExportGuardError = (): string | null => {
-  if (!selectedVideoId.value) return 'Bitte zuerst ein Video auswählen.'
-  if (!exportOutputDir.value) return 'Kein Ausgabe-Verzeichnis konfiguriert.'
+  if (!selectedVideoId.value) {
+    return 'Bitte zuerst ein Video auswählen.'
+  }
+  if (!exportOutputDir.value) {
+    return 'Kein Ausgabe-Verzeichnis konfiguriert.'
+  }
   if (!useExportFlags.value && exportSegmentIds.value.length === 0) {
     return 'Bitte mindestens ein Segment markieren oder "Export-Flags verwenden" aktivieren.'
   }
@@ -453,7 +528,9 @@ const backfillButtonLabel = computed(() =>
 )
 
 const getRequestErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error || typeof error !== 'object') return fallback
+  if (!error || typeof error !== 'object') {
+    return fallback
+  }
   const errorRecord = isRecord(error) ? error : {}
   const response =
     isRecord(errorRecord.response) ? errorRecord.response : {}
@@ -501,7 +578,9 @@ const startExport = async () => {
   }
 
   const videoId = selectedVideoId.value
-  if (videoId === null) return
+  if (videoId === null) {
+    return
+  }
   const payload = buildAnnotationExportRequest({
     outputDir: exportOutputDir.value,
     outputFormat: selectedFormat.value,
@@ -537,6 +616,10 @@ const startExport = async () => {
     isExporting.value = false
   }
 }
+const videoSelectionPlaceholder = computed(() =>
+  hasVideos.value ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar'
+)
+
 </script>
 
 <style scoped>

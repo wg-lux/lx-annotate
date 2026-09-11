@@ -1,0 +1,26 @@
+owner: lx-annotate reporting maintainers
+canonical_topic: Streamed reporting previews and explicit report frame selection
+behavior:
+  preview: Authenticated decoded processed-frame images remain browser blobs; browsing does not populate the extracted-frame cache.
+  annotation: FrameAnnotation accepts decoded-frame stream URLs and preserves its existing annotator and task filters.
+  selection: Preview a frame, then add it to the report. Remove frames individually. At most 24 unique frames are selected in insertion order.
+  default: Until the first explicit add or removal, export prefers the last successfully loaded clicked frame. Without a clicked frame, existing segment selection applies.
+  empty: An explicitly empty selected_frames list exports no images and does not restore a default frame.
+  filter: Browse positive image classification annotations by exact label name within the current patient examination. Results are paginated; filtering preserves the export list.
+  scope: Selection is held in the reporting store for the active examination and authenticated subject. Switching either clears it; browser reload does not restore this selection.
+  export: Only requested processed frames are decoded at their persisted timestamps. JPEG files exist only inside the PDF-rendering scope, with private permissions and typed cleanup on success or failure.
+  errors: Reject stale timestamps, foreign examination frames, unvalidated media, LOST media, wrong keys and authentication failures. Do not substitute cached files.
+contract:
+  package: lx_dtypes.models.contracts.patient_examination_report
+  candidates_endpoint: GET /api/patient-examination-reports/frame-candidates
+  candidate_query: [patient_examination_id, label, offset, limit]
+  export_endpoint: POST /api/patient-examination-reports/make-report
+  selected_frames: Ordered list of video_id, frame_number, timestamp; mutually exclusive with preferred_frame.
+  acknowledgement: The client verifies every returned frame identity and timestamp against the requested list.
+  rollout: Update lx-data-models, endoreg-db and the frontend together. Local verification uses the shared contract source; installed releases must include these changes.
+verification:
+  frontend: frontend/src/views/reporting/__tests__/ReportingShell.mediaPreload.test.ts
+  export_client: frontend/src/api/__tests__/reportExportApi.test.ts
+  preview: frontend/src/composables/__tests__/useAuthenticatedFramePreview.test.ts
+  backend: /home/admin/endoreg-db/tests/views/report/test_patient_examination_report_ninja_api.py
+  encrypted_media: /home/admin/endoreg-db/tests/views/test_central_hub_training_access.py

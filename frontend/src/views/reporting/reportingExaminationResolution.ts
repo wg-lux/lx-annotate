@@ -39,7 +39,9 @@ export function findReportingExaminationsByName<T extends { name: string }>(
   examinationName: string | null | undefined
 ): T[] {
   const normalizedName = normalizeReportingExaminationName(examinationName)
-  if (!normalizedName) return []
+  if (!normalizedName) {
+    return []
+  }
   return catalog.filter((entry) => normalizeReportingExaminationName(entry.name) === normalizedName)
 }
 
@@ -131,7 +133,9 @@ export function requireResolvedReportingExamination<
   examinationName: string | null | undefined
 }): T {
   const resolution = resolveReportingExamination(params)
-  if (resolution.status === 'resolved') return resolution.examination
+  if (resolution.status === 'resolved') {
+    return resolution.examination
+  }
   throw new ReportingExaminationResolutionError(
     resolution.code,
     reportingExaminationResolutionMessage(resolution)

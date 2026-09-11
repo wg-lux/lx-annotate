@@ -20,6 +20,7 @@ def test_lx_storage_imports_use_endoreg_db_source_of_truth():
     from endoreg_db.utils.encryption.encryption import (
         encrypt_stream as endoreg_encrypt_stream,
     )
+
     from lx_annotate.storage import encryption as lx_encryption
 
     assert EncryptedStorage is EndoregEncryptedStorage

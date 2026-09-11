@@ -10,23 +10,17 @@ import os
 import shutil
 import threading
 import time
-from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, Set
 
+import endoreg_db.utils.paths as path_utils
 import requests
 from django.core.exceptions import ObjectDoesNotExist
-from watchdog.events import (  # type: ignore[import-not-found]
-    DirCreatedEvent,
-    FileCreatedEvent,
-    FileMovedEvent,
-    FileSystemEventHandler,
-    DirMovedEvent,
-)
-from watchdog.observers import Observer  # type: ignore[import-not-found]
 from django.db.models import Q
 from django.db.models.fields.files import FieldFile
+from endoreg_db.exceptions import InsufficientStorageError
 from endoreg_db.models import (
     Center,
     EndoscopyProcessor,
@@ -36,21 +30,27 @@ from endoreg_db.models import (
 )
 from endoreg_db.services.environment_readiness import assert_environment_readiness
 from endoreg_db.services.hub.ingest import (
+    UploadProvenance,
     process_preanonymized_watcher_file,
     process_watcher_file,
-    UploadProvenance,
 )
 from endoreg_db.services.hub.watcher_handoff import (
     WatcherFileNotReadyError,
     is_in_progress_handoff_path,
 )
-from endoreg_db.utils.file_operations import ensure_directory, safe_unlink_file
-import endoreg_db.utils.paths as path_utils
-from endoreg_db.utils.storage import ensure_local_file
-from endoreg_db.exceptions import InsufficientStorageError
 from endoreg_db.services.video_files._imports import (
     check_storage_capacity,
 )
+from endoreg_db.utils.file_operations import ensure_directory, safe_unlink_file
+from endoreg_db.utils.storage import ensure_local_file
+from watchdog.events import (  # type: ignore[import-not-found]
+    DirCreatedEvent,
+    DirMovedEvent,
+    FileCreatedEvent,
+    FileMovedEvent,
+    FileSystemEventHandler,
+)
+from watchdog.observers import Observer  # type: ignore[import-not-found]
 
 LOG_DIR = path_utils.LOG_DIR
 ensure_directory(LOG_DIR)
@@ -123,9 +123,9 @@ def _preload_processing_stack() -> None:
         raise RuntimeError("Processing stack must be initialized from the main thread.")
 
     try:
+        import tesserocr
         from lx_anonymizer.frame_cleaner import FrameCleaner
         from lx_anonymizer.report_reader import ReportReader
-        import tesserocr
     except ImportError as exc:
         logger.warning(
             "Report OCR dependency could not be preloaded: %s. "

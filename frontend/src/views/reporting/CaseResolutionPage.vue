@@ -7,19 +7,31 @@
           Bestehenden Patientenfall zuordnen oder eine minimale Patientenuntersuchung vorbereiten
         </small>
       </div>
-      <span class="badge" :class="linkageStatusBadgeClass">
-        {{ linkageStatusLabel }}
+      <span
+        class="badge"
+        :class="linkageStatusPresentation.badgeClass"
+      >
+        {{ linkageStatusPresentation.label }}
       </span>
     </div>
     <div class="card-body">
-      <div v-if="returnToPath" class="alert alert-info py-2">
+      <div
+        v-if="returnToPath"
+        class="alert alert-info py-2"
+      >
         Diese Seite wurde aus der Anonymisierungsvalidierung geöffnet. Sie können nach der
         Fallauflösung direkt zur Validierung zurückkehren.
       </div>
-      <div v-if="successMessage" class="alert alert-success py-2">
+      <div
+        v-if="successMessage"
+        class="alert alert-success py-2"
+      >
         {{ successMessage }}
       </div>
-      <div v-if="errorMessage" class="alert alert-danger py-2">
+      <div
+        v-if="errorMessage"
+        class="alert alert-danger py-2"
+      >
         {{ errorMessage }}
       </div>
 
@@ -42,7 +54,10 @@
             <div>{{ linkageStatusDescription }}</div>
           </div>
         </div>
-        <div v-if="patientHashDisplay || examinationHashDisplay" class="col-md-6">
+        <div
+          v-if="patientHashDisplay || examinationHashDisplay"
+          class="col-md-6"
+        >
           <div class="border rounded p-3 h-100 bg-light">
             <div class="small text-uppercase text-muted fw-semibold mb-1">Hashes</div>
             <div class="small">
@@ -60,7 +75,11 @@
       <div class="row g-3 align-items-end">
         <div class="col-lg-4">
           <label class="form-label">Bestehenden Patienten wählen</label>
-          <select v-model="selectedCasePatientId" class="form-select" :disabled="isCaseDataLoading">
+          <select
+            v-model="selectedCasePatientId"
+            class="form-select"
+            :disabled="isCaseDataLoading"
+          >
             <option value="">
               {{ isCaseDataLoading ? 'Patienten werden geladen...' : 'Bitte Patient wählen' }}
             </option>
@@ -191,13 +210,24 @@
       </div>
 
       <div class="mt-3 d-flex flex-wrap gap-2">
-        <RouterLink class="btn btn-outline-secondary btn-sm" :to="caseSetupRoute">
+        <RouterLink
+          class="btn btn-outline-secondary btn-sm"
+          :to="caseSetupRoute"
+        >
           Im Fall-Setup Fallkontext starten
         </RouterLink>
-        <RouterLink v-if="returnToPath" class="btn btn-outline-secondary btn-sm" :to="returnToPath">
+        <RouterLink
+          v-if="returnToPath"
+          class="btn btn-outline-secondary btn-sm"
+          :to="returnToPath"
+        >
           Zurück zur Validierung
         </RouterLink>
-        <RouterLink v-if="flow.patientExaminationId" class="btn btn-dark btn-sm" :to="nextRoute">
+        <RouterLink
+          v-if="flow.patientExaminationId"
+          class="btn btn-dark btn-sm"
+          :to="nextRoute"
+        >
           Zur klinischen Dokumentation
         </RouterLink>
       </div>
@@ -294,7 +324,9 @@ const caseResolutionSuggestedPatientExaminationOptions = computed<PatientExamina
     return matches
       .map((match) => {
         const id = toPositiveInteger(match.id)
-        if (id === null) return null
+        if (id === null) {
+          return null
+        }
         const examName = match.examinationName?.trim() || 'Untersuchung'
         const dateStart = normalizeDateInputToGerman(match.dateStart)
         return {
@@ -310,9 +342,13 @@ const caseResolutionSuggestedPatientExaminationOptions = computed<PatientExamina
 
 const casePatientExaminationDropdownOptions = computed<PatientExaminationOption[]>(() => {
   const byId = new Map<number, PatientExaminationOption>()
-  for (const option of casePatientExaminationOptions.value) byId.set(option.id, option)
+  for (const option of casePatientExaminationOptions.value) {
+    byId.set(option.id, option)
+  }
   for (const option of caseResolutionSuggestedPatientExaminationOptions.value) {
-    if (!byId.has(option.id)) byId.set(option.id, option)
+    if (!byId.has(option.id)) {
+      byId.set(option.id, option)
+    }
   }
   return [...byId.values()].sort((left, right) => right.id - left.id)
 })
@@ -343,56 +379,58 @@ const linkedPatientExaminationId = computed(() => {
   return typeof value === 'number' && value > 0 ? value : null
 })
 const linkageStatus = computed<'not_linked' | 'suggested' | 'linked' | 'deferred'>(() => {
-  if (caseResolution.value?.matchStatus === 'linked') return 'linked'
-  if (caseResolution.value?.matchStatus === 'deferred') return 'deferred'
-  if (caseResolution.value?.matchStatus === 'suggested') return 'suggested'
-  if (linkedPatientExaminationId.value !== null) return 'linked'
+  if (caseResolution.value?.matchStatus === 'linked') {
+    return 'linked'
+  }
+  if (caseResolution.value?.matchStatus === 'deferred') {
+    return 'deferred'
+  }
+  if (caseResolution.value?.matchStatus === 'suggested') {
+    return 'suggested'
+  }
+  if (linkedPatientExaminationId.value !== null) {
+    return 'linked'
+  }
   if (patientHashDisplay.value || examinationHashDisplay.value || pseudoPatientId.value !== null) {
     return 'suggested'
   }
   return 'not_linked'
 })
-const linkageStatusLabel = computed(() => {
-  const labels = {
-    not_linked: 'Nicht verknüpft',
-    suggested: 'Vorgeschlagen',
-    linked: 'Verknüpft',
-    deferred: 'Zurückgestellt'
-  } as const
-  return labels[linkageStatus.value]
-})
+const linkagePresentation = {
+  not_linked: {
+    label: 'Nicht verknüpft',
+    badgeClass: 'bg-secondary',
+    description: 'Derzeit liegt noch keine erkennbare Fallverknüpfung vor.'
+  },
+  suggested: {
+    label: 'Vorgeschlagen',
+    badgeClass: 'bg-warning text-dark',
+    description: 'Hash- oder Pseudo-Patient-Hinweise sind vorhanden, die Zuordnung ist aber noch nicht final.'
+  },
+  linked: {
+    label: 'Verknüpft',
+    badgeClass: 'bg-success',
+    description: 'Eine bestehende Fallverknüpfung ist bereits vorhanden oder wurde ausgewählt.'
+  },
+  deferred: {
+    label: 'Zurückgestellt',
+    badgeClass: 'bg-info text-dark',
+    description: 'Die Fallzuordnung wurde bewusst vertagt und kann später abgeschlossen werden.'
+  }
+} as const
+const linkageStatusPresentation = computed(() => linkagePresentation[linkageStatus.value])
+const suggestedMatchCount = computed(() => caseResolution.value?.suggestedMatchCount ?? 0)
 const linkageStatusDescription = computed(() => {
-  if (linkageStatus.value === 'linked') {
-    return 'Eine bestehende Fallverknüpfung ist bereits vorhanden oder wurde ausgewählt.'
+  if (linkageStatus.value !== 'suggested' || caseResolution.value?.matchStatus !== 'suggested') {
+    return linkageStatusPresentation.value.description
   }
-  if (linkageStatus.value === 'deferred') {
-    return 'Die Fallzuordnung wurde bewusst vertagt und kann später abgeschlossen werden.'
-  }
-  if (
-    caseResolution.value?.matchStatus === 'suggested' &&
-    (caseResolution.value.suggestedMatchCount ?? 0) > 1
-  ) {
+  if (suggestedMatchCount.value > 1) {
     return 'Mehrere passende PatientExaminations wurden gefunden. Eine explizite Auswahl ist erforderlich.'
   }
-  if (
-    caseResolution.value?.matchStatus === 'suggested' &&
-    (caseResolution.value.suggestedMatchCount ?? 0) === 1
-  ) {
+  if (suggestedMatchCount.value === 1) {
     return 'Eine passende PatientExamination wurde vorgeschlagen, ist aber noch nicht final bestätigt.'
   }
-  if (linkageStatus.value === 'suggested') {
-    return 'Hash- oder Pseudo-Patient-Hinweise sind vorhanden, die Zuordnung ist aber noch nicht final.'
-  }
-  return 'Derzeit liegt noch keine erkennbare Fallverknüpfung vor.'
-})
-const linkageStatusBadgeClass = computed(() => {
-  const classes = {
-    not_linked: 'bg-secondary',
-    suggested: 'bg-warning text-dark',
-    linked: 'bg-success',
-    deferred: 'bg-info text-dark'
-  } as const
-  return classes[linkageStatus.value]
+  return linkageStatusPresentation.value.description
 })
 const pseudoPatientDisplay = computed(() => {
   if (pseudoPatientId.value !== null) {
@@ -405,7 +443,9 @@ const pseudoPatientDisplay = computed(() => {
 })
 const patientExaminationDisplay = computed(() => {
   if (linkedPatientExaminationId.value !== null)
-    return `#${String(linkedPatientExaminationId.value)}`
+    {
+      return `#${String(linkedPatientExaminationId.value)}`
+    }
   const suggestedId = caseResolution.value?.recommendedPatientExaminationId
   return typeof suggestedId === 'number' && suggestedId > 0
     ? `Vorschlag: #${String(suggestedId)}`
@@ -413,7 +453,9 @@ const patientExaminationDisplay = computed(() => {
 })
 const selectedCasePatientLabel = computed(() => {
   const patientId = selectedCasePatientIdNumber.value
-  if (patientId === null) return 'Kein Patient ausgewählt'
+  if (patientId === null) {
+    return 'Kein Patient ausgewählt'
+  }
   const patient = patientStore.getPatientById(patientId)
   return patient
     ? `${patient.firstName || ''} ${patient.lastName || ''} (ID: ${String(patient.id)})`.trim()
@@ -427,12 +469,16 @@ const selectedCasePatientExaminationLabel = computed(() => {
     )
     return option?.label ?? `#${String(selectedId)}`
   }
-  if (flow.patientExaminationId) return `#${String(flow.patientExaminationId)}`
+  if (flow.patientExaminationId) {
+    return `#${String(flow.patientExaminationId)}`
+  }
   return 'Keine Patientenuntersuchung vorgemerkt'
 })
 const patientDraftAvailable = computed(() => {
   const item = currentItem.value
-  if (!item) return false
+  if (!item) {
+    return false
+  }
   return Boolean(
     item.patientFirstName?.trim() &&
       item.patientLastName?.trim() &&
@@ -473,9 +519,13 @@ function readRecord(value: unknown): Record<string, unknown> {
 }
 
 function readListPayload(value: unknown): unknown[] {
-  if (isUnknownArray(value)) return value
+  if (isUnknownArray(value)) {
+    return value
+  }
   const results = readRecord(value).results
-  if (isUnknownArray(results)) return results
+  if (isUnknownArray(results)) {
+    return results
+  }
   throw new TypeError('Patient examination list response must contain an array.')
 }
 
@@ -492,7 +542,9 @@ function normalizeDateInputToGerman(value?: string | null): string {
 function normalizePatientExaminationOption(raw: unknown): PatientExaminationOption | null {
   const row = readRecord(raw)
   const id = toPositiveInteger(row.id)
-  if (id === null) return null
+  if (id === null) {
+    return null
+  }
   const examinationName =
     (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
     (typeof row.examination === 'string' && row.examination.trim()) ||
@@ -522,7 +574,9 @@ function addOrReplacePatientExaminationOption(
 async function initializeCurrentItemFromRouteContext(): Promise<void> {
   const fileId = targetFileId.value
   const scope = targetScope.value
-  if (fileId === null || scope === null) return
+  if (fileId === null || scope === null) {
+    return
+  }
   if (!anonymizationStore.overview.length) {
     await anonymizationStore.fetchOverview()
   }
@@ -533,7 +587,9 @@ async function fetchCaseResolution(): Promise<void> {
   const fileId = targetFileId.value
   const scope = targetScope.value
   caseResolution.value = null
-  if (fileId === null || scope === null) return
+  if (fileId === null || scope === null) {
+    return
+  }
   const endpoint =
     scope === 'pdf'
       ? endpoints.media.pdfCaseResolution(fileId)
@@ -586,7 +642,9 @@ function syncFlowPatientSelection(patientId: number | null, examinationId?: numb
 
 function applySelectedPatientExamination(patientExaminationId: number): void {
   const normalizedId = toPositiveInteger(patientExaminationId)
-  if (normalizedId === null) return
+  if (normalizedId === null) {
+    return
+  }
   const option = casePatientExaminationDropdownOptions.value.find(
     (entry) => entry.id === normalizedId
   ) ?? {
@@ -618,23 +676,33 @@ function useSelectedExistingPatientExamination(): void {
 }
 
 function normalizeGenderForPatientCreate(value?: string | null): string | null {
-  if (!value) return null
+  if (!value) {
+    return null
+  }
   const normalized = value.trim().toLowerCase()
-  if (normalized === 'männlich' || normalized === 'male' || normalized === 'm') return 'male'
+  if (normalized === 'männlich' || normalized === 'male' || normalized === 'm') {
+    return 'male'
+  }
   if (
     normalized === 'weiblich' ||
     normalized === 'female' ||
     normalized === 'w' ||
     normalized === 'f'
   )
-    return 'female'
-  if (normalized === 'divers' || normalized === 'unknown') return 'unknown'
+    {
+      return 'female'
+    }
+  if (normalized === 'divers' || normalized === 'unknown') {
+    return 'unknown'
+  }
   return normalized || null
 }
 
 function resolveCenterKeyFromMetadataCenterName(centerName?: string | null): string | null {
   const normalizedCenterName = centerName?.trim()
-  if (!normalizedCenterName) return null
+  if (!normalizedCenterName) {
+    return null
+  }
 
   const match = availableCenterOptions.value.find((center) => {
     const name = typeof center.name === 'string' ? center.name.trim() : ''
@@ -768,7 +836,9 @@ async function createPatientExaminationFromSelection(): Promise<void> {
 
 function applyPreferredExaminationSelection(): void {
   const preferredRaw = route.query.preferredExamination
-  if (typeof preferredRaw !== 'string' || !preferredRaw.trim() || flow.selectedExaminationId) return
+  if (typeof preferredRaw !== 'string' || !preferredRaw.trim() || flow.selectedExaminationId) {
+    return
+  }
   try {
     const match = requireResolvedReportingExamination({
       catalog: availableExaminationOptions.value,

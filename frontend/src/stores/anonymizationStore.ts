@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import axiosInstance, { r, silentRequestConfig } from '@/api/axiosInstance'
 import axios, { type AxiosError } from 'axios'
-import { ref } from 'vue';
+import { ref } from 'vue'
 import { endpoints } from '@/types/api/endpoints'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
@@ -13,19 +13,9 @@ const runtimeLogger = createRuntimeLogger('anonymization-store')
 /* ------------------------------------------------------------------ */
 
 export type UploadJobMonitoringStatus =
-  | 'pending'
-  | 'processing'
-  | 'retrying'
-  | 'anonymized'
-  | 'error'
-  | 'lost'
+  'pending' | 'processing' | 'retrying' | 'anonymized' | 'error' | 'lost'
 export type UploadJobIngestMode = 'api' | 'watcher'
-export type UploadJobCleanupStatus =
-  | 'pending'
-  | 'eligible'
-  | 'deleting'
-  | 'completed'
-  | 'skipped'
+export type UploadJobCleanupStatus = 'pending' | 'eligible' | 'deleting' | 'completed' | 'skipped'
 export type ImportErrorCode =
   | ''
   | 'dispatch_unavailable'
@@ -65,8 +55,7 @@ export interface ApiUploadJobOverview {
   updatedAt: string
 }
 
-export interface QuarantineUploadJobOverview
-  extends Omit<ApiUploadJobOverview, 'status'> {
+export interface QuarantineUploadJobOverview extends Omit<ApiUploadJobOverview, 'status'> {
   status: 'quarantined'
 }
 
@@ -96,7 +85,7 @@ export interface FileItem {
     | 'validated'
     | 'predicting_segments'
     | 'extracting_frames'
-    
+
   annotationStatus: 'not_started' | 'validated' | ''
   createdAt: string // ISO
   sensitiveMetaId?: number // Add this for video file lookup
@@ -180,7 +169,7 @@ export interface AnonymizationState {
 // Interface matching the actual API response for sensitivemeta
 // THIS IS THE SINGLE SOURCE OF TRUTH FOR SENSITIVEMETA IN THE ANONYMIZATION VALIDATION CONTEXT
 export interface SensitiveMeta {
-  id: number   // pk of db Object!!
+  id: number // pk of db Object!!
   casenumber?: string | null
   patientFirstName?: string | null
   patientLastName?: string | null
@@ -196,12 +185,12 @@ export interface SensitiveMeta {
   isVerified?: boolean
   dobVerified?: boolean
   namesVerified?: boolean
-  anonymizedText?:string
+  anonymizedText?: string
   text?: string
   documentType?: string | null
   document_type?: string | null
-  externalId?:string
-  externalIdOrigin?:string
+  externalId?: string
+  externalIdOrigin?: string
   tags?: string[]
   validationComment?: string | null
   validation_comment?: string | null
@@ -223,7 +212,9 @@ function axiosStatus(error: AxiosError): string {
 
 function axiosErrorField(error: AxiosError, field: string): string | null {
   const data = error.response?.data
-  if (!isRecord(data)) return null
+  if (!isRecord(data)) {
+    return null
+  }
   const value = data[field]
   return typeof value === 'string' ? value : null
 }
@@ -276,14 +267,9 @@ function buildQuarantineOverviewRows(
 ): FileItem[] {
   return quarantineFiles.map((file) => {
     const mediaType =
-      file.mediaType === 'pdf' || file.mediaType === 'video'
-        ? file.mediaType
-        : 'unknown'
-    const quarantineTimestamp =
-      file.quarantinedAt || file.createdAt || file.modifiedAt || ''
-    const reason =
-      file.reason ||
-      'Die Datei wurde vor dem Import in die Quarantäne verschoben.'
+      file.mediaType === 'pdf' || file.mediaType === 'video' ? file.mediaType : 'unknown'
+    const quarantineTimestamp = file.quarantinedAt || file.createdAt || file.modifiedAt || ''
+    const reason = file.reason || 'Die Datei wurde vor dem Import in die Quarantäne verschoben.'
 
     return {
       id: syntheticQuarantineId(file.id, existingIds),
@@ -349,7 +335,9 @@ function statusPollStorageKey(fileId: number, kind: string): string {
 }
 
 function getStatusPollStorage(): Storage | null {
-  if (typeof window === 'undefined') return null
+  if (typeof window === 'undefined') {
+    return null
+  }
   try {
     return window.localStorage
   } catch {
@@ -359,17 +347,19 @@ function getStatusPollStorage(): Storage | null {
 
 function claimStatusPollSlot(fileId: number, kind: string, delayMs: number): boolean {
   const storage = getStatusPollStorage()
-  if (!storage) return true
+  if (!storage) {
+    return true
+  }
 
   try {
     const key = statusPollStorageKey(fileId, kind)
-    const now = Date.now()
+    const currentTime = Date.now()
     const nextCheckAt = Number(storage.getItem(key) || '0')
-    if (Number.isFinite(nextCheckAt) && nextCheckAt > now) {
+    if (Number.isFinite(nextCheckAt) && nextCheckAt > currentTime) {
       return false
     }
 
-    storage.setItem(key, String(now + delayMs))
+    storage.setItem(key, String(currentTime + delayMs))
     return true
   } catch {
     return true
@@ -378,7 +368,9 @@ function claimStatusPollSlot(fileId: number, kind: string, delayMs: number): boo
 
 function deferStatusPollSlot(fileId: number, kind: string, delayMs: number): void {
   const storage = getStatusPollStorage()
-  if (!storage) return
+  if (!storage) {
+    return
+  }
 
   try {
     storage.setItem(statusPollStorageKey(fileId, kind), String(Date.now() + delayMs))
@@ -424,8 +416,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
           f.anonymizationStatus === 'extracting_frames' ||
           f.anonymizationStatus === 'predicting_segments'
       ),
-    isVideoReimportQueued: (state) => (fileId: number) =>
-      state.reimportQueuedIds.includes(fileId),
+    isVideoReimportQueued: (state) => (fileId: number) => state.reimportQueuedIds.includes(fileId),
     getState: (state) => state
   },
 
@@ -516,7 +507,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
       try {
         runtimeLogger.debug('overview-fetch-started')
-        const { data } = await axiosInstance.get<FileItem[]>(r(endpoints.anonymization.itemsOverview))
+        const { data } = await axiosInstance.get<FileItem[]>(
+          r(endpoints.anonymization.itemsOverview)
+        )
         runtimeLogger.debug('overview-fetch-completed', { count: data.length })
         let quarantineRows: FileItem[] = []
         try {
@@ -548,7 +541,12 @@ export const useAnonymizationStore = defineStore('anonymization', {
           .map((f) => f.id)
         this.needsValidationIds = needsValidation
 
-        const stopStatuses = new Set(['done_processing_anonymization', 'validated', 'failed', 'not_started'])
+        const stopStatuses = new Set([
+          'done_processing_anonymization',
+          'validated',
+          'failed',
+          'not_started'
+        ])
         this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => {
           const queuedFile = overviewData.find((f) => f.id === id)
           return !!queuedFile && !stopStatuses.has(queuedFile.anonymizationStatus)
@@ -558,15 +556,18 @@ export const useAnonymizationStore = defineStore('anonymization', {
         // 1) Dateien, die nicht mehr existieren
         const currentPollingIds = Object.keys(this.pollingHandles).map((k) => Number(k))
         const existingIds = new Set(overviewData.map((f) => f.id))
-        for (const pid of currentPollingIds) {
-          if (!existingIds.has(pid)) {
-            this.stopPolling(pid)
+        for (const pollingId of currentPollingIds) {
+          if (!existingIds.has(pollingId)) {
+            this.stopPolling(pollingId)
           }
         }
         // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
-        for (const f of overviewData) {
-          if (stopStatuses.has(f.anonymizationStatus) && this.pollingHandles[f.id] !== undefined) {
-            this.stopPolling(f.id)
+        for (const fileOverview of overviewData) {
+          if (
+            stopStatuses.has(fileOverview.anonymizationStatus) &&
+            this.pollingHandles[fileOverview.id] !== undefined
+          ) {
+            this.stopPolling(fileOverview.id)
           }
         }
 
@@ -593,7 +594,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
         return true
       } catch (err: unknown) {
         runtimeLogger.error('upload-job-dismiss-failed', err)
-        this.error = 'Der Import konnte nicht aus der Übersicht entfernt werden. Bitte aktualisieren und erneut versuchen.'
+        this.error =
+          'Der Import konnte nicht aus der Übersicht entfernt werden. Bitte aktualisieren und erneut versuchen.'
         return false
       }
     },
@@ -683,7 +685,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
       const jitter = () => Math.floor(Math.random() * STATUS_POLL_JITTER_MS)
 
       const poll = async () => {
-        if (this.pollingHandles[id] === undefined) return
+        if (this.pollingHandles[id] === undefined) {
+          return
+        }
 
         if (!claimStatusPollSlot(id, kindParam, nextDelayMs)) {
           this.pollingHandles[id] = setTimeout(() => void poll(), nextDelayMs + jitter())
@@ -692,8 +696,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
         try {
           const { data } = await axiosInstance.get<AnonymizationStatusResponse>(
-            r(endpoints.anonymization.status(id)), 
-            { params: { kind: kindParam } } 
+            r(endpoints.anonymization.status(id)),
+            { params: { kind: kindParam } }
           )
 
           // Refresh file reference in case overview changed
@@ -724,7 +728,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
           }
         }
 
-        if (this.pollingHandles[id] === undefined) return
+        if (this.pollingHandles[id] === undefined) {
+          return
+        }
         deferStatusPollSlot(id, kindParam, nextDelayMs)
         this.pollingHandles[id] = setTimeout(() => void poll(), nextDelayMs + jitter())
       }
@@ -769,7 +775,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
         if (!item) {
           throw new Error(`Item with ID ${String(id)} not found in overview`)
         }
-        
 
         runtimeLogger.debug('validation-selection-found', { fileType: item.mediaType })
 
@@ -909,7 +914,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
         file.metadataImported = false
 
         // Trigger re-import via backend using media framework endpoint
-        const response = await axiosInstance.post<PdfReimportResponse>(r(endpoints.media.pdfReimport(fileId)))
+        const response = await axiosInstance.post<PdfReimportResponse>(
+          r(endpoints.media.pdfReimport(fileId))
+        )
         runtimeLogger.info('media-reimport-accepted', { fileType: 'pdf' })
 
         runtimeLogger.debug('media-reimport-poll-started', { fileType: 'pdf' })

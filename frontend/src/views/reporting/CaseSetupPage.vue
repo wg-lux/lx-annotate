@@ -5,27 +5,46 @@
         <h5 class="mb-0">Patient und Untersuchung hinzufügen</h5>
         <small class="text-muted">Diese beiden Angaben werden für einen Bericht benötigt.</small>
       </div>
-      <span class="badge" :class="sessionBadgeClass">{{ sessionBadgeLabel }}</span>
+      <span
+        class="badge"
+        :class="sessionBadgeClass"
+      >{{ sessionBadgeLabel }}</span>
     </div>
     <div class="card-body">
-      <div v-if="successMessage" class="alert alert-success py-2">
+      <div
+        v-if="successMessage"
+        class="alert alert-success py-2"
+      >
         {{ successMessage }}
       </div>
-      <div v-if="returnToPath" class="alert alert-info py-2">
+      <div
+        v-if="returnToPath"
+        class="alert alert-info py-2"
+      >
         Für die Rückkehr zur Validierung koennen Sie nach dem Anlegen der Patientenuntersuchung
         direkt wieder zur Anonymisierungsvalidierung wechseln. Eine minimale Untersuchung, zum
         Beispiel
         <code>Koloskopie</code>, ist dafür ausreichend. Befunde koennen später ergänzt werden.
       </div>
-      <div v-if="errorMessage" class="alert alert-danger py-2">
+      <div
+        v-if="errorMessage"
+        class="alert alert-danger py-2"
+      >
         {{ errorMessage }}
       </div>
 
-      <div class="setup-requirement mb-3" role="status" data-testid="setup-requirement">
-        <i class="ni ni-notification-70" aria-hidden="true"></i>
+      <div
+        class="setup-requirement mb-3"
+        role="status"
+        data-testid="setup-requirement"
+      >
+        <i
+          class="ni ni-notification-70"
+          aria-hidden="true"
+        ></i>
         <div>
-          <strong>Zuerst Patient und Untersuchung auswählen</strong>
-          <small
+          <strong class="setup-requirement-title">Zuerst Patient und Untersuchung auswählen</strong>
+          <small class="setup-requirement-description"
             >Danach kann die Patientenuntersuchung angelegt und der Bericht begonnen werden.</small
           >
         </div>
@@ -33,9 +52,15 @@
 
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label" for="reporting-patient-select">
+          <label
+            class="form-label"
+            for="reporting-patient-select"
+          >
             <span class="setup-step">1</span>
-            Patient auswählen <span class="text-danger" aria-hidden="true">*</span>
+            Patient auswählen <span
+                                class="text-danger"
+                                aria-hidden="true"
+                              >*</span>
           </label>
           <select
             id="reporting-patient-select"
@@ -46,18 +71,31 @@
             required
             @change="onPatientChange(($event.target as HTMLSelectElement).value)"
           >
-            <option value="" disabled>
+            <option
+              value=""
+              disabled
+            >
               {{ patientsLoading ? 'Patienten werden geladen...' : 'Bitte Patient wählen' }}
             </option>
-            <option v-for="patient in patients" :key="patient.id" :value="patient.id">
+            <option
+              v-for="patient in patients"
+              :key="patient.id"
+              :value="patient.id"
+            >
               {{ patient.displayName }}
             </option>
           </select>
         </div>
         <div class="col-md-6">
-          <label class="form-label" for="reporting-examination-type-select">
+          <label
+            class="form-label"
+            for="reporting-examination-type-select"
+          >
             <span class="setup-step">2</span>
-            Untersuchung auswählen <span class="text-danger" aria-hidden="true">*</span>
+            Untersuchung auswählen <span
+                                     class="text-danger"
+                                     aria-hidden="true"
+                                   >*</span>
           </label>
           <select
             id="reporting-examination-type-select"
@@ -68,14 +106,21 @@
             required
             @change="onExaminationChange(($event.target as HTMLSelectElement).value)"
           >
-            <option value="" disabled>
+            <option
+              value=""
+              disabled
+            >
               {{
                 examinationsLoading
                   ? 'Untersuchungen werden geladen...'
                   : 'Bitte Untersuchung wählen'
               }}
             </option>
-            <option v-for="exam in examinations" :key="exam.id" :value="exam.id">
+            <option
+              v-for="exam in examinations"
+              :key="exam.id"
+              :value="exam.id"
+            >
               {{ exam.displayName }}
             </option>
           </select>
@@ -88,41 +133,62 @@
           :disabled="loading || !flow.selectedPatientId || !flow.selectedExaminationId"
           @click="createPatientExaminationContext"
         >
-          <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
+          <span
+            v-if="loading"
+            class="spinner-border spinner-border-sm me-1"
+          />
           Fall und Patientenuntersuchung anlegen
         </button>
-        <RouterLink v-if="returnToPath" class="btn btn-outline-secondary btn-sm" :to="returnToPath">
+        <RouterLink
+          v-if="returnToPath"
+          class="btn btn-outline-secondary btn-sm"
+          :to="returnToPath"
+        >
           Zurück zur Validierung
         </RouterLink>
       </div>
 
-      <details class="setup-secondary mt-3" data-testid="setup-secondary-actions">
-        <summary>Weitere Aktionen und technische Details</summary>
+      <details
+        class="setup-secondary mt-3"
+        data-testid="setup-secondary-actions"
+      >
+        <summary class="setup-secondary-toggle">Weitere Aktionen und technische Details</summary>
         <div class="mt-2 d-flex flex-wrap gap-2">
-          <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="reloadLists">
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="loading"
+            @click="reloadLists"
+          >
             Listen neu laden
           </button>
-          <button class="btn btn-outline-danger btn-sm" :disabled="loading" @click="clearFlow">
+          <button
+            class="btn btn-outline-danger btn-sm"
+            :disabled="loading"
+            @click="clearFlow"
+          >
             Auswahl zurücksetzen
           </button>
         </div>
         <dl class="setup-technical-grid mb-0 mt-3">
-          <div>
-            <dt>Fallreferenz</dt>
-            <dd>{{ flow.caseId || 'Noch nicht angelegt' }}</dd>
+          <div class="setup-technical-fact">
+            <dt class="setup-technical-label">Fallreferenz</dt>
+            <dd class="setup-technical-value">{{ flow.caseId || 'Noch nicht angelegt' }}</dd>
           </div>
-          <div>
-            <dt>Patientenuntersuchung</dt>
-            <dd>{{ flow.patientExaminationId || 'Noch nicht angelegt' }}</dd>
+          <div class="setup-technical-fact">
+            <dt class="setup-technical-label">Patientenuntersuchung</dt>
+            <dd class="setup-technical-value">{{ flow.patientExaminationId || 'Noch nicht angelegt' }}</dd>
           </div>
-          <div>
-            <dt>Entwurf</dt>
-            <dd>{{ flow.currentRuntimeDraft ? 'Geladen' : 'Noch nicht geladen' }}</dd>
+          <div class="setup-technical-fact">
+            <dt class="setup-technical-label">Entwurf</dt>
+            <dd class="setup-technical-value">{{ flow.currentRuntimeDraft ? 'Geladen' : 'Noch nicht geladen' }}</dd>
           </div>
         </dl>
       </details>
 
-      <div v-if="flow.patientExaminationId" class="mt-4">
+      <div
+        v-if="flow.patientExaminationId"
+        class="mt-4"
+      >
         <h6 class="mb-2">Nächster Schritt</h6>
         <RouterLink
           class="btn btn-dark btn-sm"
@@ -188,8 +254,12 @@ function clearMessages() {
 
 function applyPreferredExaminationSelection() {
   const preferredRaw = route.query.preferredExamination
-  if (typeof preferredRaw !== 'string' || !preferredRaw.trim()) return
-  if (flow.selectedExaminationId) return
+  if (typeof preferredRaw !== 'string' || !preferredRaw.trim()) {
+    return
+  }
+  if (flow.selectedExaminationId) {
+    return
+  }
 
   try {
     const match = requireResolvedReportingExamination({
@@ -274,7 +344,7 @@ async function createPatientExaminationContext() {
     })
 
     successMessage.value = returnToPath.value
-      ? 'Die Patientenuntersuchung wurde angelegt. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
+      ? 'Die Patientenuntersuchung wurde angelegt. Sie können jetzt zur Validierung zurückkehren oder mit der Dokumentation fortfahren.'
       : 'Die Patientenuntersuchung wurde erfolgreich angelegt.'
   } catch (e: unknown) {
     errorMessage.value = reportingApiErrorMessage(
@@ -308,12 +378,12 @@ onMounted(async () => {
   background: #fff8e7;
 }
 
-.setup-requirement strong,
-.setup-requirement small {
+.setup-requirement .setup-requirement-title,
+.setup-requirement .setup-requirement-description {
   display: block;
 }
 
-.setup-requirement small {
+.setup-requirement .setup-requirement-description {
   margin-top: 0.15rem;
 }
 
@@ -336,7 +406,7 @@ onMounted(async () => {
   padding-top: 0.65rem;
 }
 
-.setup-secondary summary {
+.setup-secondary .setup-secondary-toggle {
   width: fit-content;
   color: #526174;
   cursor: pointer;
@@ -350,18 +420,18 @@ onMounted(async () => {
   gap: 0.75rem;
 }
 
-.setup-technical-grid div {
+.setup-technical-grid .setup-technical-fact {
   padding: 0.6rem;
   border-radius: 6px;
   background: #f5f7fa;
 }
 
-.setup-technical-grid dt {
+.setup-technical-grid .setup-technical-label {
   color: #66768c;
   font-size: 0.75rem;
 }
 
-.setup-technical-grid dd {
+.setup-technical-grid .setup-technical-value {
   margin: 0.15rem 0 0;
   font-weight: 600;
 }

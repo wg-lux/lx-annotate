@@ -71,7 +71,9 @@ function planWaves<Context>(
       for (const dependentId of outgoing.get(nodeId) || []) {
         const nextInDegree = (inDegree.get(dependentId) || 0) - 1
         inDegree.set(dependentId, nextInDegree)
-        if (nextInDegree === 0) nextReady.add(dependentId)
+        if (nextInDegree === 0) {
+          nextReady.add(dependentId)
+        }
       }
     }
     ready = nodes.filter((node) => nextReady.has(node.id)).map((node) => node.id)
@@ -108,7 +110,9 @@ export async function executeReportingDag<Context>(params: {
   const outputs = new Map<string, unknown>()
 
   for (const wave of graph.waves) {
-    if (!isCurrent()) throw new SupersededReportingDagError()
+    if (!isCurrent()) {
+      throw new SupersededReportingDagError()
+    }
     const visibleOutputs = new Map(outputs)
     const inputs: ReportingDagInputs = Object.freeze({
       get: (nodeId: string): unknown => {
@@ -130,7 +134,9 @@ export async function executeReportingDag<Context>(params: {
         return [nodeId, await node.run(context, inputs)] as const
       })
     )
-    if (!isCurrent()) throw new SupersededReportingDagError()
+    if (!isCurrent()) {
+      throw new SupersededReportingDagError()
+    }
     for (const [nodeId, output] of completed) outputs.set(nodeId, output)
   }
 
@@ -142,6 +148,8 @@ export function commitReportingDagAtomically<Result>(params: {
   result: Result
   commit: (result: Result) => void
 }): void {
-  if (!params.isCurrent()) throw new SupersededReportingDagError()
+  if (!params.isCurrent()) {
+    throw new SupersededReportingDagError()
+  }
   params.commit(params.result)
 }

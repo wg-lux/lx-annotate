@@ -4,6 +4,15 @@ import { createPinia, setActivePinia } from 'pinia'
 import { endpoints } from '@/types/api/endpoints'
 import { useVideoStore } from '@/stores/videoStore'
 
+const CLEANUP_VIDEO_ID = 25
+const REBUILD_JOB_ID = 9
+const LEGACY_VALIDATED_VIDEO_ID = 31
+const SEGMENT_VIDEO_ID = 7
+const SEGMENT_DATASET_ID = 300
+const VIDEO_DURATION_SECONDS = 10
+const VIDEO_FRAMES_PER_SECOND = 50
+const VIDEO_FRAME_COUNT = 500
+
 function resolvedData<T>(data: T): Promise<{ data: T }> {
   return Promise.resolve({ data })
 }
@@ -36,23 +45,23 @@ describe('VideoStore segment annotation status mapping', () => {
       }
       if (url === endpoints.media.videos) {
         return resolvedData([
-            {
-              id: 25,
-              original_file_name: 'case-25.mp4',
-              center_name: 'Center A',
-              status: 'completed',
-              segment_annotations_validated: false,
-              processor_name: 'processor-x',
-              segment_annotation_status: 'cleanup_running',
-              outside_segments_removed: false,
-              post_validation_rebuild: {
-                id: 9,
-                status: 'running',
-                task_id: 'task-9',
-                details: 'extracting frames'
-              }
+          {
+            id: CLEANUP_VIDEO_ID,
+            original_file_name: 'case-25.mp4',
+            center_name: 'Center A',
+            status: 'completed',
+            segment_annotations_validated: false,
+            processor_name: 'processor-x',
+            segment_annotation_status: 'cleanup_running',
+            outside_segments_removed: false,
+            post_validation_rebuild: {
+              id: REBUILD_JOB_ID,
+              status: 'running',
+              task_id: 'task-9',
+              details: 'extracting frames'
             }
-          ])
+          }
+        ])
       }
       return resolvedData({})
     })
@@ -61,12 +70,12 @@ describe('VideoStore segment annotation status mapping', () => {
     const result = await store.fetchAllVideos()
 
     expect(result.videos[0]).toMatchObject({
-      id: 25,
+      id: CLEANUP_VIDEO_ID,
       segmentAnnotationsValidated: false,
       segmentAnnotationStatus: 'cleanup_running',
       outsideSegmentsRemoved: false,
       postValidationRebuild: {
-        id: 9,
+        id: REBUILD_JOB_ID,
         status: 'running',
         task_id: 'task-9',
         details: 'extracting frames'
@@ -81,15 +90,15 @@ describe('VideoStore segment annotation status mapping', () => {
       }
       if (url === endpoints.media.videos) {
         return resolvedData([
-            {
-              id: 31,
-              original_file_name: 'legacy-validated.mp4',
-              center_name: 'Center B',
-              status: 'available',
-              processor_name: 'processor-x',
-              segment_annotations_validated: true
-            }
-          ])
+          {
+            id: LEGACY_VALIDATED_VIDEO_ID,
+            original_file_name: 'legacy-validated.mp4',
+            center_name: 'Center B',
+            status: 'available',
+            processor_name: 'processor-x',
+            segment_annotations_validated: true
+          }
+        ])
       }
       return resolvedData({})
     })
@@ -98,7 +107,7 @@ describe('VideoStore segment annotation status mapping', () => {
     const result = await store.fetchAllVideos()
 
     expect(result.videos[0]).toMatchObject({
-      id: 31,
+      id: LEGACY_VALIDATED_VIDEO_ID,
       segmentAnnotationsValidated: true,
       segmentAnnotationStatus: 'validated'
     })
@@ -114,18 +123,18 @@ describe('VideoStore segment annotation status mapping', () => {
     const store = useVideoStore()
     await store.fetchLabels()
     store.setVideo({
-      id: 7,
+      id: SEGMENT_VIDEO_ID,
       isAnnotated: false,
       errorMessage: '',
       segments: [],
       videoUrl: '',
       status: 'available',
       assignedUser: null,
-      duration: 10,
-      fps: 50,
-      frameCount: 500
+      duration: VIDEO_DURATION_SECONDS,
+      fps: VIDEO_FRAMES_PER_SECOND,
+      frameCount: VIDEO_FRAME_COUNT
     })
-    store.setSegmentAiDatasetId(300)
+    store.setSegmentAiDatasetId(SEGMENT_DATASET_ID)
 
     axiosPost.mockResolvedValue({
       data: {
@@ -134,7 +143,7 @@ describe('VideoStore segment annotation status mapping', () => {
             clientId: -1,
             segment: {
               id: 50,
-              videoId: 7,
+              videoId: SEGMENT_VIDEO_ID,
               labelId: 2,
               labelName: 'outside',
               startTime: 0,
@@ -149,12 +158,12 @@ describe('VideoStore segment annotation status mapping', () => {
       }
     })
 
-    await store.createSegment(7, 'outside', 0, 1)
+    await store.createSegment(SEGMENT_VIDEO_ID, 'outside', 0, 1)
 
     expect(axiosPost).toHaveBeenCalledWith(
-      endpoints.media.videoSegmentsBulkMutation(7),
+      endpoints.media.videoSegmentsBulkMutation(SEGMENT_VIDEO_ID),
       expect.objectContaining({
-        aiDatasetId: 300
+        aiDatasetId: SEGMENT_DATASET_ID
       })
     )
   })
@@ -163,21 +172,21 @@ describe('VideoStore segment annotation status mapping', () => {
     const store = useVideoStore()
 
     store.setVideo({
-      id: 7,
+      id: SEGMENT_VIDEO_ID,
       isAnnotated: false,
       errorMessage: '',
       segments: [],
       videoUrl: '',
       status: 'available',
       assignedUser: null,
-      duration: 10,
-      fps: 50,
-      frameCount: 500
+      duration: VIDEO_DURATION_SECONDS,
+      fps: VIDEO_FRAMES_PER_SECOND,
+      frameCount: VIDEO_FRAME_COUNT
     })
 
     axiosGet.mockResolvedValueOnce({
       data: {
-        id: 7,
+        id: SEGMENT_VIDEO_ID,
         original_file_name: 'meta.mp4',
         center_name: 'Center A',
         processor_name: 'processor-x',
@@ -211,9 +220,9 @@ describe('VideoStore segment annotation status mapping', () => {
       videoUrl: '',
       status: 'available',
       assignedUser: null,
-      duration: 10,
-      fps: 50,
-      frameCount: 500
+      duration: VIDEO_DURATION_SECONDS,
+      fps: VIDEO_FRAMES_PER_SECOND,
+      frameCount: VIDEO_FRAME_COUNT
     })
 
     axiosGet.mockResolvedValueOnce({
@@ -228,7 +237,7 @@ describe('VideoStore segment annotation status mapping', () => {
         has_roi: false,
         outside_frame_count: 2,
         duration: 8,
-        fps: 50,
+        fps: VIDEO_FRAMES_PER_SECOND,
         resolution: '1280x720'
       }
     })

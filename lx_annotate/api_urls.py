@@ -12,6 +12,10 @@ from lx_annotate.views.administration import (
     storage_operator_control,
     storage_placement_preview,
 )
+from lx_annotate.views.ai_dataset_splits import (
+    dataset_split_plan_detail,
+    dataset_split_plans,
+)
 from lx_annotate.views.anonymization_overview import (
     LifecycleAnonymizationOverviewView,
     LifecycleUploadJobDismissView,
@@ -26,11 +30,30 @@ from lx_annotate.views.hub_export import (
     hub_export_retry,
     hub_export_unmark,
 )
+from lx_annotate.views.monitoring import monitoring_snapshot
 from lx_annotate.views.quarantine import quarantine_overview
+from lx_annotate.views.report_llm import report_llm_generate, report_llm_status
 from lx_annotate.views.study_export import study_export_options, study_export_xlsx
 from lx_annotate.views.video_state_repair import VideoStateRepairView
 
 urlpatterns = [
+    path(
+        "settings/application/ai_datasets/<int:dataset_id>/split_plans/",
+        dataset_split_plans,
+        name="ai-dataset-split-plans",
+    ),
+    path(
+        "settings/application/ai_datasets/<int:dataset_id>/split_plans/<int:plan_id>/",
+        dataset_split_plan_detail,
+        name="ai-dataset-split-plan-detail",
+    ),
+    path(
+        "administration/monitoring/",
+        monitoring_snapshot,
+        name="administration-monitoring",
+    ),
+    path("reporting/llm/status/", report_llm_status, name="report-llm-status"),
+    path("reporting/llm/generate/", report_llm_generate, name="report-llm-generate"),
     path(
         "anonymization/upload-jobs/<uuid:job_id>/dismiss/",
         LifecycleUploadJobDismissView.as_view(),

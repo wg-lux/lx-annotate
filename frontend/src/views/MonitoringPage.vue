@@ -8,16 +8,30 @@
           Current application and deployment health. Refresh to take a new snapshot.
         </p>
       </div>
-      <button class="btn btn-primary" :disabled="monitoring.loading" @click="monitoring.refresh()">
-        {{ monitoring.loading ? 'Refreshing…' : 'Refresh' }}
+      <button
+        class="btn btn-primary"
+        :disabled="monitoring.loading"
+        @click="monitoring.refresh()"
+      >
+        {{ refreshLabel }}
       </button>
     </header>
-    <p v-if="monitoring.loading" role="status">Checking runtime health…</p>
-    <div v-if="monitoring.error" class="alert alert-danger" role="alert">
+    <p
+      v-if="monitoring.loading"
+      role="status"
+    >Checking runtime health…</p>
+    <div
+      v-if="monitoring.error"
+      class="alert alert-danger"
+      role="alert"
+    >
       {{ monitoring.error }}
     </div>
     <template v-if="monitoring.snapshot">
-      <section class="card mb-4" aria-label="Overall health">
+      <section
+        class="card mb-4"
+        aria-label="Overall health"
+      >
         <div class="card-body d-flex flex-wrap gap-4 align-items-center">
           <strong
             class="badge fs-6"
@@ -39,26 +53,47 @@
           </div>
         </div>
       </section>
-      <section v-for="group in groups" :key="group.name" class="card mb-3" :aria-label="group.name">
+      <section
+        v-for="group in groups"
+        :key="group.name"
+        class="card mb-3"
+        :aria-label="group.name"
+      >
         <div class="card-header">
           <h2 class="h5 mb-0">{{ group.name }}</h2>
         </div>
         <ul class="list-group list-group-flush">
-          <li v-for="check in group.checks" :key="check.key" class="list-group-item py-3">
+          <li
+            v-for="check in group.checks"
+            :key="check.key"
+            class="list-group-item py-3"
+          >
             <div class="d-flex gap-3 align-items-start">
-              <span class="badge" :class="statusClass[check.status]">{{
+              <span
+                class="badge"
+                :class="statusClass[check.status]"
+              >{{
                 statusLabel[check.status]
               }}</span>
               <div class="flex-grow-1">
                 <strong class="d-block">{{ checkLabel(check.key) }}</strong>
                 <p class="mb-1">{{ check.summary }}</p>
-                <p v-if="check.detail" class="text-muted mb-1">{{ check.detail }}</p>
-                <details v-if="Object.keys(check.metadata).length" class="mt-2">
+                <p
+                  v-if="check.detail"
+                  class="text-muted mb-1"
+                >{{ check.detail }}</p>
+                <details
+                  v-if="Object.keys(check.metadata).length"
+                  class="mt-2"
+                >
                   <summary>Diagnostic details</summary>
                   <dl class="diagnostic-details mt-2 mb-0">
-                    <template v-for="(value, key) in check.metadata" :key="key">
+                    <template
+                      v-for="(value, key) in check.metadata"
+                      :key="key"
+                    >
                       <dt>{{ humanize(key) }}</dt>
-                      <dd>{{ formatValue(value) }}</dd>
+                      <dd class="diagnostic-details__value">{{ formatValue(value) }}</dd>
                     </template>
                   </dl>
                 </details>
@@ -68,7 +103,10 @@
         </ul>
       </section>
     </template>
-    <p v-else-if="!monitoring.loading && !monitoring.error" role="status">
+    <p
+      v-else-if="!monitoring.loading && !monitoring.error"
+      role="status"
+    >
       Health is unknown until a snapshot is available.
     </p>
   </main>
@@ -101,6 +139,8 @@ const categories: Record<string, string> = {
   services: 'System services',
   monitoring: 'Monitoring configuration'
 }
+const refreshLabel = computed(() => monitoring.loading ? 'Refreshing…' : 'Refresh')
+
 const groups = computed(() => {
   const result = new Map<string, MonitoringCheck[]>()
   for (const check of monitoring.snapshot?.checks ?? []) {
@@ -121,17 +161,27 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleString()
 }
 function formatValue(value: MonitoringValue): string {
-  if (value === null) return 'Unknown'
-  if (Array.isArray(value)) return value.map(formatValue).join('; ') || 'None'
+  if (value === null) {
+    return 'Unknown'
+  }
+  if (Array.isArray(value)) {
+    return value.map(formatValue).join('; ') || 'None'
+  }
   if (typeof value === 'object')
-    return Object.entries(value)
+    {
+      return Object.entries(value)
       .map(([key, item]) => `${humanize(key)}: ${formatValue(item)}`)
       .join(', ')
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+    }
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No'
+  }
   return String(value)
 }
 onMounted(() => {
-  if (!monitoring.snapshot && !monitoring.error && !monitoring.loading) void monitoring.refresh()
+  if (!monitoring.snapshot && !monitoring.error && !monitoring.loading) {
+    void monitoring.refresh()
+  }
 })
 onBeforeUnmount(() => {
   monitoring.clear()
@@ -149,7 +199,7 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
   font-size: 0.9rem;
 }
-.diagnostic-details dd {
+.diagnostic-details .diagnostic-details__value {
   margin: 0;
 }
 </style>

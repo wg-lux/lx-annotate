@@ -72,7 +72,9 @@ function readRef<T>(value: ReadableRef<T>): T {
 function readArtifactKind(
   value: UseAuthenticatedVideoStreamOptions['artifactKind']
 ): StreamableVideoFileType {
-  if (!value) return 'processed'
+  if (!value) {
+    return 'processed'
+  }
   return isRef(value) ? value.value : value
 }
 
@@ -151,7 +153,9 @@ function waitForPreparation(milliseconds: number, signal: AbortSignal): Promise<
       resolve()
     }, milliseconds)
     signal.addEventListener('abort', abort, { once: true })
-    if (signal.aborted) abort()
+    if (signal.aborted) {
+      abort()
+    }
   })
 }
 
@@ -362,7 +366,9 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     playlistAbortController = abortController
     try {
       await validateHlsPlaylist(hlsPlaylistUrl, abortController.signal, () => {
-        if (serial === loadSerial) playbackMode.value = 'preparing'
+        if (serial === loadSerial) {
+          playbackMode.value = 'preparing'
+        }
       })
     } catch (error) {
       if (serial !== loadSerial) {

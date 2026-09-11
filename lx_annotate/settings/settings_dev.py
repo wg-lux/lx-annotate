@@ -19,6 +19,7 @@ from .settings_base import (
     MEDIA_ROOT,
     MEDIA_URL,
     MIDDLEWARE,
+    REPORTING_LLM,
     REST_FRAMEWORK,
     ROOT_URLCONF,
     SECRET_KEY,

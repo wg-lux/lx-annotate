@@ -108,15 +108,33 @@ export function buildStudyCohortPreviewQuery(
   const finding = nonEmpty(filters.finding)
   const annotationLabel = nonEmpty(filters.annotationLabel)
 
-  if (dateFrom) query.date_from = dateFrom
-  if (dateTo) query.date_to = dateTo
-  if (centerKey) query.center_key = centerKey
-  if (examinationName) query.examination_name = examinationName
-  if (documentType) query.document_type = documentType
-  if (finding) query.finding = finding
-  if (annotationLabel) query.annotation_label = annotationLabel
-  if (typeof filters.hasReport === 'boolean') query.has_report = filters.hasReport
-  if (typeof filters.hasVideo === 'boolean') query.has_video = filters.hasVideo
+  if (dateFrom) {
+    query.date_from = dateFrom
+  }
+  if (dateTo) {
+    query.date_to = dateTo
+  }
+  if (centerKey) {
+    query.center_key = centerKey
+  }
+  if (examinationName) {
+    query.examination_name = examinationName
+  }
+  if (documentType) {
+    query.document_type = documentType
+  }
+  if (finding) {
+    query.finding = finding
+  }
+  if (annotationLabel) {
+    query.annotation_label = annotationLabel
+  }
+  if (typeof filters.hasReport === 'boolean') {
+    query.has_report = filters.hasReport
+  }
+  if (typeof filters.hasVideo === 'boolean') {
+    query.has_video = filters.hasVideo
+  }
   if (typeof filters.limit === 'number' && Number.isFinite(filters.limit)) {
     query.limit = Math.trunc(filters.limit)
   }

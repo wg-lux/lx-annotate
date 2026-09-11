@@ -386,6 +386,134 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     })
   })
 
+  it('navigates sorted segments in both directions and filters the queue by multiple labels', async () => {
+    videoLabelsFactory = () => [
+      { id: 1, name: 'outside', color: '#ff0000' },
+      { id: 2, name: 'inside', color: '#00ff00' },
+      { id: 3, name: 'empty', color: '#0000ff' }
+    ]
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'already-segment-validated.mp4')
+    const store = useVideoStore()
+    if (!store.currentVideo) throw new Error('Selected video was not loaded')
+    store.setVideo({ ...store.currentVideo, segments: [
+      { id: 2, videoID: 10, label: 'inside', startTime: 20, endTime: 30, avgConfidence: 1, labelID: 2 },
+      { id: 1, videoID: 10, label: 'outside', startTime: 2, endTime: 6, avgConfidence: 1, labelID: 1 }
+    ] })
+    await flushPromises()
+    const video = wrapper.get('video').element
+    Object.defineProperty(video, 'duration', { configurable: true, value: 90 })
+    await wrapper.get('video').trigger('loadedmetadata')
+    const next = wrapper.get('[data-test="segment-next"]')
+    const previous = wrapper.get('[data-test="segment-previous"]')
+    for (const time of [2, 4, 6, 20, 25, 30]) {
+      await next.trigger('click')
+      expect(video.currentTime).toBe(time)
+    }
+    expect(next.attributes('disabled')).toBeDefined()
+    for (const time of [25, 20, 6, 4, 2]) {
+      await previous.trigger('click')
+      expect(video.currentTime).toBe(time)
+    }
+    expect(previous.attributes('disabled')).toBeDefined()
+    await wrapper.get('input[type="checkbox"][value="inside"]').setValue(true)
+    await next.trigger('click')
+    expect(video.currentTime).toBe(20)
+    expect(previous.attributes('disabled')).toBeDefined()
+    await wrapper.get('input[type="checkbox"][value="outside"]').setValue(true)
+    await previous.trigger('click')
+    expect(video.currentTime).toBe(6)
+    await wrapper.get('input[type="checkbox"][value="inside"]').setValue(false)
+    await wrapper.get('input[type="checkbox"][value="outside"]').setValue(false)
+    await wrapper.get('input[type="checkbox"][value="empty"]').setValue(true)
+    expect(next.attributes('disabled')).toBeDefined()
+    expect(previous.attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('resizes the timeline with bounded pointer and keyboard controls and cleans up listeners', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    const handle = wrapper.get('[role="separator"]')
+    const timeline = wrapper.getComponent({ name: 'Timeline' })
+    const pointer = (type: string, clientY: number, pointerId = 1) => {
+      const event = new MouseEvent(type, { clientY, button: 0, bubbles: true })
+      Object.defineProperty(event, 'pointerId', { value: pointerId })
+      return event
+    }
+    expect(timeline.props('height')).toBe(216)
+    handle.element.dispatchEvent(pointer('pointerdown', 300))
+    window.dispatchEvent(pointer('pointermove', 500, 2))
+    await flushPromises()
+    expect(timeline.props('height')).toBe(216)
+    window.dispatchEvent(pointer('pointermove', 500))
+    await flushPromises()
+    expect(timeline.props('height')).toBe(416)
+    window.dispatchEvent(pointer('pointermove', 2000))
+    await flushPromises()
+    expect(timeline.props('height')).toBe(800)
+    window.dispatchEvent(pointer('pointermove', 0))
+    await flushPromises()
+    expect(timeline.props('height')).toBe(180)
+    window.dispatchEvent(pointer('pointercancel', 0))
+    window.dispatchEvent(pointer('pointermove', 500))
+    await flushPromises()
+    expect(timeline.props('height')).toBe(180)
+    await handle.trigger('keydown', { key: 'ArrowDown' })
+    expect(timeline.props('height')).toBe(236)
+    await handle.trigger('keydown', { key: 'End' })
+    expect(handle.attributes('aria-valuenow')).toBe('800')
+    await handle.trigger('keydown', { key: 'Home' })
+    expect(timeline.props('height')).toBe(180)
+    handle.element.dispatchEvent(pointer('pointerdown', 300))
+    window.dispatchEvent(pointer('pointerup', 300))
+    window.dispatchEvent(pointer('pointermove', 500))
+    await flushPromises()
+    expect(timeline.props('height')).toBe(180)
+    handle.element.dispatchEvent(pointer('pointerdown', 300))
+    const removeListener = vi.spyOn(window, 'removeEventListener')
+    wrapper.unmount()
+    for (const type of ['pointermove', 'pointerup', 'pointercancel', 'blur']) {
+      expect(removeListener).toHaveBeenCalledWith(type, expect.any(Function))
+    }
+  })
+
+  it('moves the existing timeline and label commands into fullscreen and restores them on exit', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    const container = wrapper.get('.video-container').element
+    const panel = wrapper.get('#video-annotation-panel').element
+    const labelSelect = wrapper.get('[data-cy="label-select"]').element
+    let fullscreenElement: Element | null = container
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement
+    })
+    document.dispatchEvent(new Event('fullscreenchange'))
+    await flushPromises()
+    expect(container.contains(panel)).toBe(true)
+    expect(panel.getAttribute('role')).toBe('dialog')
+    expect(panel.querySelector('timeline-stub')).not.toBeNull()
+    expect(panel.querySelector('[data-cy="label-select"]')).toBe(labelSelect)
+    expect(panel.querySelector('[data-cy="start-label-button"]')).not.toBeNull()
+    await wrapper.get('.fullscreen-annotation-toggle').trigger('click')
+    expect(wrapper.get<HTMLElement>('#video-annotation-panel').element.style.display).toBe('none')
+    await wrapper.get('.fullscreen-annotation-toggle').trigger('click')
+    expect(wrapper.get<HTMLElement>('#video-annotation-panel').element.style.display).not.toBe('none')
+    expect(wrapper.get('.fullscreen-annotation-toggle').attributes('aria-expanded')).toBe('true')
+    fullscreenElement = null
+    document.dispatchEvent(new Event('fullscreenchange'))
+    await flushPromises()
+    expect(container.contains(panel)).toBe(false)
+    expect(wrapper.get('#video-annotation-panel').element).toBe(panel)
+    expect(panel.getAttribute('role')).toBeNull()
+    Reflect.deleteProperty(document, 'fullscreenElement')
+    wrapper.unmount()
+  })
+
   it('blocks segment mutations while validation has not responded', async () => {
     const wrapper = mountComponent()
     await flushPromises()
@@ -518,7 +646,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     expect(items[4].classes()).toContain('video-dropdown-item-pending')
     expect(items[5].classes()).toContain('video-dropdown-item-unusable')
     expect(items[0].text()).toContain('Zurück zu Schritt 1 - Anonymisierung validieren')
-    expect(items[1].text()).toContain('Video startklar für Befundung!')
+    expect(items[1].text()).toContain('Video startklar für Dokumentation!')
     expect(items[2].text()).toContain('Video bereits validiert')
     expect(items[2].text()).toContain('Vorannotation von: oidc:reviewer-previous')
     expect(items[3].text()).toContain('Segmentvalidierung läuft')
@@ -563,7 +691,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       'ready-for-reporting.mp4',
       'video-dropdown-item-ready',
       'badge-ready',
-      'Video startklar für Befundung!'
+      'Video startklar für Dokumentation!'
     )
     expectDropdownItemState(
       wrapper,
@@ -615,7 +743,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       'ready-for-reporting.mp4',
       'video-dropdown-item-ready',
       'badge-ready',
-      'Video startklar für Befundung!'
+      'Video startklar für Dokumentation!'
     )
     expectDropdownItemState(
       wrapper,
@@ -656,7 +784,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       'ready-for-reporting.mp4',
       'video-dropdown-item-ready',
       'badge-ready',
-      'Video startklar für Befundung!'
+      'Video startklar für Dokumentation!'
     )
 
     await chooseDropdownFilter(wrapper, 'Validierung läuft')

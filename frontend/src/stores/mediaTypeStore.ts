@@ -33,7 +33,9 @@ function makeKey(scope: MediaScope, id: number): MediaKey {
     throw new TypeError('Media key requires a non-negative integer identifier')
   }
   const key = [scope, String(id)].join(':')
-  if (!isMediaKey(key)) throw new TypeError('Media key does not match the canonical format')
+  if (!isMediaKey(key)) {
+    throw new TypeError('Media key does not match the canonical format')
+  }
   return key
 }
 
@@ -61,25 +63,31 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
 
   // Call this once after fetchOverview() in the overview component
   function seedTypesFromOverview(items: Array<{ id: number; mediaType?: string }>) {
-    for (const it of items) {
-      const raw = (it.mediaType ?? '').toLowerCase()
-      const m: MediaType = raw === 'pdf' ? 'pdf' : raw === 'video' ? 'video' : 'unknown'
-      if (m !== 'unknown') rememberType(it.id, m, m)
+    for (const overviewItem of items) {
+      const rawMediaType = (overviewItem.mediaType ?? '').toLowerCase()
+      const mediaType: MediaType = rawMediaType === 'pdf' ? 'pdf' : rawMediaType === 'video' ? 'video' : 'unknown'
+      if (mediaType !== 'unknown') {
+        rememberType(overviewItem.id, mediaType, mediaType)
+      }
     }
   }
 
   /* ------------------------- Type registry ------------------------- */
 
   function rememberType(id: number, type: MediaType, scope?: MediaScope) {
-    const s: MediaScope = scope ?? type
+    const mediaScope: MediaScope = scope ?? type
     // allow storing by scope even if type is unknown (but don’t store an 'unknown' type value)
-    if (s === 'unknown') return
+    if (mediaScope === 'unknown') {
+      return
+    }
 
-    const key = makeKey(s, id)
+    const key = makeKey(mediaScope, id)
     // If type is unknown, don’t overwrite an existing concrete type
     const existing = typeByKey.value.get(key)
     const toStore: MediaType = type === 'unknown' ? (existing ?? 'unknown') : type
-    if (toStore === 'unknown') return
+    if (toStore === 'unknown') {
+      return
+    }
 
     typeByKey.value.set(key, toStore)
     try {
@@ -92,8 +100,10 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   function getType(id: number, scope?: MediaScope): MediaType {
     if (scope) {
       const key = makeKey(scope, id)
-      const m = typeByKey.value.get(key)
-      if (m) return m
+      const mediaType = typeByKey.value.get(key)
+      if (mediaType) {
+        return mediaType
+      }
       try {
         const fromSession: unknown = sessionStorage.getItem(`mediaType:${key}`)
         logger.debug('session-type-read', {
@@ -124,21 +134,29 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   }
 
   function getAllTypes(id: number): MediaType[] {
-    const out = new Set<MediaType>()
+    const mediaTypes = new Set<MediaType>()
     const scopes: MediaScope[] = ['video', 'pdf', 'meta']
-    for (const s of scopes) {
-      const t = getType(id, s)
-      if (t !== 'unknown') out.add(t)
+    for (const mediaScope of scopes) {
+      const mediaType = getType(id, mediaScope)
+      if (mediaType !== 'unknown') {
+        mediaTypes.add(mediaType)
+      }
     }
-    return [...out]
+    return [...mediaTypes]
   }
 
   function resolveType(id: number, hint?: 'prefer-video' | 'prefer-pdf'): MediaType {
     const types = getAllTypes(id)
-    if (types.length === 1) return types[0]
+    if (types.length === 1) {
+      return types[0]
+    }
     if (types.length > 1) {
-      if (hint === 'prefer-video' && types.includes('video')) return 'video'
-      if (hint === 'prefer-pdf' && types.includes('pdf')) return 'pdf'
+      if (hint === 'prefer-video' && types.includes('video')) {
+        return 'video'
+      }
+      if (hint === 'prefer-pdf' && types.includes('pdf')) {
+        return 'pdf'
+      }
     }
     return 'unknown'
   }
@@ -189,9 +207,11 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   /* --------------------------- Computed ---------------------------- */
 
   const currentMediaType: ComputedRef<MediaType> = computed(() => {
-    const ci = currentItem.value
-    if (!ci) return 'unknown'
-    return detectMediaType(ci)
+    const focusedItem = currentItem.value
+    if (!focusedItem) {
+      return 'unknown'
+    }
+    return detectMediaType(focusedItem)
   })
 
   const isPdf = computed(() => currentMediaType.value === 'pdf')
@@ -204,7 +224,9 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
 
   // Keep this pure; no fetching or IO here.
   function detectMediaType(item: MediaItem): MediaType {
-    if (item.mediaType && item.mediaType !== 'unknown') return item.mediaType
+    if (item.mediaType && item.mediaType !== 'unknown') {
+      return item.mediaType
+    }
     // 1) If scope is known, prefer the registry `(scope,id)`
     if (item.scope && item.scope !== 'unknown') {
       const byScoped = getType(item.id, item.scope)
@@ -212,20 +234,28 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
         operation: 'resolve',
         mediaType: byScoped
       })
-      if (byScoped !== 'unknown') return byScoped
+      if (byScoped !== 'unknown') {
+        return byScoped
+      }
     }
 
     // 2) Try explicit field
 
     // 3) try by filename
     if (item.filename) {
-      const ext = `.${item.filename.toLowerCase().split('.').pop() || ''}`
-      if (mediaTypeConfigs.video.supportedExtensions.includes(ext)) return 'video'
-      if (mediaTypeConfigs.pdf.supportedExtensions.includes(ext)) return 'pdf'
+      const extension = `.${item.filename.toLowerCase().split('.').pop() || ''}`
+      if (mediaTypeConfigs.video.supportedExtensions.includes(extension)) {
+        return 'video'
+      }
+      if (mediaTypeConfigs.pdf.supportedExtensions.includes(extension)) {
+        return 'pdf'
+      }
     }
     // 3) Ambiguous registry lookup by id
     const remembered = getType(item.id)
-    if (remembered !== 'unknown') return remembered
+    if (remembered !== 'unknown') {
+      return remembered
+    }
 
     return 'unknown'
   }
@@ -235,7 +265,9 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   }
 
   function updateCurrentItem(updates: Partial<MediaItem>): void {
-    if (currentItem.value) currentItem.value = { ...currentItem.value, ...updates }
+    if (currentItem.value) {
+      currentItem.value = { ...currentItem.value, ...updates }
+    }
   }
 
   function clearCurrentItem(): void {
@@ -247,8 +279,8 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   }
 
   function isSupportedExtension(filename: string): boolean {
-    const ext = `.${filename.toLowerCase().split('.').pop() || ''}`
-    return Object.values(mediaTypeConfigs).some((c) => c.supportedExtensions.includes(ext))
+    const extension = `.${filename.toLowerCase().split('.').pop() || ''}`
+    return Object.values(mediaTypeConfigs).some((c) => c.supportedExtensions.includes(extension))
   }
 
   // Legacy compatibility (icons/badges)

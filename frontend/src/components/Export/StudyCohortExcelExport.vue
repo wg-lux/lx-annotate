@@ -1,33 +1,62 @@
 <template>
-  <section class="card" aria-labelledby="study-cohort-export-title">
+  <section
+    class="card"
+    aria-labelledby="study-cohort-export-title"
+  >
     <div class="card-header pb-0">
-      <h5 id="study-cohort-export-title" class="mb-0">Vorbereitete Studienkohorte</h5>
+      <h5
+        id="study-cohort-export-title"
+        class="mb-0"
+      >Vorbereitete Studienkohorte</h5>
       <p class="text-muted mb-0">
         Exportiert genau die zuletzt auf der Studienseite geprüften Untersuchungsfälle.
       </p>
     </div>
 
-    <div v-if="!definition" class="card-body" data-test="cohort-export-empty">
+    <div
+      v-if="!definition"
+      class="card-body"
+      data-test="cohort-export-empty"
+    >
       <p class="text-muted">Es wurde noch keine Studienkohorte vorbereitet.</p>
-      <router-link class="btn btn-primary mb-0" to="/studies">Studie vorbereiten</router-link>
+      <router-link
+        class="btn btn-primary mb-0"
+        to="/studies"
+      >Studie vorbereiten</router-link>
     </div>
 
-    <div v-else class="card-body" data-test="cohort-export-definition">
+    <div
+      v-else
+      class="card-body"
+      data-test="cohort-export-definition"
+    >
       <dl class="row mb-3">
         <dt class="col-sm-3">Studie</dt>
-        <dd class="col-sm-9" data-test="cohort-study-name">{{ definition.studyName }}</dd>
+        <dd
+          class="col-sm-9"
+          data-test="cohort-study-name"
+        >{{ definition.studyName }}</dd>
         <dt class="col-sm-3">Hypothese</dt>
-        <dd class="col-sm-9" data-test="cohort-hypothesis">{{ definition.hypothesis }}</dd>
+        <dd
+          class="col-sm-9"
+          data-test="cohort-hypothesis"
+        >{{ definition.hypothesis }}</dd>
         <dt class="col-sm-3">Patienten</dt>
         <dd class="col-sm-9">{{ definition.summary.patientCount }}</dd>
         <dt class="col-sm-3">Untersuchungen</dt>
         <dd class="col-sm-9">{{ definition.patientExaminationIds.length }}</dd>
       </dl>
 
-      <div class="mb-3" data-test="cohort-export-filters">
+      <div
+        class="mb-3"
+        data-test="cohort-export-filters"
+      >
         <div class="fw-semibold mb-1">Geprüfte Einschlussfilter</div>
         <ul class="small mb-0">
-          <li v-for="filter in activeFilters" :key="filter.label">
+          <li
+            v-for="filter in activeFilters"
+            :key="filter.label"
+          >
             {{ filter.label }}: {{ filter.value }}
           </li>
         </ul>
@@ -75,7 +104,9 @@ const message = ref<ExportMessage | null>(null)
 
 const activeFilters = computed(() => {
   const filters = definition.value?.filters
-  if (!filters) return []
+  if (!filters) {
+    return []
+  }
   const values: Array<[string, string | null | undefined]> = [
     ['Datum von', filters.dateFrom],
     ['Datum bis', filters.dateTo],
@@ -100,13 +131,17 @@ const activeFilters = computed(() => {
 })
 
 function readableError(error: unknown): string {
-  if (!error || typeof error !== 'object') return 'Studienkohorte konnte nicht exportiert werden.'
+  if (!error || typeof error !== 'object') {
+    return 'Studienkohorte konnte nicht exportiert werden.'
+  }
   const candidate = error as {
     message?: string
     response?: { data?: Blob | { detail?: string; error?: string } }
   }
   const data = candidate.response?.data
-  if (data && !(data instanceof Blob)) return data.detail || data.error || candidate.message || ''
+  if (data && !(data instanceof Blob)) {
+    return data.detail || data.error || candidate.message || ''
+  }
   return candidate.message || 'Studienkohorte konnte nicht exportiert werden.'
 }
 
@@ -121,7 +156,9 @@ function saveDownload(blob: Blob, filename: string): void {
 
 async function downloadCohort(): Promise<void> {
   const currentDefinition = definition.value
-  if (!currentDefinition?.patientExaminationIds.length) return
+  if (!currentDefinition?.patientExaminationIds.length) {
+    return
+  }
   exporting.value = true
   message.value = null
   try {

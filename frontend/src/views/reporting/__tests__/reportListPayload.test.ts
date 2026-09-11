@@ -69,10 +69,27 @@ describe('parseReportListPayload', () => {
 
   it('rejects malformed optional fields rather than converting them to missing values', () => {
     expect(() => parseReportListPayload([{ id: 7, version: 'one' }])).toThrow(
-      'Report list field "version" must be a finite number or null'
+      'Report list field "version" must be a positive safe integer or null'
     )
     expect(() => parseReportListPayload([{ id: 7, renderedText: { text: 'unsafe' } }])).toThrow(
       'Report list field "renderedText" must be a string or null'
     )
   })
+
+  it.each(['version', 'patientExaminationId', 'patientExaminationFk', 'patientExamination'])(
+    'rejects invalid numeric values for %s while preserving optional states', (field) => {
+      for (const invalid of [1.5, 0, -1, Number.MAX_SAFE_INTEGER + 1, Infinity, '1']) {
+        expect(() => parseReportListPayload([{ id: 7, [field]: invalid }])).toThrow()
+      }
+      expect(parseReportListPayload([{ id: 7, [field]: null }])).toMatchObject([{ [field]: null }])
+      expect(parseReportListPayload([{ id: 7 }])).toHaveLength(1)
+    }
+  )
+
+  it.each([1.5, 0, -1, Number.MAX_SAFE_INTEGER + 1, Infinity, '1'])(
+    'rejects unsafe report and nested examination identity: %s', (id) => {
+      expect(() => parseReportListPayload([{ id }])).toThrow()
+      expect(() => parseReportListPayload([{ id: 7, patientExamination: { id } }])).toThrow()
+    }
+  )
 })

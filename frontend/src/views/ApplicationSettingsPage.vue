@@ -10,10 +10,16 @@
         </p>
       </div>
       <div class="settings-status">
-        <span class="status-chip" :class="{ 'status-chip-busy': loading || saving }">
-          {{ loading ? 'Lade Einstellungen' : saving ? 'Speichere Änderungen' : 'Bereit' }}
+        <span
+          class="status-chip"
+          :class="{ 'status-chip-busy': loading || saving }"
+        >
+          {{ settingsStatusLabel }}
         </span>
-        <p v-if="updatedAtLabel" class="status-updated">
+        <p
+          v-if="updatedAtLabel"
+          class="status-updated"
+        >
           Zuletzt aktualisiert: {{ updatedAtLabel }}
         </p>
       </div>
@@ -23,8 +29,10 @@
       <section class="settings-card">
         <div class="card-header-row">
           <div>
-            <h2>Standardauswahl</h2>
-            <p>Diese Werte werden als Ausgangspunkt für die Arbeitsabläufe verwendet.</p>
+            <h2 class="card-header-row__title">Standardauswahl</h2>
+            <p class="card-header-row__description">
+              Diese Werte werden als Ausgangspunkt für die Arbeitsabläufe verwendet.
+            </p>
           </div>
           <button
             type="button"
@@ -36,20 +44,30 @@
           </button>
         </div>
 
-        <div v-if="loading" class="loading-state">
+        <div
+          v-if="loading"
+          class="loading-state"
+        >
           <div class="skeleton-line"></div>
           <div class="skeleton-line skeleton-line-short"></div>
           <div class="skeleton-line"></div>
         </div>
 
         <div v-else>
-          <div v-if="errorMessage" class="alert alert-warning mb-4" role="alert">
+          <div
+            v-if="errorMessage"
+            class="alert alert-warning mb-4"
+            role="alert"
+          >
             {{ errorMessage }}
           </div>
 
-          <form class="settings-form" @submit.prevent="saveSettings">
+          <form
+            class="settings-form"
+            @submit.prevent="saveSettings"
+          >
             <label class="settings-field">
-              <span>Zentrum</span>
+              <span class="settings-field__label">Zentrum</span>
               <select
                 v-model="form.centerId"
                 class="form-select"
@@ -68,7 +86,7 @@
             </label>
 
             <label class="settings-field">
-              <span>Prozessor</span>
+              <span class="settings-field__label">Prozessor</span>
               <select
                 v-model="form.processorId"
                 class="form-select"
@@ -87,7 +105,7 @@
             </label>
 
             <label class="settings-field">
-              <span>Standard-Annotator</span>
+              <span class="settings-field__label">Standard-Annotator</span>
               <select
                 v-model="form.annotatorName"
                 class="form-select"
@@ -106,7 +124,7 @@
             </label>
 
             <label class="settings-field">
-              <span>Berichtsvorlage</span>
+              <span class="settings-field__label">Berichtsvorlage</span>
               <select
                 v-model="form.reportTemplateName"
                 class="form-select"
@@ -125,7 +143,7 @@
             </label>
 
             <label class="settings-field">
-              <span>Primärer Label-Datensatz</span>
+              <span class="settings-field__label">Primärer Label-Datensatz</span>
               <select
                 v-model="form.aiDatasetId"
                 class="form-select"
@@ -142,7 +160,10 @@
                   {{ datasetOption.label }} · ID {{ datasetOption.id }}
                 </option>
               </select>
-              <small v-if="selectedAiDatasetDuplicateWarning" class="text-warning mt-1">
+              <small
+                v-if="selectedAiDatasetDuplicateWarning"
+                class="text-warning mt-1"
+              >
                 {{ selectedAiDatasetDuplicateWarning }}
               </small>
               <small class="text-muted mt-1">
@@ -159,7 +180,7 @@
             </label>
 
             <label class="settings-field">
-              <span>Annotations-Datensatztyp</span>
+              <span class="settings-field__label">Annotations-Datensatztyp</span>
               <select
                 v-model="form.aiDatasetType"
                 class="form-select"
@@ -194,49 +215,89 @@
         </div>
       </section>
       <aside class="settings-card settings-card-contrast">
-        <h2>Aktive Auswahl</h2>
+        <h2 class="settings-card-contrast__title">Aktive Auswahl</h2>
         <p class="summary-intro">
           Vorschau der Werte, die mit dem nächsten Speichern aktiv werden.
         </p>
 
         <dl class="settings-summary">
-          <div>
-            <dt>Zentrum</dt>
-            <dd data-test="summary-center">{{ selectedCenterLabel }}</dd>
+          <div class="settings-summary__item">
+            <dt class="settings-summary__term">Zentrum</dt>
+            <dd
+              class="settings-summary__value"
+              data-test="summary-center"
+            >
+              {{ selectedCenterLabel }}
+            </dd>
           </div>
-          <div>
-            <dt>Prozessor</dt>
-            <dd data-test="summary-processor">{{ selectedProcessorLabel }}</dd>
+          <div class="settings-summary__item">
+            <dt class="settings-summary__term">Prozessor</dt>
+            <dd
+              class="settings-summary__value"
+              data-test="summary-processor"
+            >
+              {{ selectedProcessorLabel }}
+            </dd>
           </div>
-          <div>
-            <dt>Annotator</dt>
-            <dd data-test="summary-annotator">{{ selectedAnnotatorLabel }}</dd>
+          <div class="settings-summary__item">
+            <dt class="settings-summary__term">Annotator</dt>
+            <dd
+              class="settings-summary__value"
+              data-test="summary-annotator"
+            >
+              {{ selectedAnnotatorLabel }}
+            </dd>
           </div>
-          <div>
-            <dt>Berichtsvorlage</dt>
-            <dd data-test="summary-report-template">{{ selectedReportTemplateLabel }}</dd>
+          <div class="settings-summary__item">
+            <dt class="settings-summary__term">Berichtsvorlage</dt>
+            <dd
+              class="settings-summary__value"
+              data-test="summary-report-template"
+            >
+              {{ selectedReportTemplateLabel }}
+            </dd>
           </div>
-          <div>
-            <dt>Primärer Label-Datensatz</dt>
-            <dd data-test="summary-ai-dataset">{{ selectedAiDatasetLabel }}</dd>
+          <div class="settings-summary__item">
+            <dt class="settings-summary__term">Primärer Label-Datensatz</dt>
+            <dd
+              class="settings-summary__value"
+              data-test="summary-ai-dataset"
+            >
+              {{ selectedAiDatasetLabel }}
+            </dd>
           </div>
-          <div>
-            <dt>Annotations-Datensatztyp</dt>
-            <dd data-test="summary-ai-dataset-type">{{ selectedAiDatasetTypeLabel }}</dd>
+          <div class="settings-summary__item">
+            <dt class="settings-summary__term">Annotations-Datensatztyp</dt>
+            <dd
+              class="settings-summary__value"
+              data-test="summary-ai-dataset-type"
+            >
+              {{ selectedAiDatasetTypeLabel }}
+            </dd>
           </div>
-          <div>
-            <dt>Fachbereich</dt>
-            <dd data-test="summary-medical-field">{{ terminology.medicalFieldLabel }}</dd>
+          <div class="settings-summary__item">
+            <dt class="settings-summary__term">Fachbereich</dt>
+            <dd
+              class="settings-summary__value"
+              data-test="summary-medical-field"
+            >
+              {{ terminology.medicalFieldLabel }}
+            </dd>
           </div>
-          <div>
-            <dt>Terminologie</dt>
-            <dd data-test="summary-terminology">{{ terminology.activeBundleLabel }}</dd>
+          <div class="settings-summary__item">
+            <dt class="settings-summary__term">Terminologie</dt>
+            <dd
+              class="settings-summary__value"
+              data-test="summary-terminology"
+            >
+              {{ terminology.activeBundleLabel }}
+            </dd>
           </div>
         </dl>
 
         <div class="summary-note">
-          <strong>Hinweis</strong>
-          <p>
+          <strong class="summary-note__value">Hinweis</strong>
+          <p class="summary-note__description">
             Bereits angelegte Fälle behalten ihre eigene Konfiguration. Die Änderung wirkt auf
             nachfolgende Arbeitsvorgänge.
           </p>
@@ -246,8 +307,8 @@
       <aside class="settings-card">
         <div class="card-header-row">
           <div>
-            <h2>Terminologie</h2>
-            <p>
+            <h2 class="card-header-row__title">Terminologie</h2>
+            <p class="card-header-row__description">
               Aktiviert ein veröffentlichtes Terminologiepaket für Befunde, Berichtsvorlagen und
               Untersuchungsfilter.
             </p>
@@ -262,7 +323,10 @@
           </button>
         </div>
 
-        <div class="terminology-import-panel mb-3" data-test="terminology-import-panel">
+        <div
+          class="terminology-import-panel mb-3"
+          data-test="terminology-import-panel"
+        >
           <input
             ref="terminologyFolderInput"
             class="visually-hidden"
@@ -284,7 +348,7 @@
           />
           <div>
             <strong>Terminologie bereitstellen</strong>
-            <p class="mb-0">
+            <p class="mb-0 terminology-import-panel__description">
               Wählen Sie einen Paketordner, einen Ordner mit mehreren Paketverzeichnissen oder
               mehrere von lx-terminology-editor veröffentlichte ZIP-Pakete. Der ZIP-Dialog kann auch
               Dateien aus eingebundenem Cloud-Speicher öffnen. Pakete werden einzeln geprüft und
@@ -309,15 +373,13 @@
               :disabled="terminology.importing"
               @click="terminologyZipInput?.click()"
             >
-              {{
-                terminology.importing ? 'Pakete werden importiert…' : 'ZIPs lokal/Cloud auswählen'
-              }}
+              {{ terminologyImportLabel }}
             </button>
           </div>
         </div>
 
         <label class="settings-field">
-          <span>Fachbereich</span>
+          <span class="settings-field__label">Fachbereich</span>
           <select
             :value="terminology.selectedMedicalField"
             class="form-select"
@@ -336,7 +398,7 @@
         </label>
 
         <label class="settings-field mt-3">
-          <span>Terminologiepaket</span>
+          <span class="settings-field__label">Terminologiepaket</span>
           <select
             v-model="selectedTerminologyKey"
             class="form-select"
@@ -346,13 +408,7 @@
             "
           >
             <option value="">
-              {{
-                terminology.loading
-                  ? 'Terminologiepakete werden geladen...'
-                  : terminology.filteredBundles.length
-                    ? 'Terminologiepaket wählen'
-                    : 'Keine Pakete im Register'
-              }}
+              {{ terminologyOptionLabel }}
             </option>
             <option
               v-for="bundle in terminology.filteredBundles"
@@ -366,18 +422,20 @@
 
         <div class="backup-summary terminology-summary">
           <div class="backup-stat">
-            <span>Aktiv</span>
-            <strong>{{ terminology.activeBundleLabel }}</strong>
+            <span class="backup-stat__label">Aktiv</span>
+            <strong class="backup-stat__value">{{ terminology.activeBundleLabel }}</strong>
           </div>
           <div class="backup-stat">
-            <span>Governance</span>
-            <strong>{{
-              terminology.activeBundle ? 'Verifiziertes Register' : 'Nicht bereit'
-            }}</strong>
+            <span class="backup-stat__label">Governance</span>
+            <strong class="backup-stat__value">{{ terminologyRegistryLabel }}</strong>
           </div>
         </div>
 
-        <div v-if="terminologyStatusMessage" class="alert alert-info mb-0" role="alert">
+        <div
+          v-if="terminologyStatusMessage"
+          class="alert alert-info mb-0"
+          role="alert"
+        >
           {{ terminologyStatusMessage }}
         </div>
 
@@ -388,15 +446,15 @@
           :disabled="terminology.selecting || !selectedTerminologyKey"
           @click="activateTerminologyBundle"
         >
-          {{ terminology.selecting ? 'Terminologie wird geladen…' : 'Terminologie laden' }}
+          {{ terminologyLoadLabel }}
         </button>
       </aside>
 
       <aside class="settings-card">
         <div class="card-header-row">
           <div>
-            <h2>Video-Dimensionen</h2>
-            <p>
+            <h2 class="card-header-row__title">Video-Dimensionen</h2>
+            <p class="card-header-row__description">
               Prüft anonymisierte Videos gegen die Rohvideo-Dimensionen und repariert Abweichungen
               über den geschützten Storage-Pfad.
             </p>
@@ -404,7 +462,7 @@
         </div>
 
         <label class="settings-field">
-          <span>Maximale Videos</span>
+          <span class="settings-field__label">Maximale Videos</span>
           <input
             v-model="videoDimensionBackfillLimit"
             type="number"
@@ -427,7 +485,11 @@
           <span class="form-check-label">Nur prüfen, nicht reparieren</span>
         </label>
 
-        <div v-if="videoDimensionBackfillMessage" class="alert alert-info mt-3 mb-0" role="alert">
+        <div
+          v-if="videoDimensionBackfillMessage"
+          class="alert alert-info mt-3 mb-0"
+          role="alert"
+        >
           {{ videoDimensionBackfillMessage }}
         </div>
 
@@ -438,19 +500,15 @@
           :disabled="videoDimensionBackfillInProgress"
           @click="runVideoDimensionBackfill"
         >
-          {{
-            videoDimensionBackfillInProgress
-              ? 'Dimensionen werden geprüft…'
-              : 'Video-Dimensionsprüfung starten'
-          }}
+          {{ dimensionBackfillLabel }}
         </button>
       </aside>
 
       <aside class="settings-card">
         <div class="card-header-row">
           <div>
-            <h2>KI-Datensatzexport</h2>
-            <p>
+            <h2 class="card-header-row__title">KI-Datensatzexport</h2>
+            <p class="card-header-row__description">
               Exportiert den aktuell ausgewählten Datensatz als standardisierte JSON-Datei in den
               geschützten Export-Ordner.
             </p>
@@ -459,18 +517,18 @@
 
         <div class="backup-summary">
           <div class="backup-stat">
-            <span>Datensatz</span>
-            <strong>{{ selectedAiDatasetLabel }}</strong>
+            <span class="backup-stat__label">Datensatz</span>
+            <strong class="backup-stat__value">{{ selectedAiDatasetLabel }}</strong>
           </div>
           <div class="backup-stat">
-            <span>Typ</span>
-            <strong>{{ selectedAiDatasetTypeLabel }}</strong>
+            <span class="backup-stat__label">Typ</span>
+            <strong class="backup-stat__value">{{ selectedAiDatasetTypeLabel }}</strong>
           </div>
         </div>
 
         <div class="export-controls">
           <label class="settings-field">
-            <span>Exportumfang</span>
+            <span class="settings-field__label">Exportumfang</span>
             <select
               v-model="aiDatasetExportScope"
               class="form-select"
@@ -481,8 +539,11 @@
               <option value="all">Alle Zentren</option>
             </select>
           </label>
-          <label v-if="aiDatasetExportScope === 'center'" class="settings-field">
-            <span>Zentrum</span>
+          <label
+            v-if="aiDatasetExportScope === 'center'"
+            class="settings-field"
+          >
+            <span class="settings-field__label">Zentrum</span>
             <select
               v-model="aiDatasetExportCenterKey"
               class="form-select"
@@ -501,22 +562,32 @@
           </label>
         </div>
 
-        <div v-if="aiDatasetExportMessage" class="alert alert-info mb-0" role="alert">
+        <div
+          v-if="aiDatasetExportMessage"
+          class="alert alert-info mb-0"
+          role="alert"
+        >
           {{ aiDatasetExportMessage }}
         </div>
 
-        <dl v-if="aiDatasetExportResult" class="export-result" data-test="ai-dataset-export-result">
-          <div>
-            <dt>SHA-256</dt>
-            <dd>{{ aiDatasetExportResult.sha256 || 'Nicht verfügbar' }}</dd>
+        <dl
+          v-if="aiDatasetExportResult"
+          class="export-result"
+          data-test="ai-dataset-export-result"
+        >
+          <div class="export-result__item">
+            <dt class="export-result__term">SHA-256</dt>
+            <dd class="export-result__value">
+              {{ aiDatasetExportResult.sha256 || 'Nicht verfügbar' }}
+            </dd>
           </div>
-          <div>
-            <dt>Größe</dt>
-            <dd>{{ formatBytes(aiDatasetExportResult.byteSize) }}</dd>
+          <div class="export-result__item">
+            <dt class="export-result__term">Größe</dt>
+            <dd class="export-result__value">{{ formatBytes(aiDatasetExportResult.byteSize) }}</dd>
           </div>
-          <div>
-            <dt>Annotationen</dt>
-            <dd>
+          <div class="export-result__item">
+            <dt class="export-result__term">Annotationen</dt>
+            <dd class="export-result__value">
               {{
                 (aiDatasetExportResult.summary.imageAnnotationCount ?? 0) +
                 (aiDatasetExportResult.summary.videoAnnotationCount ?? 0)
@@ -532,7 +603,7 @@
           :disabled="aiDatasetExportInProgress || !selectedAiDatasetOption"
           @click="runAiDatasetExport"
         >
-          {{ aiDatasetExportInProgress ? 'Export läuft…' : 'KI-Datensatz exportieren' }}
+          {{ datasetExportLabel }}
         </button>
         <a
           v-if="aiDatasetExportResult?.downloadUrl"
@@ -547,8 +618,8 @@
       <aside class="settings-card">
         <div class="card-header-row">
           <div>
-            <h2>Backup & Datenintegrität</h2>
-            <p>
+            <h2 class="card-header-row__title">Backup & Datenintegrität</h2>
+            <p class="card-header-row__description">
               Ein Backup auf ein eingebundenes Laufwerk wird nur freigeschaltet, wenn alle
               benötigten Datenpfade vorhanden sind.
             </p>
@@ -557,38 +628,51 @@
             class="backup-chip"
             :class="{ 'backup-chip-ready': backupReady, 'backup-chip-blocked': !backupReady }"
           >
-            {{ backupReady ? 'Backup bereit' : 'Pfadprüfung fehlgeschlagen' }}
+            {{ backupStatusLabel }}
           </span>
         </div>
 
         <div class="backup-summary">
           <div class="backup-stat">
-            <span>Verfügbare Pfade</span>
-            <strong>{{ backupAvailablePaths }} / {{ backupRequiredPaths }}</strong>
+            <span class="backup-stat__label">Verfügbare Pfade</span>
+            <strong class="backup-stat__value"
+              >{{ backupAvailablePaths }} / {{ backupRequiredPaths }}</strong
+            >
           </div>
           <div class="backup-stat">
-            <span>Quelle</span>
-            <strong>{{ backupSourceRoots.length }}</strong>
+            <span class="backup-stat__label">Quelle</span>
+            <strong class="backup-stat__value">{{ backupSourceRoots.length }}</strong>
           </div>
         </div>
 
         <div class="backup-roots">
-          <div v-for="root in backupSourceRoots" :key="root.path" class="backup-root">
+          <div
+            v-for="root in backupSourceRoots"
+            :key="root.path"
+            class="backup-root"
+          >
             <div class="backup-root-header">
-              <strong>{{ root.label }}</strong>
+              <strong class="backup-root-header__value">{{ root.label }}</strong>
               <span class="backup-root-count">{{ root.fileCount }} Dateien</span>
             </div>
-            <code>{{ root.path }}</code>
+            <code class="backup-root__path">{{ root.path }}</code>
           </div>
         </div>
 
-        <div v-if="backupMissingPaths.length" class="alert alert-warning mt-3 mb-0" role="alert">
+        <div
+          v-if="backupMissingPaths.length"
+          class="alert alert-warning mt-3 mb-0"
+          role="alert"
+        >
           Fehlende Pfade: {{ backupMissingPaths.join(', ') }}
         </div>
 
-        <form class="backup-form" @submit.prevent="runBackup">
+        <form
+          class="backup-form"
+          @submit.prevent="runBackup"
+        >
           <label class="settings-field">
-            <span>Backup-Zielpfad</span>
+            <span class="settings-field__label">Backup-Zielpfad</span>
             <input
               v-model="backupTargetPath"
               type="text"
@@ -599,7 +683,11 @@
             />
           </label>
 
-          <div v-if="backupMessage" class="alert alert-info mb-0" role="alert">
+          <div
+            v-if="backupMessage"
+            class="alert alert-info mb-0"
+            role="alert"
+          >
             {{ backupMessage }}
           </div>
 
@@ -610,7 +698,7 @@
             :disabled="backupInProgress || !backupReady || !backupTargetPath.trim()"
             @click="runBackup"
           >
-            {{ backupInProgress ? 'Backup läuft…' : 'Backup auf Laufwerk starten' }}
+            {{ backupActionLabel }}
           </button>
         </form>
       </aside>
@@ -637,6 +725,10 @@ import { isAxiosError } from 'axios'
 import { terminologyBatchImportMessage, useTerminologyStore } from '@/stores/terminologyStore'
 import { useToastStore } from '@/stores/toastStore'
 import { computed, onMounted, reactive, ref } from 'vue'
+import {
+  applicationSettingsChanged,
+  applicationSettingsFormValues
+} from '@/utils/applicationSettingsForm'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const logger = createRuntimeLogger('application-settings')
@@ -706,8 +798,44 @@ const form = reactive({
   aiDatasetType: EMPTY_OPTION
 })
 
+const settingsStatusLabel = computed(() =>
+  loading.value ? 'Lade Einstellungen' : saving.value ? 'Speichere Änderungen' : 'Bereit'
+)
+const terminologyImportLabel = computed(() =>
+  terminology.importing ? 'Pakete werden importiert…' : 'ZIPs lokal/Cloud auswählen'
+)
+const terminologyOptionLabel = computed(() =>
+  terminology.loading
+    ? 'Terminologiepakete werden geladen...'
+    : terminology.filteredBundles.length
+      ? 'Terminologiepaket wählen'
+      : 'Keine Pakete im Register'
+)
+const terminologyRegistryLabel = computed(() =>
+  terminology.activeBundle ? 'Verifiziertes Register' : 'Nicht bereit'
+)
+const terminologyLoadLabel = computed(() =>
+  terminology.selecting ? 'Terminologie wird geladen…' : 'Terminologie laden'
+)
+const dimensionBackfillLabel = computed(() =>
+  videoDimensionBackfillInProgress.value
+    ? 'Dimensionen werden geprüft…'
+    : 'Video-Dimensionsprüfung starten'
+)
+const datasetExportLabel = computed(() =>
+  aiDatasetExportInProgress.value ? 'Export läuft…' : 'KI-Datensatz exportieren'
+)
+const backupStatusLabel = computed(() =>
+  backupReady.value ? 'Backup bereit' : 'Pfadprüfung fehlgeschlagen'
+)
+const backupActionLabel = computed(() =>
+  backupInProgress.value ? 'Backup läuft…' : 'Backup auf Laufwerk starten'
+)
+
 const updatedAtLabel = computed(() => {
-  if (!currentSettings.value?.updatedAt) return null
+  if (!currentSettings.value?.updatedAt) {
+    return null
+  }
 
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'medium',
@@ -735,9 +863,9 @@ const selectedReportTemplateLabel = computed(() => {
   return match?.label ?? 'Keine Standardvorlage'
 })
 
-const selectedAiDatasetOption = computed(() => {
-  return dropdowns.aiDatasets.find((option) => String(option.id) === form.aiDatasetId) ?? null
-})
+const selectedAiDatasetOption = computed(
+  () => dropdowns.aiDatasets.find((option) => String(option.id) === form.aiDatasetId) ?? null
+)
 
 const primaryAnnotationDatasetOptions = computed(() =>
   dropdowns.aiDatasets.filter(
@@ -758,20 +886,26 @@ const selectedAiDatasetLabel = computed(() => {
 
 const selectedAiDatasetTypeLabel = computed(() => {
   const datasetType = selectedAiDatasetOption.value?.datasetType || form.aiDatasetType
-  if (datasetType === 'image') return 'Image'
-  if (datasetType === 'video') return 'Video'
+  if (datasetType === 'image') {
+    return 'Image'
+  }
+  if (datasetType === 'video') {
+    return 'Video'
+  }
   return 'Nicht gesetzt'
 })
 
 const selectedAiDatasetDuplicateWarning = computed(() => {
   const selected = selectedAiDatasetOption.value
-  if (!selected || selected.nameCount <= 1) return ''
+  if (!selected || selected.nameCount <= 1) {
+    return ''
+  }
   return 'Mehrere Datensätze haben diesen Namen. Der Export verwendet deshalb die eindeutige ID.'
 })
 
-const selectedDefaultCenter = computed(() => {
-  return dropdowns.centers.find((option) => String(option.id) === form.centerId) ?? null
-})
+const selectedDefaultCenter = computed(
+  () => dropdowns.centers.find((option) => String(option.id) === form.centerId) ?? null
+)
 
 const backupReady = computed(() => currentSettings.value?.backupStatus.ready ?? false)
 const backupMissingPaths = computed(() => currentSettings.value?.backupStatus.missingPaths ?? [])
@@ -783,13 +917,19 @@ const backupAvailablePaths = computed(
   () => currentSettings.value?.backupStatus.availablePathCount ?? 0
 )
 const backupMessage = computed(() => {
-  if (backupError.value) return backupError.value
-  if (backupResult.value) return `Backup erstellt: ${backupResult.value.targetRoot}`
+  if (backupError.value) {
+    return backupError.value
+  }
+  if (backupResult.value) {
+    return `Backup erstellt: ${backupResult.value.targetRoot}`
+  }
   return ''
 })
 
 const aiDatasetExportMessage = computed(() => {
-  if (aiDatasetExportError.value) return aiDatasetExportError.value
+  if (aiDatasetExportError.value) {
+    return aiDatasetExportError.value
+  }
   if (aiDatasetExportResult.value) {
     return `Datensatz exportiert: ${aiDatasetExportResult.value.outputPath}`
   }
@@ -797,11 +937,19 @@ const aiDatasetExportMessage = computed(() => {
 })
 
 const videoDimensionBackfillMessage = computed(() => {
-  if (videoDimensionBackfillError.value) return videoDimensionBackfillError.value
+  if (videoDimensionBackfillError.value) {
+    return videoDimensionBackfillError.value
+  }
   const run = videoDimensionBackfillRun.value
-  if (!run) return ''
-  if (run.error) return run.error
-  if (!run.result) return `Lauf gestartet: ${run.status}`
+  if (!run) {
+    return ''
+  }
+  if (run.error) {
+    return run.error
+  }
+  if (!run.result) {
+    return `Lauf gestartet: ${run.status}`
+  }
 
   const repaired = run.result.summary.repaired ?? 0
   const wouldRepair = run.result.summary.would_repair ?? run.result.summary.wouldRepair ?? 0
@@ -809,8 +957,12 @@ const videoDimensionBackfillMessage = computed(() => {
 })
 
 const terminologyStatusMessage = computed(() => {
-  if (terminologyLoadError.value) return terminologyLoadError.value
-  if (terminology.error) return terminology.error
+  if (terminologyLoadError.value) {
+    return terminologyLoadError.value
+  }
+  if (terminology.error) {
+    return terminology.error
+  }
   if (terminology.lastSelectionCounts) {
     const total = Object.values(terminology.lastSelectionCounts).reduce(
       (sum, count) => sum + (count || 0),
@@ -824,32 +976,11 @@ const terminologyStatusMessage = computed(() => {
   return ''
 })
 
-const isDirty = computed(() => {
-  if (!currentSettings.value) return false
-
-  return (
-    (currentSettings.value.centerId === null
-      ? EMPTY_OPTION
-      : String(currentSettings.value.centerId)) !== form.centerId ||
-    (currentSettings.value.processorId === null
-      ? EMPTY_OPTION
-      : String(currentSettings.value.processorId)) !== form.processorId ||
-    (currentSettings.value.annotatorName ?? EMPTY_OPTION) !== form.annotatorName ||
-    (currentSettings.value.reportTemplateName ?? EMPTY_OPTION) !== form.reportTemplateName ||
-    (currentSettings.value.aiDatasetId === null
-      ? EMPTY_OPTION
-      : String(currentSettings.value.aiDatasetId)) !== form.aiDatasetId ||
-    (currentSettings.value.aiDatasetName ?? EMPTY_OPTION) !== form.aiDatasetName ||
-    (currentSettings.value.aiDatasetType ?? EMPTY_OPTION) !== form.aiDatasetType
-  )
-})
+const isDirty = computed(() => applicationSettingsChanged(currentSettings.value, form))
 
 function applySettings(settings: ApplicationSettingsRecord) {
   currentSettings.value = settings
-  form.centerId = settings.centerId === null ? EMPTY_OPTION : String(settings.centerId)
-  form.processorId = settings.processorId === null ? EMPTY_OPTION : String(settings.processorId)
-  form.annotatorName = settings.annotatorName ?? EMPTY_OPTION
-  form.reportTemplateName = settings.reportTemplateName ?? EMPTY_OPTION
+  Object.assign(form, applicationSettingsFormValues(settings))
   const exactDataset =
     settings.aiDatasetId === null
       ? null
@@ -870,7 +1001,9 @@ function applySettings(settings: ApplicationSettingsRecord) {
 }
 
 function resetForm() {
-  if (!currentSettings.value) return
+  if (!currentSettings.value) {
+    return
+  }
   applySettings(currentSettings.value)
 }
 
@@ -934,7 +1067,9 @@ function setMedicalField(value: string) {
 
 async function activateTerminologyBundle() {
   const bundle = terminology.findBundleByKey(selectedTerminologyKey.value)
-  if (!bundle) return
+  if (!bundle) {
+    return
+  }
 
   try {
     await terminology.selectBundle(bundle)
@@ -948,14 +1083,19 @@ async function activateTerminologyBundle() {
 async function importTerminologyFolder(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
-  if (!files.length) return
+  if (!files.length) {
+    return
+  }
 
   try {
     const result = await terminology.importBundleFolders(files)
     selectedTerminologyKey.value = terminology.activeBundleKey
     const message = { text: terminologyBatchImportMessage(result) }
-    if (result.failures.length) toast.warning(message)
-    else toast.success(message)
+    if (result.failures.length) {
+      toast.warning(message)
+    } else {
+      toast.success(message)
+    }
   } catch (error) {
     logger.error('terminology-folder-import-failed', error)
   } finally {
@@ -966,14 +1106,19 @@ async function importTerminologyFolder(event: Event) {
 async function importTerminologyZip(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
-  if (!files.length) return
+  if (!files.length) {
+    return
+  }
 
   try {
     const result = await terminology.importBundles(files)
     selectedTerminologyKey.value = terminology.activeBundleKey
     const message = { text: terminologyBatchImportMessage(result) }
-    if (result.failures.length) toast.warning(message)
-    else toast.success(message)
+    if (result.failures.length) {
+      toast.warning(message)
+    } else {
+      toast.success(message)
+    }
   } catch (error) {
     logger.error('terminology-archive-import-failed', error)
   } finally {
@@ -1085,7 +1230,9 @@ async function runBackup() {
 
 async function runAiDatasetExport() {
   const selected = selectedAiDatasetOption.value
-  if (!selected) return
+  if (!selected) {
+    return
+  }
 
   aiDatasetExportInProgress.value = true
   aiDatasetExportError.value = ''
@@ -1120,7 +1267,9 @@ async function runAiDatasetExport() {
 }
 
 function formatBytes(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '0 B'
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0 B'
+  }
   const units = ['B', 'KB', 'MB', 'GB']
   let amount = value
   let unitIndex = 0
@@ -1242,15 +1391,15 @@ onMounted(async () => {
   margin-bottom: 1.25rem;
 }
 
-.card-header-row h2,
-.settings-card-contrast h2 {
+.card-header-row .card-header-row__title,
+.settings-card-contrast .settings-card-contrast__title {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 700;
   color: #16324a;
 }
 
-.card-header-row p,
+.card-header-row .card-header-row__description,
 .summary-intro {
   margin: 0.4rem 0 0;
   color: #5b7083;
@@ -1269,7 +1418,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.settings-field span {
+.settings-field .settings-field__label {
   font-size: 0.92rem;
 }
 
@@ -1320,14 +1469,14 @@ onMounted(async () => {
   margin: 1.25rem 0 0;
 }
 
-.settings-summary div {
+.settings-summary .settings-summary__item {
   padding: 0.95rem 1rem;
   border-radius: 0.95rem;
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(18, 52, 77, 0.08);
 }
 
-.settings-summary dt {
+.settings-summary .settings-summary__term {
   margin: 0 0 0.3rem;
   font-size: 0.76rem;
   letter-spacing: 0.08em;
@@ -1335,7 +1484,7 @@ onMounted(async () => {
   color: #688095;
 }
 
-.settings-summary dd {
+.settings-summary .settings-summary__value {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
@@ -1350,13 +1499,13 @@ onMounted(async () => {
   color: #214661;
 }
 
-.summary-note strong {
+.summary-note .summary-note__value {
   display: block;
   margin-bottom: 0.35rem;
   font-size: 0.92rem;
 }
 
-.summary-note p {
+.summary-note .summary-note__description {
   margin: 0;
   line-height: 1.55;
 }
@@ -1401,19 +1550,19 @@ onMounted(async () => {
   margin: 1rem 0 0;
 }
 
-.export-result div {
+.export-result .export-result__item {
   display: grid;
   gap: 0.2rem;
 }
 
-.export-result dt {
+.export-result .export-result__term {
   color: #607488;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.export-result dd {
+.export-result .export-result__value {
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -1432,7 +1581,7 @@ onMounted(async () => {
   background: rgba(229, 243, 255, 0.45);
 }
 
-.terminology-import-panel p {
+.terminology-import-panel .terminology-import-panel__description {
   color: #607488;
   line-height: 1.5;
 }
@@ -1445,7 +1594,7 @@ onMounted(async () => {
   border: 1px solid rgba(18, 52, 77, 0.08);
 }
 
-.backup-stat span,
+.backup-stat .backup-stat__label,
 .backup-root-count {
   display: block;
   font-size: 0.78rem;
@@ -1454,8 +1603,8 @@ onMounted(async () => {
   letter-spacing: 0.05em;
 }
 
-.backup-stat strong,
-.backup-root-header strong {
+.backup-stat .backup-stat__value,
+.backup-root-header .backup-root-header__value {
   color: #16324a;
 }
 
@@ -1471,7 +1620,7 @@ onMounted(async () => {
   margin-bottom: 0.35rem;
 }
 
-.backup-root code {
+.backup-root .backup-root__path {
   display: block;
   white-space: normal;
   word-break: break-all;

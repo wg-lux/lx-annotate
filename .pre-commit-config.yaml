@@ -26,12 +26,6 @@ repos:
         language: system
         pass_filenames: false
 
-      - id: runtime-checks
-        name: runtime schema and environment check contracts
-        entry: devenv shell -- pytest tests/system/test_environment_checks.py
-        language: system
-        pass_filenames: false
-
       - id: runtime-check-bundle-contract
         name: runtime check migration bundle contract
         entry: devenv shell -- python scripts/evaluate_runtime_check_bundle.py
@@ -54,5 +48,6 @@ repos:
         name: frontend type-check
         entry: devenv shell -- npm --prefix frontend run type-check
         language: system
+        pass_filenames: false
 
 

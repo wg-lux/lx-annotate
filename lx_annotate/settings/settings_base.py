@@ -23,6 +23,18 @@ from lx_annotate.settings.config import load_config
 
 logger = getLogger(__name__)
 
+# Share the deployed report-import provider contract and its existing defaults.
+REPORTING_LLM = {
+    "enabled": os.getenv("LLM_ENABLED", "true").strip(),
+    "provider": os.getenv("LLM_PROVIDER", "ollama").strip().lower(),
+    "model": os.getenv("LLM_MODEL", "lx-gemma4-e2b-json").strip(),
+    "base_url": os.getenv("LLM_BASE_URL", "").strip(),
+    "timeout": os.getenv("LLM_TIMEOUT", "120").strip(),
+    "ca_file": os.getenv("LLM_CA_FILE", "").strip(),
+    "client_cert_file": os.getenv("LLM_CLIENT_CERT_FILE", "").strip(),
+    "client_key_file": os.getenv("LLM_CLIENT_KEY_FILE", "").strip(),
+}
+
 LX_ANNOTATE_FRAME_DECODE_MAX_CONCURRENCY = max(
     1,
     int(os.getenv("LX_ANNOTATE_FRAME_DECODE_MAX_CONCURRENCY", "2")),

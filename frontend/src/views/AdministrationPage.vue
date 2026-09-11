@@ -3,52 +3,53 @@
     <header class="admin-hero">
       <div>
         <p class="eyebrow">Betrieb und Zugriff</p>
-        <h1>Administration</h1>
+        <h1 class="admin-hero__title">Administration</h1>
         <p class="intro">
           Überwachen Sie den sicheren Hub-Transfer und verwalten Sie lokale Center-Zuordnungen.
           Technische Rollen werden hier ausschließlich angezeigt.
         </p>
       </div>
-      <button class="btn btn-outline-light" type="button" :disabled="loading" @click="loadAll">
-        {{ loading ? 'Aktualisiere …' : 'Aktualisieren' }}
+      <button
+        class="btn btn-outline-light"
+        type="button"
+        :disabled="loading"
+        @click="loadAll"
+      >
+        {{ refreshLabel }}
       </button>
     </header>
 
-    <div v-if="errorMessage" class="alert alert-danger mt-3" role="alert">
+    <div
+      v-if="errorMessage"
+      class="alert alert-danger mt-3"
+      role="alert"
+    >
       {{ errorMessage }}
     </div>
 
     <template v-if="overview">
-      <RouterLink v-if="overview.effectivePermissions.centerScopeGlobalAdmin" to="/administration/monitoring" class="btn btn-outline-primary mt-4">Application monitoring</RouterLink>
-      <section class="status-grid mt-4" aria-label="Hub-Status">
-        <article class="status-card">
-          <span class="status-label">Hub-Konfiguration</span>
-          <strong :class="overview.hubHealth.ready ? 'text-success' : 'text-danger'">
-            {{ overview.hubHealth.ready ? 'Betriebsbereit' : 'Nicht bereit' }}
-          </strong>
-          <small>Quellknoten: {{ overview.hubHealth.sourceNodeKey || 'nicht konfiguriert' }}</small>
-        </article>
-        <article class="status-card">
-          <span class="status-label">Transport</span>
-          <strong :class="overview.hubHealth.transport.ready ? 'text-success' : 'text-danger'">
-            {{ overview.hubHealth.transport.requireMtls ? 'mTLS erforderlich' : 'TLS' }}
-          </strong>
-          <small
-            >Transportmaterial:
-            {{ overview.hubHealth.transport.ready ? 'bereit' : 'nicht bereit' }}</small
+      <RouterLink
+        v-if="overview.effectivePermissions.centerScopeGlobalAdmin"
+        to="/administration/monitoring"
+        class="btn btn-outline-primary mt-4"
+        >Application monitoring</RouterLink
+      >
+      <section
+        class="status-grid mt-4"
+        aria-label="Hub-Status"
+      >
+        <article
+          v-for="card in hubCards"
+          :key="card.label"
+          class="status-card"
+        >
+          <span class="status-label">{{ card.label }}</span>
+          <strong
+            class="status-card__value"
+            :class="card.valueClass"
+            >{{ card.value }}</strong
           >
-        </article>
-        <article class="status-card">
-          <span class="status-label">Transferaufträge</span>
-          <strong>{{ overview.transferMonitoring.total }}</strong>
-          <small>{{ overview.transferMonitoring.counts.failed || 0 }} fehlgeschlagen</small>
-        </article>
-        <article class="status-card">
-          <span class="status-label">Automatische Queue</span>
-          <strong>{{ overview.hubHealth.autoQueueEnabled ? 'Aktiv' : 'Inaktiv' }}</strong>
-          <small>{{
-            overview.hubHealth.exactlyOneActiveHub ? 'Ein aktiver Hub' : 'Hub-Auswahl uneindeutig'
-          }}</small>
+          <small class="status-card__note">{{ card.note }}</small>
         </article>
       </section>
 
@@ -59,8 +60,8 @@
       >
         <div class="section-heading">
           <div>
-            <h2>Host-Status</h2>
-            <p>
+            <h2 class="section-heading__title">Host-Status</h2>
+            <p class="section-heading__description">
               Alle registrierten Netzwerk-Knoten. Der Status zeigt die lokale Aktivierung und
               Konfiguration; es wird kein Remote-Liveness-Probe ausgelöst.
             </p>
@@ -82,7 +83,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="host in overview.hostStatus.hosts" :key="host.nodeKey">
+              <tr
+                v-for="host in overview.hostStatus.hosts"
+                :key="host.nodeKey"
+              >
                 <td>
                   <strong>{{ host.displayName }}</strong>
                   <small class="d-block text-muted">{{ host.nodeKey }}</small>
@@ -110,7 +114,10 @@
                 <td>{{ formatDate(host.updatedAt) }}</td>
               </tr>
               <tr v-if="!overview.hostStatus.hosts.length">
-                <td colspan="6" class="text-center text-muted py-4">
+                <td
+                  colspan="6"
+                  class="text-center text-muted py-4"
+                >
                   Keine Netzwerk-Knoten registriert.
                 </td>
               </tr>
@@ -126,13 +133,16 @@
       >
         <div class="section-heading">
           <div>
-            <h2>Storage-Knoten</h2>
-            <p>
+            <h2 class="section-heading__title">Storage-Knoten</h2>
+            <p class="section-heading__description">
               Persistierte Kapazität und Platzierungssteuerung des Hubs. Die Datenebene wird separat
               bereitgestellt und hier niemals stillschweigend vorausgesetzt.
             </p>
           </div>
-          <span class="badge" :class="storageTopologyBadge">
+          <span
+            class="badge"
+            :class="storageTopologyBadge"
+          >
             {{ storageTopologyLabel }}
           </span>
         </div>
@@ -143,63 +153,18 @@
         >
           {{ overview.storageBalancing.blockedReason }}
         </div>
-        <div class="storage-control-grid mb-3" data-test="storage-planner-status">
-          <div>
-            <span class="status-label">Platzierungsplaner</span>
-            <strong
-              :class="overview.storageBalancing.planner.compatible ? 'text-warning' : 'text-danger'"
-            >
-              {{ storagePlannerLabel }}
-            </strong>
-            <small>
-              Vertrag:
-              {{ overview.storageBalancing.planner.contractVersion ?? 'nicht veröffentlicht' }}
-              / erwartet {{ overview.storageBalancing.planner.expectedContractVersion }}
-            </small>
-          </div>
-          <div>
-            <span class="status-label">Reservierungen</span>
-            <strong>{{ overview.storageBalancing.activeReservationCount }}</strong>
-            <small>{{ formatStateCounts(overview.storageBalancing.reservationCounts) }}</small>
-          </div>
-          <div>
-            <span class="status-label">Rotationsqueue</span>
-            <strong>{{ overview.storageBalancing.queuedRotationCount }}</strong>
-            <small>{{ formatStateCounts(overview.storageBalancing.rotationCounts) }}</small>
-          </div>
-          <div>
-            <span class="status-label">Queue-Ausführung</span>
-            <strong
-              :class="
-                overview.storageBalancing.planner.queueExecutionEnabled
-                  ? 'text-success'
-                  : 'text-danger'
-              "
-            >
-              {{
-                overview.storageBalancing.planner.queueExecutionEnabled ? 'Aktiv' : 'Deaktiviert'
-              }}
-            </strong>
-            <small>
-              Fehler: {{ overview.storageBalancing.failedTransferCount }}, überfällige
-              Reservierungen: {{ overview.storageBalancing.overdueReservationCount }}, auslaufende
-              Schlüsselobjekte: {{ overview.storageBalancing.retiredTransferCount }}
-            </small>
-          </div>
-          <div>
-            <span class="status-label">Reconciliation</span>
-            <strong
-              :class="
-                overview.storageBalancing.reconciliationCriticalCount ? 'text-danger' : 'text-muted'
-              "
-            >
-              {{ overview.storageBalancing.reconciliationCriticalCount }} kritisch ·
-              {{ overview.storageBalancing.reconciliationWarningCount }} Warnungen
-            </strong>
-            <small>
-              {{ overview.storageBalancing.reconciliationRunCount }} Läufe ·
-              {{ overview.storageBalancing.lastReconciliationAt ?? 'noch nicht ausgeführt' }}
-            </small>
+        <div
+          class="storage-control-grid mb-3"
+          data-test="storage-planner-status"
+        >
+          <div
+            v-for="card in storageCards"
+            :key="card.label"
+            class="storage-control-grid__item"
+          >
+            <span class="status-label">{{ card.label }}</span>
+            <strong :class="card.valueClass">{{ card.value }}</strong>
+            <small class="storage-control-grid__note">{{ card.note }}</small>
           </div>
         </div>
         <div
@@ -257,7 +222,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="node in overview.storageBalancing.nodes" :key="node.nodeKey">
+              <tr
+                v-for="node in overview.storageBalancing.nodes"
+                :key="node.nodeKey"
+              >
                 <td>
                   <strong>{{ node.displayName }}</strong>
                   <small class="d-block text-muted">{{ node.nodeKey }}</small>
@@ -323,7 +291,10 @@
             </tbody>
           </table>
         </div>
-        <div class="mt-4" data-test="storage-balance-work">
+        <div
+          class="mt-4"
+          data-test="storage-balance-work"
+        >
           <h3>Ausgleichsaufträge</h3>
           <div class="table-responsive">
             <table class="table align-middle mb-0">
@@ -337,7 +308,10 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="work in overview.storageBalancing.workItems" :key="work.workItemId">
+                <tr
+                  v-for="work in overview.storageBalancing.workItems"
+                  :key="work.workItemId"
+                >
                   <td>
                     <strong>{{ work.artifactKey }}</strong>
                     <small class="d-block text-muted"
@@ -347,10 +321,16 @@
                   <td>{{ work.sourceNodeKey }} → {{ work.targetNodeKey ?? 'kein Ziel' }}</td>
                   <td>
                     {{ work.rotationState ?? work.status }}
-                    <small v-if="work.cancellationReceiptId" class="d-block text-muted">
+                    <small
+                      v-if="work.cancellationReceiptId"
+                      class="d-block text-muted"
+                    >
                       storniert · {{ work.cancellationReceiptId }}
                     </small>
-                    <small v-else-if="work.terminalReason" class="d-block text-muted">
+                    <small
+                      v-else-if="work.terminalReason"
+                      class="d-block text-muted"
+                    >
                       {{ work.terminalReason }}
                     </small>
                   </td>
@@ -390,45 +370,46 @@
         </div>
       </section>
 
-      <section class="admin-card mt-4" data-test="effective-permissions">
+      <section
+        class="admin-card mt-4"
+        data-test="effective-permissions"
+      >
         <div class="section-heading">
           <div>
-            <h2>Effektive Berechtigungen</h2>
-            <p>Nur-Lese-Ansicht der synchronisierten Rollen und lokalen Center-Zuordnungen.</p>
+            <h2 class="section-heading__title">Effektive Berechtigungen</h2>
+            <p class="section-heading__description">
+              Nur-Lese-Ansicht der synchronisierten Rollen und lokalen Center-Zuordnungen.
+            </p>
           </div>
           <span class="badge bg-secondary">{{ overview.effectivePermissions.username }}</span>
         </div>
         <dl class="permission-grid">
-          <div>
-            <dt>Center</dt>
-            <dd>
-              {{
-                overview.effectivePermissions.centers
-                  .map((center) => center.displayName)
-                  .join(', ') || 'nicht zugeordnet'
-              }}
-            </dd>
-          </div>
-          <div>
-            <dt>Center-Administration</dt>
-            <dd>
-              {{ overview.effectivePermissions.centerScopeAdmin ? 'erlaubt' : 'nicht erlaubt' }}
-            </dd>
-          </div>
-          <div>
-            <dt>Keycloak-Rollen ändern</dt>
-            <dd>nicht unterstützt</dd>
+          <div
+            v-for="row in permissionRows"
+            :key="row.label"
+            class="permission-grid__item"
+          >
+            <dt class="permission-grid__term">{{ row.label }}</dt>
+            <dd class="permission-grid__value">{{ row.value }}</dd>
           </div>
         </dl>
         <div class="role-list">
-          <span v-for="role in overview.effectivePermissions.roles" :key="role" class="role-chip">{{
-            role
-          }}</span>
-          <span v-if="!overview.effectivePermissions.roles.length" class="text-muted"
+          <span
+            v-for="role in overview.effectivePermissions.roles"
+            :key="role"
+            class="role-chip"
+            >{{ role }}</span
+          >
+          <span
+            v-if="!overview.effectivePermissions.roles.length"
+            class="text-muted"
             >Keine Rollen synchronisiert</span
           >
         </div>
-        <div class="alert alert-info mt-3 mb-0" role="status">
+        <div
+          class="alert alert-info mt-3 mb-0"
+          role="status"
+        >
           Keycloak-Gruppen sind die maßgebliche Quelle. Lokale Änderungen gelten sofort, können aber
           bei der nächsten Anmeldung durch <code>/centers/&lt;center_key&gt;</code>-Gruppen ersetzt
           werden. Globale Keycloak-Administration erfordert
@@ -438,11 +419,14 @@
         </div>
       </section>
 
-      <section class="admin-card mt-4" data-test="transfer-monitoring">
+      <section
+        class="admin-card mt-4"
+        data-test="transfer-monitoring"
+      >
         <div class="section-heading">
           <div>
-            <h2>Transfer-Monitoring</h2>
-            <p>
+            <h2 class="section-heading__title">Transfer-Monitoring</h2>
+            <p class="section-heading__description">
               Letzte Aufträge mit Korrelations- und Cleanup-Status; keine Schlüssel oder
               Rohmediendaten.
             </p>
@@ -464,11 +448,16 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="job in overview.transferMonitoring.recentAttentionJobs" :key="job.id">
+              <tr
+                v-for="job in overview.transferMonitoring.recentAttentionJobs"
+                :key="job.id"
+              >
                 <td>
-                  <span class="badge" :class="statusBadge(job.localStatus)">{{
-                    statusLabel(job.localStatus)
-                  }}</span>
+                  <span
+                    class="badge"
+                    :class="statusBadge(job.localStatus)"
+                    >{{ statusLabel(job.localStatus) }}</span
+                  >
                 </td>
                 <td class="correlation-cell">
                   <code>{{ job.id }}</code>
@@ -480,7 +469,10 @@
                 <td>{{ job.sourceCenterKey || '—' }}</td>
                 <td>{{ job.retryCount }}</td>
                 <td>
-                  <span class="badge" :class="cleanupBadge(job.localCleanupStatus)">
+                  <span
+                    class="badge"
+                    :class="cleanupBadge(job.localCleanupStatus)"
+                  >
                     {{ cleanupLabel(job.localCleanupStatus) }}
                   </span>
                 </td>
@@ -488,7 +480,10 @@
                 <td class="error-cell">{{ job.lastError || '—' }}</td>
               </tr>
               <tr v-if="!overview.transferMonitoring.recentAttentionJobs.length">
-                <td colspan="9" class="text-center text-muted py-4">
+                <td
+                  colspan="9"
+                  class="text-center text-muted py-4"
+                >
                   Noch keine Transferaufträge vorhanden.
                 </td>
               </tr>
@@ -504,13 +499,18 @@
       >
         <div class="section-heading">
           <div>
-            <h2>Center-Zugriffsverwaltung</h2>
-            <p>
+            <h2 class="section-heading__title">Center-Zugriffsverwaltung</h2>
+            <p class="section-heading__description">
               Änderungen gelten für zukünftige geschützte Anfragen und werden dauerhaft auditiert.
             </p>
           </div>
         </div>
-        <div v-if="accessError" class="alert alert-warning">{{ accessError }}</div>
+        <div
+          v-if="accessError"
+          class="alert alert-warning"
+        >
+          {{ accessError }}
+        </div>
         <div class="table-responsive">
           <table class="table align-middle">
             <thead>
@@ -523,12 +523,17 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="user in accessUsers" :key="user.id">
+              <tr
+                v-for="user in accessUsers"
+                :key="user.id"
+              >
                 <td>{{ user.username }}</td>
                 <td>
-                  <span class="badge" :class="assignmentBadge(user.assignmentStatus)">{{
-                    assignmentLabel(user.assignmentStatus)
-                  }}</span>
+                  <span
+                    class="badge"
+                    :class="assignmentBadge(user.assignmentStatus)"
+                    >{{ assignmentLabel(user.assignmentStatus) }}</span
+                  >
                 </td>
                 <td>
                   <span
@@ -541,12 +546,19 @@
                   <span v-if="!user.centers.length">—</span>
                 </td>
                 <td>
-                  <span v-for="role in user.roles" :key="role" class="role-chip role-chip-small">{{
-                    role
-                  }}</span>
+                  <span
+                    v-for="role in user.roles"
+                    :key="role"
+                    class="role-chip role-chip-small"
+                    >{{ role }}</span
+                  >
                 </td>
                 <td>
-                  <span v-if="!user.canMutate" class="text-muted small">Eigenes Konto</span>
+                  <span
+                    v-if="!user.canMutate"
+                    class="text-muted small"
+                    >Eigenes Konto</span
+                  >
                   <template v-else>
                     <button
                       v-if="assignableCenters(user).length"
@@ -593,8 +605,12 @@
           </div>
         </div>
 
-        <form v-if="pendingChange" class="change-panel" @submit.prevent="submitChange">
-          <h3>
+        <form
+          v-if="pendingChange"
+          class="change-panel"
+          @submit.prevent="submitChange"
+        >
+          <h3 class="change-panel__title">
             {{
               pendingChange.operation === 'assign' ? 'Center zuordnen' : 'Center-Zugriff entziehen'
             }}
@@ -605,10 +621,22 @@
           <p v-if="pendingChange.operation === 'revoke'">
             Center: <strong>{{ selectedCenterKey }}</strong>
           </p>
-          <label v-if="pendingChange.operation === 'assign'" class="form-label">
+          <label
+            v-if="pendingChange.operation === 'assign'"
+            class="form-label"
+          >
             Center
-            <select v-model="selectedCenterKey" class="form-select mt-1" required>
-              <option value="" disabled>Center auswählen</option>
+            <select
+              v-model="selectedCenterKey"
+              class="form-select mt-1"
+              required
+            >
+              <option
+                value=""
+                disabled
+              >
+                Center auswählen
+              </option>
               <option
                 v-for="center in centerChoices"
                 :key="center.centerKey"
@@ -658,6 +686,11 @@ import { RouterLink } from 'vue-router'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import {
+  hubStatusCards,
+  storageStatusCards,
+  effectivePermissionRows
+} from './administrationPresentation'
+import {
   fetchAdministrationOverview,
   fetchCenterScopeUsers,
   applyStorageOperatorControl,
@@ -706,7 +739,9 @@ async function loadAll() {
   errorMessage.value = ''
   try {
     overview.value = await fetchAdministrationOverview()
-    if (overview.value.effectivePermissions.centerScopeAdmin) await loadAccessUsers()
+    if (overview.value.effectivePermissions.centerScopeAdmin) {
+      await loadAccessUsers()
+    }
   } catch (error: unknown) {
     errorMessage.value = administrationErrorMessage(
       error,
@@ -742,13 +777,17 @@ async function runStorageAction(node: StorageNodeOverview) {
         : 'Begründung für die Wiederaufnahme dieses Storage-Knotens:'
     )
     ?.trim()
-  if (!reason) return
+  if (!reason) {
+    return
+  }
   const confirmed = window.confirm(
     action === 'drain'
       ? `Storage-Knoten ${node.nodeKey} für neue Platzierungen sperren?`
       : `Storage-Knoten ${node.nodeKey} wieder für neue Platzierungen freigeben?`
   )
-  if (!confirmed) return
+  if (!confirmed) {
+    return
+  }
 
   storageActionPending.value = node.nodeKey
   errorMessage.value = ''
@@ -772,10 +811,16 @@ async function runStorageAction(node: StorageNodeOverview) {
 }
 
 async function runStorageWorkCancellation(work: StorageBalanceWorkItem) {
-  if (!work.cancellable) return
+  if (!work.cancellable) {
+    return
+  }
   const reason = window.prompt('Begründung für das Stornieren dieses Ausgleichsauftrags:')?.trim()
-  if (!reason) return
-  if (!window.confirm(`Ausgleichsauftrag ${work.workItemId} vor dem Kopieren stornieren?`)) return
+  if (!reason) {
+    return
+  }
+  if (!window.confirm(`Ausgleichsauftrag ${work.workItemId} vor dem Kopieren stornieren?`)) {
+    return
+  }
 
   storageWorkPending.value = work.workItemId
   errorMessage.value = ''
@@ -800,8 +845,12 @@ async function runStorageOperatorControl(
   work?: StorageBalanceWorkItem
 ) {
   const reason = window.prompt(`Begründung für die Storage-Aktion „${action}“:`)?.trim()
-  if (!reason) return
-  if (!window.confirm(`Storage-Aktion „${action}“ verbindlich anfordern?`)) return
+  if (!reason) {
+    return
+  }
+  if (!window.confirm(`Storage-Aktion „${action}“ verbindlich anfordern?`)) {
+    return
+  }
 
   storageOperatorPending.value = action
   errorMessage.value = ''
@@ -851,12 +900,16 @@ function cancelChange() {
 
 async function submitChange() {
   const change = pendingChange.value
-  if (!change || !reason.value) return
+  if (!change || !reason.value) {
+    return
+  }
   const prompt =
     change.operation === 'assign'
       ? 'Center-Zuordnung verbindlich speichern?'
       : 'Center-Zugriff verbindlich entziehen?'
-  if (!window.confirm(prompt)) return
+  if (!window.confirm(prompt)) {
+    return
+  }
   saving.value = true
   accessError.value = ''
   try {
@@ -912,6 +965,8 @@ const assignmentBadge = (status: CenterAssignmentStatus) =>
     : status === 'unassigned'
       ? 'bg-warning text-dark'
       : 'bg-danger'
+const refreshLabel = computed(() => (loading.value ? 'Aktualisiere …' : 'Aktualisieren'))
+
 const storageTopologyLabel = computed(() => {
   const state = overview.value?.storageBalancing.topologyState
   return (
@@ -927,20 +982,13 @@ const storageTopologyLabel = computed(() => {
 const storageTopologyBadge = computed(() =>
   overview.value?.storageBalancing.dataPlaneOperational ? 'bg-success' : 'bg-warning text-dark'
 )
-const storagePlannerLabel = computed(() => {
-  const planner = overview.value?.storageBalancing.planner
-  if (!planner || planner.status === 'contract_unavailable') return 'Vertrag nicht verfügbar'
-  if (!planner.compatible) return 'Vertrag inkompatibel'
-  return planner.queueExecutionEnabled
-    ? 'Planung und Ausführung aktiv'
-    : 'Nur Planung · keine Ausführung'
-})
-const formatStateCounts = (counts: Record<string, number>) => {
-  const entries = Object.entries(counts)
-  return entries.length
-    ? entries.map(([state, count]) => `${state}: ${String(count)}`).join(' · ')
-    : 'keine Einträge'
-}
+const hubCards = computed(() => (overview.value ? hubStatusCards(overview.value) : []))
+const storageCards = computed(() =>
+  overview.value ? storageStatusCards(overview.value.storageBalancing) : []
+)
+const permissionRows = computed(() =>
+  overview.value ? effectivePermissionRows(overview.value.effectivePermissions) : []
+)
 const formatBytes = (value: number) =>
   new Intl.NumberFormat('de-DE', {
     style: 'unit',
@@ -961,11 +1009,15 @@ const formatDate = (value: string) =>
 onMounted(() => {
   void loadAll()
   refreshTimer = window.setInterval(() => {
-    if (!saving.value) void loadAll()
+    if (!saving.value) {
+      void loadAll()
+    }
   }, 30000)
 })
 onBeforeUnmount(() => {
-  if (refreshTimer !== null) window.clearInterval(refreshTimer)
+  if (refreshTimer !== null) {
+    window.clearInterval(refreshTimer)
+  }
 })
 </script>
 
@@ -983,7 +1035,7 @@ onBeforeUnmount(() => {
   border-radius: 1rem;
   background: linear-gradient(135deg, #1f3155, #315b78);
 }
-.admin-hero h1 {
+.admin-hero .admin-hero__title {
   color: white;
   margin: 0;
 }
@@ -1016,10 +1068,10 @@ onBeforeUnmount(() => {
   gap: 0.35rem;
   padding: 1.25rem;
 }
-.status-card strong {
+.status-card .status-card__value {
   font-size: 1.25rem;
 }
-.status-card small {
+.status-card .status-card__note {
   color: #667085;
 }
 .status-label {
@@ -1039,11 +1091,11 @@ onBeforeUnmount(() => {
   align-items: start;
   margin-bottom: 1rem;
 }
-.section-heading h2 {
+.section-heading .section-heading__title {
   margin: 0;
   font-size: 1.25rem;
 }
-.section-heading p {
+.section-heading .section-heading__description {
   margin: 0.3rem 0 0;
   color: #667085;
 }
@@ -1052,14 +1104,14 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
 }
-.storage-control-grid > div {
+.storage-control-grid > .storage-control-grid__item {
   display: grid;
   gap: 0.25rem;
   padding: 0.9rem;
   border-radius: 0.65rem;
   background: #f7f9fc;
 }
-.storage-control-grid small {
+.storage-control-grid .storage-control-grid__note {
   color: #667085;
   overflow-wrap: anywhere;
 }
@@ -1068,16 +1120,16 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
-.permission-grid div {
+.permission-grid .permission-grid__item {
   padding: 0.9rem;
   border-radius: 0.65rem;
   background: #f7f9fc;
 }
-.permission-grid dt {
+.permission-grid .permission-grid__term {
   color: #667085;
   font-size: 0.8rem;
 }
-.permission-grid dd {
+.permission-grid .permission-grid__value {
   margin: 0.25rem 0 0;
   font-weight: 700;
 }
@@ -1112,7 +1164,7 @@ onBeforeUnmount(() => {
   border-radius: 0.75rem;
   background: #f8fafc;
 }
-.change-panel h3 {
+.change-panel .change-panel__title {
   font-size: 1.05rem;
 }
 @media (max-width: 991px) {

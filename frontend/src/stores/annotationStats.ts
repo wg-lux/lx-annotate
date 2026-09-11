@@ -66,8 +66,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function requireResponseRows(value: unknown, contractName: string): unknown[] {
-  if (Array.isArray(value)) return value
-  if (isRecord(value) && Array.isArray(value.results)) return value.results
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (isRecord(value) && Array.isArray(value.results)) {
+    return value.results
+  }
   throw new TypeError(`${contractName} response does not match the expected contract`)
 }
 
@@ -217,11 +221,15 @@ function buildUnifiedStats(
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  if (!isRecord(error)) return fallback
+  if (!isRecord(error)) {
+    return fallback
+  }
   const response = isRecord(error.response) ? error.response : null
   const responseData = response && isRecord(response.data) ? response.data : null
   const responseError = responseData?.error
-  if (typeof responseError === 'string' && responseError) return responseError
+  if (typeof responseError === 'string' && responseError) {
+    return responseError
+  }
   const responseCode = responseData?.code
   if (typeof responseCode === 'string' && responseCode) {
     const detail = typeof responseData.detail === 'string' ? responseData.detail : null
@@ -268,7 +276,9 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
     hasError: (state) => state.error !== null,
 
     needsRefresh: (state) => {
-      if (!state.lastUpdated) return true
+      if (!state.lastUpdated) {
+        return true
+      }
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
       return state.lastUpdated < fiveMinutesAgo
     },
@@ -343,7 +353,9 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
 
   actions: {
     async fetchAnnotationStats() {
-      if (this.loading) return // Prevent multiple simultaneous requests
+      if (this.loading) {
+        return
+      } // Prevent multiple simultaneous requests
 
       try {
         this.loading = true

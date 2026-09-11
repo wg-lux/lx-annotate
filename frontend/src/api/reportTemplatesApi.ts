@@ -6,6 +6,7 @@ import {
   type JsonMap
 } from '@/api/findings.contract'
 import { findingsApi } from '@/api/findingsApi'
+import { isReportVerbosity } from '@/types/reportTemplate'
 import type {
   ReportTemplateDefinitionValidationResult,
   ExaminationValidatorExecution,
@@ -61,7 +62,9 @@ function asBoolean(value: unknown): boolean {
 }
 
 function asNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
   if (typeof value === 'string' && value.trim()) {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : null
@@ -70,15 +73,25 @@ function asNumber(value: unknown): number | null {
 }
 
 function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value.map((entry) => asString(entry)).filter((entry): entry is string => entry !== null)
 }
 
 function formatConditionValue(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
-  if (typeof value === 'boolean') return String(value)
-  if (value === null) return 'null'
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
+  if (typeof value === 'boolean') {
+    return String(value)
+  }
+  if (value === null) {
+    return 'null'
+  }
   return 'ungültiger Wert'
 }
 
@@ -97,7 +110,9 @@ function titleFromSectionName(name: string): string {
 function normalizeClassificationInput(
   value: unknown
 ): ReportTemplateFinding['classifications'][number]['input'] {
-  if (!isRecordLike(value) || !Array.isArray(value.choices)) return null
+  if (!isRecordLike(value) || !Array.isArray(value.choices)) {
+    return null
+  }
   return {
     choices: value.choices
       .filter((choice): choice is Record<string, unknown> => isRecordLike(choice))
@@ -112,6 +127,8 @@ function normalizeClassificationInput(
                 name: asString(descriptor.name) || '',
                 type: asString(descriptor.type) || 'unknown',
                 unit: asString(descriptor.unit),
+                nameDe: asString(descriptor.nameDe ?? descriptor.name_de) || undefined,
+                nameEn: asString(descriptor.nameEn ?? descriptor.name_en) || undefined,
                 unitAbbreviation: asString(
                   descriptor.unitAbbreviation ?? descriptor.unit_abbreviation
                 ),
@@ -128,7 +145,9 @@ function normalizeClassificationInput(
 function normalizeClassifications(
   classifications: unknown
 ): ReportTemplateFinding['classifications'] {
-  if (!Array.isArray(classifications)) return []
+  if (!Array.isArray(classifications)) {
+    return []
+  }
   return classifications
     .filter((classification): classification is Record<string, unknown> =>
       isRecordLike(classification)
@@ -142,7 +161,9 @@ function normalizeClassifications(
 }
 
 function normalizeFindings(findings: unknown): ReportTemplateFinding[] {
-  if (!Array.isArray(findings)) return []
+  if (!Array.isArray(findings)) {
+    return []
+  }
   return findings
     .map((entry) => normalizeReportTemplateFinding(entry))
     .filter((entry): entry is ReportTemplateFinding => entry !== null)
@@ -157,9 +178,13 @@ function normalizeReportTemplateFinding(entry: unknown): ReportTemplateFinding |
       classifications: []
     }
   }
-  if (!isRecordLike(entry)) return null
+  if (!isRecordLike(entry)) {
+    return null
+  }
   const finding = asString(entry.finding)
-  if (!finding) return null
+  if (!finding) {
+    return null
+  }
   return {
     finding,
     required: asBoolean(entry.required),
@@ -172,7 +197,9 @@ function normalizeReportTemplateFinding(entry: unknown): ReportTemplateFinding |
 }
 
 function normalizeSections(sections: unknown): ReportTemplateSection[] {
-  if (!Array.isArray(sections)) return []
+  if (!Array.isArray(sections)) {
+    return []
+  }
   return sections
     .filter((section): section is Record<string, unknown> => isRecordLike(section))
     .map((section) => {
@@ -184,8 +211,7 @@ function normalizeSections(sections: unknown): ReportTemplateSection[] {
         position: asNumber(section.position) ?? 0,
         sectionKind:
           (asString(section.sectionKind ?? section.section_kind) as
-            | ReportTemplateSection['sectionKind']
-            | null) || 'findings',
+            ReportTemplateSection['sectionKind'] | null) || 'findings',
         fields: normalizeSectionFields(section.fields),
         types: asStringArray(section.types),
         findings: normalizeFindings(section.findings)
@@ -196,7 +222,9 @@ function normalizeSections(sections: unknown): ReportTemplateSection[] {
 }
 
 function normalizeSectionFields(value: unknown): ReportTemplateSectionField[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
     .map((entry) => ({
@@ -209,7 +237,9 @@ function normalizeSectionFields(value: unknown): ReportTemplateSectionField[] {
 }
 
 function normalizeReadiness(value: unknown): ReportTemplateReadiness | null {
-  if (!isRecordLike(value)) return null
+  if (!isRecordLike(value)) {
+    return null
+  }
   return {
     canPublish:
       typeof value.canPublish === 'boolean'
@@ -232,7 +262,9 @@ function isSha256(value: unknown): value is string {
 }
 
 function normalizeCoverageIdentity(value: unknown): ReportConceptCoverageIdentity | null {
-  if (!isRecordLike(value)) return null
+  if (!isRecordLike(value)) {
+    return null
+  }
   const identity = {
     moduleName: asString(field(value, 'moduleName', 'module_name')),
     moduleVersion: asString(field(value, 'moduleVersion', 'module_version')),
@@ -255,7 +287,9 @@ function normalizeCoverageIdentity(value: unknown): ReportConceptCoverageIdentit
 }
 
 function normalizeCoverageProvenance(value: unknown): ReportConceptCoverageProvenance | null {
-  if (!isRecordLike(value)) return null
+  if (!isRecordLike(value)) {
+    return null
+  }
   const provenance = {
     resolver: asString(value.resolver),
     resolverVersion: asString(field(value, 'resolverVersion', 'resolver_version')),
@@ -268,7 +302,9 @@ function normalizeCoverageProvenance(value: unknown): ReportConceptCoverageProve
 }
 
 function normalizeCoverageItem(value: unknown): ReportConceptCoverageItem | null {
-  if (!isRecordLike(value)) return null
+  if (!isRecordLike(value)) {
+    return null
+  }
   const conceptId = asString(field(value, 'conceptId', 'concept_id'))
   const label = asString(value.label)
   const applicability = isRecordLike(value.applicability) ? value.applicability : null
@@ -282,7 +318,9 @@ function normalizeCoverageItem(value: unknown): ReportConceptCoverageItem | null
   const evidence = Array.isArray(evidencePath)
     ? evidencePath.map((entry) => asString(entry)).filter((entry): entry is string => !!entry)
     : []
-  if (!applicability) return null
+  if (!applicability) {
+    return null
+  }
   if (
     !conceptId ||
     !/^[a-z][a-z0-9_.:-]*$/.test(conceptId) ||
@@ -297,9 +335,15 @@ function normalizeCoverageItem(value: unknown): ReportConceptCoverageItem | null
   }
   const rule = asString(applicability.rule)
   const reason = asString(applicability.reason)
-  if (applicabilityStatus === 'conditional' && !rule) return null
-  if (applicabilityStatus === 'not_applicable' && !reason) return null
-  if (applicabilityStatus === 'not_applicable' && validationStatus !== 'undetermined') return null
+  if (applicabilityStatus === 'conditional' && !rule) {
+    return null
+  }
+  if (applicabilityStatus === 'not_applicable' && !reason) {
+    return null
+  }
+  if (applicabilityStatus === 'not_applicable' && validationStatus !== 'undetermined') {
+    return null
+  }
   return {
     conceptId,
     label,
@@ -310,7 +354,9 @@ function normalizeCoverageItem(value: unknown): ReportConceptCoverageItem | null
 }
 
 export function normalizeReportConceptCoverage(value: unknown): ReportConceptCoverage | null {
-  if (!isRecordLike(value)) return null
+  if (!isRecordLike(value)) {
+    return null
+  }
   if (
     value.contractVersion !== 'report_concept_coverage_v1' &&
     value.contract_version !== 'report_concept_coverage_v1'
@@ -320,7 +366,9 @@ export function normalizeReportConceptCoverage(value: unknown): ReportConceptCov
   const identity = normalizeCoverageIdentity(value.identity)
   const provenance = normalizeCoverageProvenance(value.provenance)
   const concepts = Array.isArray(value.concepts) ? value.concepts.map(normalizeCoverageItem) : null
-  if (!identity || !provenance || !concepts || concepts.some((item) => item === null)) return null
+  if (!identity || !provenance || !concepts || concepts.some((item) => item === null)) {
+    return null
+  }
   return {
     contractVersion: 'report_concept_coverage_v1',
     identity,
@@ -357,10 +405,7 @@ export function normalizeReportTemplateIdentity(payload: unknown): ReportTemplat
         identity.templateHash ??
         identity.template_hash
     ),
-    lifecycleStatus:
-      lifecycle === 'draft' || lifecycle === 'published'
-        ? lifecycle
-        : null,
+    lifecycleStatus: lifecycle === 'draft' || lifecycle === 'published' ? lifecycle : null,
     readiness
   }
 }
@@ -370,7 +415,9 @@ function normalizeConditionClause(
 ): FindingsValidatorConditionClause | null {
   const classification = asString(input.classification)
   const comparator = asString(input.comparator) as FindingsValidatorComparator | null
-  if (!classification || !comparator) return null
+  if (!classification || !comparator) {
+    return null
+  }
   return {
     classification,
     comparator,
@@ -380,17 +427,19 @@ function normalizeConditionClause(
 }
 
 function normalizeCondition(input: unknown): FindingsValidatorCondition | null {
-  if (!isRecordLike(input)) return null
+  if (!isRecordLike(input)) {
+    return null
+  }
   const rawThenRequires = Array.isArray(input.thenRequires ?? input.then_requires)
     ? ((input.thenRequires ?? input.then_requires) as unknown[])
     : []
-  const any = Array.isArray(input.any)
+  const anyConditions = Array.isArray(input.any)
     ? input.any
         .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
         .map(normalizeConditionClause)
         .filter((entry): entry is FindingsValidatorConditionClause => entry !== null)
     : []
-  const all = Array.isArray(input.all)
+  const allConditions = Array.isArray(input.all)
     ? input.all
         .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
         .map(normalizeConditionClause)
@@ -401,8 +450,10 @@ function normalizeCondition(input: unknown): FindingsValidatorCondition | null {
     .map((entry) => ({ classification: asString(entry.classification) || '' }))
     .filter((entry): entry is { classification: string } => !!entry.classification)
 
-  if (!any.length && !all.length && !thenRequires.length) return null
-  return { any, all, thenRequires }
+  if (!anyConditions.length && !allConditions.length && !thenRequires.length) {
+    return null
+  }
+  return { any: anyConditions, all: allConditions, thenRequires }
 }
 
 function normalizeQuery(input: unknown, fallbackFinding: string): FindingsValidatorQuery {
@@ -425,7 +476,9 @@ function normalizeQuery(input: unknown, fallbackFinding: string): FindingsValida
 }
 
 function findRelatedSections(findingName: string, sections: ReportTemplateSection[]): string[] {
-  if (!findingName) return []
+  if (!findingName) {
+    return []
+  }
   const target = normalizeKey(findingName)
   return sections
     .filter((section) =>
@@ -489,7 +542,9 @@ function normalizeFindingValidator(
     }
   }
 
-  if (!isRecordLike(input)) return null
+  if (!isRecordLike(input)) {
+    return null
+  }
 
   const name = asString(input.name)
   const finding =
@@ -499,7 +554,9 @@ function normalizeFindingValidator(
     asString(
       (input.query as Record<string, unknown> | undefined)?.operator
     )) as FindingsValidatorOperator | null
-  if (!name || !finding || !operator) return null
+  if (!name || !finding || !operator) {
+    return null
+  }
 
   const query = normalizeQuery(input.query, finding)
   const requiredClassifications =
@@ -550,9 +607,13 @@ function normalizeExaminationValidator(
     }
   }
 
-  if (!isRecordLike(input)) return null
+  if (!isRecordLike(input)) {
+    return null
+  }
   const name = asString(input.name)
-  if (!name) return null
+  if (!name) {
+    return null
+  }
   const findingValidators = asStringArray(input.findingValidators ?? input.finding_validators)
   const examinationValidators = asStringArray(
     input.examinationValidators ?? input.examination_validators
@@ -616,17 +677,36 @@ function normalizeValidators(
 }
 
 export function normalizeTemplatePayload(payload: unknown): ReportTemplatePayload | null {
-  if (!isRecordLike(payload)) return null
+  if (!isRecordLike(payload)) {
+    return null
+  }
   const name = asString(payload.name)
-  if (!name) return null
+  if (!name) {
+    return null
+  }
   const reportSections = normalizeSections(payload.reportSections ?? payload.report_sections)
   const hasCoverage =
     Object.prototype.hasOwnProperty.call(payload, 'conceptCoverage') ||
     Object.prototype.hasOwnProperty.call(payload, 'concept_coverage')
   const rawCoverage = payload.conceptCoverage ?? payload.concept_coverage
   const conceptCoverage = hasCoverage ? normalizeReportConceptCoverage(rawCoverage) : null
+  let conceptCoverageState: ReportTemplatePayload['conceptCoverageState'] = 'missing'
+  if (hasCoverage) {
+    conceptCoverageState = conceptCoverage ? 'valid' : 'invalid'
+  }
+  const verbosityOptions: unknown = payload.verbosityOptions ??
+    payload.verbosity_options ?? ['standard']
+  if (
+    !Array.isArray(verbosityOptions) ||
+    !verbosityOptions.every(isReportVerbosity) ||
+    !verbosityOptions.includes('standard') ||
+    new Set(verbosityOptions).size !== verbosityOptions.length
+  ) {
+    throw new TypeError('Invalid report template verbosity_options')
+  }
   return {
     name,
+    verbosityOptions,
     nameDe: asString(payload.nameDe ?? payload.name_de) || undefined,
     nameEn: asString(payload.nameEn ?? payload.name_en) || undefined,
     examination: asString(payload.examination) || '',
@@ -634,7 +714,7 @@ export function normalizeTemplatePayload(payload: unknown): ReportTemplatePayloa
     reportSections,
     validators: normalizeValidators(payload.validators, reportSections),
     conceptCoverage,
-    conceptCoverageState: hasCoverage ? (conceptCoverage ? 'valid' : 'invalid') : 'missing'
+    conceptCoverageState
   }
 }
 
@@ -668,7 +748,9 @@ export async function fetchReportTemplatesByExamination(
   const response = await axiosInstance.get(
     `${REPORT_TEMPLATE_BASE}/by-examination/${encodeURIComponent(moduleName)}/${encodeURIComponent(examinationName)}?version=${encodeURIComponent(moduleVersion)}`
   )
-  if (!Array.isArray(response.data)) return []
+  if (!Array.isArray(response.data)) {
+    return []
+  }
   return response.data
     .map((entry) => normalizeTemplatePayload(entry))
     .filter((entry): entry is ReportTemplatePayload => entry !== null)
@@ -682,17 +764,23 @@ export async function fetchBuilderReportTemplatesByExamination(
   const response = await axiosInstance.get(
     `${REPORT_TEMPLATE_BASE}/builder/by-examination/${encodeURIComponent(moduleName)}/${encodeURIComponent(examinationName)}?version=${encodeURIComponent(moduleVersion)}`
   )
-  if (!Array.isArray(response.data)) return []
+  if (!Array.isArray(response.data)) {
+    return []
+  }
   return response.data
     .map((entry) => normalizeTemplatePayload(entry))
     .filter((entry): entry is ReportTemplatePayload => entry !== null)
 }
 
 function normalizeStructureIssue(input: unknown): ReportTemplateStructureIssue | null {
-  if (!isRecordLike(input)) return null
+  if (!isRecordLike(input)) {
+    return null
+  }
   const code = asString(input.code)
   const message = asString(input.message)
-  if (!code || !message) return null
+  if (!code || !message) {
+    return null
+  }
   return {
     code,
     message,
@@ -702,13 +790,16 @@ function normalizeStructureIssue(input: unknown): ReportTemplateStructureIssue |
 }
 
 function normalizeGraphNode(input: unknown): ReportTemplateGraphNode | null {
-  if (!isRecordLike(input)) return null
+  if (!isRecordLike(input)) {
+    return null
+  }
   const nodeId = asString(input.nodeId ?? input.node_id)
   const name = asString(input.name)
   const nodeType = asString(input.nodeType ?? input.node_type) as
-    | ReportTemplateGraphNode['nodeType']
-    | null
-  if (!nodeId || !name || !nodeType) return null
+    ReportTemplateGraphNode['nodeType'] | null
+  if (!nodeId || !name || !nodeType) {
+    return null
+  }
   return {
     nodeId,
     name,
@@ -718,13 +809,16 @@ function normalizeGraphNode(input: unknown): ReportTemplateGraphNode | null {
 }
 
 function normalizeGraphEdge(input: unknown): ReportTemplateGraphEdge | null {
-  if (!isRecordLike(input)) return null
+  if (!isRecordLike(input)) {
+    return null
+  }
   const sourceNodeId = asString(input.sourceNodeId ?? input.source_node_id)
   const targetNodeId = asString(input.targetNodeId ?? input.target_node_id)
   const edgeType = asString(input.edgeType ?? input.edge_type) as
-    | ReportTemplateGraphEdge['edgeType']
-    | null
-  if (!sourceNodeId || !targetNodeId || !edgeType) return null
+    ReportTemplateGraphEdge['edgeType'] | null
+  if (!sourceNodeId || !targetNodeId || !edgeType) {
+    return null
+  }
   return {
     sourceNodeId,
     targetNodeId,
@@ -734,9 +828,13 @@ function normalizeGraphEdge(input: unknown): ReportTemplateGraphEdge | null {
 }
 
 function normalizeStructureGraph(input: unknown): ReportTemplateStructureGraph | null {
-  if (!isRecordLike(input)) return null
+  if (!isRecordLike(input)) {
+    return null
+  }
   const templateName = asString(input.templateName ?? input.template_name)
-  if (!templateName) return null
+  if (!templateName) {
+    return null
+  }
   return {
     templateName,
     examination: asString(input.examination) || '',
@@ -760,10 +858,14 @@ function normalizeStructureGraph(input: unknown): ReportTemplateStructureGraph |
 export function normalizeDefinitionValidationResult(
   payload: unknown
 ): ReportTemplateDefinitionValidationResult | null {
-  if (!isRecordLike(payload)) return null
+  if (!isRecordLike(payload)) {
+    return null
+  }
   const templateName = asString(payload.templateName ?? payload.template_name)
   const graph = normalizeStructureGraph(payload.graph)
-  if (!templateName || !graph) return null
+  if (!templateName || !graph) {
+    return null
+  }
   return {
     templateName,
     ok: asBoolean(payload.ok),
@@ -792,10 +894,14 @@ export async function validateReportTemplateDefinition(
 }
 
 function normalizeRuntimeIssue(input: unknown): RuntimeValidationIssue | null {
-  if (!isRecordLike(input)) return null
+  if (!isRecordLike(input)) {
+    return null
+  }
   const code = asString(input.code)
   const message = asString(input.message)
-  if (!code || !message) return null
+  if (!code || !message) {
+    return null
+  }
   const levelRaw = asString(input.level)
   return {
     code,
@@ -816,7 +922,9 @@ function normalizeRuntimeIssue(input: unknown): RuntimeValidationIssue | null {
 }
 
 function normalizeDependencyStatuses(value: unknown): RuntimeValidatorDependencyStatus[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
     .map((entry) => ({
@@ -827,7 +935,9 @@ function normalizeDependencyStatuses(value: unknown): RuntimeValidatorDependency
 }
 
 function normalizeFindingsValidatorExecutions(value: unknown): FindingsValidatorExecution[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
     .map((entry) => ({
@@ -851,7 +961,9 @@ function normalizeFindingsValidatorExecutions(value: unknown): FindingsValidator
 }
 
 function normalizeExaminationValidatorExecutions(value: unknown): ExaminationValidatorExecution[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
     .map((entry) => ({
@@ -883,7 +995,9 @@ function normalizePrecedence(value: unknown): 'required' | 'optional' {
 function normalizeClassificationValidatorExecutions(
   value: unknown
 ): ClassificationValidatorExecution[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
     .map((entry) => ({
@@ -909,7 +1023,9 @@ function normalizeClassificationValidatorExecutions(
 function normalizeInterventionValidatorExecutions(
   value: unknown
 ): InterventionValidatorExecution[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
     .map((entry) => ({
@@ -933,7 +1049,9 @@ function normalizeInterventionValidatorExecutions(
 }
 
 function normalizeUnitValidatorExecutions(value: unknown): UnitValidatorExecution[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
     .map((entry) => ({
@@ -960,9 +1078,13 @@ function normalizeUnitValidatorExecutions(value: unknown): UnitValidatorExecutio
 export function normalizeRuntimeValidationResult(
   payload: unknown
 ): ReportTemplateRuntimeValidationResult | null {
-  if (!isRecordLike(payload)) return null
+  if (!isRecordLike(payload)) {
+    return null
+  }
   const templateName = asString(payload.templateName ?? payload.template_name)
-  if (!templateName) return null
+  if (!templateName) {
+    return null
+  }
   return {
     templateName,
     ok: asBoolean(payload.ok),
@@ -1056,12 +1178,16 @@ function extractNumericalValue(
   }
 
   const directMatch = numericalDescriptors[classificationName]
-  if (directMatch !== undefined) return directMatch
+  if (directMatch !== undefined) {
+    return directMatch
+  }
 
   const preferredEntry = Object.entries(numericalDescriptors).find(
     ([key]) => normalizeKey(key) === normalizeKey(classificationName)
   )
-  if (preferredEntry) return preferredEntry[1]
+  if (preferredEntry) {
+    return preferredEntry[1]
+  }
 
   return Object.values(numericalDescriptors).find(
     (value) => typeof value === 'number' || typeof value === 'string'
@@ -1072,7 +1198,9 @@ function descriptorFromEntry(
   entry: [string, unknown]
 ): ReportTemplateRuntimeDescriptorInput | null {
   const [classificationChoiceDescriptor, descriptorValue] = entry
-  if (!classificationChoiceDescriptor.trim()) return null
+  if (!classificationChoiceDescriptor.trim()) {
+    return null
+  }
   return {
     classificationChoiceDescriptor,
     descriptorValue
@@ -1163,7 +1291,9 @@ async function buildRuntimeValidationFindings(
     findingId: number
   ): Promise<readonly FindingClassification[]> => {
     const cached = findingClassificationsCache.get(findingId)
-    if (cached) return cached
+    if (cached) {
+      return cached
+    }
     const loaded = await findingsApi.getFindingClassifications(findingId)
     findingClassificationsCache.set(findingId, loaded)
     return loaded
@@ -1171,24 +1301,32 @@ async function buildRuntimeValidationFindings(
 
   const findingsPayload: ReportTemplateRuntimePatientFindingInput[] = []
 
-  for (const row of rows) {
-    if (!row.isActive) continue
-    const findingId = extractFindingId(row.finding)
-    if (findingId == null) continue
+  for (const patientFinding of rows) {
+    if (!patientFinding.isActive) {
+      continue
+    }
+    const findingId = extractFindingId(patientFinding.finding)
+    if (findingId == null) {
+      continue
+    }
 
     const finding = getFindingById?.(findingId) || null
-    if (!finding?.name) continue
+    if (!finding?.name) {
+      continue
+    }
 
     const findingDefinitions = await getFindingDefinitions(findingId)
     const classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[] =
-      row.classifications
+      patientFinding.classifications
         .filter((classification) => classification.isActive)
         .map((classification) => {
           const classificationName =
             classification.classificationName ||
             findClassificationDefinition(findingDefinitions, classification.classification)?.name ||
             null
-          if (!classificationName) return null
+          if (!classificationName) {
+            return null
+          }
 
           const derivedValue = extractNumericalValue(
             classificationName,

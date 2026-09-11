@@ -41,6 +41,9 @@ in
   ];
 
   hostOwnedEnvironmentVariables = [
+    "LLM_CA_FILE"
+    "LLM_CLIENT_CERT_FILE"
+    "LLM_CLIENT_KEY_FILE"
     "HOME_DIR"
     "CONF_DIR"
     "CONF_TEMPLATE_DIR"

@@ -15,10 +15,14 @@ export type PatientFindingApiIntervention = {
 }
 
 export function formatDateOnly(value?: string | null): string | null {
-  if (!value) return null
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toISOString().split('T')[0] || null
+  if (!value) {
+    return null
+  }
+  const parsedDate = new Date(value)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null
+  }
+  return parsedDate.toISOString().split('T')[0] || null
 }
 
 export function mergeClassificationSelections(
@@ -29,7 +33,9 @@ export function mergeClassificationSelections(
   const merged = new Map<number, number>()
 
   for (const item of apiClassifications || []) {
-    if (!item || typeof item === 'number') continue
+    if (!item || typeof item === 'number') {
+      continue
+    }
     const classification = Number(item.classification ?? item.classificationId)
     const classificationChoice = Number(
       item.classificationChoice ?? item.classificationChoiceId
@@ -41,9 +47,9 @@ export function mergeClassificationSelections(
 
   const localSelections = localSelectionsByFinding[findingId] ?? {}
   for (const [classificationId, choiceId] of Object.entries(localSelections)) {
-    const cId = Number(classificationId)
-    if (Number.isFinite(cId) && Number.isFinite(choiceId)) {
-      merged.set(cId, choiceId)
+    const numericClassificationId = Number(classificationId)
+    if (Number.isFinite(numericClassificationId) && Number.isFinite(choiceId)) {
+      merged.set(numericClassificationId, choiceId)
     }
   }
 
@@ -71,9 +77,13 @@ export function normalizeInterventions(
   }> = []
 
   for (const item of apiInterventions || []) {
-    if (!item || typeof item === 'number') continue
+    if (!item || typeof item === 'number') {
+      continue
+    }
     const intervention = Number(item.intervention ?? item.interventionId)
-    if (!Number.isFinite(intervention)) continue
+    if (!Number.isFinite(intervention)) {
+      continue
+    }
     result.push({
       intervention,
       state: item.state ?? null,

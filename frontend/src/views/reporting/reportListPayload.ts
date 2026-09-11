@@ -15,23 +15,37 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
 
 const optionalNumber = (value: unknown, field: string): number | null | undefined => {
-  if (value === undefined || value === null) return value
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  throw new TypeError(`Report list field "${field}" must be a finite number or null.`)
+  if (value === undefined || value === null) {
+    return value
+  }
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
+    return value
+  }
+  throw new TypeError(`Report list field "${field}" must be a positive safe integer or null.`)
 }
 
 const optionalString = (value: unknown, field: string): string | null | undefined => {
-  if (value === undefined || value === null) return value
-  if (typeof value === 'string') return value
+  if (value === undefined || value === null) {
+    return value
+  }
+  if (typeof value === 'string') {
+    return value
+  }
   throw new TypeError(`Report list field "${field}" must be a string or null.`)
 }
 
 const parsePatientExamination = (value: unknown): ReportListRow['patientExamination'] => {
-  if (value === undefined || value === null) return value
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value
+  if (value === undefined || value === null) {
+    return value
+  }
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
+    return value
+  }
   if (isRecord(value)) {
-    const id = optionalNumber(value.id, 'patientExamination.id')
-    if (typeof id === 'number' && Number.isInteger(id) && id > 0) return { id }
+    const examinationId = optionalNumber(value.id, 'patientExamination.id')
+    if (typeof examinationId === 'number') {
+      return { id: examinationId }
+    }
   }
   throw new TypeError(
     'Report list field "patientExamination" must contain a positive integer id or be null.'
@@ -42,7 +56,7 @@ const parseReportListRow = (value: unknown, index: number): ReportListRow => {
   if (
     !isRecord(value) ||
     typeof value.id !== 'number' ||
-    !Number.isInteger(value.id) ||
+    !Number.isSafeInteger(value.id) ||
     value.id <= 0
   ) {
     throw new TypeError(`Report list entry ${String(index)} must contain a positive integer id.`)

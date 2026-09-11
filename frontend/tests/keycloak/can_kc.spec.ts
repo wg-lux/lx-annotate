@@ -20,7 +20,7 @@ const TestComponent = {
     <div>
       <button id="btn" v-can="'page.patients.view:GET'">Patienten</button>
     </div>
-  `,
+  `
 }
 
 describe('v-can directive', () => {
@@ -32,41 +32,41 @@ describe('v-can directive', () => {
     const store = useAuthKcStore()
     store.user = { username: 'editor', roles: ['data:read'] }
     store.caps = {
-      'page.patients.view:GET': true,
+      'page.patients.view:GET': true
     }
     store.loaded = true
 
     const wrapper = mount(TestComponent, {
       global: {
         directives: {
-          can: canKc,
-        },
-      },
+          can: canKc
+        }
+      }
     })
 
-    const btn = wrapper.find('#btn')
-    expect(btn.exists()).toBe(true)
-    expect((btn.element as HTMLButtonElement).style.display).not.toBe('none')
+    const patientsButton = wrapper.find('#btn')
+    expect(patientsButton.exists()).toBe(true)
+    expect((patientsButton.element as HTMLButtonElement).style.display).not.toBe('none')
   })
 
   it('hides button when capability is false', () => {
     const store = useAuthKcStore()
     store.user = { username: 'basic', roles: [] }
     store.caps = {
-      'page.patients.view:GET': false,
+      'page.patients.view:GET': false
     }
     store.loaded = true
 
     const wrapper = mount(TestComponent, {
       global: {
         directives: {
-          can: canKc,
-        },
-      },
+          can: canKc
+        }
+      }
     })
 
-    const btn = wrapper.find('#btn')
-    expect(btn.exists()).toBe(true)
-    expect((btn.element as HTMLButtonElement).style.display).toBe('none')
+    const patientsButton = wrapper.find('#btn')
+    expect(patientsButton.exists()).toBe(true)
+    expect((patientsButton.element as HTMLButtonElement).style.display).toBe('none')
   })
 })

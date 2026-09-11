@@ -282,7 +282,9 @@ export const getCoreConceptLocalizedName = (
   language: CoreConceptLanguage,
   fallback = 'unknown'
 ): string => {
-  if (!concept) return fallback
+  if (!concept) {
+    return fallback
+  }
   return (language === 'de' ? concept.nameDe : concept.nameEn) || concept.name || fallback
 }
 

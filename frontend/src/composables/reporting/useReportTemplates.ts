@@ -101,7 +101,9 @@ export function useReportTemplates(params?: {
   }
 
   function setRequestContext(nextContextKey: string) {
-    if (contextKey === nextContextKey) return
+    if (contextKey === nextContextKey) {
+      return
+    }
     contextKey = nextContextKey
     requestGeneration += 1
     loading.value = false
@@ -125,7 +127,9 @@ export function useReportTemplates(params?: {
   ): Promise<ReportTemplatePayload | null> {
     const useModule = opts?.moduleOverride || moduleName.value
     const useVersion = moduleVersion.value
-    if (!templateName || !useModule || !useVersion) return null
+    if (!templateName || !useModule || !useVersion) {
+      return null
+    }
     const generation = ++requestGeneration
 
     loading.value = true
@@ -160,14 +164,18 @@ export function useReportTemplates(params?: {
       }
       return payload
     } catch (error: unknown) {
-      if (generation !== requestGeneration) return null
+      if (generation !== requestGeneration) {
+        return null
+      }
       errorMessage.value = reportingApiErrorMessage(
         error,
         'Fehler beim Laden des Report-Templates.'
       )
       return null
     } finally {
-      if (generation === requestGeneration) loading.value = false
+      if (generation === requestGeneration) {
+        loading.value = false
+      }
     }
   }
 
@@ -212,7 +220,9 @@ export function useReportTemplates(params?: {
 
       return templates
     } catch (error: unknown) {
-      if (generation !== requestGeneration) return []
+      if (generation !== requestGeneration) {
+        return []
+      }
       errorMessage.value = reportingApiErrorMessage(
         error,
         'Fehler beim Laden der Report-Templates für die Untersuchung.'
@@ -221,7 +231,9 @@ export function useReportTemplates(params?: {
       selectedTemplate.value = null
       return []
     } finally {
-      if (generation === requestGeneration) loading.value = false
+      if (generation === requestGeneration) {
+        loading.value = false
+      }
     }
   }
 

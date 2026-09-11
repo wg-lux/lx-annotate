@@ -11,14 +11,17 @@
             title="Repariert ableitbare Datenbankzustände, ohne Annotationen zu löschen"
             @click="repairAllVideoStates"
           >
-            {{ isRepairingVideoStates ? 'Reparatur läuft…' : 'Videozustände reparieren' }}
+            {{ repairButtonLabel }}
           </button>
           <button
             class="btn btn-outline-primary btn-sm"
             :disabled="isRefreshing"
             @click="refreshOverview"
           >
-            <i class="ni ni-bold-right" :class="{ 'ni-spin': isRefreshing }"></i>
+            <i
+              class="ni ni-bold-right"
+              :class="{ 'ni-spin': isRefreshing }"
+            ></i>
             Aktualisieren
           </button>
         </div>
@@ -26,16 +29,30 @@
       </div>
 
       <div class="card-body">
-        <div v-if="videoStateRepairMessage" class="alert alert-info" role="status">
+        <div
+          v-if="videoStateRepairMessage"
+          class="alert alert-info"
+          role="status"
+        >
           {{ videoStateRepairMessage }}
         </div>
         <!-- Error State -->
-        <div v-if="anonymizationStore.error" class="alert alert-danger" role="alert">
+        <div
+          v-if="anonymizationStore.error"
+          class="alert alert-danger"
+          role="alert"
+        >
           <strong>Fehler:</strong> {{ anonymizationStore.error }}
         </div>
         <!-- Loading State -->
-        <div v-if="anonymizationStore.loading && !overviewFiles.length" class="text-center py-5">
-          <div class="spinner-border text-primary" role="status">
+        <div
+          v-if="anonymizationStore.loading && !overviewFiles.length"
+          class="text-center py-5"
+        >
+          <div
+            class="spinner-border text-primary"
+            role="status"
+          >
             <span class="visually-hidden">Wird geladen...</span>
           </div>
           <p class="mt-2">Dateien werden geladen...</p>
@@ -62,7 +79,10 @@
           aria-label="Anonymisierungsdateien filtern"
         >
           <div class="overview-filter-field">
-            <label for="anonymization-resource-type-filter" class="form-label mb-1">
+            <label
+              for="anonymization-resource-type-filter"
+              class="form-label mb-1"
+            >
               Ressourcentyp
             </label>
             <select
@@ -78,7 +98,10 @@
             </select>
           </div>
           <div class="overview-filter-field">
-            <label for="anonymization-storage-state-filter" class="form-label mb-1">
+            <label
+              for="anonymization-storage-state-filter"
+              class="form-label mb-1"
+            >
               Physischer Speicherstatus
             </label>
             <select
@@ -94,7 +117,10 @@
               <option value="unknown">Unbekannt</option>
             </select>
           </div>
-          <div class="overview-filter-summary" aria-live="polite">
+          <div
+            class="overview-filter-summary"
+            aria-live="polite"
+          >
             {{ availableFiles.length }} von {{ overviewFiles.length }} Ressourcen
           </div>
           <button
@@ -115,7 +141,11 @@
         >
           <h5>Keine passenden Ressourcen</h5>
           <p class="text-muted mb-3">Die gewählten Filter liefern keine Tabellenzeilen.</p>
-          <button type="button" class="btn btn-outline-primary btn-sm" @click="resetTableFilters">
+          <button
+            type="button"
+            class="btn btn-outline-primary btn-sm"
+            @click="resetTableFilters"
+          >
             Filter zurücksetzen
           </button>
         </div>
@@ -167,7 +197,10 @@
                       <div class="small text-muted mt-1">
                         {{ getFileIdLabel(file) }}
                       </div>
-                      <div v-if="file.quarantined" class="small text-warning mt-1 quarantine-file-note">
+                      <div
+                        v-if="file.quarantined"
+                        class="small text-warning mt-1 quarantine-file-note"
+                      >
                         Import blockiert: Datei liegt in Quarantäne.
                       </div>
                     </div>
@@ -185,13 +218,23 @@
                 </td>
                 <!-- Actions -->
                 <td>
-                  <div v-if="file.quarantined" class="small text-warning quarantine-action-note">
+                  <div
+                    v-if="file.quarantined"
+                    class="small text-warning quarantine-action-note"
+                  >
                     Serverseitige Quarantäne
-                    <div v-if="getQuarantineReviewLabel(file)" class="text-muted mt-1">
+                    <div
+                      v-if="getQuarantineReviewLabel(file)"
+                      class="text-muted mt-1"
+                    >
                       {{ getQuarantineReviewLabel(file) }}
                     </div>
                   </div>
-                  <div v-else class="btn-group btn-group-sm" role="group">
+                  <div
+                    v-else
+                    class="btn-group btn-group-sm"
+                    role="group"
+                  >
                     <button
                       v-if="file.importOnly && file.uploadJob && (file.uploadJob.retryable || canUseImportAction(file, 'safe_reimport'))"
                       data-test="retry-upload-job-button"
@@ -310,20 +353,32 @@
 
                 <!-- Upload Job Status -->
                 <td>
-                  <div v-if="file.uploadJob" class="upload-job-summary">
+                  <div
+                    v-if="file.uploadJob"
+                    class="upload-job-summary"
+                  >
                     <span
                       class="badge"
                       :class="getUploadJobStatusBadgeClass(file.uploadJob.status)"
                     >
                       {{ getUploadJobStatusText(file.uploadJob.status) }}
                     </span>
-                    <div v-if="getUploadJobOriginLabel(file.uploadJob)" class="small text-muted mt-1 upload-job-text">
+                    <div
+                      v-if="getUploadJobOriginLabel(file.uploadJob)"
+                      class="small text-muted mt-1 upload-job-text"
+                    >
                       {{ getUploadJobOriginLabel(file.uploadJob) }}
                     </div>
-                    <div v-if="getUploadJobCleanupLabel(file.uploadJob)" class="small text-muted upload-job-text">
+                    <div
+                      v-if="getUploadJobCleanupLabel(file.uploadJob)"
+                      class="small text-muted upload-job-text"
+                    >
                       {{ getUploadJobCleanupLabel(file.uploadJob) }}
                     </div>
-                    <div v-if="file.uploadJob.updatedAt" class="small text-muted upload-job-text">
+                    <div
+                      v-if="file.uploadJob.updatedAt"
+                      class="small text-muted upload-job-text"
+                    >
                       Aktualisiert: {{ formatDate(file.uploadJob.updatedAt) }}
                     </div>
                     <div
@@ -334,7 +389,10 @@
                       {{ getUploadJobNotice(file) }}
                     </div>
                   </div>
-                  <span v-else class="text-muted">-</span>
+                  <span
+                    v-else
+                    class="text-muted"
+                  >-</span>
                 </td>
 
                 <!-- HTTP Live Streaming Materialization -->
@@ -366,12 +424,18 @@
                       </div>
                     </div>
                   </div>
-                  <span v-else class="text-muted">-</span>
+                  <span
+                    v-else
+                    class="text-muted"
+                  >-</span>
                 </td>
 
                 <!-- Anonymization Status -->
                 <td>
-                  <span v-if="file.importOnly" class="text-muted">-</span>
+                  <span
+                    v-if="file.importOnly"
+                    class="text-muted"
+                  >-</span>
                   <span
                     v-else
                     :class="getStatusBadgeClass(file.anonymizationStatus)"
@@ -387,7 +451,10 @@
 
                 <!-- Annotation Status -->
                 <td>
-                  <span v-if="file.importOnly" class="text-muted">-</span>
+                  <span
+                    v-if="file.importOnly"
+                    class="text-muted"
+                  >-</span>
                   <span
                     v-else
                     :class="getStatusBadgeClass(file.annotationStatus)"
@@ -408,20 +475,32 @@
                     <i class="ni ni-user-run me-1"></i>
                     Validieren
                   </button>
-                  <span v-else-if="file.anonymizationStatus === 'validated'" class="badge bg-success">
+                  <span
+                    v-else-if="file.anonymizationStatus === 'validated'"
+                    class="badge bg-success"
+                  >
                     <i class="ni ni-check-bold me-1"></i>
                     Validiert
                   </span>
-                  <span v-else class="text-muted">-</span>
+                  <span
+                    v-else
+                    class="text-muted"
+                  >-</span>
                 </td>
 
                 <!-- Original File Cleanup -->
                 <td>
                   <span :class="getOriginalFileDeletionClass(file)">
-                    <i :class="getOriginalFileDeletionIcon(file)" class="me-1"></i>
+                    <i
+                      :class="getOriginalFileDeletionIcon(file)"
+                      class="me-1"
+                    ></i>
                     {{ getOriginalFileDeletionText(file) }}
                   </span>
-                  <div v-if="getOriginalFileDeletionHint(file)" class="small text-muted raw-file-state-hint">
+                  <div
+                    v-if="getOriginalFileDeletionHint(file)"
+                    class="small text-muted raw-file-state-hint"
+                  >
                     {{ getOriginalFileDeletionHint(file) }}
                   </div>
                 </td>
@@ -453,7 +532,10 @@
         </div>
 
         <!-- Status Summary -->
-        <div v-if="availableFiles.length" class="row mt-4">
+        <div
+          v-if="availableFiles.length"
+          class="row mt-4"
+        >
           <div class="col-md-12">
             <div class="card bg-light">
               <div class="card-body">
@@ -487,7 +569,7 @@
                   <div class="col-md-3">
                     <div class="mb-2">
                       <span class="badge bg-success fs-6">
-                        {{ getTotalByStatus('done_processing_anonymization') }}
+                        {{ pendingValidationCount }}
                       </span>
                     </div>
                     <small class="text-muted">Fertig</small>
@@ -563,16 +645,24 @@ let tableResizeObserver: ResizeObserver | null = null;
 const MONITORING_REFRESH_INTERVAL_MS = 15000;
 
 const getOriginalFileDeletionState = (file: FileItem): OriginalFileDeletionState => {
-  if (file.quarantined) return 'quarantined';
+  if (file.quarantined) {
+    return 'quarantined';
+  }
 
   if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
     return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
   }
 
   const cleanupStatus = file.uploadJob?.cleanupStatus.toLowerCase();
-  if (cleanupStatus === 'completed') return 'deleted';
-  if (cleanupStatus === 'pending' || cleanupStatus === 'eligible') return 'present';
-  if (file.rawFile?.trim()) return 'present';
+  if (cleanupStatus === 'completed') {
+    return 'deleted';
+  }
+  if (cleanupStatus === 'pending' || cleanupStatus === 'eligible') {
+    return 'present';
+  }
+  if (file.rawFile?.trim()) {
+    return 'present';
+  }
   return 'unknown';
 };
 
@@ -599,7 +689,9 @@ const resetTableFilters = () => {
 
 const updateStickyScrollbar = () => {
   const container = tableScrollElement.value;
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
   tableScrollWidth.value = container.scrollWidth;
   hasHorizontalOverflow.value = container.scrollWidth > container.clientWidth;
@@ -638,7 +730,9 @@ const repairAllVideoStates = async () => {
   videoStateRepairMessage.value = '';
   try {
     const result = await anonymizationStore.repairAllVideoStates(false);
-    if (!result) return;
+    if (!result) {
+      return;
+    }
     const mustReimport = result.items
       .filter((item) => item.status === 'reimport_required')
       .map((item) => `ID ${String(item.videoId)}${item.filename ? ` (${item.filename})` : ''}`);
@@ -687,7 +781,9 @@ const correctFile = (file: FileItem) => {
 const isReadyForValidation = (fileId: number) => {
   // Check if the file is ready for validation
   const file = availableFiles.value.find(f => f.id === fileId);
-  if (!file) return false;
+  if (!file) {
+    return false;
+  }
 
   // Only allow validation if anonymization is done
   return file.anonymizationStatus === 'done_processing_anonymization';
@@ -717,8 +813,8 @@ const validateFile = async (fileId: number, mediaType: string) => {
 
       try {
         mediaStore.rememberType(fileId, kind, kind);
-      } catch (e) {
-        runtimeLogger.error('media-type-memory-failed', e, { fileType: kind });
+      } catch (error) {
+        runtimeLogger.error('media-type-memory-failed', error, { fileType: kind });
       }
 
       if (file.sensitiveMetaId) {
@@ -782,7 +878,9 @@ const reimportPdf = async (fileId: number) => {
 };
 
 const retryUploadJob = async (file: FileItem) => {
-  if (!file.uploadJob) return;
+  if (!file.uploadJob) {
+    return;
+  }
   processingFiles.value.add(file.id);
   try {
     await anonymizationStore.retryUploadJob(file.uploadJob.id);
@@ -793,8 +891,12 @@ const retryUploadJob = async (file: FileItem) => {
 };
 
 const dismissImport = async (file: FileItem) => {
-  if (!file.importOnly || !file.uploadJob || !file.canDismissImport || file.quarantined) return;
-  if (!confirm(`Import "${getFileDisplayName(file)}" aus der Übersicht entfernen? Quelldatei und Importverlauf bleiben erhalten.`)) return;
+  if (!file.importOnly || !file.uploadJob || !file.canDismissImport || file.quarantined) {
+    return;
+  }
+  if (!confirm(`Import "${getFileDisplayName(file)}" aus der Übersicht entfernen? Quelldatei und Importverlauf bleiben erhalten.`)) {
+    return;
+  }
   processingFiles.value.add(file.id);
   try {
     await anonymizationStore.dismissUploadJob(file.uploadJob.id);
@@ -838,7 +940,9 @@ const deleteFile = async (fileId: number) => {
 const isProcessing = (fileId: number) => {
   // Find the file to determine media type
   const file = availableFiles.value.find(f => f.id === fileId);
-  if (!file) return false;
+  if (!file) {
+    return false;
+  }
 
   const mediaType = mediaStore.detectMediaType(file);
 
@@ -885,7 +989,9 @@ const canUseImportAction = (
   file: FileItem,
   action: 'safe_reimport' | 'delete'
 ) => {
-  if (!file.uploadJob) return true;
+  if (!file.uploadJob) {
+    return true;
+  }
   return file.uploadJob.allowedActions.includes(action);
 };
 
@@ -909,9 +1015,13 @@ const documentTypeLabels: Record<string, string> = {
 };
 
 const getDocumentTypeLabel = (documentType?: string | null) => {
-  if (!documentType) return '';
+  if (!documentType) {
+    return '';
+  }
   const normalized = documentType.trim();
-  if (!normalized) return '';
+  if (!normalized) {
+    return '';
+  }
   return documentTypeLabels[normalized] || `Dokumenttyp: ${normalized}`;
 };
 
@@ -1078,7 +1188,9 @@ const getHlsArtifactKindText = (artifactKind: string) =>
   artifactKind === 'raw' ? 'Rohvideo' : 'Anonymisiert';
 
 const getQuarantineReviewLabel = (file: FileItem) => {
-  if (!file.quarantined) return '';
+  if (!file.quarantined) {
+    return '';
+  }
   const statusTexts: Record<string, string> = {
     pending_review: 'Review erforderlich',
     retained: 'Aufbewahrung beschlossen',
@@ -1172,7 +1284,9 @@ const getOriginalFileDeletionHint = (file: FileItem): string => {
 };
 
 const formatDate = (dateString: string | null) => {
-  if (!dateString) return '-';
+  if (!dateString) {
+    return '-';
+  }
 
   const date = new Date(dateString);
   return date.toLocaleDateString('de-DE', {
@@ -1189,7 +1303,9 @@ const hasActiveMonitoringState = () => overviewFiles.value.some(file =>
 );
 
 const scheduleMonitoringRefresh = () => {
-  if (!hasActiveMonitoringState() || monitoringRefreshHandle.value) return;
+  if (!hasActiveMonitoringState() || monitoringRefreshHandle.value) {
+    return;
+  }
   monitoringRefreshHandle.value = setTimeout(() => {
     monitoringRefreshHandle.value = null;
     void refreshOverview()
@@ -1265,6 +1381,14 @@ onUnmounted(() => {
   // Clear any remaining processing locks
   pollingProtection.clearAllLocalLocks();
 });
+const repairButtonLabel = computed(() =>
+  isRepairingVideoStates.value ? 'Reparatur läuft…' : 'Videozustände reparieren'
+)
+
+const pendingValidationCount = computed(() =>
+  getTotalByStatus('done_processing_anonymization')
+)
+
 </script>
 
 <style scoped>

@@ -1,3 +1,6 @@
+import type { MediaScope } from '@/stores/mediaTypeStore'
+import type { VideoAnonymizationModel } from '@/types/anonymizationPipeline'
+
 export interface DocumentTypeOption {
   value: string
   label: string
@@ -11,18 +14,28 @@ export interface PatientExaminationOption {
 export type CaseLinkageStatus = 'not_linked' | 'suggested' | 'linked' | 'deferred'
 
 const toPositiveInteger = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value
-  if (typeof value !== 'string' || !value.trim()) return null
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return null
+  }
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
 
 export const normalizeDocumentTypeOptions = (raw: unknown): DocumentTypeOption[] => {
-  if (!Array.isArray(raw)) return []
+  if (!Array.isArray(raw)) {
+    return []
+  }
   return raw
     .map((entry) => {
-      if (typeof entry === 'string') return { value: entry, label: entry }
-      if (!entry || typeof entry !== 'object') return null
+      if (typeof entry === 'string') {
+        return { value: entry, label: entry }
+      }
+      if (!entry || typeof entry !== 'object') {
+        return null
+      }
       const option = entry as Record<string, unknown>
       return typeof option.value === 'string' && typeof option.label === 'string'
         ? { value: option.value, label: option.label }
@@ -34,22 +47,28 @@ export const normalizeDocumentTypeOptions = (raw: unknown): DocumentTypeOption[]
 export const normalizePatientExaminationOption = (
   raw: unknown
 ): PatientExaminationOption | null => {
-  if (!raw || typeof raw !== 'object') return null
-  const row = raw as Record<string, unknown>
-  const id = toPositiveInteger(row.id)
-  if (id === null) return null
+  if (!raw || typeof raw !== 'object') {
+    return null
+  }
+  const examinationRecord = raw as Record<string, unknown>
+  const examinationId = toPositiveInteger(examinationRecord.id)
+  if (examinationId === null) {
+    return null
+  }
 
   const examinationName =
-    (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
-    (typeof row.examination === 'string' && row.examination.trim()) ||
+    (typeof examinationRecord.examination_name === 'string' &&
+      examinationRecord.examination_name.trim()) ||
+    (typeof examinationRecord.examination === 'string' && examinationRecord.examination.trim()) ||
     'Untersuchung'
-  const dateStartRaw = typeof row.date_start === 'string' ? row.date_start : ''
+  const dateStartRaw =
+    typeof examinationRecord.date_start === 'string' ? examinationRecord.date_start : ''
   const dateStart = dateStartRaw ? dateStartRaw.split('T')[0] : ''
   return {
-    id,
+    id: examinationId,
     label: dateStart
-      ? `#${String(id)} · ${examinationName} · ${dateStart}`
-      : `#${String(id)} · ${examinationName}`
+      ? `#${String(examinationId)} · ${examinationName} · ${dateStart}`
+      : `#${String(examinationId)} · ${examinationName}`
   }
 }
 
@@ -64,11 +83,21 @@ export const resolveCaseLinkageStatus = ({
   currentPatientExaminationId: unknown
   hasLinkageHints: boolean
 }): CaseLinkageStatus => {
-  if (matchStatus === 'linked') return 'linked'
-  if (matchStatus === 'deferred') return 'deferred'
-  if (matchStatus === 'suggested') return 'suggested'
-  if (matchStatus === 'unresolved') return 'not_linked'
-  if (linkedPatientExaminationId || currentPatientExaminationId) return 'linked'
+  if (matchStatus === 'linked') {
+    return 'linked'
+  }
+  if (matchStatus === 'deferred') {
+    return 'deferred'
+  }
+  if (matchStatus === 'suggested') {
+    return 'suggested'
+  }
+  if (matchStatus === 'unresolved') {
+    return 'not_linked'
+  }
+  if (linkedPatientExaminationId || currentPatientExaminationId) {
+    return 'linked'
+  }
   return hasLinkageHints ? 'suggested' : 'not_linked'
 }
 
@@ -117,7 +146,9 @@ export const caseLinkageStatusDescription = (
 }
 
 export const formatPseudoPatient = (id: number | null, matchCount?: number | null): string => {
-  if (id === null) return 'Nicht verknuepft'
+  if (id === null) {
+    return 'Nicht verknuepft'
+  }
   return typeof matchCount === 'number' && matchCount > 0
     ? `#${String(id)} (${String(matchCount)} Treffer)`
     : `#${String(id)}`
@@ -127,8 +158,48 @@ export const formatPatientExamination = (
   linkedId: number | null,
   recommendedId?: number | null
 ): string => {
-  if (linkedId !== null) return `#${String(linkedId)}`
+  if (linkedId !== null) {
+    return `#${String(linkedId)}`
+  }
   return typeof recommendedId === 'number' && recommendedId > 0
     ? `Vorschlag: #${String(recommendedId)}`
     : 'Noch keine Zuordnung'
+}
+
+type ValidationMediaScope = MediaScope | null
+
+export const formatValidationFileId = (
+  fileId: number | null,
+  scope: ValidationMediaScope
+): string => {
+  if (fileId === null) {
+    return ''
+  }
+  const prefix =
+    scope === null
+      ? 'Datei'
+      : { video: 'Video', pdf: 'PDF', meta: 'Datei', unknown: 'Datei' }[scope]
+  return `${prefix}-ID: ${String(fileId)}`
+}
+
+export const buildValidationReturnPath = (
+  fileId: number | null,
+  scope: ValidationMediaScope
+): string =>
+  fileId !== null && scope
+    ? `/anonymisierung/validierung?fileId=${String(fileId)}&mediaType=${scope}`
+    : '/anonymisierung/validierung'
+
+export const validationFileQuery = (
+  fileId: number | null,
+  scope: ValidationMediaScope
+): Record<string, string> => ({
+  ...(fileId === null ? {} : { fileId: String(fileId) }),
+  ...(scope === null ? {} : { mediaType: scope })
+})
+
+export const formatAnonymizationModel = (model?: VideoAnonymizationModel | null): string => {
+  const identity = [model?.name, model?.version].filter(Boolean).join(' ')
+  const checksum = model?.sha256 ? `SHA-256 ${model.sha256.slice(0, 12)}…` : ''
+  return [identity, checksum].filter(Boolean).join(' · ') || 'Nicht gemeldet'
 }

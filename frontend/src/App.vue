@@ -1,6 +1,13 @@
 <template>
-  <div class="g-sidenav-show app-shell" :class="{ 'app-shell--nav-open': isMenuOpen }">
-    <a class="app-skip-link" href="#page-content" @click.prevent="focusContent">Zum Inhalt springen</a>
+  <div
+    class="g-sidenav-show app-shell"
+    :class="{ 'app-shell--nav-open': isMenuOpen }"
+  >
+    <a
+      class="app-skip-link"
+      href="#page-content"
+      @click.prevent="focusContent"
+    >Zum Inhalt springen</a>
     <button
       v-if="isMenuOpen"
       type="button"
@@ -10,7 +17,10 @@
     ></button>
 
     <template v-if="!isMenuOpen">
-      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs sidebar-shell sidebar-shell--collapsed">
+      <aside
+        id="sidenav-main"
+        class="sidenav navbar navbar-vertical navbar-expand-xs sidebar-shell sidebar-shell--collapsed"
+      >
         <div class="g-sidenav-hidden">
           <div class="sidenav m-1">
             <button
@@ -22,7 +32,10 @@
               title="Sidebar öffnen"
               @click="toggleMenu"
             >
-              <span class="sidebar-toggle-icon sidebar-toggle-icon--menu" aria-hidden="true">
+              <span
+                class="sidebar-toggle-icon sidebar-toggle-icon--menu"
+                aria-hidden="true"
+              >
                 <span></span>
                 <span></span>
                 <span></span>
@@ -34,7 +47,12 @@
     </template>
 
     <template v-if="isMenuOpen">
-      <aside id="sidenav-main" class="sidenav navbar navbar-vertical navbar-expand-xs border-0 fixed-start sidebar-shell sidebar-shell--open" aria-label="Hauptnavigation" @keydown.esc.stop.prevent="closeMenu">
+      <aside
+        id="sidenav-main"
+        class="sidenav navbar navbar-vertical navbar-expand-xs border-0 fixed-start sidebar-shell sidebar-shell--open"
+        aria-label="Hauptnavigation"
+        @keydown.esc.stop.prevent="closeMenu"
+      >
         <div class="sidebar-shell__toolbar">
           <button
             ref="sidebarCloser"
@@ -46,7 +64,10 @@
             title="Sidebar schließen"
             @click="toggleMenu"
           >
-            <i class="ni ni-fat-remove" aria-hidden="true"></i>
+            <i
+              class="ni ni-fat-remove"
+              aria-hidden="true"
+            ></i>
           </button>
         </div>
 
@@ -59,7 +80,12 @@
         :is-sidebar-open="isMenuOpen"
         @toggle-sidebar="toggleMenu"
       />
-      <div id="page-content" ref="pageContent" tabindex="-1" class="container-fluid w-100 app-content">
+      <div
+        id="page-content"
+        ref="pageContent"
+        tabindex="-1"
+        class="container-fluid w-100 app-content"
+      >
         <div class="row">
           <div class="col-12">
             <router-view />

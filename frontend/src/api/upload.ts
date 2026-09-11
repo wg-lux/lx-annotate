@@ -72,7 +72,9 @@ function requireUploadResponse(value: unknown): UploadResponse {
 }
 
 function optionalString(value: unknown, fieldName: string): string | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (typeof value !== 'string') {
     throw new TypeError(`Upload response contains an invalid ${fieldName}`)
   }
@@ -80,7 +82,9 @@ function optionalString(value: unknown, fieldName: string): string | undefined {
 }
 
 function optionalNumber(value: unknown, fieldName: string): number | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (typeof value !== 'number') {
     throw new TypeError(`Upload response contains an invalid ${fieldName}`)
   }
@@ -88,7 +92,9 @@ function optionalNumber(value: unknown, fieldName: string): number | undefined {
 }
 
 function optionalNullableString(value: unknown, fieldName: string): string | null | undefined {
-  if (value === undefined || value === null || typeof value === 'string') return value
+  if (value === undefined || value === null || typeof value === 'string') {
+    return value
+  }
   throw new TypeError(`Upload response contains an invalid ${fieldName}`)
 }
 
@@ -115,7 +121,9 @@ function requireUploadReportLlmJob(value: unknown): UploadReportLlmJob {
 }
 
 function requireUploadStatusResponse(value: unknown): UploadStatusResponse {
-  if (!isRecord(value)) throw new TypeError('Upload status response must be an object')
+  if (!isRecord(value)) {
+    throw new TypeError('Upload status response must be an object')
+  }
   if (!isUploadStatus(value.status)) {
     throw new TypeError('Upload status response contains an invalid status')
   }
@@ -207,12 +215,16 @@ function uploadPollingAbortError(): Error {
 }
 
 function throwIfUploadPollingAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw uploadPollingAbortError()
+  if (signal?.aborted) {
+    throw uploadPollingAbortError()
+  }
 }
 
 function waitForNextPoll(delayMs: number, signal?: AbortSignal): Promise<void> {
   throwIfUploadPollingAborted(signal)
-  if (delayMs === 0) return Promise.resolve()
+  if (delayMs === 0) {
+    return Promise.resolve()
+  }
 
   return new Promise((resolve, reject) => {
     const timeoutId = globalThis.setTimeout(() => {
@@ -264,7 +276,9 @@ export const pollUploadStatus = async (
     const status = await checkUploadStatus(statusUrl, options.signal)
     options.onProgress?.(status)
 
-    if (status.status === 'anonymized') return status
+    if (status.status === 'anonymized') {
+      return status
+    }
     if (status.status === 'error' || status.status === 'lost') {
       throw terminalUploadError(status)
     }

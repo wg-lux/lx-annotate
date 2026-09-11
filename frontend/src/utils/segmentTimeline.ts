@@ -125,7 +125,9 @@ function requireAdjacentBoundary(
   current: VideoFrameBoundary,
   direction: FrameStepDirection
 ): void {
-  if (!adjacent) return
+  if (!adjacent) {
+    return
+  }
   const expectedFrameNumber = current.frameNumber + direction
   const hasInvalidTimestamp =
     direction === -1

@@ -4,7 +4,9 @@ import type { AxiosResponse } from 'axios'
 import AnonymizationEvaluation from '../AnonymizationEvaluation.vue'
 
 function readContentType(config: unknown): unknown {
-  if (typeof config !== 'object' || config === null || !('params' in config)) return undefined
+  if (typeof config !== 'object' || config === null || !('params' in config)) {
+    return undefined
+  }
   const { params } = config
   if (typeof params !== 'object' || params === null || !('content_type' in params)) {
     return undefined

@@ -5,8 +5,10 @@ Test runner for the metadata hardening fixes.
 Run this script to verify all tests pass after implementing the fixes.
 """
 
-import sys
+from __future__ import annotations
+
 import subprocess
+import sys
 from pathlib import Path
 
 

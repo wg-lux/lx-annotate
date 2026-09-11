@@ -4,6 +4,12 @@ import { createPinia, setActivePinia } from 'pinia'
 import { endpoints } from '@/types/api/endpoints'
 import { useVideoStore } from '@/stores/videoStore'
 
+const DRAFT_END_SECONDS = 15
+const REPLACEMENT_START_SECONDS = 20
+const VIDEO_ID = 123
+const SAVED_SEGMENT_ID = 456
+const DRAFT_START_SECONDS = 10.5
+
 const axiosMocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -23,7 +29,7 @@ const axiosPost = axiosMocks.post
 async function createStoreWithVideo() {
   const store = useVideoStore()
   store.setVideo({
-    id: 123,
+    id: VIDEO_ID,
     isAnnotated: false,
     errorMessage: '',
     segments: [],
@@ -50,18 +56,18 @@ describe('VideoStore segment drafts', () => {
   it('starts, updates, replaces, and cancels a draft locally', async () => {
     const store = await createStoreWithVideo()
 
-    store.startDraft('polyp', 10.5)
-    store.updateDraftEnd(15)
+    store.startDraft('polyp', DRAFT_START_SECONDS)
+    store.updateDraftEnd(DRAFT_END_SECONDS)
     expect(store.draftSegment).toMatchObject({
       label: 'polyp',
-      startTime: 10.5,
-      endTime: 15
+      startTime: DRAFT_START_SECONDS,
+      endTime: DRAFT_END_SECONDS
     })
 
-    store.startDraft('outside', 20)
+    store.startDraft('outside', REPLACEMENT_START_SECONDS)
     expect(store.draftSegment).toMatchObject({
       label: 'outside',
-      startTime: 20,
+      startTime: REPLACEMENT_START_SECONDS,
       endTime: null
     })
 
@@ -76,12 +82,12 @@ describe('VideoStore segment drafts', () => {
         created: [
           {
             segment: {
-              id: 456,
-              videoId: 123,
+              id: SAVED_SEGMENT_ID,
+              videoId: VIDEO_ID,
               labelId: 1,
               labelName: 'polyp',
-              startTime: 10.5,
-              endTime: 15,
+              startTime: DRAFT_START_SECONDS,
+              endTime: DRAFT_END_SECONDS,
               startFrameNumber: 315,
               endFrameNumber: 450
             }
@@ -91,32 +97,32 @@ describe('VideoStore segment drafts', () => {
         deleted: []
       }
     })
-    store.startDraft('polyp', 10.5)
-    store.updateDraftEnd(15)
+    store.startDraft('polyp', DRAFT_START_SECONDS)
+    store.updateDraftEnd(DRAFT_END_SECONDS)
 
     const result = await store.commitDraft()
 
     expect(axiosPost).toHaveBeenCalledWith(
-      endpoints.media.videoSegmentsBulkMutation(123),
+      endpoints.media.videoSegmentsBulkMutation(VIDEO_ID),
       expect.objectContaining({
         defer_annotation_sync: true,
         creates: [
           expect.objectContaining({
             label_id: 1,
-            start_time: 10.5,
-            end_time: 15,
+            start_time: DRAFT_START_SECONDS,
+            end_time: DRAFT_END_SECONDS,
             export_segment: false
           })
         ]
       })
     )
     expect(result).toMatchObject({
-      id: 456,
-      videoID: 123,
+      id: SAVED_SEGMENT_ID,
+      videoID: VIDEO_ID,
       labelID: 1,
       label: 'polyp',
-      startTime: 10.5,
-      endTime: 15
+      startTime: DRAFT_START_SECONDS,
+      endTime: DRAFT_END_SECONDS
     })
     expect(store.draftSegment).toBeNull()
   })
@@ -124,36 +130,36 @@ describe('VideoStore segment drafts', () => {
   it('keeps the draft available for retry when persistence fails', async () => {
     const store = await createStoreWithVideo()
     axiosPost.mockRejectedValueOnce(new Error('network unavailable'))
-    store.startDraft('polyp', 10.5)
-    store.updateDraftEnd(15)
+    store.startDraft('polyp', DRAFT_START_SECONDS)
+    store.updateDraftEnd(DRAFT_END_SECONDS)
 
     await expect(store.commitDraft()).resolves.toBeNull()
 
     expect(store.draftSegment).toMatchObject({
       label: 'polyp',
-      startTime: 10.5,
-      endTime: 15
+      startTime: DRAFT_START_SECONDS,
+      endTime: DRAFT_END_SECONDS
     })
     expect(store.allSegments).toHaveLength(1)
   })
 
   it('does not persist an incomplete draft', async () => {
     const store = await createStoreWithVideo()
-    store.startDraft('polyp', 10.5)
+    store.startDraft('polyp', DRAFT_START_SECONDS)
 
     await expect(store.commitDraft()).resolves.toBeNull()
 
     expect(axiosPost).not.toHaveBeenCalled()
     expect(store.draftSegment).toMatchObject({
       label: 'polyp',
-      startTime: 10.5,
+      startTime: DRAFT_START_SECONDS,
       endTime: null
     })
   })
 
   it('owns playback promise rejections when jumping to a segment', async () => {
     const store = await createStoreWithVideo()
-    store.startDraft('polyp', 10.5)
+    store.startDraft('polyp', DRAFT_START_SECONDS)
     const segment = store.allSegments[0]
     const video = document.createElement('video')
     const play = vi.spyOn(video, 'play').mockRejectedValue(new Error('playback unavailable'))
@@ -161,7 +167,7 @@ describe('VideoStore segment drafts', () => {
     store.jumpToSegment(segment, video)
     await Promise.resolve()
 
-    expect(video.currentTime).toBe(10.5)
+    expect(video.currentTime).toBe(DRAFT_START_SECONDS)
     expect(play).toHaveBeenCalledOnce()
   })
 })

@@ -28,7 +28,9 @@ const axiosInstance = axios.create({
 })
 
 function shouldSuppressErrorToast(url: string, explicitlySuppressed: boolean): boolean {
-  if (explicitlySuppressed) return true
+  if (explicitlySuppressed) {
+    return true
+  }
   return (
     url.includes('/dtypes-api/') ||
     url.startsWith('dtypes-api/')
@@ -43,32 +45,38 @@ function getResponseErrorMessage(err: AxiosError): string {
 }
 
 function handleResponseError(error: unknown): Promise<never> {
-  const err: AxiosError = axios.isAxiosError(error)
+  // Superseded requests and component teardown are expected cancellations.
+  // Preserve the rejection so callers can still apply their cancellation guards.
+  if (axios.isCancel(error)) {
+    return Promise.reject(error)
+  }
+
+  const responseError: AxiosError = axios.isAxiosError(error)
     ? error
     : new AxiosError(error instanceof Error ? error.message : undefined)
   const toast = useToastStore()
   const auth = useAuthKcStore()
-  const status = err.response?.status
-  const config = err.config as
-    | (NonNullable<typeof err.config> & { suppressErrorToast?: boolean })
+  const status = responseError.response?.status
+  const config = responseError.config as
+    | (NonNullable<typeof responseError.config> & { suppressErrorToast?: boolean })
     | undefined
-  const url = config?.url || ''
+  const requestUrl = config?.url || ''
   const suppressErrorToast = shouldSuppressErrorToast(
-    url,
+    requestUrl,
     config?.suppressErrorToast === true
   )
-  const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/')
+  const isPollingRequest = requestUrl.includes('/status/') || requestUrl.includes('/polling-info/')
 
   if (status === 401) {
     auth.login()
-    return Promise.reject(err)
+    return Promise.reject(responseError)
   }
 
   if (!isPollingRequest && !suppressErrorToast) {
-    toast.error({ text: getResponseErrorMessage(err) })
+    toast.error({ text: getResponseErrorMessage(responseError) })
   }
 
-  return Promise.reject(err)
+  return Promise.reject(responseError)
 }
 
 // Error toast - Skip toast messages for polling requests
@@ -124,21 +132,29 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
 function localSnakecaseKeys(obj: unknown, options: { deep?: boolean } = {}): unknown {
   const isPlainObject = (v: unknown): v is Record<string, unknown> => {
-    if (!v || typeof v !== 'object') return false
-    if (Object.prototype.toString.call(v) !== '[object Object]') return false
+    if (!v || typeof v !== 'object') {
+      return false
+    }
+    if (Object.prototype.toString.call(v) !== '[object Object]') {
+      return false
+    }
     const proto = Reflect.getPrototypeOf(v)
     return proto === Object.prototype || proto === null
   }
 
   if (Array.isArray(obj)) {
     // Keep arrays of primitives intact; recurse only when elements are arrays/objects.
-    if (!options.deep) return obj
+    if (!options.deep) {
+      return obj
+    }
     return obj.map((item: unknown) =>
       Array.isArray(item) || isPlainObject(item) ? localSnakecaseKeys(item, options) : item
     )
   }
 
-  if (!isPlainObject(obj)) return obj
+  if (!isPlainObject(obj)) {
+    return obj
+  }
 
   return Object.keys(obj).reduce<Record<string, unknown>>(
     (acc, key) => {
@@ -165,14 +181,20 @@ axiosInstance.interceptors.request.use((config) => {
 
 // ─── Convert incoming payload from snake_case → camelCase ───────────
 function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
-  if (!value || Object.prototype.toString.call(value) !== '[object Object]') return false
+  if (!value || Object.prototype.toString.call(value) !== '[object Object]') {
+    return false
+  }
   const prototype = Reflect.getPrototypeOf(value)
   return prototype === Object.prototype || prototype === null
 }
 
 export function convertIncomingResponseData(data: unknown): unknown {
-  if (Array.isArray(data)) return data.map((item: unknown) => convertIncomingResponseData(item))
-  if (!isPlainJsonObject(data)) return data
+  if (Array.isArray(data)) {
+    return data.map((item: unknown) => convertIncomingResponseData(item))
+  }
+  if (!isPlainJsonObject(data)) {
+    return data
+  }
   return camelcaseKeys(data, { deep: true })
 }
 

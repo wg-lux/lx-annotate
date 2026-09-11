@@ -4,9 +4,8 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.utils import timezone
-from rest_framework import status
-
 from endoreg_db.models import Center, QuarantineItem, UploadJob
+from rest_framework import status
 
 
 @override_settings(

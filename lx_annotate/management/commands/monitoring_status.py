@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from lx_annotate.monitoring.service import build_monitoring_snapshot

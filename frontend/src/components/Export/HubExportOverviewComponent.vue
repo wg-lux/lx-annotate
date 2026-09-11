@@ -40,13 +40,13 @@
 
       <div class="card-body">
         <div
-          v-if="hubExportStore.error || hubExportStore.mutationError"
+          v-if="operationError"
           class="alert alert-info"
           role="status"
           data-test="hub-export-operation-error"
         >
           <strong>Status konnte nicht aktualisiert werden.</strong>
-          {{ hubExportStore.mutationError || hubExportStore.error }}
+          {{ operationError }}
         </div>
 
         <div
@@ -56,46 +56,64 @@
           data-test="hub-export-config-warning"
         >
           <strong>Konfiguration unvollständig.</strong>
-          {{
-            hubExportStore.configError ||
-            'Es wird ein aktiver Site-Node und genau ein aktiver Central-Hub-Node benötigt.'
-          }}
+          {{ configurationMessage }}
         </div>
 
-        <section class="mb-4" aria-labelledby="hub-sync-overview-title">
+        <section
+          class="mb-4"
+          aria-labelledby="hub-sync-overview-title"
+        >
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
             <div>
-              <h5 id="hub-sync-overview-title" class="mb-1">Dateisynchronisation</h5>
+              <h5
+                id="hub-sync-overview-title"
+                class="mb-1"
+              >Dateisynchronisation</h5>
               <p class="text-sm text-muted mb-0">
                 Lokaler Bestand verarbeiteter Dateien und bekannte Transfersituationen.
               </p>
             </div>
-            <span class="badge bg-light text-dark" data-test="hub-sync-node-count">
+            <span
+              class="badge bg-light text-dark"
+              data-test="hub-sync-node-count"
+            >
               {{ hubExportStore.hubNodes.length }} aktive Hub-Ziele
             </span>
           </div>
 
           <div class="row g-3 mb-3">
             <div class="col-6 col-xl-3">
-              <div class="sync-metric h-100" data-test="hub-sync-center-count">
+              <div
+                class="sync-metric h-100"
+                data-test="hub-sync-center-count"
+              >
                 <span class="sync-metric-value">{{ syncCenters.length }}</span>
                 <span class="sync-metric-label">Zentren im Bestand</span>
               </div>
             </div>
             <div class="col-6 col-xl-3">
-              <div class="sync-metric h-100" data-test="hub-sync-processed-count">
+              <div
+                class="sync-metric h-100"
+                data-test="hub-sync-processed-count"
+              >
                 <span class="sync-metric-value">{{ syncSummary?.processedFileCount ?? 0 }}</span>
                 <span class="sync-metric-label">Processed Files</span>
               </div>
             </div>
             <div class="col-6 col-xl-3">
-              <div class="sync-metric h-100" data-test="hub-sync-rejection-count">
+              <div
+                class="sync-metric h-100"
+                data-test="hub-sync-rejection-count"
+              >
                 <span class="sync-metric-value text-warning">{{ syncRejections.length }}</span>
                 <span class="sync-metric-label">Ablehnungen</span>
               </div>
             </div>
             <div class="col-6 col-xl-3">
-              <div class="sync-metric h-100" data-test="hub-sync-duplicate-count">
+              <div
+                class="sync-metric h-100"
+                data-test="hub-sync-duplicate-count"
+              >
                 <span class="sync-metric-value text-primary">{{ syncDuplicates.length }}</span>
                 <span class="sync-metric-label">Bereits registriert</span>
               </div>
@@ -135,7 +153,10 @@
                   <td>{{ center.duplicateCount }}</td>
                 </tr>
                 <tr v-if="!syncCenters.length">
-                  <td colspan="6" class="text-center text-muted py-3">
+                  <td
+                    colspan="6"
+                    class="text-center text-muted py-3"
+                  >
                     Keine Zentren im System registriert.
                   </td>
                 </tr>
@@ -145,9 +166,15 @@
 
           <div class="row g-3">
             <div class="col-lg-6">
-              <div class="sync-situation h-100" data-test="hub-sync-rejections">
+              <div
+                class="sync-situation h-100"
+                data-test="hub-sync-rejections"
+              >
                 <h6>Ablehnungskriterien</h6>
-                <ul v-if="syncRejections.length" class="list-unstyled mb-0">
+                <ul
+                  v-if="syncRejections.length"
+                  class="list-unstyled mb-0"
+                >
                   <li
                     v-for="item in syncRejections"
                     :key="`rejected-${item.resourceKind}-${item.resourceId}`"
@@ -159,13 +186,22 @@
                     }}</span>
                   </li>
                 </ul>
-                <p v-else class="text-sm text-muted mb-0">Keine Ablehnungen gemeldet.</p>
+                <p
+                  v-else
+                  class="text-sm text-muted mb-0"
+                >Keine Ablehnungen gemeldet.</p>
               </div>
             </div>
             <div class="col-lg-6">
-              <div class="sync-situation h-100" data-test="hub-sync-duplicates">
+              <div
+                class="sync-situation h-100"
+                data-test="hub-sync-duplicates"
+              >
                 <h6>Bereits registrierte Transfers / Duplikate</h6>
-                <ul v-if="syncDuplicates.length" class="list-unstyled mb-0">
+                <ul
+                  v-if="syncDuplicates.length"
+                  class="list-unstyled mb-0"
+                >
                   <li
                     v-for="item in syncDuplicates"
                     :key="item.transferKey"
@@ -178,7 +214,10 @@
                     </span>
                   </li>
                 </ul>
-                <p v-else class="text-sm text-muted mb-0">
+                <p
+                  v-else
+                  class="text-sm text-muted mb-0"
+                >
                   Keine bereits registrierten Transfers gemeldet.
                 </p>
               </div>
@@ -186,40 +225,61 @@
           </div>
         </section>
 
-        <section class="transfer-monitor mb-4" aria-labelledby="hub-transfer-monitor-title">
+        <section
+          class="transfer-monitor mb-4"
+          aria-labelledby="hub-transfer-monitor-title"
+        >
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
             <div>
-              <h5 id="hub-transfer-monitor-title" class="mb-1">Transferfortschritt</h5>
+              <h5
+                id="hub-transfer-monitor-title"
+                class="mb-1"
+              >Transferfortschritt</h5>
               <p class="text-sm text-muted mb-0">
                 Der Status wird automatisch aktualisiert, solange Übertragungen laufen.
               </p>
             </div>
-            <span class="badge bg-light text-dark" data-test="hub-transfer-refresh-state">
-              {{ needsTransferPolling ? 'Automatische Aktualisierung aktiv' : 'Aktuell' }}
+            <span
+              class="badge bg-light text-dark"
+              data-test="hub-transfer-refresh-state"
+            >
+              {{ refreshStateLabel }}
             </span>
           </div>
 
           <div class="row g-3 mb-3">
             <div class="col-6 col-xl-3">
-              <div class="sync-metric h-100" data-test="hub-transfer-active-count">
+              <div
+                class="sync-metric h-100"
+                data-test="hub-transfer-active-count"
+              >
                 <span class="sync-metric-value text-primary">{{ activeTransferCount }}</span>
                 <span class="sync-metric-label">In Übertragung</span>
               </div>
             </div>
             <div class="col-6 col-xl-3">
-              <div class="sync-metric h-100" data-test="hub-transfer-completed-count">
+              <div
+                class="sync-metric h-100"
+                data-test="hub-transfer-completed-count"
+              >
                 <span class="sync-metric-value text-success">{{ completedTransferCount }}</span>
                 <span class="sync-metric-label">Abgeschlossen</span>
               </div>
             </div>
             <div class="col-6 col-xl-3">
-              <div class="sync-metric h-100" data-test="hub-transfer-attention-count">
+              <div
+                class="sync-metric h-100"
+                data-test="hub-transfer-attention-count"
+              >
                 <span class="sync-metric-value text-warning">{{ attentionTransferCount }}</span>
                 <span class="sync-metric-label">Wartet auf Wiederaufnahme</span>
               </div>
             </div>
             <div class="col-6 col-xl-3">
-              <div class="sync-metric h-100" data-test="hub-transfer-prerequisite-count">
+              <div
+                class="sync-metric h-100"
+                data-test="hub-transfer-prerequisite-count"
+              >
                 <span class="sync-metric-value text-secondary">{{ missingPrerequisiteCount }}</span>
                 <span class="sync-metric-label">Voraussetzungen offen</span>
               </div>
@@ -248,7 +308,11 @@
               ></div>
             </div>
           </div>
-          <p v-else class="text-sm text-muted mb-0" data-test="hub-transfer-empty-monitor">
+          <p
+            v-else
+            class="text-sm text-muted mb-0"
+            data-test="hub-transfer-empty-monitor"
+          >
             Noch keine Ressourcen für die Übertragung markiert.
           </p>
         </section>
@@ -277,11 +341,7 @@
               data-test="hub-export-offload-eligible-videos"
               @click="offloadEligibleVideos"
             >
-              {{
-                offloadingEligibleVideos
-                  ? 'Videos werden eingeplant …'
-                  : 'Alle geeigneten Videos zum Hub übertragen'
-              }}
+              {{ offloadActionLabel }}
             </button>
             <button
               class="btn btn-outline-primary btn-sm"
@@ -289,11 +349,7 @@
               data-test="hub-export-check-readiness-all"
               @click="checkAllVideoReadiness"
             >
-              {{
-                checkingReadiness
-                  ? 'Exportfreigabe wird geprüft …'
-                  : 'Alle Videos auf Exportfreigabe prüfen'
-              }}
+              {{ readinessActionLabel }}
             </button>
             <button
               class="btn btn-outline-success btn-sm"
@@ -321,12 +377,18 @@
         >
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
             <div>
-              <h6 id="hub-export-verification-title" class="mb-1">Freigabeprüfung</h6>
+              <h6
+                id="hub-export-verification-title"
+                class="mb-1"
+              >Freigabeprüfung</h6>
               <p class="text-sm text-muted mb-0">
                 Die Markierung wird serverseitig dem angemeldeten Benutzer zugeordnet.
               </p>
             </div>
-            <span class="badge" :class="verificationBadgeClass">
+            <span
+              class="badge"
+              :class="verificationBadgeClass"
+            >
               {{ verificationLabel }}
             </span>
           </div>
@@ -362,7 +424,7 @@
               :class="privacyBadgeClass(privacySummary.status)"
               data-test="hub-export-privacy-badge"
             >
-              {{ privacyStatusLabel(privacySummary.status) }}
+              {{ privacyVerificationLabel }}
             </span>
           </div>
           <div class="d-flex align-items-center gap-3 flex-wrap text-sm text-muted">
@@ -372,13 +434,19 @@
             </span>
             <span>
               kleinste Gruppe:
-              <span class="fw-semibold text-dark" data-test="hub-export-privacy-smallest-class">
+              <span
+                class="fw-semibold text-dark"
+                data-test="hub-export-privacy-smallest-class"
+              >
                 {{ privacyMetricValue(privacySummary.smallestEquivalenceClassSize) }}
               </span>
             </span>
             <span>
               verletzte Gruppen:
-              <span class="fw-semibold text-dark" data-test="hub-export-privacy-violating-classes">
+              <span
+                class="fw-semibold text-dark"
+                data-test="hub-export-privacy-violating-classes"
+              >
                 {{ privacySummary.violatingEquivalenceClassCount }}
               </span>
             </span>
@@ -392,7 +460,10 @@
           aria-label="Hub-Ressourcen filtern"
         >
           <div class="hub-table-filter-field">
-            <label for="hub-resource-type-filter" class="form-label mb-1">Ressourcentyp</label>
+            <label
+              for="hub-resource-type-filter"
+              class="form-label mb-1"
+            >Ressourcentyp</label>
             <select
               id="hub-resource-type-filter"
               v-model="resourceKindFilter"
@@ -405,7 +476,10 @@
             </select>
           </div>
           <div class="hub-table-filter-field">
-            <label for="hub-storage-state-filter" class="form-label mb-1"> Speicherstatus </label>
+            <label
+              for="hub-storage-state-filter"
+              class="form-label mb-1"
+            > Speicherstatus </label>
             <select
               id="hub-storage-state-filter"
               v-model="physicalStorageStateFilter"
@@ -417,7 +491,10 @@
               <option value="missing">Anonymisiertes Dokument fehlt</option>
             </select>
           </div>
-          <div class="hub-table-filter-summary" aria-live="polite">
+          <div
+            class="hub-table-filter-summary"
+            aria-live="polite"
+          >
             {{ filteredItems.length }} von {{ hubExportStore.items.length }} Ressourcen
           </div>
           <button
@@ -431,20 +508,15 @@
           </button>
         </div>
 
-        <div v-if="!filteredItems.length && !hubExportStore.loading" class="text-center py-5">
+        <div
+          v-if="!filteredItems.length && !hubExportStore.loading"
+          class="text-center py-5"
+        >
           <h5 class="text-muted">
-            {{
-              hubExportStore.items.length
-                ? 'Keine passenden Ressourcen'
-                : 'Keine exportierbaren Ressourcen'
-            }}
+            {{ emptyState.heading }}
           </h5>
           <p class="text-muted mb-3">
-            {{
-              hubExportStore.items.length
-                ? 'Die gewählten Filter liefern keine Tabellenzeilen.'
-                : 'Es sind aktuell keine anonymisierten Ressourcen für den Hub-Export verfügbar.'
-            }}
+            {{ emptyState.description }}
           </p>
           <button
             v-if="hubExportStore.items.length"
@@ -456,7 +528,10 @@
           </button>
         </div>
 
-        <div v-else class="table-responsive">
+        <div
+          v-else
+          class="table-responsive"
+        >
           <table class="table table-hover">
             <thead class="table-light">
               <tr>
@@ -484,7 +559,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in filteredItems" :key="`${item.resourceKind}-${item.id}`">
+              <tr
+                v-for="item in filteredItems"
+                :key="`${item.resourceKind}-${item.id}`"
+              >
                 <td class="readiness-action-cell">
                   <button
                     v-if="item.resourceKind === 'video'"
@@ -493,16 +571,12 @@
                     :data-test="`hub-export-check-readiness-video-${item.id}`"
                     @click="checkVideoReadiness(item)"
                   >
-                    {{
-                      item.exportIntegrityStatus === 'persisted_verified' ||
-                      item.exportIntegrityStatus === 'verified'
-                        ? 'Freigegeben'
-                        : checkingVideoIds.has(item.id)
-                          ? 'Prüft …'
-                          : 'Exportfreigabe prüfen'
-                    }}
+                    {{ videoReadinessLabel(item) }}
                   </button>
-                  <span v-else class="text-muted">-</span>
+                  <span
+                    v-else
+                    class="text-muted"
+                  >-</span>
                 </td>
                 <td>
                   <input
@@ -524,7 +598,10 @@
                   </span>
                 </td>
                 <td>
-                  <span class="badge" :class="statusBadgeClass(item.anonymizationStatus)">
+                  <span
+                    class="badge"
+                    :class="statusBadgeClass(item.anonymizationStatus)"
+                  >
                     {{ statusLabel(item.anonymizationStatus) }}
                   </span>
                 </td>
@@ -536,7 +613,10 @@
                   >
                     {{ segmentStatusLabel(item.segmentAnnotationStatus) }}
                   </span>
-                  <span v-else class="text-muted">Nicht zutreffend</span>
+                  <span
+                    v-else
+                    class="text-muted"
+                  >Nicht zutreffend</span>
                 </td>
                 <td :data-test="`hub-export-integrity-status-${item.resourceKind}-${item.id}`">
                   <span
@@ -563,7 +643,10 @@
                 <td :data-test="`hub-export-marker-${item.resourceKind}-${item.id}`">
                   <template v-if="item.markedForUpload">
                     <span class="d-block">{{ item.markedByUsername || 'unbekannt' }}</span>
-                    <span v-if="item.markedAt" class="text-xs text-muted">
+                    <span
+                      v-if="item.markedAt"
+                      class="text-xs text-muted"
+                    >
                       {{ formatTimestamp(item.markedAt) }}
                     </span>
                   </template>
@@ -644,6 +727,22 @@ const resourceKindFilter = ref<'all' | HubExportItem['resourceKind']>('all')
 type PhysicalStorageStateFilter = 'all' | 'present' | 'missing'
 const physicalStorageStateFilter = ref<PhysicalStorageStateFilter>('all')
 
+const operationError = computed(() => hubExportStore.mutationError || hubExportStore.error)
+const configurationMessage = computed(
+  () => hubExportStore.configError ||
+    'Es wird ein aktiver Site-Node und genau ein aktiver Central-Hub-Node benötigt.'
+)
+const emptyState = computed(() => hubExportStore.items.length
+  ? {
+      heading: 'Keine passenden Ressourcen',
+      description: 'Die gewählten Filter liefern keine Tabellenzeilen.'
+    }
+  : {
+      heading: 'Keine exportierbaren Ressourcen',
+      description: 'Es sind aktuell keine anonymisierten Ressourcen für den Hub-Export verfügbar.'
+    }
+)
+
 const ACTIVE_TRANSFER_STATUSES = new Set([
   'marked',
   'queued',
@@ -691,7 +790,9 @@ const requirementLabel = (reason?: string) => {
 const transferStage = (item: HubExportItem): TransferStage => {
   const normalizedStatus = item.outboundStatus.trim().toLowerCase()
   const knownStage = TRANSFER_STAGES[normalizedStatus]
-  if (knownStage) return knownStage
+  if (knownStage) {
+    return knownStage
+  }
   if (!item.eligible) {
     return { progress: 0, label: 'Voraussetzung offen', barClass: 'bg-secondary' }
   }
@@ -700,7 +801,9 @@ const transferStage = (item: HubExportItem): TransferStage => {
 
 const formatTimestamp = (value: string) => {
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'short',
     timeStyle: 'short'
@@ -722,7 +825,9 @@ const itemNotice = (item: HubExportItem) => {
     const failureLabel = failureClassLabel(item.failureClass)
     return `${failureLabel ? `${failureLabel}. ` : ''}${item.lastError}`
   }
-  if (item.blockedReason) return requirementLabel(item.blockedReason)
+  if (item.blockedReason) {
+    return requirementLabel(item.blockedReason)
+  }
   if (COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus)) {
     return item.lastTransferTimestamp
       ? `Abgeschlossen am ${formatTimestamp(item.lastTransferTimestamp)}`
@@ -769,6 +874,9 @@ const activeTransferCount = computed(
 const needsTransferPolling = computed(
   () => activeTransferCount.value > 0 || transferItems.value.some(item => item.outboundStatus === 'failed')
 )
+const refreshStateLabel = computed(() =>
+  needsTransferPolling.value ? 'Automatische Aktualisierung aktiv' : 'Aktuell'
+)
 const completedTransferCount = computed(
   () =>
     transferItems.value.filter((item) => COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus))
@@ -783,7 +891,9 @@ const missingPrerequisiteCount = computed(
   () => hubExportStore.items.filter((item) => !item.eligible && !item.markedForUpload).length
 )
 const overallTransferProgress = computed(() => {
-  if (!transferItems.value.length) return 0
+  if (!transferItems.value.length) {
+    return 0
+  }
   const total = transferItems.value.reduce((sum, item) => sum + transferStage(item).progress, 0)
   return Math.round(total / transferItems.value.length)
 })
@@ -791,7 +901,9 @@ const overallTransferProgress = computed(() => {
 const privacySummary = computed(() => hubExportStore.privacySummary)
 const currentUsername = computed(() => authStore.user?.username.trim() || 'nicht verfügbar')
 const privacyVerificationLabel = computed(() => {
-  if (!privacySummary.value) return 'nicht verfügbar'
+  if (!privacySummary.value) {
+    return 'nicht verfügbar'
+  }
   return privacyStatusLabel(privacySummary.value.status)
 })
 const verificationReady = computed(
@@ -808,16 +920,31 @@ const verificationBadgeClass = computed(() =>
   verificationReady.value ? 'bg-success' : 'bg-warning text-dark'
 )
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible))
+const hasVerifiedIntegrity = (item: HubExportItem) =>
+  item.exportIntegrityStatus === 'persisted_verified' || item.exportIntegrityStatus === 'verified'
+const videoReadinessLabel = (item: HubExportItem) => {
+  if (hasVerifiedIntegrity(item)) {
+    return 'Freigegeben'
+  }
+  return checkingVideoIds.value.has(item.id) ? 'Prüft …' : 'Exportfreigabe prüfen'
+}
 const canCheckReadiness = (item: HubExportItem) =>
   item.resourceKind === 'video' &&
   Boolean(item.sourceCenterKey) &&
   item.processedMediaPresent &&
-  item.exportIntegrityStatus !== 'persisted_verified' &&
-  item.exportIntegrityStatus !== 'verified'
+  !hasVerifiedIntegrity(item)
 const readinessCandidates = computed(() =>
   hubExportStore.items.filter((item) => canCheckReadiness(item))
 )
 const checkingReadiness = computed(() => checkingVideoIds.value.size > 0)
+const offloadActionLabel = computed(() => offloadingEligibleVideos.value
+  ? 'Videos werden eingeplant …'
+  : 'Alle geeigneten Videos zum Hub übertragen'
+)
+const readinessActionLabel = computed(() => checkingReadiness.value
+  ? 'Exportfreigabe wird geprüft …'
+  : 'Alle Videos auf Exportfreigabe prüfen'
+)
 const bulkOffloadCandidateCount = computed(
   () =>
     hubExportStore.items.filter(
@@ -910,7 +1037,9 @@ const offloadEligibleVideos = async () => {
 
 const retryFailedTransfer = async (item: HubExportItem) => {
   const jobId = item.outboundJobId
-  if (!jobId || retryingJobIds.value.has(jobId)) return
+  if (!jobId || retryingJobIds.value.has(jobId)) {
+    return
+  }
   retryingJobIds.value = new Set(retryingJobIds.value).add(jobId)
   try {
     await hubExportStore.retryFailedJob(jobId)
@@ -928,7 +1057,9 @@ const checkReadiness = async (items: HubExportItem[]) => {
     (item): item is HubExportItem & { sourceCenterKey: string } =>
       canCheckReadiness(item) && Boolean(item.sourceCenterKey)
   )
-  if (!candidates.length) return
+  if (!candidates.length) {
+    return
+  }
   checkingVideoIds.value = new Set(candidates.map((item) => item.id))
   try {
     await hubExportStore.checkVideoExportReadiness(
@@ -1014,8 +1145,12 @@ const integrityStatusLabel = (status: HubExportIntegrityStatus) => {
 }
 
 const integrityStatusBadgeClass = (status: HubExportIntegrityStatus) => {
-  if (status === 'persisted_verified' || status === 'verified') return 'bg-success'
-  if (status === 'not_ready') return 'bg-secondary'
+  if (status === 'persisted_verified' || status === 'verified') {
+    return 'bg-success'
+  }
+  if (status === 'not_ready') {
+    return 'bg-secondary'
+  }
   return 'bg-warning text-dark'
 }
 
@@ -1047,24 +1182,34 @@ const stopPolling = () => {
 }
 
 const startPolling = () => {
-  if (pollingTimer.value !== null) return
+  if (pollingTimer.value !== null) {
+    return
+  }
   pollingTimer.value = setInterval(() => {
-    if (!hubExportStore.loading) void refreshOverview()
+    if (!hubExportStore.loading) {
+      void refreshOverview()
+    }
   }, 5000)
 }
 
 watch(
   () => hubExportStore.selectedTargetNodeKey,
   (next) => {
-    if (next) selectedTargetNodeKey.value = next
+    if (next) {
+      selectedTargetNodeKey.value = next
+    }
   }
 )
 
 watch(
   needsTransferPolling,
   (needsPolling) => {
-    if (needsPolling) startPolling()
-    else stopPolling()
+    if (needsPolling) {
+      startPolling()
+    }
+    else {
+      stopPolling()
+    }
   },
   { immediate: true }
 )

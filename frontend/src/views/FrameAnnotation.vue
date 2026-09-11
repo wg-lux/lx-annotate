@@ -34,8 +34,14 @@
           <template v-if="queueStore.aiDatasetId"> · ID {{ queueStore.aiDatasetId }}</template>
         </p>
       </div>
-      <div v-if="advancedQueueSettingsOpen" class="col-12 col-md-6 col-lg-4">
-        <label for="ai-dataset-id" class="form-label">Datensatz</label>
+      <div
+        v-if="advancedQueueSettingsOpen"
+        class="col-12 col-md-6 col-lg-4"
+      >
+        <label
+          for="ai-dataset-id"
+          class="form-label"
+        >Datensatz</label>
         <select
           id="ai-dataset-id"
           v-model="selectedAiDatasetId"
@@ -52,20 +58,32 @@
             {{ datasetOption.label }} · {{ datasetOption.datasetType }} · ID {{ datasetOption.id }}
           </option>
         </select>
-        <small v-if="isPatienteninformationenDatasetSelected" class="text-warning d-block mt-1">
+        <small
+          v-if="isPatienteninformationenDatasetSelected"
+          class="text-warning d-block mt-1"
+        >
           Patienteninformationen-Datensätze verwenden nur Frames aus Videos mit vorhandenem
           Rohmaterial. Bereits zugeschnittene oder nur noch anonymisiert vorliegende Videos werden
           ausgeschlossen.
         </small>
-        <small v-else class="text-muted d-block mt-1">
+        <small
+          v-else
+          class="text-muted d-block mt-1"
+        >
           Steuert, aus welchem KI-Datensatz die Frame-Warteschlange gezogen wird.
         </small>
-        <small v-if="aiDatasetLoadError" class="text-danger d-block mt-1">
+        <small
+          v-if="aiDatasetLoadError"
+          class="text-danger d-block mt-1"
+        >
           {{ aiDatasetLoadError }}
         </small>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
-        <label for="label-group-id" class="form-label">Label-Gruppe</label>
+        <label
+          for="label-group-id"
+          class="form-label"
+        >Label-Gruppe</label>
         <select
           v-if="labelGroupOptions.length > 0"
           id="label-group-id"
@@ -73,7 +91,11 @@
           class="form-select"
         >
           <option value="">Label-Gruppe auswählen</option>
-          <option v-for="group in labelGroupOptions" :key="group.id" :value="group.id">
+          <option
+            v-for="group in labelGroupOptions"
+            :key="group.id"
+            :value="group.id"
+          >
             {{ group.displayName }} (ID: {{ group.id }})
           </option>
         </select>
@@ -91,42 +113,80 @@
             :disabled="isLoadingLabelGroups"
             @click="loadLabelGroups"
           >
-            {{ isLoadingLabelGroups ? 'Gruppen werden geladen...' : 'Gruppen neu laden' }}
+            {{ reloadGroupsLabel }}
           </button>
-          <small v-if="labelGroupOptions.length > 0" class="text-muted">
+          <small
+            v-if="labelGroupOptions.length > 0"
+            class="text-muted"
+          >
             {{ labelGroupOptions.length }} Gruppe(n) verfügbar
           </small>
-          <small v-else class="text-muted">
+          <small
+            v-else
+            class="text-muted"
+          >
             Keine Gruppen gefunden. Sie können eine Gruppen-ID manuell eingeben.
           </small>
         </div>
-        <small v-if="labelGroupLoadError" class="text-danger d-block mt-1">
+        <small
+          v-if="labelGroupLoadError"
+          class="text-danger d-block mt-1"
+        >
           {{ labelGroupLoadError }}
         </small>
       </div>
-      <div v-if="advancedQueueSettingsOpen" class="col-12 col-md-6 col-lg-4">
-        <label for="task-mode" class="form-label">Aufgabenquelle</label>
-        <select id="task-mode" v-model="taskMode" class="form-select">
+      <div
+        v-if="advancedQueueSettingsOpen"
+        class="col-12 col-md-6 col-lg-4"
+      >
+        <label
+          for="task-mode"
+          class="form-label"
+        >Aufgabenquelle</label>
+        <select
+          id="task-mode"
+          v-model="taskMode"
+          class="form-select"
+        >
           <option value="random">Zufällige Frames</option>
           <option value="filtered">Nach vorherigem Label gefiltert</option>
         </select>
-        <small v-if="taskMode === 'random'" class="text-muted d-block mt-1">
+        <small
+          v-if="taskMode === 'random'"
+          class="text-muted d-block mt-1"
+        >
           Zufallsmodus ist aktiv.
         </small>
       </div>
-      <div v-if="advancedQueueSettingsOpen" class="col-12 col-md-6 col-lg-4">
-        <label for="frame-file-type" class="form-label">Frame-Quelle</label>
-        <select id="frame-file-type" v-model="frameFileType" class="form-select">
+      <div
+        v-if="advancedQueueSettingsOpen"
+        class="col-12 col-md-6 col-lg-4"
+      >
+        <label
+          for="frame-file-type"
+          class="form-label"
+        >Frame-Quelle</label>
+        <select
+          id="frame-file-type"
+          v-model="frameFileType"
+          class="form-select"
+        >
           <option value="auto">Automatisch</option>
           <option value="processed">Verarbeitet</option>
           <option value="raw">Rohmaterial</option>
         </select>
-        <small v-if="isPhiRegionMode || isPhiDatasetSelected" class="text-warning d-block mt-1">
+        <small
+          v-if="isPhiRegionMode || isPhiDatasetSelected"
+          class="text-warning d-block mt-1"
+        >
           Patienteninformationen-Regionen verwenden Rohmaterial.
         </small>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
-        <label for="target-label-name" class="form-label">Zu annotierendes Label</label>
+        <label
+          for="target-label-name"
+          class="form-label"
+        >Zu annotierendes Label</label>
         <input
           id="target-label-name"
           v-model.lazy="targetLabelName"
@@ -135,9 +195,19 @@
           placeholder="Optional, z. B. polyp"
         />
       </div>
-      <div v-if="advancedQueueSettingsOpen" class="col-12 col-md-6 col-lg-4">
-        <label for="information-source" class="form-label">Informationsquelle</label>
-        <select id="information-source" v-model.lazy="informationSource" class="form-control">
+      <div
+        v-if="advancedQueueSettingsOpen"
+        class="col-12 col-md-6 col-lg-4"
+      >
+        <label
+          for="information-source"
+          class="form-label"
+        >Informationsquelle</label>
+        <select
+          id="information-source"
+          v-model.lazy="informationSource"
+          class="form-control"
+        >
           <option value="manual_annotation">Manuelle Annotation</option>
           <option value="frame_annotation_frontend">Frame-Annotation Frontend</option>
           <option value="human_annotation">Menschliche Annotation</option>
@@ -152,14 +222,20 @@
           :aria-expanded="advancedQueueSettingsOpen"
           @click="advancedQueueSettingsOpen = !advancedQueueSettingsOpen"
         >
-          {{ advancedQueueSettingsOpen ? 'Weniger Einstellungen' : 'Erweiterte Einstellungen' }}
+          {{ advancedSettingsLabel }}
         </button>
         <small class="text-muted ms-2">
           Datensatz, Aufgabenquelle, Frame-Quelle und Informationsquelle
         </small>
       </div>
-      <div v-if="canOverrideAnnotationPrincipal" class="col-12 col-lg-8">
-        <label for="frame-annotator-override" class="form-label">Annotator-Scope</label>
+      <div
+        v-if="canOverrideAnnotationPrincipal"
+        class="col-12 col-lg-8"
+      >
+        <label
+          for="frame-annotator-override"
+          class="form-label"
+        >Annotator-Scope</label>
         <div class="d-flex flex-wrap gap-2">
           <input
             id="frame-annotator-override"
@@ -191,12 +267,22 @@
         </div>
         <small class="text-muted d-block mt-1">Aktiver Annotator: {{ activeAnnotatorLabel }}</small>
       </div>
-      <div v-else class="col-12 col-lg-8" data-test="annotator-identity-readonly">
+      <div
+        v-else
+        class="col-12 col-lg-8"
+        data-test="annotator-identity-readonly"
+      >
         <span class="form-label d-block">Annotator</span>
         <small class="text-muted">Servergebundene Identität: {{ baseAnnotatorPrincipal }}</small>
       </div>
-      <div v-if="taskMode === 'filtered'" class="col-12 col-md-6 col-lg-4">
-        <label for="filter-label-name" class="form-label">Nach vorherigem Label filtern</label>
+      <div
+        v-if="taskMode === 'filtered'"
+        class="col-12 col-md-6 col-lg-4"
+      >
+        <label
+          for="filter-label-name"
+          class="form-label"
+        >Nach vorherigem Label filtern</label>
         <input
           id="filter-label-name"
           v-model.lazy="filterLabelName"
@@ -205,7 +291,10 @@
           placeholder="z. B. Blut"
         />
       </div>
-      <div v-if="taskMode === 'filtered'" class="col-12 col-md-6 col-lg-4 d-flex align-items-end">
+      <div
+        v-if="taskMode === 'filtered'"
+        class="col-12 col-md-6 col-lg-4 d-flex align-items-end"
+      >
         <div class="form-check mb-2">
           <input
             id="random-fallback"
@@ -213,7 +302,10 @@
             class="form-check-input"
             type="checkbox"
           />
-          <label class="form-check-label" for="random-fallback">
+          <label
+            class="form-check-label"
+            for="random-fallback"
+          >
             Auf zufällige Frames zurückfallen, wenn der Filter keine Treffer liefert
           </label>
         </div>
@@ -224,16 +316,28 @@
       <div class="col-12 col-xl-8">
         <div class="card frame-card">
           <div class="card-body">
-            <div v-if="isLoadingTask" class="text-muted">Aufgabe wird geladen...</div>
-            <div v-else-if="!currentTask" class="text-muted">
+            <div
+              v-if="isLoadingTask"
+              class="text-muted"
+            >Aufgabe wird geladen...</div>
+            <div
+              v-else-if="!currentTask"
+              class="text-muted"
+            >
               Keine Annotationsaufgaben verfügbar.
             </div>
             <template v-else>
               <div class="task-meta mb-2">
-                <span class="badge bg-light text-dark me-2" data-test="frame-number-badge">
+                <span
+                  class="badge bg-light text-dark me-2"
+                  data-test="frame-number-badge"
+                >
                   Frame {{ currentTask.data.frameNumber ?? 'n/a' }}
                 </span>
-                <span class="badge bg-light text-dark me-2" data-test="frame-id-badge">
+                <span
+                  class="badge bg-light text-dark me-2"
+                  data-test="frame-id-badge"
+                >
                   Frame-ID {{ currentTask.data.frameId }}
                 </span>
                 <span
@@ -298,7 +402,10 @@
                     Erneut versuchen
                   </button>
                 </div>
-                <div class="box-annotation-layer" aria-hidden="true">
+                <div
+                  class="box-annotation-layer"
+                  aria-hidden="true"
+                >
                   <div
                     v-for="box in boxAnnotations"
                     :key="box.clientId"
@@ -307,7 +414,7 @@
                     :style="boxAnnotationStyle(box)"
                     @pointerdown.stop="activeBoxClientId = box.clientId"
                   >
-                    <span>{{ box.labelName }}</span>
+                    <span class="box-annotation-rect__label">{{ box.labelName }}</span>
                   </div>
                   <div
                     v-if="draftBox"
@@ -327,10 +434,16 @@
                     KI-Vorschlag übernehmen
                   </button>
                 </div>
-                <div v-if="annotationLabelOptions.length === 0" class="text-muted">
+                <div
+                  v-if="annotationLabelOptions.length === 0"
+                  class="text-muted"
+                >
                   Keine Labels für diese Frame-Aufgabe verfügbar.
                 </div>
-                <div v-else class="label-grid">
+                <div
+                  v-else
+                  class="label-grid"
+                >
                   <label
                     v-for="label in annotationLabelOptions"
                     :key="label.id"
@@ -426,7 +539,10 @@
                 </div>
                 <div class="row g-2 align-items-end mb-3">
                   <div class="col-12 col-md-6">
-                    <label for="box-label-id" class="form-label">Box-Label</label>
+                    <label
+                      for="box-label-id"
+                      class="form-label"
+                    >Box-Label</label>
                     <select
                       id="box-label-id"
                       v-model.number="selectedBoxLabelId"
@@ -449,7 +565,10 @@
                     >
                       Boxen werden als {{ phiRegionBoxLabel.name }} gespeichert.
                     </small>
-                    <small v-else-if="isPhiRegionBoxLabelMissing" class="text-danger d-block mt-1">
+                    <small
+                      v-else-if="isPhiRegionBoxLabelMissing"
+                      class="text-danger d-block mt-1"
+                    >
                       Label {{ PHI_REGION_LABEL_NAME }} fehlt in dieser Label-Gruppe.
                     </small>
                   </div>
@@ -458,13 +577,19 @@
                       <span class="badge bg-light text-dark">
                         {{ boxAnnotations.length }} Box(en)
                       </span>
-                      <span v-if="isLoadingBoxAnnotations" class="badge bg-light text-dark">
+                      <span
+                        v-if="isLoadingBoxAnnotations"
+                        class="badge bg-light text-dark"
+                      >
                         Boxen werden geladen
                       </span>
                     </div>
                   </div>
                 </div>
-                <div v-if="boxAnnotations.length > 0" class="box-annotation-list mb-3">
+                <div
+                  v-if="boxAnnotations.length > 0"
+                  class="box-annotation-list mb-3"
+                >
                   <div
                     v-for="box in boxAnnotations"
                     :key="`list-${box.clientId}`"
@@ -488,7 +613,10 @@
                     </button>
                   </div>
                 </div>
-                <small v-if="boxAnnotationError" class="text-danger d-block mb-3">
+                <small
+                  v-if="boxAnnotationError"
+                  class="text-danger d-block mb-3"
+                >
                   {{ boxAnnotationError }}
                 </small>
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
@@ -550,10 +678,16 @@
                       />
                       <span class="form-check-label">{{ field.label }}</span>
                     </div>
-                    <small v-if="field.labelName" class="text-muted">
+                    <small
+                      v-if="field.labelName"
+                      class="text-muted"
+                    >
                       {{ field.labelName }}
                     </small>
-                    <span v-else class="badge bg-warning-subtle text-warning-emphasis">
+                    <span
+                      v-else
+                      class="badge bg-warning-subtle text-warning-emphasis"
+                    >
                       Label fehlt
                     </span>
                   </label>
@@ -610,7 +744,11 @@
         </div>
       </div>
       <div class="col-12">
-        <div v-if="visibleErrorMessage" class="alert alert-danger mb-0" role="alert">
+        <div
+          v-if="visibleErrorMessage"
+          class="alert alert-danger mb-0"
+          role="alert"
+        >
           {{ visibleErrorMessage }}
         </div>
       </div>
@@ -631,6 +769,7 @@ import {
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import { endpoints } from '@/types/api/endpoints'
 import { useAnnotationQueueStore } from '@/stores/annotationQueue'
+import { requireDecodedFrameUrl } from '@/utils/frameStreams'
 import { useAuthKcStore } from '@/stores/auth_kc'
 import {
   clearAnnotatorOverride,
@@ -679,7 +818,9 @@ interface FrameAnnotationApiError {
 function frameAnnotationErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError<FrameAnnotationApiError>(error)) {
     const response = error.response
-    if (!response) return error.message || fallback
+    if (!response) {
+      return error.message || fallback
+    }
     return response.data.detail || response.data.error || error.message || fallback
   }
   return error instanceof Error && error.message ? error.message : fallback
@@ -803,6 +944,13 @@ const prefetchedFrameImages = new Map<string, Blob>()
 let isReloadingAnnotationQueue = false
 let isBootstrappingAnnotationQueue = true
 
+const reloadGroupsLabel = computed(() =>
+  isLoadingLabelGroups.value ? 'Gruppen werden geladen...' : 'Gruppen neu laden'
+)
+const advancedSettingsLabel = computed(() =>
+  advancedQueueSettingsOpen.value ? 'Weniger Einstellungen' : 'Erweiterte Einstellungen'
+)
+
 const selectedLabelGroupId = computed({
   get: () => queueStore.selectedLabelGroupId ?? '',
   set: (value: string) => { queueStore.setSelectedLabelGroupId(value.trim() || null) }
@@ -834,7 +982,9 @@ const selectedAiDatasetId = computed({
       const selectedById = aiDatasetOptions.value.find(
         (dataset) => String(dataset.id) === queueStore.aiDatasetId
       )
-      if (selectedById) return String(selectedById.id)
+      if (selectedById) {
+        return String(selectedById.id)
+      }
     }
     const match = aiDatasetOptions.value.find(
       (dataset) =>
@@ -917,11 +1067,13 @@ const canSubmitFrame = computed(
 )
 const frameImageStatusMessage = computed(() => {
   if (frameImageLoadState.value === 'pending') {
-    return `Frame wird extrahiert... automatischer Versuch ${String(frameImageRetryCount.value)}/${String(FRAME_IMAGE_RETRY_LIMIT)}`
+    return `Frame wird geladen... automatischer Versuch ${String(frameImageRetryCount.value)}/${String(FRAME_IMAGE_RETRY_LIMIT)}`
   }
   if (frameImageLoadState.value === 'failed') {
     const detailMessage = errorMessage.value?.trim()
-    if (detailMessage) return detailMessage
+    if (detailMessage) {
+      return detailMessage
+    }
     if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
       return 'Frame ist noch nicht verfügbar. Automatische Versuche sind beendet.'
     }
@@ -1038,9 +1190,13 @@ function normalizeAnonymizerLabelName(value: string): string {
 function findLabelByAliases(aliases: string[]): { id: number; name: string } | null {
   for (const alias of aliases) {
     const normalizedAlias = normalizeAnonymizerLabelName(alias)
-    if (!normalizedAlias) continue
+    if (!normalizedAlias) {
+      continue
+    }
     const label = labelOptionByNormalizedName.value.get(normalizedAlias)
-    if (label) return label
+    if (label) {
+      return label
+    }
   }
   return null
 }
@@ -1067,14 +1223,18 @@ function setLabelSelection(labelId: number, selected: boolean): void {
 
 function setAnonymizerFieldSelected(fieldKey: string, selected: boolean): void {
   const field = anonymizerFieldRows.value.find((row) => row.key === fieldKey)
-  if (field?.labelId === null || field?.labelId === undefined) return
+  if (field?.labelId === null || field?.labelId === undefined) {
+    return
+  }
   setLabelSelection(field.labelId, selected)
 }
 
 function setAnonymizerFields(rows: AnonymizerFieldRow[], selected: boolean): void {
   const nextSelection = new Set(selectedLabelIds.value)
   for (const field of rows) {
-    if (field.labelId === null) continue
+    if (field.labelId === null) {
+      continue
+    }
     if (selected) {
       nextSelection.add(field.labelId)
     } else {
@@ -1111,7 +1271,9 @@ function usePhiRegionAnnotationPreset(): void {
 }
 
 function applyRoutePreset(): void {
-  if (!routePhiRegionMode.value) return
+  if (!routePhiRegionMode.value) {
+    return
+  }
 
   const queryTaskMode = initialRouteQuery.get('taskMode')
   const queryTargetLabel = initialRouteQuery.get('targetLabel')?.trim()
@@ -1159,7 +1321,9 @@ function clearFrameImageRetryTimer(): void {
 }
 
 function revokeFrameImageObjectUrl(): void {
-  if (frameImageObjectUrl === null) return
+  if (frameImageObjectUrl === null) {
+    return
+  }
   if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
     URL.revokeObjectURL(frameImageObjectUrl)
   }
@@ -1194,7 +1358,9 @@ function resetFrameImageState(task: typeof currentTask.value): void {
 }
 
 function syncFrameImageMetrics(): void {
-  if (!frameImageElement.value) return
+  if (!frameImageElement.value) {
+    return
+  }
   cancelBoxDraft()
 }
 
@@ -1231,7 +1397,9 @@ function handleFrameImageError(): void {
 }
 
 function retryFrameImage(): void {
-  if (!currentTask.value) return
+  if (!currentTask.value) {
+    return
+  }
   clearFrameImageRetryTimer()
   frameImageRetryCount.value = 0
   clearFrameImageRequestUrl()
@@ -1264,7 +1432,9 @@ function readBlobText(blob: Blob): Promise<string> {
 
 function requestFrameImage(url: string): Promise<AxiosResponse<Blob>> {
   const existingRequest = frameImageRequestsInFlight.get(url)
-  if (existingRequest) return existingRequest
+  if (existingRequest) {
+    return existingRequest
+  }
 
   const request = frameImageRequestTail
     .catch(() => undefined)
@@ -1272,7 +1442,7 @@ function requestFrameImage(url: string): Promise<AxiosResponse<Blob>> {
       if (!frameImageRequestsEnabled) {
         throw new Error('Frame image requests have stopped.')
       }
-      return axiosInstance.get<Blob>(url, {
+      return axiosInstance.get<Blob>(requireDecodedFrameUrl(url), {
         responseType: 'blob',
         validateStatus: () => true
       })
@@ -1308,15 +1478,21 @@ function clearPrefetchedFrameImages(): void {
 
 function takePrefetchedFrameImage(url: string): Blob | null {
   const blob = prefetchedFrameImages.get(url) ?? null
-  if (blob) prefetchedFrameImages.delete(url)
+  if (blob) {
+    prefetchedFrameImages.delete(url)
+  }
   return blob
 }
 
 function prefetchNextFrameImage(): void {
   const nextTask = queueStore.taskQueue.at(0)
   const nextUrl = nextTask?.data.imageUrl
-  if (!nextUrl || nextUrl === currentTask.value?.data.imageUrl) return
-  if (prefetchedFrameImages.has(nextUrl)) return
+  if (!nextUrl || nextUrl === currentTask.value?.data.imageUrl) {
+    return
+  }
+  if (prefetchedFrameImages.has(nextUrl)) {
+    return
+  }
 
   const querySignature = queueStore.taskQuerySignature
   void requestFrameImage(nextUrl)
@@ -1329,10 +1505,14 @@ function prefetchNextFrameImage(): void {
         return
       }
       const blob = responseImageBlob(response)
-      if (!blob) return
+      if (!blob) {
+        return
+      }
       while (prefetchedFrameImages.size >= FRAME_IMAGE_PREFETCH_LIMIT) {
         const oldestUrl: unknown = prefetchedFrameImages.keys().next().value
-        if (typeof oldestUrl !== 'string') break
+        if (typeof oldestUrl !== 'string') {
+          break
+        }
         prefetchedFrameImages.delete(oldestUrl)
       }
       prefetchedFrameImages.set(nextUrl, blob)
@@ -1343,7 +1523,9 @@ function prefetchNextFrameImage(): void {
 async function extractPendingMessage(blob: Blob): Promise<string | null> {
   try {
     const text = await readBlobText(blob)
-    if (!text) return null
+    if (!text) {
+      return null
+    }
     const payload = JSON.parse(text) as Record<string, unknown>
     const status = typeof payload.status === 'string' ? payload.status : null
     if (status === 'frame_extraction_failed') {
@@ -1429,10 +1611,14 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
     }
 
     const response = await requestFrameImage(task.data.imageUrl)
-    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
+    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) {
+      return
+    }
     await handleFrameImageResponse(task, response)
   } catch (error: unknown) {
-    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) return
+    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) {
+      return
+    }
     const detail = error instanceof Error && error.message.trim() ? ` ${error.message.trim()}` : ''
     errorMessage.value = `Frame-Anfrage wurde im Browser abgebrochen oder ist fehlgeschlagen.${detail}`
     frameImageLoadState.value = 'failed'
@@ -1441,9 +1627,13 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
 
 function imagePointFromPointerEvent(event: PointerEvent): FrameImagePoint | null {
   const image = frameImageElement.value
-  if (!image || image.naturalWidth <= 0 || image.naturalHeight <= 0) return null
+  if (!image || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+    return null
+  }
   const rect = image.getBoundingClientRect()
-  if (rect.width <= 0 || rect.height <= 0) return null
+  if (rect.width <= 0 || rect.height <= 0) {
+    return null
+  }
 
   const displayX = clampFrameCoordinate(event.clientX - rect.left, 0, rect.width)
   const displayY = clampFrameCoordinate(event.clientY - rect.top, 0, rect.height)
@@ -1459,7 +1649,9 @@ function buildBoxDraft(
   start: FrameImagePoint,
   current: FrameImagePoint
 ): FrameBoxAnnotationDraft | null {
-  if (!currentTask.value || !selectedBoxLabel.value) return null
+  if (!currentTask.value || !selectedBoxLabel.value) {
+    return null
+  }
   return createFrameBoxDraft(start, current, {
     frameId: currentTask.value.data.frameId,
     label: selectedBoxLabel.value,
@@ -1469,35 +1661,51 @@ function buildBoxDraft(
 }
 
 function startBoxDraft(event: PointerEvent): void {
-  if (!selectedBoxLabel.value || isSavingBoxAnnotations.value) return
+  if (!selectedBoxLabel.value || isSavingBoxAnnotations.value) {
+    return
+  }
   const point = imagePointFromPointerEvent(event)
-  if (!point) return
+  if (!point) {
+    return
+  }
   boxDraftStart = point
   draftBox.value = buildBoxDraft(point, point)
   boxAnnotationError.value = null
   const target = event.currentTarget as HTMLElement | null
-      if (target) target.setPointerCapture(event.pointerId)
+      if (target) {
+        target.setPointerCapture(event.pointerId)
+      }
   event.preventDefault()
 }
 
 function updateBoxDraft(event: PointerEvent): void {
-  if (!boxDraftStart) return
+  if (!boxDraftStart) {
+    return
+  }
   const point = imagePointFromPointerEvent(event)
-  if (!point) return
+  if (!point) {
+    return
+  }
   draftBox.value = buildBoxDraft(boxDraftStart, point)
   event.preventDefault()
 }
 
 function finishBoxDraft(event?: PointerEvent): void {
-  if (!boxDraftStart || !draftBox.value) return
+  if (!boxDraftStart || !draftBox.value) {
+    return
+  }
   const finishedBox = draftBox.value
   boxDraftStart = null
   draftBox.value = null
   if (event) {
     const target = event.currentTarget as HTMLElement | null
-    if (target) target.releasePointerCapture(event.pointerId)
+    if (target) {
+      target.releasePointerCapture(event.pointerId)
+    }
   }
-  if (finishedBox.width < 3 || finishedBox.height < 3) return
+  if (finishedBox.width < 3 || finishedBox.height < 3) {
+    return
+  }
   boxAnnotations.value = [...boxAnnotations.value, finishedBox]
   activeBoxClientId.value = finishedBox.clientId
 }
@@ -1573,7 +1781,9 @@ async function loadBoxAnnotationsForTask(task: typeof currentTask.value): Promis
 }
 
 async function submitBoxAnnotations(): Promise<void> {
-  if (!currentTask.value) return
+  if (!currentTask.value) {
+    return
+  }
   if (frameImageLoadState.value !== 'loaded') {
     boxAnnotationError.value =
       'Box-Annotationen können erst gespeichert werden, wenn der Frame sichtbar ist.'
@@ -1625,7 +1835,9 @@ async function submitBoxAnnotations(): Promise<void> {
 }
 
 function formatConfidence(value: number | null | undefined): string {
-  if (typeof value !== 'number' || Number.isNaN(value)) return ''
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return ''
+  }
   return `${String(Math.round(value * 100))}%`
 }
 
@@ -1658,9 +1870,13 @@ async function reloadAnnotationQueue(): Promise<void> {
 }
 
 async function restartAnnotationAsOverride(): Promise<void> {
-  if (!canOverrideAnnotationPrincipal.value) return
+  if (!canOverrideAnnotationPrincipal.value) {
+    return
+  }
   const normalized = annotatorOverrideInput.value.trim()
-  if (!normalized) return
+  if (!normalized) {
+    return
+  }
   saveAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value, normalized)
   annotatorOverride.value = normalized
   await reloadAnnotationQueue()
@@ -1679,16 +1895,22 @@ function extractListPayload(payload: unknown): Array<Record<string, unknown>> {
       (item): item is Record<string, unknown> => !!item && typeof item === 'object'
     )
   }
-  if (!payload || typeof payload !== 'object') return []
+  if (!payload || typeof payload !== 'object') {
+    return []
+  }
   for (const key of ['results', 'labels', 'labelSets', 'label_sets', 'groups']) {
     const rows = (payload as Record<string, unknown>)[key]
-    if (Array.isArray(rows)) return extractListPayload(rows)
+    if (Array.isArray(rows)) {
+      return extractListPayload(rows)
+    }
   }
   return []
 }
 
 function parseOptionalNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
   if (typeof value === 'string' && value.trim()) {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : null
@@ -1698,7 +1920,9 @@ function parseOptionalNumber(value: unknown): number | null {
 
 function firstDefinedValue(values: unknown[]): unknown {
   for (const value of values) {
-    if (value !== null && value !== undefined) return value
+    if (value !== null && value !== undefined) {
+      return value
+    }
   }
   return undefined
 }
@@ -1728,7 +1952,9 @@ function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null
   }
 
   const id = String(groupIdRaw).trim()
-  if (!id) return null
+  if (!id) {
+    return null
+  }
 
   const nameRaw = firstDefinedValue([
     raw.labelGroupName,
@@ -1749,8 +1975,12 @@ function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null
     ])
   )
   const displayParts = [name]
-  if (version !== null) displayParts.push(`v${String(version)}`)
-  if (labelCount !== null) displayParts.push(`${String(labelCount)} Labels`)
+  if (version !== null) {
+    displayParts.push(`v${String(version)}`)
+  }
+  if (labelCount !== null) {
+    displayParts.push(`${String(labelCount)} Labels`)
+  }
 
   return { id, name, version, labelCount, displayName: displayParts.join(' - ') }
 }
@@ -1764,7 +1994,9 @@ async function loadLabelGroups(): Promise<void> {
     const byId = new Map<string, LabelGroupOption>()
     for (const row of rows) {
       const parsed = parseGroupOption(row)
-      if (!parsed) continue
+      if (!parsed) {
+        continue
+      }
       if (!byId.has(parsed.id)) {
         byId.set(parsed.id, parsed)
       }
@@ -1827,7 +2059,9 @@ async function loadNextTask(): Promise<void> {
 
 function getTargetLabelId(task: NonNullable<typeof currentTask.value>): number | null {
   const targetLabel = queueStore.targetLabelName.trim().toLowerCase()
-  if (!targetLabel) return null
+  if (!targetLabel) {
+    return null
+  }
 
   const match = (task.data.labelOptions ?? []).find(
     (label) => label.name.trim().toLowerCase() === targetLabel
@@ -1836,7 +2070,9 @@ function getTargetLabelId(task: NonNullable<typeof currentTask.value>): number |
 }
 
 async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
-  if (!currentTask.value) return
+  if (!currentTask.value) {
+    return
+  }
   if (frameImageLoadState.value !== 'loaded') {
     errorMessage.value = 'Labels können erst gespeichert werden, wenn der Frame sichtbar ist.'
     return
@@ -1903,7 +2139,9 @@ async function submitLabels(): Promise<void> {
 }
 
 async function submitPositiveExample(): Promise<void> {
-  if (!currentTask.value) return
+  if (!currentTask.value) {
+    return
+  }
   const targetLabelId = getTargetLabelId(currentTask.value)
   if (targetLabelId === null) {
     errorMessage.value = `Ziel-Label "${queueStore.targetLabelName}" ist für diesen Frame nicht verfügbar.`
@@ -1917,7 +2155,9 @@ async function submitPositiveExample(): Promise<void> {
 }
 
 async function submitNegativeExample(): Promise<void> {
-  if (!currentTask.value) return
+  if (!currentTask.value) {
+    return
+  }
   const targetLabelId = getTargetLabelId(currentTask.value)
   if (targetLabelId === null) {
     errorMessage.value = `Ziel-Label "${queueStore.targetLabelName}" ist für diesen Frame nicht verfügbar.`
@@ -1931,7 +2171,9 @@ async function submitNegativeExample(): Promise<void> {
 }
 
 async function skipTask(): Promise<void> {
-  if (!currentTask.value) return
+  if (!currentTask.value) {
+    return
+  }
   const task = currentTask.value
   isSubmitting.value = true
   errorMessage.value = null
@@ -1977,7 +2219,9 @@ watch(
 watch(
   () => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature],
   async () => {
-    if (isBootstrappingAnnotationQueue || isReloadingAnnotationQueue) return
+    if (isBootstrappingAnnotationQueue || isReloadingAnnotationQueue) {
+      return
+    }
     clearPrefetchedFrameImages()
     queueStore.clearQueue()
     await loadNextTask()
@@ -2069,7 +2313,7 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-.box-annotation-rect span {
+.box-annotation-rect .box-annotation-rect__label {
   position: absolute;
   top: -1.6rem;
   left: -2px;

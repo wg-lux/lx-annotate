@@ -1,7 +1,13 @@
 <template>
-  <section class="card case-study-export" aria-labelledby="case-study-export-title">
+  <section
+    class="card case-study-export"
+    aria-labelledby="case-study-export-title"
+  >
     <div class="card-header pb-0">
-      <h5 id="case-study-export-title" class="mb-0">Pseudonymisierte Fallliste</h5>
+      <h5
+        id="case-study-export-title"
+        class="mb-0"
+      >Pseudonymisierte Fallliste</h5>
       <p class="text-muted mb-0">
         Untersuchungen, Befunde oder Indikationen auswählen und passende Patientenverläufe als
         Excel-Liste exportieren.
@@ -11,7 +17,11 @@
     <div class="card-body">
       <fieldset class="mb-3">
         <legend class="form-label mb-2">Gruppierung</legend>
-        <div class="btn-group" role="radiogroup" aria-label="Gruppierung der Excel-Zeilen">
+        <div
+          class="btn-group"
+          role="radiogroup"
+          aria-label="Gruppierung der Excel-Zeilen"
+        >
           <input
             id="group-by-patient"
             v-model="groupBy"
@@ -20,7 +30,10 @@
             value="patient"
             autocomplete="off"
           />
-          <label class="btn btn-outline-primary mb-0" for="group-by-patient">
+          <label
+            class="btn btn-outline-primary mb-0"
+            for="group-by-patient"
+          >
             Patientenverlauf
           </label>
           <input
@@ -31,18 +44,30 @@
             value="examination"
             autocomplete="off"
           />
-          <label class="btn btn-outline-primary mb-0" for="group-by-examination">
+          <label
+            class="btn btn-outline-primary mb-0"
+            for="group-by-examination"
+          >
             Einzelne Untersuchung
           </label>
         </div>
       </fieldset>
 
-      <div v-if="loadingOptions" class="d-flex align-items-center gap-2 text-muted py-3">
-        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+      <div
+        v-if="loadingOptions"
+        class="d-flex align-items-center gap-2 text-muted py-3"
+      >
+        <span
+          class="spinner-border spinner-border-sm"
+          aria-hidden="true"
+        ></span>
         Auswahl wird geladen…
       </div>
 
-      <div v-else-if="options" class="row g-3">
+      <div
+        v-else-if="options"
+        class="row g-3"
+      >
         <div
           v-for="group in optionGroups"
           :key="group.key"
@@ -50,7 +75,7 @@
           :data-test="`option-group-${group.key}`"
         >
           <fieldset class="concept-group h-100">
-            <legend class="form-label d-flex justify-content-between align-items-center">
+            <legend class="form-label d-flex justify-content-between align-items-center concept-group-heading">
               <span>{{ group.label }}</span>
               <span class="badge bg-secondary">{{ selections[group.key].length }}</span>
             </legend>
@@ -77,7 +102,10 @@
                 />
                 <span class="form-check-label text-break">{{ value }}</span>
               </label>
-              <div v-if="filteredGroupValues(group).length === 0" class="small text-muted py-2">
+              <div
+                v-if="filteredGroupValues(group).length === 0"
+                class="small text-muted py-2"
+              >
                 Keine Einträge
               </div>
             </div>
@@ -178,23 +206,31 @@ const selectedCount = computed(
 
 function filteredGroupValues(group: OptionGroup): string[] {
   const needle = searches[group.key].trim().toLocaleLowerCase('de-DE')
-  if (!needle) return group.values
+  if (!needle) {
+    return group.values
+  }
   return group.values.filter((value) => value.toLocaleLowerCase('de-DE').includes(needle))
 }
 
 function readableError(error: unknown): string {
-  if (!error || typeof error !== 'object') return 'Excel-Export fehlgeschlagen.'
+  if (!error || typeof error !== 'object') {
+    return 'Excel-Export fehlgeschlagen.'
+  }
   const candidate = error as {
     message?: string
     response?: { data?: Blob | { detail?: string; error?: string } }
   }
   const data = candidate.response?.data
-  if (data && !(data instanceof Blob)) return data.detail || data.error || candidate.message || ''
+  if (data && !(data instanceof Blob)) {
+    return data.detail || data.error || candidate.message || ''
+  }
   return candidate.message || 'Excel-Export fehlgeschlagen.'
 }
 
 async function blobError(error: unknown): Promise<string> {
-  if (!error || typeof error !== 'object') return readableError(error)
+  if (!error || typeof error !== 'object') {
+    return readableError(error)
+  }
   const data = (error as { response?: { data?: unknown } }).response?.data
   if (!(data instanceof Blob) || !data.type.startsWith('application/json')) {
     return readableError(error)
@@ -222,8 +258,12 @@ async function blobError(error: unknown): Promise<string> {
             reader.readAsText(data)
           })
     const parsed = JSON.parse(text) as { detail?: unknown; error?: unknown }
-    if (typeof parsed.detail === 'string') return parsed.detail
-    if (typeof parsed.error === 'string') return parsed.error
+    if (typeof parsed.detail === 'string') {
+      return parsed.detail
+    }
+    if (typeof parsed.error === 'string') {
+      return parsed.error
+    }
   } catch (parseError) {
     log.error('error-response.parse-failed', parseError)
   }
@@ -253,7 +293,9 @@ async function loadOptions(): Promise<void> {
 }
 
 async function downloadWorkbook(): Promise<void> {
-  if (selectedCount.value === 0) return
+  if (selectedCount.value === 0) {
+    return
+  }
   exporting.value = true
   message.value = null
   try {
@@ -291,7 +333,7 @@ onMounted(loadOptions)
   border-radius: 6px;
 }
 
-.concept-group legend {
+.concept-group .concept-group-heading {
   float: none;
   width: 100%;
   margin-bottom: 8px;

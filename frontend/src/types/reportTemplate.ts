@@ -1,5 +1,7 @@
 export type ReportTemplateClassificationDescriptorInput = {
   name: string
+  nameDe?: string
+  nameEn?: string
   type: string
   unit: string | null
   unitAbbreviation: string | null
@@ -179,10 +181,23 @@ export type ReportTemplateValidators = {
   findingsValidators: ReportTemplateFindingValidator[]
 }
 
+export type ReportVerbosity = 'short' | 'standard' | 'detailed'
+
+export function isReportVerbosity(value: unknown): value is ReportVerbosity {
+  return value === 'short' || value === 'standard' || value === 'detailed'
+}
+
+export const reportVerbosityLabels: Record<ReportVerbosity, string> = {
+  short: 'Kurz',
+  standard: 'Standard',
+  detailed: 'Ausführlich'
+}
+
 export type ReportTemplatePayload = {
   name: string
   nameDe?: string
   nameEn?: string
+  verbosityOptions?: ReportVerbosity[]
   examination: string
   identity: ReportTemplateIdentity
   reportSections: ReportTemplateSection[]

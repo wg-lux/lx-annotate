@@ -31,7 +31,9 @@ export interface FrameBoxLabel {
 type IdFactory = () => string
 
 const parseOptionalNumber = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
   if (typeof value === 'string' && value.trim()) {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : null
@@ -94,12 +96,14 @@ export const extractFrameBoxRecords = (payload: unknown): Array<Record<string, u
       (item): item is Record<string, unknown> => !!item && typeof item === 'object'
     )
   }
-  if (!payload || typeof payload !== 'object') return []
-  const obj = payload as Record<string, unknown>
-  const records = Array.isArray(obj.annotations)
-    ? obj.annotations
-    : Array.isArray(obj.results)
-      ? obj.results
+  if (!payload || typeof payload !== 'object') {
+    return []
+  }
+  const payloadRecord = payload as Record<string, unknown>
+  const records = Array.isArray(payloadRecord.annotations)
+    ? payloadRecord.annotations
+    : Array.isArray(payloadRecord.results)
+      ? payloadRecord.results
       : []
   return records.filter(
     (item): item is Record<string, unknown> => !!item && typeof item === 'object'
@@ -110,7 +114,7 @@ export const parseFrameBoxRecord = (
   raw: Record<string, unknown>,
   context: { fallbackAnnotator: string; createId: IdFactory }
 ): FrameBoxAnnotationDraft | null => {
-  const id = parseOptionalNumber(raw.id)
+  const annotationId = parseOptionalNumber(raw.id)
   const frameId = parseOptionalNumber(raw.frameId ?? raw.frame_id)
   const labelId = parseOptionalNumber(raw.labelId ?? raw.label_id)
   const x = parseOptionalNumber(raw.x)
@@ -138,8 +142,8 @@ export const parseFrameBoxRecord = (
   const externalRaw = raw.externalAnnotationId ?? raw.external_annotation_id
   const annotatorRaw = raw.annotator
   return {
-    id,
-    clientId: id !== null ? `box-${String(id)}` : context.createId(),
+    id: annotationId,
+    clientId: annotationId !== null ? `box-${String(annotationId)}` : context.createId(),
     frameId,
     labelId,
     labelName,

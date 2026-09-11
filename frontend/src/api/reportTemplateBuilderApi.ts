@@ -88,15 +88,23 @@ function strings(value: unknown): string[] {
 }
 
 function responseString(value: unknown, fallback: string, fieldName: string): string {
-  if (value === null || value === undefined) return fallback
-  if (typeof value === 'string') return value
+  if (value === null || value === undefined) {
+    return fallback
+  }
+  if (typeof value === 'string') {
+    return value
+  }
   throw new Error(`Ungültiges Textfeld in Template-Antwort: ${fieldName}.`)
 }
 
 export function normalizeBuilderReadiness(value: unknown): ReportTemplateBuilderReadiness | null {
-  if (!isRecord(value)) return null
+  if (!isRecord(value)) {
+    return null
+  }
   const lifecycleStatus = value.lifecycleStatus ?? value.lifecycle_status
-  if (lifecycleStatus !== 'draft' && lifecycleStatus !== 'published') return null
+  if (lifecycleStatus !== 'draft' && lifecycleStatus !== 'published') {
+    return null
+  }
   return {
     canPublish: value.canPublish === true || value.can_publish === true,
     lifecycleStatus,
@@ -107,7 +115,9 @@ export function normalizeBuilderReadiness(value: unknown): ReportTemplateBuilder
 }
 
 function normalizeLifecycleResponse(value: unknown): ReportTemplateLifecycleResponse {
-  if (!isRecord(value)) throw new Error('Ungültige Template-Lifecycle-Antwort.')
+  if (!isRecord(value)) {
+    throw new Error('Ungültige Template-Lifecycle-Antwort.')
+  }
   const moduleName = value.moduleName ?? value.module_name
   const templateName = value.templateName ?? value.template_name
   const lifecycleStatus = value.lifecycleStatus ?? value.lifecycle_status
@@ -164,7 +174,9 @@ export async function fetchReportTemplateReadiness(
     `${dtypesApi('report-templates')}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-definition?version=${encodeURIComponent(moduleVersion)}`
   )
   const readiness = normalizeBuilderReadiness(response.data)
-  if (!readiness) throw new Error('Ungültiges Readiness-Ergebnis der Berichtsvorlage.')
+  if (!readiness) {
+    throw new Error('Ungültiges Readiness-Ergebnis der Berichtsvorlage.')
+  }
   return readiness
 }
 

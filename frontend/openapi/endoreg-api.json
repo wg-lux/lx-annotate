@@ -211,6 +211,118 @@
         "title": "PatientExaminationReportSchema",
         "type": "object"
       },
+      "ReportFrameCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "frame_number": {
+            "minimum": 0,
+            "title": "Frame Number",
+            "type": "integer"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "timestamp": {
+            "minimum": 0,
+            "title": "Timestamp",
+            "type": "number"
+          },
+          "video_id": {
+            "minimum": 1,
+            "title": "Video Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "video_id",
+          "frame_number",
+          "timestamp",
+          "labels"
+        ],
+        "title": "ReportFrameCandidate",
+        "type": "object"
+      },
+      "ReportFrameCandidatesQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "limit": {
+            "default": 24,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "patient_examination_id": {
+            "minimum": 1,
+            "title": "Patient Examination Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient_examination_id"
+        ],
+        "title": "ReportFrameCandidatesQuery",
+        "type": "object"
+      },
+      "ReportFrameCandidatesResponse": {
+        "properties": {
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/ReportFrameCandidate"
+            },
+            "title": "Frames",
+            "type": "array"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          }
+        },
+        "required": [
+          "frames",
+          "labels",
+          "next_offset"
+        ],
+        "title": "ReportFrameCandidatesResponse",
+        "type": "object"
+      },
       "ReportJsonObject": {
         "additionalProperties": {
           "$ref": "#/components/schemas/ReportJsonValue"
@@ -616,6 +728,80 @@
           }
         },
         "summary": "List Reports",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/frame-candidates": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_get_report_frame_candidates",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Patient Examination Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportFrameCandidatesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Report Frame Candidates",
         "tags": [
           "patient-examination-reports"
         ]

@@ -7,8 +7,8 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
-
 from endoreg_db.utils.structured_logging import hash_identifier
+
 from lx_annotate.hub.hub_export_audit import emit_hub_export_audit_event
 
 

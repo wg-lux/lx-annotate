@@ -92,6 +92,66 @@ describe('reportDraftApi', () => {
     )
   })
 
+  it.each([
+    {},
+    { patientExaminationId: 315 },
+    { patient_examination_id: 315 },
+    { patientExaminationId: 314, patient_examination_id: 315 },
+    { patientExaminationId: 315, patient_examination_id: 314 }
+  ])('rejects missing or contradictory examination identities: %j', async (identity) => {
+    hoisted.axios.get.mockResolvedValue({ data: { ...identity, revision: 4, draft: {} } })
+
+    await expect(fetchPatientExaminationDraft(314)).rejects.toThrow(
+      'Report draft response does not match the requested patient examination'
+    )
+  })
+
+  it.each([undefined, null, -1, 1.5, '4', Number.MAX_SAFE_INTEGER + 1])(
+    'rejects an invalid or missing draft revision: %s',
+    async (revision) => {
+      hoisted.axios.get.mockResolvedValue({
+        data: { patientExaminationId: 314, revision, draft: {} }
+      })
+
+      await expect(fetchPatientExaminationDraft(314)).rejects.toThrow(/revision/)
+    }
+  )
+
+  it('accepts matching camelCase identity and an explicit initial revision', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: { patientExaminationId: 314, revision: 0, draft: {}, updatedAt: null }
+    })
+
+    await expect(fetchPatientExaminationDraft(314)).resolves.toMatchObject({
+      patientExaminationId: 314, revision: 0, draft: {}, updatedAt: null
+    })
+  })
+
+  it.each([
+    { patientExaminationId: 315, revision: 5 },
+    { patientExaminationId: 314, revision: 4 },
+    { patientExaminationId: 314, revision: 6 },
+    { patientExaminationId: 314 }
+  ])('rejects an unbound or incorrect save acknowledgement: %j', async (response) => {
+    hoisted.axios.put.mockResolvedValue({ data: { ...response, draft: {} } })
+
+    await expect(savePatientExaminationDraft({
+      patientExaminationId: 314,
+      expectedRevision: 4,
+      moduleName: 'report_template_examples',
+      templateName: 'star_upper_gi_main',
+      indications: [],
+      templateSectionDrafts: {},
+      selectedReportLanguage: 'de',
+      activeReportId: null,
+      reportTextMode: 'generated',
+      renderedText: '',
+      payload: {
+        patient: 'patient_42', examiners: [], examination: 'colonoscopy', patientFindings: []
+      }
+    })).rejects.toThrow(/Report draft response/)
+  })
+
   it('persists unvalidated runtime draft state without reshaping the payload', async () => {
     hoisted.axios.put.mockResolvedValue({
       data: {

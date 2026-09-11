@@ -8,6 +8,22 @@ import {
   requireSegmentTimestampRange
 } from '@/utils/segmentTimeline'
 
+const VIDEO_ID = 17
+const SEGMENT_ID = 91
+const REQUESTED_START_SECONDS = 0.041
+const REQUESTED_END_SECONDS = 0.109
+const CANONICAL_START_SECONDS = 0.043
+const CANONICAL_END_SECONDS = 0.112
+const UPDATED_START_SECONDS = 0.057
+const UPDATED_END_SECONDS = 0.131
+const CANONICAL_UPDATED_START_SECONDS = 0.059
+const CANONICAL_UPDATED_END_SECONDS = 0.137
+const PREVIOUS_FRAME_SECONDS = 0.04
+const CURRENT_FRAME_SECONDS = 0.11
+const NEXT_FRAME_SECONDS = 0.16
+const FOLLOWING_FRAME_SECONDS = 0.24
+const REQUESTED_FRAME_SECONDS = 0.12
+
 const axiosMocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -31,13 +47,13 @@ describe('segment timeline contract', () => {
   })
 
   it('preserves irregular media timestamps without FPS snapping', () => {
-    expect(requireSegmentTimestampRange(0.041, 0.109, 2)).toEqual({
-      startTime: 0.041,
-      endTime: 0.109
+    expect(requireSegmentTimestampRange(REQUESTED_START_SECONDS, REQUESTED_END_SECONDS, 2)).toEqual({
+      startTime: REQUESTED_START_SECONDS,
+      endTime: REQUESTED_END_SECONDS
     })
-    expect(buildSegmentTimestampPayload(0.041, 0.109, 2)).toEqual({
-      start_time: 0.041,
-      end_time: 0.109
+    expect(buildSegmentTimestampPayload(REQUESTED_START_SECONDS, REQUESTED_END_SECONDS, 2)).toEqual({
+      start_time: REQUESTED_START_SECONDS,
+      end_time: REQUESTED_END_SECONDS
     })
   })
 
@@ -49,24 +65,24 @@ describe('segment timeline contract', () => {
 
   it('uses only validated backend PTS for adjacent-frame navigation', () => {
     const neighborhood = parseVideoFrameNeighborhood({
-      videoId: 17,
-      requestedTimestamp: 0.12,
+      videoId: VIDEO_ID,
+      requestedTimestamp: REQUESTED_FRAME_SECONDS,
       timelineVersion: 'pts_v1',
       timestampMapping: 'ffprobe_pts',
-      previous: { frameNumber: 1, timestamp: 0.04 },
-      current: { frameNumber: 2, timestamp: 0.11 },
-      next: { frameNumber: 3, timestamp: 0.16 },
+      previous: { frameNumber: 1, timestamp: PREVIOUS_FRAME_SECONDS },
+      current: { frameNumber: 2, timestamp: CURRENT_FRAME_SECONDS },
+      next: { frameNumber: 3, timestamp: NEXT_FRAME_SECONDS },
       frames: [
         { frameNumber: 0, timestamp: 0 },
-        { frameNumber: 1, timestamp: 0.04 },
-        { frameNumber: 2, timestamp: 0.11 },
-        { frameNumber: 3, timestamp: 0.16 },
-        { frameNumber: 4, timestamp: 0.24 }
+        { frameNumber: 1, timestamp: PREVIOUS_FRAME_SECONDS },
+        { frameNumber: 2, timestamp: CURRENT_FRAME_SECONDS },
+        { frameNumber: 3, timestamp: NEXT_FRAME_SECONDS },
+        { frameNumber: 4, timestamp: FOLLOWING_FRAME_SECONDS }
       ]
     })
 
-    expect(getAdjacentFrameTimestamp(neighborhood, -1)).toBe(0.04)
-    expect(getAdjacentFrameTimestamp(neighborhood, 1)).toBe(0.16)
+    expect(getAdjacentFrameTimestamp(neighborhood, -1)).toBe(PREVIOUS_FRAME_SECONDS)
+    expect(getAdjacentFrameTimestamp(neighborhood, 1)).toBe(NEXT_FRAME_SECONDS)
     expect(() =>
       parseVideoFrameNeighborhood({
         ...neighborhood,
@@ -79,28 +95,28 @@ describe('segment timeline contract', () => {
     const store = useVideoStore()
     axiosGet.mockResolvedValueOnce({
       data: {
-        videoId: 17,
-        requestedTimestamp: 0.12,
+        videoId: VIDEO_ID,
+        requestedTimestamp: REQUESTED_FRAME_SECONDS,
         timelineVersion: 'pts_v1',
         timestampMapping: 'ffprobe_pts',
-        previous: { frameNumber: 1, timestamp: 0.04 },
-        current: { frameNumber: 2, timestamp: 0.11 },
-        next: { frameNumber: 3, timestamp: 0.16 },
+        previous: { frameNumber: 1, timestamp: PREVIOUS_FRAME_SECONDS },
+        current: { frameNumber: 2, timestamp: CURRENT_FRAME_SECONDS },
+        next: { frameNumber: 3, timestamp: NEXT_FRAME_SECONDS },
         frames: [
           { frameNumber: 0, timestamp: 0 },
-          { frameNumber: 1, timestamp: 0.04 },
-          { frameNumber: 2, timestamp: 0.11 },
-          { frameNumber: 3, timestamp: 0.16 },
-          { frameNumber: 4, timestamp: 0.24 }
+          { frameNumber: 1, timestamp: PREVIOUS_FRAME_SECONDS },
+          { frameNumber: 2, timestamp: CURRENT_FRAME_SECONDS },
+          { frameNumber: 3, timestamp: NEXT_FRAME_SECONDS },
+          { frameNumber: 4, timestamp: FOLLOWING_FRAME_SECONDS }
         ]
       }
     })
 
-    await expect(store.resolveAdjacentFrameTimestamp(17, 0.12, 1)).resolves.toBe(0.16)
-    await expect(store.resolveAdjacentFrameTimestamp(17, 0.16, 1)).resolves.toBe(0.24)
+    await expect(store.resolveAdjacentFrameTimestamp(VIDEO_ID, REQUESTED_FRAME_SECONDS, 1)).resolves.toBe(NEXT_FRAME_SECONDS)
+    await expect(store.resolveAdjacentFrameTimestamp(VIDEO_ID, NEXT_FRAME_SECONDS, 1)).resolves.toBe(FOLLOWING_FRAME_SECONDS)
     expect(axiosGet).toHaveBeenCalledWith(
       'media/videos/17/timeline/frame-neighborhood/',
-      { params: { timestamp: 0.12, radius: 12 }, suppressErrorToast: true }
+      { params: { timestamp: REQUESTED_FRAME_SECONDS, radius: 12 }, suppressErrorToast: true }
     )
     expect(axiosGet).toHaveBeenCalledTimes(1)
   })
@@ -108,7 +124,7 @@ describe('segment timeline contract', () => {
   it('sends timestamps and adopts canonical PTS-derived boundaries from the backend', async () => {
     const store = useVideoStore()
     store.setVideo({
-      id: 17,
+      id: VIDEO_ID,
       isAnnotated: false,
       errorMessage: '',
       segments: [],
@@ -131,12 +147,12 @@ describe('segment timeline contract', () => {
           {
             clientId: -1,
             segment: {
-              id: 91,
-              videoId: 17,
+              id: SEGMENT_ID,
+              videoId: VIDEO_ID,
               labelId: 4,
               labelName: 'polyp',
-              startTime: 0.043,
-              endTime: 0.112,
+              startTime: CANONICAL_START_SECONDS,
+              endTime: CANONICAL_END_SECONDS,
               startFrameNumber: 1,
               endFrameNumber: 3
             }
@@ -147,7 +163,7 @@ describe('segment timeline contract', () => {
       }
     })
 
-    const created = await store.createSegment(17, 'polyp', 0.041, 0.109)
+    const created = await store.createSegment(VIDEO_ID, 'polyp', REQUESTED_START_SECONDS, REQUESTED_END_SECONDS)
     const payload = axiosPost.mock.calls[0][1] as {
       creates: Array<Record<string, unknown>>
     }
@@ -157,8 +173,8 @@ describe('segment timeline contract', () => {
       creates: [
         {
           label_id: 4,
-          start_time: 0.041,
-          end_time: 0.109,
+          start_time: REQUESTED_START_SECONDS,
+          end_time: REQUESTED_END_SECONDS,
           export_segment: false
         }
       ]
@@ -166,9 +182,9 @@ describe('segment timeline contract', () => {
     expect(payload.creates[0]).not.toHaveProperty('start_frame_number')
     expect(payload.creates[0]).not.toHaveProperty('end_frame_number')
     expect(created).toMatchObject({
-      id: 91,
-      startTime: 0.043,
-      endTime: 0.112,
+      id: SEGMENT_ID,
+      startTime: CANONICAL_START_SECONDS,
+      endTime: CANONICAL_END_SECONDS,
       startFrameNumber: 1,
       endFrameNumber: 3
     })
@@ -178,12 +194,12 @@ describe('segment timeline contract', () => {
         created: [],
         updated: [
           {
-            id: 91,
-            videoId: 17,
+            id: SEGMENT_ID,
+            videoId: VIDEO_ID,
             labelId: 4,
             labelName: 'polyp',
-            startTime: 0.059,
-            endTime: 0.137,
+            startTime: CANONICAL_UPDATED_START_SECONDS,
+            endTime: CANONICAL_UPDATED_END_SECONDS,
             startFrameNumber: 2,
             endFrameNumber: 4
           }
@@ -192,9 +208,9 @@ describe('segment timeline contract', () => {
       }
     })
 
-    const updated = await store.updateSegmentAPI(91, {
-      startTime: 0.057,
-      endTime: 0.131,
+    const updated = await store.updateSegmentAPI(SEGMENT_ID, {
+      startTime: UPDATED_START_SECONDS,
+      endTime: UPDATED_END_SECONDS,
       start_frame_number: 999,
       end_frame_number: 1000
     })
@@ -204,15 +220,15 @@ describe('segment timeline contract', () => {
 
     expect(updated).toBe(true)
     expect(updatePayload.updates[0]).toMatchObject({
-      id: 91,
-      start_time: 0.057,
-      end_time: 0.131
+      id: SEGMENT_ID,
+      start_time: UPDATED_START_SECONDS,
+      end_time: UPDATED_END_SECONDS
     })
     expect(updatePayload.updates[0]).not.toHaveProperty('start_frame_number')
     expect(updatePayload.updates[0]).not.toHaveProperty('end_frame_number')
     expect(store.segmentsByLabel.polyp[0]).toMatchObject({
-      startTime: 0.059,
-      endTime: 0.137,
+      startTime: CANONICAL_UPDATED_START_SECONDS,
+      endTime: CANONICAL_UPDATED_END_SECONDS,
       startFrameNumber: 2,
       endFrameNumber: 4
     })

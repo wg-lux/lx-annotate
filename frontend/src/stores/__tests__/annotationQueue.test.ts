@@ -48,7 +48,9 @@ function deferred<T>() {
 
 async function waitForGetCall(count: number): Promise<void> {
   for (let index = 0; index < 10; index += 1) {
-    if (hoisted.get.mock.calls.length >= count) return
+    if (hoisted.get.mock.calls.length >= count) {
+      return
+    }
     await Promise.resolve()
   }
   expect(hoisted.get).toHaveBeenCalledTimes(count)
@@ -56,7 +58,9 @@ async function waitForGetCall(count: number): Promise<void> {
 
 function expectLastTaskRequestParams(expected: Record<string, string | number>): void {
   const call = hoisted.get.mock.calls.at(-1)
-  if (call === undefined) throw new Error('Expected a frame-task request.')
+  if (call === undefined) {
+    throw new Error('Expected a frame-task request.')
+  }
   expect(call[0]).toBe('media/annotations/frames/random-task/')
   expect(call[1]?.params).toMatchObject(expected)
 }

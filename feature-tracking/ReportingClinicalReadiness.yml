@@ -161,11 +161,23 @@ definition_of_done:
       reference: npm run type-check:component-tests passed
     - kind: test
       reference: lx_dtypes 15 passed; endoreg endpoint 14 passed
-    note: Integrated frontend reporting suites pass 131 tests and component-test type-check. Backend contract/endpoint
-      suites pass CAS, legacy upgrade, and two-writer cases. Manual browser-width and end-to-end deployed-profile
-      checks remain.
-    assessed_by: codex-reporting-clinical-20260826
-    assessed_at: '2026-08-26T13:51:46.881832Z'
+    - kind: test
+      reference: 111 passed across six frame preview, annotation, reporting shell, export page and API
+        suites
+    - kind: document
+      reference: docs/guides/reporting-frame-selection.yml
+    - kind: code
+      reference: frontend/src/composables/useAuthenticatedFramePreview.ts
+    - kind: command
+      reference: npm run type-check passed; final component and application type checks passed; source
+        OpenAPI freshness passed
+    note: Streamed annotation/report previews, ordered frame add/remove, positive-label browsing and last-click
+      fallback are implemented. 111 focused frontend tests, component/application type checks and lint
+      pass. Generated API freshness passes against edited endoreg-db/lx-dtypes sources. Selection is scoped
+      to examination/authentication and is not restored after browser reload. Clinical/browser acceptance
+      and coordinated package release remain outstanding.
+    assessed_by: codex-monitoring-fix-20260909
+    assessed_at: '2026-09-09T14:12:17.163026Z'
 - id: observable_recovery_failures
   category: operations
   title: Draft recovery and identity failures are observable and actionable

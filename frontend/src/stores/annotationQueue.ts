@@ -45,8 +45,8 @@ function normalizeInformationSource(value: string | null): AnnotationInformation
 
 function loadStoredGroupId(): string | null {
   try {
-    const raw = localStorage.getItem(SELECTED_GROUP_STORAGE_KEY)
-    return raw && raw.trim() ? raw : null
+    const storedValue = localStorage.getItem(SELECTED_GROUP_STORAGE_KEY)
+    return storedValue && storedValue.trim() ? storedValue : null
   } catch {
     return null
   }
@@ -66,8 +66,8 @@ function persistGroupId(groupId: string | null): void {
 
 function loadStoredText(key: string): string | null {
   try {
-    const raw = localStorage.getItem(key)
-    return raw && raw.trim() ? raw.trim() : null
+    const storedValue = localStorage.getItem(key)
+    return storedValue && storedValue.trim() ? storedValue.trim() : null
   } catch {
     return null
   }
@@ -86,17 +86,21 @@ function persistText(key: string, value: string | null): void {
 }
 
 function loadStoredTaskMode(): AnnotationTaskMode {
-  const raw = loadStoredText(TASK_MODE_STORAGE_KEY)
-  return raw === 'filtered' ? 'filtered' : 'random'
+  const storedValue = loadStoredText(TASK_MODE_STORAGE_KEY)
+  return storedValue === 'filtered' ? 'filtered' : 'random'
 }
 
 function normalizeSamplingStrategy(value: string | null): AnnotationSamplingStrategy {
-  if (value === 'segments' || value === 'annotations' || value === 'none') return value
+  if (value === 'segments' || value === 'annotations' || value === 'none') {
+    return value
+  }
   return DEFAULT_SAMPLING_STRATEGY
 }
 
 function normalizeFrameFileType(value: string | null): FrameFileType {
-  if (value === 'raw' || value === 'processed') return value
+  if (value === 'raw' || value === 'processed') {
+    return value
+  }
   return DEFAULT_FRAME_FILE_TYPE
 }
 
@@ -111,9 +115,11 @@ function normalizeLabelName(value: string | null): string {
 
 function loadStoredRandomFallback(): boolean {
   try {
-    const raw = localStorage.getItem(RANDOM_FALLBACK_STORAGE_KEY)
-    if (raw === null) return true
-    return raw === '1' || raw.toLowerCase() === 'true'
+    const storedValue = localStorage.getItem(RANDOM_FALLBACK_STORAGE_KEY)
+    if (storedValue === null) {
+      return true
+    }
+    return storedValue === '1' || storedValue.toLowerCase() === 'true'
   } catch {
     return true
   }
@@ -121,9 +127,11 @@ function loadStoredRandomFallback(): boolean {
 
 function loadStoredPredictionSegmentsOnly(): boolean {
   try {
-    const raw = localStorage.getItem(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY)
-    if (raw === null) return true
-    return raw === '1' || raw.toLowerCase() === 'true'
+    const storedValue = localStorage.getItem(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY)
+    if (storedValue === null) {
+      return true
+    }
+    return storedValue === '1' || storedValue.toLowerCase() === 'true'
   } catch {
     return true
   }
@@ -174,11 +182,15 @@ export interface AnnotationTask {
 }
 
 function isDummyTaskModeEnabled(): boolean {
-  if (!import.meta.env.DEV) return false
-  if (typeof window === 'undefined') return false
+  if (!import.meta.env.DEV) {
+    return false
+  }
+  if (typeof window === 'undefined') {
+    return false
+  }
   const query = new URLSearchParams(window.location.search)
-  const raw = query.get(DEBUG_DUMMY_TASK_QUERY_KEY)
-  return raw === '1' || raw === 'true'
+  const queryValue = query.get(DEBUG_DUMMY_TASK_QUERY_KEY)
+  return queryValue === '1' || queryValue === 'true'
 }
 
 function createDummyTask(groupId: string | null): AnnotationTask {
@@ -215,7 +227,9 @@ function createTaskId(frameId: number): string {
       const randomUUID: unknown = Reflect.get(runtimeCrypto, 'randomUUID')
       if (typeof randomUUID === 'function') {
         const generated: unknown = Reflect.apply(randomUUID, runtimeCrypto, [])
-        if (typeof generated === 'string' && generated) return generated
+        if (typeof generated === 'string' && generated) {
+          return generated
+        }
       }
     }
   } catch {
@@ -230,7 +244,9 @@ function rawField(raw: RawTask, camelKey: string, snakeKey: string): unknown {
 }
 
 function optionalFiniteNumber(value: unknown): number | undefined {
-  if (value === null || value === undefined || value === '') return undefined
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
 }
@@ -245,76 +261,96 @@ function optionalNonEmptyString(value: unknown): string | undefined {
 
 function firstDefined(values: unknown[]): unknown {
   for (const value of values) {
-    if (value !== null && value !== undefined) return value
+    if (value !== null && value !== undefined) {
+      return value
+    }
   }
   return undefined
 }
 
 function normalizeLabelOptions(value: unknown): Array<{ id: number; name: string }> {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .map((item) => {
-      if (!item || typeof item !== 'object') return null
-      const row = item as Record<string, unknown>
-      const id = Number(row.id)
-      const name = typeof row.name === 'string' ? row.name.trim() : ''
-      return Number.isFinite(id) && name ? { id, name } : null
+      if (!item || typeof item !== 'object') {
+        return null
+      }
+      const labelRecord = item as Record<string, unknown>
+      const labelId = Number(labelRecord.id)
+      const name = typeof labelRecord.name === 'string' ? labelRecord.name.trim() : ''
+      return Number.isFinite(labelId) && name ? { id: labelId, name } : null
     })
     .filter((item): item is { id: number; name: string } => item !== null)
 }
 
 function normalizeAnnotationId(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value !== 'string' || !value.trim()) return undefined
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return undefined
+  }
   const parsedId = Number(value)
   return Number.isFinite(parsedId) ? parsedId : undefined
 }
 
 function normalizeAnnotation(item: unknown): NormalizedAnnotation | null {
-  if (!item || typeof item !== 'object') return null
-  const row = item as Record<string, unknown>
-  const labelId = Number(firstDefined([row.labelId, row.label_id]))
-  const labelNameRaw = firstDefined([row.labelName, row.label_name])
+  if (!item || typeof item !== 'object') {
+    return null
+  }
+  const annotationRecord = item as Record<string, unknown>
+  const labelId = Number(firstDefined([annotationRecord.labelId, annotationRecord.label_id]))
+  const labelNameRaw = firstDefined([annotationRecord.labelName, annotationRecord.label_name])
   const labelName = typeof labelNameRaw === 'string' ? labelNameRaw.trim() : ''
-  if (!Number.isFinite(labelId) || !labelName) return null
+  if (!Number.isFinite(labelId) || !labelName) {
+    return null
+  }
 
   const normalized: NormalizedAnnotation = {
     labelId,
     labelName,
-    value: !!row.value,
+    value: !!annotationRecord.value,
     floatValue:
-      typeof row.floatValue === 'number'
-        ? row.floatValue
-        : typeof row.float_value === 'number'
-          ? row.float_value
+      typeof annotationRecord.floatValue === 'number'
+        ? annotationRecord.floatValue
+        : typeof annotationRecord.float_value === 'number'
+          ? annotationRecord.float_value
           : null,
     externalAnnotationId:
-      typeof row.externalAnnotationId === 'string'
-        ? row.externalAnnotationId
-        : typeof row.external_annotation_id === 'string'
-          ? row.external_annotation_id
+      typeof annotationRecord.externalAnnotationId === 'string'
+        ? annotationRecord.externalAnnotationId
+        : typeof annotationRecord.external_annotation_id === 'string'
+          ? annotationRecord.external_annotation_id
           : null,
     modelMetaId:
-      typeof row.modelMetaId === 'number'
-        ? row.modelMetaId
-        : typeof row.model_meta_id === 'number'
-          ? row.model_meta_id
+      typeof annotationRecord.modelMetaId === 'number'
+        ? annotationRecord.modelMetaId
+        : typeof annotationRecord.model_meta_id === 'number'
+          ? annotationRecord.model_meta_id
           : null
   }
-  const id = normalizeAnnotationId(row.id)
-  if (id !== undefined) normalized.id = id
+  const annotationId = normalizeAnnotationId(annotationRecord.id)
+  if (annotationId !== undefined) {
+    normalized.id = annotationId
+  }
   return normalized
 }
 
 function normalizeAnnotationList(value: unknown): NormalizedAnnotation[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value
     .map(normalizeAnnotation)
     .filter((item): item is NormalizedAnnotation => item !== null)
 }
 
 function normalizeSuggestedLabelIds(value: unknown): number[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value.map(Number).filter(Number.isFinite)
 }
 
@@ -340,7 +376,9 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
   const frameId = Number(rawField(raw, 'frameId', 'frame_id'))
   const imageUrlRaw = resolveTaskImageUrl(raw, nestedData)
   const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw : null
-  if (!Number.isFinite(frameId) || !imageUrl) return null
+  if (!Number.isFinite(frameId) || !imageUrl) {
+    return null
+  }
 
   const idRaw = firstDefined([raw.id, raw.taskId, raw.task_id])
   const frameFileTypeRaw = rawField(raw, 'frameFileType', 'frame_file_type')
@@ -391,19 +429,21 @@ function extractTaskList(payload: unknown): RawTask[] {
   if (Array.isArray(payload)) {
     return payload.filter((item): item is RawTask => !!item && typeof item === 'object')
   }
-  if (!payload || typeof payload !== 'object') return []
+  if (!payload || typeof payload !== 'object') {
+    return []
+  }
 
-  const obj = payload as Record<string, unknown>
-  if (Array.isArray(obj.tasks)) {
-    return obj.tasks.filter((item): item is RawTask => !!item && typeof item === 'object')
+  const taskPayload = payload as Record<string, unknown>
+  if (Array.isArray(taskPayload.tasks)) {
+    return taskPayload.tasks.filter((item): item is RawTask => !!item && typeof item === 'object')
   }
-  if (Array.isArray(obj.results)) {
-    return obj.results.filter((item): item is RawTask => !!item && typeof item === 'object')
+  if (Array.isArray(taskPayload.results)) {
+    return taskPayload.results.filter((item): item is RawTask => !!item && typeof item === 'object')
   }
-  if (obj.task && typeof obj.task === 'object') {
-    return [obj.task as RawTask]
+  if (taskPayload.task && typeof taskPayload.task === 'object') {
+    return [taskPayload.task as RawTask]
   }
-  return [obj]
+  return [taskPayload]
 }
 
 export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
@@ -535,8 +575,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   async function hydrateAiDatasetDefaults(): Promise<void> {
-    if (aiDatasetId.value !== null || aiDatasetName.value !== null || aiDatasetType.value !== null)
+    if (aiDatasetId.value !== null || aiDatasetName.value !== null || aiDatasetType.value !== null) {
       return
+    }
     try {
       const settings = await fetchApplicationSettings()
       if (!settings.primaryAnnotationDatasetValid) {
@@ -606,10 +647,10 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     batchSize: number,
     mode: AnnotationTaskMode
   ): Promise<AnnotationTask[]> {
-    const res = await axiosInstance.get(r(endpoints.annotation.randomTask), {
+    const response = await axiosInstance.get(r(endpoints.annotation.randomTask), {
       params: buildTaskRequestParams(batchSize, mode)
     })
-    return extractTaskList(res.data)
+    return extractTaskList(response.data)
       .map((raw) => coerceTask(raw))
       .filter((task): task is AnnotationTask => task !== null)
   }
@@ -617,7 +658,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   function enqueueUniqueTasks(tasks: AnnotationTask[]): AnnotationTask[] {
     const uniqueTasks: AnnotationTask[] = []
     for (const task of tasks) {
-      if (reservedFrameIds.has(task.data.frameId)) continue
+      if (reservedFrameIds.has(task.data.frameId)) {
+        continue
+      }
       reservedFrameIds.add(task.data.frameId)
       uniqueTasks.push(task)
     }
@@ -634,8 +677,12 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   function enqueueDummyTaskWhenQueueEmpty(generation: number, signature: string): AnnotationTask[] {
-    if (!dummyTaskModeEnabled || taskQueue.value.length > 0) return []
-    if (!isCurrentRequest(generation, signature)) return []
+    if (!dummyTaskModeEnabled || taskQueue.value.length > 0) {
+      return []
+    }
+    if (!isCurrentRequest(generation, signature)) {
+      return []
+    }
     const dummy = createDummyTask(selectedLabelGroupId.value)
     enqueueUniqueTasks([dummy])
     return [dummy]
@@ -648,7 +695,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   ): Promise<{ current: boolean; tasks: AnnotationTask[] }> {
     try {
       const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random')
-      if (!isCurrentRequest(generation, signature)) return { current: false, tasks: [] }
+      if (!isCurrentRequest(generation, signature)) {
+        return { current: false, tasks: [] }
+      }
       return { current: true, tasks: enqueueUniqueTasks(fallbackParsed) }
     } catch {
       return { current: true, tasks: [] }
@@ -679,11 +728,15 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
       requestGeneration = queueGeneration
       requestSignature = currentTaskRequestSignature()
       let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value)
-      if (!isCurrentRequest(requestGeneration, requestSignature)) return []
+      if (!isCurrentRequest(requestGeneration, requestSignature)) {
+        return []
+      }
 
       if (taskMode.value === 'filtered' && allowRandomFallback.value && parsed.length === 0) {
         parsed = await fetchTaskBatchFromApi(batchSize, 'random')
-        if (!isCurrentRequest(requestGeneration, requestSignature)) return []
+        if (!isCurrentRequest(requestGeneration, requestSignature)) {
+          return []
+        }
       }
 
       const queuedTasks = enqueueUniqueTasks(parsed)
@@ -691,11 +744,17 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         ? queuedTasks
         : enqueueDummyTaskWhenQueueEmpty(requestGeneration, requestSignature)
     } catch (error: unknown) {
-      if (!isCurrentRequest(requestGeneration, requestSignature)) return []
+      if (!isCurrentRequest(requestGeneration, requestSignature)) {
+        return []
+      }
       if (taskMode.value === 'filtered' && allowRandomFallback.value) {
         const fallback = await fetchRandomFallback(batchSize, requestGeneration, requestSignature)
-        if (!fallback.current) return []
-        if (fallback.tasks.length > 0) return fallback.tasks
+        if (!fallback.current) {
+          return []
+        }
+        if (fallback.tasks.length > 0) {
+          return fallback.tasks
+        }
       }
 
       lastError.value = getTaskBatchErrorMessage(error)
@@ -704,8 +763,12 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   async function prefetchIfNeeded(): Promise<void> {
-    if (isPrefetching.value) return
-    if (taskQueue.value.length >= 3) return
+    if (isPrefetching.value) {
+      return
+    }
+    if (taskQueue.value.length >= 3) {
+      return
+    }
 
     isPrefetching.value = true
     try {

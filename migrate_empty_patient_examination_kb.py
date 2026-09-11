@@ -15,13 +15,13 @@ from __future__ import annotations
 
 import json
 import os
+
 from django.db import transaction
+from endoreg_db.models.medical.patient.patient_examination import PatientExamination
 from lx_dtypes.models.interface.KnowledgeBaseResolver import (
     load_knowledge_base,
     load_module_config,
 )
-
-from endoreg_db.models.medical.patient.patient_examination import PatientExamination
 
 
 def _required_env(name: str) -> str:

@@ -9,7 +9,10 @@
           frontend.
         </p>
       </div>
-      <div class="training-status-chip" :class="statusChipClass">
+      <div
+        class="training-status-chip"
+        :class="statusChipClass"
+      >
         {{ statusChipLabel }}
       </div>
     </section>
@@ -19,8 +22,10 @@
         <section class="training-card">
           <div class="card-header-row">
             <div>
-              <h2>Training Run</h2>
-              <p>Pick the training target and parameters for the next backend job.</p>
+              <h2 class="card-header-row__title">Training Run</h2>
+              <p class="card-header-row__description">
+                Pick the training target and parameters for the next backend job.
+              </p>
             </div>
             <button
               type="button"
@@ -32,14 +37,25 @@
             </button>
           </div>
 
-          <div v-if="loading" class="loading-state">
+          <div
+            v-if="loading"
+            class="loading-state"
+          >
             <div class="skeleton-line"></div>
             <div class="skeleton-line skeleton-line-short"></div>
             <div class="skeleton-line"></div>
           </div>
 
-          <form v-else class="training-form" @submit.prevent="startTraining">
-            <div class="training-target-control" role="group" aria-label="Training target">
+          <form
+            v-else
+            class="training-form"
+            @submit.prevent="startTraining"
+          >
+            <div
+              class="training-target-control"
+              role="group"
+              aria-label="Training target"
+            >
               <button
                 v-for="option in trainingTargetOptions"
                 :key="option.value"
@@ -53,7 +69,11 @@
               </button>
             </div>
 
-            <div v-if="errorMessage" class="alert alert-warning mb-3" role="alert">
+            <div
+              v-if="errorMessage"
+              class="alert alert-warning mb-3"
+              role="alert"
+            >
               {{ errorMessage }}
             </div>
 
@@ -84,7 +104,11 @@
 
               <div class="training-field">
                 <span>Annotation Source</span>
-                <div class="annotation-source-control" role="group" aria-label="Annotation source">
+                <div
+                  class="annotation-source-control"
+                  role="group"
+                  aria-label="Annotation source"
+                >
                   <button
                     v-for="option in annotationSourceOptions"
                     :key="option.value"
@@ -112,40 +136,65 @@
                   <span v-if="datasetSummaryLoading">Lade Datensatz...</span>
                   <span v-else>{{ effectiveTrainingFrameCount }} Trainingsframes</span>
                 </div>
-                <div v-if="datasetSummaryError" class="dataset-summary-error" role="alert">
+                <div
+                  v-if="datasetSummaryError"
+                  class="dataset-summary-error"
+                  role="alert"
+                >
                   {{ datasetSummaryError }}
                 </div>
-                <div v-else-if="datasetSummary" class="dataset-summary-grid">
-                  <div>
-                    <span>Frame-Annotationen</span>
-                    <strong>{{ datasetSummary.summary.imageAnnotationCount }}</strong>
+                <div
+                  v-else-if="datasetSummary"
+                  class="dataset-summary-grid"
+                >
+                  <div class="dataset-summary-grid__item">
+                    <span class="dataset-summary-grid__label">Frame-Annotationen</span>
+                    <strong class="dataset-summary-grid__value">{{
+                      datasetSummary.summary.imageAnnotationCount
+                    }}</strong>
                   </div>
-                  <div>
-                    <span>Segment-Annotationen</span>
-                    <strong>{{ datasetSummary.summary.videoAnnotationCount }}</strong>
+                  <div class="dataset-summary-grid__item">
+                    <span class="dataset-summary-grid__label">Segment-Annotationen</span>
+                    <strong class="dataset-summary-grid__value">{{
+                      datasetSummary.summary.videoAnnotationCount
+                    }}</strong>
                   </div>
-                  <div>
-                    <span>Frame-Frames</span>
-                    <strong>{{ datasetSummary.summary.annotationFrameCount }}</strong>
+                  <div class="dataset-summary-grid__item">
+                    <span class="dataset-summary-grid__label">Frame-Frames</span>
+                    <strong class="dataset-summary-grid__value">{{
+                      datasetSummary.summary.annotationFrameCount
+                    }}</strong>
                   </div>
-                  <div>
-                    <span>Segment-Frames</span>
-                    <strong>{{ datasetSummary.summary.segmentFrameCount }}</strong>
+                  <div class="dataset-summary-grid__item">
+                    <span class="dataset-summary-grid__label">Segment-Frames</span>
+                    <strong class="dataset-summary-grid__value">{{
+                      datasetSummary.summary.segmentFrameCount
+                    }}</strong>
                   </div>
-                  <div>
-                    <span>Zusammengeführt</span>
-                    <strong>{{ datasetSummary.summary.mergedFrameCount }}</strong>
+                  <div class="dataset-summary-grid__item">
+                    <span class="dataset-summary-grid__label">Zusammengeführt</span>
+                    <strong class="dataset-summary-grid__value">{{
+                      datasetSummary.summary.mergedFrameCount
+                    }}</strong>
                   </div>
-                  <div>
-                    <span>Videos</span>
-                    <strong>{{ datasetSummary.summary.videoCount }}</strong>
+                  <div class="dataset-summary-grid__item">
+                    <span class="dataset-summary-grid__label">Videos</span>
+                    <strong class="dataset-summary-grid__value">{{
+                      datasetSummary.summary.videoCount
+                    }}</strong>
                   </div>
-                  <div>
-                    <span>Labels</span>
-                    <strong>{{ datasetSummary.summary.labelCount }}</strong>
+                  <div class="dataset-summary-grid__item">
+                    <span class="dataset-summary-grid__label">Labels</span>
+                    <strong class="dataset-summary-grid__value">{{
+                      datasetSummary.summary.labelCount
+                    }}</strong>
                   </div>
                 </div>
-                <div v-if="selectedScopeHasNoFrames" class="dataset-summary-error" role="alert">
+                <div
+                  v-if="selectedScopeHasNoFrames"
+                  class="dataset-summary-error"
+                  role="alert"
+                >
                   Der ausgewählte Annotation Source enthält keine trainierbaren Frames.
                 </div>
               </div>
@@ -249,7 +298,10 @@
                   type="checkbox"
                   :disabled="runPolling"
                 />
-                <label class="form-check-label" for="treat-unlabeled-as-negative">
+                <label
+                  class="form-check-label"
+                  for="treat-unlabeled-as-negative"
+                >
                   Treat unlabeled entries as negatives
                 </label>
               </div>
@@ -439,7 +491,10 @@
                   data-test="phi-export-onnx-checkbox"
                   :disabled="runPolling"
                 />
-                <label class="form-check-label" for="phi-export-onnx">
+                <label
+                  class="form-check-label"
+                  for="phi-export-onnx"
+                >
                   Export ONNX for lx-anonymizer
                 </label>
               </div>
@@ -453,15 +508,19 @@
                 :disabled="runPolling || !canStartTraining"
                 @click="startTraining"
               >
-                {{ runPolling ? 'Training läuft…' : 'Training starten' }}
+                {{ startTrainingLabel }}
               </button>
             </div>
           </form>
 
-          <div v-if="recentRuns.length" class="recent-runs" data-test="training-runs-list">
+          <div
+            v-if="recentRuns.length"
+            class="recent-runs"
+            data-test="training-runs-list"
+          >
             <div class="recent-runs-header">
-              <h3>Letzte Trainingsläufe</h3>
-              <span>{{ recentRuns.length }} gespeichert</span>
+              <h3 class="recent-runs-header__title">Letzte Trainingsläufe</h3>
+              <span class="recent-runs-header__label">{{ recentRuns.length }} gespeichert</span>
             </div>
             <div class="recent-runs-table">
               <button
@@ -472,9 +531,9 @@
                 :class="{ 'recent-run-row-active': currentRun?.runId === run.runId }"
                 @click="selectRun(run)"
               >
-                <span>{{ runDatasetLabel(run) }}</span>
-                <span>{{ runStatusLabel(run.status) }}</span>
-                <span>{{ formatTimestamp(run.createdAt) }}</span>
+                <span class="recent-run-row__label">{{ runDatasetLabel(run) }}</span>
+                <span class="recent-run-row__label">{{ runStatusLabel(run.status) }}</span>
+                <span class="recent-run-row__label">{{ formatTimestamp(run.createdAt) }}</span>
               </button>
             </div>
           </div>
@@ -483,62 +542,94 @@
 
       <div class="col-12 col-xl-5">
         <aside class="training-card training-card-contrast">
-          <h2>Run Status</h2>
+          <h2 class="training-card-contrast__title">Run Status</h2>
           <p class="status-intro">Current state of the latest run started from this page.</p>
 
-          <dl v-if="currentRun" class="training-summary">
-            <div>
-              <dt>Run ID</dt>
-              <dd>{{ currentRun.runId }}</dd>
+          <dl
+            v-if="currentRun"
+            class="training-summary"
+          >
+            <div class="training-summary__item">
+              <dt class="training-summary__term">Run ID</dt>
+              <dd class="training-summary__value">{{ currentRun.runId }}</dd>
             </div>
-            <div>
-              <dt>Target</dt>
-              <dd>{{ trainingTargetLabel(currentRun.trainingTarget) }}</dd>
+            <div class="training-summary__item">
+              <dt class="training-summary__term">Target</dt>
+              <dd class="training-summary__value">
+                {{ trainingTargetLabel(currentRun.trainingTarget) }}
+              </dd>
             </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{{ runStatusLabel(currentRun.status) }}</dd>
+            <div class="training-summary__item">
+              <dt class="training-summary__term">Status</dt>
+              <dd class="training-summary__value">{{ runStatusLabel(currentRun.status) }}</dd>
             </div>
-            <div>
-              <dt>Dataset</dt>
-              <dd>{{ runDatasetLabel(currentRun) }}</dd>
+            <div class="training-summary__item">
+              <dt class="training-summary__term">Dataset</dt>
+              <dd class="training-summary__value">{{ runDatasetLabel(currentRun) }}</dd>
             </div>
-            <div v-if="currentRun.trainingTarget !== 'phi_region_detector'">
-              <dt>Annotation Source</dt>
-              <dd>{{ annotationSourceLabel(currentRun.annotationSourceScope ?? 'all') }}</dd>
+            <div
+              v-if="currentRun.trainingTarget !== 'phi_region_detector'"
+              class="training-summary__item"
+            >
+              <dt class="training-summary__term">Annotation Source</dt>
+              <dd class="training-summary__value">
+                {{ annotationSourceLabel(currentRun.annotationSourceScope ?? 'all') }}
+              </dd>
             </div>
-            <div>
-              <dt>Backbone</dt>
-              <dd>{{ currentRun.backboneName }}</dd>
+            <div class="training-summary__item">
+              <dt class="training-summary__term">Backbone</dt>
+              <dd class="training-summary__value">{{ currentRun.backboneName }}</dd>
             </div>
-            <div>
-              <dt>Feature Mode</dt>
-              <dd>{{ currentRun.featureMode }}</dd>
+            <div class="training-summary__item">
+              <dt class="training-summary__term">Feature Mode</dt>
+              <dd class="training-summary__value">{{ currentRun.featureMode }}</dd>
             </div>
-            <div>
-              <dt>Created</dt>
-              <dd>{{ formatTimestamp(currentRun.createdAt) }}</dd>
+            <div class="training-summary__item">
+              <dt class="training-summary__term">Created</dt>
+              <dd class="training-summary__value">{{ formatTimestamp(currentRun.createdAt) }}</dd>
             </div>
-            <div v-if="currentRun.finishedAt">
-              <dt>Finished</dt>
-              <dd>{{ formatTimestamp(currentRun.finishedAt) }}</dd>
+            <div
+              v-if="currentRun.finishedAt"
+              class="training-summary__item"
+            >
+              <dt class="training-summary__term">Finished</dt>
+              <dd class="training-summary__value">{{ formatTimestamp(currentRun.finishedAt) }}</dd>
             </div>
-            <div v-if="currentRun.result?.modelPath">
-              <dt>Model Path</dt>
-              <dd>{{ currentRun.result.modelPath }}</dd>
+            <div
+              v-if="currentRun.result?.modelPath"
+              class="training-summary__item"
+            >
+              <dt class="training-summary__term">Model Path</dt>
+              <dd class="training-summary__value">{{ currentRun.result.modelPath }}</dd>
             </div>
-            <div v-if="currentRun.result?.metaPath">
-              <dt>Meta Path</dt>
-              <dd>{{ currentRun.result.metaPath }}</dd>
+            <div
+              v-if="currentRun.result?.metaPath"
+              class="training-summary__item"
+            >
+              <dt class="training-summary__term">Meta Path</dt>
+              <dd class="training-summary__value">{{ currentRun.result.metaPath }}</dd>
             </div>
-            <div v-for="[label, path] in artifactEntries" :key="label">
-              <dt>{{ artifactLabel(label) }}</dt>
-              <dd>{{ path }}</dd>
+            <div
+              v-for="[label, path] in artifactEntries"
+              :key="label"
+              class="training-summary__item"
+            >
+              <dt class="training-summary__term">{{ artifactLabel(label) }}</dt>
+              <dd class="training-summary__value">{{ path }}</dd>
             </div>
           </dl>
-          <p v-else class="text-muted mb-0">Noch kein Training gestartet.</p>
+          <p
+            v-else
+            class="text-muted mb-0"
+          >
+            Noch kein Training gestartet.
+          </p>
 
-          <div v-if="runErrorMessage" class="alert alert-danger mt-3 mb-0" role="alert">
+          <div
+            v-if="runErrorMessage"
+            class="alert alert-danger mt-3 mb-0"
+            role="alert"
+          >
             {{ runErrorMessage }}
           </div>
         </aside>
@@ -546,13 +637,21 @@
         <aside class="training-card mt-4">
           <div class="card-header-row">
             <div>
-              <h2>Output Log</h2>
-              <p>Captured command output from the current run.</p>
+              <h2 class="card-header-row__title">Output Log</h2>
+              <p class="card-header-row__description">
+                Captured command output from the current run.
+              </p>
             </div>
           </div>
-          <details class="training-log-details" open>
-            <summary>Ausgabe anzeigen</summary>
-            <pre class="training-log" data-test="training-run-log">{{ runOutputLog }}</pre>
+          <details
+            class="training-log-details"
+            open
+          >
+            <summary class="training-log-details__disclosure">Ausgabe anzeigen</summary>
+            <pre
+              class="training-log"
+              data-test="training-run-log"
+              >{{ runOutputLog }}</pre>
           </details>
         </aside>
       </div>
@@ -642,23 +741,24 @@ const form = reactive({
   treatUnlabeledAsNegative: true
 })
 
-const selectedBackboneDescription = computed(() => {
-  return (
+const startTrainingLabel = computed(() =>
+  runPolling.value ? 'Training läuft…' : 'Training starten'
+)
+
+const selectedBackboneDescription = computed(
+  () =>
     backboneOptions.value.find((option) => option.value === form.backboneName)?.description ?? ''
-  )
-})
+)
 
-const selectedFeatureModeDescription = computed(() => {
-  return (
+const selectedFeatureModeDescription = computed(
+  () =>
     featureModeOptions.value.find((option) => option.value === form.featureMode)?.description ?? ''
-  )
-})
+)
 
-const selectedPhiBaseModelDescription = computed(() => {
-  return (
+const selectedPhiBaseModelDescription = computed(
+  () =>
     phiBaseModelOptions.value.find((option) => option.value === form.baseModel)?.description ?? ''
-  )
-})
+)
 
 function isImageMultilabelDataset(dataset: ModelTrainingDatasetOption): boolean {
   return (
@@ -666,49 +766,45 @@ function isImageMultilabelDataset(dataset: ModelTrainingDatasetOption): boolean 
   )
 }
 
-const trainingDatasetOptions = computed(() => {
-  return datasetOptions.value.filter(isImageMultilabelDataset)
-})
+const trainingDatasetOptions = computed(() => datasetOptions.value.filter(isImageMultilabelDataset))
 
-const selectedDataset = computed(() => {
-  return (
+const selectedDataset = computed(
+  () =>
     trainingDatasetOptions.value.find((dataset) => String(dataset.id) === form.datasetId) ?? null
-  )
-})
+)
 
-const effectiveTrainingFrameCount = computed(() => {
-  const summary = datasetSummary.value?.summary
-  if (!summary) return 0
-  if (form.annotationSourceScope === 'frame_only') return summary.annotationFrameCount
-  if (form.annotationSourceScope === 'segment_only') return summary.segmentFrameCount
-  return summary.mergedFrameCount
-})
-
-const selectedScopeHasNoFrames = computed(() => {
-  return Boolean(
+const scopeFrameCounts = computed(() => ({
+  all: datasetSummary.value?.summary.mergedFrameCount ?? 0,
+  frame_only: datasetSummary.value?.summary.annotationFrameCount ?? 0,
+  segment_only: datasetSummary.value?.summary.segmentFrameCount ?? 0
+}))
+const effectiveTrainingFrameCount = computed(
+  () => scopeFrameCounts.value[form.annotationSourceScope]
+)
+const datasetSummaryReady = computed(() =>
+  Boolean(
     form.datasetId &&
-      datasetSummary.value &&
-      !datasetSummaryLoading.value &&
-      !datasetSummaryError.value &&
-      effectiveTrainingFrameCount.value === 0
+    datasetSummary.value &&
+    !datasetSummaryLoading.value &&
+    !datasetSummaryError.value
   )
-})
-
-const canStartTraining = computed(() => {
-  if (form.trainingTarget === 'phi_region_detector') {
-    return Boolean(form.datasetYaml.trim())
-  }
-  return Boolean(
-    form.datasetId &&
-      datasetSummary.value &&
-      !datasetSummaryLoading.value &&
-      !datasetSummaryError.value &&
-      effectiveTrainingFrameCount.value > 0
-  )
-})
+)
+const selectedScopeHasNoFrames = computed(
+  () => datasetSummaryReady.value && effectiveTrainingFrameCount.value === 0
+)
+const imageTrainingReady = computed(
+  () => datasetSummaryReady.value && effectiveTrainingFrameCount.value > 0
+)
+const canStartTraining = computed(() =>
+  form.trainingTarget === 'phi_region_detector'
+    ? Boolean(form.datasetYaml.trim())
+    : imageTrainingReady.value
+)
 
 const statusChipLabel = computed(() => {
-  if (!currentRun.value) return loading.value ? 'Lade Optionen' : 'Bereit'
+  if (!currentRun.value) {
+    return loading.value ? 'Lade Optionen' : 'Bereit'
+  }
   return runStatusLabel(currentRun.value.status)
 })
 
@@ -744,27 +840,45 @@ function isRunActive(run: ModelTrainingRunRecord): boolean {
 }
 
 function runStatusLabel(status: ModelTrainingRunRecord['status']): string {
-  if (status === 'queued') return 'In Warteschlange'
-  if (status === 'running') return 'Training läuft'
-  if (status === 'completed') return 'Training abgeschlossen'
-  if (status === 'lost') return 'Ergebnis verloren'
+  if (status === 'queued') {
+    return 'In Warteschlange'
+  }
+  if (status === 'running') {
+    return 'Training läuft'
+  }
+  if (status === 'completed') {
+    return 'Training abgeschlossen'
+  }
+  if (status === 'lost') {
+    return 'Ergebnis verloren'
+  }
   return 'Training fehlgeschlagen'
 }
 
 function trainingTargetLabel(target: ModelTrainingRunRecord['trainingTarget']): string {
-  if (target === 'phi_region_detector') return 'PHI Region Detector'
+  if (target === 'phi_region_detector') {
+    return 'PHI Region Detector'
+  }
   return 'Image Multilabel Model'
 }
 
 function annotationSourceLabel(scope: AnnotationSourceScope): string {
-  if (scope === 'frame_only') return 'Nur Frames'
-  if (scope === 'segment_only') return 'Nur Segmente'
+  if (scope === 'frame_only') {
+    return 'Nur Frames'
+  }
+  if (scope === 'segment_only') {
+    return 'Nur Segmente'
+  }
   return 'Alle'
 }
 
 function runDatasetLabel(run: ModelTrainingRunRecord): string {
-  if (run.datasetName) return run.datasetName
-  if (run.datasetId) return `ID ${String(run.datasetId)}`
+  if (run.datasetName) {
+    return run.datasetName
+  }
+  if (run.datasetId) {
+    return `ID ${String(run.datasetId)}`
+  }
   return 'External dataset'
 }
 
@@ -773,13 +887,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function fieldErrorMessage(error: unknown, fallback: string): string {
-  if (!isRecord(error)) return fallback
+  if (!isRecord(error)) {
+    return fallback
+  }
   const response = error.response
-  if (!isRecord(response)) return fallback
+  if (!isRecord(response)) {
+    return fallback
+  }
   const data = response.data
-  if (!isRecord(data)) return fallback
+  if (!isRecord(data)) {
+    return fallback
+  }
   const errors = data.errors
-  if (!isRecord(errors)) return fallback
+  if (!isRecord(errors)) {
+    return fallback
+  }
 
   const messages: string[] = []
   for (const value of Object.values(errors)) {
@@ -1032,7 +1154,9 @@ async function startTraining(): Promise<void> {
 }
 
 function formatTimestamp(value: string | null): string {
-  if (!value) return 'n/a'
+  if (!value) {
+    return 'n/a'
+  }
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'medium',
     timeStyle: 'short'
@@ -1144,12 +1268,12 @@ onBeforeUnmount(() => {
   margin-bottom: 1.25rem;
 }
 
-.card-header-row h2,
-.training-card-contrast h2 {
+.card-header-row .card-header-row__title,
+.training-card-contrast .training-card-contrast__title {
   margin: 0;
 }
 
-.card-header-row p,
+.card-header-row .card-header-row__description,
 .status-intro {
   margin: 0.35rem 0 0;
   color: #6c8092;
@@ -1246,17 +1370,17 @@ onBeforeUnmount(() => {
   gap: 0.75rem;
 }
 
-.dataset-summary-grid div {
+.dataset-summary-grid .dataset-summary-grid__item {
   display: grid;
   gap: 0.2rem;
 }
 
-.dataset-summary-grid span {
+.dataset-summary-grid .dataset-summary-grid__label {
   color: #6c8092;
   font-size: 0.82rem;
 }
 
-.dataset-summary-grid strong {
+.dataset-summary-grid .dataset-summary-grid__value {
   color: #17324d;
 }
 
@@ -1289,12 +1413,12 @@ onBeforeUnmount(() => {
   margin-bottom: 0.75rem;
 }
 
-.recent-runs-header h3 {
+.recent-runs-header .recent-runs-header__title {
   margin: 0;
   font-size: 1rem;
 }
 
-.recent-runs-header span {
+.recent-runs-header .recent-runs-header__label {
   color: #6c8092;
   font-size: 0.85rem;
 }
@@ -1318,7 +1442,7 @@ onBeforeUnmount(() => {
   text-align: left;
 }
 
-.recent-run-row span {
+.recent-run-row .recent-run-row__label {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -1334,19 +1458,19 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
-.training-summary div {
+.training-summary .training-summary__item {
   display: grid;
   gap: 0.2rem;
 }
 
-.training-summary dt {
+.training-summary .training-summary__term {
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   opacity: 0.72;
 }
 
-.training-summary dd {
+.training-summary .training-summary__value {
   margin: 0;
   font-weight: 600;
   word-break: break-word;
@@ -1366,7 +1490,7 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
 }
 
-.training-log-details summary {
+.training-log-details .training-log-details__disclosure {
   cursor: pointer;
   font-weight: 600;
   margin-bottom: 0.75rem;

@@ -1,6 +1,10 @@
 <template>
   <main class="container-fluid h-100 w-100 py-3 px-4 export-page">
-    <div class="btn-group mb-3" role="tablist" aria-label="Exportart">
+    <div
+      class="btn-group mb-3"
+      role="tablist"
+      aria-label="Exportart"
+    >
       <button
         type="button"
         class="btn"

@@ -109,18 +109,24 @@ function requireString(value: unknown, fieldName: string): string {
 }
 
 function requireStringArray(value: unknown, fieldName: string): string[] {
-  if (!Array.isArray(value)) throw new TypeError(`${fieldName} must be an array.`)
+  if (!Array.isArray(value)) {
+    throw new TypeError(`${fieldName} must be an array.`)
+  }
   return value.map((entry, index) => requireString(entry, `${fieldName}[${String(index)}]`))
 }
 
 function requireArray(value: unknown, fieldName: string): unknown[] {
-  if (!Array.isArray(value)) throw new TypeError(`${fieldName} must be an array.`)
+  if (!Array.isArray(value)) {
+    throw new TypeError(`${fieldName} must be an array.`)
+  }
   return value
 }
 
 function requireHash(value: unknown, fieldName: string): string {
   const hash = requireString(value, fieldName)
-  if (!SHA256_ID.test(hash)) throw new TypeError(`${fieldName} must be a sha256 identifier.`)
+  if (!SHA256_ID.test(hash)) {
+    throw new TypeError(`${fieldName} must be a sha256 identifier.`)
+  }
   return hash
 }
 
@@ -169,7 +175,9 @@ function normalizeEdges(value: unknown): KnowledgeBaseGraphEdge[] {
     (edge) =>
       `${edge.source.kind}:${edge.source.name}:${edge.relationship}:${edge.target.kind}:${edge.target.name}`
   )
-  if (new Set(keys).size !== keys.length) throw new TypeError('Graph edges must be unique.')
+  if (new Set(keys).size !== keys.length) {
+    throw new TypeError('Graph edges must be unique.')
+  }
   return edges
 }
 
@@ -191,7 +199,9 @@ function normalizeConcepts(value: unknown, identity: KnowledgeBaseIdentity): Cor
   }
   for (const [kind, collectionName] of Object.entries(CONCEPT_COLLECTION_BY_KIND)) {
     const records = concepts[collectionName as keyof typeof concepts]
-    if (!Array.isArray(records)) continue
+    if (!Array.isArray(records)) {
+      continue
+    }
     const names = records.map((record) => requireString(record.name, `${kind}.name`))
     if (new Set(names).size !== names.length) {
       throw new TypeError(`Concept collection ${kind} contains duplicate semantic names.`)
@@ -233,7 +243,9 @@ function normalizeTemplates(
       templateVersion,
       lifecycleStatus
     })
-    if (!normalized) throw new TypeError(`Graph template "${name}" is malformed.`)
+    if (!normalized) {
+      throw new TypeError(`Graph template "${name}" is malformed.`)
+    }
     return normalized
   })
 }
@@ -246,7 +258,9 @@ function validateEdgeTargets(
   const nodes = new Set<string>()
   for (const [kind, collectionName] of Object.entries(CONCEPT_COLLECTION_BY_KIND)) {
     const records = concepts[collectionName as keyof typeof concepts]
-    if (!Array.isArray(records)) continue
+    if (!Array.isArray(records)) {
+      continue
+    }
     for (const record of records) nodes.add(`${kind}:${record.name}`)
   }
   for (const template of templates) nodes.add(`report_template:${template.name}`)

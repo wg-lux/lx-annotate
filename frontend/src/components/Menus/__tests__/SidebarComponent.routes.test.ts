@@ -18,8 +18,12 @@ vi.mock('@/api/axiosInstance', () => ({
 }))
 
 function toPathValue(target: unknown): string | null {
-  if (typeof target === 'string') return target
-  if (!target || typeof target !== 'object') return null
+  if (typeof target === 'string') {
+    return target
+  }
+  if (!target || typeof target !== 'object') {
+    return null
+  }
   const path = (target as { path?: unknown }).path
   return typeof path === 'string' ? path : null
 }
@@ -140,7 +144,7 @@ describe('Sidebar linked routes', () => {
     wrapper.unmount()
   }, 15000)
 
-  it('markiert Befundung: Übersicht als aktiv auf /reporting', async () => {
+  it('markiert Dokumentation: Übersicht als aktiv auf /reporting', async () => {
     const wrapper = mount(SidebarComponent, {
       global: {
         stubs: {
@@ -161,20 +165,20 @@ describe('Sidebar linked routes', () => {
 
     const reportingLink = getNodeByText(
       wrapper.findAll('.nav-link'),
-      'Befundung: Übersicht'
+      'Dokumentation: Übersicht'
     )
     expect(reportingLink.classes()).toContain('active')
 
     const caseSetupLink = getNodeByText(
       wrapper.findAll('.nav-link'),
-      '3. Befundung starten'
+      '3. Dokumentation starten'
     )
     expect(caseSetupLink.classes()).not.toContain('active')
 
     wrapper.unmount()
   })
 
-  it('markiert 3. Befundung starten als aktiv auf /reporting/case-setup', async () => {
+  it('markiert 3. Dokumentation starten als aktiv auf /reporting/case-setup', async () => {
     const wrapper = mount(SidebarComponent, {
       global: {
         stubs: {
@@ -195,13 +199,13 @@ describe('Sidebar linked routes', () => {
 
     const caseSetupLink = getNodeByText(
       wrapper.findAll('.nav-link'),
-      '3. Befundung starten'
+      '3. Dokumentation starten'
     )
     expect(caseSetupLink.classes()).toContain('active')
 
     const reportingLink = getNodeByText(
       wrapper.findAll('.nav-link'),
-      'Befundung: Übersicht'
+      'Dokumentation: Übersicht'
     )
     expect(reportingLink.classes()).toContain('active')
 

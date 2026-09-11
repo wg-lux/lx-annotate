@@ -91,8 +91,8 @@ in
       description = "Setup CUDA environment for PyTorch";
       exec = ''
         echo "🧪 Checking CUDA environment..."
-        ${pkgs.uv}/bin/uv run python scripts/cuda/test_cuda_paths.py || true
-        ${pkgs.uv}/bin/uv run python scripts/cuda/minimal_cuda_test.py || true
+        ${pkgs.uv} run python scripts/cuda/test_cuda_paths.py || true
+        ${pkgs.uv} run python scripts/cuda/minimal_cuda_test.py || true
         echo "⚠️  CUDA setup finished (non-blocking)"
       '';
     };

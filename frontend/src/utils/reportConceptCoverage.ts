@@ -69,8 +69,12 @@ function hasValue(value: unknown): boolean {
 function applicabilityStatus(
   templateFinding: CoverageTemplateFinding
 ): ReportConceptApplicabilityStatus {
-  if (templateFinding.applicability === 'not_applicable') return 'not_applicable'
-  if (templateFinding.applicabilityRule) return 'undetermined'
+  if (templateFinding.applicability === 'not_applicable') {
+    return 'not_applicable'
+  }
+  if (templateFinding.applicabilityRule) {
+    return 'undetermined'
+  }
   if (templateFinding.applicability === 'required' || templateFinding.required) {
     return 'applicable'
   }
@@ -166,13 +170,21 @@ function findingCoverageStatus(params: {
   documentation: ReportConceptDocumentationStatus
   validation: ReportConceptValidationStatus
 }): ReportConceptCoverageStatus {
-  if (params.applicability === 'not_applicable') return 'not_applicable'
+  if (params.applicability === 'not_applicable') {
+    return 'not_applicable'
+  }
   if (params.applicability === 'undetermined' && params.documentation === 'absent') {
     return 'unknown'
   }
-  if (params.documentation === 'absent') return 'missing'
-  if (params.validation === 'not_evaluated') return 'unknown'
-  if (params.validation === 'invalid') return 'invalid'
+  if (params.documentation === 'absent') {
+    return 'missing'
+  }
+  if (params.validation === 'not_evaluated') {
+    return 'unknown'
+  }
+  if (params.validation === 'invalid') {
+    return 'invalid'
+  }
   return 'present'
 }
 
@@ -182,13 +194,21 @@ function classificationCoverageStatus(params: {
   required: boolean
   validation: ReportConceptValidationStatus
 }): ReportConceptCoverageStatus {
-  if (params.applicability === 'not_applicable') return 'not_applicable'
+  if (params.applicability === 'not_applicable') {
+    return 'not_applicable'
+  }
   if (params.applicability === 'undetermined' && params.documentation === 'absent') {
     return 'unknown'
   }
-  if (params.documentation === 'absent') return params.required ? 'missing' : 'unknown'
-  if (params.validation === 'not_evaluated') return 'unknown'
-  if (params.validation === 'invalid') return 'invalid'
+  if (params.documentation === 'absent') {
+    return params.required ? 'missing' : 'unknown'
+  }
+  if (params.validation === 'not_evaluated') {
+    return 'unknown'
+  }
+  if (params.validation === 'invalid') {
+    return 'invalid'
+  }
   return 'present'
 }
 
@@ -309,10 +329,18 @@ function serverStatus(
   applicability: ServerReportConceptCoverage['concepts'][number]['applicability'],
   validationStatus: ServerReportConceptCoverage['concepts'][number]['validationStatus']
 ): ReportConceptCoverageStatus {
-  if (applicability.status === 'not_applicable') return 'not_applicable'
-  if (validationStatus === 'present') return 'present'
-  if (validationStatus === 'missing') return 'missing'
-  if (validationStatus === 'invalid') return 'invalid'
+  if (applicability.status === 'not_applicable') {
+    return 'not_applicable'
+  }
+  if (validationStatus === 'present') {
+    return 'present'
+  }
+  if (validationStatus === 'missing') {
+    return 'missing'
+  }
+  if (validationStatus === 'invalid') {
+    return 'invalid'
+  }
   return 'unknown'
 }
 
@@ -363,6 +391,8 @@ export function resolveReportConceptCoverage(params: {
   payload: { patientFindings?: ReportTemplateRuntimePatientFindingInput[] } | null
   validation: ReportTemplateRuntimeValidationResult | null
 }): ReportConceptCoverage {
-  if (params.serverCoverage) return mapServerReportConceptCoverage(params.serverCoverage)
+  if (params.serverCoverage) {
+    return mapServerReportConceptCoverage(params.serverCoverage)
+  }
   return deriveReportConceptCoverage(params)
 }

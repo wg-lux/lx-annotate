@@ -7,6 +7,8 @@ einschließlich der wichtigsten Endpunkte für Video-Annotation, Patient-Managem
 und Video-Streaming.
 """
 
+from __future__ import annotations
+
 from datetime import date
 from unittest.mock import patch
 

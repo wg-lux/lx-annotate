@@ -113,6 +113,7 @@ def test_repair_managed_payloads_rejects_corrupt_encrypted_payload(
 
 def test_repair_managed_payloads_fails_when_backend_is_not_encrypted(monkeypatch):
     from django.core.files.storage import FileSystemStorage
+
     from lx_annotate.management.commands import repair_managed_payloads as command_mod
 
     monkeypatch.setattr(

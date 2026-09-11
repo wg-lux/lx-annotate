@@ -14,11 +14,19 @@
         <div class="row g-3 mb-3">
           <div class="col-md-4">
             <label class="form-label">KB-Modul</label>
-            <input class="form-control" :value="selectedKbModule" readonly />
+            <input
+              class="form-control"
+              :value="selectedKbModule"
+              readonly
+            />
           </div>
           <div class="col-md-4">
             <label class="form-label">Untersuchung</label>
-            <input class="form-control" :value="selectedExaminationDisplayName || ''" readonly />
+            <input
+              class="form-control"
+              :value="selectedExaminationDisplayName || ''"
+              readonly
+            />
           </div>
           <div class="col-md-4">
             <label class="form-label">Template</label>
@@ -28,7 +36,10 @@
               disabled
               title="Vorlagen werden im Reporting-Kontext oberhalb der Seite gewechselt."
             >
-              <option value="" disabled>
+              <option
+                value=""
+                disabled
+              >
                 {{
                   templateLoading
                     ? 'Templates laden...'
@@ -66,22 +77,38 @@
           </button>
         </div>
 
-        <div v-if="templateErrorMessage" class="alert alert-danger py-2 mb-2">
+        <div
+          v-if="templateErrorMessage"
+          class="alert alert-danger py-2 mb-2"
+        >
           {{ templateErrorMessage }}
         </div>
-        <div v-if="templateContextError" class="alert alert-danger py-2 mb-2" role="alert">
+        <div
+          v-if="templateContextError"
+          class="alert alert-danger py-2 mb-2"
+          role="alert"
+        >
           {{ templateContextError }}
         </div>
-        <div v-if="templateStatusMessage" class="alert alert-success py-2 mb-2">
+        <div
+          v-if="templateStatusMessage"
+          class="alert alert-success py-2 mb-2"
+        >
           {{ templateStatusMessage }}
         </div>
 
-        <div v-if="selectedTemplate" class="small text-muted mb-2">
+        <div
+          v-if="selectedTemplate"
+          class="small text-muted mb-2"
+        >
           Abschnitte: {{ sectionBlocks.length }} · Validierungen:
           {{ selectedTemplateValidatorCounts.examination }} auf Untersuchungsebene,
           {{ selectedTemplateValidatorCounts.findings }} auf Befundebene
         </div>
-        <div v-if="currentRuntimeDraft" class="small text-muted">
+        <div
+          v-if="currentRuntimeDraft"
+          class="small text-muted"
+        >
           Entwurf:
           {{
             currentRuntimeDraft.hydratedFrom === 'session_storage' ||
@@ -108,8 +135,14 @@
         </div>
       </div>
       <div class="card-body">
-        <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
-        <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
+        <div
+          v-if="errorMessage"
+          class="alert alert-danger py-2"
+        >{{ errorMessage }}</div>
+        <div
+          v-if="successMessage"
+          class="alert alert-success py-2"
+        >{{ successMessage }}</div>
 
         <ReportingMediaPreviewCards class="mb-3" />
 
@@ -119,18 +152,29 @@
         >
           Bitte zuerst das Fall-Setup abschließen (Patient + Untersuchung + PatientExamination).
         </div>
-        <div v-else-if="!currentRuntimeDraft || !currentPayload" class="alert alert-warning">
+        <div
+          v-else-if="!currentRuntimeDraft || !currentPayload"
+          class="alert alert-warning"
+        >
           Der Befundentwurf wird vorbereitet. Bleibt dieser Hinweis bestehen, laden Sie den
           Reporting-Kontext erneut.
         </div>
-        <div v-else-if="!selectedTemplate" class="alert alert-info" role="status">
+        <div
+          v-else-if="!selectedTemplate"
+          class="alert alert-info"
+          role="status"
+        >
           Befunderfassung ohne Berichtsvorlage: Vorhandene Katalogdefinitionen bleiben nutzbar.
           Template-Prüfung und Vollständigkeitsbewertung werden nach Aktivierung einer passenden
           Terminologie ergänzt.
         </div>
 
         <template v-if="currentRuntimeDraft && currentPayload && captureSections.length">
-          <div v-for="section in captureSections" :key="section.name" class="card border mb-3">
+          <div
+            v-for="section in captureSections"
+            :key="section.name"
+            class="card border mb-3"
+          >
             <div class="card-header bg-light">
               <div class="d-flex justify-content-between align-items-center gap-3">
                 <div>
@@ -307,7 +351,10 @@
                   </div>
                 </div>
 
-                <div v-else class="small text-muted">
+                <div
+                  v-else
+                  class="small text-muted"
+                >
                   Noch keine Instanz dieses Befunds im lokalen Entwurf.
                 </div>
               </div>
@@ -321,7 +368,10 @@
             </div>
           </div>
 
-          <div v-if="selectedTemplate" class="mt-3">
+          <div
+            v-if="selectedTemplate"
+            class="mt-3"
+          >
             <ReportTemplateValidationPanel
               :loading="templateValidationLoading"
               :error-message="templateValidationError"
@@ -412,9 +462,15 @@ const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null
 const draftMatchesSelectedTemplate = computed(() => {
   const draft = currentRuntimeDraft.value
   const template = selectedTemplate.value
-  if (!draft || !template || draft.templateName !== template.name) return false
-  if (draft.verificationStatus === 'unverified') return false
-  if (draft.moduleName !== selectedKbModule.value) return false
+  if (!draft || !template || draft.templateName !== template.name) {
+    return false
+  }
+  if (draft.verificationStatus === 'unverified') {
+    return false
+  }
+  if (draft.moduleName !== selectedKbModule.value) {
+    return false
+  }
   const draftIdentity = draft.templateIdentity
   const templateIdentity = template.identity
   return !(
@@ -501,7 +557,9 @@ const captureSections = computed<ReportTemplateSectionBlock[]>(() => {
         .filter((name) => !definedNames.has(normalizeKey(name)))
     )
   ]
-  if (!unresolvedNames.length) return baseSections
+  if (!unresolvedNames.length) {
+    return baseSections
+  }
   return [
     ...baseSections,
     {
@@ -532,7 +590,9 @@ const catalogFindingsByNormalizedName = computed(() => {
 
 const backendMissingClassificationsByFinding = computed<Record<string, string[]>>(() => {
   const entries = (flow.lastTemplateValidation?.findingsValidators || []).flatMap((validator) => {
-    if (!validator.missingRequiredClassifications.length) return []
+    if (!validator.missingRequiredClassifications.length) {
+      return []
+    }
     return [[normalizeKey(validator.finding), validator.missingRequiredClassifications] as const]
   })
   return Object.fromEntries(entries)
@@ -685,7 +745,9 @@ function visibleClassificationsForFinding(findingName: string): FindingClassific
 
   for (const missing of extraRequired) {
     const existing = byKey.get(normalizeKey(missing))
-    if (existing) continue
+    if (existing) {
+      continue
+    }
     byKey.set(normalizeKey(missing), {
       id: 0,
       name: missing,
@@ -707,8 +769,12 @@ function instancesForFinding(findingName: string): ReportTemplateRuntimePatientF
 }
 
 function canAddFinding(templateFinding: ReportTemplateFinding): boolean {
-  if (!currentPayload.value) return false
-  if (templateFinding.multipleAllowed) return true
+  if (!currentPayload.value) {
+    return false
+  }
+  if (templateFinding.multipleAllowed) {
+    return true
+  }
   return instancesForFinding(templateFinding.finding).length === 0
 }
 
@@ -757,7 +823,9 @@ function selectedChoiceDefinition(
     (entry) => normalizeKey(entry.name) === normalizeKey(classificationName)
   )
   const choiceName = classificationChoiceName(instance, classificationName)
-  if (!classification || !choiceName) return null
+  if (!classification || !choiceName) {
+    return null
+  }
   return (
     classification.choices.find(
       (choice) => normalizeKey(choice.name) === normalizeKey(choiceName)
@@ -775,11 +843,15 @@ function descriptorKeysForField(
     classificationName,
     instance
   )
-  if (compiledDescriptors.length) return compiledDescriptors.map((descriptor) => descriptor.name)
+  if (compiledDescriptors.length) {
+    return compiledDescriptors.map((descriptor) => descriptor.name)
+  }
 
   const selectedChoice = selectedChoiceDefinition(findingName, classificationName, instance)
   const descriptorKeys = Object.keys(selectedChoice?.numericalDescriptors || {})
-  if (descriptorKeys.length) return descriptorKeys
+  if (descriptorKeys.length) {
+    return descriptorKeys
+  }
 
   const existingChoice = classificationChoiceState(instance, classificationName)
   if (existingChoice?.descriptors.length) {
@@ -805,7 +877,9 @@ function compiledDescriptorsForSelectedChoice(
   instance: ReportTemplateRuntimePatientFindingInput
 ) {
   const choiceName = classificationChoiceName(instance, classificationName)
-  if (!choiceName) return []
+  if (!choiceName) {
+    return []
+  }
 
   const classification = templateFindingForName(findingName)?.classifications.find(
     (entry) => normalizeKey(entry.classification) === normalizeKey(classificationName)
@@ -847,7 +921,9 @@ function descriptorInputType(
     classificationName,
     instance
   ).find((descriptor) => normalizeKey(descriptor.name) === normalizeKey(descriptorKey))
-  if (compiledDescriptor) return compiledDescriptor.type === 'numeric' ? 'number' : 'text'
+  if (compiledDescriptor) {
+    return compiledDescriptor.type === 'numeric' ? 'number' : 'text'
+  }
 
   return /(mm|cm|length|size|distance|count|number|numeric|minute|dose|mill?igram|microgram)/i.test(
     descriptorKey
@@ -922,7 +998,9 @@ function fieldMessages(
   findingName: string,
   classificationName: string
 ): string[] {
-  if (!hasFieldError(instance, findingName, classificationName)) return []
+  if (!hasFieldError(instance, findingName, classificationName)) {
+    return []
+  }
 
   const messages: string[] = []
   if (
@@ -958,11 +1036,17 @@ async function refreshTemplatesForExamination() {
   }
   const reportingContext = getCatalogContext()
   const examName = selectedExaminationName.value
-  if (!examName) return
+  if (!examName) {
+    return
+  }
   const bundle = terminology.activeBundle
-  if (!bundle) return
+  if (!bundle) {
+    return
+  }
   try {
-    if (!reportingContext) return
+    if (!reportingContext) {
+      return
+    }
     const projection = await fetchExaminationReportingContext(
       reportingContext.moduleName,
       reportingContext.moduleVersion,
@@ -995,7 +1079,9 @@ function onAddFinding(findingName: string) {
 
 function onRemoveFinding(findingLocalId: string) {
   clearMessages()
-  if (!findingLocalId) return
+  if (!findingLocalId) {
+    return
+  }
   flow.removeFinding(findingLocalId)
   dirtySinceMount.value = true
   successMessage.value = 'Befundinstanz aus dem lokalen Entwurf entfernt.'
@@ -1013,7 +1099,9 @@ function onClassificationChoiceChange(
   const instance = (currentPayload.value?.patientFindings || []).find(
     (finding) => finding.localId === findingLocalId
   )
-  if (!instance) return
+  if (!instance) {
+    return
+  }
 
   flow.updateClassificationValue({
     findingLocalId,
@@ -1035,9 +1123,13 @@ function onDescriptorInput(
   const instance = (currentPayload.value?.patientFindings || []).find(
     (finding) => finding.localId === findingLocalId
   )
-  if (!instance) return
+  if (!instance) {
+    return
+  }
   const currentChoice = classificationChoiceName(instance, classificationName)
-  if (!currentChoice) return
+  if (!currentChoice) {
+    return
+  }
 
   flow.updateClassificationValue({
     findingLocalId,
@@ -1113,7 +1205,9 @@ function scheduleRuntimeValidation() {
 }
 
 function handleBeforeUnload(event: BeforeUnloadEvent) {
-  if (!dirtySinceMount.value) return
+  if (!dirtySinceMount.value) {
+    return
+  }
   event.preventDefault()
 }
 
@@ -1125,7 +1219,9 @@ watch(
       terminology.activeBundle?.version || '',
       terminology.activeBundleKey
     )
-    if (terminology.activeBundle) await refreshTemplatesForExamination()
+    if (terminology.activeBundle) {
+      await refreshTemplatesForExamination()
+    }
   }
 )
 
@@ -1146,7 +1242,9 @@ watch(
 watch(
   () => flow.selectedKbModule,
   (moduleName) => {
-    if (moduleName === selectedKbModule.value) return
+    if (moduleName === selectedKbModule.value) {
+      return
+    }
     setModuleName(
       moduleName,
       flow.currentRuntimeDraft?.payload.knowledgeBaseVersion ||
@@ -1169,7 +1267,9 @@ watch(
 watch(
   () => currentPayload.value?.patientFindings,
   () => {
-    if (!selectedTemplateName.value || !currentPayload.value) return
+    if (!selectedTemplateName.value || !currentPayload.value) {
+      return
+    }
     scheduleRuntimeValidation()
   },
   { deep: true }
@@ -1190,7 +1290,9 @@ watch(
 onMounted(async () => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   try {
-    if (!examinationStore.exams.length) await examinationStore.fetchExaminations()
+    if (!examinationStore.exams.length) {
+      await examinationStore.fetchExaminations()
+    }
     const examination = requireResolvedReportingExamination({
       catalog: examinationStore.examinationsDropdown,
       selectedExaminationId: flow.selectedExaminationId,

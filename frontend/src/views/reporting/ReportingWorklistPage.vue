@@ -7,22 +7,35 @@
           <small class="text-muted">Neue Berichte starten oder bestehende Fälle fortsetzen.</small>
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="loadReports">
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="loading"
+            @click="loadReports"
+          >
             Aktualisieren
           </button>
-          <RouterLink class="btn btn-primary btn-sm" to="/reporting">
+          <RouterLink
+            class="btn btn-primary btn-sm"
+            to="/reporting"
+          >
             Neuen Bericht starten
           </RouterLink>
         </div>
       </div>
       <div class="card-body">
-        <div v-if="errorMessage" class="alert alert-danger py-2">
+        <div
+          v-if="errorMessage"
+          class="alert alert-danger py-2"
+        >
           {{ errorMessage }}
         </div>
         <div class="row g-3 align-items-end mb-3">
           <div class="col-md-4">
             <label class="form-label">Status</label>
-            <select v-model="statusFilter" class="form-select">
+            <select
+              v-model="statusFilter"
+              class="form-select"
+            >
               <option value="all">Alle</option>
               <option value="draft">Entwurf</option>
               <option value="final">Abgeschlossen</option>
@@ -33,11 +46,20 @@
           </div>
         </div>
 
-        <div v-if="loading" class="text-muted">Lade Berichte...</div>
-        <div v-else-if="!filteredItems.length" class="alert alert-info mb-0">
+        <div
+          v-if="loading"
+          class="text-muted"
+        >Lade Berichte...</div>
+        <div
+          v-else-if="!filteredItems.length"
+          class="alert alert-info mb-0"
+        >
           Keine Berichte für den gewählten Filter gefunden.
         </div>
-        <div v-else class="table-responsive">
+        <div
+          v-else
+          class="table-responsive"
+        >
           <table class="table table-sm align-middle">
             <thead>
               <tr>
@@ -49,7 +71,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in filteredItems" :key="row.id">
+              <tr
+                v-for="row in filteredItems"
+                :key="row.id"
+              >
                 <td>
                   <div class="fw-semibold">{{ reportVersionLabel(row.version) }}</div>
                   <details class="small text-muted">
@@ -59,7 +84,10 @@
                   </details>
                 </td>
                 <td>
-                  <span class="badge" :class="statusBadgeClass(row.status)">
+                  <span
+                    class="badge"
+                    :class="statusBadgeClass(row.status)"
+                  >
                     {{ reportStatusLabel(row.status) }}
                   </span>
                 </td>
@@ -73,7 +101,10 @@
                   >
                     Öffnen
                   </RouterLink>
-                  <span v-else class="text-muted small">Kein Routing-Ziel</span>
+                  <span
+                    v-else
+                    class="text-muted small"
+                  >Kein Routing-Ziel</span>
                 </td>
               </tr>
             </tbody>
@@ -109,12 +140,20 @@ const filteredItems = computed(() =>
 )
 
 function patientExaminationId(row: ReportListRow): number | null {
-  if (typeof row.patientExaminationId === 'number') return row.patientExaminationId
-  if (typeof row.patientExaminationFk === 'number') return row.patientExaminationFk
-  if (typeof row.patientExamination === 'number') return row.patientExamination
+  if (typeof row.patientExaminationId === 'number') {
+    return row.patientExaminationId
+  }
+  if (typeof row.patientExaminationFk === 'number') {
+    return row.patientExaminationFk
+  }
+  if (typeof row.patientExamination === 'number') {
+    return row.patientExamination
+  }
   if (row.patientExamination && typeof row.patientExamination === 'object') {
     const nestedId = row.patientExamination.id
-    if (typeof nestedId === 'number') return nestedId
+    if (typeof nestedId === 'number') {
+      return nestedId
+    }
   }
   return null
 }

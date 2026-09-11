@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AiDatasetBucketsPage from '../AiDatasetBucketsPage.vue'
 
+vi.mock('@/api/aiDatasetSplitApi', () => ({
+  fetchDatasetSplitPlans: vi.fn(() => Promise.resolve([])),
+  createDatasetSplitPlan: vi.fn()
+}))
+
 const hoisted = vi.hoisted(() => ({
   attachAiDatasetAnnotations: vi.fn(),
   fetchAiDatasetOptions: vi.fn(),
@@ -110,6 +115,8 @@ describe('AiDatasetBucketsPage', () => {
     expect(wrapper.get('[data-test="summary-merged-frames"]').text()).toContain('8')
     expect(wrapper.get('[data-test="target-buckets"]').text()).toContain('Positiv')
     expect(wrapper.get('[data-test="label-bucket-table"]').text()).toContain('polyp')
+    expect(wrapper.get('[data-test="label-histogram"]').text()).toContain('8 Frames')
+    expect(wrapper.get('[data-test="split-form"]').text()).toContain('Buckets erstellen')
   })
 
   it('reloads distribution with selected label group and target label', async () => {
@@ -141,6 +148,22 @@ describe('AiDatasetBucketsPage', () => {
     })
     expect(hoisted.fetchAiDatasetFrameBucketDistribution).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('5 annotierte Segmente')
+  })
+
+  it('keeps the current histogram when an older filter request fails', async () => {
+    const wrapper = mount(AiDatasetBucketsPage)
+    await flushPromises()
+    let rejectOld: (reason: Error) => void = () => { throw new Error('Request not started') }
+    hoisted.fetchAiDatasetFrameBucketDistribution.mockImplementationOnce(() =>
+      new Promise<never>((_resolve, reject) => { rejectOld = reject })
+    )
+    await wrapper.get('[data-test="label-group-select"]').setValue('3')
+    await wrapper.get('[data-test="target-label-select"]').setValue('11')
+    await flushPromises()
+    rejectOld(new Error('Outdated request failed'))
+    await flushPromises()
+    expect(wrapper.get('[data-test="label-histogram"]').text()).toContain('8 Frames')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
   it('shows an error when segment backfill fails', async () => {

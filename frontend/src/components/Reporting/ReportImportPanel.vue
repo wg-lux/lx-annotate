@@ -21,7 +21,11 @@
         role="status"
         aria-hidden="true"
       ></span>
-      <i v-else class="ni ni-cloud-upload-96 me-1" aria-hidden="true"></i>
+      <i
+        v-else
+        class="ni ni-cloud-upload-96 me-1"
+        aria-hidden="true"
+      ></i>
       {{ isBusy ? 'Bericht wird importiert…' : 'PDF-Bericht importieren' }}
     </button>
 
@@ -31,7 +35,10 @@
       aria-live="polite"
       data-test="report-import-status"
     >
-      <span v-if="selectedFileName" class="text-muted">{{ selectedFileName }} · </span>
+      <span
+        v-if="selectedFileName"
+        class="text-muted"
+      >{{ selectedFileName }} · </span>
       <span :class="errorMessage ? 'text-danger' : 'text-muted'">{{ statusMessage }}</span>
     </div>
 
@@ -41,7 +48,11 @@
       data-test="report-import-completed"
     >
       <div>Import abgeschlossen. Die Anonymisierung wurde noch nicht manuell validiert.</div>
-      <RouterLink class="alert-link" :to="validationTarget" data-test="report-validation-link">
+      <RouterLink
+        class="alert-link"
+        :to="validationTarget"
+        data-test="report-validation-link"
+      >
         Anonymisierung jetzt validieren
       </RouterLink>
     </div>
@@ -90,7 +101,9 @@ let activeController: AbortController | null = null
 const isBusy = computed(() => ['uploading', 'pending', 'processing'].includes(importStatus.value))
 
 const statusMessage = computed(() => {
-  if (errorMessage.value) return errorMessage.value
+  if (errorMessage.value) {
+    return errorMessage.value
+  }
   switch (importStatus.value) {
     case 'uploading':
       return 'Upload läuft.'
@@ -192,14 +205,18 @@ async function onFileSelected(event: Event): Promise<void> {
     completedReportId.value = reportId
     emit('completed', reportId, completed)
   } catch (error) {
-    if (controller.signal.aborted) return
+    if (controller.signal.aborted) {
+      return
+    }
     const candidate = error as { message?: string }
     if (!isTerminalFailureStatus(importStatus.value)) {
       importStatus.value = 'error'
     }
     errorMessage.value = readableError(candidate)
   } finally {
-    if (activeController === controller) activeController = null
+    if (activeController === controller) {
+      activeController = null
+    }
   }
 }
 

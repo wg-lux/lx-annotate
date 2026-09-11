@@ -4,6 +4,8 @@ feature: admin_runtime_monitoring
 architecture:
   contract: lx_annotate.monitoring.contracts.MonitoringSnapshot
   implementation: lx_annotate.monitoring.service.build_monitoring_snapshot
+  shared_configuration_checks: lx_annotate.checks.runtime_configuration_messages
+  permission: lx_annotate.permissions.RuntimeMonitoringPermission
   consumers:
     - GET /endoreg-api/administration/monitoring/
     - GET /api/administration/monitoring/ (compatibility mount)
@@ -164,6 +166,17 @@ implementation_files:
   tracking_and_documentation:
     - feature-tracking/AdminRuntimeMonitoring.yml
     - docs/guides/admin-monitoring.yml
+regression_verification:
+  date: '2026-09-09'
+  assessor: codex-monitoring-fix-20260909
+  changes: Restored shared configuration checks, global administrator permission and API route; guarded missing report examination type and rebuilt the report test graph through public contract builders.
+  focused_tests: 86 passed across monitoring system/API, environment checks and report LLM tests.
+  static_checks: Full application Pyright reported zero errors or warnings; changed Python files passed Ruff checks and formatting.
+  runtime_contract: Runtime-check bundle contract passed.
+  full_suite: Before the final report fixture correction, 849 passed, 2 skipped, 7 failed and 5 report fixture errors; all 19 report tests passed after correction.
+  remaining_failures:
+    - Three central hub training tests expect HTTP 200 but protected processed-frame materialization is required and the endpoint returns HTTP 400.
+    - Four ASGI cancellation probes time out with installed and locked asgiref 3.11.1; the regression tests require at least 3.12.1.
 implementation_verification:
   date: '2026-09-09'
   assessor: codex-gc10-hls-20260909

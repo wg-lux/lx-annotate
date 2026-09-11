@@ -45,6 +45,20 @@ class ExactCenterScopeAdminPermission(BasePermission):
         return user_can_administer_center_scope(request.user)
 
 
+class RuntimeMonitoringPermission(BasePermission):
+    """Restrict operational diagnostics to authenticated global administrators."""
+
+    message = (
+        "A superuser or an exact center_scope:global_admin capability is required."
+    )
+
+    def has_permission(self, request: "Request", view: "APIView") -> bool:
+        del view
+        return bool(
+            getattr(request.user, "is_authenticated", False)
+        ) and user_has_global_center_scope_admin(request.user)
+
+
 class LifecyclePolicyPermission(BasePermission):
     """Enforce the governed route policy for recovery/export even in DEBUG."""
 

@@ -1,17 +1,23 @@
 <template>
   <div class="patient-edit-form">
-    <form class="edit-form" @submit.prevent="handleSubmit">
+    <form
+      class="edit-form"
+      @submit.prevent="handleSubmit"
+    >
       <!-- Form Grid -->
       <div class="form-grid">
         <!-- Basic Information Section -->
         <div class="form-section">
           <h5 class="section-title">
-            <i class="ni ni-circle-08"></i>
+            <i class="ni ni-circle-08 section-heading-icon"></i>
             Grunddaten
           </h5>
           
           <div class="form-group">
-            <label for="firstName" class="form-label required">
+            <label
+              for="firstName"
+              class="form-label required"
+            >
               Vorname
             </label>
             <input
@@ -23,13 +29,19 @@
               required
               maxlength="100"
             >
-            <div v-if="errors.firstName" class="invalid-feedback">
+            <div
+              v-if="errors.firstName"
+              class="invalid-feedback"
+            >
               {{ errors.firstName }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="lastName" class="form-label required">
+            <label
+              for="lastName"
+              class="form-label required"
+            >
               Nachname
             </label>
             <input
@@ -41,13 +53,19 @@
               required
               maxlength="100"
             >
-            <div v-if="errors.lastName" class="invalid-feedback">
+            <div
+              v-if="errors.lastName"
+              class="invalid-feedback"
+            >
               {{ errors.lastName }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="dob" class="form-label">
+            <label
+              for="dob"
+              class="form-label"
+            >
               Geburtsdatum
             </label>
             <input
@@ -58,7 +76,10 @@
               :class="{ 'is-invalid': errors.dob }"
               :max="maxDate"
             >
-            <div v-if="errors.dob" class="invalid-feedback">
+            <div
+              v-if="errors.dob"
+              class="invalid-feedback"
+            >
               {{ errors.dob }}
             </div>
             <small class="form-text text-muted">
@@ -67,7 +88,10 @@
           </div>
 
           <div class="form-group">
-            <label for="gender" class="form-label">
+            <label
+              for="gender"
+              class="form-label"
+            >
               Geschlecht
             </label>
             <select
@@ -85,7 +109,10 @@
                 {{ gender.nameDe || gender.name }}
               </option>
             </select>
-            <div v-if="errors.gender" class="invalid-feedback">
+            <div
+              v-if="errors.gender"
+              class="invalid-feedback"
+            >
               {{ errors.gender }}
             </div>
           </div>
@@ -94,12 +121,15 @@
         <!-- Contact Information Section -->
         <div class="form-section">
           <h5 class="section-title">
-            <i class="ni ni-book-bookmark"></i>
+            <i class="ni ni-book-bookmark section-heading-icon"></i>
             Kontaktdaten
           </h5>
 
           <div class="form-group">
-            <label for="email" class="form-label">
+            <label
+              for="email"
+              class="form-label"
+            >
               E-Mail-Adresse
             </label>
             <input
@@ -110,13 +140,19 @@
               :class="{ 'is-invalid': errors.email }"
               maxlength="254"
             >
-            <div v-if="errors.email" class="invalid-feedback">
+            <div
+              v-if="errors.email"
+              class="invalid-feedback"
+            >
               {{ errors.email }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="phone" class="form-label">
+            <label
+              for="phone"
+              class="form-label"
+            >
               Telefonnummer
             </label>
             <input
@@ -127,13 +163,19 @@
               :class="{ 'is-invalid': errors.phone }"
               maxlength="20"
             >
-            <div v-if="errors.phone" class="invalid-feedback">
+            <div
+              v-if="errors.phone"
+              class="invalid-feedback"
+            >
               {{ errors.phone }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="center" class="form-label">
+            <label
+              for="center"
+              class="form-label"
+            >
               Zentrum
             </label>
             <select
@@ -151,7 +193,10 @@
                 {{ center.nameDe || center.name }}
               </option>
             </select>
-            <div v-if="errors.center" class="invalid-feedback">
+            <div
+              v-if="errors.center"
+              class="invalid-feedback"
+            >
               {{ errors.center }}
             </div>
           </div>
@@ -164,7 +209,10 @@
                 class="form-check-input"
                 type="checkbox"
               >
-              <label class="form-check-label" for="isRealPerson">
+              <label
+                class="form-check-label"
+                for="isRealPerson"
+              >
                 <strong>Realer Patient</strong>
                 <small class="d-block text-muted">
                   Markieren Sie dies nur für echte Patientendaten
@@ -176,7 +224,10 @@
       </div>
 
       <!-- Error Display -->
-      <div v-if="generalError" class="alert alert-danger">
+      <div
+        v-if="generalError"
+        class="alert alert-danger"
+      >
         <i class="ni ni-user-run"></i>
         <strong>Fehler:</strong> {{ generalError }}
       </div>
@@ -199,8 +250,14 @@
             class="btn btn-primary"
             :disabled="loading || !isFormValid"
           >
-            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-            <i v-else class="ni ni-collection me-2"></i>
+            <span
+              v-if="loading"
+              class="spinner-border spinner-border-sm me-2"
+            ></span>
+            <i
+              v-else
+              class="ni ni-collection me-2"
+            ></i>
             {{ loading ? 'Wird gespeichert...' : 'Speichern' }}
           </button>
         </div>
@@ -221,7 +278,10 @@
     </form>
 
     <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteModal" class="modal-overlay">
+    <div
+      v-if="showDeleteModal"
+      class="modal-overlay"
+    >
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -242,9 +302,12 @@
               wirklich löschen?
             </p>
 
-            <div v-if="deletionInfo" class="deletion-info">
-              <h6>Auswirkungen:</h6>
-              <ul class="mb-0">
+            <div
+              v-if="deletionInfo"
+              class="deletion-info"
+            >
+              <h6 class="deletion-info-heading">Auswirkungen:</h6>
+              <ul class="mb-0 deletion-impact-list">
                 <li v-if="deletionInfo.examinations > 0">
                   {{ deletionInfo.examinations }} Untersuchung(en) werden gelöscht
                 </li>
@@ -275,8 +338,14 @@
               :disabled="deleting"
               @click="confirmDelete"
             >
-              <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              <i v-else class="ni ni-settings-gear-65 me-2"></i>
+              <span
+                v-if="deleting"
+                class="spinner-border spinner-border-sm me-2"
+              ></span>
+              <i
+                v-else
+                class="ni ni-settings-gear-65 me-2"
+              ></i>
               {{ deleting ? 'Wird gelöscht...' : 'Endgültig löschen' }}
             </button>
           </div>
@@ -318,9 +387,13 @@ interface PatientUpdateErrorPayload {
 }
 
 function parseDeletionInfo(value: unknown): PatientDeletionInfo | null {
-  if (!value || typeof value !== 'object') return null
+  if (!value || typeof value !== 'object') {
+    return null
+  }
   const relatedObjects = (value as { related_objects?: unknown }).related_objects
-  if (!relatedObjects || typeof relatedObjects !== 'object') return null
+  if (!relatedObjects || typeof relatedObjects !== 'object') {
+    return null
+  }
   const candidate = relatedObjects as Partial<PatientDeletionInfo>
   if (
     typeof candidate.examinations !== 'number' ||
@@ -474,7 +547,9 @@ const handleSubmit = async () => {
       const backendErrors = err.response.data
       ;(Object.keys(errors) as Array<keyof typeof errors>).forEach((key) => {
         const fieldError = backendErrors[key]
-        if (typeof fieldError === 'string') errors[key] = fieldError
+        if (typeof fieldError === 'string') {
+          errors[key] = fieldError
+        }
         else if (Array.isArray(fieldError) && typeof fieldError[0] === 'string') {
           errors[key] = fieldError[0]
         }
@@ -579,7 +654,7 @@ onMounted(async () => {
   border-bottom: 2px solid #e9ecef;
 }
 
-.section-title i {
+.section-title .section-heading-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -782,12 +857,12 @@ onMounted(async () => {
   border-radius: 6px;
 }
 
-.deletion-info h6 {
+.deletion-info .deletion-info-heading {
   margin-bottom: 0.5rem;
   color: #495057;
 }
 
-.deletion-info ul {
+.deletion-info .deletion-impact-list {
   color: #6c757d;
   font-size: 0.9rem;
 }

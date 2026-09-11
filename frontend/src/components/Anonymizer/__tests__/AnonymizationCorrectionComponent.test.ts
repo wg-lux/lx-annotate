@@ -18,7 +18,9 @@ const deferred = <Value>(): Deferred<Value> => {
   const promise = new Promise<Value>((resolve) => {
     resolvePromise = resolve
   })
-  if (!resolvePromise) throw new Error('Deferred promise resolver was not initialized.')
+  if (!resolvePromise) {
+    throw new Error('Deferred promise resolver was not initialized.')
+  }
   return { promise, resolve: resolvePromise }
 }
 
@@ -193,9 +195,15 @@ describe('AnonymizationCorrectionComponent PDF rendering', () => {
   it('ignores a late report response after selecting another report', async () => {
     const pending = deferred<{ data: { filename: string } }>()
     hoisted.axiosGet.mockImplementation((url: string) => {
-      if (url === 'media/pdfs/5/') return pending.promise
-      if (url === 'media/pdfs/6/') return Promise.resolve({ data: { filename: 'current.pdf' } })
-      if (url.includes('/stream/')) return Promise.reject(new Error('source unavailable'))
+      if (url === 'media/pdfs/5/') {
+        return pending.promise
+      }
+      if (url === 'media/pdfs/6/') {
+        return Promise.resolve({ data: { filename: 'current.pdf' } })
+      }
+      if (url.includes('/stream/')) {
+        return Promise.reject(new Error('source unavailable'))
+      }
       throw new Error(url)
     })
     const wrapper = mount(AnonymizationCorrectionComponent, { props: { fileId: 5, mediaType: 'pdf' } })
@@ -218,12 +226,18 @@ describe('AnonymizationCorrectionComponent PDF rendering', () => {
     }
     let old_status_reads = 0
     hoisted.axiosGet.mockImplementation((url: string) => {
-      if (url.endsWith('/metadata/')) return Promise.resolve({ data: {} })
-      if (url.endsWith('/processing-history/')) return Promise.resolve({ data: [] })
+      if (url.endsWith('/metadata/')) {
+        return Promise.resolve({ data: {} })
+      }
+      if (url.endsWith('/processing-history/')) {
+        return Promise.resolve({ data: [] })
+      }
       if (url.endsWith('/anonymization/')) {
         if (url.includes('/7/')) {
           old_status_reads += 1
-          if (old_status_reads === 2) return pending.promise
+          if (old_status_reads === 2) {
+            return pending.promise
+          }
         }
         return Promise.resolve({ data: status })
       }

@@ -24,7 +24,9 @@ function requireRecord(input: unknown, path: string): UnknownRecord {
 }
 
 function readKey(input: UnknownRecord, camel: string, snake: string): unknown {
-  if (input[camel] !== undefined) return input[camel]
+  if (input[camel] !== undefined) {
+    return input[camel]
+  }
   return input[snake]
 }
 
@@ -36,7 +38,9 @@ function requirePositiveIntegerValue(value: unknown, path: string): number {
 }
 
 function optionalPositiveIntegerValue(value: unknown, path: string): number | undefined {
-  if (value === undefined || value === null) return undefined
+  if (value === undefined || value === null) {
+    return undefined
+  }
   return requirePositiveIntegerValue(value, path)
 }
 
@@ -48,34 +52,50 @@ function requireName(value: unknown, path: string): string {
 }
 
 function optionalString(value: unknown, path: string): string | undefined {
-  if (value === undefined || value === null) return undefined
-  if (typeof value !== 'string') throw contractError(path, 'a string or null')
+  if (value === undefined || value === null) {
+    return undefined
+  }
+  if (typeof value !== 'string') {
+    throw contractError(path, 'a string or null')
+  }
   return value
 }
 
 function optionalNullableString(value: unknown, path: string): string | null | undefined {
-  if (value === undefined || value === null) return value
-  if (typeof value !== 'string') throw contractError(path, 'a string or null')
+  if (value === undefined || value === null) {
+    return value
+  }
+  if (typeof value !== 'string') {
+    throw contractError(path, 'a string or null')
+  }
   return value
 }
 
 function optionalName(value: unknown, path: string): string | undefined {
-  if (value === undefined || value === null) return undefined
+  if (value === undefined || value === null) {
+    return undefined
+  }
   return requireName(value, path)
 }
 
 function requireBoolean(value: unknown, path: string): boolean {
-  if (typeof value !== 'boolean') throw contractError(path, 'a boolean')
+  if (typeof value !== 'boolean') {
+    throw contractError(path, 'a boolean')
+  }
   return value
 }
 
 function requireArray(value: unknown, path: string): unknown[] {
-  if (!Array.isArray(value)) throw contractError(path, 'an array')
+  if (!Array.isArray(value)) {
+    throw contractError(path, 'an array')
+  }
   return value
 }
 
 function optionalStringArray(value: unknown, path: string): string[] {
-  if (value === undefined) return []
+  if (value === undefined) {
+    return []
+  }
   return requireStringArray(value, path)
 }
 
@@ -86,7 +106,9 @@ function requireStringArray(value: unknown, path: string): string[] {
 }
 
 function optionalJsonMap(value: unknown, path: string): JsonMap {
-  if (value === undefined) return {}
+  if (value === undefined) {
+    return {}
+  }
   return requireRecord(value, path)
 }
 
@@ -95,7 +117,9 @@ function requireJsonMap(value: unknown, path: string): JsonMap {
 }
 
 function requireRows(input: unknown, path: string): unknown[] {
-  if (Array.isArray(input)) return input
+  if (Array.isArray(input)) {
+    return input
+  }
   const envelope = requireRecord(input, path)
   return requireArray(envelope.results, `${path}.results`)
 }
@@ -301,7 +325,9 @@ const normalizeFindingClassificationList = (
 export const mergeFindingClassifications = (
   finding: Partial<Finding> | null | undefined
 ): FindingClassification[] => {
-  if (!finding) return []
+  if (!finding) {
+    return []
+  }
   const merged = [
     ...(Array.isArray(finding.classifications) ? finding.classifications : []),
     ...(Array.isArray(finding.locationClassifications) ? finding.locationClassifications : []),
@@ -312,7 +338,9 @@ export const mergeFindingClassifications = (
   const byId = new Map<number, FindingClassification>()
   for (const classification of merged) {
     requirePositiveIntegerValue(classification.id, 'finding.classifications[].id')
-    if (!byId.has(classification.id)) byId.set(classification.id, classification)
+    if (!byId.has(classification.id)) {
+      byId.set(classification.id, classification)
+    }
   }
   return Array.from(byId.values())
 }
@@ -426,7 +454,9 @@ function normalizePatientFindingIntervention(
   input: unknown,
   path: string
 ): number | PatientFindingIntervention {
-  if (typeof input === 'number') return requirePositiveIntegerValue(input, path)
+  if (typeof input === 'number') {
+    return requirePositiveIntegerValue(input, path)
+  }
   const source = requireRecord(input, path)
   return {
     intervention: optionalPositiveIntegerValue(source.intervention, `${path}.intervention`),
@@ -445,7 +475,9 @@ function normalizePatientFindingIntervention(
 }
 
 function normalizeFindingReference(input: unknown, path: string): number | { id: number } {
-  if (typeof input === 'number') return requirePositiveIntegerValue(input, path)
+  if (typeof input === 'number') {
+    return requirePositiveIntegerValue(input, path)
+  }
   const source = requireRecord(input, path)
   return { id: requirePositiveIntegerValue(source.id, `${path}.id`) }
 }
@@ -519,8 +551,12 @@ export const getClassificationDisplayName = (
 ): string => getCoreConceptDisplayName(classification, 'unknown')
 
 export const extractFindingId = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value
-  if (!isRecord(value)) return null
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value
+  }
+  if (!isRecord(value)) {
+    return null
+  }
   const nestedId = value.id
   return typeof nestedId === 'number' && Number.isInteger(nestedId) && nestedId > 0
     ? nestedId

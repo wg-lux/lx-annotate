@@ -26,6 +26,8 @@ export default {
       method = requestedMethod
     }
     const allowed = store.can(key, method)
-    if (!allowed) el.style.display = 'none'
+    if (!allowed) {
+      el.style.display = 'none'
+    }
   }
 }

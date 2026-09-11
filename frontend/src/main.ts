@@ -20,6 +20,7 @@ import { initHttpKC } from '@/utils/http_kc'
 import canKc from '@/directives/can_kc'
 import { useAuthKcStore } from '@/stores/auth_kc'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { useToastStore } from '@/stores/toastStore'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const logger = createRuntimeLogger('application')
@@ -39,6 +40,11 @@ const authStore = useAuthKcStore()
 const reportingFlowStore = useReportingFlowStore()
 void authStore.loadBootstrap().finally(() => {
   reportingFlowStore.bindAuthSubject(authStore.user?.sub ?? null)
+}).catch((error: unknown) => {
+  logger.error('auth-bootstrap.failed', error)
+  useToastStore().error({
+    text: 'Die Anmeldung konnte nicht geprüft werden. Bitte laden Sie die Seite erneut.'
+  })
 })
 
 // 5. Directives & global components

@@ -72,7 +72,9 @@ export function buildStudyCohortExportPayload(
 }
 
 function responseFilename(contentDisposition: unknown): string {
-  if (typeof contentDisposition !== 'string') return DEFAULT_FILENAME
+  if (typeof contentDisposition !== 'string') {
+    return DEFAULT_FILENAME
+  }
   const match = /filename="?([^";]+)"?/i.exec(contentDisposition)
   const filename = match?.[1]?.trim()
   return filename?.toLowerCase().endsWith('.xlsx') ? filename : DEFAULT_FILENAME

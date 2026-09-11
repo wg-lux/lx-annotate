@@ -3,7 +3,10 @@
     <section class="evaluation-header mb-3">
       <div>
         <h1 class="evaluation-title mb-1">Anonymization Evaluation</h1>
-        <div class="evaluation-counts" aria-label="Sensitive metadata totals">
+        <div
+          class="evaluation-counts"
+          aria-label="Sensitive metadata totals"
+        >
           <span class="badge bg-primary">Videos {{ videoTotal }}</span>
           <span class="badge bg-danger">PDFs {{ pdfTotal }}</span>
           <span class="badge bg-secondary">Shown {{ records.length }}</span>
@@ -15,68 +18,99 @@
         :disabled="loading"
         @click="loadSensitiveMetadata"
       >
-        <i class="ni ni-bold-right me-1" :class="{ 'loading-icon': loading }"></i>
+        <i
+          class="ni ni-bold-right me-1"
+          :class="{ 'loading-icon': loading }"
+        ></i>
         Refresh
       </button>
     </section>
 
-    <section class="sensitive-meta-panel" aria-labelledby="sensitive-meta-heading">
+    <section
+      class="sensitive-meta-panel"
+      aria-labelledby="sensitive-meta-heading"
+    >
       <div class="panel-header">
-        <h2 id="sensitive-meta-heading" class="panel-title mb-0">
+        <h2
+          id="sensitive-meta-heading"
+          class="panel-title mb-0"
+        >
           Extracted lx-anonymizer metadata
         </h2>
-        <span v-if="loading" class="text-muted small">Loading...</span>
+        <span
+          v-if="loading"
+          class="text-muted small"
+        >Loading...</span>
       </div>
 
-      <div v-if="errorMessage" class="alert alert-danger mb-0" role="alert">
+      <div
+        v-if="errorMessage"
+        class="alert alert-danger mb-0"
+        role="alert"
+      >
         {{ errorMessage }}
       </div>
 
-      <div v-else class="table-responsive">
+      <div
+        v-else
+        class="table-responsive"
+      >
         <table class="table table-hover align-middle mb-0 sensitive-meta-table">
           <thead>
             <tr>
-              <th>Type</th>
-              <th>ID</th>
-              <th>First name</th>
-              <th>Last name</th>
-              <th>DOB</th>
-              <th>Case number</th>
-              <th>Exam date</th>
-              <th>Gender</th>
-              <th>Center</th>
-              <th>Verified</th>
-              <th>Text</th>
-              <th>Anonymized text</th>
+              <th class="sensitive-meta-table__heading">Type</th>
+              <th class="sensitive-meta-table__heading">ID</th>
+              <th class="sensitive-meta-table__heading">First name</th>
+              <th class="sensitive-meta-table__heading">Last name</th>
+              <th class="sensitive-meta-table__heading">DOB</th>
+              <th class="sensitive-meta-table__heading">Case number</th>
+              <th class="sensitive-meta-table__heading">Exam date</th>
+              <th class="sensitive-meta-table__heading">Gender</th>
+              <th class="sensitive-meta-table__heading">Center</th>
+              <th class="sensitive-meta-table__heading">Verified</th>
+              <th class="sensitive-meta-table__heading">Text</th>
+              <th class="sensitive-meta-table__heading">Anonymized text</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="12" class="text-center text-muted py-4">
+              <td
+                colspan="12"
+                class="text-center text-muted py-4 sensitive-meta-table__cell"
+              >
                 Loading SensitiveMeta rows...
               </td>
             </tr>
             <tr v-else-if="records.length === 0">
-              <td colspan="12" class="text-center text-muted py-4">No SensitiveMeta rows found.</td>
+              <td
+                colspan="12"
+                class="text-center text-muted py-4 sensitive-meta-table__cell"
+              >No SensitiveMeta rows found.</td>
             </tr>
             <template v-else>
-              <tr v-for="meta in records" :key="`${meta.mediaType}-${meta.id}`">
-                <td>
-                  <span class="badge" :class="mediaBadgeClass(meta.mediaType)">
+              <tr
+                v-for="meta in records"
+                :key="`${meta.mediaType}-${meta.id}`"
+              >
+                <td class="sensitive-meta-table__cell">
+                  <span
+                    class="badge"
+                    :class="mediaBadgeClass(meta.mediaType)"
+                  >
                     {{ mediaLabel(meta.mediaType) }}
                   </span>
                 </td>
-                <td>
+                <td class="sensitive-meta-table__cell">
                   <code>{{ meta.id }}</code>
                 </td>
-                <td>{{ displayValue(meta.patientFirstName) }}</td>
-                <td>{{ displayValue(meta.patientLastName) }}</td>
-                <td>{{ formatDate(meta.patientDobDisplay || meta.patientDob) }}</td>
-                <td>{{ displayValue(meta.casenumber) }}</td>
-                <td>{{ formatDate(meta.examinationDateDisplay || meta.examinationDate) }}</td>
-                <td>{{ displayValue(meta.patientGenderName) }}</td>
-                <td>{{ displayValue(meta.centerName) }}</td>
-                <td>
+                <td class="sensitive-meta-table__cell">{{ displayValue(meta.patientFirstName) }}</td>
+                <td class="sensitive-meta-table__cell">{{ displayValue(meta.patientLastName) }}</td>
+                <td class="sensitive-meta-table__cell">{{ formatDate(meta.patientDobDisplay || meta.patientDob) }}</td>
+                <td class="sensitive-meta-table__cell">{{ displayValue(meta.casenumber) }}</td>
+                <td class="sensitive-meta-table__cell">{{ formatDate(meta.examinationDateDisplay || meta.examinationDate) }}</td>
+                <td class="sensitive-meta-table__cell">{{ displayValue(meta.patientGenderName) }}</td>
+                <td class="sensitive-meta-table__cell">{{ displayValue(meta.centerName) }}</td>
+                <td class="sensitive-meta-table__cell">
                   <span
                     class="badge"
                     :class="meta.isVerified ? 'bg-success' : 'bg-warning text-dark'"
@@ -84,19 +118,31 @@
                     {{ meta.isVerified ? 'Yes' : 'No' }}
                   </span>
                 </td>
-                <td class="text-preview-cell">
-                  <details v-if="meta.text" class="text-preview">
-                    <summary>{{ truncateText(meta.text) }}</summary>
-                    <pre>{{ meta.text }}</pre>
+                <td class="text-preview-cell sensitive-meta-table__cell">
+                  <details
+                    v-if="meta.text"
+                    class="text-preview"
+                  >
+                    <summary class="text-preview__disclosure">{{ truncateText(meta.text) }}</summary>
+                    <pre class="text-preview__content">{{ meta.text }}</pre>
                   </details>
-                  <span v-else class="text-muted">Not available</span>
+                  <span
+                    v-else
+                    class="text-muted"
+                  >Not available</span>
                 </td>
-                <td class="text-preview-cell">
-                  <details v-if="meta.anonymizedText" class="text-preview">
-                    <summary>{{ truncateText(meta.anonymizedText) }}</summary>
-                    <pre>{{ meta.anonymizedText }}</pre>
+                <td class="text-preview-cell sensitive-meta-table__cell">
+                  <details
+                    v-if="meta.anonymizedText"
+                    class="text-preview"
+                  >
+                    <summary class="text-preview__disclosure">{{ truncateText(meta.anonymizedText) }}</summary>
+                    <pre class="text-preview__content">{{ meta.anonymizedText }}</pre>
                   </details>
-                  <span v-else class="text-muted">Not available</span>
+                  <span
+                    v-else
+                    class="text-muted"
+                  >Not available</span>
                 </td>
               </tr>
             </template>
@@ -305,7 +351,7 @@ onMounted(() => {
   min-width: 1360px;
 }
 
-.sensitive-meta-table th {
+.sensitive-meta-table .sensitive-meta-table__heading {
   background: var(--evaluation-muted-bg);
   color: #4b5563;
   font-size: 0.72rem;
@@ -314,8 +360,8 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.sensitive-meta-table td,
-.sensitive-meta-table th {
+.sensitive-meta-table .sensitive-meta-table__cell,
+.sensitive-meta-table .sensitive-meta-table__heading {
   border-color: rgba(35, 42, 62, 0.1);
   vertical-align: top;
 }
@@ -324,7 +370,7 @@ onMounted(() => {
   max-width: 280px;
 }
 
-.text-preview summary {
+.text-preview .text-preview__disclosure {
   cursor: pointer;
   max-width: 260px;
   overflow: hidden;
@@ -332,7 +378,7 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.text-preview pre {
+.text-preview .text-preview__content {
   background: #f5f7fb;
   border: 1px solid rgba(35, 42, 62, 0.1);
   border-radius: 6px;

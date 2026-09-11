@@ -5,6 +5,14 @@ import { endpoints } from '@/types/api/endpoints'
 
 import FrameSelectorPage from '../FrameSelectorPage.vue'
 
+const PATIENT_EXAMINATION_ID = 42
+const REPORT_ID = 88
+const VIDEO_ID = 5
+const SEGMENT_ID = 7
+const INITIAL_FRAME_NUMBER = 15
+const MANUAL_FRAME_NUMBER = 19
+const EXAMINATION_ID = 9
+
 const hoisted = vi.hoisted(() => {
   let flowFixture: ReturnType<typeof buildFlowStore> | undefined
   return {
@@ -49,21 +57,21 @@ vi.mock('@/composables/reporting/useFindingSelectors', () => ({
 
 function buildFrameSelectorState() {
   return {
-    patientExaminationId: 42,
-    reportId: 88,
+    patientExaminationId: PATIENT_EXAMINATION_ID,
+    reportId: REPORT_ID,
     reportStatus: 'draft',
     count: 1,
     results: [
       {
-        segmentId: 7,
-        videoId: 5,
+        segmentId: SEGMENT_ID,
+        videoId: VIDEO_ID,
         labelName: 'Antrum',
         startFrameNumber: 10,
         endFrameNumber: 30,
-        selectedFrameNumber: 15,
+        selectedFrameNumber: INITIAL_FRAME_NUMBER,
         selectedFrame: {
           frameId: 901,
-          frameNumber: 15,
+          frameNumber: INITIAL_FRAME_NUMBER,
           timestamp: 1.5,
           relativePath: 'frames/frame-15.jpg',
           fileExists: true
@@ -80,17 +88,17 @@ function buildFrameSelectorState() {
 
 function buildFlowStore() {
   const flow = reactive({
-    patientExaminationId: 42,
-    selectedExaminationId: 9,
+    patientExaminationId: PATIENT_EXAMINATION_ID,
+    selectedExaminationId: EXAMINATION_ID,
     activeReportId: null as number | null,
     lookupToken: 'lookup-token',
     mediaPreload: {
       latestFrames: [
         {
-          videoId: 5,
+          videoId: VIDEO_ID,
           frameNumber: 22,
           category: 'recent',
-          streamUrl: `/api/${endpoints.media.videoStream(5)}?frame=22`
+          streamUrl: `/api/${endpoints.media.videoStream(VIDEO_ID)}?frame=22`
         }
       ]
     },
@@ -132,17 +140,17 @@ describe('FrameSelectorPage', () => {
     })
     await flushPromises()
 
-    expect(hoisted.ensureCatalogLoaded).toHaveBeenCalledWith(9)
+    expect(hoisted.ensureCatalogLoaded).toHaveBeenCalledWith(EXAMINATION_ID)
     expect(hoisted.get).toHaveBeenCalledWith(
       'patient-examination-reports/segment-frame-selector?patient_examination_id=42'
     )
-    expect(hoisted.flowRef.current.setActiveReportId).toHaveBeenCalledWith(88)
+    expect(hoisted.flowRef.current.setActiveReportId).toHaveBeenCalledWith(REPORT_ID)
     expect(wrapper.text()).toContain('Antrum')
     expect(wrapper.text()).toContain('Ausgewählt: 15')
 
     await getButtonByText(wrapper, '#22').trigger('click')
     expect(openSpy).toHaveBeenCalledWith(
-      `/api/${endpoints.media.videoStream(5)}?frame=22`,
+      `/api/${endpoints.media.videoStream(VIDEO_ID)}?frame=22`,
       '_blank',
       'noopener,noreferrer'
     )
@@ -177,10 +185,10 @@ describe('FrameSelectorPage', () => {
         results: [
           {
             ...buildFrameSelectorState().results[0],
-            selectedFrameNumber: 19,
+            selectedFrameNumber: MANUAL_FRAME_NUMBER,
             selectedFrame: {
               frameId: 902,
-              frameNumber: 19,
+              frameNumber: MANUAL_FRAME_NUMBER,
               timestamp: 1.9,
               relativePath: 'frames/frame-19.jpg',
               fileExists: true
@@ -206,9 +214,9 @@ describe('FrameSelectorPage', () => {
       1,
       'patient-examination-reports/segment-frame-selector',
       {
-        patientExaminationId: 42,
-        reportId: 88,
-        segmentId: 7,
+        patientExaminationId: PATIENT_EXAMINATION_ID,
+        reportId: REPORT_ID,
+        segmentId: SEGMENT_ID,
         action: 'random',
         findingId: 11
       }
@@ -222,11 +230,11 @@ describe('FrameSelectorPage', () => {
       2,
       'patient-examination-reports/segment-frame-selector',
       {
-        patientExaminationId: 42,
-        reportId: 88,
-        segmentId: 7,
+        patientExaminationId: PATIENT_EXAMINATION_ID,
+        reportId: REPORT_ID,
+        segmentId: SEGMENT_ID,
         action: 'set',
-        frameNumber: 19,
+        frameNumber: MANUAL_FRAME_NUMBER,
         findingId: 11
       }
     )

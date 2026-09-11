@@ -14,6 +14,11 @@ import {
   validateReportTemplateRuntime
 } from '@/api/reportTemplatesApi'
 
+const POLYP_SIZE_MM = 12
+const PATIENT_EXAMINATION_ID = 42
+const SHA256_HEX_LENGTH = 64
+const MAX_PROPOFOL_DOSE_MG = 2000
+
 const hoisted = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn()
@@ -29,6 +34,19 @@ vi.mock('@/api/axiosInstance', () => ({
 }))
 
 describe('reportTemplatesApi', () => {
+  it('validates template-authored verbosity options', () => {
+    const options = ['short', 'standard', 'detailed']
+    expect(
+      normalizeTemplatePayload({ name: 'report', verbosity_options: options })?.verbosityOptions
+    ).toEqual(options)
+    expect(normalizeTemplatePayload({ name: 'legacy' })?.verbosityOptions).toEqual(['standard'])
+    for (const invalid of [[], ['short'], ['standard', 'standard'], ['standard', 'invented']]) {
+      expect(() =>
+        normalizeTemplatePayload({ name: 'report', verbosity_options: invalid })
+      ).toThrow('verbosity_options')
+    }
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -265,7 +283,7 @@ describe('reportTemplatesApi', () => {
                             unit: 'milligram',
                             unit_abbreviation: 'mg',
                             numeric_min: 0,
-                            numeric_max: 2000
+                            numeric_max: MAX_PROPOFOL_DOSE_MG
                           }
                         ]
                       }
@@ -322,7 +340,7 @@ describe('reportTemplatesApi', () => {
       unit: 'milligram',
       unitAbbreviation: 'mg',
       numericMin: 0,
-      numericMax: 2000
+      numericMax: MAX_PROPOFOL_DOSE_MG
     })
     expect(payload?.validators.findingsValidators[0].requiredClassifications).toEqual(['c1'])
     expect(payload?.validators.examinationValidators[0].findingValidators).toEqual(['v1'])
@@ -368,15 +386,15 @@ describe('reportTemplatesApi', () => {
       identity: {
         moduleName: 'colonoscopy',
         module_version: '1.2.0',
-        moduleDigest: 'a'.repeat(64),
+        moduleDigest: 'a'.repeat(SHA256_HEX_LENGTH),
         template_name: 'standard',
         template_version: '3',
-        templateDigest: 'b'.repeat(64)
+        templateDigest: 'b'.repeat(SHA256_HEX_LENGTH)
       },
       provenance: {
         resolver: 'lx-resolver',
         resolverVersion: '1.0.0',
-        evidence_digest: 'c'.repeat(64)
+        evidence_digest: 'c'.repeat(SHA256_HEX_LENGTH)
       },
       concepts: [
         {
@@ -391,7 +409,7 @@ describe('reportTemplatesApi', () => {
 
     expect(coverage).toMatchObject({
       contractVersion: 'report_concept_coverage_v1',
-      identity: { moduleName: 'colonoscopy', templateDigest: 'b'.repeat(64) },
+      identity: { moduleName: 'colonoscopy', templateDigest: 'b'.repeat(SHA256_HEX_LENGTH) },
       concepts: [{ conceptId: 'lesion.size', validationStatus: 'present' }]
     })
     expect(
@@ -524,7 +542,7 @@ describe('reportTemplatesApi', () => {
                 descriptors: [
                   {
                     classificationChoiceDescriptor: 'length_mm_descriptor',
-                    descriptorValue: 12
+                    descriptorValue: POLYP_SIZE_MM
                   }
                 ]
               }
@@ -557,7 +575,7 @@ describe('reportTemplatesApi', () => {
                       'frontend_runtime_exam_finding_1_classifications_1',
                     patient_finding_classification_choice_descriptors: [
                       {
-                        descriptor_value: 12,
+                        descriptor_value: POLYP_SIZE_MM,
                         classification_choice_descriptor: 'length_mm_descriptor',
                         patient_finding_classification_choice:
                           'frontend_runtime_exam_finding_1_classifications_1_choice_1_descriptor_parent',
@@ -618,7 +636,7 @@ describe('reportTemplatesApi', () => {
       'report_template_examples',
       '0.1.0',
       'star_upper_gi_main',
-      42
+      PATIENT_EXAMINATION_ID
     )
 
     expect(hoisted.post).toHaveBeenCalledWith(
@@ -674,7 +692,7 @@ describe('reportTemplatesApi', () => {
         moduleName: 'report_template_examples',
         moduleVersion: '0.1.0',
         templateName: 'star_upper_gi_main',
-        patientExaminationId: 42
+        patientExaminationId: PATIENT_EXAMINATION_ID
       })
     ).rejects.toMatchObject({ response: { status: 404 } })
 
@@ -694,7 +712,7 @@ describe('reportTemplatesApi', () => {
         moduleName: 'report_template_examples',
         moduleVersion: '0.1.0',
         templateName: 'star_upper_gi_main',
-        patientExaminationId: 42
+        patientExaminationId: PATIENT_EXAMINATION_ID
       })
     ).rejects.toMatchObject({
       response: {

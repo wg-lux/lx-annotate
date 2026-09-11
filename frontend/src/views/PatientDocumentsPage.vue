@@ -9,8 +9,14 @@
           Untersuchung.
         </p>
       </div>
-      <nav class="d-flex flex-wrap align-items-start gap-2" aria-label="Patientennavigation">
-        <RouterLink class="btn btn-outline-secondary" to="/patienten">Patienten</RouterLink>
+      <nav
+        class="d-flex flex-wrap align-items-start gap-2"
+        aria-label="Patientennavigation"
+      >
+        <RouterLink
+          class="btn btn-outline-secondary"
+          to="/patienten"
+        >Patienten</RouterLink>
         <RouterLink
           class="btn btn-outline-primary"
           :to="{ name: 'Patientenmedikation', params: { patientId } }"
@@ -26,15 +32,29 @@
       </nav>
     </div>
 
-    <div v-if="loading" class="card card-body text-center" role="status">
+    <div
+      v-if="loading"
+      class="card card-body text-center"
+      role="status"
+    >
       <div class="spinner-border text-primary mx-auto mb-2"></div>
       Dokumente werden geladen…
     </div>
-    <div v-else-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
-    <div v-else-if="documents.length === 0" class="card card-body text-center text-muted">
+    <div
+      v-else-if="error"
+      class="alert alert-danger"
+      role="alert"
+    >{{ error }}</div>
+    <div
+      v-else-if="documents.length === 0"
+      class="card card-body text-center text-muted"
+    >
       Für diesen Patienten sind keine Dokumente vorhanden.
     </div>
-    <div v-else class="card shadow-sm">
+    <div
+      v-else
+      class="card shadow-sm"
+    >
       <div class="card-header d-flex justify-content-between align-items-center">
         <h2 class="h5 mb-0">Dokumente</h2>
         <span class="badge bg-primary">{{ documents.length }}</span>
@@ -66,7 +86,10 @@
             >
               {{ document.mediaType === 'video' ? 'Abspielen' : 'Öffnen' }}
             </a>
-            <span v-else class="small text-muted">Keine Datei verfügbar</span>
+            <span
+              v-else
+              class="small text-muted"
+            >Keine Datei verfügbar</span>
           </div>
         </article>
       </div>
@@ -111,8 +134,12 @@ function preferredStream(document: PatientTimelineItem): string | null {
 }
 
 function documentTitle(document: PatientTimelineItem): string {
-  if (document.documentType) return document.documentType
-  if (document.mediaType === 'full_report') return 'Untersuchungsbericht'
+  if (document.documentType) {
+    return document.documentType
+  }
+  if (document.mediaType === 'full_report') {
+    return 'Untersuchungsbericht'
+  }
   if (document.mediaType === 'video') {
     return document.fileName?.split('/').pop() || `Video #${String(document.id)}`
   }
@@ -120,7 +147,9 @@ function documentTitle(document: PatientTimelineItem): string {
 }
 
 function caseLabel(document: PatientTimelineItem): string | null {
-  if (!document.patientExaminationId) return null
+  if (!document.patientExaminationId) {
+    return null
+  }
   const patientCase = cases.value.find((candidate) =>
     candidate.patientExaminations.some(
       (examination) => examination.id === document.patientExaminationId
@@ -130,7 +159,9 @@ function caseLabel(document: PatientTimelineItem): string | null {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return 'Datum nicht verfügbar'
+  if (!value) {
+    return 'Datum nicht verfügbar'
+  }
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? 'Datum nicht verfügbar' : date.toLocaleDateString('de-DE')
 }

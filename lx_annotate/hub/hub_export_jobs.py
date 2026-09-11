@@ -1027,6 +1027,7 @@ def _validate_failed_job_for_operator_retry(
     elif job.resource_kind == OutboundHubTransferJob.ResourceKind.REPORT:
         if job.raw_pdf_file_id is None or not is_report_hub_export_eligible(
             job.raw_pdf_file,
+            verify_processed_media=True,
         ):
             raise ValueError(
                 "The failed report transfer is no longer eligible for hub export.",
@@ -1171,7 +1172,7 @@ def _mark_report_for_hub_upload(
     marked_by: Any,
 ) -> tuple[OutboundHubTransferJob, bool]:
     report = RawPdfFile.objects.select_related("center").get(pk=resource_id)
-    if not is_report_hub_export_eligible(report):
+    if not is_report_hub_export_eligible(report, verify_processed_media=True):
         raise ValueError(f"Report {resource_id} is not eligible for hub export.")
     return OutboundHubTransferJob.objects.get_or_create(
         raw_pdf_file=report,

@@ -1,9 +1,16 @@
 <template>
   <div class="sidebar-panel">
       <div class="sidenav-header">
-        <a class="navbar-brand m-0" href="/">
+        <a
+          class="navbar-brand m-0"
+          href="/"
+        >
           <div class="sidenav-header-inner text-center">
-            <img :src="logoSrc" alt="Logo" class="logo-img" />
+            <img
+              :src="logoSrc"
+              alt="Logo"
+              class="logo-img"
+            />
           </div>
           <div class="brand-name">AG Lux</div>
           <div class="brand-context">Klinischer Arbeitsbereich</div>
@@ -13,7 +20,11 @@
         <ul class="navbar-nav">
           <li class="nav-section-title">Workflow</li>
           <li class="nav-item">
-            <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
+            <router-link
+              to="/"
+              class="nav-link"
+              :class="{ active: $route.path === '/' }"
+            >
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                 <i class="ni ni-tv-2 opacity-10"></i>
               </div>
@@ -37,7 +48,11 @@
             </router-link>
           </li>-->
           <li class="nav-item">
-            <router-link to="/einstellungen" class="nav-link" :class="{ active: $route.path === '/einstellungen' }">
+            <router-link
+              to="/einstellungen"
+              class="nav-link"
+              :class="{ active: $route.path === '/einstellungen' }"
+            >
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                 <i class="ni ni-settings-gear-65 opacity-10"></i>
               </div>
@@ -45,15 +60,26 @@
             </router-link>
           </li>
           <li class="nav-item">
-            <router-link to="/administration" class="nav-link" :class="{ active: $route.path === '/administration' }">
+            <router-link
+              to="/administration"
+              class="nav-link"
+              :class="{ active: $route.path === '/administration' }"
+            >
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                 <i class="ni ni-settings opacity-10"></i>
               </div>
               <span class="nav-link-text ms-1">Administration</span>
             </router-link>
           </li>
-          <li v-can="'page.patients.view:GET'" class="nav-item">
-            <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
+          <li
+            v-can="'page.patients.view:GET'"
+            class="nav-item"
+          >
+            <router-link
+              to="/patienten"
+              class="nav-link"
+              :class="{ active: $route.path === '/patienten' }"
+            >
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                <i class="ni ni-circle-08 opacity-10"></i>
               </div>
@@ -105,7 +131,11 @@
             </li>
 
             <li class="nav-item">
-              <router-link to="/video-untersuchung" class="nav-link" :class="{ active: $route.path === '/video-untersuchung' }">
+              <router-link
+                to="/video-untersuchung"
+                class="nav-link"
+                :class="{ active: $route.path === '/video-untersuchung' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-button-play opacity-10"></i>
                 </div>
@@ -122,7 +152,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-check-bold opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">3. Befundung starten</span>
+                <span class="nav-link-text ms-1">3. Dokumentation starten</span>
               </router-link>
             </li>
 
@@ -135,11 +165,15 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-single-copy-04 opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">Befundung: Übersicht</span>
+                <span class="nav-link-text ms-1">Dokumentation: Übersicht</span>
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
+              <router-link
+                to="/frame-annotation"
+                class="nav-link"
+                :class="{ active: $route.path === '/frame-annotation' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-single-copy-04 opacity-10"></i>
                 </div>
@@ -147,7 +181,11 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/model-training" class="nav-link" :class="{ active: $route.path === '/model-training' }">
+              <router-link
+                to="/model-training"
+                class="nav-link"
+                :class="{ active: $route.path === '/model-training' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-chart-bar-32 opacity-10"></i>
                 </div>
@@ -155,7 +193,11 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/ai-dataset-buckets" class="nav-link" :class="{ active: $route.path === '/ai-dataset-buckets' }">
+              <router-link
+                to="/ai-dataset-buckets"
+                class="nav-link"
+                :class="{ active: $route.path === '/ai-dataset-buckets' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-chart-pie-35 opacity-10"></i>
                 </div>
@@ -163,7 +205,11 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/ai-dataset-settings" class="nav-link" :class="{ active: $route.path === '/ai-dataset-settings' }">
+              <router-link
+                to="/ai-dataset-settings"
+                class="nav-link"
+                :class="{ active: $route.path === '/ai-dataset-settings' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-settings opacity-10"></i>
                 </div>
@@ -171,14 +217,21 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/studies" class="nav-link" :class="{ active: $route.path === '/studies' }">
+              <router-link
+                to="/studies"
+                class="nav-link"
+                :class="{ active: $route.path === '/studies' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-chart-pie-35 opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Registerstudien</span>
               </router-link>
             </li>
-                        <li v-can="'page.anonymization.metrics:GET'" class="nav-item">
+                        <li
+                          v-can="'page.anonymization.metrics:GET'"
+                          class="nav-item"
+                        >
               <router-link
                 to="/anonymisierung/metriken"
                 class="nav-link"
@@ -233,7 +286,11 @@
             </li>
             -->
             <li class="nav-item">
-              <router-link to="/export" class="nav-link" :class="{ active: $route.path === '/export' }">
+              <router-link
+                to="/export"
+                class="nav-link"
+                :class="{ active: $route.path === '/export' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-bold-right opacity-10"></i>
                 </div>
@@ -241,7 +298,11 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/hub-export" class="nav-link" :class="{ active: $route.path === '/hub-export' }">
+              <router-link
+                to="/hub-export"
+                class="nav-link"
+                :class="{ active: $route.path === '/hub-export' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-cloud-upload-96 opacity-10"></i>
                 </div>

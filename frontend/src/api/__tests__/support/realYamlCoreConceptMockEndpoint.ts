@@ -61,7 +61,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
 
 function yamlFilesBelow(root: string): string[] {
-  if (!existsSync(root)) return []
+  if (!existsSync(root)) {
+    return []
+  }
   return readdirSync(root)
     .flatMap((entry) => {
       const path = join(root, entry)
@@ -98,9 +100,13 @@ export function requireYamlConceptRecords(yamlText: string, source: string): Yam
 
 function readConfigVersion(root: string, fallback: string): string {
   const configPath = join(root, 'config.yaml')
-  if (!existsSync(configPath)) return fallback
+  if (!existsSync(configPath)) {
+    return fallback
+  }
   const config: unknown = parse(readFileSync(configPath, 'utf8'))
-  if (!isRecord(config)) return fallback
+  if (!isRecord(config)) {
+    return fallback
+  }
   const version = config.version
   return typeof version === 'string' || typeof version === 'number' ? String(version) : fallback
 }
@@ -142,7 +148,9 @@ function payloadFromFiles(moduleName: ModuleName, files: string[], version: stri
       const detail = error instanceof Error ? error.message : 'unknown YAML parser error'
       throw new TypeError(`${path} is not valid YAML: ${detail}`)
     }
-    if (!Array.isArray(parsed)) continue
+    if (!Array.isArray(parsed)) {
+      continue
+    }
     const records = requireYamlConceptRecords(yamlText, path)
     const routed = routeYamlConceptRecords(records, path)
     for (const field of Object.values(MODEL_TO_TRANSPORT_FIELD)) {
@@ -182,8 +190,9 @@ type FixtureGraphRelationship =
 
 function recordStringList(record: YamlRecord, field: string): string[] {
   const value = record[field]
-  if (Array.isArray(value))
+  if (Array.isArray(value)) {
     return value.filter((entry): entry is string => typeof entry === 'string')
+  }
   return typeof value === 'string' && value.trim() ? [value.trim()] : []
 }
 
@@ -203,7 +212,9 @@ function graphPayloadFromConceptPayload(
     targetNames: string[]
   ) => {
     for (const targetName of targetNames) {
-      if (!nodes.has(`${targetKind}:${targetName}`)) continue
+      if (!nodes.has(`${targetKind}:${targetName}`)) {
+        continue
+      }
       edges.push({
         source: { kind: sourceKind, name: sourceName },
         relationship,

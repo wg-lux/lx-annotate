@@ -26,7 +26,9 @@ export function terminologyBatchImportMessage(result: TerminologyBundleBatchImpo
   const installed = `${String(result.imported.length)} Paket${result.imported.length === 1 ? '' : 'e'} installiert`
   const activationHint =
     result.imported.length > 1 ? ' Bitte das gewünschte aktive Terminologiepaket auswählen.' : ''
-  if (!result.failures.length) return `${installed}.${activationHint}`.trim()
+  if (!result.failures.length) {
+    return `${installed}.${activationHint}`.trim()
+  }
   const failureDetails = result.failures
     .map((failure) => `${failure.sourceName}: ${failure.message}`)
     .join(' · ')
@@ -51,7 +53,9 @@ function terminologyErrorMessage(error: unknown, fallback: string): string {
 function loadPersistedMedicalField(): MedicalField {
   try {
     const value = localStorage.getItem(MEDICAL_FIELD_STORAGE_KEY)
-    if (value === 'gastroenterology') return value
+    if (value === 'gastroenterology') {
+      return value
+    }
   } catch {
     // Use the default medical field when browser storage is unavailable.
   }
@@ -77,7 +81,9 @@ export const useTerminologyStore = defineStore('terminology', () => {
   const activeModuleName = computed(() => activeBundle.value?.moduleName || '')
   const activeBundleKey = computed(() => (activeBundle.value ? bundleKey(activeBundle.value) : ''))
   const activeBundleLabel = computed(() => {
-    if (!activeBundle.value) return 'Keine aktive Terminologie'
+    if (!activeBundle.value) {
+      return 'Keine aktive Terminologie'
+    }
     return `${activeBundle.value.moduleName} · ${activeBundle.value.version}`
   })
   const filteredBundles = computed(() => bundles.value)
@@ -89,13 +95,17 @@ export const useTerminologyStore = defineStore('terminology', () => {
     error.value = null
     try {
       const response = await fetchTerminologyBundles()
-      if (generation !== loadGeneration) return
+      if (generation !== loadGeneration) {
+        return
+      }
       bundles.value = response.bundles
       activeBundle.value = response.active
       registryRevision.value = response.revision
       lastSelectionCounts.value = null
     } catch (caught: unknown) {
-      if (generation !== loadGeneration) return
+      if (generation !== loadGeneration) {
+        return
+      }
       if (axios.isAxiosError(caught) && caught.response?.status === 404) {
         bundles.value = []
         activeBundle.value = null
@@ -109,7 +119,9 @@ export const useTerminologyStore = defineStore('terminology', () => {
       )
       throw caught
     } finally {
-      if (generation === loadGeneration) loading.value = false
+      if (generation === loadGeneration) {
+        loading.value = false
+      }
     }
   }
 
@@ -117,7 +129,9 @@ export const useTerminologyStore = defineStore('terminology', () => {
     selecting.value = true
     error.value = null
     try {
-      if (!registryRevision.value) await loadBundles()
+      if (!registryRevision.value) {
+        await loadBundles()
+      }
       const expectedRevision = registryRevision.value
       if (!expectedRevision) {
         throw new Error('Die Revision des Terminologieregisters ist nicht verfügbar.')

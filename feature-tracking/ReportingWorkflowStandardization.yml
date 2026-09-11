@@ -248,10 +248,30 @@ definition_of_done:
       reference: 16 focused API/reporting files and 116 tests passed
     - kind: command
       reference: cd frontend && npm run type-check && npm run type-check:component-tests
-    note: Canonical name/nameDe/nameEn typing is preserved through case and report-template API boundaries;
-      report language selection uses lx-data-model translations without template-specific frontend mappings.
-    assessed_by: codex-reporting-types-20260813
-    assessed_at: '2026-08-13T08:45:57.500837Z'
+    - kind: test
+      reference: '2026-09-10: frontend full suite: 128 files, 961 tests passed; application/component
+        TypeScript checks passed.'
+    - kind: test
+      reference: '2026-09-10: backend report LLM tests: 23 passed with local lx-data-models source; scoped
+        Python type check: 0 errors.'
+    - kind: code
+      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/test_packaged_report_templates.py
+    - kind: document
+      reference: docs/guides/reporting-llm.yml
+    - kind: test
+      reference: '2026-09-10: backend report LLM tests including old-package compatibility: 24 passed
+        with local lx-data-models source.'
+    - kind: test
+      reference: '2026-09-10: final reporting/template/API lane: 46 passed; packaged catalog digests verified.'
+    note: 'Added 314 canonical German YAML labels across STAR, shared DGVS/ColoReg terminology, ERCP/EUS
+      and exportable examples; translated patient fields and ColoReg coverage labels. Descriptor labels
+      now survive compiler/API/shell. Templates declare short/standard/detailed verbosity without changing
+      requirements. Final focused lx-dtypes reporting/template/API lane: 46 passed; LLM lane: 24 passed.
+      Installed lx-dtypes 0.3.1 and active registry were not upgraded. Full lx-dtypes suite: 951 passed,
+      1 skipped, 2 unrelated FHIR exception-type failures. Full Pyright has 47 unrelated Django import-symbol
+      errors; scoped check passed.'
+    assessed_by: codex-reporting-german-20260910
+    assessed_at: '2026-09-10T07:56:06.415665Z'
 - id: reporting_progressive_disclosure
   category: functionality
   title: Reporting prioritizes recognition and first actions

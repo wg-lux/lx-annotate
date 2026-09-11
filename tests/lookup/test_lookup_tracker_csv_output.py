@@ -8,13 +8,13 @@ from types import SimpleNamespace
 import pytest
 from django.conf import settings
 from django.http import HttpResponse
+from lx_dtypes.django.api.lookup_tracker import register_runtime_lookup_tracker
 
 import lx_annotate.middleware.lookup_tracker as lookup_tracker_module
 from lx_annotate.middleware.lookup_tracker import (
     KnowledgeBaseLookupTrackerLoggingMiddleware,
     append_summary_to_study_csv,
 )
-from lx_dtypes.django.api.lookup_tracker import register_runtime_lookup_tracker
 
 
 @pytest.fixture(autouse=True)

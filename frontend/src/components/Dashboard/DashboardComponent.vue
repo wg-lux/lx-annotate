@@ -1,7 +1,10 @@
 <template>
     <div class="container-fluid py-4">
       <main class="main-content border-radius-lg">
-        <div id="app" class="container-fluid py-4">
+        <div
+          id="app"
+          class="container-fluid py-4"
+        >
           <h1>G-Play-Toolkit</h1>
           <p>
             Hier finden Sie das Annotationstoolkit der Arbeitsgruppe von Dr.

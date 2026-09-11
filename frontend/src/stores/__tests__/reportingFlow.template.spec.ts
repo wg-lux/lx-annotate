@@ -3,6 +3,13 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 
+const EXAMINATION_INDICATION_ID = 12
+const INDICATION_CHOICE_ID = 21
+const PATIENT_EXAMINATION_ID = 42
+const OTHER_PATIENT_EXAMINATION_ID = 43
+const ACTIVE_REPORT_ID = 88
+const AUTOSAVE_SETTLE_MS = 1500
+
 type SavePatientExaminationDraft =
   typeof import('@/api/reportDraftApi').savePatientExaminationDraft
 
@@ -34,7 +41,7 @@ describe('reportingFlowStore template draft state', () => {
     sessionStorage.clear()
     setActivePinia(createPinia())
     hoisted.reportDraftApi.savePatientExaminationDraft.mockResolvedValue({
-      patient_examination_id: 42,
+      patient_examination_id: PATIENT_EXAMINATION_ID,
       revision: 1,
       draft: {
         module_name: 'report_template_examples',
@@ -86,7 +93,7 @@ describe('reportingFlowStore template draft state', () => {
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
     flow.setPatientExaminationContext({
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       selectedPatientId: 7,
       selectedExaminationId: 9
     })
@@ -107,7 +114,7 @@ describe('reportingFlowStore template draft state', () => {
         ownerSub: 'oidc:user-1',
         expiresAt: Date.now() + 60_000,
         state: {
-          patientExaminationId: 42,
+          patientExaminationId: PATIENT_EXAMINATION_ID,
           runtimeDraftsByPatientExaminationId: {
             '-1': {
               draftId: 'invalid-draft',
@@ -131,7 +138,7 @@ describe('reportingFlowStore template draft state', () => {
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
 
-    expect(flow.patientExaminationId).toBe(42)
+    expect(flow.patientExaminationId).toBe(PATIENT_EXAMINATION_ID)
     expect(flow.runtimeDraftsByPatientExaminationId).toEqual({})
   })
 
@@ -152,12 +159,12 @@ describe('reportingFlowStore template draft state', () => {
       updatedAt: '2026-03-19T13:55:00.000Z'
     })
 
-    flow.setRuntimeDraft(makeDraft(42))
-    flow.setRuntimeDraft(makeDraft(43))
-    flow.clearRuntimeDraft(42)
+    flow.setRuntimeDraft(makeDraft(PATIENT_EXAMINATION_ID))
+    flow.setRuntimeDraft(makeDraft(OTHER_PATIENT_EXAMINATION_ID))
+    flow.clearRuntimeDraft(PATIENT_EXAMINATION_ID)
 
     expect(flow.runtimeDraftsByPatientExaminationId).toMatchObject({
-      '43': makeDraft(43)
+      '43': makeDraft(OTHER_PATIENT_EXAMINATION_ID)
     })
     expect(flow.runtimeDraftsByPatientExaminationId['42']).toBeUndefined()
   })
@@ -166,13 +173,13 @@ describe('reportingFlowStore template draft state', () => {
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
     flow.setPatientExaminationContext({
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       selectedPatientId: 7,
       selectedExaminationId: 9
     })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -185,10 +192,10 @@ describe('reportingFlowStore template draft state', () => {
       updatedAt: '2026-03-19T13:55:00.000Z'
     })
 
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
 
     const firstSave = hoisted.reportDraftApi.savePatientExaminationDraft.mock.calls[0][0]
-    expect(firstSave.patientExaminationId).toBe(42)
+    expect(firstSave.patientExaminationId).toBe(PATIENT_EXAMINATION_ID)
     expect(firstSave.expectedRevision).toBe(0)
     expect(firstSave.moduleName).toBe('report_template_examples')
     expect(firstSave.templateName).toBe('star_upper_gi_main')
@@ -211,10 +218,10 @@ describe('reportingFlowStore template draft state', () => {
 
   it('uses the server revision recorded during restored draft hydration on the next save', async () => {
     const flow = useReportingFlowStore()
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -229,7 +236,7 @@ describe('reportingFlowStore template draft state', () => {
     flow.markDraftPersistenceHydrated('2026-03-19T14:00:00.000Z', 5)
     flow.addFinding({ findingName: 'colon_polyp' })
 
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
 
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith(
       expect.objectContaining({ expectedRevision: 5 })
@@ -239,10 +246,10 @@ describe('reportingFlowStore template draft state', () => {
   it('autosaves report configuration changes as part of the complete draft document', async () => {
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -254,24 +261,24 @@ describe('reportingFlowStore template draft state', () => {
       hydratedFrom: 'backend_context',
       updatedAt: '2026-03-19T13:55:00.000Z'
     })
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
     hoisted.reportDraftApi.savePatientExaminationDraft.mockClear()
 
-    flow.updateIndicationRow(0, { examinationIndicationId: 12, indicationChoiceId: 21 })
+    flow.updateIndicationRow(0, { examinationIndicationId: EXAMINATION_INDICATION_ID, indicationChoiceId: INDICATION_CHOICE_ID })
     flow.setTemplateSectionDraft('examination_baseline', {
       note: 'Clinically relevant note',
       includePatientData: true
     })
     flow.setReportLanguage('en')
-    flow.setActiveReportId(88)
+    flow.setActiveReportId(ACTIVE_REPORT_ID)
     flow.setRenderedReportText('Klinischer Freitext', 'manual')
 
     expect(flow.hasUnpersistedDraftChanges).toBe(true)
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
 
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith(
       expect.objectContaining({
-        indications: [{ examinationIndicationId: 12, indicationChoiceId: 21 }],
+        indications: [{ examinationIndicationId: EXAMINATION_INDICATION_ID, indicationChoiceId: INDICATION_CHOICE_ID }],
         templateSectionDrafts: {
           examination_baseline: {
             note: 'Clinically relevant note',
@@ -280,7 +287,7 @@ describe('reportingFlowStore template draft state', () => {
           }
         },
         selectedReportLanguage: 'en',
-        activeReportId: 88,
+        activeReportId: ACTIVE_REPORT_ID,
         reportTextMode: 'manual',
         renderedText: 'Klinischer Freitext'
       })
@@ -292,13 +299,13 @@ describe('reportingFlowStore template draft state', () => {
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
     flow.setPatientExaminationContext({
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       selectedPatientId: 7,
       selectedExaminationId: 9
     })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -313,7 +320,7 @@ describe('reportingFlowStore template draft state', () => {
 
     expect(flow.hasUnpersistedDraftChanges).toBe(true)
 
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
     expect(flow.hasUnpersistedDraftChanges).toBe(false)
 
     flow.addFinding({ findingName: 'colon_polyp' })
@@ -322,10 +329,10 @@ describe('reportingFlowStore template draft state', () => {
 
   it('persists annotation-only findings while keeping template verification separate', async () => {
     const flow = useReportingFlowStore()
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: '',
       templateName: null,
       verificationStatus: 'unverified',
@@ -344,15 +351,15 @@ describe('reportingFlowStore template draft state', () => {
     await flow.persistCurrentRuntimeDraft()
 
     const annotationSave = hoisted.reportDraftApi.savePatientExaminationDraft.mock.calls[0][0]
-    expect(annotationSave.patientExaminationId).toBe(42)
+    expect(annotationSave.patientExaminationId).toBe(PATIENT_EXAMINATION_ID)
     expect(annotationSave.moduleName).toBe('')
     expect(annotationSave.templateName).toBeNull()
     expect(annotationSave.payload.patientFindings).toHaveLength(1)
     expect(annotationSave.payload.patientFindings[0]?.finding).toBe('colon_polyp')
 
     hoisted.reportDraftApi.savePatientExaminationDraft.mockClear()
-    flow.setPatientExaminationContext({ patientExaminationId: 43 })
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: OTHER_PATIENT_EXAMINATION_ID })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     flow.addFinding({ findingName: 'colon_adenoma' })
     await flow.persistCurrentRuntimeDraft()
 
@@ -362,10 +369,10 @@ describe('reportingFlowStore template draft state', () => {
 
   it('blocks a cached draft from autosave until the new context verifies it', async () => {
     const flow = useReportingFlowStore()
-    flow.setPatientExaminationContext({ patientExaminationId: 43 })
+    flow.setPatientExaminationContext({ patientExaminationId: OTHER_PATIENT_EXAMINATION_ID })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'old_bundle',
       templateName: 'old_template',
       verificationStatus: 'verified',
@@ -382,7 +389,7 @@ describe('reportingFlowStore template draft state', () => {
       updatedAt: '2026-03-19T13:55:00.000Z'
     })
 
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     await vi.advanceTimersByTimeAsync(2000)
 
     expect(flow.currentRuntimeDraft?.verificationStatus).toBe('unverified')
@@ -400,16 +407,16 @@ describe('reportingFlowStore template draft state', () => {
     hoisted.reportDraftApi.savePatientExaminationDraft
       .mockImplementationOnce(() => firstSave.promise)
       .mockResolvedValueOnce({
-        patient_examination_id: 42,
+        patient_examination_id: PATIENT_EXAMINATION_ID,
         revision: 2,
         draft: {},
         updated_at: '2026-03-19T14:01:00.000Z'
       })
     const flow = useReportingFlowStore()
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -426,7 +433,7 @@ describe('reportingFlowStore template draft state', () => {
     await Promise.resolve()
     flow.addFinding({ findingName: 'colon_polyp' })
     firstSave.resolve({
-      patient_examination_id: 42,
+      patient_examination_id: PATIENT_EXAMINATION_ID,
       revision: 1,
       draft: {},
       updated_at: '2026-03-19T14:00:00.000Z'
@@ -435,7 +442,7 @@ describe('reportingFlowStore template draft state', () => {
 
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledTimes(2)
     expect(hoisted.reportDraftApi.savePatientExaminationDraft.mock.calls[1][0]).toMatchObject({
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       payload: {
         patientFindings: [{ finding: 'colon_polyp' }]
       }
@@ -448,13 +455,13 @@ describe('reportingFlowStore template draft state', () => {
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
     flow.setPatientExaminationContext({
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       selectedPatientId: 7,
       selectedExaminationId: 9
     })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -477,10 +484,10 @@ describe('reportingFlowStore template draft state', () => {
 
   it('suspends draft autosave during final persistence and resumes when still dirty', async () => {
     const flow = useReportingFlowStore()
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -494,14 +501,14 @@ describe('reportingFlowStore template draft state', () => {
     })
 
     flow.setSavingFinalReport(true)
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
     await flow.flushDraftAutosave()
 
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).not.toHaveBeenCalled()
     expect(flow.hasUnpersistedDraftChanges).toBe(true)
 
     flow.setSavingFinalReport(false)
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
 
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledTimes(1)
     expect(flow.hasUnpersistedDraftChanges).toBe(false)
@@ -518,10 +525,10 @@ describe('reportingFlowStore template draft state', () => {
     })
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -534,7 +541,7 @@ describe('reportingFlowStore template draft state', () => {
       updatedAt: '2026-03-19T13:55:00.000Z'
     })
 
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
 
     expect(flow.draftPersistenceStatus).toBe('error')
     expect(flow.draftPersistenceError).toContain('template_identity.readiness')
@@ -554,10 +561,10 @@ describe('reportingFlowStore template draft state', () => {
     })
     const flow = useReportingFlowStore()
     flow.bindAuthSubject('oidc:user-1')
-    flow.setPatientExaminationContext({ patientExaminationId: 42 })
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
     flow.setRuntimeDraft({
       draftId: 'draft_42',
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       moduleName: 'report_template_examples',
       templateName: 'star_upper_gi_main',
       payload: {
@@ -571,9 +578,9 @@ describe('reportingFlowStore template draft state', () => {
       revision: 3
     })
     flow.setRenderedReportText('Lokaler klinischer Freitext', 'manual')
-    flow.updateIndicationRow(0, { examinationIndicationId: 12, indicationChoiceId: 21 })
+    flow.updateIndicationRow(0, { examinationIndicationId: EXAMINATION_INDICATION_ID, indicationChoiceId: INDICATION_CHOICE_ID })
 
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
 
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith(
       expect.objectContaining({ expectedRevision: 3 })
@@ -581,19 +588,19 @@ describe('reportingFlowStore template draft state', () => {
     expect(flow.draftPersistenceStatus).toBe('conflict')
     expect(flow.draftPersistenceError).toContain('nicht überschrieben')
     expect(flow.draftConflict).toEqual({
-      patientExaminationId: 42,
+      patientExaminationId: PATIENT_EXAMINATION_ID,
       expectedRevision: 3,
       currentRevision: 7,
       updatedAt: '2026-03-19T14:01:00.000Z'
     })
     expect(flow.renderedReportText).toBe('Lokaler klinischer Freitext')
     expect(flow.reportTextMode).toBe('manual')
-    expect(flow.indications).toEqual([{ examinationIndicationId: 12, indicationChoiceId: 21 }])
+    expect(flow.indications).toEqual([{ examinationIndicationId: EXAMINATION_INDICATION_ID, indicationChoiceId: INDICATION_CHOICE_ID }])
     expect(flow.currentRuntimeDraft?.revision).toBe(3)
     expect(flow.hasUnpersistedDraftChanges).toBe(true)
 
     flow.addFinding({ findingName: 'colon_polyp' })
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledTimes(1)
     await expect(flow.flushDraftAutosave()).rejects.toMatchObject({
       name: 'DraftRevisionConflictError'

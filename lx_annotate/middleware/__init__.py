@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 
 PDF_STREAM_PATH_RE = re.compile(r"^/api/media/pdfs/\d+/stream/?$")

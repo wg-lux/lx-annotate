@@ -4,17 +4,20 @@
 Test the HTTP API endpoint for patient pseudonym generation.
 """
 
+from __future__ import annotations
+
+import json
 import os
 import sys
-import django
-import requests
-import json
-import pytest
 from datetime import date
+
+import django
+import pytest
+import requests
 from django.db import transaction
+from endoreg_db.models.administration.center.center import Center
 from endoreg_db.models.administration.person.patient.patient import Patient
 from endoreg_db.models.other.gender import Gender
-from endoreg_db.models.administration.center.center import Center
 
 # Add the project root to the path
 sys.path.insert(0, "/home/admin/dev/lx-annotate")

@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="dashboard-header">
       <h1 class="dashboard-title">
-        <i class="ni ni-circle-08"></i>
+        <i class="ni ni-circle-08 dashboard-heading-icon"></i>
         Patienten-Dashboard
       </h1>
       <div class="header-actions">
@@ -19,30 +19,53 @@
     </div>
 
     <!-- Error Alert -->
-    <div v-if="error" class="alert alert-danger alert-dismissible">
+    <div
+      v-if="error"
+      class="alert alert-danger alert-dismissible"
+    >
       <strong>Fehler:</strong> {{ error }}
-      <button type="button" class="btn-close" @click="error = ''"></button>
+      <button
+        type="button"
+        class="btn-close"
+        @click="error = ''"
+      ></button>
     </div>
 
     <!-- Success Alert -->
-    <div v-if="successMessage" class="alert alert-success alert-dismissible">
+    <div
+      v-if="successMessage"
+      class="alert alert-success alert-dismissible"
+    >
       <strong>Erfolg:</strong> {{ successMessage }}
-      <button type="button" class="btn-close" @click="successMessage = ''"></button>
+      <button
+        type="button"
+        class="btn-close"
+        @click="successMessage = ''"
+      ></button>
     </div>
 
     <!-- Loading Spinner -->
-    <div v-if="loading" class="loading-container">
-      <div class="spinner-border text-primary" role="status">
+    <div
+      v-if="loading"
+      class="loading-container"
+    >
+      <div
+        class="spinner-border text-primary"
+        role="status"
+      >
         <span class="visually-hidden">Laden...</span>
       </div>
       <p>Lade Patientendaten...</p>
     </div>
 
     <!-- Patient Creation Form -->
-    <div v-if="showCreateForm && !loading" class="card form-card">
+    <div
+      v-if="showCreateForm && !loading"
+      class="card form-card"
+    >
       <div class="card-header">
         <h3 class="card-title">
-          <i class="ni ni-fat-add"></i>
+          <i class="ni ni-fat-add card-heading-icon"></i>
           Neuen Patienten erstellen
         </h3>
       </div>
@@ -55,11 +78,14 @@
     </div>
 
     <!-- Patient List -->
-    <div v-if="!loading && !showCreateForm" class="card patients-card">
+    <div
+      v-if="!loading && !showCreateForm"
+      class="card patients-card"
+    >
       <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
           <h3 class="card-title mb-0">
-            <i class="ni ni-single-copy-04"></i>
+            <i class="ni ni-single-copy-04 card-heading-icon"></i>
             Patienten ({{ patients.length }})
           </h3>
           <div class="search-box">
@@ -74,7 +100,10 @@
       </div>
       <div class="card-body">
         <!-- Patient Cards Grid -->
-        <div v-if="filteredPatients.length > 0" class="patients-grid">
+        <div
+          v-if="filteredPatients.length > 0"
+          class="patients-grid"
+        >
           <div 
             v-for="patient in filteredPatients" 
             :key="patient.id"
@@ -91,20 +120,32 @@
             <div class="patient-card-body">
               <div class="patient-info">
                 <div class="info-item">
-                  <i class="ni ni-book-bookmark"></i>
+                  <i class="ni ni-book-bookmark patient-info-icon"></i>
                   <span>{{ formatDate(patient.dob) }}</span>
-                  <small v-if="patient.age">({{ patient.age }} Jahre)</small>
+                  <small
+                    v-if="patient.age"
+                    class="patient-info-detail"
+                  >({{ patient.age }} Jahre)</small>
                 </div>
-                <div v-if="patient.gender" class="info-item">
-                  <i class="ni ni-circle-08"></i>
+                <div
+                  v-if="patient.gender"
+                  class="info-item"
+                >
+                  <i class="ni ni-circle-08 patient-info-icon"></i>
                   <span>{{ getGenderName(patient.gender) }}</span>
                 </div>
-                <div v-if="patient.center" class="info-item">
-                  <i class="ni ni-collection"></i>
+                <div
+                  v-if="patient.center"
+                  class="info-item"
+                >
+                  <i class="ni ni-collection patient-info-icon"></i>
                   <span>{{ getCenterName(patient.center) }}</span>
                 </div>
-                <div v-if="patient.email" class="info-item">
-                  <i class="ni ni-single-copy-04"></i>
+                <div
+                  v-if="patient.email"
+                  class="info-item"
+                >
+                  <i class="ni ni-single-copy-04 patient-info-icon"></i>
                   <span>{{ patient.email }}</span>
                 </div>
               </div>
@@ -118,9 +159,12 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!loading" class="empty-state">
-          <i class="ni ni-circle-08 ni-3x text-muted"></i>
-          <h4>Keine Patienten gefunden</h4>
+        <div
+          v-else-if="!loading"
+          class="empty-state"
+        >
+          <i class="ni ni-circle-08 ni-3x text-muted empty-state-icon"></i>
+          <h4 class="empty-state-heading">Keine Patienten gefunden</h4>
           <p class="text-muted">
             {{ searchTerm ? 'Keine Patienten entsprechen der Suche.' : 'Erstellen Sie den ersten Patienten.' }}
           </p>
@@ -129,7 +173,7 @@
             class="btn btn-primary"
             @click="showCreateForm = true"
           >
-            <i class="ni ni-fat-add"></i>
+            <i class="ni ni-fat-add empty-state-icon"></i>
             Ersten Patienten erstellen
           </button>
         </div>
@@ -137,7 +181,10 @@
     </div>
 
     <!-- Patient Detail View -->
-    <div v-if="selectedPatient && !showCreateForm && !loading" class="patient-detail-section">
+    <div
+      v-if="selectedPatient && !showCreateForm && !loading"
+      class="patient-detail-section"
+    >
       <PatientDetailView 
         :patient="selectedPatient"
         @patient-updated="onPatientUpdated"
@@ -175,7 +222,9 @@ const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
 const filteredPatients = computed(() => {
-  if (!searchTerm.value) return patients.value
+  if (!searchTerm.value) {
+    return patients.value
+  }
   
   const term = searchTerm.value.toLowerCase()
   return patients.value.filter(patient => 
@@ -279,7 +328,9 @@ const onPatientDeleted = (patientId: number) => {
 }
 
 const formatDate = (dateString?: string | null) => {
-  if (!dateString) return 'Nicht angegeben'
+  if (!dateString) {
+    return 'Nicht angegeben'
+  }
   
   try {
     const date = new Date(dateString)
@@ -290,13 +341,17 @@ const formatDate = (dateString?: string | null) => {
 }
 
 const getGenderName = (genderValue?: string | null) => {
-  if (!genderValue) return 'Nicht angegeben'
+  if (!genderValue) {
+    return 'Nicht angegeben'
+  }
   const gender = genders.value.find(g => g.name === genderValue)
   return gender?.nameDe || gender?.name || genderValue
 }
 
 const getCenterName = (centerValue?: string | null) => {
-  if (!centerValue) return 'Nicht zugeordnet'
+  if (!centerValue) {
+    return 'Nicht zugeordnet'
+  }
   const center = centers.value.find(c => c.name === centerValue)
   return center?.nameDe || center?.name || centerValue
 }
@@ -328,7 +383,7 @@ onMounted(async () => {
   margin: 0;
 }
 
-.dashboard-title i {
+.dashboard-title .dashboard-heading-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -349,7 +404,7 @@ onMounted(async () => {
   margin: 0;
 }
 
-.card-title i {
+.card-title .card-heading-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -429,12 +484,12 @@ onMounted(async () => {
   color: #495057;
 }
 
-.info-item i {
+.info-item .patient-info-icon {
   width: 16px;
   color: #6c757d;
 }
 
-.info-item small {
+.info-item .patient-info-detail {
   color: #6c757d;
   margin-left: 0.25rem;
 }
@@ -450,11 +505,11 @@ onMounted(async () => {
   padding: 4rem 2rem;
 }
 
-.empty-state i {
+.empty-state .empty-state-icon {
   margin-bottom: 1rem;
 }
 
-.empty-state h4 {
+.empty-state .empty-state-heading {
   color: #2c3e50;
   margin-bottom: 0.5rem;
 }

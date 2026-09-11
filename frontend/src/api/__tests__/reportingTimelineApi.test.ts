@@ -18,8 +18,11 @@ import {
   pickPreferredStream
 } from '@/api/reportingTimelineApi'
 
+const TIMELINE_PATIENT_ID = 42
+const PATIENT_EXAMINATION_ID = 314
+
 const timelinePatient = {
-  id: 42,
+  id: TIMELINE_PATIENT_ID,
   firstName: 'Ada',
   lastName: 'Lovelace',
   dob: '1815-12-10',
@@ -55,18 +58,19 @@ describe('reportingTimelineApi', () => {
     })
 
     await fetchPatientTimelineLatest({
-      patientId: 42,
-      patientExaminationId: 314
+      patientId: TIMELINE_PATIENT_ID,
+      patientExaminationId: PATIENT_EXAMINATION_ID
     })
 
     expect(hoisted.axios.get).toHaveBeenCalledWith(
-      `/api/${endpoints.media.patientTimeline(42)}`,
+      `/api/${endpoints.media.patientTimeline(TIMELINE_PATIENT_ID)}`,
       {
-      params: {
-        latest_only: true,
-        patient_examination_id: 314
+        params: {
+          latest_only: true,
+          patient_examination_id: PATIENT_EXAMINATION_ID
+        }
       }
-    })
+    )
   })
 
   it('requests the complete patient timeline without latest_only', async () => {
@@ -74,10 +78,10 @@ describe('reportingTimelineApi', () => {
       data: { patient: timelinePatient, count: 0, results: [] }
     })
 
-    await fetchPatientTimeline(42)
+    await fetchPatientTimeline(TIMELINE_PATIENT_ID)
 
     expect(hoisted.axios.get).toHaveBeenCalledWith(
-      `/api/${endpoints.media.patientTimeline(42)}`,
+      `/api/${endpoints.media.patientTimeline(TIMELINE_PATIENT_ID)}`,
       { params: undefined }
     )
   })
@@ -87,11 +91,11 @@ describe('reportingTimelineApi', () => {
       data: { patient: timelinePatient, count: 0, results: [] }
     })
 
-    await fetchPatientTimeline(42, 314)
+    await fetchPatientTimeline(TIMELINE_PATIENT_ID, PATIENT_EXAMINATION_ID)
 
     expect(hoisted.axios.get).toHaveBeenCalledWith(
-      `/api/${endpoints.media.patientTimeline(42)}`,
-      { params: { patient_examination_id: 314 } }
+      `/api/${endpoints.media.patientTimeline(TIMELINE_PATIENT_ID)}`,
+      { params: { patient_examination_id: PATIENT_EXAMINATION_ID } }
     )
   })
 
@@ -114,7 +118,7 @@ describe('reportingTimelineApi', () => {
       }
     })
 
-    const result = await fetchPatientTimeline(42)
+    const result = await fetchPatientTimeline(TIMELINE_PATIENT_ID)
 
     expect(result.results[0]?.mediaType).toBe('future_document_kind')
   })
@@ -138,7 +142,7 @@ describe('reportingTimelineApi', () => {
       }
     })
 
-    await expect(fetchPatientTimeline(42)).rejects.toThrow(
+    await expect(fetchPatientTimeline(TIMELINE_PATIENT_ID)).rejects.toThrow(
       'Patient timeline response does not match the expected contract'
     )
   })

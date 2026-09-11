@@ -109,7 +109,7 @@ function buildQueueStore(overrides: Partial<QueueStore> = {}) {
         datasetSelectionLabelName: 'Polyp',
         datasetSelectionSource: 'segments',
         datasetBucket: 'positive',
-        imageUrl: '/media/frame-101.jpg',
+        imageUrl: '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed',
         existingExternalId: 'external-101',
         annotationMode: 'multilabel',
         labelOptions: [
@@ -241,7 +241,9 @@ async function expectTextEventually(
 ) {
   for (let attempt = 0; attempt < 10; attempt += 1) {
     await flushPromises()
-    if (wrapper.text().includes(text)) return
+    if (wrapper.text().includes(text)) {
+      return
+    }
   }
   expect(wrapper.text()).toContain(text)
 }
@@ -483,7 +485,7 @@ describe('FrameAnnotation route', () => {
 
     expect(hoisted.createObjectURL).toHaveBeenCalledWith(frameBlob)
     expect(wrapper.get('[data-test="frame-box-stage"] img').attributes('src')).toBe('blob:frame-1')
-    expect(hoisted.get.mock.calls.filter(([url]) => url === '/media/frame-101.jpg')).toHaveLength(1)
+    expect(hoisted.get.mock.calls.filter(([url]) => url === '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed')).toHaveLength(1)
 
     wrapper.unmount()
 
@@ -493,7 +495,9 @@ describe('FrameAnnotation route', () => {
   it('serializes frame requests and reuses the sequential prefetch for the next task', async () => {
     const store = buildQueueStore()
     const firstTask = store.popNextTask() as unknown as AnnotationTask | null
-    if (!firstTask) throw new Error('Expected the first frame task fixture.')
+    if (!firstTask) {
+      throw new Error('Expected the first frame task fixture.')
+    }
     const secondTask: AnnotationTask = {
       ...firstTask,
       id: 'task-2',
@@ -501,7 +505,7 @@ describe('FrameAnnotation route', () => {
         ...firstTask.data,
         frameId: 202,
         frameNumber: 5001,
-        imageUrl: '/media/frame-202.jpg'
+        imageUrl: '/api/media/videos/1/frames/202/decoded-stream/?file_type=processed'
       }
     }
     store.taskQueue = [secondTask]
@@ -548,7 +552,7 @@ describe('FrameAnnotation route', () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
 
-    expect(frameRequestUrls).toEqual(['/media/frame-101.jpg'])
+    expect(frameRequestUrls).toEqual(['/api/media/videos/1/frames/101/decoded-stream/?file_type=processed'])
     resolveFirstFrame({
       status: 200,
       data: new Blob(['first-frame'], { type: 'image/jpeg' }),
@@ -556,12 +560,12 @@ describe('FrameAnnotation route', () => {
     })
     await flushPromises()
 
-    expect(frameRequestUrls).toEqual(['/media/frame-101.jpg', '/media/frame-202.jpg'])
+    expect(frameRequestUrls).toEqual(['/api/media/videos/1/frames/101/decoded-stream/?file_type=processed', '/api/media/videos/1/frames/202/decoded-stream/?file_type=processed'])
     await markFrameLoaded(wrapper)
     await wrapper.get('[data-test="exclude-dataset-button"]').trigger('click')
     await flushPromises()
 
-    expect(frameRequestUrls).toEqual(['/media/frame-101.jpg', '/media/frame-202.jpg'])
+    expect(frameRequestUrls).toEqual(['/api/media/videos/1/frames/101/decoded-stream/?file_type=processed', '/api/media/videos/1/frames/202/decoded-stream/?file_type=processed'])
     resolveSecondFrame({
       status: 200,
       data: new Blob(['second-frame'], { type: 'image/jpeg' }),
@@ -600,7 +604,7 @@ describe('FrameAnnotation route', () => {
       mountFrameAnnotation()
       await flushPromises()
       const streamCallCount = () =>
-        hoisted.get.mock.calls.filter(([url]) => url === '/media/frame-101.jpg').length
+        hoisted.get.mock.calls.filter(([url]) => url === '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed').length
 
       expect(streamCallCount()).toBe(1)
       await vi.advanceTimersByTimeAsync(1999)
@@ -763,7 +767,7 @@ describe('FrameAnnotation route', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain(
-      'Frame wird extrahiert'
+      'Frame wird geladen'
     )
   })
 
@@ -794,14 +798,14 @@ describe('FrameAnnotation route', () => {
     const wrapper = mountFrameAnnotation()
     await expectTextEventually(wrapper, 'Frame-Anfrage fehlgeschlagen (HTTP 500).')
     const streamCallsBeforeRetry = hoisted.get.mock.calls.filter(
-      ([url]) => url === '/media/frame-101.jpg'
+      ([url]) => url === '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed'
     ).length
 
     await wrapper.get('[data-test="frame-image-retry-button"]').trigger('click')
     await flushPromises()
 
     const streamCallsAfterRetry = hoisted.get.mock.calls.filter(
-      ([url]) => url === '/media/frame-101.jpg'
+      ([url]) => url === '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed'
     ).length
     expect(streamCallsAfterRetry).toBe(streamCallsBeforeRetry + 1)
   })
@@ -902,7 +906,7 @@ describe('FrameAnnotation route', () => {
         id: 'task-phi',
         data: {
           frameId: 202,
-          imageUrl: '/media/frame-202.jpg',
+          imageUrl: '/api/media/videos/1/frames/202/decoded-stream/?file_type=processed',
           annotationMode: 'multilabel',
           labelOptions: [
             { id: 21, name: 'sensitive_region' },

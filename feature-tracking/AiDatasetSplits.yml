@@ -1,0 +1,175 @@
+schema_version: '1.0'
+id: ai_dataset_splits
+name: Patient-grouped AI dataset splits
+description: Saved annotation membership snapshots with a fixed patient test holdout and rotating k-fold
+  validation, Bootstrap bucket fill levels and label presence histograms. Fractions target patient counts,
+  not frame counts. Missing or inconsistent patient links fail closed. Existing dataset display filters
+  do not filter split membership. Plans use all attached image and segment annotations. The seed shuffles
+  sorted patient IDs; rounded holdout patients remain fixed across k values for the same population, seed
+  and test percentage. Remaining patients rotate through validation once. Labels are not stratified. Snapshots
+  freeze membership IDs, not annotation content or media. Training consumers can read membership from
+  the plan detail endpoint; this feature does not modify training execution or export media. Endpoints
+  are GET/POST settings/application/ai_datasets/{dataset_id}/split_plans/ and GET settings/application/ai_datasets/{dataset_id}/split_plans/{plan_id}/
+  under endoreg-api/. POST accepts name, k (2-20), test_percent (1-50), and seed (0-2147483647). A membership
+  validation_fold of null is test; for fold i, validation_fold i is validation and other non-null folds
+  are training. Apply migration lx_annotate.0008_aidatasetsplitplan before using the page. No migration
+  has been applied to an application or production database by this task.
+owners:
+- lx-annotate maintainers
+production_critical: false
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: split_integrity
+  category: requirements
+  title: Reproducible persisted patient-grouped splits
+  acceptance:
+  - Test patients stay fixed across folds and each remaining patient validates exactly once.
+  - No patient, video, or annotation is shared between roles within a fold.
+  - Invalid requests and missing or conflicting patient associations fail without saving.
+  - Saved plans retain snapshot membership and are accessible only within authorized centers.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused backend and frontend split tests and inspect migration consistency.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
+        -q: 22 passed'
+    - kind: test
+      reference: tests/api/test_ai_dataset_splits.py
+    note: 'Verified deterministic patient grouping, fixed test across k values, immutable membership,
+      invalid-input rejection, authenticated center scope and API persistence; frontend suite: 25 passed.'
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:37.890907Z'
+- id: permissions
+  category: security
+  title: Authentication and center scope enforced
+  acceptance:
+  - Unauthorized requests cannot read or create plans.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run permission tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
+        -q: 22 passed'
+    - kind: test
+      reference: tests/api/test_ai_dataset_splits.py
+    note: 'Verified deterministic patient grouping, fixed test across k values, immutable membership,
+      invalid-input rejection, authenticated center scope and API persistence; frontend suite: 25 passed.'
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:39.925646Z'
+- id: persistence
+  category: data_integrity
+  title: Snapshot validation at model boundary
+  acceptance:
+  - Invalid persisted membership is rejected.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run model validation tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
+        -q: 22 passed'
+    - kind: test
+      reference: tests/api/test_ai_dataset_splits.py
+    note: 'Verified deterministic patient grouping, fixed test across k values, immutable membership,
+      invalid-input rejection, authenticated center scope and API persistence; frontend suite: 25 passed.'
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:41.484543Z'
+- id: visualization
+  category: functionality
+  title: Accessible bucket and label distribution displays
+  acceptance:
+  - Counts and fill levels are displayed with readable labels.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run component tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npx vitest run src/components/AiDataset/AiDatasetSplitBuilder.test.ts src/views/__tests__/AiDatasetBucketsPage.test.ts
+        src/api/__tests__/aiDatasetSplitApi.test.ts src/api/__tests__/aiDatasetApi.test.ts: 25 passed;
+        npm run build-only: passed'
+    note: DOM tests verify bucket counts, fill proportions, histogram labels, saved plans, errors and
+      stale requests. No browser screenshot review was performed.
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:11.587424Z'
+- id: contracts
+  category: testing
+  title: Frontend and backend contracts agree
+  acceptance:
+  - Creation and reload preserve saved configuration.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run API and UI tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
+        -q: 22 passed'
+    - kind: test
+      reference: tests/api/test_ai_dataset_splits.py
+    note: 'Verified deterministic patient grouping, fixed test across k values, immutable membership,
+      invalid-input rejection, authenticated center scope and API persistence; frontend suite: 25 passed.'
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:43.283227Z'
+- id: documentation
+  category: documentation
+  title: Scope and limitations documented
+  acceptance:
+  - Patient-based ratios and snapshot semantics are documented.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review feature scope against code.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: feature-tracking/AiDatasetSplits.yml
+    note: English scope documents patient ratios, membership snapshots, fixed holdout across k, absent
+      label stratification, API paths and migration prerequisite.
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:35.658425Z'
+- id: migration
+  category: operations
+  title: Migration is reviewable and consistent with the model
+  acceptance:
+  - Migration graph resolves and no additional model migration is needed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Check migration graph and run makemigrations --check with migrations enabled.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'Migrations enabled for isolated test settings: makemigrations lx_annotate --check --dry-run
+        found no changes; migration graph resolved; 0008 applied and reversed in isolated SQLite database.'
+    note: Application and production databases were not migrated. Apply migration 0008 before using the
+      feature.
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:14.862436Z'

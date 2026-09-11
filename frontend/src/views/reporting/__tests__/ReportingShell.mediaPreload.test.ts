@@ -7,6 +7,7 @@ import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
 import type { TerminologyBundleVersion } from '@/api/terminologyApi'
 import type { PatientCase } from '@/api/casesApi'
 import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
+import type { ReportFrameSelection } from '@/utils/frameStreams'
 import type { ReportingRuntimeDraft } from '@/stores/reportingFlowStore'
 import type { ReportTemplatePayload } from '@/types/reportTemplate'
 import type { UseAuthenticatedVideoStreamOptions } from '@/composables/useAuthenticatedVideoStream'
@@ -105,9 +106,7 @@ const hoisted = vi.hoisted(() => {
       debug: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
       info: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
       warn: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
-      error: vi.fn<
-        (event: string, error?: unknown, context?: Record<string, unknown>) => void
-      >()
+      error: vi.fn<(event: string, error?: unknown, context?: Record<string, unknown>) => void>()
     }
   }
 })
@@ -234,6 +233,7 @@ function buildFlowStore() {
     selectedExaminationId: initialExaminationId,
     selectedKbModule: 'report_template_examples',
     selectedReportLanguage: 'de',
+    selectedReportVerbosity: 'standard',
     selectedTemplateName: null as string | null,
     currentRuntimeDraft: null as ReportingRuntimeDraft | null,
     runtimeDraftsByPatientExaminationId: initialDrafts,
@@ -298,6 +298,21 @@ function buildFlowStore() {
       flow.mediaPreloadStatus = 'loading'
       flow.mediaPreloadError = null
     }),
+    preferredReportFrame: null as ReportFrameSelection | null,
+    selectedReportFrames: null as ReportFrameSelection[] | null,
+    addReportFrame: vi.fn((frame: ReportFrameSelection) => {
+      flow.selectedReportFrames = [...(flow.selectedReportFrames ?? []), frame]
+    }),
+    removeReportFrame: vi.fn((frame: ReportFrameSelection) => {
+      flow.selectedReportFrames = (flow.selectedReportFrames ?? []).filter((item) => item !== frame)
+    }),
+    reportFrameSelectionStatus: 'idle',
+    setPreferredReportFrame: vi.fn(
+      (frame: ReportFrameSelection | null, status: 'idle' | 'loading' | 'ready' | 'error') => {
+        flow.preferredReportFrame = frame
+        flow.reportFrameSelectionStatus = status
+      }
+    ),
     setMediaPreload: vi.fn((payload: TimelineLatestPayload | null) => {
       flow.mediaPreload = payload
       flow.mediaPreloadStatus = 'ready'
@@ -367,6 +382,11 @@ describe('ReportingShell media preload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:preview')
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
     hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementation(
       async (moduleName: string, version: string, examinationName: string) => ({
         reportTemplates: (await hoisted.reportTemplatesApi.fetchReportTemplatesByExamination(
@@ -447,6 +467,18 @@ describe('ReportingShell media preload', () => {
       patientFindings: []
     })
     hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url.includes('/decoded-stream/')) {
+        const frame = Number(url.match(/\/frames\/(\d+)\//)?.[1])
+        return Promise.resolve({
+          status: 200,
+          data: new Blob(['jpeg'], { type: 'image/jpeg' }),
+          headers: {
+            'content-type': 'image/jpeg',
+            'x-frame-number': String(frame),
+            'x-frame-timestamp': String(frame / 25)
+          }
+        })
+      }
       if (url === 'patients/') {
         return Promise.resolve({
           data: [
@@ -1355,9 +1387,9 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.findAll('.finding-status-row')).toHaveLength(100)
     await showMoreButton?.trigger('click')
     expect(wrapper.findAll('.finding-status-row')).toHaveLength(102)
-    expect(
-      wrapper.findAll('.finding-status-row')[101].attributes('data-finding-key')
-    ).toBe('stable_finding_099_with_a_representative_very_long_clinical_label')
+    expect(wrapper.findAll('.finding-status-row')[101].attributes('data-finding-key')).toBe(
+      'stable_finding_099_with_a_representative_very_long_clinical_label'
+    )
 
     hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings[0].classificationChoices[0].descriptors.push(
       {
@@ -1624,7 +1656,7 @@ describe('ReportingShell media preload', () => {
     expect(streamOptions.artifactKind.value).toBe('processed')
     const initialFramePreview = wrapper.find('img[alt="Selected frame stream preview"]')
     expect(initialFramePreview.exists()).toBe(true)
-    expect(initialFramePreview.attributes('src')).toBe('/timeline/frame/v1')
+    expect(initialFramePreview.attributes('src')).toMatch(/^blob:/)
 
     const refreshButton = requireDefined(
       wrapper.findAll('button').find((button) => button.text().includes('Medien aktualisieren')),
@@ -1640,9 +1672,94 @@ describe('ReportingShell media preload', () => {
     })
     expect(streamOptions.videoId.value).toBe(101)
     expect(streamOptions.artifactKind.value).toBe('processed')
-    expect(wrapper.find('img[alt="Selected frame stream preview"]').attributes('src')).toBe(
-      '/timeline/frame/v2'
+    expect(wrapper.find('img[alt="Selected frame stream preview"]').attributes('src')).toMatch(
+      /^blob:/
     )
+    expect(
+      hoisted.axiosApi.get.mock.calls.some(([url]) =>
+        url.includes('/videos/101/frames/2/decoded-stream/')
+      )
+    ).toBe(true)
+    const frameButton = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('#2')),
+      'frame preview button'
+    )
+    await frameButton.trigger('click')
+    await flushPromises()
+    expect(hoisted.flowRef.current.preferredReportFrame).toEqual({
+      videoId: 101,
+      frameNumber: 2,
+      timestamp: 0.08
+    })
+    expect(hoisted.flowRef.current.reportFrameSelectionStatus).toBe('ready')
+    expect(hoisted.flowRef.current.selectedReportFrames).toBeNull()
+    await wrapper.get('[data-test="add-report-frame"]').trigger('click')
+    expect(hoisted.flowRef.current.selectedReportFrames).toEqual([
+      { videoId: 101, frameNumber: 2, timestamp: 0.08 }
+    ])
+    expect(wrapper.get('[data-test="add-report-frame"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('button[aria-label="Frame 2 entfernen"]').trigger('click')
+    expect(hoisted.flowRef.current.selectedReportFrames).toEqual([])
+    expect(wrapper.text()).toContain('0 / 24 Bilder ausgewählt')
+  })
+
+  it('filters candidates by positive label while retaining explicitly added frames', async () => {
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+    const defaultGet = hoisted.axiosApi.get.getMockImplementation()
+    const first = { videoId: 100, frameNumber: 0, timestamp: 0, labels: ['polyp'] }
+    const second = { videoId: 100, frameNumber: 5, timestamp: 0.2, labels: ['normal'] }
+    hoisted.axiosApi.get.mockImplementation((url: string, ...args: unknown[]) => {
+      if (url.includes('/frame-candidates')) {
+        return Promise.resolve({
+          data: { frames: [first, second], labels: ['polyp', 'normal'], nextOffset: null }
+        })
+      }
+      return defaultGet?.(url, ...args)
+    })
+    const wrapper = mountShell()
+    await flushPromises()
+    await openContextPanel(wrapper)
+    const browse = requireDefined(
+      wrapper.findAll('button').find((button) => button.text() === 'Frames durchsuchen'),
+      'browse frames'
+    )
+    await browse.trigger('click')
+    await flushPromises()
+    const preview = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('#0')),
+      'frame zero'
+    )
+    await preview.trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-test="add-report-frame"]').trigger('click')
+    await wrapper.get('#report-frame-label').setValue('normal')
+    await flushPromises()
+    expect(hoisted.axiosApi.get).toHaveBeenCalledWith(
+      '/patient-examination-reports/frame-candidates',
+      {
+        params: { patient_examination_id: 314, label: 'normal', offset: 0 }
+      }
+    )
+    const next = requireDefined(
+      wrapper.findAll('button').find((button) => button.text().includes('#5')),
+      'second frame'
+    )
+    await next.trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-test="add-report-frame"]').trigger('click')
+    expect(hoisted.flowRef.current.selectedReportFrames).toEqual([
+      { videoId: 100, frameNumber: 0, timestamp: 0 },
+      { videoId: 100, frameNumber: 5, timestamp: 0.2 }
+    ])
+    await wrapper.get('button[aria-label="Frame 0 entfernen"]').trigger('click')
+    expect(hoisted.flowRef.current.selectedReportFrames).toEqual([
+      { videoId: 100, frameNumber: 5, timestamp: 0.2 }
+    ])
   })
 
   it('refreshes the selected case media after a report import completes', async () => {
@@ -2297,6 +2414,98 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.text()).toContain(
       `ist an ${originalBundle.moduleName}@${originalBundle.version} gebunden`
     )
+  })
+
+  it('prefers canonical German finding and classification labels over raw display names', async () => {
+    hoisted.findingsApi.getExaminationFindings.mockResolvedValue([
+      {
+        id: 1,
+        name: 'star_upper_gi_polyp',
+        nameDe: 'Polyp',
+        displayName: 'star_upper_gi_polyp',
+        description: '',
+        examinations: ['colonoscopy'],
+        classifications: [
+          {
+            id: 2,
+            name: 'star_upper_gi_lesion_paris',
+            nameDe: 'Paris-Klassifikation',
+            displayName: 'star_upper_gi_lesion_paris',
+            required: true,
+            classificationTypes: [],
+            choices: [
+              {
+                id: 3,
+                name: 'star_upper_gi_paris_IIa',
+                nameDe: 'Paris IIa',
+                displayName: 'star_upper_gi_paris_IIa',
+                subcategories: {},
+                numericalDescriptors: {}
+              }
+            ]
+          }
+        ],
+        locationClassifications: [],
+        morphologyClassifications: [],
+        FindingClassifications: [],
+        findingTypes: [],
+        findingInterventions: []
+      }
+    ])
+    hoisted.reportTemplatesApi.fetchReportTemplateByName.mockResolvedValue({
+      name: 'default_template',
+      examination: 'colonoscopy',
+      identity: {
+        moduleName: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0',
+        templateVersion: null,
+        templateHash: null,
+        lifecycleStatus: 'published',
+        readiness: null
+      },
+      reportSections: [
+        {
+          name: 'findings',
+          titleDe: 'Befunde',
+          position: 0,
+          types: [],
+          fields: [],
+          sectionKind: 'findings',
+          findings: [
+            {
+              finding: 'star_upper_gi_polyp',
+              required: true,
+              multipleAllowed: true,
+              classifications: [{ classification: 'star_upper_gi_lesion_paris', required: true }]
+            }
+          ]
+        }
+      ],
+      verbosityOptions: ['short', 'standard', 'detailed'],
+      validators: { findingsValidators: [], examinationValidators: [] }
+    })
+    hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementationOnce(
+      async () => ({
+        reportTemplates: [
+          (await hoisted.reportTemplatesApi.fetchReportTemplateByName(
+            'report_template_examples',
+            '1.0.0',
+            'default_template'
+          )) as ReportTemplatePayload
+        ]
+      })
+    )
+    const wrapper = mountShell()
+    await flushPromises()
+
+    expect(wrapper.get('.kb-focus-block strong').text()).toBe('Polyp')
+    const verbosity = wrapper.get('[data-testid="report-verbosity-select"]')
+    expect(verbosity.text()).toContain('Kurz')
+    expect(verbosity.text()).toContain('Ausführlich')
+    await verbosity.setValue('detailed')
+    expect(hoisted.flowRef.current.selectedReportVerbosity).toBe('detailed')
+    expect(wrapper.get('#reporting-technical-inspector').text()).toContain('Paris-Klassifikation')
+    expect(wrapper.get('#reporting-technical-inspector').text()).toContain('Paris IIa')
   })
 
   it('keeps catalog-based finding rendering isolated to the selected examination context', async () => {

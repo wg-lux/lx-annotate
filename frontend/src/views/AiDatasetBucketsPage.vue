@@ -46,7 +46,11 @@
             :disabled="loadingOptions || backfillingSegments"
           >
             <option value="">Datensatz auswählen</option>
-            <option v-for="dataset in datasetOptions" :key="dataset.id" :value="String(dataset.id)">
+            <option
+              v-for="dataset in datasetOptions"
+              :key="dataset.id"
+              :value="String(dataset.id)"
+            >
               {{ dataset.label }} ({{ datasetTypeLabel(dataset.datasetType) }})
             </option>
           </select>
@@ -61,7 +65,11 @@
             :disabled="loadingOptions"
           >
             <option value="">Alle Labels</option>
-            <option v-for="group in labelSetOptions" :key="group.id" :value="String(group.id)">
+            <option
+              v-for="group in labelSetOptions"
+              :key="group.id"
+              :value="String(group.id)"
+            >
               {{ group.name }} v{{ group.version }}
             </option>
           </select>
@@ -76,7 +84,11 @@
             :disabled="targetLabelOptions.length === 0"
           >
             <option value="">Keine Ziel-Buckets</option>
-            <option v-for="label in targetLabelOptions" :key="label.id" :value="String(label.id)">
+            <option
+              v-for="label in targetLabelOptions"
+              :key="label.id"
+              :value="String(label.id)"
+            >
               {{ label.name }}
             </option>
           </select>
@@ -93,23 +105,42 @@
         </label>
       </div>
 
-      <div v-if="errorMessage" class="alert alert-warning mb-0" role="alert">
+      <div
+        v-if="errorMessage"
+        class="alert alert-warning mb-0"
+        role="alert"
+      >
         {{ errorMessage }}
       </div>
-      <div v-if="backfillMessage" class="alert alert-success mb-0" role="status">
+      <div
+        v-if="backfillMessage"
+        class="alert alert-success mb-0"
+        role="status"
+      >
         {{ backfillMessage }}
       </div>
     </section>
 
-    <section v-if="loadingDistribution" class="loading-panel">
+    <AiDatasetSplitBuilder :dataset-id="selectedDatasetId" />
+
+    <section
+      v-if="loadingDistribution"
+      class="loading-panel"
+    >
       <div class="skeleton-line"></div>
       <div class="skeleton-line skeleton-short"></div>
       <div class="skeleton-line"></div>
     </section>
 
     <template v-else-if="distribution">
-      <section class="summary-grid" aria-label="Zusammenfassung der Datensatz-Frame-Buckets">
-        <div class="metric-tile" data-test="summary-merged-frames">
+      <section
+        class="summary-grid"
+        aria-label="Zusammenfassung der Datensatz-Frame-Buckets"
+      >
+        <div
+          class="metric-tile"
+          data-test="summary-merged-frames"
+        >
           <span>Bucket-Frames</span>
           <strong>{{ formatNumber(distribution.summary.mergedFrameCount) }}</strong>
         </div>
@@ -136,13 +167,26 @@
             </div>
           </div>
 
-          <div class="bucket-list" data-test="target-buckets">
-            <div v-for="bucket in normalizedTargetBuckets" :key="bucket.bucket" class="bucket-row">
+          <div
+            class="bucket-list"
+            data-test="target-buckets"
+          >
+            <div
+              v-for="bucket in normalizedTargetBuckets"
+              :key="bucket.bucket"
+              class="bucket-row"
+            >
               <div class="bucket-label">
-                <span class="bucket-dot" :class="`bucket-${bucket.bucket}`"></span>
+                <span
+                  class="bucket-dot"
+                  :class="`bucket-${bucket.bucket}`"
+                ></span>
                 <span>{{ bucketLabel(bucket.bucket) }}</span>
               </div>
-              <div class="bucket-meter" aria-hidden="true">
+              <div
+                class="bucket-meter"
+                aria-hidden="true"
+              >
                 <span :style="{ width: bucketWidth(bucket.frameCount, targetBucketMax) }"></span>
               </div>
               <strong>{{ formatNumber(bucket.frameCount) }}</strong>
@@ -179,6 +223,8 @@
         </section>
       </div>
 
+      <DatasetLabelHistogram :rows="distribution.mergedFrameBuckets" />
+
       <section class="distribution-panel table-panel">
         <div class="panel-heading">
           <div>
@@ -190,11 +236,20 @@
           </div>
         </div>
 
-        <div v-if="mergedRows.length === 0" class="empty-state">
+        <div
+          v-if="mergedRows.length === 0"
+          class="empty-state"
+        >
           Keine Frame-Buckets für die aktuelle Auswahl vorhanden.
         </div>
-        <div v-else class="table-responsive">
-          <table class="bucket-table" data-test="label-bucket-table">
+        <div
+          v-else
+          class="table-responsive"
+        >
+          <table
+            class="bucket-table"
+            data-test="label-bucket-table"
+          >
             <thead>
               <tr>
                 <th>Label</th>
@@ -207,7 +262,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in mergedRows" :key="row.labelId">
+              <tr
+                v-for="row in mergedRows"
+                :key="row.labelId"
+              >
                 <td>
                   <span class="label-name">{{ row.labelName }}</span>
                 </td>
@@ -229,13 +287,18 @@
       </section>
     </template>
 
-    <section v-else class="empty-state">
+    <section
+      v-else
+      class="empty-state"
+    >
       Wählen Sie einen KI-Datensatz aus, um die aktuelle Bucket-Verteilung zu laden.
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import AiDatasetSplitBuilder from '@/components/AiDataset/AiDatasetSplitBuilder.vue'
+import DatasetLabelHistogram from '@/components/AiDataset/DatasetLabelHistogram.vue'
 import {
   attachAiDatasetAnnotations,
   fetchAiDatasetFrameBucketDistribution,
@@ -243,28 +306,20 @@ import {
   fetchAiDatasetOptions,
   type AiDatasetFrameBucketCount,
   type AiDatasetFrameBucketDistribution,
-  type AiDatasetLabelFrameBucketCount,
-  type AiDatasetLabelOption,
   type AiDatasetLabelSetOption,
   type AiDatasetOption
 } from '@/api/aiDatasetApi'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  mergeLabelBuckets,
+  normalizeTargetBuckets,
+  uniqueDatasetLabels
+} from '@/utils/datasetBucketPresentation'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const logger = createRuntimeLogger('ai-dataset-buckets')
 
 type BucketName = AiDatasetFrameBucketCount['bucket']
-
-interface LabelBucketRow {
-  labelId: number
-  labelName: string
-  mergedFrames: number
-  annotationFrames: number
-  segmentFrames: number
-  framePositive: number
-  frameNegative: number
-  segmentCount: number
-}
 
 const datasetOptions = ref<AiDatasetOption[]>([])
 const labelSetOptions = ref<AiDatasetLabelSetOption[]>([])
@@ -278,6 +333,7 @@ const loadingDistribution = ref(false)
 const backfillingSegments = ref(false)
 const errorMessage = ref('')
 const backfillMessage = ref('')
+let distributionGeneration = 0
 
 const selectedDataset = computed(() =>
   datasetOptions.value.find((dataset) => String(dataset.id) === selectedDatasetId.value)
@@ -285,7 +341,9 @@ const selectedDataset = computed(() =>
 
 const selectedDatasetLabel = computed(() => {
   const dataset = selectedDataset.value
-  if (!dataset) return 'Kein Datensatz ausgewählt'
+  if (!dataset) {
+    return 'Kein Datensatz ausgewählt'
+  }
   return `${dataset.label} (ID ${String(dataset.id)})`
 })
 
@@ -293,26 +351,13 @@ const selectedLabelSet = computed(() =>
   labelSetOptions.value.find((group) => String(group.id) === selectedLabelGroupId.value)
 )
 
-const targetLabelOptions = computed<AiDatasetLabelOption[]>(() => {
-  if (selectedLabelSet.value) return selectedLabelSet.value.labels
-  const byId = new Map<number, AiDatasetLabelOption>()
-  for (const group of labelSetOptions.value) {
-    for (const label of group.labels) {
-      byId.set(label.id, label)
-    }
-  }
-  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name))
-})
+const targetLabelOptions = computed(
+  () => selectedLabelSet.value?.labels ?? uniqueDatasetLabels(labelSetOptions.value)
+)
 
-const normalizedTargetBuckets = computed<AiDatasetFrameBucketCount[]>(() => {
-  const buckets = new Map<BucketName, number>(
-    distribution.value?.targetBuckets.map((bucket) => [bucket.bucket, bucket.frameCount]) ?? []
-  )
-  return (['positive', 'negative', 'unknown'] as BucketName[]).map((bucket) => ({
-    bucket,
-    frameCount: buckets.get(bucket) ?? 0
-  }))
-})
+const normalizedTargetBuckets = computed(() =>
+  normalizeTargetBuckets(distribution.value?.targetBuckets ?? [])
+)
 
 const targetBucketMax = computed(() =>
   Math.max(1, ...normalizedTargetBuckets.value.map((bucket) => bucket.frameCount))
@@ -325,52 +370,7 @@ const targetBucketSubtitle = computed(() => {
   return `Ziel-Label: ${distribution.value.targetLabelName}`
 })
 
-function bucketMap(
-  items: AiDatasetLabelFrameBucketCount[]
-): Map<number, AiDatasetLabelFrameBucketCount> {
-  return new Map(items.map((item) => [item.labelId, item]))
-}
-
-const mergedRows = computed<LabelBucketRow[]>(() => {
-  if (!distribution.value) return []
-
-  const annotationByLabel = bucketMap(distribution.value.annotationFrameBuckets)
-  const segmentByLabel = bucketMap(distribution.value.segmentFrameBuckets)
-  const mergedByLabel = bucketMap(distribution.value.mergedFrameBuckets)
-  const labelDistributionByLabel = new Map(
-    distribution.value.labelDistribution.map((entry) => [entry.labelId, entry])
-  )
-  const labelIds = new Set<number>([
-    ...annotationByLabel.keys(),
-    ...segmentByLabel.keys(),
-    ...mergedByLabel.keys(),
-    ...labelDistributionByLabel.keys()
-  ])
-
-  return [...labelIds]
-    .map((labelId) => {
-      const merged = mergedByLabel.get(labelId)
-      const annotation = annotationByLabel.get(labelId)
-      const segment = segmentByLabel.get(labelId)
-      const labelDistribution = labelDistributionByLabel.get(labelId)
-      return {
-        labelId,
-        labelName:
-          merged?.labelName ||
-          annotation?.labelName ||
-          segment?.labelName ||
-          labelDistribution?.labelName ||
-          `Label ${String(labelId)}`,
-        mergedFrames: merged?.frameCount ?? 0,
-        annotationFrames: annotation?.frameCount ?? 0,
-        segmentFrames: segment?.frameCount ?? 0,
-        framePositive: labelDistribution?.framePositive ?? 0,
-        frameNegative: labelDistribution?.frameNegative ?? 0,
-        segmentCount: labelDistribution?.segmentCount ?? 0
-      }
-    })
-    .sort((a, b) => b.mergedFrames - a.mergedFrames || a.labelName.localeCompare(b.labelName))
-})
+const mergedRows = computed(() => mergeLabelBuckets(distribution.value))
 
 const mergedFrameMax = computed(() =>
   Math.max(1, ...mergedRows.value.map((row) => row.mergedFrames))
@@ -399,30 +399,42 @@ async function loadOptions(): Promise<void> {
 }
 
 async function loadDistribution(): Promise<void> {
+  const generation = ++distributionGeneration
   if (!selectedDatasetId.value) {
     distribution.value = null
+    loadingDistribution.value = false
     return
   }
 
   loadingDistribution.value = true
   errorMessage.value = ''
   try {
-    distribution.value = await fetchAiDatasetFrameBucketDistribution(selectedDatasetId.value, {
+    const result = await fetchAiDatasetFrameBucketDistribution(selectedDatasetId.value, {
       labelGroupId: selectedLabelGroupId.value || null,
       targetLabelId: selectedTargetLabelId.value || null,
       predictionSegmentsOnly: predictionSegmentsOnly.value
     })
+    if (generation === distributionGeneration) {
+      distribution.value = result
+    }
   } catch (error) {
+    if (generation !== distributionGeneration) {
+      return
+    }
     logger.error('distribution-load-failed', error)
     distribution.value = null
     errorMessage.value = 'Die Bucket-Verteilung konnte nicht geladen werden.'
   } finally {
-    loadingDistribution.value = false
+    if (generation === distributionGeneration) {
+      loadingDistribution.value = false
+    }
   }
 }
 
 async function backfillAnnotatedSegments(): Promise<void> {
-  if (!selectedDatasetId.value || backfillingSegments.value) return
+  if (!selectedDatasetId.value || backfillingSegments.value) {
+    return
+  }
 
   backfillingSegments.value = true
   errorMessage.value = ''
@@ -444,20 +456,32 @@ async function backfillAnnotatedSegments(): Promise<void> {
 }
 
 function bucketLabel(bucket: BucketName): string {
-  if (bucket === 'positive') return 'Positiv'
-  if (bucket === 'negative') return 'Negativ'
+  if (bucket === 'positive') {
+    return 'Positiv'
+  }
+  if (bucket === 'negative') {
+    return 'Negativ'
+  }
   return 'Unbekannt'
 }
 
 function datasetTypeLabel(datasetType: string): string {
-  if (datasetType === 'image') return 'Bild'
-  if (datasetType === 'video') return 'Video'
+  if (datasetType === 'image') {
+    return 'Bild'
+  }
+  if (datasetType === 'video') {
+    return 'Video'
+  }
   return datasetType
 }
 
 function aiModelTypeLabel(aiModelType: string): string {
-  if (aiModelType === 'image_multilabel_classification') return 'Bild-Multilabel-Klassifikation'
-  if (aiModelType === 'video_segment_classification') return 'Video-Segmentklassifikation'
+  if (aiModelType === 'image_multilabel_classification') {
+    return 'Bild-Multilabel-Klassifikation'
+  }
+  if (aiModelType === 'video_segment_classification') {
+    return 'Video-Segmentklassifikation'
+  }
   return aiModelType
 }
 
@@ -495,6 +519,10 @@ watch(
 
 onMounted(async () => {
   await loadOptions()
+})
+
+onBeforeUnmount(() => {
+  distributionGeneration++
 })
 </script>
 

@@ -5,11 +5,20 @@ import { createMemoryHistory } from 'vue-router'
 import { createAppRouter } from '@/router'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useAuthKcStore } from '@/stores/auth_kc'
 import { savePatientExaminationDraft } from '@/api/reportDraftApi'
 
 vi.mock('@/api/reportDraftApi', () => ({
   savePatientExaminationDraft: vi.fn()
 }))
+
+// Keep navigation and draft-persistence checks independent of page compilation.
+vi.mock('@/views/reporting/ReportingShell.vue', () => ({ default: { template: '<router-view />' } }))
+vi.mock('@/views/reporting/ReportingWorklistPage.vue', () => ({ default: { template: '<div />' } }))
+vi.mock('@/views/reporting/FindingsCapturePage.vue', () => ({ default: { template: '<div />' } }))
+vi.mock('@/views/reporting/ReportEditorPage.vue', () => ({ default: { template: '<div />' } }))
+vi.mock('@/views/reporting/CaseSetupPage.vue', () => ({ default: { template: '<div />' } }))
+vi.mock('@/views/reporting/FinalizedResultPage.vue', () => ({ default: { template: '<div />' } }))
 
 function createDirtyDraft(patientExaminationId: number) {
   const flow = useReportingFlowStore()
@@ -35,6 +44,10 @@ describe('reporting routes', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     setActivePinia(createPinia())
+    const auth = useAuthKcStore()
+    auth.user = { username: 'reviewer', roles: ['endoregdb_user'] }
+    auth.roles = ['endoregdb_user']
+    auth.loaded = true
     vi.mocked(savePatientExaminationDraft).mockResolvedValue({
       updatedAt: '2026-07-20T00:00:01.000Z'
     } as Awaited<ReturnType<typeof savePatientExaminationDraft>>)

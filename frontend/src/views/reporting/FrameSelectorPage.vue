@@ -19,8 +19,14 @@
         </div>
       </div>
       <div class="card-body">
-        <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
-        <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
+        <div
+          v-if="errorMessage"
+          class="alert alert-danger py-2"
+        >{{ errorMessage }}</div>
+        <div
+          v-if="successMessage"
+          class="alert alert-success py-2"
+        >{{ successMessage }}</div>
 
         <LookupStatusPanel
           class="mb-3"
@@ -34,7 +40,10 @@
             <h6 class="mb-0">Latest frames preload</h6>
           </div>
           <div class="card-body">
-            <div v-if="latest_frames.length" class="d-flex flex-wrap gap-2">
+            <div
+              v-if="latest_frames.length"
+              class="d-flex flex-wrap gap-2"
+            >
               <button
                 v-for="frame in latest_frames"
                 :key="`${frame.videoId}-${frame.frameNumber}`"
@@ -44,11 +53,17 @@
                 #{{ frame.frameNumber }} · {{ frame.category || 'fallback' }}
               </button>
             </div>
-            <div v-else class="small text-muted">Keine vorab ausgewählten Frames verfügbar.</div>
+            <div
+              v-else
+              class="small text-muted"
+            >Keine vorab ausgewählten Frames verfügbar.</div>
           </div>
         </div>
 
-        <div v-if="!flow.patientExaminationId" class="alert alert-warning">
+        <div
+          v-if="!flow.patientExaminationId"
+          class="alert alert-warning"
+        >
           Bitte zuerst das Fall-Setup abschließen.
         </div>
 
@@ -88,7 +103,10 @@
             </div>
 
             <div class="col-lg-8">
-              <div v-if="selectedSegment" class="card border h-100">
+              <div
+                v-if="selectedSegment"
+                class="card border h-100"
+              >
                 <div class="card-header d-flex justify-content-between align-items-center bg-light">
                   <div>
                     <h6 class="mb-0">
@@ -109,7 +127,10 @@
                     <div class="col-md-7">
                       <div class="frame-preview rounded border p-3">
                         <div class="fw-semibold mb-2">Frame-Vorschau (Metadaten)</div>
-                        <div v-if="selectedSegment.selectedFrame" class="small">
+                        <div
+                          v-if="selectedSegment.selectedFrame"
+                          class="small"
+                        >
                           <div>
                             <strong>Frame-ID:</strong> {{ selectedSegment.selectedFrame.frameId }}
                           </div>
@@ -130,7 +151,10 @@
                             {{ selectedSegment.selectedFrame.fileExists ? 'ja' : 'nein' }}
                           </div>
                         </div>
-                        <div v-else class="text-muted small">Kein Frame ausgewählt.</div>
+                        <div
+                          v-else
+                          class="text-muted small"
+                        >Kein Frame ausgewählt.</div>
                         <div class="mt-3 text-muted small">
                           Hinweis: Für eine echte Bildvorschau wäre ggf. ein dedizierter
                           Frame-Stream hilfreich, falls `relative_path` nicht direkt browserfähig
@@ -169,7 +193,11 @@
                         >
                           <option :value="null">Unverändert lassen</option>
                           <option :value="CLEAR_FINDING_SENTINEL">Befund entfernen</option>
-                          <option v-for="finding in findings" :key="finding.id" :value="finding.id">
+                          <option
+                            v-for="finding in findings"
+                            :key="finding.id"
+                            :value="finding.id"
+                          >
                             {{ finding.nameDe || finding.name || `Befund ${finding.id}` }}
                           </option>
                         </select>
@@ -214,7 +242,10 @@
                 </div>
               </div>
 
-              <div v-else class="card border h-100">
+              <div
+                v-else
+                class="card border h-100"
+              >
                 <div class="card-body text-muted">Kein Segment ausgewählt.</div>
               </div>
             </div>
@@ -280,7 +311,9 @@ function open_stream_url(url: string) {
 }
 
 function selectorUrl(): string | null {
-  if (!flow.patientExaminationId) return null
+  if (!flow.patientExaminationId) {
+    return null
+  }
   return r(
     endpoints.report.segmentFrameSelector(
       flow.patientExaminationId,
@@ -309,7 +342,9 @@ function syncSelectionDefaults() {
   }
 
   const seg = selectedSegment.value
-  if (!seg) return
+  if (!seg) {
+    return
+  }
   manualFrameNumber.value =
     seg.selectedFrameNumber ?? latest_frames.value.at(0)?.frameNumber ?? seg.startFrameNumber
   selectedFindingIdForSegment.value = seg.attachedFinding?.findingId ?? null
@@ -347,7 +382,9 @@ function buildPatchBody(
   base: Pick<SegmentFrameSelectorPatch, 'action'> &
     Partial<Pick<SegmentFrameSelectorPatch, 'frameNumber' | 'step'>>
 ): SegmentFrameSelectorPatch | null {
-  if (!flow.patientExaminationId || !selectedSegment.value) return null
+  if (!flow.patientExaminationId || !selectedSegment.value) {
+    return null
+  }
   const body: SegmentFrameSelectorPatch = {
     patientExaminationId: flow.patientExaminationId,
     ...(flow.activeReportId ? { reportId: flow.activeReportId } : {}),
@@ -405,7 +442,9 @@ async function setFrameManual() {
     action: 'set',
     frameNumber
   })
-  if (!body) return
+  if (!body) {
+    return
+  }
 
   loading.value = true
   clearMessages()
@@ -426,7 +465,9 @@ async function setFrameManual() {
 }
 
 watch(selectedSegment, (segment) => {
-  if (!segment) return
+  if (!segment) {
+    return
+  }
   manualFrameNumber.value = segment.selectedFrameNumber ?? segment.startFrameNumber
   selectedFindingIdForSegment.value = segment.attachedFinding?.findingId ?? null
 })

@@ -64,20 +64,32 @@ export function buildAnonymizationMetricsQueryParams(
 ): AnonymizationMetricsQueryParams {
   const params: AnonymizationMetricsQueryParams = {}
 
-  if (hasFilterValue(filters.dateFrom)) params.date_from = String(filters.dateFrom)
-  if (hasFilterValue(filters.dateTo)) params.date_to = String(filters.dateTo)
+  if (hasFilterValue(filters.dateFrom)) {
+    params.date_from = String(filters.dateFrom)
+  }
+  if (hasFilterValue(filters.dateTo)) {
+    params.date_to = String(filters.dateTo)
+  }
   if (hasFilterValue(filters.mediaType) && filters.mediaType !== 'all') {
     params.media_type = String(filters.mediaType)
   }
-  if (hasFilterValue(filters.centerId)) params.center_id = filters.centerId as number | string
-  if (hasFilterValue(filters.documentType)) params.document_type = String(filters.documentType)
-  if (hasFilterValue(filters.sourceSystem)) params.source_system = String(filters.sourceSystem)
+  if (hasFilterValue(filters.centerId)) {
+    params.center_id = filters.centerId as number | string
+  }
+  if (hasFilterValue(filters.documentType)) {
+    params.document_type = String(filters.documentType)
+  }
+  if (hasFilterValue(filters.sourceSystem)) {
+    params.source_system = String(filters.sourceSystem)
+  }
 
   return params
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
   return value as Record<string, unknown>
 }
 
@@ -96,14 +108,20 @@ function numberOrZero(value: unknown): number {
 }
 
 function nullableNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === '') return null
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
 }
 
 function scalarStringOr(value: unknown, fallback: string): string {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
   return fallback
 }
 

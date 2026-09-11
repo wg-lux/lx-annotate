@@ -55,7 +55,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function optionalString(value: unknown, field: string): string | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (typeof value !== 'string') {
     throw new TypeError(`Report draft response contains an invalid ${field}`)
   }
@@ -63,12 +65,16 @@ function optionalString(value: unknown, field: string): string | undefined {
 }
 
 function optionalNullableString(value: unknown, field: string): string | null | undefined {
-  if (value === undefined || value === null || typeof value === 'string') return value
+  if (value === undefined || value === null || typeof value === 'string') {
+    return value
+  }
   throw new TypeError(`Report draft response contains an invalid ${field}`)
 }
 
 function optionalNumber(value: unknown, field: string): number | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
     throw new TypeError(`Report draft response contains an invalid ${field}`)
   }
@@ -76,7 +82,9 @@ function optionalNumber(value: unknown, field: string): number | undefined {
 }
 
 function optionalNonNegativeNumber(value: unknown, field: string): number | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
     throw new TypeError(`Report draft response contains an invalid ${field}`)
   }
@@ -84,7 +92,9 @@ function optionalNonNegativeNumber(value: unknown, field: string): number | unde
 }
 
 function optionalNullablePositiveNumber(value: unknown, field: string): number | null | undefined {
-  if (value === undefined || value === null) return value
+  if (value === undefined || value === null) {
+    return value
+  }
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
     throw new TypeError(`Report draft response contains an invalid ${field}`)
   }
@@ -92,7 +102,9 @@ function optionalNullablePositiveNumber(value: unknown, field: string): number |
 }
 
 function normalizeNullablePositiveNumber(value: unknown, field: string): number | null {
-  if (value === null) return null
+  if (value === null) {
+    return null
+  }
   const normalized = optionalNullablePositiveNumber(value, field)
   if (normalized === undefined) {
     throw new TypeError(`Report draft response contains a missing ${field}`)
@@ -101,7 +113,9 @@ function normalizeNullablePositiveNumber(value: unknown, field: string): number 
 }
 
 function normalizeIndications(value: unknown): ReportDraftIndication[] | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (!Array.isArray(value)) {
     throw new TypeError('Report draft response contains invalid draft.indications')
   }
@@ -127,7 +141,9 @@ function normalizeIndications(value: unknown): ReportDraftIndication[] | undefin
 function normalizeTemplateSectionDrafts(
   value: unknown
 ): Partial<Record<string, ReportTemplateSectionDraft>> | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (!isRecord(value)) {
     throw new TypeError('Report draft response contains invalid draft.templateSectionDrafts')
   }
@@ -164,7 +180,9 @@ function normalizeTemplateSectionDrafts(
 }
 
 function normalizeReportLanguage(value: unknown): ReportLanguageCode | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (value !== 'de' && value !== 'en') {
     throw new TypeError('Report draft response contains invalid draft.selectedReportLanguage')
   }
@@ -172,7 +190,9 @@ function normalizeReportLanguage(value: unknown): ReportLanguageCode | undefined
 }
 
 function normalizeReportTextMode(value: unknown): ReportDraftTextMode | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined) {
+    return undefined
+  }
   if (value !== 'generated' && value !== 'manual') {
     throw new TypeError('Report draft response contains invalid draft.reportTextMode')
   }
@@ -180,7 +200,9 @@ function normalizeReportTextMode(value: unknown): ReportDraftTextMode | undefine
 }
 
 function normalizeReportDraftBlob(value: unknown): ReportDraftBlob {
-  if (value === undefined || value === null) return {}
+  if (value === undefined || value === null) {
+    return {}
+  }
   if (!isRecord(value)) {
     throw new TypeError('Report draft response contains an invalid draft')
   }
@@ -213,18 +235,36 @@ function normalizeReportDraftBlob(value: unknown): ReportDraftBlob {
   }
 }
 
-function normalizeReportDraftResponse(value: unknown): ReportDraftResponse {
+function normalizeReportDraftResponse(
+  value: unknown,
+  requestedPatientExaminationId: number,
+  expectedRevision?: number
+): ReportDraftResponse {
   if (!isRecord(value)) {
     throw new TypeError('Report draft response does not match the expected contract')
   }
+  const draft = normalizeReportDraftBlob(value.draft)
+  const patientExaminationId = optionalNumber(value.patientExaminationId, 'patientExaminationId')
+  const snakeCaseId = optionalNumber(value.patient_examination_id, 'patient_examination_id')
+  if (
+    (patientExaminationId === undefined && snakeCaseId === undefined) ||
+    (patientExaminationId !== undefined && patientExaminationId !== requestedPatientExaminationId) ||
+    (snakeCaseId !== undefined && snakeCaseId !== requestedPatientExaminationId)
+  ) {
+    throw new TypeError('Report draft response does not match the requested patient examination')
+  }
+  const revision = optionalNonNegativeNumber(value.revision, 'revision')
+  if (revision === undefined) {
+    throw new TypeError('Report draft response contains a missing revision')
+  }
+  if (expectedRevision !== undefined && revision !== expectedRevision + 1) {
+    throw new TypeError('Report draft response does not acknowledge the expected revision')
+  }
   return {
-    patientExaminationId: optionalNumber(value.patientExaminationId, 'patientExaminationId'),
-    patient_examination_id: optionalNumber(
-      value.patient_examination_id,
-      'patient_examination_id'
-    ),
-    revision: optionalNonNegativeNumber(value.revision, 'revision') ?? 0,
-    draft: normalizeReportDraftBlob(value.draft),
+    patientExaminationId,
+    patient_examination_id: snakeCaseId,
+    revision,
+    draft,
     updatedAt: optionalNullableString(value.updatedAt, 'updatedAt'),
     updated_at: optionalNullableString(value.updated_at, 'updated_at')
   }
@@ -248,7 +288,7 @@ export async function fetchPatientExaminationDraft(
   const response = await axiosInstance.get<unknown>(
     r(endpoints.examination.patientExaminationDraft(patientExaminationId))
   )
-  return normalizeReportDraftResponse(response.data)
+  return normalizeReportDraftResponse(response.data, patientExaminationId)
 }
 
 export async function savePatientExaminationDraft(params: {
@@ -283,5 +323,5 @@ export async function savePatientExaminationDraft(params: {
       payload: params.payload
     }
   )
-  return normalizeReportDraftResponse(response.data)
+  return normalizeReportDraftResponse(response.data, params.patientExaminationId, params.expectedRevision)
 }

@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import User
-from rest_framework.test import APIClient
-
 from endoreg_db.models import (
     Center,
     Frame,
@@ -17,13 +17,14 @@ from endoreg_db.models import (
     VideoProcessingHistory,
     VideoState,
 )
+from endoreg_db.services.jobs.video_post_validation_jobs import (
+    JobDispatchResult,
+)
 from endoreg_db.services.video_segment_blackening import (
     OUTSIDE_FRAME_BLACKENING_KIND,
     blackening_history_config,
 )
-from endoreg_db.services.jobs.video_post_validation_jobs import (
-    JobDispatchResult,
-)
+from rest_framework.test import APIClient
 
 pytestmark = pytest.mark.django_db
 

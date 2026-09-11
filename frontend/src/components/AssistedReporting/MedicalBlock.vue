@@ -1,5 +1,8 @@
 <template>
-  <div class="card mb-4 shadow-sm" :class="{ 'border-primary': isActive }">
+  <div
+    class="card mb-4 shadow-sm"
+    :class="{ 'border-primary': isActive }"
+  >
     <div 
       class="card-header p-3 cursor-pointer d-flex align-items-center justify-content-between"
       @click="isExpanded = !isExpanded"
@@ -15,17 +18,32 @@
       </div>
       
       <div class="d-flex align-items-center">
-        <span v-if="isComplete" class="badge badge-sm bg-gradient-success me-3">Abgeschlossen</span>
-        <i class="ni ni-bold-right transition-all" :style="expandStyle"></i>
+        <span
+          v-if="isComplete"
+          class="badge badge-sm bg-gradient-success me-3"
+        >Abgeschlossen</span>
+        <i
+          class="ni ni-bold-right transition-all"
+          :style="expandStyle"
+        ></i>
       </div>
     </div>
 
-    <div v-show="isExpanded" class="collapse show">
+    <div
+      v-show="isExpanded"
+      class="collapse show"
+    >
       <hr class="dark horizontal my-0">
       <div class="card-body medical-block-scroll">
-        <slot :store="store" :params="extraParams"></slot>
+        <slot
+          :store="store"
+          :params="extraParams"
+        ></slot>
         
-        <div v-if="showAction" class="d-flex justify-content-end mt-3">
+        <div
+          v-if="showAction"
+          class="d-flex justify-content-end mt-3"
+        >
           <button 
             class="btn btn-sm bg-gradient-dark mb-0" 
             :disabled="loading || !isComplete"

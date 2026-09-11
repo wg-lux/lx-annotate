@@ -3,16 +3,20 @@ const OVERRIDE_STORAGE_PREFIX = 'lxAnnotate.annotationPrincipalOverride.v1'
 export function getAnnotatorPrincipalFromAuthUser(
   user: Record<string, unknown> | null | undefined
 ): string {
-  const sub =
+  const subject =
     typeof user?.sub === 'string'
       ? user.sub.trim()
       : typeof user?.oidcSub === 'string'
         ? user.oidcSub.trim()
         : ''
-  if (sub) return `oidc:${sub}`
+  if (subject) {
+    return `oidc:${subject}`
+  }
 
   const username = typeof user?.username === 'string' ? user.username.trim() : ''
-  if (username) return username
+  if (username) {
+    return username
+  }
   return 'unknown'
 }
 
@@ -22,8 +26,8 @@ function getOverrideStorageKey(scope: string, basePrincipal: string): string {
 
 export function loadAnnotatorOverride(scope: string, basePrincipal: string): string | null {
   try {
-    const raw = localStorage.getItem(getOverrideStorageKey(scope, basePrincipal))
-    const normalized = raw?.trim() ?? ''
+    const storedPrincipal = localStorage.getItem(getOverrideStorageKey(scope, basePrincipal))
+    const normalized = storedPrincipal?.trim() ?? ''
     return normalized || null
   } catch {
     return null
@@ -36,7 +40,9 @@ export function saveAnnotatorOverride(
   overridePrincipal: string
 ): void {
   const normalized = overridePrincipal.trim()
-  if (!normalized) return
+  if (!normalized) {
+    return
+  }
   try {
     localStorage.setItem(getOverrideStorageKey(scope, basePrincipal), normalized)
   } catch {

@@ -69,7 +69,9 @@ function safeName(value: string, fallback: string): string {
 }
 
 function sanitizeContext(context: SafeLogContext | undefined): SafeLogContext | undefined {
-  if (!isRecord(context)) return undefined
+  if (!isRecord(context)) {
+    return undefined
+  }
   const safeEntries = Object.entries(context).filter(
     (entry): entry is [SafeLogContextKey, SafeLogValue] =>
       SAFE_CONTEXT_KEYS.has(entry[0]) &&
@@ -82,7 +84,9 @@ function sanitizeContext(context: SafeLogContext | undefined): SafeLogContext | 
 }
 
 function classifyError(error: unknown): Pick<RuntimeLogRecord, 'errorType' | 'httpStatus'> {
-  if (!isRecord(error)) return { errorType: typeof error === 'undefined' ? undefined : 'UnknownError' }
+  if (!isRecord(error)) {
+    return { errorType: typeof error === 'undefined' ? undefined : 'UnknownError' }
+  }
 
   const rawName = typeof error.name === 'string' ? error.name : ''
   const errorType = SAFE_ERROR_TYPES.has(rawName) ? rawName : 'UnknownError'
@@ -144,7 +148,9 @@ export function createRuntimeLogger(
     context?: SafeLogContext,
     error?: unknown
   ): void {
-    if (!shouldEmit(severity)) return
+    if (!shouldEmit(severity)) {
+      return
+    }
     const safeContext = sanitizeContext(context)
     const errorFields = severity === 'error' ? classifyError(error) : {}
     sink({

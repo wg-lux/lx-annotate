@@ -16,7 +16,11 @@
           >
             Arbeitsbereich neu laden
           </button>
-          <button class="btn btn-success btn-sm" :disabled="saving" @click="showSavePrompt = true">
+          <button
+            class="btn btn-success btn-sm"
+            :disabled="saving"
+            @click="showSavePrompt = true"
+          >
             Template speichern
           </button>
           <button
@@ -41,8 +45,14 @@
         </div>
       </div>
       <div class="card-body">
-        <div v-if="errorMessage" class="alert alert-danger py-2 mb-3">{{ errorMessage }}</div>
-        <div v-if="successMessage" class="alert alert-success py-2 mb-3">{{ successMessage }}</div>
+        <div
+          v-if="errorMessage"
+          class="alert alert-danger py-2 mb-3"
+        >{{ errorMessage }}</div>
+        <div
+          v-if="successMessage"
+          class="alert alert-success py-2 mb-3"
+        >{{ successMessage }}</div>
         <div class="alert alert-secondary py-2 small mb-0">
           Änderungen in diesem Bereich werden erst nach dem Speichern dauerhaft übernommen.
         </div>
@@ -59,13 +69,26 @@
             <div class="row g-3">
               <div class="col-12">
                 <label class="form-label">Vorlagenmodul</label>
-                <input v-model="moduleName" class="form-control" />
+                <input
+                  v-model="moduleName"
+                  class="form-control"
+                />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Untersuchung</label>
-                <select v-model="examination" class="form-select">
-                  <option value="" disabled>Untersuchung wählen</option>
-                  <option v-for="item in examinationOptions" :key="item.name" :value="item.name">
+                <select
+                  v-model="examination"
+                  class="form-select"
+                >
+                  <option
+                    value=""
+                    disabled
+                  >Untersuchung wählen</option>
+                  <option
+                    v-for="item in examinationOptions"
+                    :key="item.name"
+                    :value="item.name"
+                  >
                     {{ item.label }}
                   </option>
                 </select>
@@ -77,8 +100,15 @@
                   class="form-select"
                   :disabled="templatesLoading || !templateOptions.length"
                 >
-                  <option value="" disabled>Vorlage wählen</option>
-                  <option v-for="item in templateOptions" :key="item.name" :value="item.name">
+                  <option
+                    value=""
+                    disabled
+                  >Vorlage wählen</option>
+                  <option
+                    v-for="item in templateOptions"
+                    :key="item.name"
+                    :value="item.name"
+                  >
                     {{ getReportTemplateDisplayName(item, 'de') }}
                   </option>
                 </select>
@@ -123,7 +153,10 @@
               </div>
             </div>
 
-            <div v-if="selectedTemplate" class="mt-4 border-top pt-3">
+            <div
+              v-if="selectedTemplate"
+              class="mt-4 border-top pt-3"
+            >
               <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                 <div>
                   <strong>{{ selectedTemplate.name }}</strong>
@@ -149,7 +182,10 @@
                 {{ selectedTemplate.validators.findingsValidators.length }} Befundregeln,
                 {{ selectedTemplate.validators.examinationValidators.length }} Untersuchungsregeln
               </div>
-              <div class="mt-3 border rounded p-2 small" data-testid="template-readiness">
+              <div
+                class="mt-3 border rounded p-2 small"
+                data-testid="template-readiness"
+              >
                 <div class="d-flex justify-content-between align-items-center">
                   <strong>Readiness</strong>
                   <span
@@ -160,11 +196,23 @@
                   </span>
                 </div>
                 <div class="text-muted">Status: {{ lifecycleStatus || 'unbekannt' }}</div>
-                <ul v-if="builderReadiness?.errors.length" class="text-danger mb-0 mt-2">
-                  <li v-for="error in builderReadiness.errors" :key="error">{{ error }}</li>
+                <ul
+                  v-if="builderReadiness?.errors.length"
+                  class="text-danger mb-0 mt-2"
+                >
+                  <li
+                    v-for="error in builderReadiness.errors"
+                    :key="error"
+                  >{{ error }}</li>
                 </ul>
-                <ul v-if="builderReadiness?.warnings.length" class="text-warning mb-0 mt-2">
-                  <li v-for="warning in builderReadiness.warnings" :key="warning">{{ warning }}</li>
+                <ul
+                  v-if="builderReadiness?.warnings.length"
+                  class="text-warning mb-0 mt-2"
+                >
+                  <li
+                    v-for="warning in builderReadiness.warnings"
+                    :key="warning"
+                  >{{ warning }}</li>
                 </ul>
               </div>
             </div>
@@ -195,7 +243,10 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label">Patientenkennung</label>
-                <input v-model="runtimePatient" class="form-control" />
+                <input
+                  v-model="runtimePatient"
+                  class="form-control"
+                />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Vorlagenversion</label>
@@ -217,12 +268,18 @@
 
             <div class="mt-4 d-flex justify-content-between align-items-center">
               <h6 class="mb-0">Patientenbefunde</h6>
-              <button class="btn btn-outline-secondary btn-sm" @click="addRuntimeFinding">
+              <button
+                class="btn btn-outline-secondary btn-sm"
+                @click="addRuntimeFinding"
+              >
                 Befund hinzufügen
               </button>
             </div>
 
-            <div v-if="!runtimeFindings.length" class="text-muted small mt-2">
+            <div
+              v-if="!runtimeFindings.length"
+              class="text-muted small mt-2"
+            >
               Noch keine Befunde für die Prüfung erfasst.
             </div>
 
@@ -234,9 +291,19 @@
               <div class="row g-3">
                 <div class="col-md-8">
                   <label class="form-label form-label-sm">Befund</label>
-                  <select v-model="finding.finding" class="form-select form-select-sm">
-                    <option value="" disabled>Befund wählen</option>
-                    <option v-for="item in findingOptions" :key="item.name" :value="item.name">
+                  <select
+                    v-model="finding.finding"
+                    class="form-select form-select-sm"
+                  >
+                    <option
+                      value=""
+                      disabled
+                    >Befund wählen</option>
+                    <option
+                      v-for="item in findingOptions"
+                      :key="item.name"
+                      :value="item.name"
+                    >
                       {{ item.label }}
                     </option>
                   </select>
@@ -269,8 +336,14 @@
                 >
                   <div class="col-md-4">
                     <label class="form-label form-label-sm">Klassifikation</label>
-                    <select v-model="choice.classification" class="form-select form-select-sm">
-                      <option value="" disabled>Klassifikation waehlen</option>
+                    <select
+                      v-model="choice.classification"
+                      class="form-select form-select-sm"
+                    >
+                      <option
+                        value=""
+                        disabled
+                      >Klassifikation waehlen</option>
                       <option
                         v-for="item in classificationOptions"
                         :key="item.name"
@@ -332,7 +405,10 @@
             <h6 class="mb-0">Strukturvalidierung</h6>
           </div>
           <div class="card-body">
-            <div v-if="!definitionValidationResult" class="text-muted small">
+            <div
+              v-if="!definitionValidationResult"
+              class="text-muted small"
+            >
               Noch keine Strukturprüfung ausgeführt.
             </div>
             <template v-else>
@@ -348,10 +424,16 @@
                   {{ definitionValidationResult.graph.edges.length }} Kanten
                 </small>
               </div>
-              <div v-if="!definitionValidationResult.issues.length" class="text-muted small">
+              <div
+                v-if="!definitionValidationResult.issues.length"
+                class="text-muted small"
+              >
                 Keine Strukturprobleme gemeldet.
               </div>
-              <ul v-else class="list-group list-group-flush small">
+              <ul
+                v-else
+                class="list-group list-group-flush small"
+              >
                 <li
                   v-for="(issue, index) in definitionValidationResult.issues"
                   :key="`def-issue-${index}`"
@@ -366,7 +448,10 @@
                       {{ issue.level === 'warning' ? 'Warnung' : 'Fehler' }}
                     </span>
                   </div>
-                  <div v-if="issue.nodeId" class="text-muted">{{ issue.nodeId }}</div>
+                  <div
+                    v-if="issue.nodeId"
+                    class="text-muted"
+                  >{{ issue.nodeId }}</div>
                 </li>
               </ul>
             </template>
@@ -380,7 +465,10 @@
             <h6 class="mb-0">Ergebnis der Eingabeprüfung</h6>
           </div>
           <div class="card-body">
-            <div v-if="!runtimeValidationResult" class="text-muted small">
+            <div
+              v-if="!runtimeValidationResult"
+              class="text-muted small"
+            >
               Noch keine Eingabeprüfung ausgeführt.
             </div>
             <template v-else>
@@ -396,7 +484,10 @@
                 </span>
               </div>
 
-              <div v-if="runtimeValidationResult.issues.length" class="mb-3">
+              <div
+                v-if="runtimeValidationResult.issues.length"
+                class="mb-3"
+              >
                 <h6 class="text-uppercase text-muted small mb-2">Hinweise</h6>
                 <ul class="list-group list-group-flush small">
                   <li
@@ -413,7 +504,10 @@
                         {{ issue.code }}
                       </span>
                     </div>
-                    <div v-if="issue.validatorName" class="text-muted">
+                    <div
+                      v-if="issue.validatorName"
+                      class="text-muted"
+                    >
                       {{
                         issue.validatorKind === 'template'
                           ? 'Vorlage'
@@ -453,7 +547,10 @@
                       {{ validator.finding }} · {{ validator.operator }} · Treffer
                       {{ validator.matchedOccurrences }}
                     </div>
-                    <div v-if="validator.missingRequiredClassifications.length" class="text-danger">
+                    <div
+                      v-if="validator.missingRequiredClassifications.length"
+                      class="text-danger"
+                    >
                       Fehlende Klassifikationen:
                       {{ validator.missingRequiredClassifications.join(', ') }}
                     </div>
@@ -526,7 +623,10 @@
           </div>
           <div class="col-md-4">
             <label class="form-label">Beschreibung</label>
-            <input v-model="templateDescription" class="form-control" />
+            <input
+              v-model="templateDescription"
+              class="form-control"
+            />
           </div>
         </div>
 
@@ -540,9 +640,19 @@
           <div class="d-flex flex-wrap gap-2 align-items-end">
             <div>
               <label class="form-label form-label-sm mb-1">Neue Sektion</label>
-              <select v-model="pendingSectionType" class="form-select form-select-sm">
-                <option value="" disabled>Sektionstyp wählen</option>
-                <option v-for="preset in availablePresets" :key="preset.type" :value="preset.type">
+              <select
+                v-model="pendingSectionType"
+                class="form-select form-select-sm"
+              >
+                <option
+                  value=""
+                  disabled
+                >Sektionstyp wählen</option>
+                <option
+                  v-for="preset in availablePresets"
+                  :key="preset.type"
+                  :value="preset.type"
+                >
                   {{ preset.label }}
                 </option>
               </select>
@@ -557,7 +667,10 @@
           </div>
         </div>
 
-        <div v-if="!sections.length" class="alert alert-info mt-3 mb-0">
+        <div
+          v-if="!sections.length"
+          class="alert alert-info mt-3 mb-0"
+        >
           Noch keine Sektionen angelegt.
         </div>
 
@@ -586,7 +699,10 @@
               >
                 Runter
               </button>
-              <button class="btn btn-outline-danger btn-sm" @click="removeSection(section.id)">
+              <button
+                class="btn btn-outline-danger btn-sm"
+                @click="removeSection(section.id)"
+              >
                 Entfernen
               </button>
             </div>
@@ -595,11 +711,18 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Sektionsname</label>
-              <input v-model="section.name" class="form-control" />
+              <input
+                v-model="section.name"
+                class="form-control"
+              />
             </div>
             <div class="col-md-6">
               <label class="form-label">Typ</label>
-              <input :value="section.sectionType" class="form-control" readonly />
+              <input
+                :value="section.sectionType"
+                class="form-control"
+                readonly
+              />
             </div>
             <div class="col-12">
               <label class="form-label">Beschreibung</label>
@@ -630,22 +753,35 @@
               >
                 <div class="col-md-4">
                   <label class="form-label form-label-sm">Schlüssel</label>
-                  <input v-model="field.key" class="form-control form-control-sm" />
+                  <input
+                    v-model="field.key"
+                    class="form-control form-control-sm"
+                  />
                 </div>
                 <div class="col-md-4">
                   <label class="form-label form-label-sm">Label</label>
-                  <input v-model="field.label" class="form-control form-control-sm" />
+                  <input
+                    v-model="field.label"
+                    class="form-control form-control-sm"
+                  />
                 </div>
                 <div class="col-md-3">
                   <label class="form-label form-label-sm">Quelle</label>
-                  <select v-model="field.source" class="form-select form-select-sm">
+                  <select
+                    v-model="field.source"
+                    class="form-select form-select-sm"
+                  >
                     <option value="patient">patient</option>
                     <option value="patient_examination">patient_examination</option>
                     <option value="history">history</option>
                   </select>
                 </div>
                 <div class="col-md-1 d-flex align-items-center justify-content-center">
-                  <input v-model="field.required" class="form-check-input mt-4" type="checkbox" />
+                  <input
+                    v-model="field.required"
+                    class="form-check-input mt-4"
+                    type="checkbox"
+                  />
                 </div>
               </div>
             </div>
@@ -655,7 +791,10 @@
             <div class="mt-4">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0">Befunde</h6>
-                <button class="btn btn-outline-secondary btn-sm" @click="addFinding(section.id)">
+                <button
+                  class="btn btn-outline-secondary btn-sm"
+                  @click="addFinding(section.id)"
+                >
                   Befund hinzufügen
                 </button>
               </div>
@@ -668,23 +807,39 @@
                 <div class="row g-3">
                   <div class="col-md-4">
                     <label class="form-label form-label-sm">Befund</label>
-                    <select v-model="finding.finding" class="form-select form-select-sm">
-                      <option value="" disabled>Befund wählen</option>
-                      <option v-for="item in findingOptions" :key="item.name" :value="item.name">
+                    <select
+                      v-model="finding.finding"
+                      class="form-select form-select-sm"
+                    >
+                      <option
+                        value=""
+                        disabled
+                      >Befund wählen</option>
+                      <option
+                        v-for="item in findingOptions"
+                        :key="item.name"
+                        :value="item.name"
+                      >
                         {{ item.label }}
                       </option>
                     </select>
                   </div>
                   <div class="col-md-3">
                     <label class="form-label form-label-sm">Erforderlich</label>
-                    <select v-model="finding.required" class="form-select form-select-sm">
+                    <select
+                      v-model="finding.required"
+                      class="form-select form-select-sm"
+                    >
                       <option :value="true">ja</option>
                       <option :value="false">nein</option>
                     </select>
                   </div>
                   <div class="col-md-3">
                     <label class="form-label form-label-sm">Mehrfach erlaubt</label>
-                    <select v-model="finding.multipleAllowed" class="form-select form-select-sm">
+                    <select
+                      v-model="finding.multipleAllowed"
+                      class="form-select form-select-sm"
+                    >
                       <option :value="false">nein</option>
                       <option :value="true">ja</option>
                     </select>
@@ -721,7 +876,10 @@
                         v-model="classification.classification"
                         class="form-select form-select-sm"
                       >
-                        <option value="" disabled>Klassifikation waehlen</option>
+                        <option
+                          value=""
+                          disabled
+                        >Klassifikation waehlen</option>
                         <option
                           v-for="item in classificationOptions"
                           :key="item.name"
@@ -733,7 +891,10 @@
                     </div>
                     <div class="col-md-3">
                       <label class="form-label form-label-sm">Pflicht</label>
-                      <select v-model="classification.required" class="form-select form-select-sm">
+                      <select
+                        v-model="classification.required"
+                        class="form-select form-select-sm"
+                      >
                         <option :value="true">ja</option>
                         <option :value="false">nein</option>
                       </select>
@@ -759,7 +920,10 @@
                     <label class="form-check-label">Regel für diesen Befund aktivieren</label>
                   </div>
 
-                  <div v-if="finding.validator.enabled" class="row g-3">
+                  <div
+                    v-if="finding.validator.enabled"
+                    class="row g-3"
+                  >
                     <div class="col-md-4">
                       <label class="form-label form-label-sm">Regelname</label>
                       <input
@@ -785,7 +949,10 @@
                           v-model="finding.validator.condition.classification"
                           class="form-select form-select-sm"
                         >
-                          <option value="" disabled>Klassifikation wählen</option>
+                          <option
+                            value=""
+                            disabled
+                          >Klassifikation wählen</option>
                           <option
                             v-for="item in classificationOptions"
                             :key="item.name"
@@ -801,7 +968,11 @@
                           v-model="finding.validator.condition.comparator"
                           class="form-select form-select-sm"
                         >
-                          <option v-for="item in comparatorOptions" :key="item" :value="item">
+                          <option
+                            v-for="item in comparatorOptions"
+                            :key="item"
+                            :value="item"
+                          >
                             {{ item }}
                           </option>
                         </select>
@@ -868,19 +1039,36 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Vorlage speichern</h5>
-            <button type="button" class="btn-close" @click="showSavePrompt = false" />
+            <button
+              type="button"
+              class="btn-close"
+              @click="showSavePrompt = false"
+            />
           </div>
           <div class="modal-body">
             <label class="form-label">Dateiname</label>
-            <input v-model="fileName" class="form-control" />
+            <input
+              v-model="fileName"
+              class="form-control"
+            />
             <div class="form-text">Die Datei wird im ausgewählten Vorlagenmodul gespeichert.</div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-outline-secondary" @click="showSavePrompt = false">
+            <button
+              class="btn btn-outline-secondary"
+              @click="showSavePrompt = false"
+            >
               Abbrechen
             </button>
-            <button class="btn btn-success" :disabled="saving || !canSave" @click="saveTemplate">
-              <span v-if="saving" class="spinner-border spinner-border-sm me-1" />
+            <button
+              class="btn btn-success"
+              :disabled="saving || !canSave"
+              @click="saveTemplate"
+            >
+              <span
+                v-if="saving"
+                class="spinner-border spinner-border-sm me-1"
+              />
               Speichern
             </button>
           </div>
@@ -1059,7 +1247,9 @@ function readinessFromTemplate(
   template: ReportTemplatePayload | null
 ): ReportTemplateBuilderReadiness | null {
   const readiness = template?.identity.readiness
-  if (!readiness) return null
+  if (!readiness) {
+    return null
+  }
   return {
     canPublish: readiness.canPublish === true,
     lifecycleStatus: template.identity.lifecycleStatus || 'draft',
@@ -1073,7 +1263,9 @@ function syncSelectedTemplateMetadata() {
   const option = templateOptions.value.find((item) => item.name === templateName.value) || null
   lifecycleStatus.value = option?.identity.lifecycleStatus || null
   builderReadiness.value = readinessFromTemplate(option)
-  if (selectedTemplate.value?.name !== option?.name) selectedTemplate.value = null
+  if (selectedTemplate.value?.name !== option?.name) {
+    selectedTemplate.value = null
+  }
 }
 
 function defaultField(): ReportTemplateBuilderField {
@@ -1165,7 +1357,9 @@ function createSection(
 }
 
 function addSection() {
-  if (!pendingSectionType.value) return
+  if (!pendingSectionType.value) {
+    return
+  }
   sections.value = [...sections.value, createSection(pendingSectionType.value)]
   pendingSectionType.value = ''
 }
@@ -1176,7 +1370,9 @@ function removeSection(sectionId: string) {
 
 function moveSection(index: number, delta: -1 | 1) {
   const nextIndex = index + delta
-  if (nextIndex < 0 || nextIndex >= sections.value.length) return
+  if (nextIndex < 0 || nextIndex >= sections.value.length) {
+    return
+  }
   const next = sections.value.slice()
   const [item] = next.splice(index, 1)
   next.splice(nextIndex, 0, item)
@@ -1185,25 +1381,33 @@ function moveSection(index: number, delta: -1 | 1) {
 
 function addPatientField(sectionId: string) {
   const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) return
+  if (!section) {
+    return
+  }
   section.fields.push(defaultField())
 }
 
 function addFinding(sectionId: string) {
   const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) return
+  if (!section) {
+    return
+  }
   section.findings.push(defaultFinding())
 }
 
 function removeFinding(sectionId: string, findingIndex: number) {
   const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) return
+  if (!section) {
+    return
+  }
   section.findings.splice(findingIndex, 1)
 }
 
 function addClassification(sectionId: string, findingIndex: number) {
   const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) return
+  if (!section) {
+    return
+  }
   section.findings[findingIndex]?.classifications.push(defaultClassification())
 }
 
@@ -1213,12 +1417,16 @@ function removeClassification(
   classificationIndex: number
 ) {
   const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) return
+  if (!section) {
+    return
+  }
   section.findings[findingIndex]?.classifications.splice(classificationIndex, 1)
 }
 
 function appendThenRequire(items: string[], nextValue: string) {
-  if (!nextValue || items.includes(nextValue)) return
+  if (!nextValue || items.includes(nextValue)) {
+    return
+  }
   items.push(nextValue)
 }
 
@@ -1234,10 +1442,16 @@ function sectionExampleLabel(section: ReportTemplateBuilderSection): string {
 }
 
 function sectionDescriptionPlaceholder(section: ReportTemplateBuilderSection): string {
-  if (section.sectionType === 'logo') return 'Logo-URL oder Pfad'
-  if (section.sectionType === 'clinic_address') return 'Klinikadresse oder Briefkopftext'
+  if (section.sectionType === 'logo') {
+    return 'Logo-URL oder Pfad'
+  }
+  if (section.sectionType === 'clinic_address') {
+    return 'Klinikadresse oder Briefkopftext'
+  }
   if (section.sectionType === 'patient_info')
-    return 'Optionaler Einführungstext für die Patientensektion'
+    {
+      return 'Optionaler Einführungstext für die Patientensektion'
+    }
   return 'Beschreibung der Befundsektion'
 }
 
@@ -1305,11 +1519,19 @@ function removeRuntimeClassificationChoice(findingIndex: number, choiceIndex: nu
 
 function coerceDescriptorValue(value: string): unknown {
   const trimmed = value.trim()
-  if (!trimmed) return ''
-  if (trimmed === 'true') return true
-  if (trimmed === 'false') return false
+  if (!trimmed) {
+    return ''
+  }
+  if (trimmed === 'true') {
+    return true
+  }
+  if (trimmed === 'false') {
+    return false
+  }
   const numeric = Number(trimmed)
-  if (Number.isFinite(numeric) && trimmed !== '') return numeric
+  if (Number.isFinite(numeric) && trimmed !== '') {
+    return numeric
+  }
   return trimmed
 }
 
@@ -1449,20 +1671,28 @@ async function refreshTemplateOptions() {
     }
     syncSelectedTemplateMetadata()
   } catch (error: unknown) {
-    if (requestGeneration !== templateOptionsRequestGeneration) return
+    if (requestGeneration !== templateOptionsRequestGeneration) {
+      return
+    }
     setError(reportingApiErrorMessage(error, 'Templates konnten nicht geladen werden.'))
   } finally {
-    if (requestGeneration === templateOptionsRequestGeneration) templatesLoading.value = false
+    if (requestGeneration === templateOptionsRequestGeneration) {
+      templatesLoading.value = false
+    }
   }
 }
 
 async function loadSelectedTemplate() {
-  if (!templateName.value) return
+  if (!templateName.value) {
+    return
+  }
   const requestedModuleName = moduleName.value.trim()
   const requestedModuleVersion = lifecycleContext?.activeModuleVersion.value.trim() || ''
   const requestedTemplateName = templateName.value
   const requestGeneration = ++selectedTemplateRequestGeneration
-  if (!requestedModuleName || !requestedModuleVersion) return
+  if (!requestedModuleName || !requestedModuleVersion) {
+    return
+  }
   templateLoading.value = true
   try {
     const fetchTemplate =
@@ -1498,16 +1728,22 @@ async function loadSelectedTemplate() {
     runtimeValidationResult.value = null
     definitionValidationResult.value = null
   } catch (error: unknown) {
-    if (requestGeneration !== selectedTemplateRequestGeneration) return
+    if (requestGeneration !== selectedTemplateRequestGeneration) {
+      return
+    }
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht geladen werden.'))
   } finally {
-    if (requestGeneration === selectedTemplateRequestGeneration) templateLoading.value = false
+    if (requestGeneration === selectedTemplateRequestGeneration) {
+      templateLoading.value = false
+    }
   }
 }
 
 async function runDefinitionValidation() {
   const identity = captureBuilderRequestIdentity()
-  if (!identity) return
+  if (!identity) {
+    return
+  }
   const requestGeneration = ++definitionRequestGeneration
   definitionLoading.value = true
   try {
@@ -1519,23 +1755,31 @@ async function runDefinitionValidation() {
     if (
       requestGeneration !== definitionRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     definitionValidationResult.value = result
     successMessage.value = `Strukturprüfung für "${identity.templateName}" abgeschlossen.`
   } catch (error: unknown) {
     if (
       requestGeneration !== definitionRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     setError(reportingApiErrorMessage(error, 'Strukturprüfung fehlgeschlagen.'))
   } finally {
-    if (requestGeneration === definitionRequestGeneration) definitionLoading.value = false
+    if (requestGeneration === definitionRequestGeneration) {
+      definitionLoading.value = false
+    }
   }
 }
 
 async function refreshReadiness() {
   const identity = captureBuilderRequestIdentity()
-  if (!identity) return
+  if (!identity) {
+    return
+  }
   const requestGeneration = ++definitionRequestGeneration
   definitionLoading.value = true
   try {
@@ -1547,23 +1791,31 @@ async function refreshReadiness() {
     if (
       requestGeneration !== definitionRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     builderReadiness.value = readiness
     lifecycleStatus.value = readiness.lifecycleStatus
   } catch (error: unknown) {
     if (
       requestGeneration !== definitionRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     setError(reportingApiErrorMessage(error, 'Readiness-Prüfung fehlgeschlagen.'))
   } finally {
-    if (requestGeneration === definitionRequestGeneration) definitionLoading.value = false
+    if (requestGeneration === definitionRequestGeneration) {
+      definitionLoading.value = false
+    }
   }
 }
 
 async function publishTemplate() {
   const identity = captureBuilderRequestIdentity()
-  if (!identity || !builderReadiness.value?.canPublish) return
+  if (!identity || !builderReadiness.value?.canPublish) {
+    return
+  }
   const requestGeneration = ++lifecycleRequestGeneration
   lifecycleLoading.value = true
   clearMessages()
@@ -1576,7 +1828,9 @@ async function publishTemplate() {
     if (
       requestGeneration !== lifecycleRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     lifecycleStatus.value = result.lifecycleStatus
     builderReadiness.value = result.readiness
     successMessage.value = `Vorlage "${identity.templateName}" wurde veröffentlicht.`
@@ -1592,16 +1846,22 @@ async function publishTemplate() {
     if (
       requestGeneration !== lifecycleRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht veröffentlicht werden.'))
   } finally {
-    if (requestGeneration === lifecycleRequestGeneration) lifecycleLoading.value = false
+    if (requestGeneration === lifecycleRequestGeneration) {
+      lifecycleLoading.value = false
+    }
   }
 }
 
 async function unpublishTemplate() {
   const identity = captureBuilderRequestIdentity()
-  if (!identity || lifecycleStatus.value !== 'published') return
+  if (!identity || lifecycleStatus.value !== 'published') {
+    return
+  }
   const requestGeneration = ++lifecycleRequestGeneration
   lifecycleLoading.value = true
   clearMessages()
@@ -1614,7 +1874,9 @@ async function unpublishTemplate() {
     if (
       requestGeneration !== lifecycleRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     lifecycleStatus.value = result.lifecycleStatus
     builderReadiness.value = result.readiness
     successMessage.value = `Vorlage "${identity.templateName}" wurde entveröffentlicht.`
@@ -1629,10 +1891,14 @@ async function unpublishTemplate() {
     if (
       requestGeneration !== lifecycleRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht entveröffentlicht werden.'))
   } finally {
-    if (requestGeneration === lifecycleRequestGeneration) lifecycleLoading.value = false
+    if (requestGeneration === lifecycleRequestGeneration) {
+      lifecycleLoading.value = false
+    }
   }
 }
 
@@ -1655,17 +1921,23 @@ async function runRuntimeValidation() {
     if (
       requestGeneration !== runtimeRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     runtimeValidationResult.value = result
     successMessage.value = `Eingabeprüfung für "${identity.templateName}" abgeschlossen.`
   } catch (error: unknown) {
     if (
       requestGeneration !== runtimeRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     setError(reportingApiErrorMessage(error, 'Eingabeprüfung fehlgeschlagen.'))
   } finally {
-    if (requestGeneration === runtimeRequestGeneration) runtimeLoading.value = false
+    if (requestGeneration === runtimeRequestGeneration) {
+      runtimeLoading.value = false
+    }
   }
 }
 
@@ -1680,7 +1952,9 @@ async function reloadWorkspace() {
 
 async function saveTemplate() {
   const identity = captureBuilderRequestIdentity()
-  if (!canSave.value || !identity) return
+  if (!canSave.value || !identity) {
+    return
+  }
   const requestGeneration = ++saveRequestGeneration
   saving.value = true
   clearMessages()
@@ -1707,10 +1981,14 @@ async function saveTemplate() {
     if (
       requestGeneration !== saveRequestGeneration ||
       !isBuilderRequestIdentityCurrent(identity)
-    ) return
+    ) {
+      return
+    }
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht gespeichert werden.'))
   } finally {
-    if (requestGeneration === saveRequestGeneration) saving.value = false
+    if (requestGeneration === saveRequestGeneration) {
+      saving.value = false
+    }
   }
 }
 
@@ -1734,7 +2012,9 @@ if (lifecycleContext) {
   })
   watch(lifecycleContext.activeExaminationName, (nextExaminationName) => {
     const normalizedName = nextExaminationName.trim()
-    if (!normalizedName || normalizedName === examination.value) return
+    if (!normalizedName || normalizedName === examination.value) {
+      return
+    }
     try {
       examination.value = requireUniqueReportingExaminationName(
         coreConcepts.value?.examination || [],
@@ -1747,7 +2027,9 @@ if (lifecycleContext) {
 }
 
 watch(examination, async (next, prev) => {
-  if (!next || next === prev) return
+  if (!next || next === prev) {
+    return
+  }
   await refreshTemplateOptions()
 })
 

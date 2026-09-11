@@ -36,6 +36,7 @@ def test_verify_encrypted_storage_command_fails_when_backend_is_not_encrypted(
     monkeypatch,
 ):
     from django.core.files.storage import FileSystemStorage
+
     from lx_annotate.management.commands import verify_encrypted_storage as command_mod
 
     monkeypatch.setattr(

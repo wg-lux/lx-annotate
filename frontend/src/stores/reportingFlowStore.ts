@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { ReportFrameSelection } from '@/utils/frameStreams'
 import { computed, ref, watch } from 'vue'
 import { savePatientExaminationDraft } from '@/api/reportDraftApi'
 import type { ReportDraftBlob, ReportDraftTextMode } from '@/api/reportDraftApi'
@@ -10,7 +11,7 @@ import type {
   ReportTemplateSectionDraft,
   ReportTemplateIdentity
 } from '@/types/reportTemplate'
-import type { ReportTemplateRuntimeValidationResult } from '@/types/reportTemplate'
+import type { ReportTemplateRuntimeValidationResult, ReportVerbosity } from '@/types/reportTemplate'
 import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
 import type { ReportLanguageCode } from '@/api/reportingLanguagesApi'
 
@@ -47,7 +48,9 @@ export function isVerifiedRuntimeDraftForBundle(
   if (!draft || !bundle || draft.verificationStatus !== 'verified' || !draft.templateName) {
     return false
   }
-  if (patientExaminationId && draft.patientExaminationId !== patientExaminationId) return false
+  if (patientExaminationId && draft.patientExaminationId !== patientExaminationId) {
+    return false
+  }
   const identity = draft.templateIdentity
   const moduleName = identity?.moduleName || draft.payload.knowledgeBaseModule || draft.moduleName
   const version = identity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
@@ -92,7 +95,9 @@ function nextRuntimeDraftEntityId(prefix: string): string {
 function normalizeRuntimeDescriptors(
   descriptors: ReportTemplateRuntimeDescriptorInput[] | undefined
 ): ReportTemplateRuntimeDescriptorInput[] {
-  if (!Array.isArray(descriptors)) return []
+  if (!Array.isArray(descriptors)) {
+    return []
+  }
   return descriptors.map((descriptor) => ({
     ...descriptor,
     localId: descriptor.localId || nextRuntimeDraftEntityId('descriptor')
@@ -102,7 +107,9 @@ function normalizeRuntimeDescriptors(
 function normalizeRuntimeClassificationChoices(
   classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[] | undefined
 ): ReportTemplateRuntimeClassificationChoiceInput[] {
-  if (!Array.isArray(classificationChoices)) return []
+  if (!Array.isArray(classificationChoices)) {
+    return []
+  }
   return classificationChoices.map((classificationChoice) => ({
     ...classificationChoice,
     localId: classificationChoice.localId || nextRuntimeDraftEntityId('classification'),
@@ -113,7 +120,9 @@ function normalizeRuntimeClassificationChoices(
 function normalizeRuntimePatientFindings(
   patientFindings: ReportTemplateRuntimePatientFindingInput[] | undefined
 ): ReportTemplateRuntimePatientFindingInput[] {
-  if (!Array.isArray(patientFindings)) return []
+  if (!Array.isArray(patientFindings)) {
+    return []
+  }
   return patientFindings.map((patientFinding) => ({
     ...patientFinding,
     localId: patientFinding.localId || nextRuntimeDraftEntityId('finding'),
@@ -155,22 +164,29 @@ function safeRevision(value: unknown): number | null {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null
 }
 
-function draftRevisionConflict(error: unknown, params: {
-  patientExaminationId: number
-  expectedRevision: number
-}): DraftRevisionConflict | null {
+function draftRevisionConflict(
+  error: unknown,
+  params: {
+    patientExaminationId: number
+    expectedRevision: number
+  }
+): DraftRevisionConflict | null {
   const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
   const response =
     errorRecord.response && typeof errorRecord.response === 'object'
       ? (errorRecord.response as Record<string, unknown>)
       : {}
-  if (response.status !== 409) return null
+  if (response.status !== 409) {
+    return null
+  }
   const data =
     response.data && typeof response.data === 'object'
       ? (response.data as Record<string, unknown>)
       : {}
   const currentRevision = safeRevision(data.currentRevision ?? data.current_revision)
-  if (currentRevision === null) return null
+  if (currentRevision === null) {
+    return null
+  }
   const updatedAt = data.updatedAt ?? data.updated_at
   return {
     patientExaminationId: params.patientExaminationId,
@@ -181,7 +197,9 @@ function draftRevisionConflict(error: unknown, params: {
 }
 
 function draftPersistenceErrorMessage(error: unknown): string {
-  if (error instanceof DraftRevisionConflictError) return error.message
+  if (error instanceof DraftRevisionConflictError) {
+    return error.message
+  }
   const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
   const response =
     errorRecord.response && typeof errorRecord.response === 'object'
@@ -222,7 +240,9 @@ function isNullableString(value: unknown): value is string | null {
 }
 
 function isReportTemplateIdentity(value: unknown): value is ReportTemplateIdentity {
-  if (!isRecord(value)) return false
+  if (!isRecord(value)) {
+    return false
+  }
   const readiness = value.readiness
   const readinessIsValid =
     readiness === null ||
@@ -295,7 +315,9 @@ function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload
 }
 
 function isReportingRuntimeDraft(value: unknown): value is ReportingRuntimeDraft {
-  if (!isRecord(value)) return false
+  if (!isRecord(value)) {
+    return false
+  }
   const templateIdentity = value.templateIdentity
   return (
     typeof value.draftId === 'string' &&
@@ -322,15 +344,12 @@ function isReportingRuntimeDraft(value: unknown): value is ReportingRuntimeDraft
   )
 }
 
-function normalizePersistedState(
-  parsed: Record<string, unknown>
-): PersistedReportingFlowState {
+function normalizePersistedState(parsed: Record<string, unknown>): PersistedReportingFlowState {
   const runtimeDraftsByPatientExaminationId: Partial<Record<string, ReportingRuntimeDraft>> =
     isRecord(parsed.runtimeDraftsByPatientExaminationId)
       ? Object.fromEntries(
           Object.entries(parsed.runtimeDraftsByPatientExaminationId).filter(
-            (entry): entry is [string, ReportingRuntimeDraft] =>
-              isReportingRuntimeDraft(entry[1])
+            (entry): entry is [string, ReportingRuntimeDraft] => isReportingRuntimeDraft(entry[1])
           )
         )
       : {}
@@ -340,30 +359,29 @@ function normalizePersistedState(
     const record = isRecord(row) ? row : {}
     return {
       examinationIndicationId:
-        typeof record.examinationIndicationId === 'number'
-          ? record.examinationIndicationId
-          : null,
+        typeof record.examinationIndicationId === 'number' ? record.examinationIndicationId : null,
       indicationChoiceId:
         typeof record.indicationChoiceId === 'number' ? record.indicationChoiceId : null
     }
   })
 
-  const templateSectionDrafts: Partial<Record<string, ReportTemplateSectionDraft>> =
-    isRecord(parsed.templateSectionDrafts)
-      ? Object.fromEntries(
-          Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
-            const draft = isRecord(value) ? value : {}
-            return [
-              key,
-              {
-                note: typeof draft.note === 'string' ? draft.note : '',
-                includePatientData: draft.includePatientData === true,
-                includeExaminationData: draft.includeExaminationData === true
-              }
-            ]
-          })
-        )
-      : {}
+  const templateSectionDrafts: Partial<Record<string, ReportTemplateSectionDraft>> = isRecord(
+    parsed.templateSectionDrafts
+  )
+    ? Object.fromEntries(
+        Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
+          const draft = isRecord(value) ? value : {}
+          return [
+            key,
+            {
+              note: typeof draft.note === 'string' ? draft.note : '',
+              includePatientData: draft.includePatientData === true,
+              includeExaminationData: draft.includeExaminationData === true
+            }
+          ]
+        })
+      )
+    : {}
 
   return {
     lookupToken: typeof parsed.lookupToken === 'string' ? parsed.lookupToken : null,
@@ -391,10 +409,9 @@ function normalizePersistedState(
       typeof parsed.selectedTemplateName === 'string' && parsed.selectedTemplateName.trim()
         ? parsed.selectedTemplateName
         : null,
-    selectedTemplateIdentity:
-      isReportTemplateIdentity(parsed.selectedTemplateIdentity)
-        ? parsed.selectedTemplateIdentity
-        : null,
+    selectedTemplateIdentity: isReportTemplateIdentity(parsed.selectedTemplateIdentity)
+      ? parsed.selectedTemplateIdentity
+      : null,
     templateSectionDrafts,
     runtimeDraftsByPatientExaminationId
   }
@@ -403,7 +420,9 @@ function normalizePersistedState(
 function loadPersistedState(ownerSub: string | null): PersistedReportingFlowState | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
+    if (!raw) {
+      return null
+    }
     const parsed: unknown = JSON.parse(raw)
     if (!isRecord(parsed)) {
       clearPersistedState()
@@ -438,6 +457,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const renderedReportText = ref('')
   const selectedKbModule = ref<string>('')
   const selectedReportLanguage = ref<ReportLanguageCode>('de')
+  // Presentation preference for this mounted reporting session; report text is persisted separately.
+  const selectedReportVerbosity = ref<ReportVerbosity>('standard')
   const selectedTemplateName = ref<string | null>(null)
   const selectedTemplateIdentity = ref<ReportTemplateIdentity | null>(null)
   const templateSectionDrafts = ref<Partial<Record<string, ReportTemplateSectionDraft>>>({})
@@ -455,11 +476,43 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     choiceId?: number | null
   } | null>(null)
   const mediaPreload = ref<TimelineLatestPayload | null>(null)
+  const preferredReportFrame = ref<ReportFrameSelection | null>(null)
+  const selectedReportFrames = ref<ReportFrameSelection[] | null>(null)
+  function addReportFrame(frame: ReportFrameSelection) {
+    const frames = selectedReportFrames.value ?? []
+    if (
+      frames.some(
+        (item) => item.videoId === frame.videoId && item.frameNumber === frame.frameNumber
+      )
+    ) {
+      return
+    }
+    if (frames.length >= 24) {
+      throw new Error('A report supports at most 24 frames')
+    }
+    selectedReportFrames.value = [...frames, { ...frame }]
+  }
+  function removeReportFrame(frame: ReportFrameSelection) {
+    selectedReportFrames.value = (selectedReportFrames.value ?? []).filter(
+      (item) => item.videoId !== frame.videoId || item.frameNumber !== frame.frameNumber
+    )
+  }
+  const reportFrameSelectionStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  function setPreferredReportFrame(
+    frame: ReportFrameSelection | null,
+    status: 'idle' | 'loading' | 'ready' | 'error'
+  ) {
+    preferredReportFrame.value = frame
+    reportFrameSelectionStatus.value = status
+    if (status === 'idle') {
+      selectedReportFrames.value = null
+    }
+  }
   const mediaPreloadStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const mediaPreloadError = ref<string | null>(null)
-  const runtimeDraftsByPatientExaminationId = ref<
-    Partial<Record<string, ReportingRuntimeDraft>>
-  >({})
+  const runtimeDraftsByPatientExaminationId = ref<Partial<Record<string, ReportingRuntimeDraft>>>(
+    {}
+  )
   const draftPersistenceStatus = ref<'idle' | 'saving' | 'saved' | 'error' | 'conflict'>('idle')
   const draftPersistenceError = ref<string | null>(null)
   const draftConflict = ref<DraftRevisionConflict | null>(null)
@@ -479,7 +532,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   )
 
   const currentRuntimeDraft = computed<ReportingRuntimeDraft | null>(() => {
-    if (!patientExaminationId.value) return null
+    if (!patientExaminationId.value) {
+      return null
+    }
     return runtimeDraftsByPatientExaminationId.value[String(patientExaminationId.value)] || null
   })
 
@@ -527,9 +582,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     if (cachedDraft && params.patientExaminationId !== patientExaminationId.value) {
       const requiresTemplateVerification = Boolean(
         cachedDraft.templateName ||
-          cachedDraft.moduleName ||
-          cachedDraft.templateIdentity?.moduleName ||
-          cachedDraft.payload.knowledgeBaseModule
+        cachedDraft.moduleName ||
+        cachedDraft.templateIdentity?.moduleName ||
+        cachedDraft.payload.knowledgeBaseModule
       )
       runtimeDraftsByPatientExaminationId.value = {
         ...runtimeDraftsByPatientExaminationId.value,
@@ -573,9 +628,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function setRuntimeDraft(draft: ReportingRuntimeDraft) {
-    const existingDraft = runtimeDraftsByPatientExaminationId.value[
-      String(draft.patientExaminationId)
-    ]
+    const existingDraft =
+      runtimeDraftsByPatientExaminationId.value[String(draft.patientExaminationId)]
     runtimeDraftsByPatientExaminationId.value = {
       ...runtimeDraftsByPatientExaminationId.value,
       [String(draft.patientExaminationId)]: {
@@ -606,9 +660,13 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     updater: (draft: ReportingRuntimeDraft) => ReportingRuntimeDraft | null
   ): ReportingRuntimeDraft | null {
     const currentDraft = currentRuntimeDraft.value
-    if (!currentDraft) return null
+    if (!currentDraft) {
+      return null
+    }
     const nextDraft = updater(currentDraft)
-    if (!nextDraft) return null
+    if (!nextDraft) {
+      return null
+    }
     setRuntimeDraft({
       ...nextDraft,
       updatedAt: new Date().toISOString()
@@ -617,7 +675,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function addFinding(params: { findingName: string }): string | null {
-    if (!params.findingName.trim()) return null
+    if (!params.findingName.trim()) {
+      return null
+    }
     const findingLocalId = nextRuntimeDraftEntityId('finding')
     const updated = updateCurrentRuntimeDraft((draft) => ({
       ...draft,
@@ -637,7 +697,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function removeFinding(findingLocalId: string) {
-    if (!findingLocalId) return
+    if (!findingLocalId) {
+      return
+    }
     updateCurrentRuntimeDraft((draft) => ({
       ...draft,
       payload: {
@@ -655,13 +717,17 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     classificationChoice: string | null
     descriptors?: ReportTemplateRuntimeDescriptorInput[]
   }) {
-    if (!params.findingLocalId || !params.classificationName.trim()) return
+    if (!params.findingLocalId || !params.classificationName.trim()) {
+      return
+    }
     updateCurrentRuntimeDraft((draft) => ({
       ...draft,
       payload: {
         ...draft.payload,
         patientFindings: draft.payload.patientFindings.map((finding) => {
-          if (finding.localId !== params.findingLocalId) return finding
+          if (finding.localId !== params.findingLocalId) {
+            return finding
+          }
 
           const classificationKey = params.classificationName.trim()
           const remainingChoices = finding.classificationChoices.filter(
@@ -727,6 +793,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     renderedReportText.value = ''
     indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
     selectedReportLanguage.value = 'de'
+    selectedReportVerbosity.value = 'standard'
     selectedTemplateName.value = null
     selectedTemplateIdentity.value = null
     templateSectionDrafts.value = {}
@@ -769,29 +836,46 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   })
 
   const currentDraftPersistenceSignature = computed(() => {
-    if (!currentDraftPersistencePayload.value) return null
-    const { expectedRevision: _expectedRevision, ...document } = currentDraftPersistencePayload.value
+    if (!currentDraftPersistencePayload.value) {
+      return null
+    }
+    const { expectedRevision: _expectedRevision, ...document } =
+      currentDraftPersistencePayload.value
     return JSON.stringify(document)
   })
 
   const hasUnpersistedDraftChanges = computed(() => {
-    if (!currentRuntimeDraft.value) return false
-    if (draftPersistenceStatus.value === 'saving') return true
+    if (!currentRuntimeDraft.value) {
+      return false
+    }
+    if (draftPersistenceStatus.value === 'saving') {
+      return true
+    }
     const currentSignature = currentDraftPersistenceSignature.value
-    if (!currentSignature) return false
+    if (!currentSignature) {
+      return false
+    }
     return currentSignature !== draftAutosaveSignature.value
   })
 
   function cancelDraftAutosave() {
-    if (!draftAutosaveTimer.value) return
+    if (!draftAutosaveTimer.value) {
+      return
+    }
     clearTimeout(draftAutosaveTimer.value)
     draftAutosaveTimer.value = null
   }
 
   async function persistCurrentRuntimeDraft() {
-    if (savingFinalReport.value) return
-    if (!currentRuntimeDraft.value?.patientExaminationId) return
-    if (draftConflict.value?.patientExaminationId === currentRuntimeDraft.value.patientExaminationId) {
+    if (savingFinalReport.value) {
+      return
+    }
+    if (!currentRuntimeDraft.value?.patientExaminationId) {
+      return
+    }
+    if (
+      draftConflict.value?.patientExaminationId === currentRuntimeDraft.value.patientExaminationId
+    ) {
       throw new DraftRevisionConflictError(draftConflict.value)
     }
     if (draftPersistencePromise.value) {
@@ -808,22 +892,34 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       try {
         while (generation === draftPersistenceGeneration && !savingFinalReport.value) {
           const currentPayload = currentDraftPersistencePayload.value
-          if (!currentPayload) return
+          if (!currentPayload) {
+            return
+          }
           const signatureToPersist = currentDraftPersistenceSignature.value
-          if (!signatureToPersist) return
-          const payloadSnapshot = JSON.parse(JSON.stringify(currentPayload)) as typeof currentPayload
-          if (signatureToPersist === draftAutosaveSignature.value) break
+          if (!signatureToPersist) {
+            return
+          }
+          const payloadSnapshot = JSON.parse(
+            JSON.stringify(currentPayload)
+          ) as typeof currentPayload
+          if (signatureToPersist === draftAutosaveSignature.value) {
+            break
+          }
 
           lastAttempt = {
             patientExaminationId: payloadSnapshot.patientExaminationId,
             expectedRevision: payloadSnapshot.expectedRevision
           }
           const response = await savePatientExaminationDraft(payloadSnapshot)
-          if (generation !== draftPersistenceGeneration) return
+          if (generation !== draftPersistenceGeneration) {
+            return
+          }
           if (patientExaminationId.value === payloadSnapshot.patientExaminationId) {
             lastPersistedDraftAt.value = response.updatedAt ?? response.updated_at ?? null
             const persistedDraft = currentRuntimeDraft.value
-            if (persistedDraft) setRuntimeDraft({ ...persistedDraft, revision: response.revision })
+            if (persistedDraft) {
+              setRuntimeDraft({ ...persistedDraft, revision: response.revision })
+            }
             draftAutosaveSignature.value = signatureToPersist
             draftConflict.value = null
           }
@@ -863,13 +959,19 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   function scheduleDraftAutosave() {
     cancelDraftAutosave()
-    if (savingFinalReport.value) return
-    if (draftConflict.value?.patientExaminationId === currentRuntimeDraft.value?.patientExaminationId) {
+    if (savingFinalReport.value) {
+      return
+    }
+    if (
+      draftConflict.value?.patientExaminationId === currentRuntimeDraft.value?.patientExaminationId
+    ) {
       return
     }
     draftAutosaveTimer.value = setTimeout(() => {
       draftAutosaveTimer.value = null
-      if (savingFinalReport.value) return
+      if (savingFinalReport.value) {
+        return
+      }
       void persistCurrentRuntimeDraft().catch(() => {
         // Scheduled autosave errors are exposed through draftPersistenceStatus/error.
         // Explicit flushes still reject so navigation can fail closed.
@@ -879,9 +981,15 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   async function flushDraftAutosave() {
     cancelDraftAutosave()
-    if (savingFinalReport.value) return
-    if (!currentRuntimeDraft.value) return
-    if (!hasUnpersistedDraftChanges.value && !draftPersistencePromise.value) return
+    if (savingFinalReport.value) {
+      return
+    }
+    if (!currentRuntimeDraft.value) {
+      return
+    }
+    if (!hasUnpersistedDraftChanges.value && !draftPersistencePromise.value) {
+      return
+    }
     await persistCurrentRuntimeDraft()
   }
 
@@ -900,9 +1008,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedPatientId?: number | null
     selectedExaminationId?: number | null
   }) {
-    if (params.selectedPatientId !== undefined) selectedPatientId.value = params.selectedPatientId
-    if (params.selectedExaminationId !== undefined)
+    if (params.selectedPatientId !== undefined) {
+      selectedPatientId.value = params.selectedPatientId
+    }
+    if (params.selectedExaminationId !== undefined) {
       selectedExaminationId.value = params.selectedExaminationId
+    }
   }
 
   function setActiveReportId(id: number | null) {
@@ -915,14 +1026,24 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function applyBackendDraftDocument(draft: ReportDraftBlob) {
-    if (draft.indications) setIndications(draft.indications)
+    if (draft.indications) {
+      setIndications(draft.indications)
+    }
     if (draft.templateSectionDrafts) {
       templateSectionDrafts.value = draft.templateSectionDrafts
     }
-    if (draft.selectedReportLanguage) selectedReportLanguage.value = draft.selectedReportLanguage
-    if (draft.activeReportId !== undefined) activeReportId.value = draft.activeReportId
-    if (draft.reportTextMode) reportTextMode.value = draft.reportTextMode
-    if (draft.renderedText !== undefined) renderedReportText.value = draft.renderedText
+    if (draft.selectedReportLanguage) {
+      selectedReportLanguage.value = draft.selectedReportLanguage
+    }
+    if (draft.activeReportId !== undefined) {
+      activeReportId.value = draft.activeReportId
+    }
+    if (draft.reportTextMode) {
+      reportTextMode.value = draft.reportTextMode
+    }
+    if (draft.renderedText !== undefined) {
+      renderedReportText.value = draft.renderedText
+    }
   }
 
   function setSessionStatus(status: SessionStatus) {
@@ -953,7 +1074,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     sectionName: string,
     patch: Partial<ReportTemplateSectionDraft>
   ) {
-    if (!sectionName) return
+    if (!sectionName) {
+      return
+    }
     const current = templateSectionDrafts.value[sectionName] || {
       note: '',
       includePatientData: false,
@@ -999,7 +1122,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   function bindAuthSubject(subject: string | null | undefined) {
     const normalized = typeof subject === 'string' && subject.trim() ? subject.trim() : null
-    if (authSubject.value === normalized) return
+    if (authSubject.value === normalized) {
+      return
+    }
     authSubject.value = normalized
     clearAll()
     if (!normalized) {
@@ -1010,6 +1135,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function resetForPatientSwitch() {
+    setPreferredReportFrame(null, 'idle')
     draftPersistenceGeneration += 1
     if (draftAutosaveTimer.value) {
       clearTimeout(draftAutosaveTimer.value)
@@ -1045,6 +1171,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function clearAll() {
+    setPreferredReportFrame(null, 'idle')
     draftPersistenceGeneration += 1
     if (draftAutosaveTimer.value) {
       clearTimeout(draftAutosaveTimer.value)
@@ -1066,6 +1193,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     lastFindingsEvent.value = null
     selectedKbModule.value = ''
     selectedReportLanguage.value = 'de'
+    selectedReportVerbosity.value = 'standard'
     selectedTemplateName.value = null
     selectedTemplateIdentity.value = null
     templateSectionDrafts.value = {}
@@ -1099,6 +1227,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function clearMediaPreload() {
+    setPreferredReportFrame(null, 'idle')
     mediaPreload.value = null
     mediaPreloadStatus.value = 'idle'
     mediaPreloadError.value = null
@@ -1157,7 +1286,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function updateIndicationRow(index: number, patch: Partial<ReportingIndicationRow>) {
-    if (index < 0 || index >= indications.value.length) return
+    if (index < 0 || index >= indications.value.length) {
+      return
+    }
     const next = indications.value.slice()
     next[index] = {
       ...next[index],
@@ -1215,8 +1346,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   )
 
   watch(currentDraftPersistenceSignature, (signature) => {
-    if (!signature) return
-    if (signature === draftAutosaveSignature.value) return
+    if (!signature) {
+      return
+    }
+    if (signature === draftAutosaveSignature.value) {
+      return
+    }
     scheduleDraftAutosave()
   })
 
@@ -1233,6 +1368,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     renderedReportText,
     selectedKbModule,
     selectedReportLanguage,
+    selectedReportVerbosity,
     selectedTemplateName,
     selectedTemplateIdentity,
     templateSectionDrafts,
@@ -1244,6 +1380,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     findingsRevision,
     lastFindingsEvent,
     mediaPreload,
+    preferredReportFrame,
+    selectedReportFrames,
+    addReportFrame,
+    removeReportFrame,
+    reportFrameSelectionStatus,
+    setPreferredReportFrame,
     mediaPreloadStatus,
     mediaPreloadError,
     draftPersistenceStatus,

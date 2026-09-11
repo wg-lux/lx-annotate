@@ -2,12 +2,12 @@
   <div class="timeline-container">
     <div class="timeline-header">
       <div class="timeline-controls">
-        <button 
+        <button
           class="play-btn"
           :disabled="!video"
           @click="playPause"
         >
-          <i :class="isPlaying ? 'ni ni-button-play' : 'ni ni-button-play'"></i>
+          <i class="ni ni-button-play"></i>
         </button>
         <button
           class="control-btn"
@@ -38,21 +38,36 @@
         </span>
       </div>
       <div class="zoom-controls">
-        <button :disabled="zoomLevel <= 1" @click="zoomOut">
-          <i class="ni ni-tv-2"></i>
+        <button
+          type="button"
+          title="Timeline verkleinern"
+          aria-label="Timeline verkleinern"
+          :disabled="zoomLevel <= 1"
+          @click="zoomOut"
+        >
+          −
         </button>
         <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
-        <button :disabled="zoomLevel >= 5" @click="zoomIn">
-          <i class="ni ni-tv-2"></i>
+        <button
+          type="button"
+          title="Timeline vergrößern"
+          aria-label="Timeline vergrößern"
+          :disabled="zoomLevel >= 5"
+          @click="zoomIn"
+        >
+          +
         </button>
       </div>
     </div>
 
-    <div class="timeline-wrapper" :style="{ height: timelineHeight + 'px' }">
+    <div
+      ref="timelineViewport"
+      class="timeline-wrapper"
+    >
       <div
         ref="timeline"
         class="timeline"
-        :style="{ height: timelineHeight + 'px' }"
+        :style="{ height: timelineHeight + 'px', width: `calc(${zoomLevel * 100}% - 40px)` }"
         @mousedown="onTimelineMouseDown"
         @scroll.passive="handleTimelineScroll"
       >
@@ -61,8 +76,8 @@
           class="time-markers"
           :style="{ height: timelineContentHeight + 'px' }"
         >
-          <div 
-            v-for="marker in timeMarkers" 
+          <div
+            v-for="marker in timeMarkers"
             :key="marker.time"
             class="time-marker"
             :class="{
@@ -90,23 +105,23 @@
             height: totalRowsHeight + 'px'
           }"
         >
-          <div 
+          <div
             v-for="row in segmentRows"
             :key="row.key"
             class="segment-row"
-            :class="{ 'active': row.label === selectedLabel }"
-            :style="{ 
-              top: (row.rowNumber * rowHeight) + 'px',
+            :class="{ active: row.label === selectedLabel }"
+            :style="{
+              top: row.rowNumber * rowHeight + 'px',
               height: rowContentHeight + 'px'
             }"
           >
-            <div 
+            <div
               v-for="segment in row.segments"
               :key="segment.id"
               class="segment"
-              :class="{ 
-                'active': segment.id === activeSegmentId,
-                'draft': segment.isDraft,
+              :class="{
+                active: segment.id === activeSegmentId,
+                draft: segment.isDraft,
                 'sync-error': segment.syncState === 'error',
                 'too-small': getSegmentWidth(segment.start, segment.end) < 5
               }"
@@ -124,7 +139,7 @@
               @mouseleave="hideSegmentTooltip"
             >
               <!-- Start resize handle -->
-              <div 
+              <div
                 class="resize-handle start-handle"
                 :title="'Segment-Start ändern'"
               >
@@ -151,14 +166,17 @@
               </div>
 
               <!-- End resize handle -->
-              <div 
+              <div
                 class="resize-handle end-handle"
                 :title="'Segment-Ende ändern'"
               >
                 <i class="ni ni-collection"></i>
               </div>
 
-              <div v-if="segment.isDraft" class="draft-indicator">
+              <div
+                v-if="segment.isDraft"
+                class="draft-indicator"
+              >
                 <i class="ni ni-single-copy-04"></i>
               </div>
               <div
@@ -180,16 +198,19 @@
         </div>
 
         <!-- Playhead -->
-        <div 
+        <div
           class="playhead"
           :style="{ left: playheadPosition + '%', height: timelineContentHeight + 'px' }"
         >
-          <div class="playhead-line" :style="{ height: timelineContentHeight + 'px' }"></div>
+          <div
+            class="playhead-line"
+            :style="{ height: timelineContentHeight + 'px' }"
+          ></div>
           <div class="playhead-handle"></div>
         </div>
 
         <!-- Selection overlay for new segments -->
-        <div 
+        <div
           v-if="isSelecting"
           class="selection-overlay"
           :style="{
@@ -201,13 +222,19 @@
       </div>
 
       <!-- Waveform visualization (optional) -->
-      <div v-if="showWaveform" class="waveform-container">
-        <canvas ref="waveformCanvas" class="waveform-canvas"></canvas>
+      <div
+        v-if="showWaveform"
+        class="waveform-container"
+      >
+        <canvas
+          ref="waveformCanvas"
+          class="waveform-canvas"
+        ></canvas>
       </div>
     </div>
 
     <!-- Context menu for segments -->
-    <div 
+    <div
       v-if="contextMenu.visible"
       class="context-menu"
       :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
@@ -218,21 +245,35 @@
         <div class="context-menu-title">
           {{ contextMenu.segment ? getTranslationForLabel(contextMenu.segment.label) : 'Segment' }}
         </div>
-        <div v-if="contextMenu.segment" class="context-menu-meta">
-          {{ formatTime(contextMenu.segment.startTime) }} - {{ formatTime(contextMenu.segment.endTime) }}
+        <div
+          v-if="contextMenu.segment"
+          class="context-menu-meta"
+        >
+          {{ formatTime(contextMenu.segment.startTime) }} -
+          {{ formatTime(contextMenu.segment.endTime) }}
         </div>
-        <div v-if="contextMenu.segment?.lastSyncError" class="context-menu-error">
+        <div
+          v-if="contextMenu.segment?.lastSyncError"
+          class="context-menu-error"
+        >
           {{ contextMenu.segment.lastSyncError }}
         </div>
         <div
-          v-if="contextMenu.segment && getSegmentWidth(contextMenu.segment.start, contextMenu.segment.end) < 5"
+          v-if="
+            contextMenu.segment &&
+            getSegmentWidth(contextMenu.segment.start, contextMenu.segment.end) < 5
+          "
           class="context-menu-hint"
         >
           Kurzes Segment: für präzise Kanten die Timeline heranzoomen.
         </div>
       </div>
 
-      <label class="context-menu-label" for="segment-label-select">Label</label>
+      <label
+        class="context-menu-label"
+        for="segment-label-select"
+        >Label</label
+      >
       <select
         id="segment-label-select"
         v-model="contextMenu.labelName"
@@ -248,8 +289,16 @@
       </select>
 
       <div class="context-menu-time-grid">
-        <label class="context-menu-label" for="segment-menu-start-input">Start</label>
-        <label class="context-menu-label" for="segment-menu-end-input">Ende</label>
+        <label
+          class="context-menu-label"
+          for="segment-menu-start-input"
+          >Start</label
+        >
+        <label
+          class="context-menu-label"
+          for="segment-menu-end-input"
+          >Ende</label
+        >
         <input
           id="segment-menu-start-input"
           v-model="contextMenu.startInput"
@@ -268,25 +317,42 @@
         />
       </div>
 
-      <div v-if="contextMenu.error" class="context-menu-error">
+      <div
+        v-if="contextMenu.error"
+        class="context-menu-error"
+      >
         {{ contextMenu.error }}
       </div>
 
       <div class="context-menu-actions">
-        <button type="button" class="context-menu-btn" @click="hideContextMenu">
+        <button
+          type="button"
+          class="context-menu-btn"
+          @click="hideContextMenu"
+        >
           Abbrechen
         </button>
-        <button type="button" class="context-menu-btn primary" @click="applyContextMenuChanges">
+        <button
+          type="button"
+          class="context-menu-btn primary"
+          @click="applyContextMenuChanges"
+        >
           Speichern
         </button>
       </div>
 
       <div class="context-menu-separator"></div>
-      <div class="context-menu-item" @click="playSegment(contextMenu.segment)">
+      <div
+        class="context-menu-item"
+        @click="playSegment(contextMenu.segment)"
+      >
         <i class="ni ni-button-play"></i>
         Segment abspielen
       </div>
-      <div class="context-menu-item danger" @click="deleteSegment(contextMenu.segment)">
+      <div
+        class="context-menu-item danger"
+        @click="deleteSegment(contextMenu.segment)"
+      >
         <i class="ni ni-basket"></i>
         Segment löschen
       </div>
@@ -300,7 +366,11 @@
       @mousedown.stop
     >
       <div class="time-editor-title">Segmentzeiten bearbeiten</div>
-      <label class="time-editor-label" for="segment-start-input">Start</label>
+      <label
+        class="time-editor-label"
+        for="segment-start-input"
+        >Start</label
+      >
       <input
         id="segment-start-input"
         ref="timeEditorStartInput"
@@ -310,7 +380,11 @@
         @keydown.enter.prevent="applyTimeEditorChanges"
         @keydown.esc.prevent="hideTimeEditor"
       />
-      <label class="time-editor-label" for="segment-end-input">Ende</label>
+      <label
+        class="time-editor-label"
+        for="segment-end-input"
+        >Ende</label
+      >
       <input
         id="segment-end-input"
         v-model="timeEditor.endInput"
@@ -319,15 +393,32 @@
         @keydown.enter.prevent="applyTimeEditorChanges"
         @keydown.esc.prevent="hideTimeEditor"
       />
-      <div v-if="timeEditor.error" class="time-editor-error">{{ timeEditor.error }}</div>
+      <div
+        v-if="timeEditor.error"
+        class="time-editor-error"
+      >
+        {{ timeEditor.error }}
+      </div>
       <div class="time-editor-actions">
-        <button type="button" class="time-editor-btn" @click="hideTimeEditor">Abbrechen</button>
-        <button type="button" class="time-editor-btn primary" @click="applyTimeEditorChanges">Speichern</button>
+        <button
+          type="button"
+          class="time-editor-btn"
+          @click="hideTimeEditor"
+        >
+          Abbrechen
+        </button>
+        <button
+          type="button"
+          class="time-editor-btn primary"
+          @click="applyTimeEditorChanges"
+        >
+          Speichern
+        </button>
       </div>
     </div>
 
     <!-- Timeline tooltip -->
-    <div 
+    <div
       v-if="tooltip.visible"
       class="timeline-tooltip"
       :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
@@ -339,16 +430,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { 
+import {
   formatTime as formatTimeHelper,
   calculateSegmentWidth,
   calculateSegmentPosition
 } from '@/utils/timeHelpers'
 import { useVideoStore } from '@/stores/videoStore'
-import {
-  type Segment,
-  type LabelMeta 
-} from '@/stores/videoStore'
+import { type Segment, type LabelMeta } from '@/stores/videoStore'
 
 import { useToastStore } from '@/stores/toastStore'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
@@ -415,6 +503,8 @@ const props = defineProps<{
   activeSegmentId?: number | null
   showWaveform?: boolean
   selectionMode?: boolean
+  /** Height of the scrollable row viewport, excluding toolbar and margins. */
+  height?: number
 }>()
 
 const emit = defineEmits<{
@@ -423,13 +513,21 @@ const emit = defineEmits<{
   (e: 'segment-edit' | 'segment-delete', segment: Segment): void
   (e: 'segment-label-change', segmentId: number, label: string, labelId: number | null): void
   (e: 'segment-create', data: { label: string; start: number; end: number }): void
-  (e: 'segment-resize', segmentId: number, newStart: number, newEnd: number, mode: string, final?: boolean): void
+  (
+    e: 'segment-resize',
+    segmentId: number,
+    newStart: number,
+    newEnd: number,
+    mode: string,
+    final?: boolean
+  ): void
   (e: 'segment-move', segmentId: number, newStart: number, newEnd: number, final?: boolean): void
   (e: 'time-selection', data: { start: number; end: number }): void
 }>()
 
 // Refs with proper types
 const timeline = ref<HTMLElement | null>(null)
+const timelineViewport = ref<HTMLElement | null>(null)
 const waveformCanvas = ref<HTMLCanvasElement | null>(null)
 const timeEditorStartInput = ref<HTMLInputElement | null>(null)
 const cleanupFunctions = ref<Array<() => void>>([])
@@ -450,8 +548,6 @@ const deletedSegments = ref<Array<{ label: string; start: number; end: number }>
 const suppressNextSegmentClick = ref<boolean>(false)
 let timelineResizeObserver: ResizeObserver | null = null
 let scrollSnapTimer: number | null = null
-
-
 
 // Context menu
 const contextMenu = ref<ContextMenuState>({
@@ -506,43 +602,38 @@ const playheadPosition = computed((): number => {
   const videoDuration = duration.value
   const currentVideoTime = props.currentTime ?? 0
 
-  if (!videoDuration || !Number.isFinite(videoDuration)) return 0
-  if (!Number.isFinite(currentVideoTime) || currentVideoTime < 0) return 0
+  if (!videoDuration || !Number.isFinite(videoDuration)) {
+    return 0
+  }
+  if (!Number.isFinite(currentVideoTime) || currentVideoTime < 0) {
+    return 0
+  }
 
   const percentage = (currentVideoTime / videoDuration) * 100
-  if (!Number.isFinite(percentage)) return 0
+  if (!Number.isFinite(percentage)) {
+    return 0
+  }
 
   return Math.max(0, Math.min(100, percentage))
 })
 
 const niceMarkerIntervals = [
-  0.5,
-  1,
-  2,
-  5,
-  10,
-  15,
-  30,
-  60,
-  120,
-  300,
-  600,
-  900,
-  1200,
-  1800,
-  3600,
-  7200,
-  14400
+  0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600, 7200, 14400
 ]
 
 const getNiceMarkerInterval = (minimumInterval: number): number => {
-  return niceMarkerIntervals.find(interval => interval >= minimumInterval) ?? niceMarkerIntervals[niceMarkerIntervals.length - 1]
+  return (
+    niceMarkerIntervals.find((interval) => interval >= minimumInterval) ??
+    niceMarkerIntervals[niceMarkerIntervals.length - 1]
+  )
 }
 
 const timeMarkers = computed((): TimeMarker[] => {
   const markers: TimeMarker[] = []
   const totalTime = duration.value
-  if (!totalTime) return markers
+  if (!totalTime) {
+    return markers
+  }
 
   const availableWidth = Math.max(timelineWidth.value || 0, 320)
   const maxMarkerCount = Math.max(2, Math.floor(availableWidth / minTimeMarkerGapPx) + 1)
@@ -589,30 +680,27 @@ const toCanonical = (s: Segment): CanonicalSegment => {
     start: s.startTime,
     end: s.endTime,
     color,
-    avgConfidence: s.avgConfidence,
+    avgConfidence: s.avgConfidence
   }
 }
 
-
 // 1. Define displayedSegments FIRST (Computed)
 // This sanitizes raw props into the format the timeline needs
-const displayedSegments = computed((): CanonicalSegment[] => {
-  const segs = props.segments || []
-  if (segs.length === 0) return []
-  return segs.map(toCanonical)
-})
+const displayedSegments = computed(() => (props.segments || []).map(toCanonical))
 
 // 2. Define labelOrder SECOND (Computed)
 // This AUTOMATICALLY extracts labels from the segments above.
 // No watchers needed!
 const labelOrder = computed((): string[] => {
   const labels = new Set<string>()
-  displayedSegments.value.forEach(s => labels.add(s.label))
+  displayedSegments.value.forEach((s) => labels.add(s.label))
   return Array.from(labels).sort() // Sorts A-Z. Remove .sort() if you want random order.
 })
 
 const labelsForEditor = computed<LabelMeta[]>(() => {
-  if (props.labels?.length) return props.labels
+  if (props.labels?.length) {
+    return props.labels
+  }
 
   return labelOrder.value.map((name) => ({
     id: 0,
@@ -644,12 +732,24 @@ const handleSegmentClick = (segment: CanonicalSegment, event: MouseEvent): void 
 }
 
 const getSegmentStatusText = (segment: Segment | CanonicalSegment): string | null => {
-  if (segment.lastSyncError) return `Fehler: ${segment.lastSyncError}`
-  if (segment.syncState === 'error') return 'Fehler beim Speichern'
-  if (segment.syncState === 'pending_create') return 'Wird erstellt'
-  if (segment.syncState === 'pending_update') return 'Wird gespeichert'
-  if (segment.syncState === 'pending_delete') return 'Wird gelöscht'
-  if (segment.isDirty || segment.syncState === 'dirty') return 'Ungespeicherte Änderung'
+  if (segment.lastSyncError) {
+    return `Fehler: ${segment.lastSyncError}`
+  }
+  if (segment.syncState === 'error') {
+    return 'Fehler beim Speichern'
+  }
+  if (segment.syncState === 'pending_create') {
+    return 'Wird erstellt'
+  }
+  if (segment.syncState === 'pending_update') {
+    return 'Wird gespeichert'
+  }
+  if (segment.syncState === 'pending_delete') {
+    return 'Wird gelöscht'
+  }
+  if (segment.isDirty || segment.syncState === 'dirty') {
+    return 'Ungespeicherte Änderung'
+  }
   return null
 }
 
@@ -660,8 +760,12 @@ const getSegmentTooltipText = (segment: CanonicalSegment): string => {
     getTranslationForLabel(segment.label),
     `${formatTime(segment.startTime)} - ${formatTime(segment.endTime)} (${formatDuration(segment.startTime, segment.endTime)})`
   ]
-  if (status) lines.push(status)
-  if (isTiny) lines.push('Kurzes Segment: zum präzisen Bearbeiten heranzoomen.')
+  if (status) {
+    lines.push(status)
+  }
+  if (isTiny) {
+    lines.push('Kurzes Segment: zum präzisen Bearbeiten heranzoomen.')
+  }
   lines.push('Klicken zum Bearbeiten')
   return lines.join('\n')
 }
@@ -693,7 +797,9 @@ const showSegmentTooltip = (segment: CanonicalSegment, event: MouseEvent): void 
 }
 
 const moveSegmentTooltip = (event: MouseEvent): void => {
-  if (!tooltip.value.visible) return
+  if (!tooltip.value.visible) {
+    return
+  }
   const position = getTooltipPosition(event)
   tooltip.value.x = position.x
   tooltip.value.y = position.y
@@ -709,24 +815,24 @@ const segmentRows = computed((): SegmentRow[] => {
   const buckets = new Map<string, CanonicalSegment[]>()
 
   // Group segments by label
-  for (const s of displayedSegments.value) {
-    const bucket = buckets.get(s.label)
+  for (const segment of displayedSegments.value) {
+    const bucket = buckets.get(segment.label)
     if (bucket) {
-      bucket.push(s)
+      bucket.push(segment)
     } else {
-      buckets.set(s.label, [s])
+      buckets.set(segment.label, [segment])
     }
   }
 
   // Determine the order of rows based on selection + labelOrder
   const orderedLabels = selectedLabel.value
-      ? [selectedLabel.value, ...labelOrder.value.filter(l => l !== selectedLabel.value)]
-      : [...labelOrder.value]
+    ? [selectedLabel.value, ...labelOrder.value.filter((l) => l !== selectedLabel.value)]
+    : [...labelOrder.value]
 
   const rows: SegmentRow[] = []
-  
+
   // Create rows based on overlapping logic
-  orderedLabels.forEach(label => {
+  orderedLabels.forEach((label) => {
     const segs = (buckets.get(label) ?? []).sort((a, b) => a.start - b.start)
     let physicalIdx = 0
     let currentRow: SegmentRow = {
@@ -734,7 +840,7 @@ const segmentRows = computed((): SegmentRow[] => {
       label,
       rowNumber: rows.length,
       segments: [],
-      maxEndTime: 0,
+      maxEndTime: 0
     }
 
     for (const seg of segs) {
@@ -746,7 +852,7 @@ const segmentRows = computed((): SegmentRow[] => {
           label,
           rowNumber: rows.length,
           segments: [],
-          maxEndTime: 0,
+          maxEndTime: 0
         }
       }
       currentRow.segments.push(seg)
@@ -759,8 +865,8 @@ const segmentRows = computed((): SegmentRow[] => {
 })
 
 const getSegmentRowNumber = (segmentId: number): number | null => {
-  const row = segmentRows.value.find(item =>
-    item.segments.some(segment => segment.id === segmentId)
+  const row = segmentRows.value.find((item) =>
+    item.segments.some((segment) => segment.id === segmentId)
   )
   return row?.rowNumber ?? null
 }
@@ -771,7 +877,9 @@ const getTimelineMaxScrollTop = (): number => {
 
 const scrollTimelineTo = (top: number, behavior: ScrollBehavior = 'smooth'): void => {
   const element = timeline.value
-  if (!element) return
+  if (!element) {
+    return
+  }
 
   if (typeof element.scrollTo === 'function') {
     element.scrollTo({ top, behavior })
@@ -782,23 +890,24 @@ const scrollTimelineTo = (top: number, behavior: ScrollBehavior = 'smooth'): voi
 }
 
 const scrollRowToTop = (rowNumber: number, behavior: ScrollBehavior = 'smooth'): void => {
-  const targetTop = Math.max(
-    0,
-    Math.min(rowNumber * rowHeight, getTimelineMaxScrollTop())
-  )
+  const targetTop = Math.max(0, Math.min(rowNumber * rowHeight, getTimelineMaxScrollTop()))
   scrollTimelineTo(targetTop, behavior)
 }
 
 const snapSegmentRowToTop = (segmentId: number): void => {
   void nextTick(() => {
     const rowNumber = getSegmentRowNumber(segmentId)
-    if (rowNumber === null) return
+    if (rowNumber === null) {
+      return
+    }
     scrollRowToTop(rowNumber)
   })
 }
 
 const snapTimelineToNearestRow = (): void => {
-  if (!timeline.value) return
+  if (!timeline.value) {
+    return
+  }
   const targetTop = Math.max(
     0,
     Math.min(
@@ -806,7 +915,9 @@ const snapTimelineToNearestRow = (): void => {
       getTimelineMaxScrollTop()
     )
   )
-  if (Math.abs(timeline.value.scrollTop - targetTop) < 2) return
+  if (Math.abs(timeline.value.scrollTop - targetTop) < 2) {
+    return
+  }
   scrollTimelineTo(targetTop)
 }
 
@@ -820,20 +931,19 @@ const handleTimelineScroll = (): void => {
   }, 120)
 }
 
-
 // Timeline height
 const totalRowsHeight = computed((): number => segmentRows.value.length * rowHeight)
 const visibleRows = computed((): number =>
   Math.max(1, Math.min(segmentRows.value.length, visibleRowCount))
 )
 const timelineHeight = computed((): number => {
-  return markerAreaHeight + (visibleRows.value * rowHeight) + timelinePadding
+  if (props.height !== undefined) {
+    return Math.max(markerAreaHeight + rowHeight + timelinePadding, props.height)
+  }
+  return markerAreaHeight + visibleRows.value * rowHeight + timelinePadding
 })
 const timelineContentHeight = computed((): number => {
-  return Math.max(
-    timelineHeight.value,
-    markerAreaHeight + totalRowsHeight.value + timelinePadding
-  )
+  return Math.max(timelineHeight.value, markerAreaHeight + totalRowsHeight.value + timelinePadding)
 })
 const markerLineHeight = computed((): number => {
   return Math.max(0, timelineContentHeight.value - markerAreaHeight)
@@ -841,7 +951,9 @@ const markerLineHeight = computed((): number => {
 
 // Helpers
 const formatTime = (seconds: number | undefined): string => {
-  if (typeof seconds !== 'number' || isNaN(seconds)) return '00:00'
+  if (typeof seconds !== 'number' || isNaN(seconds)) {
+    return '00:00'
+  }
   return formatTimeHelper(seconds)
 }
 
@@ -899,9 +1011,13 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
 
     const handle = target.closest('.resize-handle')
 
-    if (handle?.classList.contains('start-handle')) mode = 'start'
-    else if (handle?.classList.contains('end-handle')) mode = 'end'
-    else mode = 'drag'
+    if (handle?.classList.contains('start-handle')) {
+      mode = 'start'
+    } else if (handle?.classList.contains('end-handle')) {
+      mode = 'end'
+    } else {
+      mode = 'drag'
+    }
 
     pxStart = ev.clientX
     startLeft = el.offsetLeft
@@ -912,17 +1028,16 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
   }
 
   function move(ev: PointerEvent) {
-    if (!mode) return
+    if (!mode) {
+      return
+    }
     const dx = ev.clientX - pxStart
     if (Math.abs(dx) > 3) {
       suppressNextSegmentClick.value = true
     }
 
     if (mode === 'drag') {
-      const left = Math.min(
-        Math.max(0, startLeft + dx),
-        opt.trackPx() - startWidth
-      )
+      const left = Math.min(Math.max(0, startLeft + dx), opt.trackPx() - startWidth)
       el.style.left = `${String(left)}px`
       draftStart = left
       draftEnd = left + startWidth
@@ -947,15 +1062,17 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
   }
 
   function up(ev: PointerEvent) {
-    if (!mode) return
+    if (!mode) {
+      return
+    }
     move(ev)
-    const s = draftStart
-    const e = draftEnd
+    const startPosition = draftStart
+    const endPosition = draftEnd
 
     if (mode === 'drag') {
-      opt.onMove(pxToTime(s), pxToTime(e))
+      opt.onMove(pxToTime(startPosition), pxToTime(endPosition))
     } else {
-      opt.onResize(pxToTime(s), pxToTime(e), mode)
+      opt.onResize(pxToTime(startPosition), pxToTime(endPosition), mode)
     }
     mode = null
     el.releasePointerCapture(ev.pointerId)
@@ -979,25 +1096,31 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
 }
 
 const initializeDragResize = () => {
-  cleanupFunctions.value.forEach(cleanup => {
+  cleanupFunctions.value.forEach((cleanup) => {
     cleanup()
   })
   cleanupFunctions.value = []
 
-  if (!timeline.value) return
+  if (!timeline.value) {
+    return
+  }
 
   const timelineElement = timeline.value
   void nextTick(() => {
-    segmentRows.value.forEach(row => {
-      row.segments.forEach(segment => {
-        const el = document.querySelector<HTMLElement>(`[data-id="${String(segment.id)}"]`)
-        if (!el) return
+    segmentRows.value.forEach((row) => {
+      row.segments.forEach((segment) => {
+        const segmentElement = document.querySelector<HTMLElement>(
+          `[data-id="${String(segment.id)}"]`
+        )
+        if (!segmentElement) {
+          return
+        }
 
-        const cleanup = useDragResize(el, {
+        const cleanup = useDragResize(segmentElement, {
           trackPx: () => timelineElement.offsetWidth,
           duration: () => duration.value,
           onMove: (startS: number, endS: number) => {
-            const localSegment = displayedSegments.value.find(s => s.id === segment.id)
+            const localSegment = displayedSegments.value.find((s) => s.id === segment.id)
             if (localSegment) {
               localSegment.start = startS
               localSegment.end = endS
@@ -1007,7 +1130,7 @@ const initializeDragResize = () => {
             emit('segment-move', segment.id, startS, endS)
           },
           onResize: (startS: number, endS: number, edge: 'start' | 'end') => {
-            const localSegment = displayedSegments.value.find(s => s.id === segment.id)
+            const localSegment = displayedSegments.value.find((s) => s.id === segment.id)
             if (localSegment) {
               localSegment.start = startS
               localSegment.end = endS
@@ -1017,20 +1140,17 @@ const initializeDragResize = () => {
             emit('segment-resize', segment.id, startS, endS, edge)
           },
           onDone: () => {
-            const localSegment = displayedSegments.value.find(s => s.id === segment.id)
-            if (!localSegment) return
+            const localSegment = displayedSegments.value.find((s) => s.id === segment.id)
+            if (!localSegment) {
+              return
+            }
 
             const numericId = getNumericSegmentId(segment.id)
-            if (numericId === null) return
+            if (numericId === null) {
+              return
+            }
 
-            emit(
-              'segment-resize',
-              numericId,
-              localSegment.start,
-              localSegment.end,
-              'end',
-              true
-            )
+            emit('segment-resize', numericId, localSegment.start, localSegment.end, 'end', true)
           }
         })
         cleanupFunctions.value.push(cleanup)
@@ -1058,24 +1178,34 @@ const playPause = (): void => {
 }
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
-  if (!(target instanceof HTMLElement)) return false
-  if (target.isContentEditable) return true
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+  if (target.isContentEditable) {
+    return true
+  }
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 
 const deleteSelectedSegment = (): void => {
-  if (props.activeSegmentId == null) return
+  if (props.activeSegmentId == null) {
+    return
+  }
   const segmentToDelete = displayedSegments.value.find(
-    segment => segment.id === props.activeSegmentId
+    (segment) => segment.id === props.activeSegmentId
   )
-  if (!segmentToDelete) return
+  if (!segmentToDelete) {
+    return
+  }
   rememberDeletedSegment(segmentToDelete)
   emit('segment-delete', segmentToDelete)
 }
 
 const stepFrame = async (direction: -1 | 1): Promise<void> => {
   const videoId = frameNavigationVideoId.value
-  if (!canStepFrame.value || videoId === null) return
+  if (!canStepFrame.value || videoId === null) {
+    return
+  }
   frameStepPending.value = true
   try {
     const nextTimestamp = await videoStore.resolveAdjacentFrameTimestamp(
@@ -1096,21 +1226,26 @@ const stepFrame = async (direction: -1 | 1): Promise<void> => {
 }
 
 const seekBySeconds = (deltaSeconds: number): void => {
-  if (!duration.value) return
+  if (!duration.value) {
+    return
+  }
   const current = props.currentTime ?? 0
   const next = Math.max(0, Math.min(duration.value, current + deltaSeconds))
   emit('seek', next)
 }
 
-
-const getSegmentRange = (segment: Segment | CanonicalSegment): { label: string; start: number; end: number } => {
+const getSegmentRange = (
+  segment: Segment | CanonicalSegment
+): { label: string; start: number; end: number } => {
   const start = 'start' in segment ? segment.start : segment.startTime
   const end = 'end' in segment ? segment.end : segment.endTime
   return { label: segment.label, start, end }
 }
 
 const rememberDeletedSegment = (segment: Segment | CanonicalSegment): void => {
-  if (segment.isDraft) return
+  if (segment.isDraft) {
+    return
+  }
   const range = getSegmentRange(segment)
   const start = Math.max(0, range.start)
   const end = Math.max(start, range.end)
@@ -1121,14 +1256,18 @@ const rememberDeletedSegment = (segment: Segment | CanonicalSegment): void => {
 }
 
 const copySelectedSegment = (): boolean => {
-  if (props.activeSegmentId == null) return false
-  const segment = displayedSegments.value.find(
-    s => s.id === props.activeSegmentId
-  )
-  if (!segment) return false
+  if (props.activeSegmentId == null) {
+    return false
+  }
+  const segment = displayedSegments.value.find((s) => s.id === props.activeSegmentId)
+  if (!segment) {
+    return false
+  }
   const range = getSegmentRange(segment)
   const segmentDuration = range.end - range.start
-  if (segmentDuration <= 0) return false
+  if (segmentDuration <= 0) {
+    return false
+  }
   clipboardSegment.value = { label: range.label, duration: segmentDuration }
   toast.success({ text: 'Segment kopiert' })
   return true
@@ -1145,7 +1284,9 @@ const pasteSegment = (): boolean => {
   if (duration.value > 0) {
     end = Math.min(duration.value, end)
   }
-  if (end <= start) return false
+  if (end <= start) {
+    return false
+  }
   emit('segment-create', { label: clipboardSegment.value.label, start, end })
   toast.success({ text: 'Segment eingefügt' })
   return true
@@ -1163,38 +1304,88 @@ const undoDelete = (): boolean => {
 }
 
 const handleClipboardShortcut = (event: KeyboardEvent): boolean => {
-  if (!event.ctrlKey && !event.metaKey) return false
-  const key = event.key.toLowerCase()
+  if (!event.ctrlKey && !event.metaKey) {
+    return false
+  }
+  const pressedKey = event.key.toLowerCase()
   const action =
-    key === 'z'
+    pressedKey === 'z'
       ? undoDelete
-      : key === 'c'
+      : pressedKey === 'c'
         ? copySelectedSegment
-        : key === 'v'
+        : pressedKey === 'v'
           ? pasteSegment
           : null
-  if (!action) return false
-  if (action()) event.preventDefault()
+  if (!action) {
+    return false
+  }
+  if (action()) {
+    event.preventDefault()
+  }
   return true
 }
 
 const handleNavigationShortcut = (event: KeyboardEvent): boolean => {
-  if (event.ctrlKey || event.metaKey || event.altKey) return false
+  if (event.ctrlKey || event.metaKey || event.altKey) {
+    return false
+  }
   const navigationActions = new Map<string, () => void>([
-    ['ArrowLeft', () => { seekBySeconds(-2) }],
-    ['ArrowRight', () => { seekBySeconds(2) }],
-    [',', () => { void stepFrame(-1) }],
-    ['Comma', () => { void stepFrame(-1) }],
-    ['.', () => { void stepFrame(1) }],
-    ['Period', () => { void stepFrame(1) }],
-    ['k', () => { seekBySeconds(-2) }],
-    ['l', () => { seekBySeconds(2) }]
+    [
+      'ArrowLeft',
+      () => {
+        seekBySeconds(-2)
+      }
+    ],
+    [
+      'ArrowRight',
+      () => {
+        seekBySeconds(2)
+      }
+    ],
+    [
+      ',',
+      () => {
+        void stepFrame(-1)
+      }
+    ],
+    [
+      'Comma',
+      () => {
+        void stepFrame(-1)
+      }
+    ],
+    [
+      '.',
+      () => {
+        void stepFrame(1)
+      }
+    ],
+    [
+      'Period',
+      () => {
+        void stepFrame(1)
+      }
+    ],
+    [
+      'k',
+      () => {
+        seekBySeconds(-2)
+      }
+    ],
+    [
+      'l',
+      () => {
+        seekBySeconds(2)
+      }
+    ]
   ])
   const action =
     navigationActions.get(event.key) ??
     navigationActions.get(event.code) ??
     navigationActions.get(event.key.toLowerCase())
-  if (!action) return false
+  if (!action) {
+    return false
+  }
   event.preventDefault()
   action()
   return true
@@ -1206,10 +1397,16 @@ const handleKeyDown = (event: KeyboardEvent): void => {
     event.preventDefault()
     return
   }
-  if (isEditableTarget(event.target)) return
-  if (handleClipboardShortcut(event) || handleNavigationShortcut(event)) return
+  if (isEditableTarget(event.target)) {
+    return
+  }
+  if (handleClipboardShortcut(event) || handleNavigationShortcut(event)) {
+    return
+  }
   if (event.key === 'Delete' || event.key === 'Backspace') {
-    if (props.activeSegmentId == null) return
+    if (props.activeSegmentId == null) {
+      return
+    }
     event.preventDefault()
     deleteSelectedSegment()
   }
@@ -1217,14 +1414,18 @@ const handleKeyDown = (event: KeyboardEvent): void => {
 
 // Context actions
 const deleteSegment = (segment: Segment | null): void => {
-  if (!segment) return
+  if (!segment) {
+    return
+  }
   hideContextMenu()
   rememberDeletedSegment(segment)
   emit('segment-delete', segment)
 }
 
 const playSegment = (segment: Segment | null): void => {
-  if (!segment) return
+  if (!segment) {
+    return
+  }
   hideContextMenu()
   emit('seek', segment.startTime || 0)
   emit('play-pause')
@@ -1270,7 +1471,9 @@ const hideContextMenu = (): void => {
 }
 
 const formatEditorTime = (timeInSeconds: number): string => {
-  if (!Number.isFinite(timeInSeconds) || timeInSeconds < 0) return '0'
+  if (!Number.isFinite(timeInSeconds) || timeInSeconds < 0) {
+    return '0'
+  }
   const hours = Math.floor(timeInSeconds / 3600)
   const minutes = Math.floor((timeInSeconds % 3600) / 60)
   const seconds = timeInSeconds % 60
@@ -1283,19 +1486,29 @@ const formatEditorTime = (timeInSeconds: number): string => {
 
 const parseEditorTime = (value: string): number | null => {
   const input = value.trim()
-  if (!input) return null
+  if (!input) {
+    return null
+  }
   if (/^\d+(\.\d+)?$/.test(input)) {
     const seconds = Number(input)
     return Number.isFinite(seconds) ? seconds : null
   }
 
-  const parts = input.split(':').map(p => p.trim())
-  if (parts.length < 2 || parts.length > 3) return null
-  if (parts.some(p => p === '' || !/^\d+(\.\d+)?$/.test(p))) return null
+  const parts = input.split(':').map((p) => p.trim())
+  if (parts.length < 2 || parts.length > 3) {
+    return null
+  }
+  if (parts.some((p) => p === '' || !/^\d+(\.\d+)?$/.test(p))) {
+    return null
+  }
 
   const numericParts = parts.map(Number)
-  if (numericParts.some(v => !Number.isFinite(v))) return null
-  if (numericParts.slice(1).some(v => v >= 60)) return null
+  if (numericParts.some((v) => !Number.isFinite(v))) {
+    return null
+  }
+  if (numericParts.slice(1).some((v) => v >= 60)) {
+    return null
+  }
 
   if (numericParts.length === 2) {
     return numericParts[0] * 60 + numericParts[1]
@@ -1317,7 +1530,11 @@ const validateEditorRange = (
     return { start: parsedStart, end: parsedEnd, error: 'Zeiten dürfen nicht negativ sein.' }
   }
   if (parsedEnd <= parsedStart) {
-    return { start: parsedStart, end: parsedEnd, error: 'Die Endzeit muss nach der Startzeit liegen.' }
+    return {
+      start: parsedStart,
+      end: parsedEnd,
+      error: 'Die Endzeit muss nach der Startzeit liegen.'
+    }
   }
   if (duration.value > 0 && parsedEnd > duration.value) {
     return {
@@ -1332,7 +1549,9 @@ const validateEditorRange = (
 
 const applyContextMenuChanges = (): void => {
   const menuState = contextMenu.value
-  if (!menuState.visible || !menuState.segment) return
+  if (!menuState.visible || !menuState.segment) {
+    return
+  }
 
   const labelName = menuState.labelName.trim()
   if (!labelName) {
@@ -1347,14 +1566,16 @@ const applyContextMenuChanges = (): void => {
   }
 
   const numericId = getNumericSegmentId(menuState.segment.id)
-  if (numericId === null) return
+  if (numericId === null) {
+    return
+  }
 
-  const selectedLabel = labelsForEditor.value.find(label => label.name === labelName)
+  const selectedLabel = labelsForEditor.value.find((label) => label.name === labelName)
   const labelId = selectedLabel && selectedLabel.id > 0 ? selectedLabel.id : null
   const originalLabel = menuState.segment.label
   const originalRange = getSegmentRange(menuState.segment)
 
-  const localSegment = displayedSegments.value.find(s => s.id === menuState.segment?.id)
+  const localSegment = displayedSegments.value.find((s) => s.id === menuState.segment?.id)
   if (localSegment) {
     localSegment.label = labelName
     localSegment.color = getColorForLabel(labelName)
@@ -1409,7 +1630,9 @@ const openSegmentTimeEditor = (segment: CanonicalSegment, event: MouseEvent): vo
 
 const applyTimeEditorChanges = (): void => {
   const editingState = timeEditor.value
-  if (!editingState.visible || !editingState.segment) return
+  if (!editingState.visible || !editingState.segment) {
+    return
+  }
 
   const validated = validateEditorRange(editingState.startInput, editingState.endInput)
   if (validated.error) {
@@ -1417,7 +1640,7 @@ const applyTimeEditorChanges = (): void => {
     return
   }
 
-  const localSegment = displayedSegments.value.find(s => s.id === editingState.segment?.id)
+  const localSegment = displayedSegments.value.find((s) => s.id === editingState.segment?.id)
   if (localSegment) {
     localSegment.start = validated.start
     localSegment.end = validated.end
@@ -1434,7 +1657,9 @@ const applyTimeEditorChanges = (): void => {
 
 // Timeline interaction
 const getTimelineTimeFromEvent = (event: MouseEvent): number | null => {
-  if (!timeline.value || duration.value === 0) return null
+  if (!timeline.value || duration.value === 0) {
+    return null
+  }
 
   const rect = timeline.value.getBoundingClientRect()
   const clickX = Math.max(0, Math.min(rect.width, event.clientX - rect.left))
@@ -1442,12 +1667,18 @@ const getTimelineTimeFromEvent = (event: MouseEvent): number | null => {
 }
 
 const onTimelineMouseDown = (event: MouseEvent): void => {
-  if (!timeline.value) return
+  if (!timeline.value) {
+    return
+  }
   const target = event.target as HTMLElement | null
-  if (target?.closest('.segment, .context-menu, .time-editor')) return
+  if (target?.closest('.segment, .context-menu, .time-editor')) {
+    return
+  }
 
   const clickTime = getTimelineTimeFromEvent(event)
-  if (clickTime === null) return
+  if (clickTime === null) {
+    return
+  }
 
   if (props.selectionMode) {
     const rect = timeline.value.getBoundingClientRect()
@@ -1467,9 +1698,13 @@ const onTimelineMouseDown = (event: MouseEvent): void => {
 }
 
 const onTimelineScrubMove = (event: MouseEvent): void => {
-  if (!isScrubbing.value) return
+  if (!isScrubbing.value) {
+    return
+  }
   const scrubTime = getTimelineTimeFromEvent(event)
-  if (scrubTime === null) return
+  if (scrubTime === null) {
+    return
+  }
   emit('seek', scrubTime)
 }
 
@@ -1486,7 +1721,9 @@ const onTimelineScrubEnd = (event: MouseEvent): void => {
 }
 
 const onSelectionMouseMove = (event: MouseEvent): void => {
-  if (!isSelecting.value || !timeline.value) return
+  if (!isSelecting.value || !timeline.value) {
+    return
+  }
 
   const rect = timeline.value.getBoundingClientRect()
   const currentX = event.clientX - rect.left
@@ -1494,7 +1731,9 @@ const onSelectionMouseMove = (event: MouseEvent): void => {
 }
 
 const onSelectionMouseUp = (_event: MouseEvent): void => {
-  if (!isSelecting.value || !timeline.value) return
+  if (!isSelecting.value || !timeline.value) {
+    return
+  }
 
   const startPercent = Math.min(selectionStart.value, selectionEnd.value)
   const endPercent = Math.max(selectionStart.value, selectionEnd.value)
@@ -1516,41 +1755,68 @@ const onSelectionMouseUp = (_event: MouseEvent): void => {
 
 // Waveform
 const initializeWaveform = (): void => {
-  if (!waveformCanvas.value || !props.video) return
+  if (!waveformCanvas.value || !props.video) {
+    return
+  }
 
   const canvas = waveformCanvas.value
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  const canvasContext = canvas.getContext('2d')
+  if (!canvasContext) {
+    return
+  }
 
   canvas.width = canvas.offsetWidth
   canvas.height = canvas.offsetHeight
 
-  ctx.fillStyle = '#e0e0e0'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  canvasContext.fillStyle = '#e0e0e0'
+  canvasContext.fillRect(0, 0, canvas.width, canvas.height)
 
-  ctx.strokeStyle = '#2196F3'
-  ctx.lineWidth = 1
-  ctx.beginPath()
+  canvasContext.strokeStyle = '#2196F3'
+  canvasContext.lineWidth = 1
+  canvasContext.beginPath()
 
-  for (let x = 0; x < canvas.width; x += 2) {
+  for (let horizontalPosition = 0; horizontalPosition < canvas.width; horizontalPosition += 2) {
     const amplitude = Math.random() * canvas.height * 0.8 + canvas.height * 0.1
-    if (x === 0) {
-      ctx.moveTo(x, amplitude)
+    if (horizontalPosition === 0) {
+      canvasContext.moveTo(horizontalPosition, amplitude)
     } else {
-      ctx.lineTo(x, amplitude)
+      canvasContext.lineTo(horizontalPosition, amplitude)
     }
   }
 
-  ctx.stroke()
+  canvasContext.stroke()
 }
 
 const updateTimelineWidth = (): void => {
   timelineWidth.value = timeline.value?.clientWidth ?? 0
+  centerPlaybackPosition()
 }
+
+const centerPlaybackPosition = (): void => {
+  const viewport = timelineViewport.value
+  const track = timeline.value
+  if (!viewport || !track || duration.value <= 0) {
+    return
+  }
+  if (zoomLevel.value <= 1) {
+    viewport.scrollLeft = 0
+    return
+  }
+  const playhead =
+    track.offsetLeft + ((props.currentTime ?? 0) / duration.value) * track.clientWidth
+  viewport.scrollLeft = Math.max(
+    0,
+    Math.min(viewport.scrollWidth - viewport.clientWidth, playhead - viewport.clientWidth / 2)
+  )
+}
+
+watch([zoomLevel, () => props.currentTime, duration], centerPlaybackPosition, { flush: 'post' })
 
 const initializeTimelineMetrics = (): void => {
   updateTimelineWidth()
-  if (!timeline.value) return
+  if (!timeline.value) {
+    return
+  }
 
   timelineResizeObserver?.disconnect()
   timelineResizeObserver = new ResizeObserver(() => {
@@ -1571,45 +1837,55 @@ const handleClickOutside = (event: Event): void => {
 }
 
 // Lifecycle
-watch(() => props.video, () => {
-  if (props.showWaveform) {
-    void nextTick(() => {
-      initializeWaveform()
-    })
-  }
-})
-
 watch(
-  segmentRows,
-  () => { void nextTick(initializeDragResize) },
-  { immediate: true }
-)
-
-watch(
-  () => props.activeSegmentId,
-  (segmentId) => {
-    if (segmentId == null) return
-    snapSegmentRowToTop(segmentId)
+  () => props.video,
+  () => {
+    if (props.showWaveform) {
+      void nextTick(() => {
+        initializeWaveform()
+      })
+    }
   }
 )
 
 watch(
   segmentRows,
   () => {
-    if (props.activeSegmentId == null) return
-    snapSegmentRowToTop(props.activeSegmentId)
+    void nextTick(initializeDragResize)
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.activeSegmentId,
+  (segmentId) => {
+    if (segmentId == null) {
+      return
+    }
+    snapSegmentRowToTop(segmentId)
   }
 )
 
-watch(segmentRows, (rows: SegmentRow[]) => {
-  rows.forEach(row => {
-    row.segments.forEach(s => {
-      if (getSegmentWidth(s.start, s.end) === 0) {
-        log.warn('segment-width.zero')
-      }
+watch(segmentRows, () => {
+  if (props.activeSegmentId == null) {
+    return
+  }
+  snapSegmentRowToTop(props.activeSegmentId)
+})
+
+watch(
+  segmentRows,
+  (rows: SegmentRow[]) => {
+    rows.forEach((row) => {
+      row.segments.forEach((s) => {
+        if (getSegmentWidth(s.start, s.end) === 0) {
+          log.warn('segment-width.zero')
+        }
+      })
     })
-  })
-}, { immediate: true })
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
@@ -1638,7 +1914,7 @@ onUnmounted(() => {
     window.clearTimeout(scrollSnapTimer)
     scrollSnapTimer = null
   }
-  cleanupFunctions.value.forEach(cleanup => {
+  cleanupFunctions.value.forEach((cleanup) => {
     cleanup()
   })
   cleanupFunctions.value = []
@@ -1648,12 +1924,13 @@ onUnmounted(() => {
 
 // Helper for numeric IDs
 const getNumericSegmentId = (segmentId: number): number | null => {
-  if (Number.isFinite(segmentId)) return segmentId
+  if (Number.isFinite(segmentId)) {
+    return segmentId
+  }
   log.warn('segment-id.invalid')
   return null
 }
 </script>
-
 
 <style scoped>
 .segment-row.active-row::before {
@@ -1663,9 +1940,8 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   top: 0;
   right: 0;
   bottom: 0;
-  background: rgba(33,150,243,.05);
+  background: rgba(33, 150, 243, 0.05);
 }
-
 
 .timeline-container {
   width: 100%;
@@ -1691,7 +1967,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 }
 
 .play-btn {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 50%;
@@ -1790,7 +2066,8 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 
 .timeline-wrapper {
   position: relative;
-  height: 120px;
+  overflow-x: auto;
+  height: auto;
   background-color: #f4f6f8;
 }
 
@@ -1841,11 +2118,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 .marker-line {
   position: absolute;
   width: 1px;
-  background: linear-gradient(
-    to bottom,
-    rgba(119, 132, 150, 0.38),
-    rgba(119, 132, 150, 0.18)
-  );
+  background: linear-gradient(to bottom, rgba(119, 132, 150, 0.38), rgba(119, 132, 150, 0.18));
 }
 
 .marker-text {
@@ -1888,13 +2161,11 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   scroll-snap-align: start;
   scroll-margin-top: 36px;
   border-top: 1px solid rgba(148, 163, 184, 0.18);
-  background:
-    linear-gradient(to bottom, rgba(248, 250, 252, 0.72), rgba(255, 255, 255, 0.18));
+  background: linear-gradient(to bottom, rgba(248, 250, 252, 0.72), rgba(255, 255, 255, 0.18));
 }
 
 .segment-row.active {
-  background:
-    linear-gradient(to bottom, rgba(232, 244, 255, 0.92), rgba(255, 255, 255, 0.42));
+  background: linear-gradient(to bottom, rgba(232, 244, 255, 0.92), rgba(255, 255, 255, 0.42));
 }
 
 .segment {
@@ -1919,7 +2190,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 }
 
 .segment.active {
-  border-color: #2196F3 !important;
+  border-color: #2196f3 !important;
   box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
   z-index: 15;
 }
@@ -1935,8 +2206,13 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 }
 
 @keyframes draft-pulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .segment-content {
@@ -2019,7 +2295,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 .playhead-line {
   width: 2px;
   height: 100%;
-  background-color: #FF5722;
+  background-color: #ff5722;
   box-shadow: 0 0 4px rgba(255, 87, 34, 0.5);
 }
 
@@ -2029,7 +2305,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   left: -6px;
   width: 14px;
   height: 14px;
-  background-color: #FF5722;
+  background-color: #ff5722;
   border: 2px solid white;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -2040,7 +2316,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   top: 0;
   height: 100%;
   background-color: rgba(33, 150, 243, 0.3);
-  border: 1px dashed #2196F3;
+  border: 1px dashed #2196f3;
   pointer-events: none;
   z-index: 5;
 }
@@ -2278,7 +2554,6 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   max-width: 260px;
 }
 
-
 .resize-handle {
   position: absolute;
   top: 0;
@@ -2321,10 +2596,9 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   pointer-events: none;
 }
 
-
 /* Improved segment selection */
 .segment.selected {
-  border-color: #2196F3 !important;
+  border-color: #2196f3 !important;
   box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
 }
 

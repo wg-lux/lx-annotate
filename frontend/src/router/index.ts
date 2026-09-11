@@ -314,13 +314,17 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
   })
 
   // 🔐 Global auth guard: require Keycloak login + endoregdb_user for ALL routes
-  router.beforeEach((to, _from, next) => {
+  router.beforeEach(async (to, _from, next) => {
     const auth = useAuthKcStore()
 
-    // If auth not bootstrapped yet, let the app decide (e.g. AuthCheck component),
-    // just don't block navigation here.
-    if (!auth.loaded) {
-      next()
+    // Resolve authentication before mounting any route or starting its requests.
+    try {
+      await auth.loadBootstrap()
+    } catch {
+      useToastStore().error({
+        text: 'Die Anmeldung konnte nicht geprüft werden. Bitte laden Sie die Seite erneut.'
+      })
+      next(false)
       return
     }
 
@@ -328,6 +332,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
     if (!auth.isAuthenticated) {
       // optional: remember target path
       auth.login()
+      next(false)
       return
     }
 
@@ -370,11 +375,11 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
   // 2) capability-aware guard (ONLY hard-block when meta.hardProtect === true)
   router.beforeEach((to, _from, next) => {
     const meta = to.meta
-    const cap = meta.cap as string | undefined
+    const capability = meta.cap as string | undefined
     const hardProtect = !!meta.hardProtect // default false
 
     // No cap → no guard behaviour
-    if (!cap) {
+    if (!capability) {
       next()
       return
     }
@@ -396,7 +401,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
     }
 
     // Only for hard-protected routes:
-    if (auth.can(cap, 'GET')) {
+    if (auth.can(capability, 'GET')) {
       next()
       return
     }
@@ -422,10 +427,16 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
     path: string
     params: Record<string, unknown>
   }): string | null {
-    if (!route.path.startsWith('/reporting/')) return null
-    const raw = route.params.patient_examination_id
-    if (typeof raw === 'string' && raw.trim()) return raw
-    if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw)
+    if (!route.path.startsWith('/reporting/')) {
+      return null
+    }
+    const examinationParam = route.params.patient_examination_id
+    if (typeof examinationParam === 'string' && examinationParam.trim()) {
+      return examinationParam
+    }
+    if (typeof examinationParam === 'number' && Number.isFinite(examinationParam)) {
+      return String(examinationParam)
+    }
     return null
   }
 

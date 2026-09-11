@@ -4,15 +4,21 @@
     <div class="detail-header">
       <div class="patient-header-info">
         <h2 class="patient-title">
-          <i class="ni ni-circle-08"></i>
+          <i class="ni ni-circle-08 patient-heading-icon"></i>
           {{ patient.firstName }} {{ patient.lastName }}
         </h2>
-        <span v-if="patient.isRealPerson" class="badge bg-success">
-          <i class="ni ni-check-bold"></i>
+        <span
+          v-if="patient.isRealPerson"
+          class="badge bg-success"
+        >
+          <i class="ni ni-check-bold patient-badge-icon"></i>
           Realer Patient
         </span>
-        <span v-else class="badge bg-secondary">
-          <i class="ni ni-check-bold"></i>
+        <span
+          v-else
+          class="badge bg-secondary"
+        >
+          <i class="ni ni-check-bold patient-badge-icon"></i>
           Test-Patient
         </span>
       </div>
@@ -78,22 +84,31 @@
     </div>
 
     <!-- Error/Success Messages -->
-    <div v-if="error" class="alert alert-danger">
+    <div
+      v-if="error"
+      class="alert alert-danger"
+    >
       <i class="ni ni-user-run"></i>
       {{ error }}
     </div>
 
-    <div v-if="successMessage" class="alert alert-success">
+    <div
+      v-if="successMessage"
+      class="alert alert-success"
+    >
       <i class="ni ni-check-bold"></i>
       {{ successMessage }}
     </div>
 
     <!-- Edit Form -->
-    <div v-if="showEditForm" class="edit-section">
+    <div
+      v-if="showEditForm"
+      class="edit-section"
+    >
       <div class="card">
         <div class="card-header">
           <h4 class="card-title">
-            <i class="ni ni-single-copy-04"></i>
+            <i class="ni ni-single-copy-04 card-heading-icon"></i>
             Patient bearbeiten
           </h4>
         </div>
@@ -109,30 +124,36 @@
     </div>
 
     <!-- Patient Information Display -->
-    <div v-else class="patient-info-display">
+    <div
+      v-else
+      class="patient-info-display"
+    >
       <div class="row">
         <!-- Basic Information -->
         <div class="col-md-6">
           <div class="card info-card">
             <div class="card-header">
               <h5 class="card-title">
-                <i class="ni ni-circle-08"></i>
+                <i class="ni ni-circle-08 card-heading-icon"></i>
                 Grunddaten
               </h5>
             </div>
             <div class="card-body">
               <div class="info-grid">
                 <div class="info-item">
-                  <label>Vorname:</label>
-                  <span>{{ patient.firstName || 'Nicht angegeben' }}</span>
+                  <label class="patient-detail-label">Vorname:</label>
+                  <span class="patient-detail-value">{{ patient.firstName || 'Nicht angegeben' }}</span>
                 </div>
                 <div class="info-item">
-                  <label>Nachname:</label>
-                  <span>{{ patient.lastName || 'Nicht angegeben' }}</span>
+                  <label class="patient-detail-label">Nachname:</label>
+                  <span class="patient-detail-value">{{ patient.lastName || 'Nicht angegeben' }}</span>
                 </div>
                 <div class="info-item">
-                  <label>Pseudonym:</label>
-                  <span v-if="patient.pseudonymFirstName && patient.pseudonymLastName" class="pseudonym-names">
+                  <label class="patient-detail-label">Pseudonym:</label>
+                  <span
+                    v-if="patient.pseudonymFirstName && patient.pseudonymLastName"
+                    class="pseudonym-names patient-detail-value"
+                  >
                     {{ patient.pseudonymFirstName }} {{ patient.pseudonymLastName }}
                     <button 
                       class="btn btn-outline-secondary btn-sm ms-2"
@@ -140,8 +161,14 @@
                       title="Neue Pseudonamen generieren"
                       @click="regeneratePseudonym"
                     >
-                      <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
-                      <i v-else class="ni ni-bold-right"></i>
+                      <span
+                        v-if="generatingPseudonym"
+                        class="spinner-border spinner-border-sm me-1 patient-detail-value"
+                      ></span>
+                      <i
+                        v-else
+                        class="ni ni-bold-right"
+                      ></i>
                       {{ generatingPseudonym ? 'Generiere...' : 'Neu' }}
                     </button>
                   </span>
@@ -151,21 +178,30 @@
                     :disabled="generatingPseudonym"
                     @click="generatePseudonym"
                   >
-                    <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
-                    <i v-else class="ni ni-check-bold"></i>
+                    <span
+                      v-if="generatingPseudonym"
+                      class="spinner-border spinner-border-sm me-1 patient-detail-value"
+                    ></span>
+                    <i
+                      v-else
+                      class="ni ni-check-bold"
+                    ></i>
                     {{ generatingPseudonym ? 'Generiere...' : 'Pseudonym generieren' }}
                   </button>
                 </div>
                 <div class="info-item">
-                  <label>Geburtsdatum:</label>
-                  <span>
+                  <label class="patient-detail-label">Geburtsdatum:</label>
+                  <span class="patient-detail-value">
                     {{ formatDate(patient.dob) }}
-                    <small v-if="patient.age" class="text-muted">({{ patient.age }} Jahre)</small>
+                    <small
+                      v-if="patient.age"
+                      class="text-muted"
+                    >({{ patient.age }} Jahre)</small>
                   </span>
                 </div>
                 <div class="info-item">
-                  <label>Geschlecht:</label>
-                  <span>{{ getGenderDisplay(patient.gender) }}</span>
+                  <label class="patient-detail-label">Geschlecht:</label>
+                  <span class="patient-detail-value">{{ getGenderDisplay(patient.gender) }}</span>
                 </div>
               </div>
             </div>
@@ -177,38 +213,52 @@
           <div class="card info-card">
             <div class="card-header">
               <h5 class="card-title">
-                <i class="ni ni-book-bookmark"></i>
+                <i class="ni ni-book-bookmark card-heading-icon"></i>
                 Kontaktdaten
               </h5>
             </div>
             <div class="card-body">
               <div class="info-grid">
                 <div class="info-item">
-                  <label>E-Mail:</label>
-                  <span>
-                    <a v-if="patient.email" :href="`mailto:${patient.email}`" class="link">
+                  <label class="patient-detail-label">E-Mail:</label>
+                  <span class="patient-detail-value">
+                    <a
+                      v-if="patient.email"
+                      :href="`mailto:${patient.email}`"
+                      class="link"
+                    >
                       {{ patient.email }}
                     </a>
-                    <span v-else class="text-muted">Nicht angegeben</span>
+                    <span
+                      v-else
+                      class="text-muted patient-detail-value"
+                    >Nicht angegeben</span>
                   </span>
                 </div>
                 <div class="info-item">
-                  <label>Telefon:</label>
-                  <span>
-                    <a v-if="patient.phone" :href="`tel:${patient.phone}`" class="link">
+                  <label class="patient-detail-label">Telefon:</label>
+                  <span class="patient-detail-value">
+                    <a
+                      v-if="patient.phone"
+                      :href="`tel:${patient.phone}`"
+                      class="link"
+                    >
                       {{ patient.phone }}
                     </a>
-                    <span v-else class="text-muted">Nicht angegeben</span>
+                    <span
+                      v-else
+                      class="text-muted patient-detail-value"
+                    >Nicht angegeben</span>
                   </span>
                 </div>
                 <div class="info-item">
-                  <label>Zentrum:</label>
-                  <span>{{ getCenterDisplay(patient.center) }}</span>
+                  <label class="patient-detail-label">Zentrum:</label>
+                  <span class="patient-detail-value">{{ getCenterDisplay(patient.center) }}</span>
                 </div>
                 <div class="info-item">
-                  <label>Patient Hash:</label>
+                  <label class="patient-detail-label">Patient Hash:</label>
                   <div class="d-flex align-items-center gap-2">
-                    <span class="font-mono">
+                    <span class="font-mono patient-detail-value">
                       {{ patient.patientHash ? (patient.patientHash.length >= 8 ? patient.patientHash.substring(0, 8) + '...' : patient.patientHash) : 'Nicht generiert' }}
                     </span>
                     <button 
@@ -217,8 +267,14 @@
                       title="Pseudonym-Hash generieren"
                       @click="generatePseudonym"
                     >
-                      <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
-                      <i v-else class="ni ni-check-bold me-1"></i>
+                      <span
+                        v-if="generatingPseudonym"
+                        class="spinner-border spinner-border-sm me-1 patient-detail-value"
+                      ></span>
+                      <i
+                        v-else
+                        class="ni ni-check-bold me-1"
+                      ></i>
                       {{ generatingPseudonym ? 'Generiere...' : (patient.patientHash ? 'Aktualisieren' : 'Generieren') }}
                     </button>
                   </div>
@@ -235,7 +291,7 @@
           <div class="card info-card">
             <div class="card-header">
               <h5 class="card-title">
-                <i class="ni ni-settings-gear-65"></i>
+                <i class="ni ni-settings-gear-65 card-heading-icon"></i>
                 Systeminformationen
               </h5>
             </div>
@@ -243,18 +299,24 @@
               <div class="row">
                 <div class="col-md-6">
                   <div class="info-item">
-                    <label>Patient-ID:</label>
-                    <span class="font-mono">{{ patient.id }}</span>
+                    <label class="patient-detail-label">Patient-ID:</label>
+                    <span class="font-mono patient-detail-value">{{ patient.id }}</span>
                   </div>
                   <div class="info-item">
-                    <label>Datentyp:</label>
-                    <span>
-                      <span v-if="patient.isRealPerson" class="badge bg-success">
-                        <i class="ni ni-check-bold"></i>
+                    <label class="patient-detail-label">Datentyp:</label>
+                    <span class="patient-detail-value">
+                      <span
+                        v-if="patient.isRealPerson"
+                        class="badge bg-success patient-detail-value"
+                      >
+                        <i class="ni ni-check-bold patient-badge-icon"></i>
                         Realer Patient
                       </span>
-                      <span v-else class="badge bg-secondary">
-                        <i class="ni ni-check-bold"></i>
+                      <span
+                        v-else
+                        class="badge bg-secondary patient-detail-value"
+                      >
+                        <i class="ni ni-check-bold patient-badge-icon"></i>
                         Test-/Pseudo-Patient
                       </span>
                     </span>
@@ -262,12 +324,12 @@
                 </div>
                 <div class="col-md-6">
                   <div class="info-item">
-                    <label>Erstellt am:</label>
-                    <span>{{ formatDateTime(patient.createdAt) }}</span>
+                    <label class="patient-detail-label">Erstellt am:</label>
+                    <span class="patient-detail-value">{{ formatDateTime(patient.createdAt) }}</span>
                   </div>
                   <div class="info-item">
-                    <label>Zuletzt geändert:</label>
-                    <span>{{ formatDateTime(patient.updatedAt) }}</span>
+                    <label class="patient-detail-label">Zuletzt geändert:</label>
+                    <span class="patient-detail-value">{{ formatDateTime(patient.updatedAt) }}</span>
                   </div>
                 </div>
               </div>
@@ -278,7 +340,10 @@
     </div>
 
     <!-- Deletion Safety Check Modal -->
-    <div v-if="showDeletionModal" class="modal-overlay">
+    <div
+      v-if="showDeletionModal"
+      class="modal-overlay"
+    >
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -288,39 +353,51 @@
             </h5>
           </div>
           <div class="modal-body">
-            <div v-if="deletionCheck?.canDelete" class="alert alert-info">
+            <div
+              v-if="deletionCheck?.canDelete"
+              class="alert alert-info"
+            >
               <i class="ni ni-user-run"></i>
               <strong>Patient kann gelöscht werden.</strong>
               <p class="mb-0 mt-2">Sind Sie sicher, dass Sie diesen Patienten löschen möchten?</p>
             </div>
             
-            <div v-else class="alert alert-warning">
+            <div
+              v-else
+              class="alert alert-warning"
+            >
               <i class="ni ni-user-run"></i>
               <strong>Patient kann nicht gelöscht werden.</strong>
               <ul class="mt-2 mb-0">
-                <li v-for="warning in deletionCheck?.warnings?.filter((w: string) => w)" :key="warning">
+                <li
+                  v-for="warning in deletionCheck?.warnings?.filter((w: string) => w)"
+                  :key="warning"
+                >
                   {{ warning }}
                 </li>
               </ul>
             </div>
 
-            <div v-if="deletionCheck?.relatedObjects" class="mt-3">
+            <div
+              v-if="deletionCheck?.relatedObjects"
+              class="mt-3"
+            >
               <h6>Verknüpfte Objekte:</h6>
               <div class="related-objects">
                 <div class="object-count">
-                  <i class="ni ni-user-run"></i>
+                  <i class="ni ni-user-run object-count-icon"></i>
                   {{ deletionCheck.relatedObjects.examinations }} Untersuchung(en)
                 </div>
                 <div class="object-count">
-                  <i class="ni ni-tv-2"></i>
+                  <i class="ni ni-tv-2 object-count-icon"></i>
                   {{ deletionCheck.relatedObjects.findings }} Befund(e)
                 </div>
                 <div class="object-count">
-                  <i class="ni ni-button-play"></i>
+                  <i class="ni ni-button-play object-count-icon"></i>
                   {{ deletionCheck.relatedObjects.videos }} Video(s)
                 </div>
                 <div class="object-count">
-                  <i class="ni ni-single-copy-04"></i>
+                  <i class="ni ni-single-copy-04 object-count-icon"></i>
                   {{ deletionCheck.relatedObjects.reports }} Bericht(e)
                 </div>
               </div>
@@ -342,8 +419,14 @@
               :disabled="deleting"
               @click="confirmDeletion"
             >
-              <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              <i v-else class="ni ni-settings-gear-65 me-2"></i>
+              <span
+                v-if="deleting"
+                class="spinner-border spinner-border-sm me-2"
+              ></span>
+              <i
+                v-else
+                class="ni ni-settings-gear-65 me-2"
+              ></i>
               {{ deleting ? 'Wird gelöscht...' : 'Endgültig löschen' }}
             </button>
           </div>
@@ -493,7 +576,9 @@ const onPatientDeleted = (patientId: number) => {
 }
 
 const formatDate = (dateString?: string | null) => {
-  if (!dateString) return 'Nicht angegeben'
+  if (!dateString) {
+    return 'Nicht angegeben'
+  }
   
   try {
     const date = new Date(dateString)
@@ -504,7 +589,9 @@ const formatDate = (dateString?: string | null) => {
 }
 
 const formatDateTime = (dateString?: string | null) => {
-  if (!dateString) return 'Nicht angegeben'
+  if (!dateString) {
+    return 'Nicht angegeben'
+  }
   
   try {
     const date = new Date(dateString)
@@ -515,13 +602,17 @@ const formatDateTime = (dateString?: string | null) => {
 }
 
 const getGenderDisplay = (genderValue?: string | null) => {
-  if (!genderValue) return 'Nicht angegeben'
+  if (!genderValue) {
+    return 'Nicht angegeben'
+  }
   const gender = genders.value.find(g => g.name === genderValue)
   return gender?.nameDe || gender?.name || genderValue
 }
 
 const getCenterDisplay = (centerValue?: string | null) => {
-  if (!centerValue) return 'Nicht zugeordnet'
+  if (!centerValue) {
+    return 'Nicht zugeordnet'
+  }
   const center = centers.value.find(c => c.name === centerValue)
   return center?.nameDe || center?.name || centerValue
 }
@@ -597,7 +688,7 @@ const regeneratePseudonym = async (): Promise<void> => {
   margin: 0;
 }
 
-.patient-title i {
+.patient-title .patient-heading-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -622,7 +713,7 @@ const regeneratePseudonym = async (): Promise<void> => {
   margin: 0;
 }
 
-.card-title i {
+.card-title .card-heading-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -638,13 +729,13 @@ const regeneratePseudonym = async (): Promise<void> => {
   gap: 0.25rem;
 }
 
-.info-item label {
+.info-item .patient-detail-label {
   font-weight: 600;
   color: #495057;
   font-size: 0.9rem;
 }
 
-.info-item span {
+.info-item .patient-detail-value {
   color: #2c3e50;
 }
 
@@ -667,7 +758,7 @@ const regeneratePseudonym = async (): Promise<void> => {
   padding: 0.5rem 0.75rem;
 }
 
-.badge i {
+.badge .patient-badge-icon {
   margin-right: 0.25rem;
 }
 
@@ -738,7 +829,7 @@ const regeneratePseudonym = async (): Promise<void> => {
   text-align: center;
 }
 
-.object-count i {
+.object-count .object-count-icon {
   margin-right: 0.5rem;
   color: #6c757d;
 }

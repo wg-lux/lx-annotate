@@ -13,7 +13,6 @@ from typing import Any
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
-
 from endoreg_db.utils.file_operations import (
     advisory_file_lock,
     atomic_write_file,

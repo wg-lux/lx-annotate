@@ -38,7 +38,9 @@ const readRecord = (value: unknown): Record<string, unknown> =>
 
 const readNonEmptyString = (...values: unknown[]): string | null => {
   for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
   }
   return null
 }
@@ -52,7 +54,9 @@ export function readReportingKnowledgeBaseIdentity(
     record.knowledgeBaseVersion,
     record.knowledge_base_version
   )
-  if (!moduleName && !moduleVersion) return null
+  if (!moduleName && !moduleVersion) {
+    return null
+  }
   if (!moduleName || !moduleVersion) {
     return null
   }

@@ -2,6 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { formatTime, parseTime, isValidTimeRange, calculateDuration } from '../timeUtils'
 import { formatTime as formatTimeFromHelpers } from '../timeHelpers'
 
+const timeFormatExamples = [
+  { seconds: 0, formatted: '00:00' },
+  { seconds: 30, formatted: '00:30' },
+  { seconds: 60, formatted: '01:00' },
+  { seconds: 90, formatted: '01:30' },
+  { seconds: 3661, formatted: '61:01' } // Over 1 hour
+] as const
+
 const formatTimeImplementations = [
   ['timeUtils', formatTime],
   ['timeHelpers', formatTimeFromHelpers]
@@ -10,11 +18,9 @@ const formatTimeImplementations = [
 describe('timeUtils', () => {
   describe.each(formatTimeImplementations)('formatTime (%s)', (_moduleName, formatTime) => {
     it('should format seconds to MM:SS format', () => {
-      expect(formatTime(0)).toBe('00:00')
-      expect(formatTime(30)).toBe('00:30')
-      expect(formatTime(60)).toBe('01:00')
-      expect(formatTime(90)).toBe('01:30')
-      expect(formatTime(3661)).toBe('61:01') // Over 1 hour
+      for (const { seconds, formatted } of timeFormatExamples) {
+        expect(formatTime(seconds)).toBe(formatted)
+      }
     })
 
     it('should handle decimal seconds', () => {
@@ -31,11 +37,9 @@ describe('timeUtils', () => {
 
   describe('parseTime', () => {
     it('should parse MM:SS format to seconds', () => {
-      expect(parseTime('00:00')).toBe(0)
-      expect(parseTime('00:30')).toBe(30)
-      expect(parseTime('01:00')).toBe(60)
-      expect(parseTime('01:30')).toBe(90)
-      expect(parseTime('61:01')).toBe(3661)
+      for (const { seconds, formatted } of timeFormatExamples) {
+        expect(parseTime(formatted)).toBe(seconds)
+      }
     })
 
     it('should handle single digit inputs', () => {

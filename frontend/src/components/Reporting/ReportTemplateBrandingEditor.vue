@@ -1,8 +1,14 @@
 <template>
-  <section class="branding-editor mt-4" aria-labelledby="branding-editor-title">
+  <section
+    class="branding-editor mt-4"
+    aria-labelledby="branding-editor-title"
+  >
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
       <div>
-        <h6 id="branding-editor-title" class="mb-1">Klinikdesign und Berichtsvorschau</h6>
+        <h6
+          id="branding-editor-title"
+          class="mb-1"
+        >Klinikdesign und Berichtsvorschau</h6>
         <p class="small text-muted mb-0">
           Logo und Anschrift werden als Bestandteile dieser Berichtsvorlage gespeichert.
         </p>
@@ -14,7 +20,10 @@
       <div class="col-lg-5">
         <div class="branding-controls">
           <div>
-            <label class="form-label" for="hospital-logo-upload">Kliniklogo</label>
+            <label
+              class="form-label"
+              for="hospital-logo-upload"
+            >Kliniklogo</label>
             <input
               id="hospital-logo-upload"
               class="form-control"
@@ -24,7 +33,11 @@
               @change="onLogoSelected"
             />
             <div class="form-text">PNG, JPEG oder WebP, maximal 1 MiB.</div>
-            <div v-if="logoError" class="small text-danger mt-1" role="alert">
+            <div
+              v-if="logoError"
+              class="small text-danger mt-1"
+              role="alert"
+            >
               {{ logoError }}
             </div>
             <button
@@ -39,7 +52,10 @@
           </div>
 
           <div>
-            <label class="form-label" for="hospital-address">Klinikname und Anschrift</label>
+            <label
+              class="form-label"
+              for="hospital-address"
+            >Klinikname und Anschrift</label>
             <textarea
               id="hospital-address"
               class="form-control"
@@ -55,16 +71,27 @@
       </div>
 
       <div class="col-lg-7">
-        <article class="report-paper" data-testid="branded-report-preview">
+        <article
+          class="report-paper"
+          data-testid="branded-report-preview"
+        >
           <header class="report-paper-header">
             <div class="report-logo-slot">
-              <img v-if="logoSource" :src="logoSource" alt="Vorschau des Kliniklogos" />
+              <img
+v-if="logoSource"
+                class="report-logo-image"
+                :src="logoSource"
+                alt="Vorschau des Kliniklogos"
+              />
               <span v-else>LOGO</span>
             </div>
-            <address>
+            <address class="report-clinic-address">
               <template v-if="addressLines.length">
                 <strong>{{ addressLines[0] }}</strong>
-                <span v-for="line in addressLines.slice(1)" :key="line">{{ line }}</span>
+                <span
+                  v-for="line in addressLines.slice(1)"
+                  :key="line"
+                >{{ line }}</span>
               </template>
               <template v-else>
                 <strong>Klinikname</strong>
@@ -74,44 +101,61 @@
           </header>
 
           <div class="report-paper-title">
-            <span>Befundbericht</span>
-            <strong>{{ templateDisplayName }}</strong>
+            <span class="report-type-caption">Befundbericht</span>
+            <strong class="report-name-heading">{{ templateDisplayName }}</strong>
           </div>
 
           <div class="report-patient-grid">
-            <div><span>Patient</span><strong>Max Mustermann</strong></div>
-            <div><span>Geburtsdatum</span><strong>01.01.1970</strong></div>
-            <div>
-              <span>Untersuchung</span><strong>{{ examination || 'Nicht gewählt' }}</strong>
+            <div class="report-patient-field"><span class="report-patient-label">Patient</span><strong class="report-patient-value">Max Mustermann</strong></div>
+            <div class="report-patient-field"><span class="report-patient-label">Geburtsdatum</span><strong class="report-patient-value">01.01.1970</strong></div>
+            <div class="report-patient-field">
+              <span class="report-patient-label">Untersuchung</span><strong class="report-patient-value">{{ examination || 'Nicht gewählt' }}</strong>
             </div>
-            <div><span>Datum</span><strong>14.08.2026</strong></div>
+            <div class="report-patient-field"><span class="report-patient-label">Datum</span><strong class="report-patient-value">14.08.2026</strong></div>
           </div>
 
           <div class="report-section-preview">
-            <template v-for="section in printableSections" :key="section.id">
+            <template
+              v-for="section in printableSections"
+              :key="section.id"
+            >
               <section>
-                <h3>{{ section.name || section.sectionType }}</h3>
+                <h3 class="report-section-heading">{{ section.name || section.sectionType }}</h3>
                 <template v-if="section.sectionType === 'patient_info'">
-                  <p v-for="field in section.fields" :key="field.key">
+                  <p
+v-for="field in section.fields"
+                    :key="field.key"
+                    class="report-section-paragraph"
+                  >
                     <b>{{ field.label || field.key }}:</b> Beispielwert
                   </p>
                 </template>
                 <template v-else-if="section.sectionType === 'findings'">
-                  <p v-if="section.description">{{ section.description }}</p>
-                  <p v-for="finding in section.findings" :key="finding.finding">
+                  <p
+                    v-if="section.description"
+                    class="report-section-paragraph"
+                  >{{ section.description }}</p>
+                  <p
+v-for="finding in section.findings"
+                    :key="finding.finding"
+                    class="report-section-paragraph"
+                  >
                     <b>{{ finding.finding || 'Befund' }}</b> · Beispielhafte Befundbeschreibung
                   </p>
                 </template>
-                <p v-else>{{ section.description }}</p>
+                <p
+                  v-else
+                  class="report-section-paragraph"
+                >{{ section.description }}</p>
               </section>
             </template>
             <section v-if="!printableSections.length">
-              <h3>Berichtstext</h3>
-              <p>Die konfigurierten Berichtsteile erscheinen hier in ihrer späteren Reihenfolge.</p>
+              <h3 class="report-section-heading">Berichtstext</h3>
+              <p class="report-section-paragraph">Die konfigurierten Berichtsteile erscheinen hier in ihrer späteren Reihenfolge.</p>
             </section>
           </div>
 
-          <footer>
+          <footer class="report-page-footer">
             <span>{{ addressLines[0] || 'Klinikname' }}</span>
             <span>Seite 1 von 1</span>
           </footer>
@@ -207,7 +251,9 @@ function onLogoSelected(event: Event) {
   const file = input.files?.[0]
   input.value = ''
   logoError.value = null
-  if (!file) return
+  if (!file) {
+    return
+  }
   if (!SUPPORTED_LOGO_TYPES.has(file.type)) {
     logoError.value = 'Nicht unterstütztes Logoformat. Bitte PNG, JPEG oder WebP verwenden.'
     return
@@ -274,13 +320,13 @@ function onLogoSelected(event: Event) {
   letter-spacing: 0.14em;
 }
 
-.report-logo-slot img {
+.report-logo-slot .report-logo-image {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-.report-paper address {
+.report-paper .report-clinic-address {
   display: grid;
   align-content: start;
   gap: 0.15rem;
@@ -296,7 +342,7 @@ function onLogoSelected(event: Event) {
   margin: 1.75rem 0 1rem;
 }
 
-.report-paper-title span {
+.report-paper-title .report-type-caption {
   color: #66758a;
   font-size: 0.7rem;
   font-weight: 700;
@@ -304,7 +350,7 @@ function onLogoSelected(event: Event) {
   text-transform: uppercase;
 }
 
-.report-paper-title strong {
+.report-paper-title .report-name-heading {
   font-size: 1.45rem;
 }
 
@@ -317,18 +363,18 @@ function onLogoSelected(event: Event) {
   background: #f3f6fa;
 }
 
-.report-patient-grid div {
+.report-patient-grid .report-patient-field {
   display: grid;
   gap: 0.1rem;
 }
 
-.report-patient-grid span {
+.report-patient-grid .report-patient-label {
   color: #718096;
   font-size: 0.65rem;
   text-transform: uppercase;
 }
 
-.report-patient-grid strong {
+.report-patient-grid .report-patient-value {
   font-size: 0.82rem;
 }
 
@@ -338,7 +384,7 @@ function onLogoSelected(event: Event) {
   margin-top: 1.5rem;
 }
 
-.report-section-preview h3 {
+.report-section-preview .report-section-heading {
   margin: 0 0 0.5rem;
   padding-bottom: 0.3rem;
   border-bottom: 1px solid #dce2ea;
@@ -346,13 +392,13 @@ function onLogoSelected(event: Event) {
   font-size: 0.95rem;
 }
 
-.report-section-preview p {
+.report-section-preview .report-section-paragraph {
   margin: 0.25rem 0;
   font-size: 0.78rem;
   line-height: 1.55;
 }
 
-.report-paper footer {
+.report-paper .report-page-footer {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -368,7 +414,7 @@ function onLogoSelected(event: Event) {
     flex-direction: column;
   }
 
-  .report-paper address {
+  .report-paper .report-clinic-address {
     text-align: left;
   }
 

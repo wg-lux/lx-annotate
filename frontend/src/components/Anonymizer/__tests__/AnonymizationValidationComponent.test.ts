@@ -75,19 +75,25 @@ const resolvedApiResponse = <T>(data: T): Promise<AxiosResponse<T>> =>
 
 function requireAnonymizationStore(): AnonymizationStoreFixture {
   const store = hoisted.anonymizationStoreRef.current
-  if (store === undefined) throw new Error('Anonymization store fixture was not initialized.')
+  if (store === undefined) {
+    throw new Error('Anonymization store fixture was not initialized.')
+  }
   return store
 }
 
 function requireMediaStore(): MediaStoreFixture {
   const store = hoisted.mediaStoreRef.current
-  if (store === undefined) throw new Error('Media store fixture was not initialized.')
+  if (store === undefined) {
+    throw new Error('Media store fixture was not initialized.')
+  }
   return store
 }
 
 function requireToastStore(): ToastStoreFixture {
   const store = hoisted.toastStoreRef.current
-  if (store === undefined) throw new Error('Toast store fixture was not initialized.')
+  if (store === undefined) {
+    throw new Error('Toast store fixture was not initialized.')
+  }
   return store
 }
 
@@ -311,7 +317,9 @@ describe('AnonymizationValidationComponent', () => {
     await flushPromises()
     const skip = wrapper.findAll('button').find(button => button.text() === 'Überspringen')
     const reject = wrapper.findAll('button').find(button => button.text() === 'Ablehnen')
-    if (!skip || !reject) throw new Error('Approval navigation buttons are missing')
+    if (!skip || !reject) {
+      throw new Error('Approval navigation buttons are missing')
+    }
     expect(skip.attributes('disabled')).toBeDefined()
     expect(reject.attributes('disabled')).toBeDefined()
     complete(apiResponse({ case_resolution: { patient_examination_id: 42 } }))

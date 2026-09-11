@@ -35,10 +35,14 @@ const asString = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : undefined
 
 const asNumber = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
   if (typeof value === 'string') {
     const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
   }
   return undefined
 }
@@ -63,31 +67,37 @@ const asStringArray = (value: unknown): string[] => {
 }
 
 const asStringRecord = (value: unknown): Record<string, string> => {
-  const rec = asRecord(value)
-  const out: Record<string, string> = {}
-  for (const [key, entry] of Object.entries(rec)) {
-    if (typeof entry === 'string') out[key] = entry
+  const sourceRecord = asRecord(value)
+  const normalizedRecord: Record<string, string> = {}
+  for (const [key, entry] of Object.entries(sourceRecord)) {
+    if (typeof entry === 'string') {
+      normalizedRecord[key] = entry
+    }
   }
-  return out
+  return normalizedRecord
 }
 
 const asStringNumberRecord = (value: unknown): Record<string, string | number> => {
-  const rec = asRecord(value)
-  const out: Record<string, string | number> = {}
-  for (const [key, entry] of Object.entries(rec)) {
-    if (typeof entry === 'string' || typeof entry === 'number') out[key] = entry
+  const sourceRecord = asRecord(value)
+  const normalizedRecord: Record<string, string | number> = {}
+  for (const [key, entry] of Object.entries(sourceRecord)) {
+    if (typeof entry === 'string' || typeof entry === 'number') {
+      normalizedRecord[key] = entry
+    }
   }
-  return out
+  return normalizedRecord
 }
 
 const asNumberRecord = (value: unknown): Record<string, number> => {
-  const rec = asRecord(value)
-  const out: Record<string, number> = {}
-  for (const [key, entry] of Object.entries(rec)) {
-    const n = asNumber(entry)
-    if (n !== undefined) out[key] = n
+  const sourceRecord = asRecord(value)
+  const normalizedRecord: Record<string, number> = {}
+  for (const [key, entry] of Object.entries(sourceRecord)) {
+    const numericValue = asNumber(entry)
+    if (numericValue !== undefined) {
+      normalizedRecord[key] = numericValue
+    }
   }
-  return out
+  return normalizedRecord
 }
 
 const normalizeBase = (raw: unknown): CoreConceptBase => {

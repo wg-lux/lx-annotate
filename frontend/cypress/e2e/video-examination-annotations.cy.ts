@@ -65,7 +65,9 @@ function requireAnnotationStore(win: Window): AnnotationStoreRuntime {
 }
 
 function isAuthStore(value: unknown): value is AuthStoreRuntime {
-  if (!isRecord(value) || !isRecord(value.user)) return false
+  if (!isRecord(value) || !isRecord(value.user)) {
+    return false
+  }
   return (
     typeof value.user.email === 'string' &&
     typeof value.user.id === 'string' &&

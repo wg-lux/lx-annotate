@@ -15,11 +15,23 @@
         </button>
       </div>
       <div class="card-body">
-        <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
-        <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
+        <div
+          v-if="errorMessage"
+          class="alert alert-danger py-2"
+        >{{ errorMessage }}</div>
+        <div
+          v-if="successMessage"
+          class="alert alert-success py-2"
+        >{{ successMessage }}</div>
 
-        <div v-if="loading" class="text-muted">Lade Abschlussdaten …</div>
-        <div v-else-if="!latestReport" class="alert alert-info mb-0">
+        <div
+          v-if="loading"
+          class="text-muted"
+        >Lade Abschlussdaten …</div>
+        <div
+          v-else-if="!latestReport"
+          class="alert alert-info mb-0"
+        >
           Kein Bericht für diese Patientenuntersuchung gefunden.
         </div>
         <template v-else>
@@ -27,7 +39,10 @@
             <div class="col-md-3">
               <div class="small text-muted">Status</div>
               <div>
-                <span class="badge" :class="statusClass">{{
+                <span
+                  class="badge"
+                  :class="statusClass"
+                >{{
                   reportStatusLabel(latestReport.status)
                 }}</span>
               </div>
@@ -78,7 +93,10 @@
           >
             Es sind noch keine Artefakt-Links verfügbar.
           </div>
-          <details class="mt-3 small text-muted" data-testid="finalized-technical-details">
+          <details
+            class="mt-3 small text-muted"
+            data-testid="finalized-technical-details"
+          >
             <summary>Technische Angaben</summary>
             <div class="mt-2">Berichtsreferenz: {{ latestReport.id }}</div>
             <div>Untersuchungsreferenz: {{ patientExaminationId ?? 'nicht verfügbar' }}</div>
@@ -137,7 +155,9 @@ const latestReportDetail = ref<ReportDetailRow | null>(null)
 
 const patientExaminationId = computed<number | null>(() => {
   const param = Number(route.params.patient_examination_id)
-  if (Number.isFinite(param) && param > 0) return param
+  if (Number.isFinite(param) && param > 0) {
+    return param
+  }
   return flow.patientExaminationId
 })
 
@@ -153,15 +173,21 @@ const reportDocumentType = computed<string | null>(() => {
     (
       persistedArtifacts.value
     )?.document_type
-  if (typeof fromArtifacts === 'string' && fromArtifacts.trim().length > 0) return fromArtifacts
+  if (typeof fromArtifacts === 'string' && fromArtifacts.trim().length > 0) {
+    return fromArtifacts
+  }
   const fromDetail =
     latestReportDetail.value?.documentType || latestReportDetail.value?.document_type
-  if (typeof fromDetail === 'string' && fromDetail.trim().length > 0) return fromDetail
+  if (typeof fromDetail === 'string' && fromDetail.trim().length > 0) {
+    return fromDetail
+  }
   return null
 })
 
 const fallbackPdfId = computed<number | null>(() => {
-  if (typeof persistedArtifacts.value?.pdfId === 'number') return persistedArtifacts.value.pdfId
+  if (typeof persistedArtifacts.value?.pdfId === 'number') {
+    return persistedArtifacts.value.pdfId
+  }
   if (typeof latestReportDetail.value?.persistedPdfArtifactId === 'number') {
     return latestReportDetail.value.persistedPdfArtifactId
   }
@@ -169,20 +195,32 @@ const fallbackPdfId = computed<number | null>(() => {
 })
 
 const pdfViewUrl = computed(() => {
-  if (persistedArtifacts.value?.pdfViewUrl) return persistedArtifacts.value.pdfViewUrl
-  if (fallbackPdfId.value) return buildPdfStreamUrl(fallbackPdfId.value, 'raw')
+  if (persistedArtifacts.value?.pdfViewUrl) {
+    return persistedArtifacts.value.pdfViewUrl
+  }
+  if (fallbackPdfId.value) {
+    return buildPdfStreamUrl(fallbackPdfId.value, 'raw')
+  }
   return null
 })
 
 const pdfDownloadUrl = computed(() => {
-  if (persistedArtifacts.value?.pdfDownloadUrl) return persistedArtifacts.value.pdfDownloadUrl
-  if (fallbackPdfId.value) return buildPdfStreamUrl(fallbackPdfId.value, 'raw', { download: 1 })
+  if (persistedArtifacts.value?.pdfDownloadUrl) {
+    return persistedArtifacts.value.pdfDownloadUrl
+  }
+  if (fallbackPdfId.value) {
+    return buildPdfStreamUrl(fallbackPdfId.value, 'raw', { download: 1 })
+  }
   return null
 })
 
 function withPatientExaminationFilter(url: string): string {
-  if (!patientExaminationId.value) return url
-  if (url.includes('patient_examination_id=')) return url
+  if (!patientExaminationId.value) {
+    return url
+  }
+  if (url.includes('patient_examination_id=')) {
+    return url
+  }
   const separator = url.includes('?') ? '&' : '?'
   return `${url}${separator}patient_examination_id=${String(patientExaminationId.value)}`
 }

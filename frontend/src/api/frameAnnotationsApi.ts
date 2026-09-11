@@ -45,7 +45,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function parseFrameAnnotationBulkWriteFailure(
   value: unknown
 ): FrameAnnotationBulkWriteFailure | null {
-  if (!isRecord(value)) return null
+  if (!isRecord(value)) {
+    return null
+  }
   const writeCommitted = value.writeCommitted ?? value.write_committed
   if (
     value.status !== 'error' ||
@@ -76,7 +78,9 @@ export async function bulkUpsertFrameAnnotations(
     const failure = isAxiosError<unknown>(error)
       ? parseFrameAnnotationBulkWriteFailure(error.response?.data)
       : null
-    if (failure) throw new FrameAnnotationBulkWriteError(failure)
+    if (failure) {
+      throw new FrameAnnotationBulkWriteError(failure)
+    }
     throw error
   }
 }

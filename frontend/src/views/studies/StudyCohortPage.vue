@@ -8,14 +8,20 @@
       </p>
     </header>
 
-    <form class="d-grid gap-4" @submit.prevent="previewCohort">
+    <form
+      class="d-grid gap-4"
+      @submit.prevent="previewCohort"
+    >
       <section class="card shadow-sm">
         <div class="card-header">
           <h5 class="mb-0">Studienfrage</h5>
         </div>
         <div class="card-body row g-3">
           <div class="col-lg-4">
-            <label class="form-label" for="study-name">Studienname</label>
+            <label
+              class="form-label"
+              for="study-name"
+            >Studienname</label>
             <input
               id="study-name"
               v-model="studyName"
@@ -27,7 +33,10 @@
             />
           </div>
           <div class="col-lg-8">
-            <label class="form-label" for="study-hypothesis">Hypothese</label>
+            <label
+              class="form-label"
+              for="study-hypothesis"
+            >Hypothese</label>
             <textarea
               id="study-hypothesis"
               v-model="hypothesis"
@@ -48,12 +57,18 @@
               >Die Vorschau wird erst nach expliziter Anfrage geladen.</small
             >
           </div>
-          <span v-if="preview" class="badge bg-secondary">Schema {{ preview.schemaVersion }}</span>
+          <span
+            v-if="preview"
+            class="badge bg-secondary"
+          >Schema {{ preview.schemaVersion }}</span>
         </div>
         <div class="card-body">
           <div class="row g-3">
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="date-from">Datum von</label>
+              <label
+                class="form-label"
+                for="date-from"
+              >Datum von</label>
               <input
                 id="date-from"
                 v-model="filters.dateFrom"
@@ -63,7 +78,10 @@
               />
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="date-to">Datum bis</label>
+              <label
+                class="form-label"
+                for="date-to"
+              >Datum bis</label>
               <input
                 id="date-to"
                 v-model="filters.dateTo"
@@ -73,7 +91,10 @@
               />
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="center-key">Zentrum</label>
+              <label
+                class="form-label"
+                for="center-key"
+              >Zentrum</label>
               <input
                 id="center-key"
                 v-model="filters.centerKey"
@@ -94,7 +115,10 @@
               </datalist>
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="examination-name">Untersuchung</label>
+              <label
+                class="form-label"
+                for="examination-name"
+              >Untersuchung</label>
               <input
                 id="examination-name"
                 v-model="filters.examinationName"
@@ -105,11 +129,18 @@
                 data-test="examination-name"
               />
               <datalist id="study-examinations">
-                <option v-for="name in cohortOptions.examinations" :key="name" :value="name" />
+                <option
+                  v-for="name in cohortOptions.examinations"
+                  :key="name"
+                  :value="name"
+                />
               </datalist>
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="document-type">Dokumenttyp</label>
+              <label
+                class="form-label"
+                for="document-type"
+              >Dokumenttyp</label>
               <input
                 id="document-type"
                 v-model="filters.documentType"
@@ -128,7 +159,10 @@
               </datalist>
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="finding">Befund</label>
+              <label
+                class="form-label"
+                for="finding"
+              >Befund</label>
               <input
                 id="finding"
                 v-model="filters.finding"
@@ -139,11 +173,18 @@
                 data-test="finding"
               />
               <datalist id="study-findings">
-                <option v-for="finding in cohortOptions.findings" :key="finding" :value="finding" />
+                <option
+                  v-for="finding in cohortOptions.findings"
+                  :key="finding"
+                  :value="finding"
+                />
               </datalist>
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="annotation-label">Annotationslabel</label>
+              <label
+                class="form-label"
+                for="annotation-label"
+              >Annotationslabel</label>
               <input
                 id="annotation-label"
                 v-model="filters.annotationLabel"
@@ -162,7 +203,10 @@
               </datalist>
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="has-report">Bericht vorhanden</label>
+              <label
+                class="form-label"
+                for="has-report"
+              >Bericht vorhanden</label>
               <select
                 id="has-report"
                 v-model="hasReportFilter"
@@ -175,7 +219,10 @@
               </select>
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="has-video">Video vorhanden</label>
+              <label
+                class="form-label"
+                for="has-video"
+              >Video vorhanden</label>
               <select
                 id="has-video"
                 v-model="hasVideoFilter"
@@ -188,7 +235,10 @@
               </select>
             </div>
             <div class="col-sm-6 col-xl-3">
-              <label class="form-label" for="case-limit">Maximale Fälle</label>
+              <label
+                class="form-label"
+                for="case-limit"
+              >Maximale Fälle</label>
               <input
                 id="case-limit"
                 v-model.number="filters.limit"
@@ -231,12 +281,22 @@
     </form>
 
     <template v-if="preview">
-      <section class="row g-3 mt-1" aria-label="Kohortenzusammenfassung">
-        <div v-for="metric in summaryMetrics" :key="metric.key" class="col-6 col-xl-3">
+      <section
+        class="row g-3 mt-1"
+        aria-label="Kohortenzusammenfassung"
+      >
+        <div
+          v-for="metric in summaryMetrics"
+          :key="metric.key"
+          class="col-6 col-xl-3"
+        >
           <div class="card shadow-sm h-100">
             <div class="card-body">
               <div class="small text-uppercase text-muted">{{ metric.label }}</div>
-              <strong class="fs-4" :data-test="`summary-${metric.key}`">{{ metric.value }}</strong>
+              <strong
+                class="fs-4"
+                :data-test="`summary-${metric.key}`"
+              >{{ metric.value }}</strong>
             </div>
           </div>
         </div>
@@ -265,10 +325,18 @@
           <span class="badge bg-secondary">{{ preview.cases.length }} angezeigt</span>
         </div>
         <div class="card-body">
-          <div v-if="!preview.cases.length" class="text-muted" data-test="cohort-empty">
+          <div
+            v-if="!preview.cases.length"
+            class="text-muted"
+            data-test="cohort-empty"
+          >
             Für diese Filter wurden keine Fälle gefunden.
           </div>
-          <div v-else class="d-grid gap-3" data-test="cohort-cases">
+          <div
+            v-else
+            class="d-grid gap-3"
+            data-test="cohort-cases"
+          >
             <article
               v-for="cohortCase in preview.cases"
               :key="cohortCase.patientExaminationId"
@@ -306,15 +374,24 @@
                 </div>
                 <div class="col-lg-4">
                   <div class="small text-uppercase text-muted fw-semibold mb-1">Berichte</div>
-                  <div v-if="!cohortCase.reports.length" class="small text-muted">Keine</div>
-                  <ul v-else class="list-unstyled small mb-0 d-grid gap-1">
+                  <div
+                    v-if="!cohortCase.reports.length"
+                    class="small text-muted"
+                  >Keine</div>
+                  <ul
+                    v-else
+                    class="list-unstyled small mb-0 d-grid gap-1"
+                  >
                     <li
                       v-for="report in cohortCase.reports"
                       :key="report.id"
                       class="d-flex flex-wrap align-items-center gap-2"
                     >
                       <span>#{{ report.id }} · {{ report.documentType || 'Bericht' }}</span>
-                      <span class="badge" :class="availabilityClass(report.availability)">
+                      <span
+                        class="badge"
+                        :class="availabilityClass(report.availability)"
+                      >
                         {{ report.availability }}
                       </span>
                       <a
@@ -330,15 +407,24 @@
                 </div>
                 <div class="col-lg-4">
                   <div class="small text-uppercase text-muted fw-semibold mb-1">Videos</div>
-                  <div v-if="!cohortCase.videos.length" class="small text-muted">Keine</div>
-                  <ul v-else class="list-unstyled small mb-0 d-grid gap-1">
+                  <div
+                    v-if="!cohortCase.videos.length"
+                    class="small text-muted"
+                  >Keine</div>
+                  <ul
+                    v-else
+                    class="list-unstyled small mb-0 d-grid gap-1"
+                  >
                     <li
                       v-for="video in cohortCase.videos"
                       :key="video.id"
                       class="d-flex flex-wrap align-items-center gap-2"
                     >
                       <span>#{{ video.id }}</span>
-                      <span class="badge" :class="availabilityClass(video.availability)">
+                      <span
+                        class="badge"
+                        :class="availabilityClass(video.availability)"
+                      >
                         {{ video.availability }}
                       </span>
                       <a
@@ -359,8 +445,14 @@
       </section>
     </template>
 
-    <div v-else class="card shadow-sm mt-4">
-      <div class="card-body text-muted" data-test="preview-empty">
+    <div
+      v-else
+      class="card shadow-sm mt-4"
+    >
+      <div
+        class="card-body text-muted"
+        data-test="preview-empty"
+      >
         Noch keine Kohortenvorschau geladen. Die Seite verwendet keine lokalen Beispieldaten.
       </div>
     </div>
@@ -422,7 +514,9 @@ const summaryMetrics = computed(() => {
 watch(
   [studyName, hypothesis, hasReportFilter, hasVideoFilter, filters],
   () => {
-    if (!preview.value) return
+    if (!preview.value) {
+      return
+    }
     preview.value = null
     cohortExportStore.clear()
   },
@@ -430,8 +524,12 @@ watch(
 )
 
 function triState(value: '' | 'true' | 'false'): boolean | null {
-  if (value === 'true') return true
-  if (value === 'false') return false
+  if (value === 'true') {
+    return true
+  }
+  if (value === 'false') {
+    return false
+  }
   return null
 }
 
@@ -488,7 +586,9 @@ async function previewCohort(): Promise<void> {
     cohortExportStore.capture(studyName.value, hypothesis.value, result)
     preview.value = result
   } catch (error) {
-    if (!controller.signal.aborted) errorMessage.value = readableError(error)
+    if (!controller.signal.aborted) {
+      errorMessage.value = readableError(error)
+    }
   } finally {
     if (activeController === controller) {
       activeController = null
@@ -498,12 +598,16 @@ async function previewCohort(): Promise<void> {
 }
 
 async function openCohortExport(): Promise<void> {
-  if (!preview.value?.cases.length || !cohortExportStore.definition) return
+  if (!preview.value?.cases.length || !cohortExportStore.definition) {
+    return
+  }
   await router.push({ path: '/export', query: { mode: 'cohort' } })
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return 'Kein Untersuchungsdatum'
+  if (!value) {
+    return 'Kein Untersuchungsdatum'
+  }
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('de-DE')
 }

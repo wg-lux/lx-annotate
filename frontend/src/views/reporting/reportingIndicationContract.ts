@@ -44,12 +44,16 @@ const choiceIdFromRecord = (row: Record<string, unknown>): number | null =>
   )
 
 function normalizeChoice(value: unknown): ReportingIndicationChoiceOption | null {
-  if (!isRecord(value)) return null
-  const id = choiceIdFromRecord(value) ?? positiveInteger(value.value)
+  if (!isRecord(value)) {
+    return null
+  }
+  const choiceId = choiceIdFromRecord(value) ?? positiveInteger(value.value)
   const label = canonicalGermanLabel(value)
-  if (id === null || label === null) return null
+  if (choiceId === null || label === null) {
+    return null
+  }
   return {
-    id,
+    id: choiceId,
     label
   }
 }
@@ -59,13 +63,17 @@ function normalizeChoices(value: unknown): ReportingIndicationChoiceOption[] {
   const byId = new Map<number, ReportingIndicationChoiceOption>()
   for (const candidate of candidates) {
     const choice = normalizeChoice(candidate)
-    if (choice) byId.set(choice.id, choice)
+    if (choice) {
+      byId.set(choice.id, choice)
+    }
   }
   return Array.from(byId.values())
 }
 
 function choicesFromClassifications(value: unknown): ReportingIndicationChoiceOption[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
   return value.flatMap((entry) => {
     const classification = asRecord(entry)
     const nestedChoices = [
@@ -78,10 +86,14 @@ function choicesFromClassifications(value: unknown): ReportingIndicationChoiceOp
 }
 
 function normalizeIndication(value: unknown): ReportingIndicationOption | null {
-  if (!isRecord(value)) return null
-  const id = indicationIdFromRecord(value)
+  if (!isRecord(value)) {
+    return null
+  }
+  const indicationId = indicationIdFromRecord(value)
   const label = canonicalGermanLabel(value)
-  if (id === null || label === null) return null
+  if (indicationId === null || label === null) {
+    return null
+  }
   const choices = [
     ...normalizeChoices(value.choices),
     ...normalizeChoices(value.indicationChoices),
@@ -89,16 +101,22 @@ function normalizeIndication(value: unknown): ReportingIndicationOption | null {
     ...choicesFromClassifications(value.classifications)
   ]
   return {
-    id,
+    id: indicationId,
     label,
     choices: Array.from(new Map(choices.map((choice) => [choice.id, choice])).values())
   }
 }
 
 function indicationCandidates(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value
-  if (!isRecord(value)) return []
-  if (indicationIdFromRecord(value) !== null) return [value]
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (!isRecord(value)) {
+    return []
+  }
+  if (indicationIdFromRecord(value) !== null) {
+    return [value]
+  }
   return Object.entries(value).map(([key, entry]) =>
     isRecord(entry) ? { ...entry, id: positiveInteger(key) } : { id: key, choices: entry }
   )
@@ -124,7 +142,9 @@ function appendLinkedChoices(
 ): void {
   if (Array.isArray(value)) {
     for (const entry of value) {
-      if (!isRecord(entry)) continue
+      if (!isRecord(entry)) {
+        continue
+      }
       const indicationId = positiveInteger(
         entry.examinationIndicationId ??
           entry.examination_indication_id ??
@@ -139,11 +159,15 @@ function appendLinkedChoices(
     }
     return
   }
-  if (!isRecord(value)) return
+  if (!isRecord(value)) {
+    return
+  }
   for (const [rawIndicationId, rawChoices] of Object.entries(value)) {
     const indicationId = positiveInteger(rawIndicationId)
     const option = indicationId === null ? null : optionsById.get(indicationId)
-    if (!option) continue
+    if (!option) {
+      continue
+    }
     for (const choice of normalizeChoices(rawChoices)) {
       if (!option.choices.some((candidate) => candidate.id === choice.id)) {
         option.choices.push(choice)
@@ -153,7 +177,9 @@ function appendLinkedChoices(
 }
 
 function payloadRecords(payload: unknown): Record<string, unknown>[] {
-  if (!isRecord(payload)) return []
+  if (!isRecord(payload)) {
+    return []
+  }
   const nested = isRecord(payload.examination) ? payload.examination : null
   return nested ? [payload, nested] : [payload]
 }
@@ -163,10 +189,14 @@ export function normalizeReportingIndicationOptions(
 ): ReportingIndicationOption[] {
   const optionsById = new Map<number, ReportingIndicationOption>()
   for (const payload of payloads) {
-    if (!Array.isArray(payload)) continue
+    if (!Array.isArray(payload)) {
+      continue
+    }
     for (const entry of payload) {
       const option = normalizeIndication(entry)
-      if (option) mergeOption(optionsById, option)
+      if (option) {
+        mergeOption(optionsById, option)
+      }
     }
   }
   const records = payloads.flatMap(payloadRecords)
@@ -183,7 +213,9 @@ export function normalizeReportingIndicationOptions(
     for (const candidate of candidates) {
       for (const entry of indicationCandidates(candidate)) {
         const option = normalizeIndication(entry)
-        if (option) mergeOption(optionsById, option)
+        if (option) {
+          mergeOption(optionsById, option)
+        }
       }
     }
   }
@@ -195,7 +227,9 @@ export function normalizeReportingIndicationOptions(
 }
 
 function selectionCandidates(payload: unknown): unknown[] {
-  if (!isRecord(payload)) return []
+  if (!isRecord(payload)) {
+    return []
+  }
   const nested = isRecord(payload.examination) ? payload.examination : null
   return [
     payload.indications,
@@ -210,11 +244,17 @@ function selectionCandidates(payload: unknown): unknown[] {
 export function normalizeReportingIndicationSelections(payload: unknown): ReportingIndicationRow[] {
   const rows: ReportingIndicationRow[] = []
   for (const candidate of selectionCandidates(payload)) {
-    if (!Array.isArray(candidate)) continue
+    if (!Array.isArray(candidate)) {
+      continue
+    }
     for (const entry of candidate) {
-      if (!isRecord(entry)) continue
+      if (!isRecord(entry)) {
+        continue
+      }
       const examinationIndicationId = indicationIdFromRecord(entry)
-      if (examinationIndicationId === null) continue
+      if (examinationIndicationId === null) {
+        continue
+      }
       const choice = asRecord(entry.choice)
       rows.push({
         examinationIndicationId,
@@ -229,7 +269,9 @@ export function normalizeReportingIndicationSelections(payload: unknown): Report
       })
     }
   }
-  if (!rows.length) return [{ examinationIndicationId: null, indicationChoiceId: null }]
+  if (!rows.length) {
+    return [{ examinationIndicationId: null, indicationChoiceId: null }]
+  }
   const uniqueRows = new Map(
     rows.map((row) => [
       `${String(row.examinationIndicationId)}:${String(row.indicationChoiceId)}`,

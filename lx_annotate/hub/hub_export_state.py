@@ -276,22 +276,43 @@ def is_video_hub_export_eligible(video: VideoFile) -> bool:
     return resolve_video_hub_export_state(video).transfer_eligible
 
 
-def report_hub_export_blocked_reason(report: RawPdfFile) -> str:
+def report_hub_export_blocked_reason(
+    report: RawPdfFile,
+    *,
+    verify_processed_media: bool = False,
+) -> str:
     if report.center is None:
         return "source center missing"
     state = report.state
-    if state is None or not state.anonymization_validated:
+    if state is None or state.anonymization_status != AnonymizationState.VALIDATED:
         return "not ready for export"
     processed_file_sha256 = getattr(state, "processed_file_sha256", None)
     if processed_file_sha256 is not None and not str(processed_file_sha256).strip():
         return "processed media missing"
     if not has_usable_processed_artifact(report):
         return "processed media missing"
+    if verify_processed_media:
+        try:
+            actual_digest = sha256_file(report.processed_file)
+        except (OSError, TypeError, ValueError):
+            return "processed media unreadable"
+        if actual_digest != processed_file_sha256:
+            return "processed media hash mismatch"
     return ""
 
 
-def is_report_hub_export_eligible(report: RawPdfFile) -> bool:
-    return report_hub_export_blocked_reason(report) == ""
+def is_report_hub_export_eligible(
+    report: RawPdfFile,
+    *,
+    verify_processed_media: bool = False,
+) -> bool:
+    return (
+        report_hub_export_blocked_reason(
+            report,
+            verify_processed_media=verify_processed_media,
+        )
+        == ""
+    )
 
 
 def _sync_outbound_jobs(

@@ -63,13 +63,17 @@ function requirePatientExaminationList(value: unknown): PatientExamination[] {
 }
 
 function requestErrorMessage(error: unknown): string {
-  if (!error || typeof error !== 'object') return 'Unbekannter Fehler'
+  if (!error || typeof error !== 'object') {
+    return 'Unbekannter Fehler'
+  }
   const candidate = error as {
     message?: unknown
     response?: { data?: { detail?: unknown } }
   }
   const detail = candidate.response?.data?.detail
-  if (typeof detail === 'string' && detail) return detail
+  if (typeof detail === 'string' && detail) {
+    return detail
+  }
   return typeof candidate.message === 'string' && candidate.message
     ? candidate.message
     : 'Unbekannter Fehler'
@@ -156,12 +160,12 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
         const response = await axiosInstance.get<unknown>(
           r(endpoints.examination.patientExaminationDetail(id))
         )
-        const pe = requirePatientExamination(response.data)
-        const index = this.patientExaminations.findIndex((existingPe) => existingPe.id === pe.id)
+        const patientExamination = requirePatientExamination(response.data)
+        const index = this.patientExaminations.findIndex((existingPe) => existingPe.id === patientExamination.id)
         if (index !== -1) {
-          this.patientExaminations[index] = pe
+          this.patientExaminations[index] = patientExamination
         } else {
-          this.patientExaminations.push(pe)
+          this.patientExaminations.push(patientExamination)
         }
       } catch (err: unknown) {
         this.error =
@@ -192,8 +196,8 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
       return this.selectedPatientExaminationId
     },
     getCurrentPatientExaminationExaminationId(): number | null {
-      const pe = this.patientExaminations.find((pe) => pe.id === this.selectedPatientExaminationId)
-      return pe ? pe.examination.id : null
+      const patientExamination = this.patientExaminations.find((pe) => pe.id === this.selectedPatientExaminationId)
+      return patientExamination ? patientExamination.examination.id : null
     }
   }
 })

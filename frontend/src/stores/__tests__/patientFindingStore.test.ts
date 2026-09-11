@@ -3,6 +3,10 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { usePatientFindingStore } from '@/stores/patientFindingStore'
 
+const ORIGINAL_FINDING_ID = 7
+const CREATED_FINDING_ID = 8
+const PATIENT_EXAMINATION_ID = 42
+
 const findingsApiMocks = vi.hoisted(() => ({
   listPatientFindings: vi.fn(),
   createPatientFinding: vi.fn(),
@@ -25,7 +29,7 @@ const deletePatientFinding = findingsApiMocks.deletePatientFinding
 
 const finding = (id: number, findingId: number, isActive = true) => ({
   id,
-  patientExamination: 42,
+  patientExamination: PATIENT_EXAMINATION_ID,
   finding: findingId,
   isActive,
   classifications: []
@@ -38,41 +42,41 @@ describe('patientFindingStore', () => {
   })
 
   it('loads findings for the selected patient examination', async () => {
-    listPatientFindings.mockResolvedValue([finding(1, 7)])
+    listPatientFindings.mockResolvedValue([finding(1, ORIGINAL_FINDING_ID)])
     const store = usePatientFindingStore()
 
-    await store.fetchPatientFindings(42)
+    await store.fetchPatientFindings(PATIENT_EXAMINATION_ID)
 
-    expect(listPatientFindings).toHaveBeenCalledWith(42)
-    expect(store.patientFindings).toEqual([finding(1, 7)])
+    expect(listPatientFindings).toHaveBeenCalledWith(PATIENT_EXAMINATION_ID)
+    expect(store.patientFindings).toEqual([finding(1, ORIGINAL_FINDING_ID)])
     expect(store.loading).toBe(false)
   })
 
   it('normalizes the create payload and appends the response', async () => {
-    createPatientFinding.mockResolvedValue(finding(2, 8))
+    createPatientFinding.mockResolvedValue(finding(2, CREATED_FINDING_ID))
     const store = usePatientFindingStore()
 
     const created = await store.createPatientFinding({
-      patient_examination: 42,
-      finding: 8,
+      patient_examination: PATIENT_EXAMINATION_ID,
+      finding: CREATED_FINDING_ID,
       classifications: [{ classification: 3, choice: 9 }]
     })
 
     expect(createPatientFinding).toHaveBeenCalledWith({
-      patientExamination: 42,
-      finding: 8,
+      patientExamination: PATIENT_EXAMINATION_ID,
+      finding: CREATED_FINDING_ID,
       classifications: [{ classification: 3, choice: 9 }]
     })
-    expect(created).toEqual(finding(2, 8))
-    expect(store.patientFindings).toEqual([finding(2, 8)])
+    expect(created).toEqual(finding(2, CREATED_FINDING_ID))
+    expect(store.patientFindings).toEqual([finding(2, CREATED_FINDING_ID)])
   })
 
   it('updates and deletes the matching local finding', async () => {
-    listPatientFindings.mockResolvedValue([finding(1, 7), finding(2, 8)])
+    listPatientFindings.mockResolvedValue([finding(1, ORIGINAL_FINDING_ID), finding(2, CREATED_FINDING_ID)])
     updatePatientFinding.mockResolvedValue(finding(1, 9, false))
     deletePatientFinding.mockResolvedValue(undefined)
     const store = usePatientFindingStore()
-    await store.fetchPatientFindings(42)
+    await store.fetchPatientFindings(PATIENT_EXAMINATION_ID)
 
     await store.updatePatientFinding(1, {
       finding: 9,
@@ -92,7 +96,7 @@ describe('patientFindingStore', () => {
 
   it('preserves existing findings and exposes a typed API error when refresh fails', async () => {
     listPatientFindings
-      .mockResolvedValueOnce([finding(1, 7)])
+      .mockResolvedValueOnce([finding(1, ORIGINAL_FINDING_ID)])
       .mockRejectedValueOnce({
         response: {
           status: 404,
@@ -100,11 +104,11 @@ describe('patientFindingStore', () => {
         }
       })
     const store = usePatientFindingStore()
-    await store.fetchPatientFindings(42)
+    await store.fetchPatientFindings(PATIENT_EXAMINATION_ID)
 
-    await store.fetchPatientFindings(42)
+    await store.fetchPatientFindings(PATIENT_EXAMINATION_ID)
 
-    expect(store.patientFindings).toEqual([finding(1, 7)])
+    expect(store.patientFindings).toEqual([finding(1, ORIGINAL_FINDING_ID)])
     expect(store.error).toContain('(not-found): Patient examination not found')
     expect(store.loading).toBe(false)
   })
@@ -119,7 +123,7 @@ describe('patientFindingStore', () => {
     createPatientFinding.mockRejectedValueOnce(apiError)
     const store = usePatientFindingStore()
 
-    await expect(store.createPatientFinding({ patientExamination: 42, finding: 8 })).rejects.toBe(
+    await expect(store.createPatientFinding({ patientExamination: PATIENT_EXAMINATION_ID, finding: CREATED_FINDING_ID })).rejects.toBe(
       apiError
     )
 

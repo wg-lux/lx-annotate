@@ -3,15 +3,18 @@
     <form @submit.prevent="handleSubmit">
       <!-- Basic Information -->
       <div class="form-section">
-        <h4>
-          <i class="ni ni-circle-08"></i>
+        <h4 class="form-section-heading">
+          <i class="ni ni-circle-08 form-section-icon"></i>
           Grunddaten
         </h4>
         
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label for="firstName" class="required">Vorname</label>
+              <label
+                for="firstName"
+                class="required patient-field-label"
+              >Vorname</label>
               <input 
                 id="firstName"
                 v-model="form.firstName"
@@ -21,7 +24,10 @@
                 required
                 placeholder="Vorname eingeben"
               />
-              <div v-if="errors.firstName" class="invalid-feedback">
+              <div
+                v-if="errors.firstName"
+                class="invalid-feedback"
+              >
                 {{ errors.firstName }}
               </div>
             </div>
@@ -29,7 +35,10 @@
           
           <div class="col-md-6">
             <div class="form-group">
-              <label for="lastName" class="required">Nachname</label>
+              <label
+                for="lastName"
+                class="required patient-field-label"
+              >Nachname</label>
               <input 
                 id="lastName"
                 v-model="form.lastName"
@@ -39,7 +48,10 @@
                 required
                 placeholder="Nachname eingeben"
               />
-              <div v-if="errors.lastName" class="invalid-feedback">
+              <div
+                v-if="errors.lastName"
+                class="invalid-feedback"
+              >
                 {{ errors.lastName }}
               </div>
             </div>
@@ -49,7 +61,10 @@
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label for="dob">Geburtsdatum</label>
+              <label
+                class="patient-field-label"
+                for="dob"
+              >Geburtsdatum</label>
               <input 
                 id="dob"
                 v-model="form.dob"
@@ -57,10 +72,16 @@
                 class="form-control"
                 :class="{ 'is-invalid': errors.dob }"
               />
-              <div v-if="errors.dob" class="invalid-feedback">
+              <div
+                v-if="errors.dob"
+                class="invalid-feedback"
+              >
                 {{ errors.dob }}
               </div>
-              <small v-if="calculatedAge" class="form-text text-muted">
+              <small
+                v-if="calculatedAge"
+                class="form-text text-muted"
+              >
                 Alter: {{ calculatedAge }} Jahre
               </small>
             </div>
@@ -68,7 +89,10 @@
           
           <div class="col-md-6">
             <div class="form-group">
-              <label for="gender">Geschlecht</label>
+              <label
+                class="patient-field-label"
+                for="gender"
+              >Geschlecht</label>
               <select 
                 id="gender"
                 v-model="form.gender"
@@ -84,7 +108,10 @@
                   {{ gender.nameDe || gender.name }}
                 </option>
               </select>
-              <div v-if="errors.gender" class="invalid-feedback">
+              <div
+                v-if="errors.gender"
+                class="invalid-feedback"
+              >
                 {{ errors.gender }}
               </div>
             </div>
@@ -94,15 +121,18 @@
 
       <!-- Contact Information -->
       <div class="form-section">
-        <h4>
-          <i class="ni ni-book-bookmark"></i>
+        <h4 class="form-section-heading">
+          <i class="ni ni-book-bookmark form-section-icon"></i>
           Kontaktdaten
         </h4>
         
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label for="email">E-Mail</label>
+              <label
+                class="patient-field-label"
+                for="email"
+              >E-Mail</label>
               <input 
                 id="email"
                 v-model="form.email"
@@ -111,7 +141,10 @@
                 :class="{ 'is-invalid': errors.email }"
                 placeholder="email@beispiel.de"
               />
-              <div v-if="errors.email" class="invalid-feedback">
+              <div
+                v-if="errors.email"
+                class="invalid-feedback"
+              >
                 {{ errors.email }}
               </div>
             </div>
@@ -119,7 +152,10 @@
           
           <div class="col-md-6">
             <div class="form-group">
-              <label for="phone">Telefon</label>
+              <label
+                class="patient-field-label"
+                for="phone"
+              >Telefon</label>
               <input 
                 id="phone"
                 v-model="form.phone"
@@ -128,7 +164,10 @@
                 :class="{ 'is-invalid': errors.phone }"
                 placeholder="+49 123 456789"
               />
-              <div v-if="errors.phone" class="invalid-feedback">
+              <div
+                v-if="errors.phone"
+                class="invalid-feedback"
+              >
                 {{ errors.phone }}
               </div>
             </div>
@@ -138,15 +177,18 @@
 
       <!-- Organization -->
       <div class="form-section">
-        <h4>
-          <i class="ni ni-collection"></i>
+        <h4 class="form-section-heading">
+          <i class="ni ni-collection form-section-icon"></i>
           Organisation
         </h4>
         
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label for="center">Zentrum</label>
+              <label
+                class="patient-field-label"
+                for="center"
+              >Zentrum</label>
               <select 
                 id="center"
                 v-model="form.centerKey"
@@ -162,7 +204,10 @@
                   {{ center.nameDe || center.name }}
                 </option>
               </select>
-              <div v-if="errors.center" class="invalid-feedback">
+              <div
+                v-if="errors.center"
+                class="invalid-feedback"
+              >
                 {{ errors.center }}
               </div>
             </div>
@@ -170,7 +215,7 @@
           
           <div class="col-md-6">
             <div class="form-group">
-              <label>
+              <label class="patient-field-label">
                 <input 
                   v-model="form.isRealPerson"
                   type="checkbox"
@@ -189,7 +234,10 @@
       <!-- Form Actions -->
       <div class="form-actions">
         <!-- General Error Message -->
-        <div v-if="errors.general" class="alert alert-danger w-100 mb-3">
+        <div
+          v-if="errors.general"
+          class="alert alert-danger w-100 mb-3"
+        >
           <strong>Fehler:</strong> {{ errors.general }}
         </div>
         
@@ -198,8 +246,14 @@
           class="btn btn-primary"
           :disabled="loading || !isFormValid"
         >
-          <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-          <i v-else class="ni ni-collection me-2"></i>
+          <span
+            v-if="loading"
+            class="spinner-border spinner-border-sm me-2"
+          ></span>
+          <i
+            v-else
+            class="ni ni-collection me-2"
+          ></i>
           {{ loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
         </button>
         
@@ -258,7 +312,9 @@ const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
 const calculatedAge = computed(() => {
-  if (!form.value.dob) return null
+  if (!form.value.dob) {
+    return null
+  }
   
   try {
     const birthDate = new Date(form.value.dob)
@@ -436,7 +492,7 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.form-section h4 {
+.form-section .form-section-heading {
   color: #2c3e50;
   font-size: 1.1rem;
   font-weight: 600;
@@ -445,7 +501,7 @@ onMounted(async () => {
   align-items: center;
 }
 
-.form-section h4 i {
+.form-section .form-section-heading .form-section-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -454,14 +510,14 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.form-group label {
+.form-group .patient-field-label {
   font-weight: 500;
   color: #495057;
   margin-bottom: 0.5rem;
   display: block;
 }
 
-.form-group label.required::after {
+.form-group .patient-field-label.required::after {
   content: ' *';
   color: #dc3545;
 }

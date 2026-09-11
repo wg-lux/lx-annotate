@@ -1,7 +1,14 @@
 <template>
   <div class="reporting-shell container-fluid py-4">
-    <a class="reporting-skip-link" href="#reporting-workspace">Zum Arbeitsbereich springen</a>
-    <section class="reporting-command-bar mb-3" aria-label="Reporting-Kontext">
+    <a
+      class="reporting-skip-link"
+      href="#reporting-workspace"
+      >Zum Arbeitsbereich springen</a
+    >
+    <section
+      class="reporting-command-bar mb-3"
+      aria-label="Reporting-Kontext"
+    >
       <div class="reporting-command-main">
         <div class="small text-uppercase text-muted fw-semibold tracking-label">Reporting</div>
         <h4 class="mb-3">Bericht erstellen</h4>
@@ -13,35 +20,56 @@
             role="status"
           >
             <i
+              class="reporting-requirement-icon"
               :class="activePatientExaminationId ? 'ni ni-check-bold' : 'ni ni-notification-70'"
               aria-hidden="true"
             ></i>
             <div>
-              <strong>
+              <strong class="reporting-requirement-title">
                 {{
                   activePatientExaminationId
                     ? 'Patient und Untersuchung ausgewählt'
                     : 'Patient und Untersuchung erforderlich'
                 }}
               </strong>
-              <small v-if="!flow.caseId">
+              <small
+                v-if="!flow.caseId"
+                class="reporting-requirement-description"
+              >
                 Wählen Sie Patient und Untersuchung aus und klicken Sie anschließend auf
                 „Patientenuntersuchung anlegen“.
               </small>
-              <small v-else-if="!activePatientExaminationId">
+              <small
+                v-else-if="!activePatientExaminationId"
+                class="reporting-requirement-description"
+              >
                 Der Patient ist gewählt. Wählen Sie jetzt die Untersuchung aus und legen Sie die
                 Patientenuntersuchung an.
               </small>
-              <small v-else>Der klinische Kontext für den Bericht ist vollständig.</small>
+              <small
+                v-else
+                class="reporting-requirement-description"
+                >Der klinische Kontext für den Bericht ist vollständig.</small
+              >
             </div>
           </div>
 
-          <div v-if="!activePatientExaminationId" class="reporting-required-fields">
+          <div
+            v-if="!activePatientExaminationId"
+            class="reporting-required-fields"
+          >
             <div>
-              <label class="form-label form-label-sm mb-1" for="reporting-patient-select">
+              <label
+                class="form-label form-label-sm mb-1"
+                for="reporting-patient-select"
+              >
                 <span class="required-field-step">1</span>
                 Patient auswählen
-                <span class="text-danger" aria-hidden="true">*</span>
+                <span
+                  class="text-danger"
+                  aria-hidden="true"
+                  >*</span
+                >
               </label>
               <select
                 id="reporting-patient-select"
@@ -53,7 +81,10 @@
                 required
                 @change="onPatientSelection(($event.target as HTMLSelectElement).value)"
               >
-                <option value="" disabled>
+                <option
+                  value=""
+                  disabled
+                >
                   {{
                     patientsLoading
                       ? 'Patienten werden geladen...'
@@ -62,16 +93,27 @@
                         : 'Keine Patienten verfügbar'
                   }}
                 </option>
-                <option v-for="patient in patients" :key="patient.id" :value="patient.id">
+                <option
+                  v-for="patient in patients"
+                  :key="patient.id"
+                  :value="patient.id"
+                >
                   {{ patient.displayName }}
                 </option>
               </select>
             </div>
             <div>
-              <label class="form-label form-label-sm mb-1" for="reporting-examination-type-select">
+              <label
+                class="form-label form-label-sm mb-1"
+                for="reporting-examination-type-select"
+              >
                 <span class="required-field-step">2</span>
                 Untersuchung auswählen
-                <span class="text-danger" aria-hidden="true">*</span>
+                <span
+                  class="text-danger"
+                  aria-hidden="true"
+                  >*</span
+                >
               </label>
               <select
                 id="reporting-examination-type-select"
@@ -83,7 +125,10 @@
                 required
                 @change="onExaminationSelection(($event.target as HTMLSelectElement).value)"
               >
-                <option value="" disabled>
+                <option
+                  value=""
+                  disabled
+                >
                   {{
                     examinationsLoading
                       ? 'Untersuchungen werden geladen...'
@@ -126,16 +171,22 @@
             </div>
           </div>
 
-          <div v-else class="reporting-resolved-context" data-testid="resolved-patient-examination">
+          <div
+            v-else
+            class="reporting-resolved-context"
+            data-testid="resolved-patient-examination"
+          >
             <div>
-              <span>Patient</span>
+              <span class="reporting-resolved-label">Patient</span>
               <strong>{{ patientHeaderLabel }}</strong>
             </div>
             <div>
-              <span>Untersuchung</span>
+              <span class="reporting-resolved-label">Untersuchung</span>
               <strong>{{ examinationTypeLabel }}</strong>
             </div>
-            <small>Persistierte Patientenuntersuchung {{ activePatientExaminationId }}</small>
+            <small class="reporting-resolved-description"
+              >Persistierte Patientenuntersuchung {{ activePatientExaminationId }}</small
+            >
             <button
               class="btn btn-outline-secondary btn-sm"
               type="button"
@@ -145,10 +196,20 @@
             </button>
           </div>
 
-          <div class="reporting-template-control mt-3" data-testid="report-template-control">
-            <label class="form-label form-label-sm mb-1" for="report-template-select">
+          <div
+            class="reporting-template-control mt-3"
+            data-testid="report-template-control"
+          >
+            <label
+              class="form-label form-label-sm mb-1"
+              for="report-template-select"
+            >
               Berichtsvorlage
-              <span class="text-danger" aria-hidden="true">*</span>
+              <span
+                class="text-danger"
+                aria-hidden="true"
+                >*</span
+              >
             </label>
             <select
               id="report-template-select"
@@ -192,11 +253,16 @@
             </small>
           </div>
 
-          <details class="reporting-secondary-controls mt-3" data-testid="reporting-options">
-            <summary>Weitere Einstellungen und Import</summary>
+          <details
+            class="reporting-secondary-controls mt-3"
+            data-testid="reporting-options"
+          >
+            <summary class="reporting-secondary-toggle">Weitere Einstellungen und Import</summary>
             <div class="d-flex flex-column flex-lg-row flex-lg-wrap gap-2 mt-2">
               <div class="reporting-setting-field">
-                <label class="form-label form-label-sm mb-1" for="reporting-existing-case"
+                <label
+                  class="form-label form-label-sm mb-1"
+                  for="reporting-existing-case"
                   >Vorhandener Fall</label
                 >
                 <select
@@ -219,7 +285,9 @@
                 </select>
               </div>
               <div class="reporting-setting-field">
-                <label class="form-label form-label-sm mb-1" for="reporting-existing-examination"
+                <label
+                  class="form-label form-label-sm mb-1"
+                  for="reporting-existing-examination"
                   >Vorhandene Patientenuntersuchung</label
                 >
                 <select
@@ -246,7 +314,9 @@
                 </select>
               </div>
               <div class="reporting-setting-field">
-                <label class="form-label form-label-sm mb-1" for="reporting-terminology-bundle"
+                <label
+                  class="form-label form-label-sm mb-1"
+                  for="reporting-terminology-bundle"
                   >Terminologiepaket</label
                 >
                 <select
@@ -269,7 +339,9 @@
                 </select>
               </div>
               <div class="reporting-setting-field">
-                <label class="form-label form-label-sm mb-1" for="reporting-report-language"
+                <label
+                  class="form-label form-label-sm mb-1"
+                  for="reporting-report-language"
                   >Berichtssprache</label
                 >
                 <select
@@ -303,6 +375,32 @@
                 multiple
                 @change="importTerminologyFolder"
               />
+              <div class="reporting-setting-field">
+                <label
+                  class="form-label form-label-sm mb-1"
+                  for="reporting-report-verbosity"
+                  >Berichtsumfang</label
+                >
+                <select
+                  id="reporting-report-verbosity"
+                  v-model="flow.selectedReportVerbosity"
+                  class="form-select"
+                  data-testid="report-verbosity-select"
+                  :disabled="!templateReference || templateReferenceLoading"
+                >
+                  <option
+                    v-for="level in reportVerbosityOptions"
+                    :key="level"
+                    :value="level"
+                  >
+                    {{ reportVerbosityLabels[level] }}
+                  </option>
+                </select>
+                <small class="form-text"
+                  >Alle dokumentierten Befunde bleiben enthalten. Geänderter Umfang gilt bei
+                  erneuter Texterstellung.</small
+                >
+              </div>
               <input
                 ref="terminologyZipInput"
                 class="visually-hidden"
@@ -317,7 +415,10 @@
                 :disabled="terminology.importing"
                 @click="openTerminologyFolderPicker"
               >
-                <i class="ni ni-single-copy-04 me-1" aria-hidden="true"></i>
+                <i
+                  class="ni ni-single-copy-04 me-1"
+                  aria-hidden="true"
+                ></i>
                 {{
                   terminology.importing
                     ? 'Terminologie wird importiert…'
@@ -330,7 +431,10 @@
                 :disabled="terminology.importing"
                 @click="openTerminologyZipPicker"
               >
-                <i class="ni ni-archive-2 me-1" aria-hidden="true"></i>
+                <i
+                  class="ni ni-archive-2 me-1"
+                  aria-hidden="true"
+                ></i>
                 ZIPs lokal/Cloud importieren
               </button>
               <ReportImportPanel @completed="handleReportImportCompleted" />
@@ -339,7 +443,10 @@
                 :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
                 @click="refreshMediaPreload"
               >
-                <i class="ni ni-refresh-02 me-1" aria-hidden="true"></i>
+                <i
+                  class="ni ni-refresh-02 me-1"
+                  aria-hidden="true"
+                ></i>
                 Medien aktualisieren
               </button>
               <button
@@ -349,7 +456,10 @@
                 :aria-expanded="isContextPanelOpen"
                 @click="isContextPanelOpen = !isContextPanelOpen"
               >
-                <i class="ni ni-settings-gear-65 me-1" aria-hidden="true"></i>
+                <i
+                  class="ni ni-settings-gear-65 me-1"
+                  aria-hidden="true"
+                ></i>
                 {{ isContextPanelOpen ? 'Kontext ausblenden' : 'Kontext einblenden' }}
               </button>
             </div>
@@ -362,7 +472,10 @@
           >
             <strong>{{ templateAvailabilityLead }}</strong>
             <ul class="mb-0 ps-3">
-              <li v-for="item in templateAvailability" :key="item.template.name">
+              <li
+                v-for="item in templateAvailability"
+                :key="item.template.name"
+              >
                 {{ getReportTemplateDisplayName(item.template, flow.selectedReportLanguage) }} –
                 verfügbar für {{ templateAvailabilityExaminationLabel(item) }}
                 <code v-if="templateAvailabilityExaminationLabel(item) !== item.examinationName">
@@ -379,68 +492,88 @@
           >
             {{ templateAvailabilityError }}
           </div>
-          <div v-if="patientExaminationOptionsError" class="small text-danger mt-1">
+          <div
+            v-if="patientExaminationOptionsError"
+            class="small text-danger mt-1"
+          >
             {{ patientExaminationOptionsError }}
           </div>
-          <div v-if="caseOptionsError" class="small text-danger mt-1">
+          <div
+            v-if="caseOptionsError"
+            class="small text-danger mt-1"
+          >
             {{ caseOptionsError }}
           </div>
-          <div v-if="patientExaminationCreationError" class="small text-danger mt-1" role="alert">
+          <div
+            v-if="patientExaminationCreationError"
+            class="small text-danger mt-1"
+            role="alert"
+          >
             {{ patientExaminationCreationError }}
           </div>
-          <div v-if="templateSelectionError" class="small text-danger mt-1" role="alert">
+          <div
+            v-if="templateSelectionError"
+            class="small text-danger mt-1"
+            role="alert"
+          >
             {{ templateSelectionError }}
           </div>
         </div>
       </div>
-      <div class="context-summary-grid" data-testid="primary-context-summary">
+      <div
+        class="context-summary-grid"
+        data-testid="primary-context-summary"
+      >
         <div class="context-summary-item is-primary">
           <span class="context-summary-label">Jetzt</span>
-          <strong>{{ currentStepLabel }}</strong>
+          <strong class="context-summary-value">{{ currentStepLabel }}</strong>
         </div>
         <div class="context-summary-item">
           <span class="context-summary-label">Patient</span>
-          <strong>{{ patientHeaderLabel }}</strong>
+          <strong class="context-summary-value">{{ patientHeaderLabel }}</strong>
         </div>
         <div class="context-summary-item">
           <span class="context-summary-label">Untersuchung</span>
-          <strong>{{ examinationTypeLabel }}</strong>
+          <strong class="context-summary-value">{{ examinationTypeLabel }}</strong>
         </div>
       </div>
-      <details class="context-details mt-2" data-testid="context-details">
-        <summary>Weitere Kontextinformationen</summary>
+      <details
+        class="context-details mt-2"
+        data-testid="context-details"
+      >
+        <summary class="context-details-toggle">Weitere Kontextinformationen</summary>
         <div class="context-summary-grid mt-2">
           <div class="context-summary-item">
             <span class="context-summary-label">Geburtsdatum</span>
-            <strong>{{ patientBirthDateLabel }}</strong>
+            <strong class="context-summary-value">{{ patientBirthDateLabel }}</strong>
           </div>
           <div class="context-summary-item">
             <span class="context-summary-label">Technische Fallreferenz</span>
-            <strong>{{ caseIdLabel }}</strong>
+            <strong class="context-summary-value">{{ caseIdLabel }}</strong>
           </div>
           <div class="context-summary-item">
             <span class="context-summary-label">Status</span>
-            <strong>{{ caseStatusLabel }}</strong>
+            <strong class="context-summary-value">{{ caseStatusLabel }}</strong>
           </div>
           <div class="context-summary-item">
             <span class="context-summary-label">Terminologie</span>
-            <strong>{{ selectedTerminologyLabel }}</strong>
+            <strong class="context-summary-value">{{ selectedTerminologyLabel }}</strong>
           </div>
           <div class="context-summary-item">
             <span class="context-summary-label">Vorlage</span>
-            <strong>{{ selectedTemplateLabel }}</strong>
+            <strong class="context-summary-value">{{ selectedTemplateLabel }}</strong>
           </div>
           <div class="context-summary-item">
             <span class="context-summary-label">Berichtssprache</span>
-            <strong>{{ selectedReportLanguageLabel }}</strong>
+            <strong class="context-summary-value">{{ selectedReportLanguageLabel }}</strong>
           </div>
           <div class="context-summary-item">
             <span class="context-summary-label">Entwurf</span>
-            <strong>{{ draftSummaryLabel }}</strong>
+            <strong class="context-summary-value">{{ draftSummaryLabel }}</strong>
           </div>
           <div class="context-summary-item">
             <span class="context-summary-label">Medien</span>
-            <strong>{{ mediaPreloadLabel }}</strong>
+            <strong class="context-summary-value">{{ mediaPreloadLabel }}</strong>
           </div>
         </div>
       </details>
@@ -452,7 +585,11 @@
       >
         {{ terminologyImportMessage }}
       </div>
-      <div v-if="terminology.error" class="alert alert-warning py-2" role="alert">
+      <div
+        v-if="terminology.error"
+        class="alert alert-warning py-2"
+        role="alert"
+      >
         <div>Terminologieregister konnte nicht geladen werden: {{ terminology.error }}</div>
         <div class="small mb-2">Befunderfassung und Medien bleiben weiterhin verfügbar.</div>
         <button
@@ -473,12 +610,38 @@
         Keine aktive Terminologie. Befunde und Medien bleiben verfügbar; Vorlagenprüfung,
         Finalisierung und templateabhängiger Export werden nach Paketaktivierung ergänzt.
       </div>
-      <div v-if="reportLanguagesError" class="small text-danger mt-2">
+      <div
+        v-if="reportLanguagesError"
+        class="small text-danger mt-2"
+      >
         {{ reportLanguagesError }}
       </div>
     </section>
 
     <div class="reporting-workspace-toolbar">
+      <button
+        class="btn btn-primary btn-sm"
+        type="button"
+        data-testid="generate-llm-report"
+        :disabled="llmReport.busy.value || !llmReport.available.value"
+        :aria-busy="llmReport.busy.value"
+        @click="llmReport.generate"
+      >
+        <span
+          v-if="llmReport.busy.value"
+          class="spinner-border spinner-border-sm me-1"
+          aria-hidden="true"
+        ></span>
+        {{
+          llmReport.phase.value === 'checking'
+            ? 'LLM-Verfügbarkeit prüfen…'
+            : llmReport.phase.value === 'graph'
+              ? 'Untersuchungskontext laden…'
+              : llmReport.phase.value === 'generating'
+                ? 'KI-Bericht erstellen…'
+                : 'KI-Bericht erstellen'
+        }}
+      </button>
       <button
         class="btn btn-outline-secondary btn-sm"
         type="button"
@@ -486,9 +649,29 @@
         :aria-expanded="isTechnicalInspectorOpen"
         @click="isTechnicalInspectorOpen = !isTechnicalInspectorOpen"
       >
-        <i class="fas fa-sliders-h me-1" aria-hidden="true"></i>
+        <i
+          class="fas fa-sliders-h me-1"
+          aria-hidden="true"
+        ></i>
         {{ isTechnicalInspectorOpen ? 'Technische Details ausblenden' : 'Technische Details' }}
       </button>
+    </div>
+
+    <div
+      v-if="llmReport.error.value"
+      class="alert alert-danger py-2"
+      role="alert"
+      data-testid="llm-report-error"
+    >
+      {{ llmReport.error.value }}
+    </div>
+    <div
+      v-if="llmReport.notice.value"
+      class="alert alert-info py-2"
+      role="status"
+      data-testid="llm-report-notice"
+    >
+      {{ llmReport.notice.value }}
     </div>
 
     <div
@@ -510,11 +693,20 @@
             >
               {{ supersededEvaluationNotice }}
             </div>
-            <div v-if="draftBootstrapError" class="alert alert-warning py-2 mb-3">
+            <div
+              v-if="draftBootstrapError"
+              class="alert alert-warning py-2 mb-3"
+            >
               {{ draftBootstrapError }}
             </div>
-            <nav class="nav flex-column gap-1" aria-label="Berichtsablauf">
-              <template v-for="(item, index) in navItems" :key="item.to">
+            <nav
+              class="nav flex-column gap-1"
+              aria-label="Berichtsablauf"
+            >
+              <template
+                v-for="(item, index) in navItems"
+                :key="item.to"
+              >
                 <RouterLink
                   v-if="!isStepDisabled(item)"
                   :to="item.to"
@@ -552,13 +744,22 @@
               <h6 class="mb-0">Befundstatus</h6>
               <small class="text-muted">{{ findingProgressSummary }}</small>
             </div>
-            <span class="context-status-pill" :class="validationStatusPillClass">
+            <span
+              class="context-status-pill"
+              :class="validationStatusPillClass"
+            >
               {{ validationStatusLabel }}
             </span>
           </div>
           <div class="card-body p-0">
-            <div v-if="findingStatusRows.length" class="finding-status-controls p-3">
-              <label class="form-label small fw-semibold" for="finding-status-search">
+            <div
+              v-if="findingStatusRows.length"
+              class="finding-status-controls p-3"
+            >
+              <label
+                class="form-label small fw-semibold"
+                for="finding-status-search"
+              >
                 Befunde filtern
               </label>
               <input
@@ -568,7 +769,10 @@
                 type="search"
                 placeholder="Name oder Kennung"
               />
-              <label class="form-label small fw-semibold mt-2" for="finding-status-filter">
+              <label
+                class="form-label small fw-semibold mt-2"
+                for="finding-status-filter"
+              >
                 Status
               </label>
               <select
@@ -584,7 +788,10 @@
                 <option value="required">Erforderlich</option>
                 <option value="optional">Optional</option>
               </select>
-              <div class="finding-status-filter-summary mt-2" aria-live="polite">
+              <div
+                class="finding-status-filter-summary mt-2"
+                aria-live="polite"
+              >
                 {{ filteredFindingStatusSummary }}
                 <button
                   v-if="hasFindingStatusFilter"
@@ -596,7 +803,10 @@
                 </button>
               </div>
             </div>
-            <div v-if="findingStatusSections.length" class="finding-status-list">
+            <div
+              v-if="findingStatusSections.length"
+              class="finding-status-list"
+            >
               <section
                 v-for="section in findingStatusSections"
                 :key="section.key"
@@ -617,7 +827,10 @@
                   ]"
                   @click="selectedReferenceFindingKey = row.normalizedKey"
                 >
-                  <span class="finding-status-icon" aria-hidden="true">
+                  <span
+                    class="finding-status-icon"
+                    aria-hidden="true"
+                  >
                     <i :class="row.iconClass"></i>
                   </span>
                   <span class="finding-status-copy">
@@ -628,7 +841,10 @@
                 </RouterLink>
               </section>
             </div>
-            <div v-if="hasMoreFindingStatusRows" class="finding-status-more p-3 pt-2">
+            <div
+              v-if="hasMoreFindingStatusRows"
+              class="finding-status-more p-3 pt-2"
+            >
               <button
                 class="btn btn-outline-secondary btn-sm w-100"
                 type="button"
@@ -637,10 +853,17 @@
                 Weitere Befunde anzeigen
               </button>
             </div>
-            <div v-else-if="findingStatusRows.length" class="p-3 small text-muted" role="status">
+            <div
+              v-else-if="findingStatusRows.length"
+              class="p-3 small text-muted"
+              role="status"
+            >
               Keine Befunde entsprechen den gewählten Filtern.
             </div>
-            <div v-else class="p-3 small text-muted">
+            <div
+              v-else
+              class="p-3 small text-muted"
+            >
               Noch kein Template oder lokaler Befundentwurf für die Statusliste geladen.
             </div>
           </div>
@@ -663,41 +886,62 @@
               <h6 class="mb-0">Arbeitskontext</h6>
               <small class="text-muted">Fallstatus, Medien und nächste Aktion</small>
             </div>
-            <span class="context-status-pill" :class="`is-${flow.mediaPreloadStatus}`">
+            <span
+              class="context-status-pill"
+              :class="`is-${flow.mediaPreloadStatus}`"
+            >
               {{ mediaPreloadLabel }}
             </span>
           </div>
           <div class="card-body">
             <div class="context-quick-grid mb-3">
               <div class="context-tile">
-                <span>Entwurf</span>
-                <strong>{{ draftSummaryLabel }}</strong>
-                <small>{{ selectedPatientExaminationLabel }}</small>
-                <small>{{ selectedTemplateLabel }}</small>
-                <div v-if="draftBootstrapError" class="alert alert-warning py-2 mt-2 mb-0">
+                <span class="context-tile-label">Entwurf</span>
+                <strong class="context-tile-value">{{ draftSummaryLabel }}</strong>
+                <small class="context-tile-description">{{
+                  selectedPatientExaminationLabel
+                }}</small>
+                <small class="context-tile-description">{{ selectedTemplateLabel }}</small>
+                <div
+                  v-if="draftBootstrapError"
+                  class="alert alert-warning py-2 mt-2 mb-0"
+                >
                   {{ draftBootstrapError }}
                 </div>
               </div>
               <div class="context-tile">
-                <span>Medien</span>
-                <strong>{{ mediaPreloadLabel }}</strong>
-                <div v-if="flow.mediaPreloadError" class="alert alert-warning py-2 mt-2 mb-0">
+                <span class="context-tile-label">Medien</span>
+                <strong class="context-tile-value">{{ mediaPreloadLabel }}</strong>
+                <div
+                  v-if="flow.mediaPreloadError"
+                  class="alert alert-warning py-2 mt-2 mb-0"
+                >
                   {{ flow.mediaPreloadError }}
                 </div>
-                <small v-else>{{
-                  flow.mediaPreload ? 'Bericht, Video und Frames geladen' : 'Noch leer'
-                }}</small>
+                <small
+                  v-else
+                  class="context-tile-description"
+                  >{{
+                    flow.mediaPreload ? 'Bericht, Video und Frames geladen' : 'Noch leer'
+                  }}</small
+                >
               </div>
               <div class="context-tile">
-                <span>Nächster Schritt</span>
-                <strong>{{ nextStepHint }}</strong>
+                <span class="context-tile-label">Nächster Schritt</span>
+                <strong class="context-tile-value">{{ nextStepHint }}</strong>
               </div>
             </div>
-            <div v-if="flow.mediaPreload" class="row g-3">
+            <div
+              v-if="flow.mediaPreload"
+              class="row g-3"
+            >
               <div class="col-md-4">
                 <div class="media-context-card">
                   <div class="fw-semibold mb-1">Bericht</div>
-                  <div v-if="flow.mediaPreload.latestReport" class="small">
+                  <div
+                    v-if="flow.mediaPreload.latestReport"
+                    class="small"
+                  >
                     <div>ID: {{ flow.mediaPreload.latestReport.id }}</div>
                     <div>Typ: {{ flow.mediaPreload.latestReport.documentType || 'n/a' }}</div>
                     <div class="mt-2 d-flex flex-wrap gap-2">
@@ -727,7 +971,12 @@
                       </button>
                     </div>
                   </div>
-                  <div v-else class="small text-muted">Kein Bericht verfügbar.</div>
+                  <div
+                    v-else
+                    class="small text-muted"
+                  >
+                    Kein Bericht verfügbar.
+                  </div>
                   <button
                     class="btn btn-primary btn-sm w-100 mt-2"
                     type="button"
@@ -745,7 +994,10 @@
               <div class="col-md-4">
                 <div class="media-context-card">
                   <div class="fw-semibold mb-1">Video</div>
-                  <div v-if="flow.mediaPreload.latestVideo" class="small">
+                  <div
+                    v-if="flow.mediaPreload.latestVideo"
+                    class="small"
+                  >
                     <div>ID: {{ flow.mediaPreload.latestVideo.id }}</div>
                     <div class="mt-2 d-flex flex-wrap gap-2">
                       <button
@@ -780,20 +1032,70 @@
                       {{ reportingVideoPlaybackError.message }}
                     </div>
                   </div>
-                  <div v-else class="small text-muted">Kein Video verfügbar.</div>
+                  <div
+                    v-else
+                    class="small text-muted"
+                  >
+                    Kein Video verfügbar.
+                  </div>
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="media-context-card">
                   <div class="fw-semibold mb-1">Frames</div>
-                  <div v-if="flow.mediaPreload.latestFrames.length" class="small d-grid gap-2">
+                  <button
+                    class="btn btn-outline-secondary btn-sm mb-2"
+                    :disabled="frameCandidatesLoading"
+                    @click="loadFrameCandidates()"
+                  >
+                    Frames durchsuchen
+                  </button>
+                  <label
+                    for="report-frame-label"
+                    class="form-label small"
+                    >Nach vorherigem Label filtern</label
+                  >
+                  <select
+                    id="report-frame-label"
+                    v-model="frameFilterLabel"
+                    class="form-select form-select-sm mb-2"
+                    @change="loadFrameCandidates()"
+                  >
+                    <option value="">Alle Labels</option>
+                    <option
+                      v-for="label in frameFilterLabels"
+                      :key="label"
+                      :value="label"
+                    >
+                      {{ label }}
+                    </option>
+                  </select>
+                  <div
+                    v-if="frameCandidatesError"
+                    class="text-danger"
+                    role="alert"
+                  >
+                    {{ frameCandidatesError }}
+                  </div>
+                  <div
+                    v-if="frameCandidatesLoading"
+                    class="small text-muted"
+                  >
+                    Frames werden geladen…
+                  </div>
+                  <div class="small d-grid gap-2">
                     <button
-                      v-for="frame in flow.mediaPreload.latestFrames"
+                      v-for="frame in visibleReportFrames"
                       :key="`${frame.videoId}-${frame.frameNumber}`"
                       class="btn btn-outline-secondary btn-sm text-start"
-                      @click="selectFrameStream(frame.streamUrl)"
+                      @click="selectFrameStream(frame)"
                     >
-                      #{{ frame.frameNumber }} · {{ frame.category || 'fallback' }}
+                      Video {{ frame.videoId }} · #{{ frame.frameNumber }} ·
+                      {{
+                        'labels' in frame
+                          ? frame.labels.join(', ')
+                          : frame.segmentLabel || frame.category || ''
+                      }}
                     </button>
                     <img
                       v-if="selectedFrameStreamUrl"
@@ -801,12 +1103,84 @@
                       :src="selectedFrameStreamUrl"
                       alt="Selected frame stream preview"
                     />
+                    <span
+                      v-if="framePreview.loading.value"
+                      class="text-muted"
+                      >Frame wird geladen…</span
+                    >
+                    <span
+                      v-if="framePreview.error.value"
+                      class="text-danger"
+                      role="alert"
+                      >{{ framePreview.error.value }}</span
+                    >
                   </div>
-                  <div v-else class="small text-muted">Keine Frames verfügbar.</div>
+                  <div
+                    v-if="!visibleReportFrames.length && !frameCandidatesLoading"
+                    class="small text-muted"
+                  >
+                    Keine Frames verfügbar.
+                  </div>
+                  <button
+                    v-if="frameCandidatesNextOffset !== null"
+                    class="btn btn-outline-secondary btn-sm"
+                    :disabled="frameCandidatesLoading"
+                    @click="loadFrameCandidates(true)"
+                  >
+                    Weitere Frames
+                  </button>
+                  <button
+                    class="btn btn-primary btn-sm mt-2"
+                    :disabled="!canAddReportFrame"
+                    data-test="add-report-frame"
+                    @click="
+                      flow.preferredReportFrame && flow.addReportFrame(flow.preferredReportFrame)
+                    "
+                  >
+                    Zum Bericht hinzufügen
+                  </button>
+                  <div
+                    class="small mt-2"
+                    aria-live="polite"
+                  >
+                    <template v-if="flow.selectedReportFrames != null"
+                      >{{ flow.selectedReportFrames.length }} / 24 Bilder ausgewählt</template
+                    >
+                    <template v-else
+                      >Ohne eigene Auswahl wird das zuletzt angeklickte Bild bevorzugt.</template
+                    >
+                  </div>
+                  <ul
+                    v-if="flow.selectedReportFrames?.length"
+                    class="list-unstyled mt-2"
+                  >
+                    <li
+                      v-for="frame in flow.selectedReportFrames"
+                      :key="`${frame.videoId}-${frame.frameNumber}`"
+                      class="d-flex gap-2 align-items-center mb-1"
+                    >
+                      <button
+                        class="btn btn-link btn-sm"
+                        @click="selectFrameStream(frame)"
+                      >
+                        Video {{ frame.videoId }} · #{{ frame.frameNumber }}
+                      </button>
+                      <button
+                        class="btn btn-outline-danger btn-sm"
+                        :aria-label="`Frame ${frame.frameNumber} entfernen`"
+                        @click="flow.removeReportFrame(frame)"
+                      >
+                        Entfernen
+                      </button>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>
-            <div v-else class="small text-muted">
+            <div
+              v-else
+              class="small text-muted"
+            >
               Noch keine zuletzt geladenen Medien verfügbar.
             </div>
           </div>
@@ -840,8 +1214,11 @@
                 · {{ conceptCoverage.identity.templateDigest.slice(0, 12) }}…
               </small>
             </div>
-            <span class="context-status-pill" :class="conceptCoveragePillClass">
-              {{ conceptCoverageSummaryLabel }}
+            <span
+              class="context-status-pill"
+              :class="conceptCoveragePresentation.pillClass"
+            >
+              {{ conceptCoveragePresentation.label }}
             </span>
           </div>
           <div class="card-body">
@@ -868,7 +1245,10 @@
               }}
               · Evidenz {{ conceptCoverage.provenance.evidenceDigest.slice(0, 12) }}…
             </small>
-            <div v-if="conceptCoverage.items.length" class="d-grid gap-2">
+            <div
+              v-if="conceptCoverage.items.length"
+              class="d-grid gap-2"
+            >
               <div
                 v-for="item in conceptCoverage.items"
                 :key="item.conceptId"
@@ -877,19 +1257,31 @@
               >
                 <span>
                   <span class="fw-semibold">{{ item.label }}</span>
-                  <span v-if="item.kind === 'classification'" class="text-muted">
+                  <span
+                    v-if="item.kind === 'classification'"
+                    class="text-muted"
+                  >
                     · {{ item.finding }}
                   </span>
-                  <small v-if="item.messages.length" class="d-block text-danger">
+                  <small
+                    v-if="item.messages.length"
+                    class="d-block text-danger"
+                  >
                     {{ item.messages.join(' ') }}
                   </small>
                 </span>
-                <span class="text-nowrap" :class="`text-${conceptCoverageStatusTone(item.status)}`">
+                <span
+                  class="text-nowrap"
+                  :class="`text-${conceptCoverageStatusTone(item.status)}`"
+                >
                   {{ conceptCoverageStatusLabel(item.status) }}
                 </span>
               </div>
             </div>
-            <div v-else class="small text-muted">
+            <div
+              v-else
+              class="small text-muted"
+            >
               Kein Berichtstemplate oder keine LXDM-Konzepte geladen.
             </div>
             <small class="d-block text-muted mt-3">
@@ -914,20 +1306,26 @@
             </div>
           </div>
           <div class="card-body">
-            <div v-if="templateReferenceError" class="alert alert-warning py-2 small">
+            <div
+              v-if="templateReferenceError"
+              class="alert alert-warning py-2 small"
+            >
               {{ templateReferenceError }}
             </div>
 
             <template v-if="activeReferenceFinding">
               <div class="kb-focus-block mb-3">
-                <span>Aktiver Befund</span>
-                <strong>{{ activeReferenceFinding.label }}</strong>
-                <small>{{ activeFindingDescription }}</small>
+                <span class="kb-focus-label">Aktiver Befund</span>
+                <strong class="kb-focus-value">{{ activeReferenceFinding.label }}</strong>
+                <small class="kb-focus-description">{{ activeFindingDescription }}</small>
               </div>
 
               <div class="kb-reference-group">
-                <h6>Klassifikationen</h6>
-                <div v-if="activeReferenceClassifications.length" class="kb-classification-list">
+                <h6 class="kb-reference-heading">Klassifikationen</h6>
+                <div
+                  v-if="activeReferenceClassifications.length"
+                  class="kb-classification-list"
+                >
                   <div
                     v-for="classification in activeReferenceClassifications"
                     :key="classification.key"
@@ -942,25 +1340,40 @@
                         {{ classification.required ? 'erforderlich' : 'optional' }}
                       </span>
                     </div>
-                    <small v-if="classification.choicesLabel">
+                    <small
+                      v-if="classification.choicesLabel"
+                      class="kb-classification-description"
+                    >
                       {{ classification.choicesLabel }}
                     </small>
-                    <small v-if="classification.inputLabel">
+                    <small
+                      v-if="classification.inputLabel"
+                      class="kb-classification-description"
+                    >
                       {{ classification.inputLabel }}
                     </small>
-                    <small v-if="classification.description">
+                    <small
+                      v-if="classification.description"
+                      class="kb-classification-description"
+                    >
                       {{ classification.description }}
                     </small>
                   </div>
                 </div>
-                <div v-else class="small text-muted">
+                <div
+                  v-else
+                  class="small text-muted"
+                >
                   Keine Klassifikationen im aktuellen Template hinterlegt.
                 </div>
               </div>
 
               <div class="kb-reference-group">
-                <h6>PatientLedger</h6>
-                <div v-if="activeFindingInstances.length" class="runtime-instance-list">
+                <h6 class="kb-reference-heading">PatientLedger</h6>
+                <div
+                  v-if="activeFindingInstances.length"
+                  class="runtime-instance-list"
+                >
                   <div
                     v-for="instance in activeFindingInstances"
                     :key="instance.localId || instance.finding"
@@ -969,14 +1382,20 @@
                     {{ formatRuntimeFindingInstance(instance) }}
                   </div>
                 </div>
-                <div v-else class="small text-muted">
+                <div
+                  v-else
+                  class="small text-muted"
+                >
                   Keine lokale Instanz dieses Befunds im Entwurf.
                 </div>
               </div>
 
               <div class="kb-reference-group">
-                <h6>Regelhinweise</h6>
-                <div v-if="activeAdviceRows.length" class="kb-advice-list">
+                <h6 class="kb-reference-heading">Regelhinweise</h6>
+                <div
+                  v-if="activeAdviceRows.length"
+                  class="kb-advice-list"
+                >
                   <div
                     v-for="row in activeAdviceRows"
                     :key="row.key"
@@ -987,19 +1406,29 @@
                       <strong>{{ row.title }}</strong>
                       <span>{{ row.kind }}</span>
                     </div>
-                    <small>{{ row.detail }}</small>
-                    <small v-for="message in row.messages" :key="message">
+                    <small class="kb-advice-description">{{ row.detail }}</small>
+                    <small
+                      v-for="message in row.messages"
+                      :key="message"
+                      class="kb-advice-description"
+                    >
                       {{ message }}
                     </small>
                   </div>
                 </div>
-                <div v-else class="small text-muted">
+                <div
+                  v-else
+                  class="small text-muted"
+                >
                   Keine kontextbezogenen Laufzeitregeln für diesen Befund.
                 </div>
               </div>
 
-              <div v-if="activeSuggestedActions.length" class="kb-reference-group">
-                <h6>Vorschläge</h6>
+              <div
+                v-if="activeSuggestedActions.length"
+                class="kb-reference-group"
+              >
+                <h6 class="kb-reference-heading">Vorschläge</h6>
                 <div class="kb-suggestion-list">
                   <div
                     v-for="suggestion in activeSuggestedActions"
@@ -1012,7 +1441,10 @@
               </div>
             </template>
 
-            <div v-else class="small text-muted">
+            <div
+              v-else
+              class="small text-muted"
+            >
               Wählen Sie einen Fall mit Template, um die KB-Referenz zu sehen.
             </div>
           </div>
@@ -1040,6 +1472,11 @@ import {
   type ReportLanguageOption
 } from '@/api/reportingLanguagesApi'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
+import { reportVerbosityLabels, type ReportVerbosity } from '@/types/reportTemplate'
+import { useLlmReportGeneration } from '@/composables/reporting/useLlmReportGeneration'
+import { useAuthenticatedFramePreview } from '@/composables/useAuthenticatedFramePreview'
+import { fetchReportFrameCandidates, type ReportFrameCandidate } from '@/api/reportExportApi'
+import type { ReportFrameSelection } from '@/utils/frameStreams'
 import {
   buildReportTemplateRuntimePayload,
   describeReportTemplateTitle,
@@ -1047,7 +1484,7 @@ import {
   getReportTemplateSectionDisplayName
 } from '@/api/reportTemplatesApi'
 import {
-  getFindingDisplayName,
+  getFindingCatalogLocalizedName,
   mergeFindingClassifications,
   type Finding,
   type FindingClassification
@@ -1098,6 +1535,13 @@ import {
   type ReportingDagInputs
 } from './reportingResolutionGraph'
 
+import {
+  groupValidationMessages,
+  descriptorLabelsForSections,
+  filterFindingStatuses,
+  type FindingStatusFilter
+} from './reportingValidationPresentation'
+
 const logger = createRuntimeLogger('reporting-shell')
 import {
   conceptCoverageStatusLabel,
@@ -1126,18 +1570,12 @@ const examinationStore = useExaminationStore()
 const patientExaminationStore = usePatientExaminationStore()
 const reportingVideoElement = ref<HTMLVideoElement | null>(null)
 const selectedVideoArtifactKind = ref<StreamableVideoFileType>('processed')
-const selectedFrameStreamUrl = ref<string | null>(null)
+const framePreview = useAuthenticatedFramePreview()
+const selectedFrameStreamUrl = framePreview.imageUrl
+let frameSelectionGeneration = 0
 const isContextPanelOpen = ref(false)
 const isTechnicalInspectorOpen = ref(false)
 const findingStatusQuery = ref('')
-type FindingStatusFilter =
-  | 'open'
-  | 'missing'
-  | 'warning'
-  | 'all'
-  | 'complete'
-  | 'required'
-  | 'optional'
 const findingStatusFilter = ref<FindingStatusFilter>('open')
 const FINDING_STATUS_PAGE_SIZE = 50
 const findingStatusVisibleLimit = ref(FINDING_STATUS_PAGE_SIZE)
@@ -1284,7 +1722,9 @@ const emptyTemplateIdentity: ReportTemplateIdentity = {
 }
 const routePatientExaminationId = computed<number | null>(() => {
   const parsed = Number(route.params.patient_examination_id)
-  if (!Number.isFinite(parsed)) return null
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
   return parsed > 0 ? parsed : null
 })
 const routePatientId = computed<number | null>(() => {
@@ -1300,6 +1740,11 @@ const selectedPatientExaminationId = computed(
 const activePatientExaminationId = computed(
   () => routePatientExaminationId.value ?? flow.patientExaminationId
 )
+watch([activePatientExaminationId, () => flow.authSubject], () => {
+  frameSelectionGeneration += 1
+  framePreview.clear()
+  flow.setPreferredReportFrame(null, 'idle')
+})
 const findingsStepTarget = computed(() =>
   activePatientExaminationId.value
     ? `/reporting/${String(activePatientExaminationId.value)}/findings`
@@ -1326,7 +1771,9 @@ const finalizedStepTarget = computed(() =>
     : '/reporting'
 )
 const reportEditorTarget = computed(() => {
-  if (!activePatientExaminationId.value) return null
+  if (!activePatientExaminationId.value) {
+    return null
+  }
   return `/reporting/${String(activePatientExaminationId.value)}/report-editor`
 })
 const canNavigateToReportEditor = computed(() => Boolean(reportEditorTarget.value))
@@ -1335,7 +1782,9 @@ watch(
   routePatientId,
   async (patientId) => {
     if (patientId && patientId !== flow.selectedPatientId) {
-      if (!(await flushDraftBeforeContextSwitch(null))) return
+      if (!(await flushDraftBeforeContextSwitch(null))) {
+        return
+      }
       draftBootstrapGeneration += 1
       draftBootstrapInFlight.value = null
       flow.setPatientExaminationContext({
@@ -1505,24 +1954,27 @@ function reportSupersededEvaluation(
 
 const draftSummaryLabel = computed(() => {
   const draft = flow.currentRuntimeDraft
-  if (!draft) return 'leer'
-  if (draft.verificationStatus === 'unverified') return 'vorhanden · ungeprüft'
+  if (!draft) {
+    return 'leer'
+  }
+  if (draft.verificationStatus === 'unverified') {
+    return 'vorhanden · ungeprüft'
+  }
   return draft.hydratedFrom === 'session_storage' || draft.hydratedFrom === 'draft_api'
     ? 'wiederhergestellt'
     : 'initialisiert'
 })
 
-const selectedPatientExaminationLabel = computed(() => {
-  const selected =
-    patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
-    patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
-    null
-  if (selected) return selected.label
-  return flow.patientExaminationId ? `#${String(flow.patientExaminationId)}` : 'Noch nicht gewählt'
-})
+const selectedPatientExaminationLabel = computed(
+  () =>
+    selectedPatientExaminationOption.value?.label ||
+    (flow.patientExaminationId ? `#${String(flow.patientExaminationId)}` : 'Noch nicht gewählt')
+)
 
 const selectedTemplateLabel = computed(() => {
-  if (!flow.selectedTemplateName) return 'Noch keine Vorlage gewählt'
+  if (!flow.selectedTemplateName) {
+    return 'Noch keine Vorlage gewählt'
+  }
   const template = availableTemplates.value.find(
     (entry) => entry.name === flow.selectedTemplateName
   )
@@ -1558,9 +2010,9 @@ const selectedReportLanguageLabel = computed(
       ?.label || flow.selectedReportLanguage.toUpperCase()
 )
 
-const visibleTerminologyBundles = computed(() => {
-  return terminology.filteredBundles.length ? terminology.filteredBundles : terminology.bundles
-})
+const visibleTerminologyBundles = computed(() =>
+  terminology.filteredBundles.length ? terminology.filteredBundles : terminology.bundles
+)
 
 async function loadReportingLanguages() {
   reportLanguagesLoading.value = true
@@ -1582,15 +2034,20 @@ async function loadReportingLanguages() {
   }
 }
 
-const currentStepLabel = computed(() => {
-  const current = navItems.value.find((item) => isActive(item.to))
-  return current?.label || 'Arbeitsbereich'
-})
+const currentStepLabel = computed(
+  () => navItems.value.find((item) => isActive(item.to))?.label || 'Arbeitsbereich'
+)
 
 const mediaPreloadLabel = computed(() => {
-  if (flow.mediaPreloadStatus === 'idle') return 'nicht geladen'
-  if (flow.mediaPreloadStatus === 'loading') return 'wird geladen'
-  if (flow.mediaPreloadStatus === 'error') return 'Fehler'
+  if (flow.mediaPreloadStatus === 'idle') {
+    return 'nicht geladen'
+  }
+  if (flow.mediaPreloadStatus === 'loading') {
+    return 'wird geladen'
+  }
+  if (flow.mediaPreloadStatus === 'error') {
+    return 'Fehler'
+  }
   return 'bereit'
 })
 
@@ -1604,6 +2061,63 @@ const selectedPatientExaminationOption = computed(() => {
 
 const currentPayload = computed(() => flow.currentRuntimeDraft?.payload || null)
 
+const reportVerbosityOptions = computed<ReportVerbosity[]>(
+  () => templateReference.value?.verbosityOptions ?? ['standard']
+)
+watch(
+  () => [flow.selectedTemplateName, reportVerbosityOptions.value] as const,
+  () => {
+    flow.selectedReportVerbosity = 'standard'
+  },
+  { immediate: true }
+)
+
+const llmReport = useLlmReportGeneration({
+  getContext: () => {
+    const draft = flow.currentRuntimeDraft
+    const identity = flow.selectedTemplateIdentity
+    if (
+      !activePatientExaminationId.value ||
+      !draft ||
+      draft.verificationStatus !== 'verified' ||
+      draft.patientExaminationId !== activePatientExaminationId.value ||
+      !identity?.moduleName ||
+      !identity.knowledgeBaseVersion ||
+      identity.moduleName !== activeKbModule.value ||
+      identity.knowledgeBaseVersion !== activeKbVersion.value ||
+      identity.lifecycleStatus !== 'published' ||
+      !flow.selectedTemplateName ||
+      draft.templateName !== flow.selectedTemplateName ||
+      !draft.payload.examination ||
+      templateReferenceLoading.value ||
+      flow.draftPersistenceStatus === 'conflict'
+    ) {
+      return null
+    }
+    return {
+      patientExaminationId: activePatientExaminationId.value,
+      moduleName: identity.moduleName,
+      moduleVersion: identity.knowledgeBaseVersion,
+      examinationName: draft.payload.examination,
+      templateName: flow.selectedTemplateName,
+      templateIdentity: identity,
+      language: flow.selectedReportLanguage,
+      verbosity: flow.selectedReportVerbosity,
+      documentedFindings: draft.payload.patientFindings,
+      sectionNotes: Object.entries(flow.templateSectionDrafts).flatMap(([name, section]) =>
+        section ? [{ name, note: section.note }] : []
+      ),
+      existingText: flow.renderedReportText
+    }
+  },
+  applyText: (text, patientExaminationId) => {
+    flow.setRenderedReportText(text, 'manual')
+    void router.push(`/reporting/${String(patientExaminationId)}/report-editor`)
+  },
+  confirmReplace: () =>
+    window.confirm('Vorhandenen Berichtstext durch einen neuen KI-Entwurf ersetzen?')
+})
+
 const caseIdLabel = computed(() => flow.caseId || 'Noch nicht gewählt')
 
 const selectedPatientCase = computed(
@@ -1616,8 +2130,12 @@ const patientHeaderLabel = computed(() => {
     .filter(Boolean)
     .join(' ')
     .trim()
-  if (timelineName) return timelineName
-  if (timelinePatient?.patientHash) return timelinePatient.patientHash
+  if (timelineName) {
+    return timelineName
+  }
+  if (timelinePatient?.patientHash) {
+    return timelinePatient.patientHash
+  }
 
   const detailPatient = readRecord(patientExaminationDetail.value?.patient)
   const detailName = [
@@ -1627,11 +2145,17 @@ const patientHeaderLabel = computed(() => {
     .filter(Boolean)
     .join(' ')
     .trim()
-  if (detailName) return detailName
+  if (detailName) {
+    return detailName
+  }
 
   const detailHash = readString(detailPatient, 'patientHash', 'patient_hash', 'hash', 'pseudonym')
-  if (detailHash) return detailHash
-  if (currentPayload.value?.patient) return currentPayload.value.patient
+  if (detailHash) {
+    return detailHash
+  }
+  if (currentPayload.value?.patient) {
+    return currentPayload.value.patient
+  }
   return flow.selectedPatientId ? 'Patient ausgewählt' : 'Nicht gewählt'
 })
 
@@ -1677,9 +2201,15 @@ const examinationTypeLabel = computed(() => {
 })
 
 const caseStatusLabel = computed(() => {
-  if (selectedPatientCase.value?.isClosed) return 'Fall geschlossen'
-  if (selectedPatientCase.value?.isActive) return 'Fall aktiv'
-  if (selectedPatientCase.value) return 'Fall inaktiv'
+  if (selectedPatientCase.value?.isClosed) {
+    return 'Fall geschlossen'
+  }
+  if (selectedPatientCase.value?.isActive) {
+    return 'Fall aktiv'
+  }
+  if (selectedPatientCase.value) {
+    return 'Fall inaktiv'
+  }
   return (
     readString(
       patientExaminationDetail.value,
@@ -1699,12 +2229,16 @@ const caseStatusLabel = computed(() => {
 })
 
 const validationStatusLabel = computed(() => {
-  if (!flow.lastTemplateValidation) return 'ungeprüft'
+  if (!flow.lastTemplateValidation) {
+    return 'ungeprüft'
+  }
   return flow.lastTemplateValidation.ok ? 'valide' : 'offen'
 })
 
 const validationStatusPillClass = computed(() => {
-  if (!flow.lastTemplateValidation) return 'is-idle'
+  if (!flow.lastTemplateValidation) {
+    return 'is-idle'
+  }
   return flow.lastTemplateValidation.ok ? 'is-ready' : 'is-error'
 })
 
@@ -1713,6 +2247,14 @@ const templateSectionsForReference = computed(() =>
     .slice()
     .sort((left, right) => (left.position || 0) - (right.position || 0))
 )
+
+const descriptorLabelsByName = computed(() =>
+  descriptorLabelsForSections(templateSectionsForReference.value)
+)
+
+function getDescriptorLabel(name: string): string {
+  return descriptorLabelsByName.value.get(normalizeKey(name)) || formatKnowledgeName(name)
+}
 
 const conceptCoverage = computed(() =>
   resolveReportConceptCoverage({
@@ -1733,62 +2275,28 @@ const conceptCoverageSubtitle = computed(() => {
   return `${moduleName} · ${version}`
 })
 
-const conceptCoverageSummaryLabel = computed(() => {
+const conceptCoveragePresentation = computed(() => {
   const counts = conceptCoverage.value.counts
-  if (!conceptCoverage.value.items.length) return 'ungeprüft'
-  if (counts.invalid || counts.missing) return `${String(counts.invalid + counts.missing)} offen`
-  if (counts.unknown) return `${String(counts.unknown)} ungeklärt`
-  return `${String(counts.present)} nachgewiesen`
+  if (!conceptCoverage.value.items.length) {
+    return { label: 'ungeprüft', pillClass: 'is-idle' }
+  }
+  const openCount = counts.invalid + counts.missing
+  if (counts.invalid || counts.missing) {
+    return { label: `${String(openCount)} offen`, pillClass: 'is-error' }
+  }
+  if (counts.unknown) {
+    return { label: `${String(counts.unknown)} ungeklärt`, pillClass: 'is-warning' }
+  }
+  return { label: `${String(counts.present)} nachgewiesen`, pillClass: 'is-ready' }
 })
 
-const conceptCoveragePillClass = computed(() => {
-  const counts = conceptCoverage.value.counts
-  if (!conceptCoverage.value.items.length) return 'is-idle'
-  if (counts.invalid || counts.missing) return 'is-error'
-  if (counts.unknown) return 'is-warning'
-  return 'is-ready'
-})
+const catalogFindingsByName = computed(
+  () => new Map(findingCatalog.value.map((finding) => [normalizeKey(finding.name), finding]))
+)
 
-const catalogFindingsByName = computed(() => {
-  const entries = findingCatalog.value.map(
-    (finding) => [normalizeKey(finding.name), finding] as const
-  )
-  return new Map<string, Finding>(entries)
-})
-
-const validationIssueMessagesByFinding = computed(() => {
-  const grouped = new Map<string, string[]>()
-  const addMessages = (findingName: string, messages: string[]) => {
-    const key = normalizeKey(findingName)
-    const current = grouped.get(key) || []
-    grouped.set(key, Array.from(new Set([...current, ...messages.filter(Boolean)])))
-  }
-
-  for (const validator of flow.lastTemplateValidation?.findingsValidators || []) {
-    const messages = validator.issues.map((issue) => issue.message)
-    if (!validator.ok && !messages.length) messages.push(`Regel "${validator.name}" ist offen.`)
-    addMessages(validator.finding, messages)
-  }
-  for (const validator of flow.lastTemplateValidation?.classificationValidators || []) {
-    const messages = validator.issues.map((issue) => issue.message)
-    if (!validator.ok && !messages.length)
-      messages.push(`Klassifikation "${validator.classification}" prüfen.`)
-    addMessages(validator.finding, messages)
-  }
-  for (const validator of flow.lastTemplateValidation?.interventionValidators || []) {
-    const messages = validator.issues.map((issue) => issue.message)
-    if (!validator.ok && !messages.length)
-      messages.push(`Intervention "${validator.intervention}" prüfen.`)
-    addMessages(validator.finding, messages)
-  }
-  for (const validator of flow.lastTemplateValidation?.unitValidators || []) {
-    const messages = validator.issues.map((issue) => issue.message)
-    if (!validator.ok && !messages.length) messages.push(`Einheit "${validator.unit}" prüfen.`)
-    addMessages(validator.finding, messages)
-  }
-
-  return grouped
-})
+const validationIssueMessagesByFinding = computed(() =>
+  groupValidationMessages(flow.lastTemplateValidation)
+)
 
 const findingStatusRows = computed<FindingStatusRow[]>(() => {
   const rows: FindingStatusRow[] = []
@@ -1809,7 +2317,9 @@ const findingStatusRows = computed<FindingStatusRow[]>(() => {
     }
   }
 
-  if (rows.length) return rows
+  if (rows.length) {
+    return rows
+  }
 
   return (currentPayload.value?.patientFindings || []).map((finding) =>
     buildFindingStatusRow({
@@ -1822,25 +2332,13 @@ const findingStatusRows = computed<FindingStatusRow[]>(() => {
   )
 })
 
-const filteredFindingStatusRows = computed(() => {
-  const query = normalizeKey(findingStatusQuery.value)
-  return findingStatusRows.value.filter((row) => {
-    const statusMatches =
-      findingStatusFilter.value === 'all' ||
-      (findingStatusFilter.value === 'missing' && row.status === 'missing') ||
-      (findingStatusFilter.value === 'warning' && row.status === 'warning') ||
-      (findingStatusFilter.value === 'complete' && row.status === 'complete') ||
-      (findingStatusFilter.value === 'required' && row.required) ||
-      (findingStatusFilter.value === 'optional' && !row.required) ||
-      (findingStatusFilter.value === 'open' &&
-        (row.status === 'warning' || row.status === 'missing'))
-    if (!statusMatches) return false
-    if (!query) return true
-    return [row.label, row.findingName, row.sectionTitle].some((value) =>
-      normalizeKey(value).includes(query)
-    )
-  })
-})
+const filteredFindingStatusRows = computed(() =>
+  filterFindingStatuses(
+    findingStatusRows.value,
+    findingStatusFilter.value,
+    findingStatusQuery.value
+  )
+)
 
 const findingStatusSections = computed<FindingStatusSection[]>(() => {
   const sections = new Map<string, FindingStatusSection>()
@@ -1887,7 +2385,9 @@ watch([findingStatusQuery, findingStatusFilter], () => {
 
 const findingProgressSummary = computed(() => {
   const rows = findingStatusRows.value
-  if (!rows.length) return 'Keine Befunde'
+  if (!rows.length) {
+    return 'Keine Befunde'
+  }
   const complete = rows.filter((row) => row.status === 'complete').length
   const open = rows.filter((row) => row.status === 'warning' || row.status === 'missing').length
   return open
@@ -1925,13 +2425,17 @@ const activeReferenceFinding = computed(
 
 const activeFindingInstances = computed(() => {
   const active = activeReferenceFinding.value
-  if (!active) return []
+  if (!active) {
+    return []
+  }
   return instancesForFinding(active.findingName)
 })
 
 const activeFindingCatalogDefinition = computed(() => {
   const active = activeReferenceFinding.value
-  if (!active) return null
+  if (!active) {
+    return null
+  }
   return catalogFindingsByName.value.get(normalizeKey(active.findingName)) || null
 })
 
@@ -1942,7 +2446,9 @@ const activeFindingDescription = computed(() => {
 
 const activeReferenceClassifications = computed<KbClassificationReference[]>(() => {
   const active = activeReferenceFinding.value
-  if (!active) return []
+  if (!active) {
+    return []
+  }
 
   const templateClassifications = active.templateFinding?.classifications || []
   const catalogClassifications = mergeFindingClassifications(activeFindingCatalogDefinition.value)
@@ -1951,9 +2457,6 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
       normalizeKey(classification.name),
       classification
     ])
-  )
-  const templateKeys = templateClassifications.map((classification) =>
-    normalizeKey(classification.classification)
   )
   const source =
     templateClassifications.length > 0
@@ -1971,14 +2474,14 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
         }))
 
   return source
-    .filter((classification, index, all) => {
-      if (templateKeys.length && !templateKeys.includes(classification.key)) return false
-      return all.findIndex((entry) => entry.key === classification.key) === index
-    })
+    .filter(
+      (classification, index, all) =>
+        all.findIndex((entry) => entry.key === classification.key) === index
+    )
     .map((classification) => {
       const catalog = catalogByName.get(classification.key)
       const choices = (catalog?.choices || [])
-        .map((choice) => choice.displayName || choice.name)
+        .map((choice) => getFindingCatalogLocalizedName(choice, 'de'))
         .filter(Boolean)
       const descriptorInputs = (classification.input?.choices || []).flatMap(
         (choice) => choice.descriptors
@@ -1987,13 +2490,16 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
         new Set(
           descriptorInputs.map((descriptor) => {
             const unit = descriptor.unitAbbreviation || descriptor.unit
-            return unit ? `${descriptor.type} (${unit})` : descriptor.type
+            const label = getDescriptorLabel(descriptor.name)
+            return unit ? `${label} (${unit})` : label
           })
         )
       )
       return {
         key: classification.key,
-        label: catalog?.displayName || formatKnowledgeName(classification.name),
+        label: catalog
+          ? getFindingCatalogLocalizedName(catalog, 'de')
+          : formatKnowledgeName(classification.name),
         required: classification.required,
         choicesLabel: choices.length ? `Werte: ${choices.join(', ')}` : '',
         inputLabel: descriptorLabels.length
@@ -2006,13 +2512,17 @@ const activeReferenceClassifications = computed<KbClassificationReference[]>(() 
 
 const activeAdviceRows = computed<KbAdviceRow[]>(() => {
   const active = activeReferenceFinding.value
-  if (!active) return []
+  if (!active) {
+    return []
+  }
   return [...interventionAdviceRows(active.findingName), ...unitAdviceRows(active.findingName)]
 })
 
 const activeSuggestedActions = computed(() => {
   const active = activeReferenceFinding.value
-  if (!active) return []
+  if (!active) {
+    return []
+  }
   const suggestions = [
     ...collectValidatorSuggestions(interventionValidatorsForFinding(active.findingName)),
     ...collectValidatorSuggestions(unitValidatorsForFinding(active.findingName)),
@@ -2024,7 +2534,9 @@ const activeSuggestedActions = computed(() => {
 const kbReferenceSubtitle = computed(() => {
   const moduleName = activeKbModule.value || 'Keine aktive Terminologie'
   const templateName = templateReference.value?.name || flow.selectedTemplateName
-  if (!templateName) return `${moduleName} · kein Template`
+  if (!templateName) {
+    return `${moduleName} · kein Template`
+  }
   return `${moduleName} · ${templateName}`
 })
 
@@ -2054,17 +2566,99 @@ const nextStepHint = computed(() => {
 })
 
 function openUrl(url: string | null) {
-  if (!url) return
+  if (!url) {
+    return
+  }
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 function selectVideoStream(artifactKind: string | null) {
-  if (!isVideoArtifactKind(artifactKind)) return
+  if (!isVideoArtifactKind(artifactKind)) {
+    return
+  }
   selectedVideoArtifactKind.value = artifactKind
 }
 
-function selectFrameStream(url: string | null) {
-  selectedFrameStreamUrl.value = url
+const frameFilterLabel = ref('')
+const frameCandidates = ref<ReportFrameCandidate[] | null>(null)
+const frameFilterLabels = ref<string[]>([])
+const frameCandidatesLoading = ref(false)
+const frameCandidatesError = ref('')
+const frameCandidatesNextOffset = ref<number | null>(null)
+let frameCandidatesGeneration = 0
+const visibleReportFrames = computed(
+  () => frameCandidates.value ?? flow.mediaPreload?.latestFrames ?? []
+)
+const canAddReportFrame = computed(() => {
+  const frame = flow.preferredReportFrame
+  return (
+    frame &&
+    flow.reportFrameSelectionStatus === 'ready' &&
+    (flow.selectedReportFrames?.length ?? 0) < 24 &&
+    !flow.selectedReportFrames?.some(
+      (item) => item.videoId === frame.videoId && item.frameNumber === frame.frameNumber
+    )
+  )
+})
+async function loadFrameCandidates(append = false) {
+  const examinationId = activePatientExaminationId.value
+  if (!examinationId) {
+    return
+  }
+  const generation = ++frameCandidatesGeneration
+  frameCandidatesLoading.value = true
+  frameCandidatesError.value = ''
+  if (!append) {
+    frameCandidates.value = []
+    frameCandidatesNextOffset.value = null
+  }
+  try {
+    const page = await fetchReportFrameCandidates(
+      examinationId,
+      frameFilterLabel.value,
+      append ? (frameCandidatesNextOffset.value ?? 0) : 0
+    )
+    if (generation !== frameCandidatesGeneration) {
+      return
+    }
+    frameCandidates.value = [...(append ? (frameCandidates.value ?? []) : []), ...page.frames]
+    frameFilterLabels.value = page.labels
+    frameCandidatesNextOffset.value = page.nextOffset
+  } catch {
+    if (generation === frameCandidatesGeneration) {
+      frameCandidatesError.value = 'Frames konnten nicht geladen werden.'
+    }
+  } finally {
+    if (generation === frameCandidatesGeneration) {
+      frameCandidatesLoading.value = false
+    }
+  }
+}
+watch([activePatientExaminationId, () => flow.authSubject], () => {
+  ++frameCandidatesGeneration
+  frameCandidates.value = null
+  frameFilterLabels.value = []
+  frameFilterLabel.value = ''
+  frameCandidatesNextOffset.value = null
+  frameCandidatesLoading.value = false
+  frameCandidatesError.value = ''
+})
+
+async function selectFrameStream(
+  frame: Pick<ReportFrameSelection, 'videoId' | 'frameNumber'>,
+  preferForExport = true
+) {
+  const generation = ++frameSelectionGeneration
+  if (preferForExport) {
+    flow.setPreferredReportFrame(null, 'loading')
+  }
+  const selection = await framePreview.load(frame.videoId, frame.frameNumber)
+  if (generation !== frameSelectionGeneration) {
+    return
+  }
+  if (preferForExport) {
+    flow.setPreferredReportFrame(selection, selection ? 'ready' : 'error')
+  }
 }
 
 function openTerminologyFolderPicker() {
@@ -2078,16 +2672,22 @@ function openTerminologyZipPicker() {
 }
 
 function navigateToReportEditor() {
-  if (!reportEditorTarget.value) return
+  if (!reportEditorTarget.value) {
+    return
+  }
   void router.push(reportEditorTarget.value)
 }
 
 async function onTerminologyBundleSelect(bundleKey: string) {
   const bundle = terminology.findBundleByKey(bundleKey)
-  if (!bundle) return
+  if (!bundle) {
+    return
+  }
   terminologyImportMessage.value = ''
   try {
-    if (flow.hasUnpersistedDraftChanges) await flow.flushDraftAutosave()
+    if (flow.hasUnpersistedDraftChanges) {
+      await flow.flushDraftAutosave()
+    }
     await terminology.selectBundle(bundle)
     await reconcileActiveTerminology()
   } catch (error: unknown) {
@@ -2114,14 +2714,20 @@ async function retryTerminologyBundles() {
 async function importTerminologyFolder(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
-  if (!files.length) return
+  if (!files.length) {
+    return
+  }
 
   terminologyImportMessage.value = ''
   try {
-    if (flow.hasUnpersistedDraftChanges) await flow.flushDraftAutosave()
+    if (flow.hasUnpersistedDraftChanges) {
+      await flow.flushDraftAutosave()
+    }
     const result = await terminology.importBundleFolders(files)
     terminologyImportMessage.value = terminologyBatchImportMessage(result)
-    if (result.imported.length) await reconcileActiveTerminology()
+    if (result.imported.length) {
+      await reconcileActiveTerminology()
+    }
   } catch (error: unknown) {
     terminologyImportMessage.value =
       terminology.error ||
@@ -2134,14 +2740,20 @@ async function importTerminologyFolder(event: Event) {
 async function importTerminologyZip(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
-  if (!files.length) return
+  if (!files.length) {
+    return
+  }
 
   terminologyImportMessage.value = ''
   try {
-    if (flow.hasUnpersistedDraftChanges) await flow.flushDraftAutosave()
+    if (flow.hasUnpersistedDraftChanges) {
+      await flow.flushDraftAutosave()
+    }
     const result = await terminology.importBundles(files)
     terminologyImportMessage.value = terminologyBatchImportMessage(result)
-    if (result.imported.length) await reconcileActiveTerminology()
+    if (result.imported.length) {
+      await reconcileActiveTerminology()
+    }
   } catch (error: unknown) {
     terminologyImportMessage.value =
       terminology.error ||
@@ -2164,9 +2776,13 @@ function isUnknownArray(value: unknown): value is unknown[] {
 }
 
 function readListPayload(value: unknown): unknown[] {
-  if (isUnknownArray(value)) return value
+  if (isUnknownArray(value)) {
+    return value
+  }
   const results = readRecord(value).results
-  if (isUnknownArray(results)) return results
+  if (isUnknownArray(results)) {
+    return results
+  }
   throw new TypeError('Patient examination list response must contain an array.')
 }
 
@@ -2174,11 +2790,17 @@ function readString(
   record: Record<string, unknown> | null | undefined,
   ...keys: string[]
 ): string | null {
-  if (!record) return null
+  if (!record) {
+    return null
+  }
   for (const key of keys) {
     const value = record[key]
-    if (typeof value === 'string' && value.trim()) return value.trim()
-    if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value)
+    }
   }
   return null
 }
@@ -2189,7 +2811,17 @@ function findingAnchorId(findingName: string): string {
 
 function getFindingLabel(findingName: string): string {
   const finding = catalogFindingsByName.value.get(normalizeKey(findingName))
-  return finding ? getFindingDisplayName(finding) : formatKnowledgeName(findingName)
+  return finding ? getFindingCatalogLocalizedName(finding, 'de') : formatKnowledgeName(findingName)
+}
+
+function getClassificationLabel(findingName: string, classificationName: string): string {
+  const finding = catalogFindingsByName.value.get(normalizeKey(findingName))
+  const classification = mergeFindingClassifications(finding).find(
+    (entry) => normalizeKey(entry.name) === normalizeKey(classificationName)
+  )
+  return classification
+    ? getFindingCatalogLocalizedName(classification, 'de')
+    : formatKnowledgeName(classificationName)
 }
 
 function instancesForFinding(findingName: string): ReportTemplateRuntimePatientFindingInput[] {
@@ -2203,7 +2835,10 @@ function requiredClassificationsMissing(
   templateFinding: ReportTemplateFinding | null,
   instances: ReportTemplateRuntimePatientFindingInput[]
 ): string[] {
-  const required = (templateFinding?.classifications || []).filter(
+  if (!templateFinding) {
+    return []
+  }
+  const required = templateFinding.classifications.filter(
     (classification) => classification.required
   )
   return required
@@ -2222,7 +2857,9 @@ function requiredClassificationsMissing(
           const inputChoice = classification.input?.choices.find(
             (entry) => normalizeKey(entry.name) === normalizeKey(choice.classificationChoice)
           )
-          if (!inputChoice?.descriptors.length) return true
+          if (!inputChoice?.descriptors.length) {
+            return true
+          }
           return inputChoice.descriptors.every((descriptorInput) => {
             const descriptor = choice.descriptors.find(
               (entry) =>
@@ -2239,7 +2876,9 @@ function requiredClassificationsMissing(
         })
       })
     })
-    .map((classification) => formatKnowledgeName(classification.classification))
+    .map((classification) =>
+      getClassificationLabel(templateFinding.finding, classification.classification)
+    )
 }
 
 function buildFindingStatusRow(params: {
@@ -2266,9 +2905,13 @@ function buildFindingStatusRow(params: {
   )
 
   let status: FindingStatus = 'empty'
-  if (params.required && !instances.length) status = 'missing'
-  else if (validationMessages.length || missingClassifications.length) status = 'warning'
-  else if (instances.length) status = 'complete'
+  if (params.required && !instances.length) {
+    status = 'missing'
+  } else if (validationMessages.length || missingClassifications.length) {
+    status = 'warning'
+  } else if (instances.length) {
+    status = 'complete'
+  }
 
   return {
     key: `${params.sectionKey}:${normalizedKey}`,
@@ -2290,7 +2933,9 @@ function buildFindingStatusRow(params: {
 
 function findingStatusTarget(row: FindingStatusRow) {
   const patientExaminationId = flow.patientExaminationId || routePatientExaminationId.value
-  if (!patientExaminationId) return { path: route.path, hash: `#${row.anchorId}` }
+  if (!patientExaminationId) {
+    return { path: route.path, hash: `#${row.anchorId}` }
+  }
   return {
     path: `/reporting/${String(patientExaminationId)}/findings`,
     hash: `#${row.anchorId}`
@@ -2358,6 +3003,9 @@ function collectValidatorSuggestions(
 }
 
 function formatDescriptorValue(value: unknown): string {
+  if (typeof value === 'boolean') {
+    return value ? 'Ja' : 'Nein'
+  }
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return String(value)
   }
@@ -2365,23 +3013,38 @@ function formatDescriptorValue(value: unknown): string {
 }
 
 function formatRuntimeFindingInstance(instance: ReportTemplateRuntimePatientFindingInput): string {
-  if (!instance.classificationChoices.length) return 'Keine Klassifikation gesetzt'
+  if (!instance.classificationChoices.length) {
+    return 'Keine Klassifikation gesetzt'
+  }
+  const finding = catalogFindingsByName.value.get(normalizeKey(instance.finding))
+  const classifications = mergeFindingClassifications(finding)
   return instance.classificationChoices
     .map((choice) => {
+      const classification = classifications.find(
+        (entry) => normalizeKey(entry.name) === normalizeKey(choice.classification)
+      )
+      const catalogChoice = classification?.choices.find(
+        (entry) => normalizeKey(entry.name) === normalizeKey(choice.classificationChoice)
+      )
       const descriptors = choice.descriptors
         .map(
           (descriptor) =>
-            `${formatKnowledgeName(descriptor.classificationChoiceDescriptor)}: ${formatDescriptorValue(descriptor.descriptorValue)}`
+            `${getDescriptorLabel(descriptor.classificationChoiceDescriptor)}: ${formatDescriptorValue(descriptor.descriptorValue)}`
         )
         .join(', ')
-      const base = `${formatKnowledgeName(choice.classification)} = ${formatKnowledgeName(choice.classificationChoice)}`
+      const choiceLabel = catalogChoice
+        ? getFindingCatalogLocalizedName(catalogChoice, 'de')
+        : formatKnowledgeName(choice.classificationChoice)
+      const base = `${getClassificationLabel(instance.finding, choice.classification)} = ${choiceLabel}`
       return descriptors ? `${base} (${descriptors})` : base
     })
     .join(' · ')
 }
 
 function clearInactiveTerminologySelection() {
-  if (terminology.activeBundle) return
+  if (terminology.activeBundle) {
+    return
+  }
   markCurrentDraftUnverified()
   flow.setTemplateSelection({
     moduleName: '',
@@ -2394,7 +3057,9 @@ function clearInactiveTerminologySelection() {
 
 function markCurrentDraftUnverified() {
   const draft = flow.currentRuntimeDraft
-  if (!draft) return
+  if (!draft) {
+    return
+  }
   const activeBundle = terminology.activeBundle
   const draftVersion =
     draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
@@ -2435,7 +3100,9 @@ function clearTerminologyDerivedViewState() {
 
 async function reconcileActiveTerminology() {
   const bundleIdentity = activeBundleIdentityKey.value
-  if (lastReconciledBundleIdentity === bundleIdentity) return
+  if (lastReconciledBundleIdentity === bundleIdentity) {
+    return
+  }
   if (flow.hasUnpersistedDraftChanges) {
     try {
       await flow.flushDraftAutosave()
@@ -2465,7 +3132,9 @@ async function reconcileActiveTerminology() {
   if (patientExaminationId) {
     await hydrateDraftForRoutePatientExamination(patientExaminationId)
   }
-  if (!draftBootstrapError.value) lastReconciledBundleIdentity = bundleIdentity
+  if (!draftBootstrapError.value) {
+    lastReconciledBundleIdentity = bundleIdentity
+  }
 }
 
 function ensureTerminologyBundlesLoaded(): Promise<void> {
@@ -2473,7 +3142,9 @@ function ensureTerminologyBundlesLoaded(): Promise<void> {
     clearInactiveTerminologySelection()
     return Promise.resolve()
   }
-  if (terminologyLoadPromise.value) return terminologyLoadPromise.value
+  if (terminologyLoadPromise.value) {
+    return terminologyLoadPromise.value
+  }
 
   const task = terminology
     .loadBundles()
@@ -2502,7 +3173,9 @@ function loadTemplateReferenceForSelection() {
   }
 
   const nextKey = `${activeBundleIdentityKey.value}:${templateName}`
-  if (templateReferenceKey.value === nextKey && templateReference.value) return
+  if (templateReferenceKey.value === nextKey && templateReference.value) {
+    return
+  }
 
   templateReferenceLoading.value = true
   templateReferenceError.value = null
@@ -2515,15 +3188,17 @@ function loadTemplateReferenceForSelection() {
           template.identity.moduleName === moduleName &&
           template.identity.knowledgeBaseVersion === activeKbVersion.value
       ) || null
-    if (templateReferenceKey.value !== nextKey) return
+    if (templateReferenceKey.value !== nextKey) {
+      return
+    }
     if (!payload) {
-      throw new Error(
-        'Die gewählte Vorlage ist nicht Teil des versionierten Terminologiegraphen.'
-      )
+      throw new Error('Die gewählte Vorlage ist nicht Teil des versionierten Terminologiegraphen.')
     }
     templateReference.value = payload
   } catch (error: unknown) {
-    if (templateReferenceKey.value !== nextKey) return
+    if (templateReferenceKey.value !== nextKey) {
+      return
+    }
     templateReference.value = null
     templateReferenceError.value = reportingApiErrorMessage(
       error,
@@ -2546,10 +3221,7 @@ async function loadFindingCatalogForExamination(examinationId: number | null | u
   }
   findingCatalogLoading.value = true
   try {
-    const rows = await findingsApi.getExaminationFindings(
-      examinationId,
-      getCatalogContext()
-    )
+    const rows = await findingsApi.getExaminationFindings(examinationId, getCatalogContext())
     if (
       requestGeneration !== findingCatalogRequestGeneration ||
       examinationId !== flow.selectedExaminationId ||
@@ -2580,7 +3252,9 @@ function assertPatientExaminationKnowledgeBaseCompatibility(
   detail: Record<string, unknown>,
   context: DraftBootstrapContext
 ): void {
-  if (!context.moduleName || !context.moduleVersion) return
+  if (!context.moduleName || !context.moduleVersion) {
+    return
+  }
   const pinned = context.pinnedIdentity || readReportingKnowledgeBaseIdentity(detail)
   if (
     pinned &&
@@ -2617,7 +3291,9 @@ function resolvePatientKey(raw: Record<string, unknown>, patientExaminationId: n
     (typeof patient.patientHash === 'string' && patient.patientHash.trim()) ||
     (typeof raw.patient_hash === 'string' && raw.patient_hash.trim()) ||
     (typeof raw.patientHash === 'string' && raw.patientHash.trim())
-  if (patientHash) return patientHash
+  if (patientHash) {
+    return patientHash
+  }
   const patientId = toPositiveInteger(patient.id ?? raw.patient_id ?? raw.patientId)
   return patientId
     ? `patient_${String(patientId)}`
@@ -2627,14 +3303,20 @@ function resolvePatientKey(raw: Record<string, unknown>, patientExaminationId: n
 function firstTrimmedString(record: Record<string, unknown>, keys: string[]): string | null {
   for (const key of keys) {
     const value = record[key]
-    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
   }
   return null
 }
 
 function normalizeExaminer(entry: unknown): string | null {
-  if (typeof entry === 'string') return entry.trim() || null
-  if (!entry || typeof entry !== 'object') return null
+  if (typeof entry === 'string') {
+    return entry.trim() || null
+  }
+  if (!entry || typeof entry !== 'object') {
+    return null
+  }
 
   const row = entry as Record<string, unknown>
   const examinerKey = firstTrimmedString(row, [
@@ -2648,12 +3330,16 @@ function normalizeExaminer(entry: unknown): string | null {
     'fullName',
     'name'
   ])
-  if (examinerKey) return examinerKey
+  if (examinerKey) {
+    return examinerKey
+  }
 
   const firstName = firstTrimmedString(row, ['first_name', 'firstName']) ?? ''
   const lastName = firstTrimmedString(row, ['last_name', 'lastName']) ?? ''
   const fullName = `${firstName} ${lastName}`.trim()
-  if (fullName) return fullName
+  if (fullName) {
+    return fullName
+  }
 
   const examinerId = toPositiveInteger(row.id)
   return examinerId ? `examiner_${String(examinerId)}` : null
@@ -2671,7 +3357,9 @@ function extractExaminers(raw: Record<string, unknown>): string[] {
   ]
 
   const values = candidates.flatMap((candidate) => {
-    if (!Array.isArray(candidate)) return []
+    if (!Array.isArray(candidate)) {
+      return []
+    }
     return candidate.map(normalizeExaminer).filter((value): value is string => Boolean(value))
   })
 
@@ -2689,7 +3377,9 @@ function extractExaminationName(raw: Record<string, unknown>): string {
 }
 
 function isPatientExaminationAllowedForMedicalField(option: PatientExaminationOption): boolean {
-  if (!terminology.activeBundle) return true
+  if (!terminology.activeBundle) {
+    return true
+  }
   return isGastroenterologyExaminationName(option.examinationName)
 }
 
@@ -2709,13 +3399,17 @@ function extractDraftDate(raw: Record<string, unknown>): string | null {
     (typeof raw.dateStart === 'string' && raw.dateStart) ||
     (typeof raw.date === 'string' && raw.date) ||
     null
-  if (!value) return null
+  if (!value) {
+    return null
+  }
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
 }
 
 function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload {
-  if (!isRecord(value)) return false
+  if (!isRecord(value)) {
+    return false
+  }
   return (
     typeof value.patient === 'string' &&
     Array.isArray(value.examiners) &&
@@ -2727,7 +3421,9 @@ function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload
 function stringField(record: Record<string, unknown>, ...keys: string[]): string | null {
   for (const key of keys) {
     const value = record[key]
-    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
   }
   return null
 }
@@ -2751,7 +3447,9 @@ function activateCase(patientCase: PatientCase): void {
 
 function mergeCaseOptions(rows: PatientCase[]): void {
   const byCaseId = new Map(caseOptions.value.map((row) => [row.caseId, row]))
-  for (const row of rows) byCaseId.set(row.caseId, row)
+  for (const row of rows) {
+    byCaseId.set(row.caseId, row)
+  }
   caseOptions.value = [...byCaseId.values()].sort((left, right) =>
     right.admissionDate.localeCompare(left.admissionDate)
   )
@@ -2771,9 +3469,13 @@ async function fetchCaseOptions(patientId: number): Promise<void> {
     }
     caseOptions.value = rows
     const activeCase = caseOptions.value.find((row) => row.caseId === flow.caseId)
-    if (activeCase) activateCase(activeCase)
+    if (activeCase) {
+      activateCase(activeCase)
+    }
   } catch (error: unknown) {
-    if (requestGeneration !== caseOptionsRequestGeneration) return
+    if (requestGeneration !== caseOptionsRequestGeneration) {
+      return
+    }
     caseOptions.value = []
     caseOptionsError.value = reportingApiErrorMessage(error, 'Fälle konnten nicht geladen werden.')
   } finally {
@@ -2806,7 +3508,9 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
     caseOptionsError.value = null
     activateCase(patientCase)
   } catch (error: unknown) {
-    if (requestGeneration !== caseOptionsRequestGeneration) return
+    if (requestGeneration !== caseOptionsRequestGeneration) {
+      return
+    }
     flow.setCaseContext({ caseId: null })
     caseOptionsError.value = reportingApiErrorMessage(
       error,
@@ -2817,7 +3521,9 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
 
 async function onCaseSelect(caseId: string): Promise<void> {
   const patientCase = caseOptions.value.find((row) => row.caseId === caseId)
-  if (!patientCase) return
+  if (!patientCase) {
+    return
+  }
   const currentPatientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
   const examinationIds = new Set(patientCase.patientExaminations.map((row) => row.id))
   if (currentPatientExaminationId && examinationIds.has(currentPatientExaminationId)) {
@@ -2826,7 +3532,9 @@ async function onCaseSelect(caseId: string): Promise<void> {
   }
 
   const firstExamination = caseExaminationOptions(patientCase).at(0)
-  if (!(await flushDraftBeforeContextSwitch(firstExamination?.id ?? null))) return
+  if (!(await flushDraftBeforeContextSwitch(firstExamination?.id ?? null))) {
+    return
+  }
   activateCase(patientCase)
   if (!firstExamination) {
     flow.setPatientExaminationContext({
@@ -2841,11 +3549,16 @@ async function onCaseSelect(caseId: string): Promise<void> {
 }
 
 function upsertPatientExaminationOption(option: PatientExaminationOption) {
-  if (!isPatientExaminationAllowedForMedicalField(option)) return
+  if (!isPatientExaminationAllowedForMedicalField(option)) {
+    return
+  }
   const next = patientExaminationOptions.value.slice()
   const index = next.findIndex((entry) => entry.id === option.id)
-  if (index >= 0) next[index] = option
-  else next.push(option)
+  if (index >= 0) {
+    next[index] = option
+  } else {
+    next.push(option)
+  }
   patientExaminationOptions.value = next.sort(
     (left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id
   )
@@ -2877,7 +3590,9 @@ async function fetchPatientExaminationOptions(patientId: number) {
       .filter(isPatientExaminationAllowedForMedicalField)
       .sort((left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id)
   } catch (error: unknown) {
-    if (requestGeneration !== patientOptionsRequestGeneration) return
+    if (requestGeneration !== patientOptionsRequestGeneration) {
+      return
+    }
     patientExaminationOptions.value = []
     patientExaminationOptionsError.value = reportingApiErrorMessage(
       error,
@@ -2892,7 +3607,9 @@ async function fetchPatientExaminationOptions(patientId: number) {
 
 async function ensureCurrentPatientExaminationOption(patientExaminationId: number) {
   const exists = patientExaminationOptions.value.some((entry) => entry.id === patientExaminationId)
-  if (exists) return
+  if (exists) {
+    return
+  }
   const requestGeneration = ++patientOptionsRequestGeneration
   try {
     const response = await axiosInstance.get(
@@ -2909,7 +3626,9 @@ async function ensureCurrentPatientExaminationOption(patientExaminationId: numbe
       patientExaminationIdentityLoadedId.value = patientExaminationId
     }
     const option = normalizePatientExaminationOption(response.data)
-    if (option) upsertPatientExaminationOption(option)
+    if (option) {
+      upsertPatientExaminationOption(option)
+    }
   } catch {
     // Keep the selector usable even if detail hydration fails.
   }
@@ -2940,8 +3659,12 @@ async function flushDraftBeforeContextSwitch(
 
 async function onPatientExaminationSelect(rawValue: string) {
   const patientExaminationId = toPositiveInteger(rawValue)
-  if (patientExaminationId === null) return
-  if (!(await flushDraftBeforeContextSwitch(patientExaminationId))) return
+  if (patientExaminationId === null) {
+    return
+  }
+  if (!(await flushDraftBeforeContextSwitch(patientExaminationId))) {
+    return
+  }
   draftBootstrapGeneration += 1
   draftBootstrapInFlight.value = null
   const selectedOption =
@@ -2966,8 +3689,12 @@ function parseOptionalPositiveInteger(rawValue: string): number | null {
 
 async function onPatientSelection(rawValue: string): Promise<void> {
   const patientId = parseOptionalPositiveInteger(rawValue)
-  if (patientId === flow.selectedPatientId) return
-  if (!(await flushDraftBeforeContextSwitch(null))) return
+  if (patientId === flow.selectedPatientId) {
+    return
+  }
+  if (!(await flushDraftBeforeContextSwitch(null))) {
+    return
+  }
   flow.resetForPatientSwitch()
   flow.setCaseSelection({ selectedPatientId: patientId })
   patientExaminationCreationError.value = null
@@ -2979,7 +3706,9 @@ function onExaminationSelection(rawValue: string): void {
 }
 
 async function startNewPatientExamination(): Promise<void> {
-  if (!(await flushDraftBeforeContextSwitch(null))) return
+  if (!(await flushDraftBeforeContextSwitch(null))) {
+    return
+  }
   flow.resetForPatientSwitch()
   flow.setCaseSelection({ selectedPatientId: null, selectedExaminationId: null })
   patientExaminationCreationError.value = null
@@ -2988,8 +3717,7 @@ async function startNewPatientExamination(): Promise<void> {
 
 async function createPatientExaminationContext(): Promise<void> {
   if (!flow.selectedPatientId || !flow.selectedExaminationId) {
-    patientExaminationCreationError.value =
-      'Bitte wählen Sie zuerst Patient und Untersuchung aus.'
+    patientExaminationCreationError.value = 'Bitte wählen Sie zuerst Patient und Untersuchung aus.'
     return
   }
 
@@ -3049,17 +3777,23 @@ function draftHasRuntimeContent(): boolean {
 async function onTemplateSelectionChange(name: string, select?: HTMLSelectElement) {
   const previousName = flow.selectedTemplateName
   const previousIdentity = flow.selectedTemplateIdentity
-  if (!name || name === previousName) return
+  if (!name || name === previousName) {
+    return
+  }
   const selected = availableTemplates.value.find((template) => template.name === name)
   if (!selected) {
     templateSelectionError.value =
       'Die ausgewählte Vorlage ist nicht mehr veröffentlicht oder nicht verfügbar.'
-    if (select) select.value = previousName || ''
+    if (select) {
+      select.value = previousName || ''
+    }
     return
   }
   if (!flow.patientExaminationId || !routePatientExaminationId.value) {
     templateSelectionError.value = 'Bitte wählen Sie zuerst eine Patientenuntersuchung.'
-    if (select) select.value = previousName || ''
+    if (select) {
+      select.value = previousName || ''
+    }
     return
   }
 
@@ -3068,7 +3802,9 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
       'Für diese Untersuchung existieren bereits Befunde oder ein Entwurf. Vorlage wirklich wechseln? Der bisherige Entwurf wird nicht weiterverwendet.'
     )
     if (!confirmed) {
-      if (select) select.value = previousName || ''
+      if (select) {
+        select.value = previousName || ''
+      }
       return
     }
   }
@@ -3084,7 +3820,9 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
   })
   let attemptedContext: DraftBootstrapContext | null = null
   try {
-    if (draftHasRuntimeContent()) await flow.flushDraftAutosave()
+    if (draftHasRuntimeContent()) {
+      await flow.flushDraftAutosave()
+    }
     assertBootstrapContextCurrent(originContext)
     const option =
       patientExaminationOptions.value.find(
@@ -3119,7 +3857,9 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
       error,
       'Die neue Berichtsvorlage konnte nicht vorbereitet werden; der bisherige Entwurf bleibt erhalten.'
     )
-    if (select) select.value = previousName || ''
+    if (select) {
+      select.value = previousName || ''
+    }
   }
 }
 
@@ -3252,10 +3992,14 @@ async function refreshPublishedTemplatesAfterLifecycleChange(
   if (
     change.moduleName !== activeKbModule.value ||
     change.moduleVersion !== activeKbVersion.value
-  ) return
+  ) {
+    return
+  }
 
   const examinationName = extractExaminationName(patientExaminationDetail.value || {})
-  if (!examinationName || change.examination !== examinationName) return
+  if (!examinationName || change.examination !== examinationName) {
+    return
+  }
 
   const expectedBundleKey = activeBundleIdentityKey.value
   templateLoading.value = true
@@ -3342,11 +4086,9 @@ async function bootstrapRuntimeDraft(
         if (!resolved.selectedTemplate || !resolved.payload) {
           logger.info(
             'evaluation-annotation-only',
-            evaluationLogContext(
-              context,
-              readReportingKnowledgeBaseIdentity(resolved.detail),
-              { reasonCode: 'no-published-template' }
-            )
+            evaluationLogContext(context, readReportingKnowledgeBaseIdentity(resolved.detail), {
+              reasonCode: 'no-published-template'
+            })
           )
           setAnnotationOnlyRuntimeDraft(patientExaminationId, resolved.detail, context)
           return
@@ -3384,7 +4126,9 @@ async function bootstrapRuntimeDraft(
       }
     })
   } finally {
-    if (isBootstrapContextCurrent(context)) templateLoading.value = false
+    if (isBootstrapContextCurrent(context)) {
+      templateLoading.value = false
+    }
   }
 }
 
@@ -3439,10 +4183,15 @@ function restoredDraftMatchesContext(
   draft: ReportingRuntimeDraft,
   context: DraftBootstrapContext
 ): boolean {
-  if (draft.moduleName !== context.moduleName) return false
-  if (draft.patientExaminationId !== context.patientExaminationId) return false
-  if (draft.payload.patient !== resolvePatientKey(detail, context.patientExaminationId))
+  if (draft.moduleName !== context.moduleName) {
     return false
+  }
+  if (draft.patientExaminationId !== context.patientExaminationId) {
+    return false
+  }
+  if (draft.payload.patient !== resolvePatientKey(detail, context.patientExaminationId)) {
+    return false
+  }
 
   const examinationName = extractExaminationName(detail)
   const draftExamination = draft.payload.examination.trim().toLowerCase()
@@ -3467,7 +4216,9 @@ function restoredDraftMatchesKnowledgeBase(
   context: DraftBootstrapContext
 ): boolean {
   const identity = draft.templateIdentity
-  if (identity?.moduleName && identity.moduleName !== context.moduleName) return false
+  if (identity?.moduleName && identity.moduleName !== context.moduleName) {
+    return false
+  }
   if (
     draft.payload.knowledgeBaseModule &&
     draft.payload.knowledgeBaseModule !== context.moduleName
@@ -3512,7 +4263,9 @@ function restoredDraftMatchesActiveTemplate(
   selected: ReportTemplatePayload | null,
   context: DraftBootstrapContext
 ): boolean {
-  if (!selected) return false
+  if (!selected) {
+    return false
+  }
   const selectedIdentity = selected.identity
   return (
     restoredDraftMatchesContext(detail, draft, context) &&
@@ -3568,10 +4321,7 @@ async function validateRestoredDraftTemplate(
   const backendDraftDocument = pendingBackendDraftDocuments.get(context.patientExaminationId)
   if (backendDraftDocument) {
     flow.applyBackendDraftDocument(backendDraftDocument.draft)
-    flow.markDraftPersistenceHydrated(
-      backendDraftDocument.updatedAt,
-      backendDraftDocument.revision
-    )
+    flow.markDraftPersistenceHydrated(backendDraftDocument.updatedAt, backendDraftDocument.revision)
     pendingBackendDraftDocuments.delete(context.patientExaminationId)
   }
 }
@@ -3685,7 +4435,9 @@ async function ensureRuntimeDraft(patientExaminationId: number, context: DraftBo
 }
 
 async function hydrateDraftForRoutePatientExamination(patientExaminationId: number) {
-  if (patientExaminationId !== routePatientExaminationId.value) return
+  if (patientExaminationId !== routePatientExaminationId.value) {
+    return
+  }
   const requestedKey = `${String(patientExaminationId)}:${activeBundleIdentityKey.value || 'loading'}`
 
   if (draftBootstrapInFlight.value?.key === requestedKey) {
@@ -3695,7 +4447,9 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
 
   const option =
     patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
-  if (patientExaminationId !== routePatientExaminationId.value) return
+  if (patientExaminationId !== routePatientExaminationId.value) {
+    return
+  }
   if (
     flow.patientExaminationId !== patientExaminationId ||
     (option?.patientId ?? flow.selectedPatientId) !== flow.selectedPatientId ||
@@ -3746,7 +4500,9 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
         return
       }
       if (generation !== draftBootstrapGeneration) {
-        if (context) reportSupersededEvaluation(context, 'failure-after-context-change')
+        if (context) {
+          reportSupersededEvaluation(context, 'failure-after-context-change')
+        }
         return
       }
       if (context) {
@@ -3799,9 +4555,18 @@ async function refreshMediaPreload() {
     flow.setMediaPreload(payload)
     selectedVideoArtifactKind.value =
       preferredArtifactKind(payload.latestVideo?.streamOptions || []) ?? 'processed'
-    selectedFrameStreamUrl.value = payload.latestFrames[0]?.streamUrl || null
+    if (flow.reportFrameSelectionStatus === 'idle') {
+      const preview = payload.latestFrames.at(0)
+      if (preview) {
+        void selectFrameStream(preview, false)
+      } else {
+        framePreview.clear()
+      }
+    }
   } catch (error: unknown) {
-    if (requestGeneration !== mediaPreloadRequestGeneration) return
+    if (requestGeneration !== mediaPreloadRequestGeneration) {
+      return
+    }
     const candidate = reportingApiError(error)
     const status = candidate.response?.status
     const detail = reportingApiErrorMessage(error, 'unbekannt')
@@ -3841,13 +4606,21 @@ function stepStatusLabel(item: {
   requiresPatientExamination?: boolean
   requiresVerifiedTemplate?: boolean
 }) {
-  if (isActive(item.to)) return 'Aktuell'
-  if (item.requiresPatientExamination && !flow.patientExaminationId) return 'Fall wählen'
+  if (isActive(item.to)) {
+    return 'Aktuell'
+  }
+  if (item.requiresPatientExamination && !flow.patientExaminationId) {
+    return 'Fall wählen'
+  }
   if (item.requiresVerifiedTemplate && !hasVerifiedTemplateContext.value) {
     return 'Verifizierte Vorlage erforderlich'
   }
-  if (item.label === 'Befunde' && !terminology.activeBundle) return 'Ohne Terminologie verfügbar'
-  if (item.requiresPatientExamination) return 'Bereit'
+  if (item.label === 'Befunde' && !terminology.activeBundle) {
+    return 'Ohne Terminologie verfügbar'
+  }
+  if (item.requiresPatientExamination) {
+    return 'Bereit'
+  }
   return 'Verfügbar'
 }
 
@@ -3860,9 +4633,13 @@ watch(
       patientExaminationId === routePatientExaminationId.value
     if (patientId) {
       await fetchPatientExaminationOptions(patientId)
-      if (!isCurrent()) return
+      if (!isCurrent()) {
+        return
+      }
       await fetchCaseOptions(patientId)
-      if (!isCurrent()) return
+      if (!isCurrent()) {
+        return
+      }
     } else {
       patientExaminationOptions.value = []
       patientExaminationOptionsError.value = null
@@ -3875,9 +4652,13 @@ watch(
 
     if (patientExaminationId) {
       await ensureCurrentPatientExaminationOption(patientExaminationId)
-      if (!isCurrent()) return
+      if (!isCurrent()) {
+        return
+      }
       await ensureCaseForPatientExamination(patientExaminationId)
-      if (!isCurrent()) return
+      if (!isCurrent()) {
+        return
+      }
       await hydrateDraftForRoutePatientExamination(patientExaminationId)
     }
   },
@@ -3896,8 +4677,12 @@ watch(
 watch(
   activeBundleIdentityKey,
   async (nextKey, previousKey) => {
-    if (nextKey === previousKey) return
-    if (terminology.importing) return
+    if (nextKey === previousKey) {
+      return
+    }
+    if (terminology.importing) {
+      return
+    }
     await reconcileActiveTerminology()
   },
   { immediate: true }
@@ -3991,6 +4776,8 @@ onMounted(() => {
 
 .reporting-workspace-toolbar {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   justify-content: flex-end;
   margin-bottom: 0.75rem;
 }
@@ -4050,17 +4837,17 @@ onMounted(() => {
   background: #effaf3;
 }
 
-.reporting-requirement-callout i {
+.reporting-requirement-callout .reporting-requirement-icon {
   margin-top: 0.15rem;
   font-size: 1rem;
 }
 
-.reporting-requirement-callout strong,
-.reporting-requirement-callout small {
+.reporting-requirement-callout .reporting-requirement-title,
+.reporting-requirement-callout .reporting-requirement-description {
   display: block;
 }
 
-.reporting-requirement-callout small {
+.reporting-requirement-callout .reporting-requirement-description {
   margin-top: 0.15rem;
 }
 
@@ -4087,13 +4874,13 @@ onMounted(() => {
   background: #effaf3;
 }
 
-.reporting-resolved-context span,
-.reporting-resolved-context small {
+.reporting-resolved-context .reporting-resolved-label,
+.reporting-resolved-context .reporting-resolved-description {
   display: block;
   color: #526174;
 }
 
-.reporting-resolved-context small {
+.reporting-resolved-context .reporting-resolved-description {
   grid-column: 1 / -1;
 }
 
@@ -4133,7 +4920,7 @@ onMounted(() => {
   padding-top: 0.65rem;
 }
 
-.reporting-secondary-controls summary {
+.reporting-secondary-controls .reporting-secondary-toggle {
   width: fit-content;
   color: #526174;
   cursor: pointer;
@@ -4170,7 +4957,7 @@ onMounted(() => {
   padding-top: 0.65rem;
 }
 
-.context-details summary {
+.context-details .context-details-toggle {
   width: fit-content;
   color: #526174;
   cursor: pointer;
@@ -4195,7 +4982,7 @@ onMounted(() => {
 }
 
 .context-summary-label,
-.context-tile span {
+.context-tile .context-tile-label {
   display: block;
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -4208,8 +4995,8 @@ onMounted(() => {
   color: #c9d5e4;
 }
 
-.context-summary-item strong,
-.context-tile strong {
+.context-summary-item .context-summary-value,
+.context-tile .context-tile-value {
   display: block;
   color: inherit;
   overflow-wrap: anywhere;
@@ -4224,7 +5011,7 @@ onMounted(() => {
   background: #fff;
 }
 
-.context-tile small {
+.context-tile .context-tile-description {
   color: #5c6878;
   overflow-wrap: anywhere;
 }
@@ -4525,7 +5312,7 @@ onMounted(() => {
   background: #f8fafc;
 }
 
-.kb-focus-block span {
+.kb-focus-block .kb-focus-label {
   display: block;
   color: #66768c;
   font-size: 0.72rem;
@@ -4534,10 +5321,10 @@ onMounted(() => {
   letter-spacing: 0.04em;
 }
 
-.kb-focus-block strong,
-.kb-focus-block small,
-.kb-classification-row small,
-.kb-advice-row small {
+.kb-focus-block .kb-focus-value,
+.kb-focus-block .kb-focus-description,
+.kb-classification-row .kb-classification-description,
+.kb-advice-row .kb-advice-description {
   display: block;
   overflow-wrap: anywhere;
 }
@@ -4549,7 +5336,7 @@ onMounted(() => {
   margin-top: 1rem;
 }
 
-.kb-reference-group h6 {
+.kb-reference-group .kb-reference-heading {
   margin: 0;
   color: #172234;
   font-size: 0.82rem;

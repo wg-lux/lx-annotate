@@ -48,7 +48,9 @@ export const DateConverter = {
    * DateConverter.toISO(null)            // null
    */
   toISO(input?: string | null): string | null {
-    if (!input) return null
+    if (!input) {
+      return null
+    }
 
     const trimmed = input.trim().split(' ')[0] // Remove time if present
 
@@ -89,13 +91,17 @@ export const DateConverter = {
    * DateConverter.toGerman(null)          // ''
    */
   toGerman(iso?: string | null): string {
-    if (!iso) return ''
+    if (!iso) {
+      return ''
+    }
 
     const trimmed = iso.trim()
     const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/
     const match = isoPattern.exec(trimmed)
 
-    if (!match) return ''
+    if (!match) {
+      return ''
+    }
 
     const [, year, month, day] = match
 
@@ -121,14 +127,18 @@ export const DateConverter = {
    * DateConverter.validate('2025-13-01', 'ISO')      // false (invalid month)
    */
   validate(date: string, format: 'ISO' | 'German'): boolean {
-    if (!date) return false
+    if (!date) {
+      return false
+    }
 
     const trimmed = date.trim()
 
     if (format === 'ISO') {
       const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/
       const match = isoPattern.exec(trimmed)
-      if (!match) return false
+      if (!match) {
+        return false
+      }
 
       const [, year, month, day] = match
       return isValidDate(parseInt(year), parseInt(month), parseInt(day))
@@ -136,7 +146,9 @@ export const DateConverter = {
 
     const germanPattern = /^(\d{2})\.(\d{2})\.(\d{4})$/
     const match = germanPattern.exec(trimmed)
-    if (!match) return false
+    if (!match) {
+      return false
+    }
 
     const [, day, month, year] = match
     return isValidDate(parseInt(year), parseInt(month), parseInt(day))
@@ -160,11 +172,15 @@ export const DateConverter = {
       return null
     }
 
-    const d1 = new Date(date1)
-    const d2 = new Date(date2)
+    const firstDate = new Date(date1)
+    const secondDate = new Date(date2)
 
-    if (d1 < d2) return -1
-    if (d1 > d2) return 1
+    if (firstDate < secondDate) {
+      return -1
+    }
+    if (firstDate > secondDate) {
+      return 1
+    }
     return 0
   },
 
@@ -231,11 +247,11 @@ export const DateConverter = {
    * DateConverter.today()  // '2025-10-09'
    */
   today(): string {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    return `${String(year)}-${month}-${day}`
+    const currentDate = new Date()
+    const year = currentDate.getFullYear()
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0')
+    const dayOfMonth = String(currentDate.getDate()).padStart(2, '0')
+    return `${String(year)}-${month}-${dayOfMonth}`
   },
 
   /**
@@ -248,7 +264,7 @@ export const DateConverter = {
    */
   todayGerman(): string {
     return DateConverter.toGerman(DateConverter.today())
-  },
+  }
 }
 
 /**
@@ -261,9 +277,15 @@ export const DateConverter = {
  */
 function isValidDate(year: number, month: number, day: number): boolean {
   // Basic range checks
-  if (year < 1900 || year > 2100) return false
-  if (month < 1 || month > 12) return false
-  if (day < 1 || day > 31) return false
+  if (year < 1900 || year > 2100) {
+    return false
+  }
+  if (month < 1 || month > 12) {
+    return false
+  }
+  if (day < 1 || day > 31) {
+    return false
+  }
 
   // Use Date object to validate (catches Feb 30, etc.)
   const date = new Date(year, month - 1, day)
@@ -356,8 +378,12 @@ export class DateValidator {
    */
   getSummary(): string {
     const count = this.errors.size
-    if (count === 0) return 'Alle Datumsfelder sind gültig'
-    if (count === 1) return '1 Datumsfehler gefunden'
+    if (count === 0) {
+      return 'Alle Datumsfelder sind gültig'
+    }
+    if (count === 1) {
+      return '1 Datumsfehler gefunden'
+    }
     return `${String(count)} Datumsfehler gefunden`
   }
 
@@ -374,7 +400,9 @@ export class DateValidator {
    * @returns HTML string with <ul><li> structure
    */
   getErrorsAsHtml(): string {
-    if (this.errors.size === 0) return ''
+    if (this.errors.size === 0) {
+      return ''
+    }
 
     const items = this.getErrors()
       .map((err) => `<li>${err}</li>`)

@@ -6,8 +6,14 @@
         <h1 class="h3 mb-1">Medikation von {{ patientName }}</h1>
         <p class="text-muted mb-0">Medikation und Medikationspläne aus den Fällen des Patienten.</p>
       </div>
-      <nav class="d-flex flex-wrap align-items-start gap-2" aria-label="Patientennavigation">
-        <RouterLink class="btn btn-outline-secondary" to="/patienten">Patienten</RouterLink>
+      <nav
+        class="d-flex flex-wrap align-items-start gap-2"
+        aria-label="Patientennavigation"
+      >
+        <RouterLink
+          class="btn btn-outline-secondary"
+          to="/patienten"
+        >Patienten</RouterLink>
         <RouterLink
           class="btn btn-outline-primary"
           :to="{ name: 'Patientendokumente', params: { patientId } }"
@@ -23,29 +29,57 @@
       </nav>
     </div>
 
-    <div v-if="ledgerWarning" class="alert alert-warning" role="status">
+    <div
+      v-if="ledgerWarning"
+      class="alert alert-warning"
+      role="status"
+    >
       {{ ledgerWarning }}
     </div>
-    <div v-if="loading" class="card card-body text-center" role="status">
+    <div
+      v-if="loading"
+      class="card card-body text-center"
+      role="status"
+    >
       <div class="spinner-border text-primary mx-auto mb-2"></div>
       Medikation wird geladen…
     </div>
-    <div v-else-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
-    <div v-else-if="cases.length === 0" class="card card-body text-center text-muted">
+    <div
+      v-else-if="error"
+      class="alert alert-danger"
+      role="alert"
+    >{{ error }}</div>
+    <div
+      v-else-if="cases.length === 0"
+      class="card card-body text-center text-muted"
+    >
       Für diesen Patienten sind keine Fälle mit Medikationszuordnung vorhanden.
     </div>
-    <div v-else class="d-grid gap-3">
-      <article v-for="patientCase in cases" :key="patientCase.caseId" class="card shadow-sm">
+    <div
+      v-else
+      class="d-grid gap-3"
+    >
+      <article
+        v-for="patientCase in cases"
+        :key="patientCase.caseId"
+        class="card shadow-sm"
+      >
         <div class="card-header d-flex flex-wrap justify-content-between gap-2">
           <h2 class="h5 mb-0">Fall {{ patientCase.caseId }}</h2>
-          <span class="badge" :class="patientCase.isActive ? 'bg-success' : 'bg-secondary'">
+          <span
+            class="badge"
+            :class="patientCase.isActive ? 'bg-success' : 'bg-secondary'"
+          >
             {{ patientCase.isActive ? 'Aktiv' : 'Abgeschlossen' }}
           </span>
         </div>
         <div class="card-body row g-3">
           <div class="col-md-6">
             <h3 class="h6">Medikation</h3>
-            <div v-if="patientCase.patientMedications.length" class="d-grid gap-2">
+            <div
+              v-if="patientCase.patientMedications.length"
+              class="d-grid gap-2"
+            >
               <div
                 v-for="medicationId in patientCase.patientMedications"
                 :key="medicationId"
@@ -80,16 +114,25 @@
                     </span>
                   </div>
                 </template>
-                <div v-else class="small text-muted">
+                <div
+                  v-else
+                  class="small text-muted"
+                >
                   Details sind für diesen Datensatz nicht verfügbar.
                 </div>
               </div>
             </div>
-            <span v-else class="text-muted">Keine Medikation zugeordnet</span>
+            <span
+              v-else
+              class="text-muted"
+            >Keine Medikation zugeordnet</span>
           </div>
           <div class="col-md-6">
             <h3 class="h6">Medikationspläne</h3>
-            <div v-if="patientCase.patientMedicationSchedules.length" class="d-grid gap-2">
+            <div
+              v-if="patientCase.patientMedicationSchedules.length"
+              class="d-grid gap-2"
+            >
               <div
                 v-for="scheduleId in patientCase.patientMedicationSchedules"
                 :key="scheduleId"
@@ -97,17 +140,26 @@
                 data-testid="patient-medication-schedule"
               >
                 <strong>Medikationsplan #{{ scheduleId }}</strong>
-                <div v-if="scheduleRecord(scheduleId)" class="small text-muted mt-1">
+                <div
+                  v-if="scheduleRecord(scheduleId)"
+                  class="small text-muted mt-1"
+                >
                   {{
                     scheduleRecord(scheduleId)
                       ?.medications.map((medication) => medication.medication)
                       .join(', ') || 'Keine Medikation im Plan'
                   }}
                 </div>
-                <div v-else class="small text-muted">Plandetails sind nicht verfügbar.</div>
+                <div
+                  v-else
+                  class="small text-muted"
+                >Plandetails sind nicht verfügbar.</div>
               </div>
             </div>
-            <span v-else class="text-muted">Kein Medikationsplan zugeordnet</span>
+            <span
+              v-else
+              class="text-muted"
+            >Kein Medikationsplan zugeordnet</span>
           </div>
         </div>
       </article>
@@ -162,7 +214,9 @@ const scheduleById = computed(() => {
 })
 
 function formatDosage(value: MedicalLedgerJsonValue | undefined): string | null {
-  if (value == null) return null
+  if (value == null) {
+    return null
+  }
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return String(value)
   }

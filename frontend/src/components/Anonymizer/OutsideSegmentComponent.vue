@@ -104,7 +104,9 @@ const allSegmentsValidated = computed<boolean>(() => {
  * Validate a specific segment
  */
 async function validateSegment(segment: Segment) {
-  if (validatedSegments.value.has(segment.id) || isValidating.value) return
+  if (validatedSegments.value.has(segment.id) || isValidating.value) {
+    return
+  }
 
   isValidating.value = true
   validationError.value = ''
@@ -164,13 +166,19 @@ function formatTime(seconds: number): string {
  * Keep video element and timeline in sync
  */
 onMounted(() => {
-  if (!videoEl.value) return
+  if (!videoEl.value) {
+    return
+  }
   // If backend didn't return duration, fall back to media metadata
   videoEl.value.addEventListener('loadedmetadata', () => {
-    if (!duration.value && videoEl.value) duration.value = videoEl.value.duration || 0
+    if (!duration.value && videoEl.value) {
+      duration.value = videoEl.value.duration || 0
+    }
   })
   videoEl.value.addEventListener('timeupdate', () => {
-    if (!videoEl.value) return
+    if (!videoEl.value) {
+      return
+    }
     currentTime.value = videoEl.value.currentTime
   })
   videoEl.value.addEventListener('play', () => { isPlaying.value = true })
@@ -194,9 +202,15 @@ function onSeek(...args: unknown[]) {
 }
 
 function onPlayPause() {
-  if (!videoEl.value) return
-  if (videoEl.value.paused) videoEl.value.play().catch(() => {})
-  else videoEl.value.pause()
+  if (!videoEl.value) {
+    return
+  }
+  if (videoEl.value.paused) {
+    videoEl.value.play().catch(() => {})
+  }
+  else {
+    videoEl.value.pause()
+  }
   isPlaying.value = !videoEl.value.paused
 }
 
@@ -213,8 +227,14 @@ function onSegmentDelete() {}
 <template>
   <div class="video-with-outside-timeline">
     <!-- Validation Status -->
-    <div v-if="outsideSegments.length > 0" class="validation-status mb-3">
-      <div v-if="validationError" class="alert alert-danger mb-3">
+    <div
+      v-if="outsideSegments.length > 0"
+      class="validation-status mb-3"
+    >
+      <div
+        v-if="validationError"
+        class="alert alert-danger mb-3"
+      >
         <i class="ni ni-user-run me-2"></i>
         {{ validationError }}
       </div>
@@ -236,8 +256,14 @@ function onSegmentDelete() {}
             :disabled="isValidating || allSegmentsValidated"
             @click="validateAllSegments"
           >
-            <span v-if="isValidating" class="spinner-border spinner-border-sm me-1"></span>
-            <i v-else class="ni ni-check-bold me-1"></i>
+            <span
+              v-if="isValidating"
+              class="spinner-border spinner-border-sm me-1"
+            ></span>
+            <i
+              v-else
+              class="ni ni-check-bold me-1"
+            ></i>
             Alle validieren
           </button>
           <button
@@ -258,12 +284,18 @@ function onSegmentDelete() {}
       controls
       style="width: 100%; max-height: 480px;"
     />
-    <div v-if="videoPlaybackError" class="alert alert-warning py-2 mt-2">
+    <div
+      v-if="videoPlaybackError"
+      class="alert alert-warning py-2 mt-2"
+    >
       {{ videoPlaybackError.message }}
     </div>
 
     <!-- Segments Overview -->
-    <div v-if="outsideSegments.length > 0" class="segments-overview mb-3">
+    <div
+      v-if="outsideSegments.length > 0"
+      class="segments-overview mb-3"
+    >
       <h6>Outside-Segmente ({{ outsideSegments.length }})</h6>
       <div class="segments-list">
         <div
@@ -292,7 +324,10 @@ function onSegmentDelete() {}
               <i class="ni ni-check-bold me-1"></i>
               Validieren
             </button>
-            <span v-else class="text-success">
+            <span
+              v-else
+              class="text-success"
+            >
               <i class="ni ni-check-bold me-1"></i>
               Validiert
             </span>
@@ -302,7 +337,10 @@ function onSegmentDelete() {}
     </div>
 
     <!-- No segments message -->
-    <div v-else class="alert alert-info">
+    <div
+      v-else
+      class="alert alert-info"
+    >
       <i class="ni ni-user-run me-2"></i>
       Keine "Outside"-Segmente für Video {{ props.videoId }} gefunden.
     </div>

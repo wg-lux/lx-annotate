@@ -21,6 +21,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/patient-examination-reports/frame-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Report Frame Candidates */
+        get: operations["endoreg_db_views_report_patient_examination_report_get_report_frame_candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/patient-examination-reports/history-context": {
         parameters: {
             query?: never;
@@ -177,6 +194,43 @@ export type components = {
             /** Version */
             version: number;
         };
+        /** ReportFrameCandidate */
+        ReportFrameCandidate: {
+            /** Frame Number */
+            frame_number: number;
+            /** Labels */
+            labels: string[];
+            /** Timestamp */
+            timestamp: number;
+            /** Video Id */
+            video_id: number;
+        };
+        /** ReportFrameCandidatesQuery */
+        ReportFrameCandidatesQuery: {
+            /** Label */
+            label?: string | null;
+            /**
+             * Limit
+             * @default 24
+             */
+            limit: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+            /** Patient Examination Id */
+            patient_examination_id: number;
+        };
+        /** ReportFrameCandidatesResponse */
+        ReportFrameCandidatesResponse: {
+            /** Frames */
+            frames: components["schemas"]["ReportFrameCandidate"][];
+            /** Labels */
+            labels: string[];
+            /** Next Offset */
+            next_offset: number | null;
+        };
         ReportJsonObject: {
             [key: string]: components["schemas"]["ReportJsonValue"];
         };
@@ -293,6 +347,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PatientExaminationReportSchema"][];
+                };
+            };
+        };
+    };
+    endoreg_db_views_report_patient_examination_report_get_report_frame_candidates: {
+        parameters: {
+            query: {
+                patient_examination_id: number;
+                label?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportFrameCandidatesResponse"];
                 };
             };
         };

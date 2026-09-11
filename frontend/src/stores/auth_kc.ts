@@ -11,6 +11,9 @@ const REPORTING_STORAGE_KEYS = [
   'currentPatientExaminationId'
 ]
 
+// A request belongs to one store/session, never to a shared global auth state.
+const bootstrapRequests = new WeakMap<object, Promise<void>>()
+
 function clearReportingSessionArtifacts() {
   try {
     for (const key of REPORTING_STORAGE_KEYS) {
@@ -55,30 +58,40 @@ function normalizeUser(value: unknown): User | null {
   ) {
     return null
   }
-  const sub = typeof value.sub === 'string' ? value.sub : undefined
-  const canOverrideAnnotationPrincipal =
-    typeof value.canOverrideAnnotationPrincipal === 'boolean'
-      ? value.canOverrideAnnotationPrincipal
-      : undefined
+  const subject = typeof value.sub === 'string' ? value.sub : undefined
+  const camelOverride = value.canOverrideAnnotationPrincipal
+  const snakeOverride = value.can_override_annotation_principal
+  if (
+    (camelOverride !== undefined && typeof camelOverride !== 'boolean') ||
+    (snakeOverride !== undefined && typeof snakeOverride !== 'boolean') ||
+    (camelOverride !== undefined && snakeOverride !== undefined && camelOverride !== snakeOverride)
+  ) {
+    throw new TypeError('Invalid annotation principal override capability')
+  }
+  const canOverrideAnnotationPrincipal = camelOverride ?? snakeOverride
   return {
     username: value.username,
     roles: value.roles,
-    ...(sub === undefined ? {} : { sub }),
+    ...(subject === undefined ? {} : { sub: subject }),
     ...(canOverrideAnnotationPrincipal === undefined ? {} : { canOverrideAnnotationPrincipal })
   }
 }
 
 /** Normalize arbitrary capability payloads into a simple boolean map. */
 function normalizeCaps(raw: unknown): CapMap {
-  const out: CapMap = {}
-  if (!isRecord(raw)) return out
+  const capabilities: CapMap = {}
+  if (!isRecord(raw)) {
+    return capabilities
+  }
 
   for (const [key, val] of Object.entries(raw)) {
     if (typeof val === 'boolean') {
-      out[key] = val
+      capabilities[key] = val
       continue
     }
-    if (!isRecord(val)) continue
+    if (!isRecord(val)) {
+      continue
+    }
     if (
       (val.read !== undefined && typeof val.read !== 'boolean') ||
       (val.write !== undefined && typeof val.write !== 'boolean')
@@ -86,21 +99,21 @@ function normalizeCaps(raw: unknown): CapMap {
       continue
     }
     // Object form { read, write } → provide both a default and method-specific keys.
-    const r = val.read === true
-    const w = val.write === true
+    const canRead = val.read === true
+    const canWrite = val.write === true
     // Default semantic: GET → read; others → write
-    out[key] = r || w // truthy if either permitted; UI pieces can still use method-specific checks
+    capabilities[key] = canRead || canWrite // truthy if either permitted; UI pieces can still use method-specific checks
 
     // Method-specific composites allow precise gating in the UI:
-    out[`${key}:GET`] = r
-    out[`${key}:HEAD`] = r
-    out[`${key}:OPTIONS`] = r
-    out[`${key}:POST`] = w
-    out[`${key}:PUT`] = w
-    out[`${key}:PATCH`] = w
-    out[`${key}:DELETE`] = w
+    capabilities[`${key}:GET`] = canRead
+    capabilities[`${key}:HEAD`] = canRead
+    capabilities[`${key}:OPTIONS`] = canRead
+    capabilities[`${key}:POST`] = canWrite
+    capabilities[`${key}:PUT`] = canWrite
+    capabilities[`${key}:PATCH`] = canWrite
+    capabilities[`${key}:DELETE`] = canWrite
   }
-  return out
+  return capabilities
 }
 
 function emptyCapabilities(): CapMap {
@@ -117,7 +130,8 @@ export const useAuthKcStore = defineStore('auth_kc', {
     caps: emptyCapabilities(),
 
     /** True once we’ve attempted to load bootstrap */
-    loaded: false
+    loaded: false,
+    bootstrapFailed: false
   }),
   getters: {
     isAuthenticated: (s) => !!s.user
@@ -128,46 +142,74 @@ export const useAuthKcStore = defineStore('auth_kc', {
      * Canonical endpoint: GET auth/bootstrap
      */
     async loadBootstrap() {
-      if (this.loaded) return
-      try {
-        const response = await axios.get<unknown>(r(endpoints.auth.bootstrap), {
-          withCredentials: true
-        })
-        const data = response.data
-
-        // User & roles (support both shapes)
-        const bootstrap = isRecord(data) ? data : {}
-        const rawUser = normalizeUser(bootstrap.user)
-        const fallbackSub =
-          typeof bootstrap.sub === 'string'
-            ? bootstrap.sub
-            : typeof bootstrap.oidcSub === 'string'
-              ? bootstrap.oidcSub
-              : typeof bootstrap.oidc_sub === 'string'
-                ? bootstrap.oidc_sub
-                : null
-        const user = rawUser
-          ? {
-              ...rawUser,
-              sub:
-                typeof rawUser.sub === 'string' && rawUser.sub.trim()
-                  ? rawUser.sub
-                  : (fallbackSub ?? undefined)
-            }
-          : null
-        const roles = user
-          ? isStringArray(bootstrap.roles)
-            ? bootstrap.roles
-            : user.roles
-          : []
-
-        this.user = user
-        this.roles = roles
-        this.caps = user ? normalizeCaps(bootstrap.capabilities) : {}
-      } finally {
-        // Even on failure we mark loaded so the UI can decide; middleware should redirect unauthenticated anyway
-        this.loaded = true
+      if (this.loaded) {
+        if (this.bootstrapFailed) {
+          throw new Error('Authentication bootstrap failed')
+        }
+        return
       }
+      const pending = bootstrapRequests.get(this)
+      if (pending) {
+        return pending
+      }
+
+      const request: Promise<void> = Promise.resolve().then(async () => {
+        try {
+          const response = await axios.get<unknown>(r(endpoints.auth.bootstrap), {
+            withCredentials: true
+          })
+          // A logout or newer session invalidates this result before publication.
+          if (bootstrapRequests.get(this) !== request) {
+            return
+          }
+          const data = response.data
+
+          // User & roles (support both shapes)
+          const bootstrap = isRecord(data) ? data : {}
+          const rawUser = normalizeUser(bootstrap.user)
+          const fallbackSub =
+            typeof bootstrap.sub === 'string'
+              ? bootstrap.sub
+              : typeof bootstrap.oidcSub === 'string'
+                ? bootstrap.oidcSub
+                : typeof bootstrap.oidc_sub === 'string'
+                  ? bootstrap.oidc_sub
+                  : null
+          const user = rawUser
+            ? {
+                ...rawUser,
+                sub:
+                  typeof rawUser.sub === 'string' && rawUser.sub.trim()
+                    ? rawUser.sub
+                    : (fallbackSub ?? undefined)
+              }
+            : null
+          let roles = user?.roles ?? []
+          if (user && isStringArray(bootstrap.roles)) {
+            roles = bootstrap.roles
+          }
+
+          this.user = user
+          this.roles = roles
+          this.caps = user ? normalizeCaps(bootstrap.capabilities) : {}
+          this.bootstrapFailed = false
+        } catch (error: unknown) {
+          if (bootstrapRequests.get(this) === request) {
+            this.user = null
+            this.roles = []
+            this.caps = {}
+            this.bootstrapFailed = true
+          }
+          throw error
+        } finally {
+          if (bootstrapRequests.get(this) === request) {
+            this.loaded = true
+            bootstrapRequests.delete(this)
+          }
+        }
+      })
+      bootstrapRequests.set(this, request)
+      return request
     },
 
     /**
@@ -181,8 +223,12 @@ export const useAuthKcStore = defineStore('auth_kc', {
       method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' = 'GET'
     ): boolean {
       const composite = `${key}:${method.toUpperCase()}`
-      if (Object.prototype.hasOwnProperty.call(this.caps, composite)) return this.caps[composite]
-      if (Object.prototype.hasOwnProperty.call(this.caps, key)) return this.caps[key]
+      if (Object.prototype.hasOwnProperty.call(this.caps, composite)) {
+        return this.caps[composite]
+      }
+      if (Object.prototype.hasOwnProperty.call(this.caps, key)) {
+        return this.caps[key]
+      }
       return false
     },
 
@@ -197,12 +243,14 @@ export const useAuthKcStore = defineStore('auth_kc', {
     },
 
     logout() {
+      bootstrapRequests.delete(this)
       clearReportingSessionArtifacts()
       // Clear local state (not strictly needed because we reload the page, but harmless)
       this.user = null
       this.roles = []
       this.caps = {}
       this.loaded = false
+      this.bootstrapFailed = false
 
       // Let Django + mozilla_django_oidc handle full logout + Keycloak side
       window.location.href = '/oidc/logout/'

@@ -1,0 +1,186 @@
+schema_version: '1.0'
+id: frontend_vue_mess_reduction
+name: Frontend Vue Mess Reduction
+description: Reduce default Vue Mess Detector findings through behavior-preserving source cleanup.
+owners:
+- lx-annotate frontend maintainers
+production_critical: false
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: measured_reduction
+  category: testing
+  title: Default detector findings are substantially reduced and frontend behavior is verified
+  acceptance:
+  - Run npx vue-mess-detector analyze --exclude=.devenv from frontend before and after changes.
+  - Preserve detector rules and exclusions and existing workflow behavior.
+  - Record exact count reduction and frontend verification results.
+  required: true
+  verification:
+    kind: manual
+    instructions: Compare each recorded pass baseline with its final output, then run frontend checks
+      and verify formatting on the changed files.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npx vue-mess-detector analyze --exclude=.devenv
+    - kind: command
+      reference: cd frontend && npm run test:unit -- --run
+    - kind: command
+      reference: cd frontend && npx vue-tsc --build --force
+    - kind: command
+      reference: cd frontend && npm run type-check:component-tests
+    - kind: command
+      reference: cd frontend && npm run lint
+    - kind: command
+      reference: cd frontend && npm run build-only
+    - kind: command
+      reference: cd frontend && npx prettier --write --single-attribute-per-line src/api/__tests__/reportingTimelineApi.test.ts
+        src/api/patientService.ts src/api/reportTemplatesApi.ts src/components/AiDataset/AiDatasetSplitBuilder.test.ts
+        src/components/Anonymizer/AnonymizationCorrectionComponent.vue src/components/Anonymizer/AnonymizationValidationComponent.vue
+        src/components/Anonymizer/__tests__/AnonymizationOverviewComponent.test.ts src/components/Anonymizer/__tests__/anonymizationNavigation.test.ts
+        src/components/Anonymizer/anonymizationValidationPresentation.ts src/components/VideoExamination/Timeline.vue
+        src/components/VideoExamination/VideoExaminationAnnotation.vue src/components/VideoExamination/__tests__/Timeline.pts-navigation.test.ts
+        src/components/VideoExamination/__tests__/segmentNavigation.test.ts src/components/VideoExamination/segmentNavigation.ts
+        src/components/VideoExamination/videoDropdownPresentation.ts src/router/index.ts src/stores/__tests__/videoStore.segmentAnnotationStatus.test.ts
+        src/stores/anonymizationStore.ts src/stores/auth_kc.ts src/stores/examinationStore.ts src/stores/patientStore.ts
+        src/stores/videoStore.ts src/utils/__tests__/datasetBucketPresentation.test.ts src/utils/applicationSettingsForm.ts
+        src/utils/datasetBucketPresentation.ts src/utils/dateHelpers.ts src/utils/pdfCorrection.ts src/views/AdministrationPage.vue
+        src/views/AiDatasetBucketsPage.vue src/views/AiDatasetSettingsPage.vue src/views/ApplicationSettingsPage.vue
+        src/views/ModelTrainingPage.vue src/views/administrationPresentation.ts src/views/frameBoxAnnotations.ts
+        src/views/reporting/ReportingShell.vue src/views/reporting/__tests__/FrameSelectorPage.test.ts
+        src/views/reporting/__tests__/reportingValidationPresentation.test.ts src/views/reporting/reportingValidationPresentation.ts
+        tests/keycloak/can_kc.spec.ts tests/keycloak/http_kc.spec.ts
+    note: 'Detector history: original 4342 findings; pass one 2442; pass two 2032 (519 errors/1513 warnings);
+      pass three before Prettier 1893 (496/1397), after Prettier 1894 (498/1396). Third-pass net reduction
+      138 (6.79%); cumulative reduction 2448 (56.38%). Final scan covers 319 files with the same default
+      53 rules and .devenv exclusion under Vue Mess Detector 0.68.1. Prettier --write --single-attribute-per-line
+      ran on 40 third-pass files and its --check passed; formatting increased findings by one, transparently
+      retained for consistency. Final 134 test files / 989 tests, application and component TypeScript
+      checks, lint, build, and git diff --check passed. Build retains non-failing large-chunk advisory.
+      Remaining 1894 findings include real complexity and heuristic false positives.'
+    assessed_by: codex-vue-detector-20260911
+    assessed_at: '2026-09-11T09:09:57.307233Z'
+- id: scope
+  category: requirements
+  title: Cleanup scope is explicit
+  acceptance:
+  - Limit edits to first-party frontend source and this tracking file; respect active file locks.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the final diff and recorded verification evidence.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src
+    note: Third pass uses seven implementation subagents and one independent static reviewer. Changed
+      40 frontend files including 9 new files (5 typed helpers and 4 focused test files), plus this existing
+      YAML tracker. Introduced cohesive reporting, dataset, settings, administration and navigation helpers;
+      simplified annotation gating and local names; preserved pre-existing staged work. User-requested
+      Prettier --write applied only to these 40 files with --single-attribute-per-line. No backend, dependency,
+      formatter configuration, detector rule or exclusion changes.
+    assessed_by: codex-vue-detector-20260911
+    assessed_at: '2026-09-11T09:10:00.222876Z'
+- id: behavior
+  category: functionality
+  title: Existing workflow behavior is preserved
+  acceptance:
+  - Use parser-aware formatting and brace insertion; preserve expressions and branch semantics.
+  - Preserve template behavior, selector matching and CSS precedence when simplifying presentation.
+  - Preserve binding identities, public property keys, fixture values and assertions during readability
+    changes.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the final diff and recorded verification evidence.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src
+    - kind: code
+      reference: frontend/src/views/reporting/CaseResolutionPage.vue
+    note: Third-pass independent review found no concrete regressions in approval gates, projection fields,
+      dataset duplicate/label/order precedence, training readiness, reporting grouping/traversal, segment
+      navigation and status presentation. Focused new tests exercise helper boundaries. Binding changes
+      preserve resolved references, literals, exports and property keys; eight edited existing test files
+      passed exact reverse-edit equivalence before formatting. Prettier script AST comparison passed across
+      all 40 files after normalizing positions, raw formatting and equivalent quoted/unquoted property
+      names. Final 989 tests, both TypeScript checks and lint passed. No real-browser visual comparison
+      was performed.
+    assessed_by: codex-vue-detector-20260911
+    assessed_at: '2026-09-11T09:10:03.547287Z'
+- id: security
+  category: security
+  title: Security boundaries are preserved
+  acceptance:
+  - Do not alter authentication, payload validation, storage, or transport semantics.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the final diff and recorded verification evidence.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/api/reportExportApi.ts
+    note: Third-pass review confirms anonymization and segment-validation gates remain distinct, annotation
+      principal scoping is preserved, and navigation/readiness refactors keep the original reactive inputs
+      and status precedence. API/auth conditional simplifications passed 34 focused tests, including malformed-user/coverage
+      rejection. No transport, encryption, storage, authorization policy, configuration secrets or API
+      write contract changes. Final 989 tests and independent static review passed.
+    assessed_by: codex-vue-detector-20260911
+    assessed_at: '2026-09-11T09:10:06.324518Z'
+- id: reproducibility
+  category: operations
+  title: Detector comparison is reproducible
+  acceptance:
+  - Keep default detector rules and the original .devenv exclusion unchanged.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the final diff and recorded verification evidence.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npx vue-mess-detector analyze --exclude=.devenv
+    note: Third-pass scans used Vue Mess Detector 0.68.1 and all default 53 rules with only .devenv excluded.
+      Baseline 2032 across 310 files; new helpers/tests expand final coverage to 319 files. Frozen post-Prettier
+      result 498 errors + 1396 warnings = 1894. Prettier uses existing configuration plus the explicit
+      single-attribute-per-line flag; the exact 40-file write command is retained as measured_reduction
+      evidence. No thresholds, exclusions or rule suppressions were changed.
+    assessed_by: codex-vue-detector-20260911
+    assessed_at: '2026-09-11T09:10:09.115250Z'
+- id: evidence
+  category: documentation
+  title: Verification evidence is recorded in English
+  acceptance:
+  - Record before and after counts, verification results, and remaining limitations in this YAML.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the final diff and recorded verification evidence.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: feature-tracking/FrontendVueMessReduction.yml
+    note: 'English YAML records all three passes: 4342 to 2442 to 2032 to 1894 findings, with exact formatting
+      command, final integration results, source scope and limitations. Formatting itself changed 1893
+      to 1894; reduction is attributed to source improvements. All final checks pass, including Prettier
+      check on the same files. Residual limitations include remaining real and heuristic detector findings,
+      existing build chunk-size advisory and no real-browser visual acceptance run.'
+    assessed_by: codex-vue-detector-20260911
+    assessed_at: '2026-09-11T09:10:11.664950Z'

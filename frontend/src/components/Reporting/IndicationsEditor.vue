@@ -1,7 +1,10 @@
 <template>
   <div>
     <h6 class="mb-2">{{ title }}</h6>
-    <p v-if="description" class="text-muted small">{{ description }}</p>
+    <p
+      v-if="description"
+      class="text-muted small"
+    >{{ description }}</p>
     <div
       v-if="optionsError"
       class="alert alert-warning py-2 d-flex justify-content-between align-items-center"
@@ -15,7 +18,10 @@
         Optionen neu laden
       </button>
     </div>
-    <div v-else-if="optionsLoading" class="small text-muted mb-2">Lade Indikationsoptionen...</div>
+    <div
+      v-else-if="optionsLoading"
+      class="small text-muted mb-2"
+    >Lade Indikationsoptionen...</div>
     <div
       v-else-if="!hasBaseIndicationOptions"
       class="alert alert-info py-2 d-flex justify-content-between align-items-center"
@@ -30,7 +36,11 @@
       </button>
     </div>
 
-    <div v-for="(row, idx) in rows" :key="idx" class="row g-2 align-items-end mb-2">
+    <div
+      v-for="(row, idx) in rows"
+      :key="idx"
+      class="row g-2 align-items-end mb-2"
+    >
       <div class="col-md-5">
         <label class="form-label">Untersuchungsindikation</label>
         <select
@@ -87,7 +97,11 @@
     </div>
 
     <div class="d-flex flex-wrap gap-2">
-      <button class="btn btn-outline-primary btn-sm" :disabled="disabled" @click="$emit('add-row')">
+      <button
+        class="btn btn-outline-primary btn-sm"
+        :disabled="disabled"
+        @click="$emit('add-row')"
+      >
         Zeile hinzufügen
       </button>
     </div>
@@ -138,7 +152,9 @@ function dedupeChoiceOptions(options: IndicationChoiceOption[]): IndicationChoic
   const byId = new Map<number, IndicationChoiceOption>()
   for (const option of options) {
     const id = option.id
-    if (!Number.isFinite(id)) continue
+    if (!Number.isFinite(id)) {
+      continue
+    }
     byId.set(id, {
       id,
       label: option.label || 'Bezeichnung nicht verfügbar'
@@ -151,7 +167,9 @@ const baseIndicationOptions = computed<IndicationOption[]>(() => {
   const byId = new Map<number, IndicationOption>()
   for (const entry of props.indicationOptions) {
     const id = entry.id
-    if (!Number.isFinite(id)) continue
+    if (!Number.isFinite(id)) {
+      continue
+    }
     const current = byId.get(id)
     const mergedChoices = dedupeChoiceOptions([
       ...(current?.choices || []),
@@ -172,7 +190,9 @@ const baseIndicationOptions = computed<IndicationOption[]>(() => {
 const hasBaseIndicationOptions = computed(() => baseIndicationOptions.value.length > 0)
 
 function getChoiceOptionsForIndication(indicationId: number | null): IndicationChoiceOption[] {
-  if (indicationId == null) return []
+  if (indicationId == null) {
+    return []
+  }
   return baseIndicationOptions.value.find((option) => option.id === indicationId)?.choices || []
 }
 

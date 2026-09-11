@@ -18,18 +18,17 @@ let
   runtimeDataDir =
     if secretspecEncryptedDataDir == "" then secret "DATA_DIR" "data" else secretspecEncryptedDataDir;
 
-  DEPLOYMENT_MODE = "prod";
 
-  python = pkgs.python312;
   uvPackage = pkgs.uv;
-  env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ];
   devTasks = import ./devenv/devTasks/default.nix {
     inherit config pkgs lib;
     env = baseEnv;
   };
 
-  languages.javascript.enable = true;
-  languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
+  languages.javascript ={
+    enable = true;
+    package = pkgs.nodejs_22; # Specify the Node.js version
+  };
   languages.python.enable = true;
   languages.python.uv.enable = true;
 
@@ -175,24 +174,27 @@ let
   # We keep it opt-in so shell evaluation remains reliable on non-CUDA setups.
   enableOllama = builtins.getEnv "DEVENV_ENABLE_OLLAMA" == "1";
 
-  runtimePackages =
+  runtimeLibraries = with pkgs; [
+    stdenv.cc.cc.lib
+    libglvnd
+    glib
+    zlib
+    libxcb
+  ];
+
+  runtimeTools =
     with pkgs;
     [
-      stdenv.cc.cc.lib
       ffmpeg-headless.bin
       uvPackage
-      libglvnd # Add libglvnd for libGL.so.1
-      glib
-      zlib
       git
       myTesseract
       secretspec
-      libxcb
     ]
     ++ lib.optionals enableOllama [ ollama.out ];
 
   runtimeLibraryPath =
-    lib.makeLibraryPath runtimePackages
+    lib.makeLibraryPath runtimeLibraries
     + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
     + ":/usr/lib/wsl/lib"
     + ":/usr/lib/x86_64-linux-gnu"
@@ -200,17 +202,19 @@ let
 
   _module.args.buildInputs = baseBuildInputs;
 
-  SYNC_CMD = "uv sync --active --extra dev --extra docs";
+  SYNC_CMD = "uv sync --locked --extra dev --extra docs";
   nixpkgs.config.allowUnfree = true;
 
 in
 {
   dotenv.enable = false;
   dotenv.disableHint = true;
-  packages = lib.unique (devenv_utils.buildInputs ++ runtimePackages);
-
+  packages =
+    devenv_utils.buildInputs
+    ++ runtimeLibraries
+    ++ runtimeTools;
   env = baseEnv // {
-    UV_PROJECT_ENVIRONMENT = lib.mkForce ".devenv/state/venv";
+    UV_PROJECT_ENVIRONMENT = lib.mkForce "${config.devenv.state}/venv";    
     LD_LIBRARY_PATH = runtimeLibraryPath;
     TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
     PYTORCH_ALLOC_CONF = "expandable_segments:True";
@@ -219,10 +223,17 @@ in
   languages.python = {
     enable = true;
     package = lib.mkForce pkgs.python312;
+
+    venv.enable = true;
+
     uv = {
       enable = true;
       package = uvPackage;
-      sync.enable = false;
+      sync = {
+        enable = true;
+        extras = [ "dev" "docs" ];
+        arguments = [ "--locked" ];
+      };
     };
   };
 
@@ -287,28 +298,6 @@ in
     else
       echo "Note: .env.systemd not found. Defaults apply."
     fi
-    # Keep a manually activated legacy .venv from shadowing the devenv-managed
-    # interpreter when direnv reloads the shell.
-    if [ -n "''${VIRTUAL_ENV:-}" ] && [ "''${VIRTUAL_ENV}" != "$PWD/.devenv/state/venv" ]; then
-      if command -v deactivate >/dev/null 2>&1; then
-        deactivate
-      fi
-      clean_path=""
-      old_ifs="$IFS"
-      IFS=:
-      for entry in $PATH; do
-        if [ "$entry" != "$PWD/.venv/bin" ]; then
-          clean_path="''${clean_path:+$clean_path:}$entry"
-        fi
-      done
-      IFS="$old_ifs"
-      export PATH="$clean_path"
-      unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT
-    fi
-
-    # Activate Python virtual environment managed by uv inside of devenv
-    echo "Virtual environment activated."
-    source .devenv/state/venv/bin/activate
 
   '';
 }

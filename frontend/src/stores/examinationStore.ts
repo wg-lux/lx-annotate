@@ -67,9 +67,9 @@ export const useExaminationStore = defineStore('examination', {
       return state.exams.find((e) => e.id === state.selectedExaminationId) ?? null
     },
     availableFindings(state): Finding[] {
-      const id = state.selectedExaminationId
-      if (!id) return []
-      return state.findingsByExam.get(id) ?? []
+      const examinationId = state.selectedExaminationId
+      if (!examinationId) return []
+      return state.findingsByExam.get(examinationId) ?? []
     }
   },
 
@@ -91,40 +91,40 @@ export const useExaminationStore = defineStore('examination', {
           this.exams = rows
             .map((entry) => {
               if (!entry || typeof entry !== 'object') return null
-              const row = entry as Record<string, unknown>
+              const examinationRecord = entry as Record<string, unknown>
               const fallbackName =
-                typeof row.name === 'string'
-                  ? row.name
-                  : typeof row.name_de === 'string'
-                    ? row.name_de
+                typeof examinationRecord.name === 'string'
+                  ? examinationRecord.name
+                  : typeof examinationRecord.name_de === 'string'
+                    ? examinationRecord.name_de
                     : ''
               const name =
-                typeof row.name === 'string'
-                  ? row.name
-                  : typeof row.nameDe === 'string'
-                    ? row.nameDe
+                typeof examinationRecord.name === 'string'
+                  ? examinationRecord.name
+                  : typeof examinationRecord.nameDe === 'string'
+                    ? examinationRecord.nameDe
                     : fallbackName
               const nameDe =
-                typeof row.nameDe === 'string'
-                  ? row.nameDe
-                  : typeof row.name_de === 'string'
-                    ? row.name_de
+                typeof examinationRecord.nameDe === 'string'
+                  ? examinationRecord.nameDe
+                  : typeof examinationRecord.name_de === 'string'
+                    ? examinationRecord.name_de
                     : undefined
               const nameEn =
-                typeof row.nameEn === 'string'
-                  ? row.nameEn
-                  : typeof row.name_en === 'string'
-                    ? row.name_en
+                typeof examinationRecord.nameEn === 'string'
+                  ? examinationRecord.nameEn
+                  : typeof examinationRecord.name_en === 'string'
+                    ? examinationRecord.name_en
                     : undefined
               const displayNameSource =
-                typeof row.displayName === 'string'
-                  ? row.displayName
-                  : typeof row.display_name === 'string'
-                    ? row.display_name
+                typeof examinationRecord.displayName === 'string'
+                  ? examinationRecord.displayName
+                  : typeof examinationRecord.display_name === 'string'
+                    ? examinationRecord.display_name
                     : undefined
 
               return {
-                id: Number(row.id),
+                id: Number(examinationRecord.id),
                 name,
                 nameDe,
                 nameEn,
@@ -148,24 +148,27 @@ export const useExaminationStore = defineStore('examination', {
           r(endpoints.examination.examinationsDropdown)
         )
         const dropdownData = dropdownPayload.data
-        const dropdownRows: unknown[] =
-          Array.isArray(dropdownData) ? dropdownData :
-            dropdownData && typeof dropdownData === 'object' &&
-              'results' in dropdownData && Array.isArray(dropdownData.results)
-              ? dropdownData.results
-              : (() => {
-                  throw new TypeError(
-                    'Examination dropdown response does not match the expected contract'
-                  )
-                })()
+        const dropdownRows: unknown[] = Array.isArray(dropdownData)
+          ? dropdownData
+          : dropdownData &&
+              typeof dropdownData === 'object' &&
+              'results' in dropdownData &&
+              Array.isArray(dropdownData.results)
+            ? dropdownData.results
+            : (() => {
+                throw new TypeError(
+                  'Examination dropdown response does not match the expected contract'
+                )
+              })()
 
         normalizeRows(dropdownRows)
       } catch (e: unknown) {
         this.exams = []
         const candidate = e !== null && typeof e === 'object' ? e : {}
         const response =
-          'response' in candidate && candidate.response !== null &&
-            typeof candidate.response === 'object'
+          'response' in candidate &&
+          candidate.response !== null &&
+          typeof candidate.response === 'object'
             ? candidate.response
             : {}
         const data =

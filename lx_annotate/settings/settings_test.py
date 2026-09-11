@@ -7,19 +7,21 @@ These settings prioritize speed and isolation:
 - External services (Keycloak) mocked or disabled
 """
 
+from __future__ import annotations
+
 import os
 import tempfile
 from copy import deepcopy
-from typing import Any, cast
 from pathlib import Path
+from typing import Any, cast
 
 # The base settings fail closed when no deployment secret is configured.
 # Tests supply their explicitly isolated, non-production key before importing base.
 os.environ.setdefault("DJANGO_SECRET_KEY", "test-insecure-key-do-not-use-00000000")
 
 # Import everything from base
-from .settings_base import *  # noqa: F403
 from . import settings_base as base
+from .settings_base import *  # noqa: F403
 
 # -----------------------------------------------------------------------------
 # 1. SETUP MUTABLE COPIES

@@ -6,11 +6,11 @@ from typing import Any, Literal, Protocol, cast
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
 from endoreg_db.models import Center, Examiner, PortalUserInfo
 from endoreg_db.models.state.audit_ledger import AuditLedger
 from endoreg_db.utils import DJANGO_NAME_SALT, get_examiner_hash
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from lx_annotate.permissions import user_has_global_center_scope_admin
 
 User = get_user_model()

@@ -20,22 +20,51 @@
         </button>
       </div>
 
-      <div v-if="!collapsed" data-testid="lookup-status-details" class="row g-3 mt-1">
+      <div
+        v-if="!collapsed"
+        data-testid="lookup-status-details"
+        class="row g-3 mt-1"
+      >
         <div class="col-md-4">
           <label class="form-label">Technische Untersuchungsreferenz</label>
-          <input class="form-control" :value="patientExaminationId ?? ''" readonly />
+          <input
+            class="form-control"
+            :value="patientExaminationId ?? ''"
+            readonly
+          />
         </div>
-        <div v-if="selectedExaminationId !== undefined" class="col-md-4">
+        <div
+          v-if="selectedExaminationId !== undefined"
+          class="col-md-4"
+        >
           <label class="form-label">Technische Konzeptreferenz</label>
-          <input class="form-control" :value="selectedExaminationId ?? ''" readonly />
+          <input
+            class="form-control"
+            :value="selectedExaminationId ?? ''"
+            readonly
+          />
         </div>
-        <div v-if="sessionStatus !== undefined" class="col-md-4">
+        <div
+          v-if="sessionStatus !== undefined"
+          class="col-md-4"
+        >
           <label class="form-label">Abfragestatus</label>
-          <input class="form-control" :value="sessionStatus" readonly />
+          <input
+            class="form-control"
+            :value="sessionStatus"
+            readonly
+          />
         </div>
-        <div v-if="findingsRevision !== undefined" class="col-md-4">
+        <div
+          v-if="findingsRevision !== undefined"
+          class="col-md-4"
+        >
           <label class="form-label">Befund-Revision</label>
-          <input class="form-control" :value="findingsRevision" readonly />
+          <input
+            class="form-control"
+            :value="findingsRevision"
+            readonly
+          />
         </div>
       </div>
     </div>

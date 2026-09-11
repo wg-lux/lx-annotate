@@ -49,7 +49,9 @@ const TWO_DIGIT_STRINGS = Array.from({ length: 60 }, (_, index) =>
 )
 
 export const formatTime = (seconds: number): string => {
-  if (!Number.isFinite(seconds) || seconds <= 0) return '00:00'
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return '00:00'
+  }
 
   const wholeSeconds = Math.floor(seconds)
   const mins = Math.floor(wholeSeconds / 60)

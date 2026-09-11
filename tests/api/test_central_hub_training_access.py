@@ -19,6 +19,7 @@ from endoreg_db.models import (
     Center,
     Frame,
     ImageClassificationAnnotation,
+    InformationSource,
     Label,
     LabelSet,
     PortalUserInfo,
@@ -123,6 +124,9 @@ def retained_video(
         label=label,
         value=True,
         annotator="test-suite",
+        information_source=InformationSource.objects.get_or_create(
+            name="manual_annotation"
+        )[0],
     )
     dataset = AIDataSet.objects.create(
         name="hub-training",

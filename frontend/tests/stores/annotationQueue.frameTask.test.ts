@@ -23,7 +23,9 @@ import { useAnnotationQueueStore } from '@/stores/annotationQueue'
 
 function expectLastTaskRequest(expectedParams: Record<string, string | number>): void {
   const call = mocks.axiosGet.mock.calls.at(-1)
-  if (call === undefined) throw new Error('Expected a frame-task request.')
+  if (call === undefined) {
+    throw new Error('Expected a frame-task request.')
+  }
   const [url, config] = call
   expect(url).toBe('/api/media/annotations/frames/random-task/')
   expect(config?.params).toMatchObject(expectedParams)

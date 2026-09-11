@@ -13,15 +13,27 @@
         :disabled="metricsStore.loading"
         @click="refreshMetrics"
       >
-        <i class="ni ni-bold-right me-1" :class="{ 'ni-spin': metricsStore.loading }"></i>
+        <i
+          class="ni ni-bold-right me-1"
+          :class="{ 'ni-spin': metricsStore.loading }"
+        ></i>
         Aktualisieren
       </button>
     </div>
 
-    <section class="metrics-filter-band mb-4" aria-label="Filter">
-      <form class="row g-3 align-items-end" @submit.prevent="applyFilters">
+    <section
+      class="metrics-filter-band mb-4"
+      aria-label="Filter"
+    >
+      <form
+        class="row g-3 align-items-end"
+        @submit.prevent="applyFilters"
+      >
         <div class="col-md-2">
-          <label class="form-label" for="metrics-date-from">Von</label>
+          <label
+            class="form-label"
+            for="metrics-date-from"
+          >Von</label>
           <input
             id="metrics-date-from"
             v-model="filterForm.dateFrom"
@@ -30,7 +42,10 @@
           >
         </div>
         <div class="col-md-2">
-          <label class="form-label" for="metrics-date-to">Bis</label>
+          <label
+            class="form-label"
+            for="metrics-date-to"
+          >Bis</label>
           <input
             id="metrics-date-to"
             v-model="filterForm.dateTo"
@@ -39,15 +54,25 @@
           >
         </div>
         <div class="col-md-2">
-          <label class="form-label" for="metrics-media-type">Medientyp</label>
-          <select id="metrics-media-type" v-model="filterForm.mediaType" class="form-select">
+          <label
+            class="form-label"
+            for="metrics-media-type"
+          >Medientyp</label>
+          <select
+            id="metrics-media-type"
+            v-model="filterForm.mediaType"
+            class="form-select"
+          >
             <option value="all">Alle</option>
             <option value="pdf">PDF</option>
             <option value="video">Video</option>
           </select>
         </div>
         <div class="col-md-2">
-          <label class="form-label" for="metrics-center-id">Center-ID</label>
+          <label
+            class="form-label"
+            for="metrics-center-id"
+          >Center-ID</label>
           <input
             id="metrics-center-id"
             v-model="filterForm.centerId"
@@ -58,7 +83,10 @@
           >
         </div>
         <div class="col-md-2">
-          <label class="form-label" for="metrics-document-type">Dokumenttyp</label>
+          <label
+            class="form-label"
+            for="metrics-document-type"
+          >Dokumenttyp</label>
           <input
             id="metrics-document-type"
             v-model="filterForm.documentType"
@@ -68,7 +96,10 @@
           >
         </div>
         <div class="col-md-2">
-          <label class="form-label" for="metrics-source-system">Quelle</label>
+          <label
+            class="form-label"
+            for="metrics-source-system"
+          >Quelle</label>
           <input
             id="metrics-source-system"
             v-model="filterForm.sourceSystem"
@@ -78,7 +109,11 @@
           >
         </div>
         <div class="col-12 d-flex gap-2">
-          <button class="btn btn-primary btn-sm mb-0" type="submit" :disabled="metricsStore.loading">
+          <button
+            class="btn btn-primary btn-sm mb-0"
+            type="submit"
+            :disabled="metricsStore.loading"
+          >
             Filter anwenden
           </button>
           <button
@@ -93,12 +128,22 @@
       </form>
     </section>
 
-    <div v-if="metricsStore.error" class="alert alert-danger" role="alert">
+    <div
+      v-if="metricsStore.error"
+      class="alert alert-danger"
+      role="alert"
+    >
       <strong>Fehler:</strong> {{ metricsStore.error }}
     </div>
 
-    <div v-if="metricsStore.loading && !metricsStore.data" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
+    <div
+      v-if="metricsStore.loading && !metricsStore.data"
+      class="text-center py-5"
+    >
+      <div
+        class="spinner-border text-primary"
+        role="status"
+      >
         <span class="visually-hidden">Wird geladen...</span>
       </div>
       <p class="mt-2 text-muted">Metriken werden geladen...</p>
@@ -118,7 +163,10 @@
                   <div class="metric-label">{{ card.label }}</div>
                   <div class="metric-value">{{ card.value }}</div>
                 </div>
-                <div class="metric-icon" :class="card.iconClass">
+                <div
+                  class="metric-icon"
+                  :class="card.iconClass"
+                >
                   <i :class="card.icon"></i>
                 </div>
               </div>
@@ -161,7 +209,10 @@
           <h6 class="mb-0">Feldqualität</h6>
         </div>
         <div class="card-body">
-          <div v-if="fieldQualityRows.length" class="table-responsive">
+          <div
+            v-if="fieldQualityRows.length"
+            class="table-responsive"
+          >
             <table class="table align-items-center mb-0">
               <thead>
                 <tr>
@@ -174,7 +225,10 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in fieldQualityRows" :key="row.fieldName">
+                <tr
+                  v-for="row in fieldQualityRows"
+                  :key="row.fieldName"
+                >
                   <td>{{ fieldLabel(row.fieldName) }}</td>
                   <td class="text-end">{{ formatInteger(row.support) }}</td>
                   <td class="text-end">{{ formatPercent(row.changedRate) }}</td>
@@ -185,7 +239,10 @@
               </tbody>
             </table>
           </div>
-          <p v-else class="text-muted mb-0">Keine Feldqualitätsdaten im ausgewählten Zeitraum.</p>
+          <p
+            v-else
+            class="text-muted mb-0"
+          >Keine Feldqualitätsdaten im ausgewählten Zeitraum.</p>
         </div>
       </section>
 
@@ -203,7 +260,10 @@
               <div class="phi-metric-box">
                 <div class="metric-label">{{ metric.label }}</div>
                 <div class="metric-value">{{ metric.value }}</div>
-                <div v-if="metric.help" class="small text-muted">{{ metric.help }}</div>
+                <div
+                  v-if="metric.help"
+                  class="small text-muted"
+                >{{ metric.help }}</div>
               </div>
             </div>
           </div>
@@ -218,7 +278,11 @@
       </div>
     </template>
 
-    <div v-else class="alert alert-info" role="alert">
+    <div
+      v-else
+      class="alert alert-info"
+      role="alert"
+    >
       Keine Metriken geladen.
     </div>
   </div>
@@ -461,7 +525,9 @@ function formatInteger(value: number): string {
 }
 
 function formatPercent(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '-'
+  if (value === null || value === undefined) {
+    return '-'
+  }
   const normalized = value > 1 ? value / 100 : value
   return new Intl.NumberFormat('de-DE', {
     style: 'percent',
@@ -470,10 +536,16 @@ function formatPercent(value: number | null | undefined): string {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (seconds === null) return 'Keine Daten'
-  if (seconds < 60) return `${String(Math.round(seconds))} s`
+  if (seconds === null) {
+    return 'Keine Daten'
+  }
+  if (seconds < 60) {
+    return `${String(Math.round(seconds))} s`
+  }
   const minutes = seconds / 60
-  if (minutes < 60) return `${String(Math.round(minutes))} min`
+  if (minutes < 60) {
+    return `${String(Math.round(minutes))} min`
+  }
   const hours = minutes / 60
   if (hours < 48) {
     const formattedHours = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace('.', ',')

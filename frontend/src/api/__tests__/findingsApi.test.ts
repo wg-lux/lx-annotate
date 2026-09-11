@@ -17,9 +17,18 @@ vi.mock('@/api/axiosInstance', () => ({
 
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 
+const SIZE_CLASSIFICATION_ID = 5
+const POLYP_FINDING_ID = 6
+const SMALL_CHOICE_ID = 9
+const CATALOG_EXAMINATION_ID = 12
+const LIST_PATIENT_EXAMINATION_ID = 42
+const PATIENT_EXAMINATION_ID = 88
+const PATIENT_FINDING_ID = 101
+const CONTEXT_PATIENT_EXAMINATION_ID = 168
+
 function choicePayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: 9,
+    id: SMALL_CHOICE_ID,
     name: 'small',
     ...overrides
   }
@@ -27,7 +36,7 @@ function choicePayload(overrides: Record<string, unknown> = {}): Record<string, 
 
 function classificationPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: 5,
+    id: SIZE_CLASSIFICATION_ID,
     name: 'size',
     required: true,
     classificationTypes: ['morphology'],
@@ -38,7 +47,7 @@ function classificationPayload(overrides: Record<string, unknown> = {}): Record<
 
 function findingPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: 6,
+    id: POLYP_FINDING_ID,
     name: 'polyp',
     classifications: [classificationPayload()],
     locationClassifications: [],
@@ -49,9 +58,9 @@ function findingPayload(overrides: Record<string, unknown> = {}): Record<string,
 
 function patientFindingPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: 101,
-    patientExamination: 88,
-    finding: 6,
+    id: PATIENT_FINDING_ID,
+    patientExamination: PATIENT_EXAMINATION_ID,
+    finding: POLYP_FINDING_ID,
     isActive: true,
     classifications: [],
     ...overrides
@@ -68,7 +77,7 @@ describe('findingsApi canonical routing', () => {
     hoisted.axios.get.mockResolvedValue({ data: [] })
 
     vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg')
-    await findingsApi.getExaminationFindings(12)
+    await findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)
     expect(hoisted.axios.get).toHaveBeenLastCalledWith('/dtypes-api/examinations/12/findings/')
   })
 
@@ -80,18 +89,18 @@ describe('findingsApi canonical routing', () => {
     const context = {
       moduleName: 'dgvs_reporting',
       moduleVersion: '0.1.0',
-      patientExaminationId: 168
+      patientExaminationId: CONTEXT_PATIENT_EXAMINATION_ID
     }
 
-    await findingsApi.getExaminationFindings(12, context)
-    await findingsApi.getFindingClassifications(6, context)
-    await findingsApi.getClassificationChoices(5, context)
+    await findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID, context)
+    await findingsApi.getFindingClassifications(POLYP_FINDING_ID, context)
+    await findingsApi.getClassificationChoices(SIZE_CLASSIFICATION_ID, context)
 
     const config = {
       params: {
         module_name: 'dgvs_reporting',
         module_version: '0.1.0',
-        patient_examination_id: 168
+        patient_examination_id: CONTEXT_PATIENT_EXAMINATION_ID
       }
     }
     expect(hoisted.axios.get).toHaveBeenNthCalledWith(
@@ -134,47 +143,47 @@ describe('findingsApi canonical routing', () => {
     hoisted.axios.post.mockResolvedValue({ data: patientFindingPayload() })
 
     await findingsApi.createPatientFinding({
-      patientExamination: 88,
-      finding: 6,
-      classifications: [{ classification: 5, choice: 9 }]
+      patientExamination: PATIENT_EXAMINATION_ID,
+      finding: POLYP_FINDING_ID,
+      classifications: [{ classification: SIZE_CLASSIFICATION_ID, choice: SMALL_CHOICE_ID }]
     })
 
     expect(hoisted.axios.post).toHaveBeenCalledTimes(1)
     expect(hoisted.axios.post).toHaveBeenCalledWith('/dtypes-api/patient-findings/', {
-      patientExamination: 88,
-      finding: 6,
-      classifications: [{ classification: 5, choice: 9 }]
+      patientExamination: PATIENT_EXAMINATION_ID,
+      finding: POLYP_FINDING_ID,
+      classifications: [{ classification: SIZE_CLASSIFICATION_ID, choice: SMALL_CHOICE_ID }]
     })
   })
 
   it('keeps query parameter spelling explicit because Axios body conversion does not transform params', async () => {
     hoisted.axios.get.mockResolvedValue({ data: [] })
 
-    await findingsApi.listPatientFindings(42)
+    await findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)
 
     expect(hoisted.axios.get).toHaveBeenCalledWith('/dtypes-api/patient-findings/', {
-      params: { patient_examination: 42 }
+      params: { patient_examination: LIST_PATIENT_EXAMINATION_ID }
     })
   })
 
   it('accepts valid results envelopes and camel-cased nested records', async () => {
     hoisted.axios.get.mockResolvedValue({ data: { results: [findingPayload()] } })
 
-    await expect(findingsApi.getExaminationFindings(12)).resolves.toMatchObject([
-      { id: 6, name: 'polyp' }
+    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).resolves.toMatchObject([
+      { id: POLYP_FINDING_ID, name: 'polyp' }
     ])
   })
 
   it('rejects malformed list envelopes instead of returning an empty collection', async () => {
     hoisted.axios.get.mockResolvedValue({ data: {} })
 
-    await expect(findingsApi.getExaminationFindings(12)).rejects.toThrowError(/findings\.results/)
+    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).rejects.toThrowError(/findings\.results/)
   })
 
   it('rejects malformed nested finding identities and names', async () => {
     hoisted.axios.get.mockResolvedValue({ data: [findingPayload({ name: '' })] })
 
-    await expect(findingsApi.getExaminationFindings(12)).rejects.toThrowError(/findings\[0\]\.name/)
+    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).rejects.toThrowError(/findings\[0\]\.name/)
   })
 
   it('rejects malformed classification envelopes and nested required choices', async () => {
@@ -182,10 +191,10 @@ describe('findingsApi canonical routing', () => {
       data: [classificationPayload({ choices: [choicePayload({ id: 0 })] })]
     })
 
-    await expect(findingsApi.getFindingClassifications(6)).rejects.toThrowError(
+    await expect(findingsApi.getFindingClassifications(POLYP_FINDING_ID)).rejects.toThrowError(
       /Finding classifications response/
     )
-    await expect(findingsApi.getFindingClassifications(6)).rejects.toThrowError(/choices\[0\]\.id/)
+    await expect(findingsApi.getFindingClassifications(POLYP_FINDING_ID)).rejects.toThrowError(/choices\[0\]\.id/)
   })
 
   it('rejects malformed choice envelopes and nested required names', async () => {
@@ -193,8 +202,8 @@ describe('findingsApi canonical routing', () => {
       .mockResolvedValueOnce({ data: { choices: null } })
       .mockResolvedValueOnce({ data: { choices: [choicePayload({ name: ' ' })] } })
 
-    await expect(findingsApi.getClassificationChoices(5)).rejects.toThrowError(/expected contract/)
-    await expect(findingsApi.getClassificationChoices(5)).rejects.toThrowError(
+    await expect(findingsApi.getClassificationChoices(SIZE_CLASSIFICATION_ID)).rejects.toThrowError(/expected contract/)
+    await expect(findingsApi.getClassificationChoices(SIZE_CLASSIFICATION_ID)).rejects.toThrowError(
       /classificationChoices\[0\]\.name/
     )
   })
@@ -209,7 +218,7 @@ describe('findingsApi canonical routing', () => {
             classifications: [
               {
                 id: 1,
-                classification: 5,
+                classification: SIZE_CLASSIFICATION_ID,
                 classificationChoice: 0,
                 subcategories: {},
                 numericalDescriptors: {},
@@ -220,35 +229,35 @@ describe('findingsApi canonical routing', () => {
         ]
       })
 
-    await expect(findingsApi.listPatientFindings(42)).rejects.toThrowError(/patientFindings/)
-    await expect(findingsApi.listPatientFindings(42)).rejects.toThrowError(/patientExamination/)
-    await expect(findingsApi.listPatientFindings(42)).rejects.toThrowError(/classificationChoice/)
+    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(/patientFindings/)
+    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(/patientExamination/)
+    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(/classificationChoice/)
   })
 
   it('rejects incomplete patient-finding write responses', async () => {
     hoisted.axios.post.mockResolvedValue({
-      data: { id: 101, finding: 6, isActive: true, classifications: [] }
+      data: { id: PATIENT_FINDING_ID, finding: POLYP_FINDING_ID, isActive: true, classifications: [] }
     })
 
     await expect(
-      findingsApi.createPatientFinding({ patientExamination: 88, finding: 6 })
+      findingsApi.createPatientFinding({ patientExamination: PATIENT_EXAMINATION_ID, finding: POLYP_FINDING_ID })
     ).rejects.toThrowError(/patientExamination/)
   })
 
   it('rejects invalid request identifiers and classification selections before dispatch', async () => {
     await expect(findingsApi.getExaminationFindings(0)).rejects.toThrowError(/positive integer/)
     await expect(
-      findingsApi.getExaminationFindings(12, {
+      findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID, {
         moduleName: '',
         moduleVersion: '0.1.0',
-        patientExaminationId: 168
+        patientExaminationId: CONTEXT_PATIENT_EXAMINATION_ID
       })
     ).rejects.toThrowError(/context\.moduleName/)
     await expect(
       findingsApi.createPatientFinding({
-        patientExamination: 88,
-        finding: 6,
-        classifications: [{ classification: 5, choice: 0 }]
+        patientExamination: PATIENT_EXAMINATION_ID,
+        finding: POLYP_FINDING_ID,
+        classifications: [{ classification: SIZE_CLASSIFICATION_ID, choice: 0 }]
       })
     ).rejects.toThrowError(/classifications\[0\]\.choice/)
     expect(hoisted.axios.get).not.toHaveBeenCalled()

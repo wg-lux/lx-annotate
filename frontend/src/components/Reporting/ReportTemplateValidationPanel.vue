@@ -14,9 +14,18 @@
       </span>
     </div>
     <div class="card-body">
-      <div v-if="loading" class="text-muted small">Prüfe Vorlagenregeln...</div>
-      <div v-else-if="errorMessage" class="alert alert-danger py-2 mb-0">{{ errorMessage }}</div>
-      <div v-else-if="!result" class="text-muted small">
+      <div
+        v-if="loading"
+        class="text-muted small"
+      >Prüfe Vorlagenregeln...</div>
+      <div
+        v-else-if="errorMessage"
+        class="alert alert-danger py-2 mb-0"
+      >{{ errorMessage }}</div>
+      <div
+        v-else-if="!result"
+        class="text-muted small"
+      >
         Keine Eingabeprüfung verfügbar.
       </div>
       <template v-else>
@@ -29,19 +38,33 @@
           {{ result.unitValidators.length }} Einheitenregel(n)
         </div>
 
-        <div v-if="pendingDataIssues.length" class="alert alert-warning py-2 mb-2" role="status">
+        <div
+          v-if="pendingDataIssues.length"
+          class="alert alert-warning py-2 mb-2"
+          role="status"
+        >
           {{ pendingDataIssues.length }} Pflichtangabe(n) fehlen noch. Ergänzen Sie die markierten
           Felder vor dem Abschluss.
         </div>
-        <div v-if="generalIssues.length" class="alert alert-warning py-2 mb-2" role="status">
+        <div
+          v-if="generalIssues.length"
+          class="alert alert-warning py-2 mb-2"
+          role="status"
+        >
           {{ generalIssues.length }} Vorlagenregel(n) benötigen Ihre Aufmerksamkeit.
         </div>
 
-        <details class="mt-3" data-testid="validation-technical-details">
+        <details
+          class="mt-3"
+          data-testid="validation-technical-details"
+        >
           <summary class="small fw-semibold">Prüfdetails anzeigen</summary>
           <div class="mt-3">
 
-        <div v-if="pendingDataIssues.length" class="alert alert-warning py-2 mb-3">
+        <div
+          v-if="pendingDataIssues.length"
+          class="alert alert-warning py-2 mb-3"
+        >
           <h6 class="small text-uppercase mb-2">Ausstehende Daten</h6>
           <div
             v-for="issue in pendingDataIssues"
@@ -56,13 +79,19 @@
               Nachzutragen:
               {{ missingConditionClassifications(issue).join(', ') }}
             </div>
-            <div v-if="issueFindingAnchor(issue)" class="mt-1">
+            <div
+              v-if="issueFindingAnchor(issue)"
+              class="mt-1"
+            >
               <a :href="`#${issueFindingAnchor(issue)}`">Zum betroffenen Befund springen</a>
             </div>
           </div>
         </div>
 
-        <div v-if="generalIssues.length" class="mb-3">
+        <div
+          v-if="generalIssues.length"
+          class="mb-3"
+        >
           <h6 class="small text-uppercase text-muted mb-2">Hinweise</h6>
           <div
             v-for="issue in generalIssues"
@@ -71,21 +100,33 @@
           >
             <div class="d-flex justify-content-between gap-2">
               <strong>{{ issue.code }}</strong>
-              <span class="badge" :class="issue.level === 'warning' ? 'bg-warning text-dark' : 'bg-danger'">
+              <span
+                class="badge"
+                :class="issue.level === 'warning' ? 'bg-warning text-dark' : 'bg-danger'"
+              >
                 {{ issue.level === 'warning' ? 'Warnung' : 'Fehler' }}
               </span>
             </div>
             <div class="small">{{ issue.message }}</div>
-            <div v-if="issue.validatorName" class="small text-muted">
+            <div
+              v-if="issue.validatorName"
+              class="small text-muted"
+            >
               {{ validatorKindLabel(issue.validatorKind) }}: {{ issue.validatorName }}
             </div>
-            <div v-if="issueFindingAnchor(issue)" class="small mt-1">
+            <div
+              v-if="issueFindingAnchor(issue)"
+              class="small mt-1"
+            >
               <a :href="`#${issueFindingAnchor(issue)}`">Zum betroffenen Befund springen</a>
             </div>
           </div>
         </div>
 
-        <div v-if="result.classificationValidators.length" class="mb-3">
+        <div
+          v-if="result.classificationValidators.length"
+          class="mb-3"
+        >
           <h6 class="small text-uppercase text-muted mb-2">Klassifikationsregeln</h6>
           <div
             v-for="validator in result.classificationValidators"
@@ -99,7 +140,10 @@
                   {{ validator.finding }} · {{ validator.classification }} · {{ validator.operator }}
                 </div>
               </div>
-              <span class="badge" :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'">
+              <span
+                class="badge"
+                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+              >
                 {{ validator.ok ? 'OK' : 'Offen' }}
               </span>
             </div>
@@ -109,7 +153,10 @@
           </div>
         </div>
 
-        <div v-if="result.interventionValidators.length" class="mb-3">
+        <div
+          v-if="result.interventionValidators.length"
+          class="mb-3"
+        >
           <h6 class="small text-uppercase text-muted mb-2">Interventionsregeln</h6>
           <div
             v-for="validator in result.interventionValidators"
@@ -123,7 +170,10 @@
                   {{ validator.finding }} · {{ validator.intervention }} · {{ validator.operator }}
                 </div>
               </div>
-              <span class="badge" :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'">
+              <span
+                class="badge"
+                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+              >
                 {{ validator.ok ? 'OK' : 'Offen' }}
               </span>
             </div>
@@ -133,7 +183,10 @@
           </div>
         </div>
 
-        <div v-if="result.findingsValidators.length" class="mb-3">
+        <div
+          v-if="result.findingsValidators.length"
+          class="mb-3"
+        >
           <h6 class="small text-uppercase text-muted mb-2">Befundregeln</h6>
           <div
             v-for="validator in result.findingsValidators"
@@ -145,21 +198,30 @@
                 <strong>{{ validator.name }}</strong>
                 <div class="small text-muted">{{ validator.finding }} · {{ validator.operator }}</div>
               </div>
-              <span class="badge" :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'">
+              <span
+                class="badge"
+                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+              >
                 {{ validator.ok ? 'OK' : 'Offen' }}
               </span>
             </div>
             <div class="small mt-1">
               Treffer: {{ validator.matchedOccurrences }} · ausgelöst: {{ validator.triggeredOccurrences }}
             </div>
-            <div v-if="validator.missingRequiredClassifications.length" class="small text-danger mt-1">
+            <div
+              v-if="validator.missingRequiredClassifications.length"
+              class="small text-danger mt-1"
+            >
               Fehlende Pflicht-Klassifikationen:
               {{ validator.missingRequiredClassifications.join(', ') }}
             </div>
           </div>
         </div>
 
-        <div v-if="result.examinationValidators.length" class="mb-3">
+        <div
+          v-if="result.examinationValidators.length"
+          class="mb-3"
+        >
           <h6 class="small text-uppercase text-muted mb-2">Untersuchungsregeln</h6>
           <div
             v-for="validator in result.examinationValidators"
@@ -168,11 +230,17 @@
           >
             <div class="d-flex justify-content-between align-items-center gap-2">
               <strong>{{ validator.name }}</strong>
-              <span class="badge" :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'">
+              <span
+                class="badge"
+                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+              >
                 {{ validator.ok ? 'OK' : 'Offen' }}
               </span>
             </div>
-            <div v-if="validator.findingValidatorStatus.length" class="small mt-1">
+            <div
+              v-if="validator.findingValidatorStatus.length"
+              class="small mt-1"
+            >
               Abhängige Befundregeln:
               <template
                 v-for="(entry, entryIndex) in validator.findingValidatorStatus"
@@ -188,7 +256,10 @@
                 <span v-else>{{ entry.name }} ({{ entry.ok ? 'OK' : 'Fehler' }})</span>
               </template>
             </div>
-            <div v-if="validator.examinationValidatorStatus.length" class="small mt-1">
+            <div
+              v-if="validator.examinationValidatorStatus.length"
+              class="small mt-1"
+            >
               Abhängige Untersuchungsregeln:
               {{
                 validator.examinationValidatorStatus
@@ -213,7 +284,10 @@
                   {{ validator.finding }} · {{ validator.classification }} · {{ validator.unit }} · {{ validator.operator }}
                 </div>
               </div>
-              <span class="badge" :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'">
+              <span
+                class="badge"
+                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+              >
                 {{ validator.ok ? 'OK' : 'Offen' }}
               </span>
             </div>
@@ -273,11 +347,21 @@ function missingConditionClassifications(issue: RuntimeValidationIssue): string[
 }
 
 function validatorKindLabel(kind: RuntimeValidationIssue['validatorKind']): string {
-  if (kind === 'template') return 'Vorlage'
-  if (kind === 'examination_validator') return 'Untersuchungsregel'
-  if (kind === 'classification_validator') return 'Klassifikationsregel'
-  if (kind === 'intervention_validator') return 'Interventionsregel'
-  if (kind === 'unit_validator') return 'Einheitenregel'
+  if (kind === 'template') {
+    return 'Vorlage'
+  }
+  if (kind === 'examination_validator') {
+    return 'Untersuchungsregel'
+  }
+  if (kind === 'classification_validator') {
+    return 'Klassifikationsregel'
+  }
+  if (kind === 'intervention_validator') {
+    return 'Interventionsregel'
+  }
+  if (kind === 'unit_validator') {
+    return 'Einheitenregel'
+  }
   return 'Befundregel'
 }
 
@@ -286,7 +370,9 @@ function normalizeKey(value: string): string {
 }
 
 function anchorForFinding(findingName: string | null): string | null {
-  if (!findingName) return null
+  if (!findingName) {
+    return null
+  }
   return props.findingAnchors[findingName] || props.findingAnchors[normalizeKey(findingName)] || null
 }
 
@@ -294,7 +380,9 @@ function findingForValidator(
   validatorName: string | undefined,
   validatorKind: RuntimeValidationIssue['validatorKind']
 ): string | null {
-  if (!validatorName || !props.result) return null
+  if (!validatorName || !props.result) {
+    return null
+  }
   if (validatorKind === 'classification_validator') {
     return props.result.classificationValidators.find((entry) => entry.name === validatorName)?.finding || null
   }

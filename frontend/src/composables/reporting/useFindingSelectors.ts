@@ -38,7 +38,9 @@ export function useFindingSelectors() {
     examinationId: number | null | undefined,
     context?: FindingsCatalogContext
   ): Promise<readonly Finding[]> => {
-    if (!examinationId) return []
+    if (!examinationId) {
+      return []
+    }
     const contextKey = findingCatalogContextKey(examinationId, context)
     if (catalogState.contextKey.value !== contextKey) {
       await catalogState.fetchFindings(examinationId, context)
@@ -49,7 +51,9 @@ export function useFindingSelectors() {
   const ensurePatientFindingsLoaded = async (
     patientExaminationId: number | null | undefined
   ): Promise<readonly PatientFindingLike[]> => {
-    if (!patientExaminationId) return []
+    if (!patientExaminationId) {
+      return []
+    }
     await patientFindingStore.fetchPatientFindings(patientExaminationId)
     return patientFindingStore.patientFindings as PatientFindingLike[]
   }
@@ -58,14 +62,18 @@ export function useFindingSelectors() {
     catalogState.findingsById.value.get(findingId)
 
   const getFindingNameById = (findingId: number, fallbackName?: string): string => {
-    if (fallbackName) return fallbackName
+    if (fallbackName) {
+      return fallbackName
+    }
     return getFindingDisplayName(
       getFindingById(findingId) ?? { id: findingId, name: `Befund ${String(findingId)}` }
     )
   }
 
   const getAttachedFindingIds = (patientExaminationId: number | null | undefined): number[] => {
-    if (!patientExaminationId) return []
+    if (!patientExaminationId) {
+      return []
+    }
 
     const rows = (patientFindingStore.patientFindings as PatientFindingLike[]).filter(
       (row) =>
@@ -152,7 +160,9 @@ function findingCatalogContextKey(
   examinationId: number,
   context?: FindingsCatalogContext
 ): string {
-  if (!context) return String(examinationId)
+  if (!context) {
+    return String(examinationId)
+  }
   return [
     examinationId,
     context.moduleName,

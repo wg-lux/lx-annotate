@@ -7,7 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGET_DATA_DIR = Path("/var/lib/lx-annotate/data")
 DEFAULT_WATCHER_CENTER_REFERENCE = "university-hospital-wuerzburg"

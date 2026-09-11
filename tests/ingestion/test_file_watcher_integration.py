@@ -1,7 +1,6 @@
 # pyright: reportAttributeAccessIssue=false, reportArgumentType=false, reportOptionalMemberAccess=false
-from watchdog.events import FileCreatedEvent, FileMovedEvent  # type: ignore[import-not-found]
+from __future__ import annotations
 
-import scripts.file_watcher as file_watcher
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +17,12 @@ from endoreg_db.models import (
 )
 from endoreg_db.services.hub.ingest import process_watcher_file
 from endoreg_db.utils.file_operations import atomic_write_file
+from watchdog.events import (  # type: ignore[import-not-found]
+    FileCreatedEvent,
+    FileMovedEvent,
+)
+
+import scripts.file_watcher as file_watcher
 
 
 class RecordingExecutor:

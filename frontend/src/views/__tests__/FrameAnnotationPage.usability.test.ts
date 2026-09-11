@@ -111,7 +111,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     id: 'task-1',
     data: {
       frameId: 101,
-      imageUrl: '/media/frame-101.jpg',
+      imageUrl: '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed',
       existingExternalId: 'external-101',
       annotationMode: 'multilabel',
       labelOptions: [
@@ -218,7 +218,7 @@ describe('FrameAnnotation usability audit', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain(
-      'Frame wird extrahiert'
+      'Frame wird geladen'
     )
   })
 

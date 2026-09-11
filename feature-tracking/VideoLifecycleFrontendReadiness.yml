@@ -171,6 +171,52 @@ definition_of_done:
       browser navigation acceptance remains pending.
     assessed_by: codex-video-readiness-20260907
     assessed_at: '2026-09-07T11:36:41.462439Z'
+- id: segment_navigation_and_timeline_zoom
+  category: functionality
+  title: Label-filtered segment navigation and timeline zoom
+  acceptance:
+  - The navigation queue sorts segments by start time, end time and ID without changing stored order.
+  - Forward and backward traverse each queued segment's start, midpoint and end without wrapping.
+  - Selecting one or more labels restricts the navigation queue; no selection includes all labels.
+  - Navigation remains available for validated tracks and never changes annotation data.
+  - Timeline zoom expands the track from 100 to 500 percent with horizontal scrolling and accurate seeking.
+  - Fullscreen displays the existing timeline and label commands in a collapsible popup, preserving
+    their state when exiting fullscreen.
+  - Zoom centers the current playback position on zoom, playback, seek and resize, clamped to track edges.
+  - A bottom handle resizes the timeline row viewport vertically between 180 and 800 pixels, with
+    Arrow Up/Down and Home/End keyboard controls. Resizing does not change segment data or sidebar width.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise navigation with multiple labels, overlapping segments and validated tracks.
+      Zoom and scroll the timeline, then seek and resize segments to verify pointer alignment.
+      Enter fullscreen with the player fullscreen button or F, set a label in the popup, hide and reopen
+      the popup, then exit fullscreen and verify state continuity and playback centering.
+      Drag the bottom timeline handle and use its keyboard controls; verify additional rows become
+      visible, overflow remains scrollable, and pointer cancellation or page exit ends resizing.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue;
+        frontend/src/components/VideoExamination/Timeline.vue
+    - kind: test
+      reference: VideoExaminationAnnotation.dropdown.test.ts and Timeline.pts-navigation.test.ts — 20 tests passed.
+        Component-test vue-tsc and focused ESLint passed.
+    - kind: test
+      reference: VideoExaminationAnnotation.functionality.spec.ts and segmentTimeline.test.ts — 21 tests passed.
+    - kind: test
+      reference: 'codex-timeline-height-20260910: Timeline.pts-navigation.test.ts,
+        VideoExaminationAnnotation.dropdown.test.ts, VideoExaminationAnnotation.functionality.spec.ts,
+        Timeline.spec.ts and segmentTimeline.test.ts — 46 tests passed. Component-test vue-tsc passed.
+        Tests cover viewport height, retained overflow rows, pointer limits and cancellation,
+        keyboard controls, and listener cleanup on unmount. Browser acceptance remains pending.'
+    note: Tests cover sorted bidirectional navigation, multi-label filtering, empty queues, validated
+      tracks, zoom limits, seeking with expanded scrolled bounds, fullscreen DOM relocation and restoration,
+      popup visibility controls and playback centering with edge clamping. Deployed browser acceptance remains pending.
+    assessed_by: codex-segment-jump-20260909
+    assessed_at: '2026-09-09T12:34:00Z'
 - id: segment_annotation_continuity
   category: functionality
   title: Segment operations preserve target and pending-operation boundaries

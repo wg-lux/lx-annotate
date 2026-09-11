@@ -42,7 +42,9 @@ export function useReportingKnowledgeBase(
   function getCatalogContext(): FindingsCatalogContext | undefined {
     const bundle = terminology.activeBundle
     const patientExaminationId = flow.patientExaminationId
-    if (!bundle || !patientExaminationId) return undefined
+    if (!bundle || !patientExaminationId) {
+      return undefined
+    }
 
     return resolveReportingKnowledgeBaseContext({
       patientExaminationId,

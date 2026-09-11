@@ -531,12 +531,18 @@ def _knowledge_base_registry_messages() -> list[CheckMessage]:
     return []
 
 
-def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
+def runtime_configuration_messages() -> list[CheckMessage]:
+    """Collect configuration checks shared by startup and runtime monitoring."""
     messages: list[CheckMessage] = []
     messages.extend(_native_capability_messages())
     messages.extend(_environment_readiness_messages())
     messages.extend(_protected_media_url_messages())
     messages.extend(_protected_media_root_messages())
+    return messages
+
+
+def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
+    messages = runtime_configuration_messages()
     messages.extend(_host_models_module_messages())
     messages.extend(_knowledge_base_registry_messages())
 

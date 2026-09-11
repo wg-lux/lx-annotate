@@ -1,10 +1,17 @@
 <template>
   <div class="annotation-stats-overview">
     <!-- Loading State -->
-    <div v-if="annotationStatsStore.isLoading && !hasAnyData" class="dashboard-loading-state py-4">
+    <div
+      v-if="annotationStatsStore.isLoading && !hasAnyData"
+      class="dashboard-loading-state py-4"
+    >
       <div class="skeleton-title mb-3"></div>
       <div class="row g-3 mb-3">
-        <div v-for="n in 3" :key="`overview-skeleton-${n}`" class="col-md-4">
+        <div
+          v-for="n in 3"
+          :key="`overview-skeleton-${n}`"
+          class="col-md-4"
+        >
           <div class="skeleton-card"></div>
         </div>
       </div>
@@ -85,7 +92,10 @@
                     :disabled="annotationStatsStore.isLoading"
                     @click="refreshStats"
                   >
-                    <i class="ni ni-bold-right" :class="{ 'ni-spin': annotationStatsStore.isLoading }"></i>
+                    <i
+                      class="ni ni-bold-right"
+                      :class="{ 'ni-spin': annotationStatsStore.isLoading }"
+                    ></i>
                     Aktualisieren
                   </button>
                 </div>
@@ -116,8 +126,13 @@
                   <span>Level-Fortschritt</span>
                   <span>{{ levelProgress }}%</span>
                 </div>
-                <div class="progress" style="height: 12px;">
-                  <div class="progress-bar bg-success" :style="{ width: levelProgress + '%' }"></div>
+                <div
+                  class="progress level-progress-meter"
+                >
+                  <div
+                    class="progress-bar bg-success"
+                    :style="{ width: levelProgress + '%' }"
+                  ></div>
                 </div>
               </div>
 
@@ -140,8 +155,13 @@
               <div class="player-kicker">Mission des Tages</div>
               <h6 class="mission-title mt-1 mb-2">{{ focusMission.title }}</h6>
               <p class="text-muted small mb-3">{{ focusMission.description }}</p>
-              <div class="progress mb-2" style="height: 10px;">
-                <div class="progress-bar bg-info" :style="{ width: focusMission.progress + '%' }"></div>
+              <div
+                class="progress mb-2 mission-progress-meter"
+              >
+                <div
+                  class="progress-bar bg-info"
+                  :style="{ width: focusMission.progress + '%' }"
+                ></div>
               </div>
               <div class="d-flex justify-content-between align-items-center small">
                 <span class="text-muted">Fortschritt</span>
@@ -181,10 +201,13 @@
                   class="overall-status-item"
                   :class="item.key"
                 >
-                  <span class="overall-status-dot" aria-hidden="true"></span>
+                  <span
+                    class="overall-status-dot"
+                    aria-hidden="true"
+                  ></span>
                   <span class="overall-status-label">{{ item.label }}</span>
-                  <strong>{{ item.count }}</strong>
-                  <small>{{ item.percentage }}%</small>
+                  <strong class="overall-status-value">{{ item.count }}</strong>
+                  <small class="overall-status-detail">{{ item.percentage }}%</small>
                 </div>
               </div>
 
@@ -207,7 +230,10 @@
                     :aria-label="`${item.label}: ${item.count} von ${totalAnnotations}`"
                   ></div>
                 </div>
-                <div v-else class="overall-empty-progress mb-2">
+                <div
+                  v-else
+                  class="overall-empty-progress mb-2"
+                >
                   Noch keine Statistikdaten verfügbar
                 </div>
 
@@ -233,7 +259,10 @@
       <div class="row mb-4">
         <!-- Segment Annotations -->
         <div class="col-md-4 mb-3">
-          <div class="card h-100 annotation-type-card" @click="navigateToSegments">
+          <div
+            class="card h-100 annotation-type-card"
+            @click="navigateToSegments"
+          >
             <div class="card-header bg-primary text-white">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">
@@ -280,7 +309,9 @@
               
               <!-- Mini progress bar -->
               <div class="mini-progress mt-3">
-                <div class="progress" style="height: 6px;">
+                <div
+                  class="progress annotation-progress-meter"
+                >
                   <div 
                     class="progress-bar bg-success" 
                     :style="{ width: getCompletionPercentage(segmentStats) + '%' }"
@@ -296,7 +327,10 @@
 
         <!-- Examination Annotations -->
         <div class="col-md-4 mb-3">
-          <div class="card h-100 annotation-type-card" @click="navigateToExaminations">
+          <div
+            class="card h-100 annotation-type-card"
+            @click="navigateToExaminations"
+          >
             <div class="card-header bg-success text-white">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">
@@ -343,7 +377,9 @@
               
               <!-- Mini progress bar -->
               <div class="mini-progress mt-3">
-                <div class="progress" style="height: 6px;">
+                <div
+                  class="progress annotation-progress-meter"
+                >
                   <div 
                     class="progress-bar bg-success" 
                     :style="{ width: getCompletionPercentage(examinationStats) + '%' }"
@@ -359,7 +395,10 @@
 
         <!-- Sensitive Meta Annotations -->
         <div class="col-md-4 mb-3">
-          <div class="card h-100 annotation-type-card" @click="navigateToSensitiveMeta">
+          <div
+            class="card h-100 annotation-type-card"
+            @click="navigateToSensitiveMeta"
+          >
             <div class="card-header bg-warning text-dark">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">
@@ -406,7 +445,9 @@
               
               <!-- Mini progress bar -->
               <div class="mini-progress mt-3">
-                <div class="progress" style="height: 6px;">
+                <div
+                  class="progress annotation-progress-meter"
+                >
                   <div 
                     class="progress-bar bg-success" 
                     :style="{ width: getCompletionPercentage(sensitiveMetaStats) + '%' }"
@@ -434,36 +475,45 @@
             <div class="card-body">
               <div class="row">
                 <div class="col-md-4">
-                  <div class="quick-action-item" @click="navigateToFrameAnnotation">
+                  <div
+                    class="quick-action-item"
+                    @click="navigateToFrameAnnotation"
+                  >
                     <div class="action-icon bg-primary">
                       <i class="ni ni-fat-add"></i>
                     </div>
                     <div class="action-content">
-                      <h6>Neue Video-Annotation</h6>
+                      <h6 class="quick-action-heading">Neue Video-Annotation</h6>
                       <small class="text-muted">Frame-Annotation starten</small>
                     </div>
                   </div>
                 </div>
                 
                 <div class="col-md-4">
-                  <div class="quick-action-item" @click="navigateToExamination">
+                  <div
+                    class="quick-action-item"
+                    @click="navigateToExamination"
+                  >
                     <div class="action-icon bg-success">
                       <i class="ni ni-fat-add"></i>
                     </div>
                     <div class="action-content">
-                      <h6>Neue Befundung</h6>
+                      <h6 class="quick-action-heading">Neue Dokumentation</h6>
                       <small class="text-muted">Reporting-Fall-Setup oeffnen</small>
                     </div>
                   </div>
                 </div>
                 
                 <div class="col-md-4">
-                  <div class="quick-action-item" @click="navigateToValidation">
+                  <div
+                    class="quick-action-item"
+                    @click="navigateToValidation"
+                  >
                     <div class="action-icon bg-warning">
                       <i class="ni ni-button-play"></i>
                     </div>
                     <div class="action-content">
-                      <h6>Validierung starten</h6>
+                      <h6 class="quick-action-heading">Validierung starten</h6>
                       <small class="text-muted">Patientendaten validieren</small>
                     </div>
                   </div>
@@ -569,7 +619,9 @@ const overallStatusItems = computed(() => [
 ])
 
 const completedOfTotalText = computed(() => {
-  if (totalAnnotations.value === 0) return 'Keine Annotationen gezählt'
+  if (totalAnnotations.value === 0) {
+    return 'Keine Annotationen gezählt'
+  }
   return `${String(totalCompleted.value)} von ${String(totalAnnotations.value)} Annotationen abgeschlossen`
 })
 
@@ -594,7 +646,9 @@ const overallStatusDescription = computed(() => {
 })
 
 const topOpenAreaText = computed(() => {
-  if (totalAnnotations.value === 0 || openAnnotationCount.value === 0) return ''
+  if (totalAnnotations.value === 0 || openAnnotationCount.value === 0) {
+    return ''
+  }
 
   const areas = [
     {
@@ -612,7 +666,9 @@ const topOpenAreaText = computed(() => {
   ]
 
   const top = areas.sort((a, b) => b.open - a.open)[0]
-  if (top.open === 0) return ''
+  if (top.open === 0) {
+    return ''
+  }
   return `${top.label} (${String(top.open)} offen)`
 })
 
@@ -639,12 +695,24 @@ const levelProgress = computed(() => Math.min(100, Math.round(((points.value % P
 const unlockedAchievements = computed(() => {
   const unlocked: string[] = []
 
-  if (totalCompleted.value >= 1) unlocked.push('Erster Abschluss')
-  if (totalCompleted.value >= 10) unlocked.push('Konstant geliefert')
-  if (completionPercentage.value >= 50) unlocked.push('Halbzeit-Champion')
-  if (segmentStats.value.completed >= 20) unlocked.push('Segment-Profi')
-  if (examinationStats.value.completed >= 10) unlocked.push('Befundungs-Profi')
-  if (sensitiveMetaStats.value.completed >= 10) unlocked.push('Datenschutz-Held')
+  if (totalCompleted.value >= 1) {
+    unlocked.push('Erster Abschluss')
+  }
+  if (totalCompleted.value >= 10) {
+    unlocked.push('Konstant geliefert')
+  }
+  if (completionPercentage.value >= 50) {
+    unlocked.push('Halbzeit-Champion')
+  }
+  if (segmentStats.value.completed >= 20) {
+    unlocked.push('Segment-Profi')
+  }
+  if (examinationStats.value.completed >= 10) {
+    unlocked.push('Befundungs-Profi')
+  }
+  if (sensitiveMetaStats.value.completed >= 10) {
+    unlocked.push('Datenschutz-Held')
+  }
 
   return unlocked
 })
@@ -699,17 +767,25 @@ const hasStaleError = computed(
 )
 
 const lastUpdateText = computed(() => {
-  if (!annotationStatsStore.lastUpdated) return 'Nie';
+  if (!annotationStatsStore.lastUpdated) {
+    return 'Nie';
+  }
   
   const now = new Date();
   const diff = now.getTime() - annotationStatsStore.lastUpdated.getTime();
   const minutes = Math.floor(diff / 60000);
   
-  if (minutes < 1) return 'Gerade eben';
-  if (minutes < 60) return `vor ${String(minutes)} Min.`;
+  if (minutes < 1) {
+    return 'Gerade eben';
+  }
+  if (minutes < 60) {
+    return `vor ${String(minutes)} Min.`;
+  }
   
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `vor ${String(hours)} Std.`;
+  if (hours < 24) {
+    return `vor ${String(hours)} Std.`;
+  }
   
   const days = Math.floor(hours / 24);
   return `vor ${String(days)} Tag(en)`;
@@ -779,6 +855,18 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
 </script>
 
 <style scoped>
+.level-progress-meter {
+  height: 12px;
+}
+
+.mission-progress-meter {
+  height: 10px;
+}
+
+.annotation-progress-meter {
+  height: 6px;
+}
+
 .annotation-stats-overview {
   padding: 0;
 }
@@ -962,13 +1050,13 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
   font-weight: 700;
 }
 
-.overall-status-item strong {
+.overall-status-item .overall-status-value {
   color: #2d3047;
   font-size: 1.15rem;
   line-height: 1;
 }
 
-.overall-status-item small {
+.overall-status-item .overall-status-detail {
   grid-column: 2 / 4;
   color: #667085;
   font-weight: 600;
@@ -1049,7 +1137,7 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
   font-size: 18px;
 }
 
-.action-content h6 {
+.action-content .quick-action-heading {
   margin: 0;
   font-size: 16px;
   font-weight: 600;

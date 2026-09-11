@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 import base64
 import os
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.test import TestCase
-
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, VideoFile
-from lx_annotate.models import OutboundHubTransferJob
 
+from lx_annotate.models import OutboundHubTransferJob
 
 User = get_user_model()
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 from argparse import ArgumentParser
 
 from django.core.management.base import BaseCommand, CommandError
-
 from endoreg_db.models import NetworkNode
 
 

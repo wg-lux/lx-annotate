@@ -3,11 +3,14 @@
 Improved test script to verify PDF reimport functionality
 """
 
+from __future__ import annotations
+
 import os
-import sys
 import shutil
-import django
+import sys
 from pathlib import Path
+
+import django
 from endoreg_db.services.report_import import ReportImportService
 
 # Add project root to path

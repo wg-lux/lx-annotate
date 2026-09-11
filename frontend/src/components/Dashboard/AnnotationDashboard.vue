@@ -16,25 +16,45 @@
       </button>
     </section>
 
-    <section class="operational-state-grid mb-4" aria-label="Aktueller Betriebszustand">
-      <article class="state-card" data-test="dataset-state">
+    <section
+      class="operational-state-grid mb-4"
+      aria-label="Aktueller Betriebszustand"
+    >
+      <article
+        class="state-card"
+        data-test="dataset-state"
+      >
         <div class="state-card-heading">
           <div>
             <p class="state-kicker">Datensätze</p>
-            <h3>Dataset Collections</h3>
+            <h3 class="state-card-heading-text">Dataset Collections</h3>
           </div>
-          <router-link to="/ai-dataset-settings" class="state-link">Verwalten</router-link>
+          <router-link
+            to="/ai-dataset-settings"
+            class="state-link"
+          >Verwalten</router-link>
         </div>
-        <p v-if="datasetState.loading" class="state-message">Datensätze werden geladen …</p>
-        <p v-else-if="datasetState.error" class="state-message text-danger" role="status">
+        <p
+          v-if="datasetState.loading"
+          class="state-message"
+        >Datensätze werden geladen …</p>
+        <p
+          v-else-if="datasetState.error"
+          class="state-message text-danger"
+          role="status"
+        >
           Datensatzstatus ist derzeit nicht verfügbar.
         </p>
         <template v-else>
           <div class="state-metric">
-            <strong>{{ datasetState.items.length }}</strong>
-            <span>{{ activeDatasetCount }} aktiv</span>
+            <strong class="state-metric-value">{{ datasetState.items.length }}</strong>
+            <span class="state-metric-description">{{ activeDatasetCount }} aktiv</span>
           </div>
-          <div v-if="datasetState.items.length" class="state-tags" aria-label="Datensatznamen">
+          <div
+            v-if="datasetState.items.length"
+            class="state-tags"
+            aria-label="Datensatznamen"
+          >
             <span
               v-for="dataset in datasetState.items"
               :key="dataset.id"
@@ -44,61 +64,103 @@
               {{ dataset.label }} · {{ dataset.datasetType === 'video' ? 'Video' : 'Bild' }}
             </span>
           </div>
-          <p v-else class="state-message mb-0">Keine Dataset Collections angelegt.</p>
+          <p
+            v-else
+            class="state-message mb-0"
+          >Keine Dataset Collections angelegt.</p>
         </template>
       </article>
 
-      <article class="state-card" data-test="cohort-state">
+      <article
+        class="state-card"
+        data-test="cohort-state"
+      >
         <div class="state-card-heading">
           <div>
             <p class="state-kicker">Registerstudie</p>
-            <h3>Aktuelle Studienkohorte</h3>
+            <h3 class="state-card-heading-text">Aktuelle Studienkohorte</h3>
           </div>
-          <router-link to="/studies" class="state-link">Öffnen</router-link>
+          <router-link
+            to="/studies"
+            class="state-link"
+          >Öffnen</router-link>
         </div>
-        <p v-if="cohortState.loading" class="state-message">Kohorte wird geladen …</p>
-        <p v-else-if="cohortState.error" class="state-message text-danger" role="status">
+        <p
+          v-if="cohortState.loading"
+          class="state-message"
+        >Kohorte wird geladen …</p>
+        <p
+          v-else-if="cohortState.error"
+          class="state-message text-danger"
+          role="status"
+        >
           Kohortenstatus ist derzeit nicht verfügbar.
         </p>
-        <div v-else-if="cohortState.summary" class="cohort-metrics">
-          <div><strong>{{ cohortState.summary.caseCount }}</strong><span>Fälle</span></div>
-          <div><strong>{{ cohortState.summary.patientCount }}</strong><span>Patienten</span></div>
-          <div><strong>{{ cohortState.summary.reportCount }}</strong><span>Befunde</span></div>
-          <div><strong>{{ cohortState.summary.videoCount }}</strong><span>Videos</span></div>
+        <div
+          v-else-if="cohortState.summary"
+          class="cohort-metrics"
+        >
+          <div class="cohort-metric-item"><strong class="cohort-metric-value">{{ cohortState.summary.caseCount }}</strong><span class="cohort-metric-description">Fälle</span></div>
+          <div class="cohort-metric-item"><strong class="cohort-metric-value">{{ cohortState.summary.patientCount }}</strong><span class="cohort-metric-description">Patienten</span></div>
+          <div class="cohort-metric-item"><strong class="cohort-metric-value">{{ cohortState.summary.reportCount }}</strong><span class="cohort-metric-description">Befunde</span></div>
+          <div class="cohort-metric-item"><strong class="cohort-metric-value">{{ cohortState.summary.videoCount }}</strong><span class="cohort-metric-description">Videos</span></div>
         </div>
       </article>
 
-      <article class="state-card" data-test="hub-state">
+      <article
+        class="state-card"
+        data-test="hub-state"
+      >
         <div class="state-card-heading">
           <div>
             <p class="state-kicker">Hub</p>
-            <h3>Hub-Zustand</h3>
+            <h3 class="state-card-heading-text">Hub-Zustand</h3>
           </div>
-          <router-link to="/administration" class="state-link">Details</router-link>
+          <router-link
+            to="/administration"
+            class="state-link"
+          >Details</router-link>
         </div>
-        <p v-if="hubState.loading" class="state-message">Hub-Zustand wird geladen …</p>
-        <p v-else-if="hubState.error" class="state-message text-danger" role="status">
+        <p
+          v-if="hubState.loading"
+          class="state-message"
+        >Hub-Zustand wird geladen …</p>
+        <p
+          v-else-if="hubState.error"
+          class="state-message text-danger"
+          role="status"
+        >
           Hub-Zustand ist derzeit nicht verfügbar.
         </p>
         <template v-else-if="hubState.health">
           <div class="hub-readiness">
-            <span class="badge" :class="hubState.health.ready ? 'bg-success' : 'bg-danger'">
+            <span
+              class="badge"
+              :class="hubState.health.ready ? 'bg-success' : 'bg-danger'"
+            >
               {{ hubState.health.ready ? 'Betriebsbereit' : 'Nicht bereit' }}
             </span>
-            <span>{{ hubState.health.transport.requireMtls ? 'mTLS' : 'TLS' }}</span>
+            <span class="hub-transport-description">{{ hubState.health.transport.requireMtls ? 'mTLS' : 'TLS' }}</span>
           </div>
           <dl class="state-details mb-0">
-            <div>
-              <dt>Quellknoten</dt>
-              <dd>{{ hubState.health.sourceNodeKey || 'nicht konfiguriert' }}</dd>
+            <div class="state-detail-row">
+              <dt class="state-detail-term">Quellknoten</dt>
+              <dd class="state-detail-value">{{ hubState.health.sourceNodeKey || 'nicht konfiguriert' }}</dd>
             </div>
-            <div>
-              <dt>Aktive Hubs</dt>
-              <dd>{{ hubState.health.hubNodes.length }}</dd>
+            <div class="state-detail-row">
+              <dt class="state-detail-term">Aktive Hubs</dt>
+              <dd class="state-detail-value">{{ hubState.health.hubNodes.length }}</dd>
             </div>
           </dl>
-          <div v-if="hubState.health.hubNodes.length" class="state-tags mt-3">
-            <span v-for="node in hubState.health.hubNodes" :key="node.nodeKey" class="state-tag">
+          <div
+            v-if="hubState.health.hubNodes.length"
+            class="state-tags mt-3"
+          >
+            <span
+              v-for="node in hubState.health.hubNodes"
+              :key="node.nodeKey"
+              class="state-tag"
+            >
               {{ node.displayName }} · {{ node.httpsConfigured ? 'HTTPS' : 'kein HTTPS' }}
             </span>
           </div>
@@ -125,7 +187,10 @@
                 :disabled="loadingSegments"
                 @click="refreshSegments"
               >
-                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingSegments }"></i>
+                <i
+                  class="ni ni-bold-right"
+                  :class="{ 'ni-spin': loadingSegments }"
+                ></i>
                 Aktualisieren
               </button>
               <router-link 
@@ -142,49 +207,69 @@
               <table class="table table-hover align-middle mb-0 dashboard-table">
                 <thead class="table-light">
                   <tr>
-                    <th>Video ID</th>
-                    <th>Segment</th>
-                    <th>Label</th>
-                    <th>Status</th>
-                    <th>Benutzer</th>
-                    <th>Letzte Änderung</th>
-                    <th>Aktionen</th>
+                    <th class="dashboard-column-heading">Video ID</th>
+                    <th class="dashboard-column-heading">Segment</th>
+                    <th class="dashboard-column-heading">Label</th>
+                    <th class="dashboard-column-heading">Status</th>
+                    <th class="dashboard-column-heading">Benutzer</th>
+                    <th class="dashboard-column-heading">Letzte Änderung</th>
+                    <th class="dashboard-column-heading">Aktionen</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr v-if="loadingSegments">
-                    <td colspan="7" class="text-center py-4">
+                <tbody class="dashboard-table-body">
+                  <tr
+                    v-if="loadingSegments"
+                    class="dashboard-data-row"
+                  >
+                    <td
+                      colspan="7"
+                      class="text-center py-4 dashboard-data-cell"
+                    >
                       <div class="table-loading-state">
                         <i class="ni ni-button-play me-2"></i>
                         Segmente werden geladen...
                       </div>
                     </td>
                   </tr>
-                  <tr v-else-if="segments.length === 0">
-                    <td colspan="7" class="text-center text-muted">
+                  <tr
+                    v-else-if="segments.length === 0"
+                    class="dashboard-data-row"
+                  >
+                    <td
+                      colspan="7"
+                      class="text-center text-muted dashboard-data-cell"
+                    >
                       <i class="ni ni-button-play ni-2x mb-2"></i>
                       <br>
                       Keine Video-Segmente verfügbar
                     </td>
                   </tr>
-                  <tr v-for="segment in segments" v-else :key="segment.id">
-                    <td><code>{{ segment.videoId }}</code></td>
-                    <td>{{ segment.startTime }}s - {{ segment.endTime }}s</td>
-                    <td>
+                  <tr
+v-for="segment in segments"
+                    v-else
+                    :key="segment.id"
+                    class="dashboard-data-row"
+                  >
+                    <td class="dashboard-data-cell"><code>{{ segment.videoId }}</code></td>
+                    <td class="dashboard-data-cell">{{ segment.startTime }}s - {{ segment.endTime }}s</td>
+                    <td class="dashboard-data-cell">
                       <span class="badge bg-info">{{ segment.labelName }}</span>
                     </td>
-                    <td>
-                      <span class="badge" :class="getSegmentStatusClass(segment.status)">
+                    <td class="dashboard-data-cell">
+                      <span
+                        class="badge"
+                        :class="getSegmentStatusClass(segment.status)"
+                      >
                         {{ getSegmentStatusText(segment.status) }}
                       </span>
                     </td>
-                    <td>
+                    <td class="dashboard-data-cell">
                       <small>{{ segment.annotated_by || 'Nicht zugewiesen' }}</small>
                     </td>
-                    <td>
+                    <td class="dashboard-data-cell">
                       <small>{{ formatDate(segment.updated_at) }}</small>
                     </td>
-                    <td>
+                    <td class="dashboard-data-cell">
                       <div class="btn-group btn-group-sm">
                         <button 
                           class="btn btn-outline-primary" 
@@ -225,7 +310,10 @@
                 :disabled="loadingExaminations"
                 @click="refreshExaminations"
               >
-                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingExaminations }"></i>
+                <i
+                  class="ni ni-bold-right"
+                  :class="{ 'ni-spin': loadingExaminations }"
+                ></i>
                 Aktualisieren
               </button>
               <router-link 
@@ -233,7 +321,7 @@
                 class="btn btn-success btn-sm"
               >
                 <i class="ni ni-fat-add me-1"></i>
-                Neue Befundung
+                Neue Dokumentation
               </router-link>
             </div>
           </div>
@@ -242,54 +330,81 @@
               <table class="table table-hover align-middle mb-0 dashboard-table">
                 <thead class="table-light">
                   <tr>
-                    <th>ID</th>
-                    <th>Patient</th>
-                    <th>Untersuchungsdatum</th>
-                    <th>Befunde</th>
-                    <th>Status</th>
-                    <th>Untersucher</th>
-                    <th>Aktionen</th>
+                    <th class="dashboard-column-heading">ID</th>
+                    <th class="dashboard-column-heading">Patient</th>
+                    <th class="dashboard-column-heading">Untersuchungsdatum</th>
+                    <th class="dashboard-column-heading">Befunde</th>
+                    <th class="dashboard-column-heading">Status</th>
+                    <th class="dashboard-column-heading">Untersucher</th>
+                    <th class="dashboard-column-heading">Aktionen</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr v-if="loadingExaminations">
-                    <td colspan="7" class="text-center py-4">
+                <tbody class="dashboard-table-body">
+                  <tr
+                    v-if="loadingExaminations"
+                    class="dashboard-data-row"
+                  >
+                    <td
+                      colspan="7"
+                      class="text-center py-4 dashboard-data-cell"
+                    >
                       <div class="table-loading-state">
                         <i class="ni ni-button-play me-2"></i>
                         Untersuchungen werden geladen...
                       </div>
                     </td>
                   </tr>
-                  <tr v-else-if="examinations.length === 0">
-                    <td colspan="7" class="text-center text-muted">
+                  <tr
+                    v-else-if="examinations.length === 0"
+                    class="dashboard-data-row"
+                  >
+                    <td
+                      colspan="7"
+                      class="text-center text-muted dashboard-data-cell"
+                    >
                       <i class="ni ni-user-run ni-2x mb-2"></i>
                       <br>
                       Keine Untersuchungen verfügbar
                     </td>
                   </tr>
-                  <tr v-for="examination in examinations" v-else :key="examination.id">
-                    <td><code>{{ examination.id }}</code></td>
-                    <td>
+                  <tr
+v-for="examination in examinations"
+                    v-else
+                    :key="examination.id"
+                    class="dashboard-data-row"
+                  >
+                    <td class="dashboard-data-cell"><code>{{ examination.id }}</code></td>
+                    <td class="dashboard-data-cell">
                       {{ examination.patient?.first_name }} {{ examination.patient?.last_name }}
                     </td>
-                    <td>{{ formatDate(examination.examination_date) }}</td>
-                    <td>
-                      <span v-for="finding in examination.findings?.slice(0, 2)" :key="finding.id" class="badge bg-secondary me-1">
+                    <td class="dashboard-data-cell">{{ formatDate(examination.examination_date) }}</td>
+                    <td class="dashboard-data-cell">
+                      <span
+                        v-for="finding in examination.findings?.slice(0, 2)"
+                        :key="finding.id"
+                        class="badge bg-secondary me-1"
+                      >
                         {{ finding.name }}
                       </span>
-                      <span v-if="examination.findings?.length > 2" class="badge bg-light text-dark">
+                      <span
+                        v-if="examination.findings?.length > 2"
+                        class="badge bg-light text-dark"
+                      >
                         +{{ examination.findings.length - 2 }} weitere
                       </span>
                     </td>
-                    <td>
-                      <span class="badge" :class="getExaminationStatusClass(examination.status)">
+                    <td class="dashboard-data-cell">
+                      <span
+                        class="badge"
+                        :class="getExaminationStatusClass(examination.status)"
+                      >
                         {{ getExaminationStatusText(examination.status) }}
                       </span>
                     </td>
-                    <td>
+                    <td class="dashboard-data-cell">
                       <small>{{ examination.created_by || 'Unbekannt' }}</small>
                     </td>
-                    <td>
+                    <td class="dashboard-data-cell">
                       <div class="btn-group btn-group-sm">
                         <button 
                           class="btn btn-outline-primary" 
@@ -330,7 +445,10 @@
                 :disabled="loadingSensitiveMeta"
                 @click="refreshSensitiveMeta"
               >
-                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingSensitiveMeta }"></i>
+                <i
+                  class="ni ni-bold-right"
+                  :class="{ 'ni-spin': loadingSensitiveMeta }"
+                ></i>
                 Aktualisieren
               </button>
               <router-link 
@@ -347,55 +465,78 @@
               <table class="table table-hover align-middle mb-0 dashboard-table">
                 <thead class="table-light">
                   <tr>
-                    <th>ID</th>
-                    <th>Typ</th>
-                    <th>Patient</th>
-                    <th>Untersuchungsdatum</th>
-                    <th>Status</th>
-                    <th>Validierung erforderlich</th>
-                    <th>Aktionen</th>
+                    <th class="dashboard-column-heading">ID</th>
+                    <th class="dashboard-column-heading">Typ</th>
+                    <th class="dashboard-column-heading">Patient</th>
+                    <th class="dashboard-column-heading">Untersuchungsdatum</th>
+                    <th class="dashboard-column-heading">Status</th>
+                    <th class="dashboard-column-heading">Validierung erforderlich</th>
+                    <th class="dashboard-column-heading">Aktionen</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr v-if="loadingSensitiveMeta">
-                    <td colspan="7" class="text-center py-4">
+                <tbody class="dashboard-table-body">
+                  <tr
+                    v-if="loadingSensitiveMeta"
+                    class="dashboard-data-row"
+                  >
+                    <td
+                      colspan="7"
+                      class="text-center py-4 dashboard-data-cell"
+                    >
                       <div class="table-loading-state">
                         <i class="ni ni-button-play me-2"></i>
                         Patientendaten werden geladen...
                       </div>
                     </td>
                   </tr>
-                  <tr v-else-if="sensitiveMetaData.length === 0">
-                    <td colspan="7" class="text-center text-muted">
+                  <tr
+                    v-else-if="sensitiveMetaData.length === 0"
+                    class="dashboard-data-row"
+                  >
+                    <td
+                      colspan="7"
+                      class="text-center text-muted dashboard-data-cell"
+                    >
                       <i class="ni ni-check-bold ni-2x mb-2"></i>
                       <br>
                       Keine Patientendaten zur Validierung verfügbar
                     </td>
                   </tr>
-                  <tr v-for="meta in sensitiveMetaData" v-else :key="meta.id">
-                    <td><code>{{ meta.id }}</code></td>
-                    <td>
-                      <span class="badge" :class="meta.content_type === 'video' ? 'bg-primary' : 'bg-danger'">
+                  <tr
+v-for="meta in sensitiveMetaData"
+                    v-else
+                    :key="meta.id"
+                    class="dashboard-data-row"
+                  >
+                    <td class="dashboard-data-cell"><code>{{ meta.id }}</code></td>
+                    <td class="dashboard-data-cell">
+                      <span
+                        class="badge"
+                        :class="meta.content_type === 'video' ? 'bg-primary' : 'bg-danger'"
+                      >
                         <i :class="meta.content_type === 'video' ? 'ni ni-button-play' : 'ni ni-single-copy-04'"></i>
                         {{ meta.content_type?.toUpperCase() || 'UNBEKANNT' }}
                       </span>
                     </td>
-                    <td>
+                    <td class="dashboard-data-cell">
                       {{ meta.patient_first_name }} {{ meta.patient_last_name }}
                     </td>
-                    <td>{{ formatDate(meta.examination_date) }}</td>
-                    <td>
-                      <span class="badge" :class="getSensitiveMetaStatusClass(meta.anonymization_status)">
+                    <td class="dashboard-data-cell">{{ formatDate(meta.examination_date) }}</td>
+                    <td class="dashboard-data-cell">
+                      <span
+                        class="badge"
+                        :class="getSensitiveMetaStatusClass(meta.anonymization_status)"
+                      >
                         {{ getSensitiveMetaStatusText(meta.anonymization_status) }}
                       </span>
                     </td>
-                    <td>
+                    <td class="dashboard-data-cell">
                       <span :class="meta.requires_validation ? 'text-warning' : 'text-success'">
                         <i :class="meta.requires_validation ? 'ni ni-user-run' : 'ni ni-check-bold'"></i>
                         {{ meta.requires_validation ? 'Ja' : 'Nein' }}
                       </span>
                     </td>
-                    <td>
+                    <td class="dashboard-data-cell">
                       <div class="btn-group btn-group-sm">
                         <button 
                           class="btn btn-outline-primary" 
@@ -775,7 +916,9 @@ const markSensitiveMetaComplete = async (meta) => {
 
 // Utility methods
 const formatDate = (dateString) => {
-  if (!dateString) return 'Nicht verfügbar';
+  if (!dateString) {
+    return 'Nicht verfügbar';
+  }
   try {
     return new Date(dateString).toLocaleDateString('de-DE');
   } catch {
@@ -834,7 +977,7 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.state-card h3 {
+.state-card .state-card-heading-text {
   margin: 0;
   color: #2d3047;
   font-size: 1rem;
@@ -866,13 +1009,13 @@ onMounted(async () => {
   margin-bottom: 0.8rem;
 }
 
-.state-metric strong {
+.state-metric .state-metric-value {
   color: #2d3047;
   font-size: 1.8rem;
 }
 
-.state-metric span,
-.hub-readiness > span:last-child {
+.state-metric .state-metric-description,
+.hub-readiness > .hub-transport-description:last-child {
   color: #63748a;
   font-size: 0.8rem;
 }
@@ -904,18 +1047,18 @@ onMounted(async () => {
   gap: 0.75rem;
 }
 
-.cohort-metrics div {
+.cohort-metrics .cohort-metric-item {
   display: flex;
   flex-direction: column;
 }
 
-.cohort-metrics strong {
+.cohort-metrics .cohort-metric-value {
   color: #2d3047;
   font-size: 1.25rem;
 }
 
-.cohort-metrics span,
-.state-details dt {
+.cohort-metrics .cohort-metric-description,
+.state-details .state-detail-term {
   color: #63748a;
   font-size: 0.72rem;
 }
@@ -927,14 +1070,14 @@ onMounted(async () => {
   margin-bottom: 0.8rem;
 }
 
-.state-details div {
+.state-details .state-detail-row {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.25rem 0;
 }
 
-.state-details dd {
+.state-details .state-detail-value {
   margin: 0;
   color: #344767;
   font-size: 0.78rem;
@@ -970,13 +1113,13 @@ onMounted(async () => {
   margin-bottom: 0;
 }
 
-.dashboard-table th,
-.dashboard-table td {
+.dashboard-table .dashboard-column-heading,
+.dashboard-table .dashboard-data-cell {
   vertical-align: middle;
   border-color: rgba(45, 48, 71, 0.08);
 }
 
-.dashboard-table th {
+.dashboard-table .dashboard-column-heading {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -989,7 +1132,7 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 
-.table-hover tbody tr:hover {
+.table-hover .dashboard-table-body .dashboard-data-row:hover {
   background-color: #f4f8ff;
 }
 
