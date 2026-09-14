@@ -57,10 +57,7 @@ describe('hubExportService', () => {
     expect(http.post).toHaveBeenNthCalledWith(1, '/api/hub-export/offload-eligible-videos/', {
       targetNodeKey: 'hub-1'
     })
-    expect(http.post).toHaveBeenNthCalledWith(
-      2,
-      `/api/hub-export/jobs/${jobId}/retry/`
-    )
+    expect(http.post).toHaveBeenNthCalledWith(2, `/api/hub-export/jobs/${jobId}/retry/`)
     expect(offloadResult).toBe(offload)
     expect(retryResult).toBe(retry)
   })

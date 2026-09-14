@@ -1,10 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, readonly, computed } from 'vue'
-import type {
-  ClassificationSelection,
-  Finding,
-  PatientFindingRow
-} from '@/api/findings.contract'
+import type { ClassificationSelection, Finding, PatientFindingRow } from '@/api/findings.contract'
 import type { Patient } from '@/stores/patientStore'
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 

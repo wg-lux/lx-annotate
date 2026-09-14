@@ -19,10 +19,11 @@ function readFile(file: File): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onerror = () => {
-      reject(Object.assign(
-        new Error(`Test konnte Datei nicht lesen: ${file.name}`),
-        { cause: reader.error ?? undefined }
-      ))
+      reject(
+        Object.assign(new Error(`Test konnte Datei nicht lesen: ${file.name}`), {
+          cause: reader.error ?? undefined
+        })
+      )
     }
     reader.onload = () => {
       if (!(reader.result instanceof ArrayBuffer)) {
@@ -100,9 +101,9 @@ describe('terminologyApi folder import', () => {
     expect(strFromU8(requireArchiveEntry(firstEntries, 'first/config.yaml'))).toContain(
       'name: first'
     )
-    expect(
-      strFromU8(requireArchiveEntry(firstEntries, 'first/findings/finding.yaml'))
-    ).toContain('name: first_finding')
+    expect(strFromU8(requireArchiveEntry(firstEntries, 'first/findings/finding.yaml'))).toContain(
+      'name: first_finding'
+    )
     expect(
       strFromU8(requireArchiveEntry(firstEntries, 'first/.dependencies/1-second/config.yaml'))
     ).toContain('name: second')

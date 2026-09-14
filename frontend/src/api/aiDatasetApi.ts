@@ -14,9 +14,7 @@ export interface AiDatasetOption {
 export type AiDatasetType = 'image' | 'video'
 
 export type AiDatasetModelType =
-  | 'image_multilabel_classification'
-  | 'phi_region_detector'
-  | 'video_segment_classification'
+  'image_multilabel_classification' | 'phi_region_detector' | 'video_segment_classification'
 
 export interface CreateAiDatasetPayload {
   name: string
@@ -96,8 +94,7 @@ export interface AiDatasetFrameBucketDistributionParams {
 }
 
 export type AiDatasetFrameFormatStrategy =
-  | 'preserve_dimensions_black_mask'
-  | 'crop_to_endoscope_roi'
+  'preserve_dimensions_black_mask' | 'crop_to_endoscope_roi'
 
 export interface AiDatasetTrainingManifestConfig {
   labelSetId?: number | string | null

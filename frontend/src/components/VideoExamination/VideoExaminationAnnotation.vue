@@ -1,40 +1,19 @@
 <template>
   <div class="container-fluid py-4">
-    <!-- User message / hint -->
-    <div
+    <VideoFeedbackAlert
       v-if="errorMessage"
-      class="alert alert-dismissible fade show"
-      :class="messageTone === 'danger' ? 'alert-danger' : 'alert-info hint-alert'"
-      :role="messageTone === 'danger' ? 'alert' : 'status'"
-    >
-      <i
-        class="ni me-2"
-        :class="messageTone === 'danger' ? 'ni-settings-gear-65' : 'ni-bulb-61'"
-      ></i>
-      <strong>{{ messageHeading }}</strong> {{ errorMessage }}
-      <button
-        type="button"
-        class="btn-close"
-        aria-label="Close"
-        @click="clearErrorMessage"
-      ></button>
-    </div>
-
-    <!-- Success Message Alert -->
-    <div
+      :message="errorMessage"
+      :tone="messageTone"
+      :heading="messageHeading"
+      @dismiss="clearErrorMessage"
+    />
+    <VideoFeedbackAlert
       v-if="successMessage"
-      class="alert alert-success alert-dismissible fade show"
-      role="alert"
-    >
-      <i class="ni ni-check-bold me-2"></i>
-      <strong>Erfolg:</strong> {{ successMessage }}
-      <button
-        type="button"
-        class="btn-close"
-        aria-label="Close"
-        @click="clearSuccessMessage"
-      ></button>
-    </div>
+      :message="successMessage"
+      tone="success"
+      heading="Erfolg:"
+      @dismiss="clearSuccessMessage"
+    />
 
     <div class="row">
       <div class="col-12">
@@ -179,37 +158,37 @@
                     class="video-dropdown-item"
                     :class="[
                       { 'video-dropdown-item-selected': selectedVideoId === video.id },
-                      getVideoDropdownItemClass(video.id)
+                      video.itemClass
                     ]"
                     @click="selectVideoFromDropdown(video.id)"
                   >
                     <div class="video-dropdown-main">
                       <span class="video-dropdown-title">
                         <i class="ni ni-button-play me-1"></i>
-                        {{ video.original_file_name || 'Video Nr. ' + video.id }}
+                        {{ video.title }}
                       </span>
                       <span
                         class="video-dropdown-status-badge"
-                        :class="getVideoDropdownStatusBadgeClass(video.id)"
+                        :class="video.badgeClass"
                       >
-                        {{ getVideoDropdownStatusText(video.id) }}
+                        {{ video.statusText }}
                       </span>
                     </div>
                     <div class="video-dropdown-meta">
                       <span>| Center: {{ video.centerName || 'Unbekannt' }}</span>
-                      <span>| Geschlecht: {{ getVideoPatientGender(video.id) }}</span>
-                      <span>| Alter: {{ getVideoPatientAgeLabel(video.id) }}</span>
+                      <span>| Geschlecht: {{ video.genderLabel }}</span>
+                      <span>| Alter: {{ video.ageLabel }}</span>
                     </div>
                     <div
-                      v-if="getVideoValidatedAnnotatorLabel(video.id)"
+                      v-if="video.annotatorLabel"
                       class="video-dropdown-annotators"
                       :class="{
-                        'video-dropdown-annotators-other': hasOtherValidatedAnnotator(video.id)
+                        'video-dropdown-annotators-other': video.hasOtherAnnotator
                       }"
                       data-test="video-dropdown-annotators"
                     >
                       <i class="ni ni-single-02 me-1"></i>
-                      {{ getVideoValidatedAnnotatorLabel(video.id) }}
+                      {{ video.annotatorLabel }}
                     </div>
                   </button>
                   <div
@@ -227,68 +206,16 @@
                 {{ noVideosMessage }}
               </small>
 
-              <!-- ✅ NEW: Video Status Summary -->
-              <div
-                v-if="videos.length > 0"
-                class="mt-2"
-              >
-                <div class="d-flex flex-wrap gap-2 align-items-center">
-                  <small class="text-muted">Status-Übersicht:</small>
-                  <span class="badge bg-success">
-                    <i class="ni ni-check-bold me-1"></i>
-                    {{ getVideoCountByStatus('done_processing_anonymization') }} Anonymisiert
-                  </span>
-                  <span class="badge bg-primary">
-                    <i class="ni ni-check-bold me-1"></i>
-                    {{ getVideoCountByStatus('validated') }} Validiert
-                  </span>
-                  <span class="badge bg-secondary">
-                    <i class="ni ni-user-run me-1"></i>
-                    {{ pendingValidationVideos.length }} Ausstehend
-                  </span>
-                </div>
-              </div>
-              <div
+              <VideoAnnotatorControls
                 v-if="selectedVideoId && canAnnotateSelectedVideo"
-                class="annotation-scope-panel mt-2"
-              >
-                <label
-                  for="video-annotator-override"
-                  class="form-label mb-1"
-                  >Annotator-Scope</label
-                >
-                <div class="d-flex flex-wrap gap-2">
-                  <input
-                    id="video-annotator-override"
-                    v-model.trim="annotatorOverrideInput"
-                    type="text"
-                    class="form-control form-control-sm annotator-override-input"
-                    data-test="video-annotator-override-input"
-                    :placeholder="baseAnnotatorPrincipal"
-                  />
-                  <button
-                    type="button"
-                    class="btn btn-outline-primary btn-sm mb-0"
-                    :disabled="!canApplyAnnotatorOverride"
-                    data-test="video-annotator-override-apply"
-                    @click="restartVideoAnnotationAsOverride"
-                  >
-                    Annotation als anderer Nutzer neu starten
-                  </button>
-                  <button
-                    v-if="isAnnotatorOverrideActive"
-                    type="button"
-                    class="btn btn-outline-secondary btn-sm mb-0"
-                    data-test="video-annotator-override-revert"
-                    @click="revertVideoAnnotatorOverride"
-                  >
-                    Zurück zu meinem Nutzer
-                  </button>
-                </div>
-                <small class="text-muted d-block mt-1"
-                  >Aktiver Annotator: {{ activeAnnotatorLabel }}</small
-                >
-              </div>
+                v-model:principal-input="annotatorOverrideInput"
+                :base-principal="baseAnnotatorPrincipal"
+                :active-label="activeAnnotatorLabel"
+                :can-apply="canApplyAnnotatorOverride"
+                :override-active="isAnnotatorOverrideActive"
+                @restart="restartVideoAnnotationAsOverride"
+                @revert="revertVideoAnnotatorOverride"
+              />
             </div>
 
             <div
@@ -324,7 +251,6 @@
               </small>
             </div>
 
-            <!-- No Video Selected State -->
             <div
               v-if="!hasStreamableVideo && hasVideos"
               class="text-center text-muted py-5"
@@ -338,7 +264,6 @@
                 }}
               </p>
 
-              <!-- ✅ NEW: Enhanced video status info when selected but not loaded -->
               <div
                 v-if="selectedVideoId"
                 class="alert alert-info mt-2"
@@ -360,20 +285,18 @@
               </div>
             </div>
 
-            <!-- No Videos Available State -->
             <div
               v-if="!hasVideos && !isVideoDropdownLoading && !videoDropdownLoadError"
               class="text-center text-muted py-5"
             >
               <i class="ni ni-collection ni-3x"></i>
               <p class="mt-2">{{ noVideosMessage }}</p>
-              <small
-                >Videos können über den Ordner Raw Videos hochgeladen werden. Nicht nutzbare Videos
-                erscheinen in der Auswahl mit ihrem aktuellen Status.</small
-              >
+              <small>
+                Videos können über den Ordner Raw Videos hochgeladen werden. Nicht nutzbare Videos
+                erscheinen in der Auswahl mit ihrem aktuellen Status.
+              </small>
             </div>
 
-            <!-- Video Player -->
             <div
               v-if="hasStreamableVideo"
               ref="videoContainerRef"
@@ -421,105 +344,21 @@
               >
                 Timeline und Labels
               </button>
-              <div
+              <VideoLabelOverlay
                 v-if="isLabelSelectActive"
-                class="label-overlay"
-                @click.self="closeLabelOverlay"
-              >
-                <div class="label-overlay-card">
-                  <div class="label-overlay-header">
-                    <span>Label auswählen</span>
-                    <button
-                      type="button"
-                      class="label-overlay-close"
-                      @click="closeLabelOverlay"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div class="label-overlay-hint">
-                    ↑/↓ wechseln · Enter übernehmen · Esc schließen
-                  </div>
-                  <div class="label-overlay-list">
-                    <button
-                      v-for="label in timelineLabels"
-                      :key="label.id"
-                      type="button"
-                      class="label-overlay-item"
-                      :class="{ active: label.name === selectedLabelType }"
-                      @click="selectLabelFromOverlay(label.name)"
-                    >
-                      {{ getTranslationForLabel(label.name) }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- ✅ NEW: Video Status and Information Card -->
-              <div
+                :labels="timelineLabels"
+                :selected-label="selectedLabelType"
+                @close="closeLabelOverlay"
+                @select="selectLabelFromOverlay"
+              />
+              <VideoStatusCard
                 v-if="selectedVideoId"
-                class="mt-3 p-3 rounded border video-status-card"
-              >
-                <div class="row align-items-center">
-                  <div class="col-md-8">
-                    <h6 class="mb-1">
-                      <i class="ni ni-button-play me-2 text-primary"></i>
-                      {{ selectedVideo?.original_file_name || `Video ${selectedVideoId}` }}
-                    </h6>
-                    <div class="status-badge-container mb-2">
-                      <span
-                        :class="
-                          getStatusBadgeClass(
-                            overview.find(
-                              (o) => o.id === selectedVideoId && o.mediaType === 'video'
-                            )?.anonymizationStatus || 'not_started'
-                          )
-                        "
-                        class="badge"
-                      >
-                        <i class="ni ni-check-bold me-1"></i>
-                        {{
-                          getStatusText(
-                            overview.find(
-                              (o) => o.id === selectedVideoId && o.mediaType === 'video'
-                            )?.anonymizationStatus || 'not_started'
-                          )
-                        }}
-                      </span>
-                      <span
-                        v-if="timelineSegmentsForSelectedVideo.length > 0"
-                        class="badge bg-info"
-                      >
-                        <i class="ni ni-single-copy-04 me-1"></i>
-                        {{ timelineSegmentsForSelectedVideo.length }} Segmente
-                      </span>
-                      <span
-                        v-if="savedExaminations.length > 0"
-                        class="badge bg-warning"
-                      >
-                        <i class="ni ni-user-run me-1"></i>
-                        {{ savedExaminations.length }} Untersuchungen
-                      </span>
-                      <span
-                        v-if="
-                          selectedVideoId && getSegmentAnnotationStatusBadgeText(selectedVideoId)
-                        "
-                        class="badge"
-                        :class="getSegmentAnnotationStatusBadgeClass(selectedVideoId)"
-                      >
-                        <i class="ni ni-settings-gear-65 me-1"></i>
-                        {{ getSegmentAnnotationStatusBadgeText(selectedVideoId) }}
-                      </span>
-                    </div>
-                  </div>
-                  <div class="col-md-4 text-md-end">
-                    <small class="text-muted d-block"
-                      >Center: {{ selectedVideo?.centerName || 'Unbekannt' }}</small
-                    >
-                    <small class="text-muted d-block">Dauer: {{ formatTime(duration) }}</small>
-                  </div>
-                </div>
-              </div>
+                :presentation="selectedVideoPresentation"
+                :segment-count="timelineSegmentsForSelectedVideo.length"
+                :examination-count="savedExaminations.length"
+                :center-name="centerName"
+                :duration="duration"
+              />
             </div>
             <!-- Enhanced Timeline Component -->
             <Teleport
@@ -707,52 +546,17 @@
                     </button>
                   </div>
 
-                  <div
+                  <VideoPredictionControls
                     v-if="selectedVideoId && isSelectedVideoViewable"
-                    class="prediction-rerun-controls mt-2 d-flex gap-2 flex-wrap align-items-center"
-                  >
-                    <select
-                      v-model="predictionModelMode"
-                      class="form-select form-select-sm model-mode-select"
-                    >
-                      <option value="local">Lokales KI-Modell</option>
-                      <option value="huggingface">Hugging Face</option>
-                    </select>
-
-                    <select
-                      v-if="predictionModelMode === 'local'"
-                      v-model.number="selectedPredictionModelMetaId"
-                      class="form-select form-select-sm prediction-model-select"
-                      :disabled="
-                        predictionModelOptions.length === 0 || isRerunningPredictionSegments
-                      "
-                    >
-                      <option :value="null">KI-Modell auswählen...</option>
-                      <option
-                        v-for="model in predictionModelOptions"
-                        :key="model.id"
-                        :value="model.id"
-                      >
-                        {{ formatPredictionModelOption(model) }}
-                      </option>
-                    </select>
-
-                    <input
-                      v-else
-                      v-model.trim="huggingFaceModelId"
-                      class="form-control form-control-sm huggingface-model-input"
-                      placeholder="wg-lux/colo_segmentation_RegNetX800MF_base"
-                      :disabled="isRerunningPredictionSegments"
-                    />
-
-                    <button
-                      class="btn btn-outline-primary"
-                      :disabled="!canRerunPredictionSegments"
-                      @click="rerunPredictionSegmentsForSelectedVideo"
-                    >
-                      {{ rerunPredictionButtonLabel }}
-                    </button>
-                  </div>
+                    v-model:model-mode="predictionModelMode"
+                    v-model:model-meta-id="selectedPredictionModelMetaId"
+                    v-model:hugging-face-model-id="huggingFaceModelId"
+                    :models="predictionModelOptions"
+                    :running="isRerunningPredictionSegments"
+                    :can-rerun="canRerunPredictionSegments"
+                    :button-label="rerunPredictionButtonLabel"
+                    @rerun="rerunPredictionSegmentsForSelectedVideo"
+                  />
 
                   <!-- Simple progress bar as fallback -->
                   <div
@@ -848,7 +652,7 @@
                         v-if="videoStore.draftSegment && videoStore.draftSegment.startTime !== null"
                         class="mb-0"
                       >
-                        Aktueller Label Start: {{ formatTime(videoStore.draftSegment.startTime) }}
+                        Aktueller Label Start: {{ draftSegmentPresentation.start }}
                       </p>
                       Zeit: {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
                     </div>
@@ -864,14 +668,13 @@
                         class="ni ni-user-run align-middle me-1"
                         style="font-size: 16px"
                       ></i>
-                      Label "{{ getTranslationForLabel(videoStore.draftSegment.label) }}"
+                      Label "{{ draftSegmentPresentation.label }}"
                       <span v-if="videoStore.draftSegment.endTime">
-                        von {{ formatTime(videoStore.draftSegment.startTime) }} bis
-                        {{ formatTime(videoStore.draftSegment.endTime) }}
+                        von {{ draftSegmentPresentation.start }} bis
+                        {{ draftSegmentPresentation.end }}
                       </span>
                       <span v-else>
-                        startet bei {{ formatTime(videoStore.draftSegment.startTime) }} - Ende beim
-                        nächsten Klick
+                        startet bei {{ draftSegmentPresentation.start }} - Ende beim nächsten Klick
                       </span>
                     </small>
                   </div>
@@ -1149,6 +952,8 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import {
   useVideoStore,
   type PredictionModelMeta,
+  type RerunPredictionSegmentsPayload,
+  type RerunPredictionSegmentsResponse,
   type Segment,
   type SegmentAnnotationStatus,
   type SegmentSourceKind,
@@ -1160,6 +965,11 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
+import VideoFeedbackAlert from './VideoFeedbackAlert.vue'
+import VideoStatusCard from './VideoStatusCard.vue'
+import VideoLabelOverlay from './VideoLabelOverlay.vue'
+import VideoAnnotatorControls from './VideoAnnotatorControls.vue'
+import VideoPredictionControls from './VideoPredictionControls.vue'
 import { storeToRefs } from 'pinia'
 import { formatTime, getTranslationForLabel } from '@/utils/videoUtils'
 import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
@@ -1528,26 +1338,36 @@ const hasUnsavedChanges = computed(() =>
   )
 )
 
+function clearSelectedVideoContext(): void {
+  videoStore.clearVideo()
+  videoDetail.value = null
+  videoMeta.value = null
+}
+
+function resetUnavailableVideoState(): void {
+  clearSelectedVideoContext()
+  duration.value = 0
+  savedExaminations.value = []
+  examinationMarkers.value = []
+  currentMarker.value = null
+  selectedSegmentId.value = null
+}
+
+function isCurrentSelectedVideoLoad(videoId: number, loadSerial: number): boolean {
+  return loadSerial === selectedVideoLoadSerial && selectedVideoId.value === videoId
+}
+
 async function loadSelectedVideo(videoId: number | null = selectedVideoId.value): Promise<void> {
   const loadSerial = ++selectedVideoLoadSerial
   clearFpsNormalizationPolling()
 
   if (videoId == null) {
-    videoStore.clearVideo()
-    videoDetail.value = null
-    videoMeta.value = null
+    clearSelectedVideoContext()
     return
   }
 
   if (!canViewProcessedVideo(videoId)) {
-    videoStore.clearVideo()
-    videoDetail.value = null
-    videoMeta.value = null
-    duration.value = 0
-    savedExaminations.value = []
-    examinationMarkers.value = []
-    currentMarker.value = null
-    selectedSegmentId.value = null
+    resetUnavailableVideoState()
     showErrorMessage(
       `Video ${String(videoId)} kann noch nicht in der Segmentansicht geöffnet werden. Status: ${getStatusText(
         getVideoAnonymizationStatus(videoId)
@@ -1561,7 +1381,7 @@ async function loadSelectedVideo(videoId: number | null = selectedVideoId.value)
 
   try {
     await loadSegmentValidationSummary(videoId)
-    if (loadSerial !== selectedVideoLoadSerial || selectedVideoId.value !== videoId) {
+    if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
       return
     }
 
@@ -1569,7 +1389,7 @@ async function loadSelectedVideo(videoId: number | null = selectedVideoId.value)
     if (!fpsReadiness.ready) {
       return
     }
-    if (loadSerial !== selectedVideoLoadSerial || selectedVideoId.value !== videoId) {
+    if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
       return
     }
 
@@ -1577,7 +1397,7 @@ async function loadSelectedVideo(videoId: number | null = selectedVideoId.value)
       sourceKind: segmentSourceMode.value,
       knownFps: fpsReadiness.fps ?? undefined
     })
-    if (loadSerial !== selectedVideoLoadSerial || selectedVideoId.value !== videoId) {
+    if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
       return
     }
 
@@ -1765,8 +1585,8 @@ const getVideoPatientGender = (videoId: number): string => {
 const getVideoPatientAgeLabel = (videoId: number): string => {
   const meta =
     videoId in videoSensitiveMetaMap.value ? videoSensitiveMetaMap.value[videoId] : undefined
-  const age = getAgeFromDob(meta?.patient_dob)
-  return age == null ? 'Unbekannt' : `${String(age)} J.`
+  const patientAge = getAgeFromDob(meta?.patient_dob)
+  return patientAge == null ? 'Unbekannt' : `${String(patientAge)} J.`
 }
 
 const loadSensitiveMetaForVideos = async (videoIds: number[]): Promise<void> => {
@@ -1802,43 +1622,84 @@ const selectableVideos = computed(() => videoList.value.videos)
 
 const usableVideos = computed(() => videos.value.filter((v) => canViewProcessedVideo(v.id)))
 
+const centerName = computed<string | null>(() => {
+  const value = selectedVideo.value?.centerName
+  return typeof value === 'string' ? value : null
+})
+
+const videoDropdownRows = computed(() =>
+  selectableVideos.value.map((video) => {
+    const status = getVideoDropdownStatus(video.id)
+    const annotators = normalizeValidatedAnnotators(video.validatedAnnotators ?? [])
+    return {
+      ...video,
+      title: video.original_file_name || `Video Nr. ${String(video.id)}`,
+      statusText: getDropdownStatusText(
+        status,
+        getStatusText(getVideoAnonymizationStatus(video.id))
+      ),
+      itemClass: getDropdownItemClass(status),
+      badgeClass: getDropdownStatusBadgeClass(status),
+      genderLabel: getVideoPatientGender(video.id),
+      ageLabel: getVideoPatientAgeLabel(video.id),
+      annotatorLabel: getValidatedAnnotatorLabel(annotators, activeAnnotatorPrincipal.value),
+      hasOtherAnnotator: annotators.some(
+        (annotator) => annotator !== activeAnnotatorPrincipal.value
+      )
+    }
+  })
+)
+
 const filteredSelectableVideos = computed(() => {
   const query = videoDropdownSearch.value.trim().toLowerCase()
-  const statusFilteredVideos = selectableVideos.value.filter((video) =>
-    isVideoVisibleForDropdownFilter(video.id)
-  )
-  if (!query) {
-    return statusFilteredVideos
-  }
-
-  return statusFilteredVideos.filter((video) => {
+  return videoDropdownRows.value.filter((video) => {
+    if (!isVideoVisibleForDropdownFilter(video.id)) {
+      return false
+    }
     const searchable = [
       String(video.id),
       video.original_file_name,
       video.centerName,
       video.centerKey,
-      getVideoPatientGender(video.id),
-      getVideoPatientAgeLabel(video.id),
-      getVideoValidatedAnnotatorLabel(video.id),
-      getVideoDropdownStatusText(video.id)
+      video.genderLabel,
+      video.ageLabel,
+      video.annotatorLabel,
+      video.statusText
     ]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
-
     return searchable.includes(query)
   })
 })
-
-const pendingValidationVideos = computed(() =>
-  usableVideos.value.filter((v) => !v.segmentAnnotationsValidated)
-)
 
 const selectedVideo = computed<Video | undefined>(() => {
   if (selectedVideoId.value == null) {
     return undefined
   }
   return selectableVideos.value.find((v) => v.id === selectedVideoId.value)
+})
+
+const selectedVideoPresentation = computed(() => {
+  const videoId = selectedVideoId.value
+  const status =
+    (videoId === null ? undefined : getVideoOverviewItem(videoId)?.anonymizationStatus) ||
+    'not_started'
+  return {
+    title: selectedVideo.value?.original_file_name || `Video ${String(videoId)}`,
+    anonymizationLabel: getStatusText(status),
+    anonymizationBadgeClass: getStatusBadgeClass(status),
+    segmentLabel: videoId === null ? '' : getSegmentAnnotationStatusBadgeText(videoId),
+    segmentBadgeClass: videoId === null ? '' : getSegmentAnnotationStatusBadgeClass(videoId)
+  }
+})
+const draftSegmentPresentation = computed(() => {
+  const draft = videoStore.draftSegment
+  return {
+    label: draft ? getTranslationForLabel(draft.label) : '',
+    start: draft ? formatTime(draft.startTime) : '',
+    end: draft?.endTime ? formatTime(draft.endTime) : ''
+  }
 })
 
 const isSelectedVideoViewable = computed(
@@ -1907,9 +1768,14 @@ const isSegmentEditingUnlocked = computed(() => route.query.editSegments === '1'
 const baseAnnotatorPrincipal = computed(() =>
   getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
 )
-const annotatorOverrideScope = computed(() =>
-  selectedVideoId.value == null ? 'video:none' : `video:${String(selectedVideoId.value)}`
-)
+
+const annotatorOverrideScope = computed(() => {
+  if (selectedVideoId.value == null) {
+    return 'video:none'
+  }
+
+  return `video:${String(selectedVideoId.value)}`
+})
 const activeAnnotatorPrincipal = computed(
   () => annotatorOverride.value || baseAnnotatorPrincipal.value
 )
@@ -1927,22 +1793,6 @@ const activeAnnotatorLabel = computed(() =>
     ? `${activeAnnotatorPrincipal.value} (Override)`
     : activeAnnotatorPrincipal.value
 )
-
-function getVideoValidatedAnnotators(videoId: number): string[] {
-  const video = selectableVideos.value.find((v) => v.id === videoId)
-  return normalizeValidatedAnnotators(video?.validatedAnnotators ?? [])
-}
-
-function hasOtherValidatedAnnotator(videoId: number): boolean {
-  return getVideoValidatedAnnotators(videoId).some(
-    (annotator) => annotator !== activeAnnotatorPrincipal.value
-  )
-}
-
-function getVideoValidatedAnnotatorLabel(videoId: number): string {
-  const annotators = getVideoValidatedAnnotators(videoId)
-  return getValidatedAnnotatorLabel(annotators, activeAnnotatorPrincipal.value)
-}
 
 const hasSegmentEditOverride = computed(
   () => isSegmentEditingUnlocked.value || isAnnotatorOverrideActive.value
@@ -2000,11 +1850,6 @@ const canRerunPredictionSegments = computed(() => {
   }
   return selectedPredictionModel.value !== null
 })
-
-function formatPredictionModelOption(model: ReadonlyPredictionModelMeta): string {
-  const activeSuffix = model.isActive ? ' · aktiv' : ''
-  return `${model.modelName} / ${model.name} v${model.version}${activeSuffix}`
-}
 
 const selectedVideoLabel = computed(() => {
   if (isVideoDropdownLoading.value) {
@@ -2258,17 +2103,19 @@ function isAbortLikeError(error: unknown): boolean {
   ).toLowerCase()
   const code = errorRecord.code || targetError.code
   const mediaAbortCode = typeof MediaError !== 'undefined' ? MediaError.MEDIA_ERR_ABORTED : 1
+  const abortCodes: unknown[] = [20, mediaAbortCode, 'ERR_CANCELED']
+  const abortMessages = [
+    'ns_binding_aborted',
+    'binding aborted',
+    'aborted',
+    'canceled',
+    'cancelled'
+  ]
 
   return (
-    code === 20 ||
-    code === mediaAbortCode ||
+    abortCodes.includes(code) ||
     errorRecord.name === 'AbortError' ||
-    errorRecord.code === 'ERR_CANCELED' ||
-    message.includes('ns_binding_aborted') ||
-    message.includes('binding aborted') ||
-    message.includes('aborted') ||
-    message.includes('canceled') ||
-    message.includes('cancelled')
+    abortMessages.some((candidate) => message.includes(candidate))
   )
 }
 
@@ -2766,44 +2613,56 @@ const handleEscapeKey = (event: KeyboardEvent): boolean => {
   return true
 }
 
+const openLabelOverlayFromShortcut = (event: KeyboardEvent): boolean => {
+  if (!isUnmodifiedKey(event, 'o')) {
+    return false
+  }
+  event.preventDefault()
+  event.stopPropagation()
+  preselectLabelForOverlay()
+  isLabelSelectActive.value = true
+  return true
+}
+
+const toggleFullscreenFromShortcut = (event: KeyboardEvent): boolean => {
+  if (!isUnmodifiedKey(event, 'f')) {
+    return false
+  }
+  event.preventDefault()
+  event.stopPropagation()
+  void toggleFullscreen()
+  return true
+}
+
+const isPlusShortcut = (event: KeyboardEvent): boolean =>
+  event.key === '+' || event.code === 'NumpadAdd' || (event.code === 'Equal' && event.shiftKey)
+
+const handleSegmentBoundaryShortcut = (event: KeyboardEvent): void => {
+  if (isPlusShortcut(event)) {
+    event.preventDefault()
+    startLabelMarking()
+    return
+  }
+  if (event.key === '-' || event.code === 'Minus' || event.code === 'NumpadSubtract') {
+    event.preventDefault()
+    void finishLabelMarking()
+  }
+}
+
 const handleKeyDown = (event: KeyboardEvent): void => {
   if (isEditableTarget(event.target)) {
     return
   }
 
-  if (isUnmodifiedKey(event, 'o')) {
-    event.preventDefault()
-    event.stopPropagation()
-    preselectLabelForOverlay()
-    isLabelSelectActive.value = true
+  const handled =
+    openLabelOverlayFromShortcut(event) ||
+    toggleFullscreenFromShortcut(event) ||
+    handleLabelOverlayKey(event) ||
+    handleEscapeKey(event)
+  if (handled) {
     return
   }
-
-  if (isUnmodifiedKey(event, 'f')) {
-    event.preventDefault()
-    event.stopPropagation()
-    void toggleFullscreen()
-    return
-  }
-
-  if (handleLabelOverlayKey(event) || handleEscapeKey(event)) {
-    return
-  }
-
-  const isPlus =
-    event.key === '+' || event.code === 'NumpadAdd' || (event.code === 'Equal' && event.shiftKey)
-  const isMinus = event.key === '-' || event.code === 'Minus' || event.code === 'NumpadSubtract'
-
-  if (isPlus) {
-    event.preventDefault()
-    startLabelMarking()
-    return
-  }
-
-  if (isMinus) {
-    event.preventDefault()
-    void finishLabelMarking()
-  }
+  handleSegmentBoundaryShortcut(event)
 }
 
 const preselectLabelForOverlay = (): void => {
@@ -2886,6 +2745,9 @@ const jumpToExamination = (examination: SavedExamination): void => {
 const sleep = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 
+const isPredictionRerunPending = (status: string): boolean =>
+  ['pending', 'running'].includes(status)
+
 const pollPredictionRerun = async (
   videoId: number,
   historyId: number,
@@ -2894,21 +2756,21 @@ const pollPredictionRerun = async (
   const maxAttempts = 120
   const intervalMs = 5000
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) {
+    if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
       return false
     }
     if (attempt > 0) {
       await sleep(intervalMs)
     }
-    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) {
+    if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
       return false
     }
 
     const history = await videoStore.fetchPredictionProcessingHistory(videoId, historyId)
-    if (history === null || history.status === 'pending' || history.status === 'running') {
+    if (history === null || isPredictionRerunPending(history.status)) {
       continue
     }
-    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) {
+    if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
       return false
     }
     if (history.status === 'success') {
@@ -2987,6 +2849,65 @@ const stopSegmentValidationPolling = (): void => {
   Array.from(segmentValidationPollEntries.keys()).forEach(finishSegmentValidationPoll)
 }
 
+const finishValidatedSegmentPoll = (
+  videoId: number,
+  entry: SegmentValidationPollEntry,
+  status: SegmentAnnotationStatus
+): boolean => {
+  if (status !== 'validated') {
+    return false
+  }
+  videoRef.value?.load()
+  if (entry.options.showTerminalMessages && entry.options.showValidatedMessage) {
+    showSuccessMessage('Segmentvalidierung abgeschlossen.')
+  }
+  finishSegmentValidationPoll(videoId)
+  return true
+}
+
+const finishFailedSegmentPoll = (
+  videoId: number,
+  entry: SegmentValidationPollEntry,
+  status: SegmentAnnotationStatus
+): boolean => {
+  if (status !== 'cleanup_failed') {
+    return false
+  }
+  const video = videoList.value.videos.find((item) => item.id === videoId)
+  const details = video?.postValidationRebuild?.details
+  if (entry.options.showTerminalMessages) {
+    showErrorMessage(`Segmentvalidierung fehlgeschlagen${details ? `: ${details}` : '.'}`, 'danger')
+  }
+  finishSegmentValidationPoll(videoId)
+  return true
+}
+
+const finishWaitingSegmentPoll = (
+  videoId: number,
+  entry: SegmentValidationPollEntry,
+  status: SegmentAnnotationStatus
+): boolean => {
+  if (!['cleanup_required', 'not_started'].includes(status)) {
+    return false
+  }
+  if (entry.options.showTerminalMessages) {
+    showErrorMessage('Segmentvalidierung wartet auf die Nachverarbeitung.', 'danger')
+  }
+  finishSegmentValidationPoll(videoId)
+  return true
+}
+
+const finishTimedOutSegmentPoll = (videoId: number, entry: SegmentValidationPollEntry): boolean => {
+  if (entry.attempts < 120) {
+    return false
+  }
+  if (entry.options.showTerminalMessages) {
+    showSuccessMessage('Segmentvalidierung läuft weiter. Die Videoliste aktualisiert den Status.')
+  }
+  finishSegmentValidationPoll(videoId)
+  return true
+}
+
 const processSegmentValidationPollResult = (videoId: number): void => {
   const entry = segmentValidationPollEntries.get(videoId)
   if (!entry) {
@@ -2995,39 +2916,10 @@ const processSegmentValidationPollResult = (videoId: number): void => {
 
   entry.attempts += 1
   const status = getVideoSegmentAnnotationStatus(videoId)
-  if (status === 'validated') {
-    videoRef.value?.load()
-    if (entry.options.showTerminalMessages && entry.options.showValidatedMessage) {
-      showSuccessMessage('Segmentvalidierung abgeschlossen.')
-    }
-    finishSegmentValidationPoll(videoId)
-    return
-  }
-  if (status === 'cleanup_failed') {
-    const video = videoList.value.videos.find((item) => item.id === videoId)
-    const details = video?.postValidationRebuild?.details
-    if (entry.options.showTerminalMessages) {
-      showErrorMessage(
-        `Segmentvalidierung fehlgeschlagen${details ? `: ${details}` : '.'}`,
-        'danger'
-      )
-    }
-    finishSegmentValidationPoll(videoId)
-    return
-  }
-  if (status === 'cleanup_required' || status === 'not_started') {
-    if (entry.options.showTerminalMessages) {
-      showErrorMessage('Segmentvalidierung wartet auf die Nachverarbeitung.', 'danger')
-    }
-    finishSegmentValidationPoll(videoId)
-    return
-  }
-  if (entry.attempts >= 120) {
-    if (entry.options.showTerminalMessages) {
-      showSuccessMessage('Segmentvalidierung läuft weiter. Die Videoliste aktualisiert den Status.')
-    }
-    finishSegmentValidationPoll(videoId)
-  }
+  if (finishValidatedSegmentPoll(videoId, entry, status)) return
+  if (finishFailedSegmentPoll(videoId, entry, status)) return
+  if (finishWaitingSegmentPoll(videoId, entry, status)) return
+  finishTimedOutSegmentPoll(videoId, entry)
 }
 
 const runSegmentValidationPollLoop = (): Promise<void> => {
@@ -3099,56 +2991,93 @@ const pollExistingSegmentCleanupVideos = (): void => {
     })
 }
 
-// Validate all video segments (complete video review)
-const submitVideoSegments = async (videoId: number): Promise<void> => {
+type SegmentValidationPayloadItem = {
+  id: number
+  start_time: number
+  end_time: number
+}
+
+const prepareSegmentValidationPayload = (
+  videoId: number
+): SegmentValidationPayloadItem[] | null => {
   if (segmentSourceMode.value === 'prediction') {
     showErrorMessage('KI-Vorhersagen müssen zuerst als manuelle Segmente übernommen werden.')
-    return
+    return null
   }
-  if (!videoId) {
-    showErrorMessage('Kein Video ausgewählt')
-    return
-  }
-
   if (!canMutateSelectedSegments.value) {
     showErrorMessage(getSegmentMutationBlockedMessage())
-    return
+    return null
   }
-
   if (validationRequestVideoId.value !== null) {
     showErrorMessage(
       `Validierung für Video ${String(validationRequestVideoId.value)} läuft bereits.`
     )
-    return
+    return null
   }
 
-  const segmentsForRequest = [...timelineSegmentsForSelectedVideo.value]
-  const segmentCount = segmentsForRequest.length
-
-  if (segmentCount === 0) {
+  const segments = timelineSegmentsForSelectedVideo.value.map((segment) => ({
+    id: segment.id,
+    start_time: segment.startTime,
+    end_time: segment.endTime
+  }))
+  if (segments.length === 0) {
     showErrorMessage('Keine Segmente zum Validieren vorhanden')
-    return
+    return null
   }
 
   validationRequestVideoId.value = videoId
-
-  // Confirm with user before validation
-  if (
-    !confirm(
-      `Möchten Sie alle ${String(segmentCount)} Segmentannotationen von Video ${String(videoId)} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`
-    )
-  ) {
+  const confirmed = confirm(
+    `Möchten Sie alle ${String(segments.length)} Segmentannotationen von Video ${String(videoId)} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`
+  )
+  if (!confirmed) {
     validationRequestVideoId.value = null
+    return null
+  }
+  return segments
+}
+
+const isValidationCleanupPending = (state: SegmentValidationResponseState): boolean =>
+  ['queued', 'already_queued'].includes(state.jobStatus) ||
+  ['cleanup_queued', 'cleanup_running'].includes(state.segmentAnnotationStatus)
+
+const isValidationCleanupFailed = (state: SegmentValidationResponseState): boolean =>
+  state.jobStatus === 'failed' || state.segmentAnnotationStatus === 'cleanup_failed'
+
+const handleSegmentValidationResponse = async (
+  videoId: number,
+  responseData: unknown
+): Promise<void> => {
+  const validationState = normalizeSegmentValidationResponse(responseData)
+  if (isValidationCleanupPending(validationState)) {
+    showSuccessMessage('Segmentprüfung gespeichert. Nachverarbeitung läuft.')
+    await pollSegmentValidationStatus(videoId)
+    return
+  }
+  if (isValidationCleanupFailed(validationState)) {
+    showErrorMessage(
+      `Validierung fehlgeschlagen${validationState.message ? `: ${validationState.message}` : '.'}`,
+      'danger'
+    )
     return
   }
 
-  // Build payload including updated start/end times (in seconds)
-  const segmentPayload = segmentsForRequest.map((s) => ({
-    id: s.id,
-    // assuming Segment has startTime/endTime in seconds
-    start_time: s.startTime,
-    end_time: s.endTime
-  }))
+  const data = asRecord(responseData)
+  showSuccessMessage(
+    `Erfolgreich! ${displayValue(data.updatedCount)} von ${displayValue(data.totalSegments ?? data.requestedCount)} Segmenten validiert.`
+  )
+  await videoStore.fetchAllVideos()
+}
+
+// Validate all video segments (complete video review)
+const submitVideoSegments = async (videoId: number): Promise<void> => {
+  if (!videoId) {
+    showErrorMessage('Kein Video ausgewählt')
+    return
+  }
+  const segmentPayload = prepareSegmentValidationPayload(videoId)
+  if (!segmentPayload) {
+    return
+  }
 
   try {
     const response = await axiosInstance.post(
@@ -3162,31 +3091,7 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
         annotator: activeAnnotatorPrincipal.value
       }
     )
-    const validationState = normalizeSegmentValidationResponse(response.data)
-
-    if (
-      validationState.jobStatus === 'queued' ||
-      validationState.jobStatus === 'already_queued' ||
-      validationState.segmentAnnotationStatus === 'cleanup_queued' ||
-      validationState.segmentAnnotationStatus === 'cleanup_running'
-    ) {
-      showSuccessMessage('Segmentprüfung gespeichert. Nachverarbeitung läuft.')
-      await pollSegmentValidationStatus(videoId)
-    } else if (
-      validationState.jobStatus === 'failed' ||
-      validationState.segmentAnnotationStatus === 'cleanup_failed'
-    ) {
-      showErrorMessage(
-        `Validierung fehlgeschlagen${validationState.message ? `: ${validationState.message}` : '.'}`,
-        'danger'
-      )
-    } else {
-      const responseData = asRecord(response.data)
-      showSuccessMessage(
-        `Erfolgreich! ${displayValue(responseData.updatedCount)} von ${displayValue(responseData.totalSegments ?? responseData.requestedCount)} Segmenten validiert.`
-      )
-      await videoStore.fetchAllVideos()
-    }
+    await handleSegmentValidationResponse(videoId, response.data)
     lastValidationClickedVideoId.value = videoId
 
     // Reload segments to reflect validation status + updated times
@@ -3239,53 +3144,51 @@ const normalizeOutsideBlackeningResponse = (value: unknown): OutsideBlackeningRe
   }
 }
 
+const outsideBlackeningFailureMessage = (message: string): string =>
+  `Schwärzung der Außerhalb-Segmente fehlgeschlagen${message ? `: ${message}` : '.'}`
+
+const isImplicitOutsideBlackeningNoop = (state: OutsideBlackeningResponseState): boolean =>
+  !state.jobStatus && state.outsideSegmentCount === 0
+
 const handleOutsideBlackeningResponseState = (
   responseState: OutsideBlackeningResponseState,
   videoId: number
 ): boolean => {
   const { outsideSegmentCount, jobStatus, message } = responseState
 
-  if (jobStatus === 'completed') {
-    videoRef.value?.load()
-    void videoStore.fetchAllVideos()
-    showSuccessMessage(`Außerhalb-Segmente geschwärzt (${String(outsideSegmentCount)} Segmente).`)
-    return true
+  switch (jobStatus) {
+    case 'completed':
+      videoRef.value?.load()
+      void videoStore.fetchAllVideos()
+      showSuccessMessage(`Außerhalb-Segmente geschwärzt (${String(outsideSegmentCount)} Segmente).`)
+      return true
+    case 'queued':
+      showSuccessMessage(
+        `Schwärzung der Außerhalb-Segmente gestartet (${String(outsideSegmentCount)} Segmente).`
+      )
+      void pollSegmentValidationStatus(videoId, { showValidatedMessage: false })
+      return true
+    case 'already_queued':
+      showSuccessMessage('Schwärzung der Außerhalb-Segmente läuft bereits.')
+      void pollSegmentValidationStatus(videoId, { showValidatedMessage: false })
+      return true
+    case 'busy':
+      showErrorMessage('Ein anderer Verarbeitungsvorgang für dieses Video läuft bereits.')
+      return true
+    case 'failed':
+      showErrorMessage(outsideBlackeningFailureMessage(message), 'danger')
+      void videoStore.fetchAllVideos()
+      return true
+    case 'noop':
+      showSuccessMessage('Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.')
+      return true
+    default:
+      if (isImplicitOutsideBlackeningNoop(responseState)) {
+        showSuccessMessage('Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.')
+        return true
+      }
+      return false
   }
-
-  if (jobStatus === 'queued') {
-    showSuccessMessage(
-      `Schwärzung der Außerhalb-Segmente gestartet (${String(outsideSegmentCount)} Segmente).`
-    )
-    void pollSegmentValidationStatus(videoId, { showValidatedMessage: false })
-    return true
-  }
-
-  if (jobStatus === 'already_queued') {
-    showSuccessMessage('Schwärzung der Außerhalb-Segmente läuft bereits.')
-    void pollSegmentValidationStatus(videoId, { showValidatedMessage: false })
-    return true
-  }
-
-  if (jobStatus === 'busy') {
-    showErrorMessage('Ein anderer Verarbeitungsvorgang für dieses Video läuft bereits.')
-    return true
-  }
-
-  if (jobStatus === 'failed') {
-    showErrorMessage(
-      `Schwärzung der Außerhalb-Segmente fehlgeschlagen${message ? `: ${message}` : '.'}`,
-      'danger'
-    )
-    void videoStore.fetchAllVideos()
-    return true
-  }
-
-  if (jobStatus === 'noop' || (!jobStatus && outsideSegmentCount === 0)) {
-    showSuccessMessage('Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.')
-    return true
-  }
-
-  return false
 }
 
 const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
@@ -3428,6 +3331,63 @@ const importPredictionSegmentsToCorrection = async (): Promise<void> => {
   }
 }
 
+const buildPredictionRerunPayload = (): RerunPredictionSegmentsPayload => {
+  if (predictionModelMode.value === 'huggingface') {
+    return {
+      hfModelId: huggingFaceModelId.value.trim(),
+      labelsetName: defaultPredictionLabelsetName.value,
+      replacePredictionSegments: true,
+      deleteFramesAfter: true
+    }
+  }
+  return {
+    modelMetaId: selectedPredictionModelMetaId.value,
+    replacePredictionSegments: true,
+    deleteFramesAfter: true
+  }
+}
+
+const waitForPredictionRerunCompletion = async (
+  response: RerunPredictionSegmentsResponse,
+  videoId: number,
+  loadSerial: number
+): Promise<boolean> => {
+  if (response.status === 'completed') {
+    return true
+  }
+  const queuedStatuses: RerunPredictionSegmentsResponse['status'][] = [
+    'queued',
+    'already_queued',
+    'pending_after_rebuild'
+  ]
+  if (!queuedStatuses.includes(response.status)) {
+    throw new Error(response.message || `Unerwarteter KI-Jobstatus: ${response.status}`)
+  }
+  if (response.job.historyId === null) {
+    throw new Error('Der KI-Hintergrundjob enthält keine verfolgbaren Verlaufsdaten.')
+  }
+  showSuccessMessage(
+    response.status === 'pending_after_rebuild'
+      ? 'KI-Berechnung startet nach Abschluss der Videoverarbeitung.'
+      : 'KI-Berechnung wurde gestartet.'
+  )
+  return pollPredictionRerun(videoId, response.job.historyId, loadSerial)
+}
+
+const loadPredictionRerunResult = async (videoId: number, loadSerial: number): Promise<void> => {
+  if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
+    return
+  }
+  segmentSourceMode.value = 'prediction'
+  await loadVideoSegments()
+  if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
+    return
+  }
+  showSuccessMessage(
+    `KI-Vorhersagen neu berechnet (${String(timelineSegmentsForSelectedVideo.value.length)} Segmente)`
+  )
+}
+
 const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
   if (!selectedVideoId.value || !canRerunPredictionSegments.value) {
     return
@@ -3437,59 +3397,21 @@ const rerunPredictionSegmentsForSelectedVideo = async (): Promise<void> => {
   const loadSerial = selectedVideoLoadSerial
   isRerunningPredictionSegments.value = true
   try {
-    const payload =
-      predictionModelMode.value === 'huggingface'
-        ? {
-            hfModelId: huggingFaceModelId.value.trim(),
-            labelsetName: defaultPredictionLabelsetName.value,
-            replacePredictionSegments: true,
-            deleteFramesAfter: true
-          }
-        : {
-            modelMetaId: selectedPredictionModelMetaId.value,
-            replacePredictionSegments: true,
-            deleteFramesAfter: true
-          }
-
-    const response = await videoStore.rerunPredictionSegments(videoId, payload)
-    await videoStore.fetchPredictionModels()
-    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) {
-      return
-    }
-    if (response.status !== 'completed') {
-      if (
-        response.status !== 'queued' &&
-        response.status !== 'already_queued' &&
-        response.status !== 'pending_after_rebuild'
-      ) {
-        throw new Error(response.message || `Unerwarteter KI-Jobstatus: ${response.status}`)
-      }
-      if (response.job.historyId === null) {
-        throw new Error('Der KI-Hintergrundjob enthält keine verfolgbaren Verlaufsdaten.')
-      }
-      showSuccessMessage(
-        response.status === 'pending_after_rebuild'
-          ? 'KI-Berechnung startet nach Abschluss der Videoverarbeitung.'
-          : 'KI-Berechnung wurde gestartet.'
-      )
-      const completed = await pollPredictionRerun(videoId, response.job.historyId, loadSerial)
-      if (!completed) {
-        return
-      }
-    }
-    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) {
-      return
-    }
-    segmentSourceMode.value = 'prediction'
-    await loadVideoSegments()
-    if (selectedVideoId.value !== videoId || selectedVideoLoadSerial !== loadSerial) {
-      return
-    }
-    showSuccessMessage(
-      `KI-Vorhersagen neu berechnet (${String(timelineSegmentsForSelectedVideo.value.length)} Segmente)`
+    const response = await videoStore.rerunPredictionSegments(
+      videoId,
+      buildPredictionRerunPayload()
     )
+    await videoStore.fetchPredictionModels()
+    if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
+      return
+    }
+    const completed = await waitForPredictionRerunCompletion(response, videoId, loadSerial)
+    if (!completed) {
+      return
+    }
+    await loadPredictionRerunResult(videoId, loadSerial)
   } catch (error: unknown) {
-    if (selectedVideoId.value === videoId && selectedVideoLoadSerial === loadSerial) {
+    if (isCurrentSelectedVideoLoad(videoId, loadSerial)) {
       await guarded(rejectedUnknown(error))
     }
   } finally {
@@ -3503,11 +3425,6 @@ const onVideoError = (event: Event): void => {
     return
   }
   showErrorMessage('Fehler beim Laden des Videos. Bitte versuchen Sie es erneut.')
-}
-
-const getVideoDropdownStatusText = (videoId: number): string => {
-  const status = getVideoDropdownStatus(videoId)
-  return getDropdownStatusText(status, getStatusText(getVideoAnonymizationStatus(videoId)))
 }
 
 const getSegmentAnnotationStatusBadgeText = (videoId: number): string => {
@@ -3539,14 +3456,6 @@ const getSegmentAnnotationStatusBadgeClass = (videoId: number): string => {
     return 'bg-success'
   }
   return 'bg-secondary'
-}
-
-const getVideoDropdownStatusBadgeClass = (videoId: number): string => {
-  return getDropdownStatusBadgeClass(getVideoDropdownStatus(videoId))
-}
-
-const getVideoDropdownItemClass = (videoId: number): string => {
-  return getDropdownItemClass(getVideoDropdownStatus(videoId))
 }
 
 const getVideoDropdownStatus = (videoId: number): VideoDropdownStatus => {
@@ -3590,11 +3499,6 @@ const getVideoStatusIndicator = (videoId: number): string => {
   }
 
   return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus
-}
-
-const getVideoCountByStatus = (status: string): number => {
-  return overview.value.filter((o) => o.mediaType === 'video' && o.anonymizationStatus === status)
-    .length
 }
 
 const getStatusBadgeClass = (status: string): string => {
@@ -3698,6 +3602,10 @@ const blackeningButtonLabel = computed(() =>
 </script>
 
 <style scoped>
+.examination-video {
+  max-height: 400px;
+}
+
 .video-container {
   position: relative;
   background: #000;
@@ -3706,7 +3614,7 @@ const blackeningButtonLabel = computed(() =>
   z-index: 100;
 }
 
-.video-container:fullscreen video {
+.video-container:fullscreen .examination-video {
   height: 100%;
   max-height: none !important;
   object-fit: contain;
@@ -3858,29 +3766,6 @@ const blackeningButtonLabel = computed(() =>
 
 .list-group-item:last-child {
   border-bottom: none;
-}
-
-.video-status-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-left: 4px solid #007bff;
-}
-
-.status-badge-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.status-badge-container .badge {
-  font-size: 0.75rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.375rem;
-}
-
-.hint-alert {
-  border-color: #b6effb;
-  color: #055160;
-  background: #cff4fc;
 }
 
 .video-dropdown-option {
@@ -4244,69 +4129,6 @@ const blackeningButtonLabel = computed(() =>
   color: #495057;
 }
 
-.label-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  z-index: 2147483647;
-}
-
-.label-overlay-card {
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 12px;
-  min-width: 260px;
-  max-width: 70%;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-}
-
-.label-overlay-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.label-overlay-close {
-  border: none;
-  background: transparent;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.label-overlay-hint {
-  font-size: 0.8rem;
-  color: #6c757d;
-  margin-bottom: 8px;
-}
-
-.label-overlay-list {
-  display: grid;
-  gap: 6px;
-  max-height: 45vh;
-  overflow: auto;
-}
-
-.label-overlay-item {
-  width: 100%;
-  text-align: left;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #dee2e6;
-  background: #f8f9fa;
-  cursor: pointer;
-}
-
-.label-overlay-item.active {
-  border-color: #0d6efd;
-  background: #e7f1ff;
-}
-
 .shortcuts-details {
   display: inline-block;
 }
@@ -4348,19 +4170,5 @@ const blackeningButtonLabel = computed(() =>
   border: 1px dashed #dee2e6;
   border-radius: 6px;
   background: #fff;
-}
-
-.prediction-rerun-controls .model-mode-select {
-  max-width: 180px;
-}
-
-.prediction-rerun-controls .prediction-model-select,
-.prediction-rerun-controls .huggingface-model-input {
-  min-width: min(100%, 280px);
-  max-width: 420px;
-}
-
-.annotator-override-input {
-  max-width: 320px;
 }
 </style>

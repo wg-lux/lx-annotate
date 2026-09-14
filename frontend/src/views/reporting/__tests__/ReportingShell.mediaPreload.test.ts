@@ -115,24 +115,35 @@ vi.mock('@/utils/runtimeLogger', () => ({
   createRuntimeLogger: () => hoisted.runtimeLogger
 }))
 
-vi.mock('@/stores/reportingFlowStore', () => ({
-  isVerifiedRuntimeDraftForBundle: (
-    draft: ReportingRuntimeDraft | null,
-    bundle: TerminologyBundleVersion | null,
+vi.mock('@/stores/reportingFlowStore', () => {
+  const isVerifiedTemplateDraft = (draft: ReportingRuntimeDraft): boolean =>
+    draft.verificationStatus === 'verified' && Boolean(draft.templateName)
+  const matchesPatientExamination = (
+    draft: ReportingRuntimeDraft,
     patientExaminationId?: number | null
-  ) => {
-    if (!draft || !bundle || draft.verificationStatus !== 'verified' || !draft.templateName) {
-      return false
-    }
-    if (patientExaminationId && draft.patientExaminationId !== patientExaminationId) return false
-    const moduleName =
-      draft.templateIdentity?.moduleName || draft.payload.knowledgeBaseModule || draft.moduleName
-    const version =
+  ): boolean => !patientExaminationId || draft.patientExaminationId === patientExaminationId
+  const draftIdentity = (draft: ReportingRuntimeDraft) => ({
+    moduleName:
+      draft.templateIdentity?.moduleName || draft.payload.knowledgeBaseModule || draft.moduleName,
+    version:
       draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
-    return moduleName === bundle.moduleName && version === bundle.version
-  },
-  useReportingFlowStore: () => hoisted.flowRef.current
-}))
+  })
+
+  return {
+    isVerifiedRuntimeDraftForBundle: (
+      draft: ReportingRuntimeDraft | null,
+      bundle: TerminologyBundleVersion | null,
+      patientExaminationId?: number | null
+    ) => {
+      if (!draft || !bundle) return false
+      if (!isVerifiedTemplateDraft(draft)) return false
+      if (!matchesPatientExamination(draft, patientExaminationId)) return false
+      const identity = draftIdentity(draft)
+      return identity.moduleName === bundle.moduleName && identity.version === bundle.version
+    },
+    useReportingFlowStore: () => hoisted.flowRef.current
+  }
+})
 
 vi.mock('@/stores/terminologyStore', async () => {
   const { reactive: makeReactive } = await vi.importActual<typeof import('vue')>('vue')

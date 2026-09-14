@@ -125,8 +125,12 @@ describe('terminologyStore', () => {
     expect(terminology.activeBundle).toEqual(
       expect.objectContaining({ moduleName: 'existing', version: '3.0', isActive: true })
     )
-    expect(terminology.bundles.find((bundle) => bundle.moduleName === 'first')?.isActive).toBe(false)
-    expect(terminology.bundles.find((bundle) => bundle.moduleName === 'second')?.isActive).toBe(false)
+    expect(terminology.bundles.find((bundle) => bundle.moduleName === 'first')?.isActive).toBe(
+      false
+    )
+    expect(terminology.bundles.find((bundle) => bundle.moduleName === 'second')?.isActive).toBe(
+      false
+    )
     expect(terminology.registryRevision).toBe('sha256:registry-after-imports')
     expect(terminology.error).toContain('broken.zip: Ungültiges Paket.')
   })

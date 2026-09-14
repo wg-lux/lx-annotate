@@ -42,23 +42,21 @@ interface HoistedTestState {
   useAuthenticatedVideoStream: ReturnType<typeof vi.fn>
 }
 
-const hoisted = vi.hoisted(
-  (): HoistedTestState => ({
-    anonymizationStoreRef: {
-      current: undefined
-    },
-    mediaStoreRef: {
-      current: undefined
-    },
-    toastStoreRef: {
-      current: undefined
-    },
-    axiosGet: vi.fn(),
-    axiosPost: vi.fn(),
-    routerPush: vi.fn(),
-    useAuthenticatedVideoStream: vi.fn()
-  })
-)
+const hoisted = vi.hoisted((): HoistedTestState => ({
+  anonymizationStoreRef: {
+    current: undefined
+  },
+  mediaStoreRef: {
+    current: undefined
+  },
+  toastStoreRef: {
+    current: undefined
+  },
+  axiosGet: vi.fn(),
+  axiosPost: vi.fn(),
+  routerPush: vi.fn(),
+  useAuthenticatedVideoStream: vi.fn()
+}))
 
 const apiResponse = <T>(data: T): AxiosResponse<T> => ({
   data,
@@ -149,15 +147,12 @@ vi.mock('@/types/api/endpoints', () => ({
     },
     media: {
       pdfCaseResolution: (fileId: number) => `media/pdfs/${String(fileId)}/case-resolution/`,
-      videoCaseResolution: (fileId: number) =>
-        `media/videos/${String(fileId)}/case-resolution/`,
+      videoCaseResolution: (fileId: number) => `media/videos/${String(fileId)}/case-resolution/`,
       pdfDetail: (fileId: number) => `media/pdfs/${String(fileId)}/`,
-      patientTimeline: (patientId: number) =>
-        `media/patients/${String(patientId)}/timeline/`,
+      patientTimeline: (patientId: number) => `media/patients/${String(patientId)}/timeline/`,
       pdfStream: (fileId: number) => `media/pdfs/${String(fileId)}/stream/`,
       videoStream: (fileId: number) => `media/videos/${String(fileId)}/stream/`,
-      videoHlsPlaylist: (fileId: number) =>
-        `media/videos/${String(fileId)}/hls/playlist/`,
+      videoHlsPlaylist: (fileId: number) => `media/videos/${String(fileId)}/hls/playlist/`,
       videoCorrectionAnonymization: (fileId: number) =>
         `media/videos/video-correction/${String(fileId)}/anonymization/`
     },
@@ -310,13 +305,18 @@ describe('AnonymizationValidationComponent', () => {
 
   it('disables Skip and Reject until the submitted approval completes', async () => {
     let complete!: (value: AxiosResponse<unknown>) => void
-    hoisted.axiosPost.mockImplementation(() => new Promise(resolve => { complete = resolve }))
+    hoisted.axiosPost.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve
+        })
+    )
     const wrapper = mountComponent()
     await flushPromises()
     await wrapper.find('button.btn.btn-success').trigger('click')
     await flushPromises()
-    const skip = wrapper.findAll('button').find(button => button.text() === 'Überspringen')
-    const reject = wrapper.findAll('button').find(button => button.text() === 'Ablehnen')
+    const skip = wrapper.findAll('button').find((button) => button.text() === 'Überspringen')
+    const reject = wrapper.findAll('button').find((button) => button.text() === 'Ablehnen')
     if (!skip || !reject) {
       throw new Error('Approval navigation buttons are missing')
     }

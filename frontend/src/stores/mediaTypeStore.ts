@@ -65,7 +65,8 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   function seedTypesFromOverview(items: Array<{ id: number; mediaType?: string }>) {
     for (const overviewItem of items) {
       const rawMediaType = (overviewItem.mediaType ?? '').toLowerCase()
-      const mediaType: MediaType = rawMediaType === 'pdf' ? 'pdf' : rawMediaType === 'video' ? 'video' : 'unknown'
+      const mediaType: MediaType =
+        rawMediaType === 'pdf' ? 'pdf' : rawMediaType === 'video' ? 'video' : 'unknown'
       if (mediaType !== 'unknown') {
         rememberType(overviewItem.id, mediaType, mediaType)
       }
@@ -222,35 +223,38 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
 
   /* ---------------------------- Methods ---------------------------- */
 
+  function mediaTypeFromFilename(filename: string | undefined): MediaType {
+    if (!filename) return 'unknown'
+    const extension = `.${filename.toLowerCase().split('.').pop() || ''}`
+    if (mediaTypeConfigs.video.supportedExtensions.includes(extension)) return 'video'
+    if (mediaTypeConfigs.pdf.supportedExtensions.includes(extension)) return 'pdf'
+    return 'unknown'
+  }
+
+  function mediaTypeFromScopedRegistry(item: MediaItem): MediaType {
+    if (!item.scope || item.scope === 'unknown') return 'unknown'
+    const resolved = getType(item.id, item.scope)
+    logger.debug('registry-type-resolved', {
+      operation: 'resolve',
+      mediaType: resolved
+    })
+    return resolved
+  }
+
   // Keep this pure; no fetching or IO here.
   function detectMediaType(item: MediaItem): MediaType {
     if (item.mediaType && item.mediaType !== 'unknown') {
       return item.mediaType
     }
     // 1) If scope is known, prefer the registry `(scope,id)`
-    if (item.scope && item.scope !== 'unknown') {
-      const byScoped = getType(item.id, item.scope)
-      logger.debug('registry-type-resolved', {
-        operation: 'resolve',
-        mediaType: byScoped
-      })
-      if (byScoped !== 'unknown') {
-        return byScoped
-      }
-    }
+    const scoped = mediaTypeFromScopedRegistry(item)
+    if (scoped !== 'unknown') return scoped
 
     // 2) Try explicit field
 
     // 3) try by filename
-    if (item.filename) {
-      const extension = `.${item.filename.toLowerCase().split('.').pop() || ''}`
-      if (mediaTypeConfigs.video.supportedExtensions.includes(extension)) {
-        return 'video'
-      }
-      if (mediaTypeConfigs.pdf.supportedExtensions.includes(extension)) {
-        return 'pdf'
-      }
-    }
+    const filenameType = mediaTypeFromFilename(item.filename)
+    if (filenameType !== 'unknown') return filenameType
     // 3) Ambiguous registry lookup by id
     const remembered = getType(item.id)
     if (remembered !== 'unknown') {

@@ -92,6 +92,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
+function getMediaRequestErrorMessage(err: unknown): string {
+  if (!axios.isAxiosError(err)) {
+    return 'Ein unerwarteter Fehler ist aufgetreten.'
+  }
+  const status = err.response?.status
+  if (status === 429) {
+    return 'Zu viele Anfragen. Bitte warten Sie einen Moment.'
+  }
+  if (status === 409) {
+    return 'Datei wird bereits verarbeitet.'
+  }
+  const data: unknown = err.response?.data
+  if (isRecord(data) && typeof data.detail === 'string') {
+    return data.detail
+  }
+  return 'Ein unerwarteter Fehler ist aufgetreten.'
+}
+
 /**
  * Media Management API Service
  * Provides comprehensive media cleanup and management capabilities
@@ -101,7 +119,9 @@ export const MediaManagementAPI = {
    * Get comprehensive status overview of all media
    */
   async getStatusOverview(): Promise<MediaStatusOverview> {
-    const response = await api.get<MediaStatusOverview>(endoregApi(endpoints.mediaManagement.status))
+    const response = await api.get<MediaStatusOverview>(
+      endoregApi(endpoints.mediaManagement.status)
+    )
     return response.data
   },
 
@@ -114,9 +134,12 @@ export const MediaManagementAPI = {
     type: 'unfinished' | 'failed' | 'stale' | 'all' = 'unfinished',
     force: boolean = false
   ): Promise<MediaCleanupResult> {
-    const response = await api.delete<MediaCleanupResult>(endoregApi(endpoints.mediaManagement.cleanup), {
-      params: { type, force }
-    })
+    const response = await api.delete<MediaCleanupResult>(
+      endoregApi(endpoints.mediaManagement.cleanup),
+      {
+        params: { type, force }
+      }
+    )
     return response.data
   },
 
@@ -205,9 +228,12 @@ export const MediaManagementAPI = {
     fileId: number,
     documentType?: string
   ): Promise<ProcessingResponse> {
-    const response = await api.post<ProcessingResponse>(endoregApi(endpoints.anonymization.validate(fileId)), {
-      ...(documentType ? { document_type: documentType } : {})
-    })
+    const response = await api.post<ProcessingResponse>(
+      endoregApi(endpoints.anonymization.validate(fileId)),
+      {
+        ...(documentType ? { document_type: documentType } : {})
+      }
+    )
     return response.data
   },
 
@@ -226,7 +252,9 @@ export const MediaManagementAPI = {
    * @param fileId - ID of the PDF file to re-import
    */
   async reimportPdf(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post<ProcessingResponse>(endoregApi(endpoints.media.pdfReimport(fileId)))
+    const response = await api.post<ProcessingResponse>(
+      endoregApi(endpoints.media.pdfReimport(fileId))
+    )
     return response.data
   },
 
@@ -261,21 +289,7 @@ export function useMediaManagement() {
       return result
     } catch (err: unknown) {
       logger.error('request-failed', err)
-
-      if (axios.isAxiosError<{ detail?: string }>(err) && err.response?.status === 429) {
-        error.value = 'Zu viele Anfragen. Bitte warten Sie einen Moment.'
-      } else if (axios.isAxiosError(err) && err.response?.status === 409) {
-        error.value = 'Datei wird bereits verarbeitet.'
-      } else if (
-        axios.isAxiosError<unknown>(err) &&
-        isRecord(err.response?.data) &&
-        typeof err.response.data.detail === 'string'
-      ) {
-        error.value = err.response.data.detail
-      } else {
-        error.value = 'Ein unerwarteter Fehler ist aufgetreten.'
-      }
-
+      error.value = getMediaRequestErrorMessage(err)
       return null
     } finally {
       isLoading.value = false

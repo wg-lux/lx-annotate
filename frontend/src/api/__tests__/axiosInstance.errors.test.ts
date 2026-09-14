@@ -18,9 +18,11 @@ describe('axios response error handling', () => {
     const login = vi.spyOn(useAuthKcStore(), 'login').mockImplementation(() => {})
     const cancellation = new CanceledError('canceled')
 
-    await expect(axiosInstance.get('/endoreg-api/media/videos/1/segments/', {
-      adapter: () => Promise.reject(cancellation)
-    })).rejects.toBe(cancellation)
+    await expect(
+      axiosInstance.get('/endoreg-api/media/videos/1/segments/', {
+        adapter: () => Promise.reject(cancellation)
+      })
+    ).rejects.toBe(cancellation)
 
     expect(axios.isCancel(cancellation)).toBe(true)
     expect(useToastStore().toasts).toEqual([])
@@ -32,38 +34,48 @@ describe('axios response error handling', () => {
     controller.abort()
     const adapter = vi.fn()
 
-    await expect(axiosInstance.get('/endoreg-api/media/videos/', {
-      signal: controller.signal,
-      adapter
-    })).rejects.toBeInstanceOf(CanceledError)
+    await expect(
+      axiosInstance.get('/endoreg-api/media/videos/', {
+        signal: controller.signal,
+        adapter
+      })
+    ).rejects.toBeInstanceOf(CanceledError)
 
     expect(adapter).not.toHaveBeenCalled()
     expect(useToastStore().toasts).toEqual([])
   })
 
   it.each([AxiosError.ERR_NETWORK, AxiosError.ECONNABORTED])(
-    'continues reporting actual failures (%s)', async (code) => {
+    'continues reporting actual failures (%s)',
+    async (code) => {
       const failure = new AxiosError('Request failed', code)
 
-      await expect(axiosInstance.get('/endoreg-api/media/videos/', {
-        adapter: () => Promise.reject(failure)
-      })).rejects.toBe(failure)
+      await expect(
+        axiosInstance.get('/endoreg-api/media/videos/', {
+          adapter: () => Promise.reject(failure)
+        })
+      ).rejects.toBe(failure)
 
-      expect(useToastStore().toasts).toMatchObject([
-        { status: 'error', text: 'Request failed' }
-      ])
+      expect(useToastStore().toasts).toMatchObject([{ status: 'error', text: 'Request failed' }])
     }
   )
 
   it('continues requesting login on unauthorized responses', async () => {
     const login = vi.spyOn(useAuthKcStore(), 'login').mockImplementation(() => {})
     const config = { headers: new AxiosHeaders(), url: '/endoreg-api/media/videos/' }
-    const failure = new AxiosError('Unauthorized', AxiosError.ERR_BAD_REQUEST, config,
-      undefined, { status: 401, statusText: 'Unauthorized', headers: {}, config, data: {} })
+    const failure = new AxiosError('Unauthorized', AxiosError.ERR_BAD_REQUEST, config, undefined, {
+      status: 401,
+      statusText: 'Unauthorized',
+      headers: {},
+      config,
+      data: {}
+    })
 
-    await expect(axiosInstance.get(config.url, {
-      adapter: () => Promise.reject(failure)
-    })).rejects.toBe(failure)
+    await expect(
+      axiosInstance.get(config.url, {
+        adapter: () => Promise.reject(failure)
+      })
+    ).rejects.toBe(failure)
 
     expect(login).toHaveBeenCalledOnce()
     expect(useToastStore().toasts).toEqual([])

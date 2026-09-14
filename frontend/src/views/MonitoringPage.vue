@@ -19,7 +19,9 @@
     <p
       v-if="monitoring.loading"
       role="status"
-    >Checking runtime health…</p>
+    >
+      Checking runtime health…
+    </p>
     <div
       v-if="monitoring.error"
       class="alert alert-danger"
@@ -72,16 +74,17 @@
               <span
                 class="badge"
                 :class="statusClass[check.status]"
-              >{{
-                statusLabel[check.status]
-              }}</span>
+                >{{ statusLabel[check.status] }}</span
+              >
               <div class="flex-grow-1">
                 <strong class="d-block">{{ checkLabel(check.key) }}</strong>
                 <p class="mb-1">{{ check.summary }}</p>
                 <p
                   v-if="check.detail"
                   class="text-muted mb-1"
-                >{{ check.detail }}</p>
+                >
+                  {{ check.detail }}
+                </p>
                 <details
                   v-if="Object.keys(check.metadata).length"
                   class="mt-2"
@@ -139,7 +142,7 @@ const categories: Record<string, string> = {
   services: 'System services',
   monitoring: 'Monitoring configuration'
 }
-const refreshLabel = computed(() => monitoring.loading ? 'Refreshing…' : 'Refresh')
+const refreshLabel = computed(() => (monitoring.loading ? 'Refreshing…' : 'Refresh'))
 
 const groups = computed(() => {
   const result = new Map<string, MonitoringCheck[]>()
@@ -167,12 +170,11 @@ function formatValue(value: MonitoringValue): string {
   if (Array.isArray(value)) {
     return value.map(formatValue).join('; ') || 'None'
   }
-  if (typeof value === 'object')
-    {
-      return Object.entries(value)
+  if (typeof value === 'object') {
+    return Object.entries(value)
       .map(([key, item]) => `${humanize(key)}: ${formatValue(item)}`)
       .join(', ')
-    }
+  }
   if (typeof value === 'boolean') {
     return value ? 'Yes' : 'No'
   }

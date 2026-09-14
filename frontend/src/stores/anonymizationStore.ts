@@ -684,6 +684,28 @@ export const useAnonymizationStore = defineStore('anonymization', {
       let nextDelayMs = statusPollIntervalMs(id)
       const jitter = () => Math.floor(Math.random() * STATUS_POLL_JITTER_MS)
 
+      const applyStatusUpdate = (data: AnonymizationStatusResponse): boolean => {
+        const currentFile = this.overview.find((candidate) => candidate.id === id)
+        if (!currentFile || !isFileAnonymizationStatus(data.anonymizationStatus)) return false
+        const statusFromBackend = data.anonymizationStatus
+        runtimeLogger.debug('status-poll-update-applied', { fileType: currentFile.mediaType })
+        currentFile.anonymizationStatus = statusFromBackend
+        if (!FINAL_ANONYMIZATION_STATUSES.has(statusFromBackend)) return false
+        runtimeLogger.info('status-poll-final-state-reached', { fileType: currentFile.mediaType })
+        this.stopPolling(id)
+        return true
+      }
+
+      const updateDelayAfterFailure = (error: unknown): void => {
+        if (axios.isAxiosError(error) && error.response?.status === 429) {
+          nextDelayMs = STATUS_POLL_BACKOFF_MS
+          runtimeLogger.debug('status-poll-rate-limited', { httpStatus: 429 })
+          return
+        }
+        nextDelayMs = statusPollIntervalMs(id)
+        runtimeLogger.error('status-poll-failed', error, { fileType: file.mediaType })
+      }
+
       const poll = async () => {
         if (this.pollingHandles[id] === undefined) {
           return
@@ -700,32 +722,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
             { params: { kind: kindParam } }
           )
 
-          // Refresh file reference in case overview changed
-          const currentFile = this.overview.find((f) => f.id === id)
-
-          if (currentFile && isFileAnonymizationStatus(data.anonymizationStatus)) {
-            const statusFromBackend = data.anonymizationStatus
-
-            runtimeLogger.debug('status-poll-update-applied', { fileType: currentFile.mediaType })
-            currentFile.anonymizationStatus = statusFromBackend
-
-            if (FINAL_ANONYMIZATION_STATUSES.has(statusFromBackend)) {
-              runtimeLogger.info('status-poll-final-state-reached', {
-                fileType: currentFile.mediaType
-              })
-              this.stopPolling(id)
-              return
-            }
-          }
+          if (applyStatusUpdate(data)) return
           nextDelayMs = statusPollIntervalMs(id)
         } catch (err) {
-          if (axios.isAxiosError(err) && err.response?.status === 429) {
-            nextDelayMs = STATUS_POLL_BACKOFF_MS
-            runtimeLogger.debug('status-poll-rate-limited', { httpStatus: 429 })
-          } else {
-            nextDelayMs = statusPollIntervalMs(id)
-            runtimeLogger.error('status-poll-failed', err, { fileType: file.mediaType })
-          }
+          updateDelayAfterFailure(err)
         }
 
         if (this.pollingHandles[id] === undefined) {

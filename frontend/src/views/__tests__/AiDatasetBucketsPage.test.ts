@@ -153,9 +153,14 @@ describe('AiDatasetBucketsPage', () => {
   it('keeps the current histogram when an older filter request fails', async () => {
     const wrapper = mount(AiDatasetBucketsPage)
     await flushPromises()
-    let rejectOld: (reason: Error) => void = () => { throw new Error('Request not started') }
-    hoisted.fetchAiDatasetFrameBucketDistribution.mockImplementationOnce(() =>
-      new Promise<never>((_resolve, reject) => { rejectOld = reject })
+    let rejectOld: (reason: Error) => void = () => {
+      throw new Error('Request not started')
+    }
+    hoisted.fetchAiDatasetFrameBucketDistribution.mockImplementationOnce(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectOld = reject
+        })
     )
     await wrapper.get('[data-test="label-group-select"]').setValue('3')
     await wrapper.get('[data-test="target-label-select"]').setValue('11')

@@ -47,14 +47,18 @@ describe('segment timeline contract', () => {
   })
 
   it('preserves irregular media timestamps without FPS snapping', () => {
-    expect(requireSegmentTimestampRange(REQUESTED_START_SECONDS, REQUESTED_END_SECONDS, 2)).toEqual({
-      startTime: REQUESTED_START_SECONDS,
-      endTime: REQUESTED_END_SECONDS
-    })
-    expect(buildSegmentTimestampPayload(REQUESTED_START_SECONDS, REQUESTED_END_SECONDS, 2)).toEqual({
-      start_time: REQUESTED_START_SECONDS,
-      end_time: REQUESTED_END_SECONDS
-    })
+    expect(requireSegmentTimestampRange(REQUESTED_START_SECONDS, REQUESTED_END_SECONDS, 2)).toEqual(
+      {
+        startTime: REQUESTED_START_SECONDS,
+        endTime: REQUESTED_END_SECONDS
+      }
+    )
+    expect(buildSegmentTimestampPayload(REQUESTED_START_SECONDS, REQUESTED_END_SECONDS, 2)).toEqual(
+      {
+        start_time: REQUESTED_START_SECONDS,
+        end_time: REQUESTED_END_SECONDS
+      }
+    )
   })
 
   it('fails closed for invalid timestamp ranges', () => {
@@ -112,12 +116,16 @@ describe('segment timeline contract', () => {
       }
     })
 
-    await expect(store.resolveAdjacentFrameTimestamp(VIDEO_ID, REQUESTED_FRAME_SECONDS, 1)).resolves.toBe(NEXT_FRAME_SECONDS)
-    await expect(store.resolveAdjacentFrameTimestamp(VIDEO_ID, NEXT_FRAME_SECONDS, 1)).resolves.toBe(FOLLOWING_FRAME_SECONDS)
-    expect(axiosGet).toHaveBeenCalledWith(
-      'media/videos/17/timeline/frame-neighborhood/',
-      { params: { timestamp: REQUESTED_FRAME_SECONDS, radius: 12 }, suppressErrorToast: true }
-    )
+    await expect(
+      store.resolveAdjacentFrameTimestamp(VIDEO_ID, REQUESTED_FRAME_SECONDS, 1)
+    ).resolves.toBe(NEXT_FRAME_SECONDS)
+    await expect(
+      store.resolveAdjacentFrameTimestamp(VIDEO_ID, NEXT_FRAME_SECONDS, 1)
+    ).resolves.toBe(FOLLOWING_FRAME_SECONDS)
+    expect(axiosGet).toHaveBeenCalledWith('media/videos/17/timeline/frame-neighborhood/', {
+      params: { timestamp: REQUESTED_FRAME_SECONDS, radius: 12 },
+      suppressErrorToast: true
+    })
     expect(axiosGet).toHaveBeenCalledTimes(1)
   })
 
@@ -163,7 +171,12 @@ describe('segment timeline contract', () => {
       }
     })
 
-    const created = await store.createSegment(VIDEO_ID, 'polyp', REQUESTED_START_SECONDS, REQUESTED_END_SECONDS)
+    const created = await store.createSegment(
+      VIDEO_ID,
+      'polyp',
+      REQUESTED_START_SECONDS,
+      REQUESTED_END_SECONDS
+    )
     const payload = axiosPost.mock.calls[0][1] as {
       creates: Array<Record<string, unknown>>
     }

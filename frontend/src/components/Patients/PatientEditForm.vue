@@ -12,7 +12,7 @@
             <i class="ni ni-circle-08 section-heading-icon"></i>
             Grunddaten
           </h5>
-          
+
           <div class="form-group">
             <label
               for="firstName"
@@ -28,7 +28,7 @@
               :class="{ 'is-invalid': errors.firstName }"
               required
               maxlength="100"
-            >
+            />
             <div
               v-if="errors.firstName"
               class="invalid-feedback"
@@ -52,7 +52,7 @@
               :class="{ 'is-invalid': errors.lastName }"
               required
               maxlength="100"
-            >
+            />
             <div
               v-if="errors.lastName"
               class="invalid-feedback"
@@ -75,7 +75,7 @@
               class="form-control"
               :class="{ 'is-invalid': errors.dob }"
               :max="maxDate"
-            >
+            />
             <div
               v-if="errors.dob"
               class="invalid-feedback"
@@ -139,7 +139,7 @@
               class="form-control"
               :class="{ 'is-invalid': errors.email }"
               maxlength="254"
-            >
+            />
             <div
               v-if="errors.email"
               class="invalid-feedback"
@@ -162,7 +162,7 @@
               class="form-control"
               :class="{ 'is-invalid': errors.phone }"
               maxlength="20"
-            >
+            />
             <div
               v-if="errors.phone"
               class="invalid-feedback"
@@ -208,7 +208,7 @@
                 v-model="form.isRealPerson"
                 class="form-check-input"
                 type="checkbox"
-              >
+              />
               <label
                 class="form-check-label"
                 for="isRealPerson"
@@ -295,10 +295,10 @@
               <i class="ni ni-user-run"></i>
               <strong>Achtung!</strong> Diese Aktion kann nicht rückgängig gemacht werden.
             </div>
-            
+
             <p>
-              Möchten Sie den Patienten 
-              <strong>{{ patient.firstName }} {{ patient.lastName }}</strong> 
+              Möchten Sie den Patienten
+              <strong>{{ patient.firstName }} {{ patient.lastName }}</strong>
               wirklich löschen?
             </p>
 
@@ -422,7 +422,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'patient-updated': [patient: Patient]
   'patient-deleted': [patientId: number]
-  'cancel': []
+  cancel: []
 }>()
 
 // Composables
@@ -481,13 +481,15 @@ const maxDate = computed(() => {
 })
 
 const isFormValid = computed(() => {
-  return form.firstName.trim() && form.lastName.trim() && !Object.values(errors).some(error => error)
+  return (
+    form.firstName.trim() && form.lastName.trim() && !Object.values(errors).some((error) => error)
+  )
 })
 
 // Methods
 const validateForm = (): boolean => {
   // Clear previous errors
-  Object.keys(errors).forEach(key => {
+  Object.keys(errors).forEach((key) => {
     errors[key as keyof typeof errors] = ''
   })
 
@@ -533,7 +535,10 @@ const handleSubmit = async () => {
     generalError.value = ''
 
     const patientData = patientService.formatPatientData(form)
-    const updatedPatient = await patientService.updatePatient(resolveRequiredPatientId(), patientData)
+    const updatedPatient = await patientService.updatePatient(
+      resolveRequiredPatientId(),
+      patientData
+    )
 
     emit('patient-updated', updatedPatient)
   } catch (err: unknown) {
@@ -549,15 +554,12 @@ const handleSubmit = async () => {
         const fieldError = backendErrors[key]
         if (typeof fieldError === 'string') {
           errors[key] = fieldError
-        }
-        else if (Array.isArray(fieldError) && typeof fieldError[0] === 'string') {
+        } else if (Array.isArray(fieldError) && typeof fieldError[0] === 'string') {
           errors[key] = fieldError[0]
         }
       })
       generalError.value =
-        backendErrors.detail ||
-        backendErrors.message ||
-        'Fehler beim Aktualisieren des Patienten'
+        backendErrors.detail || backendErrors.message || 'Fehler beim Aktualisieren des Patienten'
     } else {
       generalError.value =
         err instanceof Error && err.message
@@ -572,13 +574,12 @@ const handleSubmit = async () => {
 const confirmDelete = async () => {
   try {
     deleting.value = true
-    
+
     const patientId = resolveRequiredPatientId()
     await patientService.deletePatient(patientId)
-    
+
     emit('patient-deleted', patientId)
     showDeleteModal.value = false
-    
   } catch (err: unknown) {
     logger.error('delete-failed', err, {
       operation: 'delete',
@@ -595,7 +596,9 @@ const confirmDelete = async () => {
 const loadDeletionInfo = async () => {
   try {
     // This would call the safety check endpoint to get deletion impact
-    const response = await fetch(r(endpoints.patient.patientDeletionSafety(resolveRequiredPatientId())))
+    const response = await fetch(
+      r(endpoints.patient.patientDeletionSafety(resolveRequiredPatientId()))
+    )
     if (!response.ok) {
       throw new Error(`Löschprüfung fehlgeschlagen (HTTP ${String(response.status)}).`)
     }
@@ -872,23 +875,23 @@ onMounted(async () => {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .form-actions {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .action-group {
     order: 2;
     justify-content: center;
   }
-  
+
   .delete-section {
     order: 1;
     justify-content: center;
   }
-  
+
   .modal-dialog {
     margin: 0.5rem;
   }

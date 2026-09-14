@@ -3,6 +3,8 @@ import { createTestingPinia } from '@pinia/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PatientDetailView from '@/components/Patients/PatientDetailView.vue'
+import axiosInstance from '@/api/axiosInstance'
+import { usePatientStore } from '@/stores/patientStore'
 import PatientDocumentsPage from '../PatientDocumentsPage.vue'
 import PatientMedicationPage from '../PatientMedicationPage.vue'
 
@@ -201,6 +203,45 @@ describe('patient resource pages', () => {
       path: '/reporting',
       query: { patient_id: 7 }
     })
+  })
+
+  it('refreshes deletion warnings when the safety response changes', async () => {
+    const patient = { id: 7, firstName: 'Ada', lastName: 'Lovelace' }
+    const pinia = createTestingPinia()
+    vi.mocked(usePatientStore(pinia).getCurrentPatient).mockReturnValue(patient)
+    const safetyRequest = vi.spyOn(axiosInstance, 'get')
+    safetyRequest.mockResolvedValueOnce({
+      data: { canDelete: false, warnings: ['', 'Verknüpfte Untersuchungen vorhanden'] }
+    })
+    const wrapper = mount(PatientDetailView, {
+      props: { patient },
+      global: {
+        plugins: [pinia],
+        stubs: { RouterLink: RouterLinkStub, PatientEditForm: true }
+      }
+    })
+    try {
+      await wrapper.get('button.btn-outline-danger').trigger('click')
+      await flushPromises()
+      expect(wrapper.findAll('.modal-body li').map((item) => item.text())).toEqual([
+        'Verknüpfte Untersuchungen vorhanden'
+      ])
+      expect(wrapper.find('.modal-footer .btn-danger').exists()).toBe(false)
+      await wrapper.get('.modal-footer .btn-secondary').trigger('click')
+      expect(wrapper.find('.modal-overlay').exists()).toBe(false)
+
+      safetyRequest.mockResolvedValueOnce({
+        data: { canDelete: false, warnings: ['Verknüpfte Berichte vorhanden'] }
+      })
+      await wrapper.get('button.btn-outline-danger').trigger('click')
+      await flushPromises()
+      expect(wrapper.findAll('.modal-body li').map((item) => item.text())).toEqual([
+        'Verknüpfte Berichte vorhanden'
+      ])
+    } finally {
+      wrapper.unmount()
+      safetyRequest.mockRestore()
+    }
   })
 
   it('shows medication and schedule associations grouped by case', async () => {

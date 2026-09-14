@@ -38,7 +38,8 @@
       <span
         v-if="selectedFileName"
         class="text-muted"
-      >{{ selectedFileName }} · </span>
+        >{{ selectedFileName }} ·
+      </span>
       <span :class="errorMessage ? 'text-danger' : 'text-muted'">{{ statusMessage }}</span>
     </div>
 
@@ -132,22 +133,25 @@ function isPdf(file: File): boolean {
   return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 }
 
-function readableError(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const candidate = error as {
-      name?: string
-      message?: string
-      response?: { data?: { errorDetail?: string; detail?: string; error?: string } }
+function firstErrorMessage(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value) {
+      return value
     }
-    return (
-      candidate.response?.data?.errorDetail ||
-      candidate.response?.data?.detail ||
-      candidate.response?.data?.error ||
-      candidate.message ||
-      'Berichtimport fehlgeschlagen.'
-    )
   }
   return 'Berichtimport fehlgeschlagen.'
+}
+
+function readableError(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return 'Berichtimport fehlgeschlagen.'
+  }
+  const candidate = error as {
+    message?: string
+    response?: { data?: { errorDetail?: string; detail?: string; error?: string } }
+  }
+  const data = candidate.response?.data
+  return firstErrorMessage(data?.errorDetail, data?.detail, data?.error, candidate.message)
 }
 
 function isTerminalFailureStatus(status: ImportUiStatus): boolean {

@@ -1,7 +1,18 @@
 import axiosInstance, { r, silentRequestConfig } from './axiosInstance'
 import axios, { type AxiosResponse } from 'axios'
 import { endpoints } from '@/types/api/endpoints'
+import type { Center, Gender, Patient, PatientCreateData, PatientFormData } from '@/types/patient'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+export type {
+  Center,
+  Gender,
+  Patient,
+  PatientCreateData,
+  PatientFormData,
+  PatientListResponse,
+  PatientUpdateData
+} from '@/types/patient'
 
 const logger = createRuntimeLogger('patient-service')
 
@@ -37,6 +48,85 @@ function isOptionalNullableNumber(value: unknown): boolean {
   )
 }
 
+type PatientFieldRule = {
+  key: keyof Patient
+  invalidMessage: string
+  accepts: (value: unknown) => boolean
+}
+
+const optionalBoolean = (value: unknown): boolean =>
+  value === undefined || typeof value === 'boolean'
+
+const patientFieldRules: PatientFieldRule[] = [
+  {
+    key: 'firstName',
+    invalidMessage: 'firstName must be a string',
+    accepts: (value) => typeof value === 'string'
+  },
+  {
+    key: 'lastName',
+    invalidMessage: 'lastName must be a string',
+    accepts: (value) => typeof value === 'string'
+  },
+  {
+    key: 'id',
+    invalidMessage: 'id must be a finite number if provided',
+    accepts: isOptionalNumber
+  },
+  { key: 'dob', invalidMessage: 'dob must be string|null', accepts: isOptionalNullableString },
+  {
+    key: 'gender',
+    invalidMessage: 'gender must be string|null',
+    accepts: isOptionalNullableString
+  },
+  {
+    key: 'center',
+    invalidMessage: 'center must be string|null',
+    accepts: isOptionalNullableString
+  },
+  {
+    key: 'centerKey',
+    invalidMessage: 'centerKey must be string|null',
+    accepts: isOptionalNullableString
+  },
+  {
+    key: 'email',
+    invalidMessage: 'email must be a string|null',
+    accepts: isOptionalNullableString
+  },
+  {
+    key: 'phone',
+    invalidMessage: 'phone must be a string|null',
+    accepts: isOptionalNullableString
+  },
+  {
+    key: 'patientHash',
+    invalidMessage: 'patientHash must be string|null',
+    accepts: isOptionalNullableString
+  },
+  { key: 'comments', invalidMessage: 'comments must be a string', accepts: isOptionalString },
+  { key: 'isRealPerson', invalidMessage: 'isRealPerson must be boolean', accepts: optionalBoolean },
+  {
+    key: 'pseudonymFirstName',
+    invalidMessage: 'pseudonymFirstName must be string|null',
+    accepts: isOptionalNullableString
+  },
+  {
+    key: 'pseudonymLastName',
+    invalidMessage: 'pseudonymLastName must be string|null',
+    accepts: isOptionalNullableString
+  },
+  {
+    key: 'sensitiveMetaId',
+    invalidMessage: 'sensitiveMetaId must be number|null',
+    accepts: isOptionalNullableNumber
+  },
+  { key: 'age', invalidMessage: 'age must be number|null', accepts: isOptionalNullableNumber },
+  { key: 'createdAt', invalidMessage: 'createdAt must be a string', accepts: isOptionalString },
+  { key: 'updatedAt', invalidMessage: 'updatedAt must be a string', accepts: isOptionalString }
+]
+const patientDiagnosticRules = patientFieldRules.slice(0, 15)
+
 function formatSnippet(value: unknown): string {
   if (value === null || value === undefined) {
     return String(value)
@@ -62,52 +152,9 @@ function describeInvalidPatientRow(row: unknown): string {
   if (!isRecord(row)) {
     return 'row is not an object'
   }
-  const reasons: string[] = []
-  if (typeof row.firstName !== 'string') {
-    reasons.push('firstName must be a string')
-  }
-  if (typeof row.lastName !== 'string') {
-    reasons.push('lastName must be a string')
-  }
-  if (!isOptionalNumber(row.id)) {
-    reasons.push('id must be a finite number if provided')
-  }
-  if (!isOptionalNullableString(row.dob)) {
-    reasons.push('dob must be string|null')
-  }
-  if (!isOptionalNullableString(row.gender)) {
-    reasons.push('gender must be string|null')
-  }
-  if (!isOptionalNullableString(row.center)) {
-    reasons.push('center must be string|null')
-  }
-  if (!isOptionalNullableString(row.centerKey)) {
-    reasons.push('centerKey must be string|null')
-  }
-  if (!isOptionalNullableString(row.email)) {
-    reasons.push('email must be a string|null')
-  }
-  if (!isOptionalNullableString(row.phone)) {
-    reasons.push('phone must be a string|null')
-  }
-  if (!isOptionalNullableString(row.patientHash)) {
-    reasons.push('patientHash must be string|null')
-  }
-  if (!isOptionalString(row.comments)) {
-    reasons.push('comments must be a string')
-  }
-  if (row.isRealPerson !== undefined && typeof row.isRealPerson !== 'boolean') {
-    reasons.push('isRealPerson must be boolean')
-  }
-  if (!isOptionalNullableString(row.pseudonymFirstName)) {
-    reasons.push('pseudonymFirstName must be string|null')
-  }
-  if (!isOptionalNullableString(row.pseudonymLastName)) {
-    reasons.push('pseudonymLastName must be string|null')
-  }
-  if (!isOptionalNullableNumber(row.sensitiveMetaId)) {
-    reasons.push('sensitiveMetaId must be number|null')
-  }
+  const reasons = patientDiagnosticRules
+    .filter((rule) => !rule.accepts(row[rule.key]))
+    .map((rule) => rule.invalidMessage)
   if (reasons.length > 0) {
     return reasons.join(', ')
   }
@@ -115,27 +162,7 @@ function describeInvalidPatientRow(row: unknown): string {
 }
 
 function isPatient(value: unknown): value is Patient {
-  return (
-    isRecord(value) &&
-    typeof value.firstName === 'string' &&
-    typeof value.lastName === 'string' &&
-    isOptionalNumber(value.id) &&
-    isOptionalNullableString(value.dob) &&
-    isOptionalNullableString(value.gender) &&
-    isOptionalNullableString(value.center) &&
-    isOptionalNullableString(value.centerKey) &&
-    isOptionalNullableString(value.email) &&
-    isOptionalNullableString(value.phone) &&
-    isOptionalNullableString(value.patientHash) &&
-    isOptionalString(value.comments) &&
-    (value.isRealPerson === undefined || typeof value.isRealPerson === 'boolean') &&
-    isOptionalNullableString(value.pseudonymFirstName) &&
-    isOptionalNullableString(value.pseudonymLastName) &&
-    isOptionalNullableNumber(value.sensitiveMetaId) &&
-    isOptionalNullableNumber(value.age) &&
-    isOptionalString(value.createdAt) &&
-    isOptionalString(value.updatedAt)
-  )
+  return isRecord(value) && patientFieldRules.every((rule) => rule.accepts(value[rule.key]))
 }
 
 function requirePatientList(value: unknown): Patient[] {
@@ -169,117 +196,78 @@ export async function generatePatientPseudonym(id: number): Promise<GeneratePseu
     throw new Error('Ungültige patientId')
   }
   const { data } = await axiosInstance.post<unknown>(r(endpoints.patient.patientPseudonym(id)))
-  if (
-    !isRecord(data) ||
-    typeof data.patientId !== 'number' ||
-    typeof data.patientHash !== 'string' ||
-    typeof data.persisted !== 'boolean' ||
-    data.source !== 'server'
-  ) {
+  if (!isValidPseudonymResponse(data)) {
     throw new TypeError('Patient pseudonym response does not match the expected contract')
   }
-  const message = data.message
-  const missingFields = data.missingFields
-  if (message !== undefined && typeof message !== 'string') {
+  validatePseudonymOptionalFields(data)
+  return buildPseudonymResponse(data)
+}
+
+function isValidPseudonymResponse(data: unknown): data is GeneratePseudonymResponse {
+  if (!isRecord(data)) {
+    return false
+  }
+  const requiredFieldsAreValid =
+    typeof data.patientId === 'number' &&
+    typeof data.patientHash === 'string' &&
+    typeof data.persisted === 'boolean'
+  return requiredFieldsAreValid && data.source === 'server'
+}
+
+function validatePseudonymOptionalFields(data: GeneratePseudonymResponse): void {
+  if (data.message !== undefined && typeof data.message !== 'string') {
     throw new TypeError('Patient pseudonym response contains an invalid message')
   }
-  if (
-    missingFields !== undefined &&
-    (!Array.isArray(missingFields) || !missingFields.every((field) => typeof field === 'string'))
-  ) {
+  if (data.missingFields === undefined) {
+    return
+  }
+  if (!Array.isArray(data.missingFields) || !data.missingFields.every(isString)) {
     throw new TypeError('Patient pseudonym response contains invalid missing fields')
   }
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string'
+}
+
+function buildPseudonymResponse(data: GeneratePseudonymResponse): GeneratePseudonymResponse {
   return {
     patientId: data.patientId,
     patientHash: data.patientHash,
     persisted: data.persisted,
     source: 'server',
-    ...(message === undefined ? {} : { message }),
-    ...(missingFields === undefined ? {} : { missingFields })
+    ...(data.message === undefined ? {} : { message: data.message }),
+    ...(data.missingFields === undefined ? {} : { missingFields: data.missingFields })
   }
 }
 
-// TypeScript Interfaces für Patient-bezogene Daten
-export interface Gender {
-  id: number
-  name: string
-  nameDe?: string
-  nameEn?: string
-  abbreviation?: string
-  description?: string
+function buildPatientCreateData(patientForm: PatientFormData): PatientCreateData {
+  return {
+    firstName: patientForm.firstName.trim(),
+    lastName: patientForm.lastName.trim(),
+    dob: patientForm.dob || null,
+    gender: patientForm.gender || null,
+    center: patientForm.centerKey ? null : patientForm.center || null,
+    centerKey: patientForm.centerKey || null,
+    email: patientForm.email,
+    phone: patientForm.phone,
+    patientHash: patientForm.patientHash || null,
+    isRealPerson: patientForm.isRealPerson ?? true
+  }
 }
 
-export interface Center {
-  id: number
-  centerKey?: string
-  name: string
-  nameDe?: string
-  nameEn?: string
-  description?: string
-}
-
-export interface Patient {
-  id?: number
-  firstName: string
-  lastName: string
-  dob?: string | null
-  gender?: string | null // Changed to string to match backend
-  center?: string | null // Changed to string to match backend
-  centerKey?: string | null
-  email?: string | null
-  phone?: string | null
-  patientHash?: string | null
-  comments?: string
-  isRealPerson?: boolean // Added missing property
-
-  // Pseudonym properties for anonymization validation
-  pseudonymFirstName?: string | null
-  pseudonymLastName?: string | null
-  sensitiveMetaId?: number | null
-
-  // Computed/readonly fields
-  age?: number | null
-  createdAt?: string
-  updatedAt?: string
-}
-
-export interface PatientFormData {
-  id?: number | null
-  firstName: string
-  lastName: string
-  dob: string | null | undefined // Allow undefined for compatibility
-  gender: string | null // Changed to string to match backend
-  center?: string | null // Optional because centerKey is the canonical write field
-  centerKey?: string | null
-  email: string
-  phone: string
-  patientHash: string
-  comments: string
-  isRealPerson?: boolean // Added missing property
-}
-
-export interface PatientCreateData {
-  firstName: string
-  lastName: string
-  dob?: string | null
-  gender?: string | null // Changed to string
-  center?: string | null // Changed to string
-  centerKey?: string | null
-  email?: string
-  phone?: string
-  patientHash?: string | null
-  isRealPerson?: boolean // Added missing property
-}
-
-export interface PatientUpdateData extends PatientCreateData {
-  id: number
-}
-
-export interface PatientListResponse {
-  count?: number
-  next?: string | null
-  previous?: string | null
-  results: Patient[]
+function pruneEmptyPatientFields(formattedData: PatientCreateData): PatientCreateData {
+  const optionalKeys = new Set<string>(['gender', 'patientHash', 'center', 'centerKey'])
+  const pruned = Object.fromEntries(
+    Object.entries(formattedData).filter(([key, value]) => !optionalKeys.has(key) || value !== '')
+  ) as PatientCreateData
+  if (pruned.center === null && !pruned.centerKey) {
+    delete pruned.center
+  }
+  if (pruned.centerKey === null) {
+    delete pruned.centerKey
+  }
+  return pruned
 }
 
 export type MedicalLedgerJsonValue =
@@ -576,40 +564,7 @@ export const patientService = {
 
   // Hilfsmethoden
   formatPatientData(patientForm: PatientFormData): PatientCreateData {
-    const formattedData: PatientCreateData = {
-      firstName: patientForm.firstName.trim(),
-      lastName: patientForm.lastName.trim(),
-      dob: patientForm.dob || null,
-      gender: patientForm.gender || null,
-      center: patientForm.centerKey ? null : patientForm.center || null,
-      centerKey: patientForm.centerKey || null,
-      email: patientForm.email,
-      phone: patientForm.phone,
-      patientHash: patientForm.patientHash || null,
-      isRealPerson: patientForm.isRealPerson ?? true
-    }
-
-    if (formattedData.gender === '') {
-      delete formattedData.gender
-    }
-    if (formattedData.patientHash === '') {
-      delete formattedData.patientHash
-    }
-    if (formattedData.center === '') {
-      delete formattedData.center
-    }
-    if (formattedData.centerKey === '') {
-      delete formattedData.centerKey
-    }
-
-    if (formattedData.center === null && !formattedData.centerKey) {
-      delete formattedData.center
-    }
-    if (formattedData.centerKey === null) {
-      delete formattedData.centerKey
-    }
-
-    return formattedData
+    return pruneEmptyPatientFields(buildPatientCreateData(patientForm))
   },
 
   calculateAge(dateOfBirth: string | null | undefined): number | null {

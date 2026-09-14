@@ -3,7 +3,7 @@
     class="card mb-4 shadow-sm"
     :class="{ 'border-primary': isActive }"
   >
-    <div 
+    <div
       class="card-header p-3 cursor-pointer d-flex align-items-center justify-content-between"
       @click="isExpanded = !isExpanded"
     >
@@ -16,12 +16,13 @@
           <p class="text-xs mb-0 text-secondary">{{ subtitle }}</p>
         </div>
       </div>
-      
+
       <div class="d-flex align-items-center">
         <span
           v-if="isComplete"
           class="badge badge-sm bg-gradient-success me-3"
-        >Abgeschlossen</span>
+          >Abgeschlossen</span
+        >
         <i
           class="ni ni-bold-right transition-all"
           :style="expandStyle"
@@ -33,19 +34,19 @@
       v-show="isExpanded"
       class="collapse show"
     >
-      <hr class="dark horizontal my-0">
+      <hr class="dark horizontal my-0" />
       <div class="card-body medical-block-scroll">
         <slot
           :store="store"
           :params="extraParams"
         ></slot>
-        
+
         <div
           v-if="showAction"
           class="d-flex justify-content-end mt-3"
         >
-          <button 
-            class="btn btn-sm bg-gradient-dark mb-0" 
+          <button
+            class="btn btn-sm bg-gradient-dark mb-0"
             :disabled="loading || !isComplete"
             @click="emit('next')"
           >
@@ -58,9 +59,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
 
-const emit = defineEmits<{ next: [] }>();
+const emit = defineEmits<{ next: [] }>()
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -74,7 +75,7 @@ const props = defineProps({
   actionLabel: { type: String, default: 'Weiter' },
   showAction: { type: Boolean, default: true },
   loading: Boolean
-});
+})
 
 const iconClassMap: Record<string, string> = {
   assignment: 'ni ni-single-copy-04',
@@ -84,23 +85,23 @@ const iconClassMap: Record<string, string> = {
   people: 'ni ni-badge',
   person: 'ni ni-circle-08',
   photo_library: 'ni ni-album-2'
-};
+}
 
-const isExpanded = ref(props.isActive);
+const isExpanded = ref(props.isActive)
 const nucleoIconClass = computed(() => {
-  const icon = props.icon || 'ni ni-single-copy-04';
+  const icon = props.icon || 'ni ni-single-copy-04'
   if (icon.startsWith('ni ')) {
-    return icon;
+    return icon
   }
-  return iconClassMap[icon] || 'ni ni-single-copy-04';
-});
+  return iconClassMap[icon] || 'ni ni-single-copy-04'
+})
 const expandStyle = computed(() => ({
   transform: isExpanded.value ? 'rotate(180deg)' : 'rotate(0deg)',
   transition: 'transform 0.3s ease'
-}));
+}))
 </script>
 
-<style>
+<style scoped>
 .medical-block-scroll {
   max-height: 400px;
   overflow-y: auto;
@@ -116,5 +117,4 @@ const expandStyle = computed(() => ({
   background: #e9ecef;
   border-radius: 10px;
 }
-
 </style>

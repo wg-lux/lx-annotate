@@ -60,7 +60,9 @@
             <div
               v-else
               class="small text-muted"
-            >No report available.</div>
+            >
+              No report available.
+            </div>
           </div>
         </div>
         <div class="col-md-6">
@@ -85,7 +87,9 @@
             <div
               v-else
               class="small text-muted"
-            >No video available.</div>
+            >
+              No video available.
+            </div>
           </div>
         </div>
       </div>
@@ -120,7 +124,7 @@ function buildCentralizedStreamOptions(
       url:
         mediaType === 'pdf'
           ? buildPdfStreamUrl(mediaId, option.type)
-          : buildVideoStreamUrl(mediaId, option.type),
+          : buildVideoStreamUrl(mediaId, option.type)
     }
   })
 }

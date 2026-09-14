@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
+import type { Patient, PatientFormData, Gender, Center } from '@/types/patient'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import axios from 'axios'
 import { endpoints } from '@/types/api/endpoints'
@@ -9,7 +9,7 @@ import { createRuntimeLogger } from '@/utils/runtimeLogger'
 const logger = createRuntimeLogger('patient-store')
 
 // Re-export types for easier access
-export type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
+export type { Patient, PatientFormData, Gender, Center } from '@/types/patient'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -23,29 +23,51 @@ function isOptionalNullableString(value: unknown): boolean {
   return value === undefined || value === null || typeof value === 'string'
 }
 
+function isOptionalNumber(value: unknown): boolean {
+  return value === undefined || typeof value === 'number'
+}
+
+function isOptionalNullableNumber(value: unknown): boolean {
+  return value === undefined || value === null || typeof value === 'number'
+}
+
+const patientFieldValidators: Array<{
+  key: keyof Patient
+  accepts: (value: unknown) => boolean
+}> = [
+  { key: 'firstName', accepts: (value) => typeof value === 'string' },
+  { key: 'lastName', accepts: (value) => typeof value === 'string' },
+  { key: 'id', accepts: isOptionalNumber },
+  { key: 'dob', accepts: isOptionalNullableString },
+  { key: 'gender', accepts: isOptionalNullableString },
+  { key: 'center', accepts: isOptionalNullableString },
+  { key: 'centerKey', accepts: isOptionalNullableString },
+  { key: 'email', accepts: isOptionalNullableString },
+  { key: 'phone', accepts: isOptionalNullableString },
+  { key: 'patientHash', accepts: isOptionalNullableString },
+  { key: 'comments', accepts: isOptionalString },
+  { key: 'isRealPerson', accepts: (value) => value === undefined || typeof value === 'boolean' },
+  { key: 'pseudonymFirstName', accepts: isOptionalNullableString },
+  { key: 'pseudonymLastName', accepts: isOptionalNullableString },
+  { key: 'sensitiveMetaId', accepts: isOptionalNullableNumber },
+  { key: 'age', accepts: isOptionalNullableNumber },
+  { key: 'createdAt', accepts: isOptionalString },
+  { key: 'updatedAt', accepts: isOptionalString }
+]
+
 function isPatient(value: unknown): value is Patient {
+  return isRecord(value) && patientFieldValidators.every((rule) => rule.accepts(value[rule.key]))
+}
+
+function centerForSubmission(formData: PatientFormData): string | null {
+  return formData.centerKey ? null : formData.center || null
+}
+
+function firstPositivePatientId(...candidates: Array<number | null | undefined>): number | null {
   return (
-    isRecord(value) &&
-    typeof value.firstName === 'string' &&
-    typeof value.lastName === 'string' &&
-    (value.id === undefined || typeof value.id === 'number') &&
-    isOptionalNullableString(value.dob) &&
-    isOptionalNullableString(value.gender) &&
-    isOptionalNullableString(value.center) &&
-    isOptionalNullableString(value.centerKey) &&
-    isOptionalNullableString(value.email) &&
-    isOptionalNullableString(value.phone) &&
-    isOptionalNullableString(value.patientHash) &&
-    isOptionalString(value.comments) &&
-    (value.isRealPerson === undefined || typeof value.isRealPerson === 'boolean') &&
-    isOptionalNullableString(value.pseudonymFirstName) &&
-    isOptionalNullableString(value.pseudonymLastName) &&
-    (value.sensitiveMetaId === undefined ||
-      value.sensitiveMetaId === null ||
-      typeof value.sensitiveMetaId === 'number') &&
-    (value.age === undefined || value.age === null || typeof value.age === 'number') &&
-    isOptionalString(value.createdAt) &&
-    isOptionalString(value.updatedAt)
+    candidates.find(
+      (candidate) => candidate !== undefined && candidate !== null && candidate > 0
+    ) ?? null
   )
 }
 
@@ -300,7 +322,7 @@ export const usePatientStore = defineStore('patient', () => {
       lastName: formData.lastName.trim(),
       dob: formData.dob || null,
       gender: formData.gender || null,
-      center: formData.centerKey ? null : formData.center || null,
+      center: centerForSubmission(formData),
       centerKey: formData.centerKey || null,
       email: formData.email.trim() || '',
       phone: formData.phone.trim() || '',
@@ -344,10 +366,11 @@ export const usePatientStore = defineStore('patient', () => {
 
   // ID RESOLVER (no router deps, minimal)
   const resolveCurrentPatientId = (propId?: number, strict = true): number | null => {
-    const patientId =
-      (propId && propId > 0 ? propId : null) ??
-      (currentPatient.value?.id && currentPatient.value.id > 0 ? currentPatient.value.id : null) ??
-      (selectedPatientId.value && selectedPatientId.value > 0 ? selectedPatientId.value : null)
+    const patientId = firstPositivePatientId(
+      propId,
+      currentPatient.value?.id,
+      selectedPatientId.value
+    )
 
     if (strict && !patientId) {
       throw new Error('Kein Patient ausgewählt – patientId konnte nicht ermittelt werden.')

@@ -192,8 +192,9 @@ export interface FindingChoice extends Pick<ClassificationChoiceCore, 'name'> {
   numericalDescriptors: JsonMap
 }
 
-export interface FindingClassification
-  extends Partial<Pick<ClassificationCore, 'name' | 'description'>> {
+export interface FindingClassification extends Partial<
+  Pick<ClassificationCore, 'name' | 'description'>
+> {
   id: number
   name: string
   description?: string

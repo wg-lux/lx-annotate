@@ -3,7 +3,6 @@ import { createPinia } from 'pinia'
 import App from '@/App.vue'
 import router from '@/router'
 
-
 import '@/assets/css/nucleo-icons.css'
 import '@/assets/css/nucleo-svg.css'
 import '@/assets/css/material-dashboard.css'
@@ -38,14 +37,17 @@ app.use(pinia)
 // 4. Global auth bootstrap (THIS WAS MISSING)
 const authStore = useAuthKcStore()
 const reportingFlowStore = useReportingFlowStore()
-void authStore.loadBootstrap().finally(() => {
-  reportingFlowStore.bindAuthSubject(authStore.user?.sub ?? null)
-}).catch((error: unknown) => {
-  logger.error('auth-bootstrap.failed', error)
-  useToastStore().error({
-    text: 'Die Anmeldung konnte nicht geprüft werden. Bitte laden Sie die Seite erneut.'
+void authStore
+  .loadBootstrap()
+  .finally(() => {
+    reportingFlowStore.bindAuthSubject(authStore.user?.sub ?? null)
   })
-})
+  .catch((error: unknown) => {
+    logger.error('auth-bootstrap.failed', error)
+    useToastStore().error({
+      text: 'Die Anmeldung konnte nicht geprüft werden. Bitte laden Sie die Seite erneut.'
+    })
+  })
 
 // 5. Directives & global components
 app.directive('can', canKc)

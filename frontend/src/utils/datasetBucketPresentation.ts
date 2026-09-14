@@ -45,24 +45,34 @@ function bucketIndexes(distribution: AiDatasetFrameBucketDistribution) {
 
 type BucketIndexes = ReturnType<typeof bucketIndexes>
 
+function valueOrZero(value: number | undefined): number {
+  return value ?? 0
+}
+
+function labelNameFor(labelId: number, indexes: BucketIndexes): string {
+  const candidates = [
+    indexes.merged.get(labelId)?.labelName,
+    indexes.annotation.get(labelId)?.labelName,
+    indexes.segment.get(labelId)?.labelName,
+    indexes.labels.get(labelId)?.labelName
+  ]
+  return candidates.find(Boolean) || `Label ${String(labelId)}`
+}
+
 function labelBucketRow(labelId: number, indexes: BucketIndexes): LabelBucketRow {
   const merged = indexes.merged.get(labelId)
   const annotation = indexes.annotation.get(labelId)
   const segment = indexes.segment.get(labelId)
   const label = indexes.labels.get(labelId)
-  const labelName =
-    [merged?.labelName, annotation?.labelName, segment?.labelName, label?.labelName].find((name) =>
-      Boolean(name)
-    ) || `Label ${String(labelId)}`
   return {
     labelId,
-    labelName,
-    mergedFrames: merged?.frameCount ?? 0,
-    annotationFrames: annotation?.frameCount ?? 0,
-    segmentFrames: segment?.frameCount ?? 0,
-    framePositive: label?.framePositive ?? 0,
-    frameNegative: label?.frameNegative ?? 0,
-    segmentCount: label?.segmentCount ?? 0
+    labelName: labelNameFor(labelId, indexes),
+    mergedFrames: valueOrZero(merged?.frameCount),
+    annotationFrames: valueOrZero(annotation?.frameCount),
+    segmentFrames: valueOrZero(segment?.frameCount),
+    framePositive: valueOrZero(label?.framePositive),
+    frameNegative: valueOrZero(label?.frameNegative),
+    segmentCount: valueOrZero(label?.segmentCount)
   }
 }
 

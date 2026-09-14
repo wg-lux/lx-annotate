@@ -9,7 +9,7 @@
 
     /* 🟢 ESM everywhere */
     "module": "esnext",
-    "moduleResolution": "bundler",   // or "nodenext"
+    "moduleResolution": "bundler", // or "nodenext"
     "target": "esnext",
     "lib": ["esnext", "dom"],
 
@@ -21,9 +21,9 @@
     "skipLibCheck": true,
 
     "baseUrl": ".",
-    "paths": { 
+    "paths": {
       "@/*": ["src/*"],
       "vue-filepond": ["./src/types/vue-filepond-shim.d.ts"]
-    },
+    }
   }
 }

@@ -60,12 +60,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isUploadStatus(value: unknown): value is UploadStatus {
-  return value === 'pending' || value === 'processing' || value === 'anonymized' ||
-    value === 'error' || value === 'lost'
+  return (
+    value === 'pending' ||
+    value === 'processing' ||
+    value === 'anonymized' ||
+    value === 'error' ||
+    value === 'lost'
+  )
 }
 
 function requireUploadResponse(value: unknown): UploadResponse {
-  if (!isRecord(value) || typeof value.uploadId !== 'string' || typeof value.statusUrl !== 'string') {
+  if (
+    !isRecord(value) ||
+    typeof value.uploadId !== 'string' ||
+    typeof value.statusUrl !== 'string'
+  ) {
     throw new TypeError('Upload response does not match the expected contract')
   }
   return { uploadId: value.uploadId, statusUrl: value.statusUrl }
@@ -103,7 +112,10 @@ function requireUploadReportLlmJob(value: unknown): UploadReportLlmJob {
     throw new TypeError('Upload status response contains an invalid reportLlmJob')
   }
   const pdfId = optionalNumber(value.result.pdfId, 'reportLlmJob.result.pdfId')
-  const result: UploadReportLlmJobResult = { ...value.result, ...(pdfId === undefined ? {} : { pdfId }) }
+  const result: UploadReportLlmJobResult = {
+    ...value.result,
+    ...(pdfId === undefined ? {} : { pdfId })
+  }
   return {
     status: value.status,
     result,
@@ -173,13 +185,17 @@ export const uploadFiles = async (
     formData.append('source_system', options.sourceSystem)
   }
 
-  const response = await axiosInstance.post<unknown>(endoregApi(endpoints.upload.upload), formData, {
-    headers: options.idempotencyKey
-      ? {
-          'Idempotency-Key': options.idempotencyKey
-        }
-      : undefined
-  })
+  const response = await axiosInstance.post<unknown>(
+    endoregApi(endpoints.upload.upload),
+    formData,
+    {
+      headers: options.idempotencyKey
+        ? {
+            'Idempotency-Key': options.idempotencyKey
+          }
+        : undefined
+    }
+  )
   return requireUploadResponse(response.data)
 }
 
@@ -245,6 +261,41 @@ function terminalUploadError(status: UploadStatusResponse): Error {
   return new Error(status.errorDetail || status.detail || fallback)
 }
 
+function normalizeUploadPollingOptions(
+  onProgressOrOptions: ((status: UploadStatusResponse) => void) | UploadPollingOptions | undefined,
+  legacyOptions: Omit<UploadPollingOptions, 'onProgress'>
+): Required<Pick<UploadPollingOptions, 'pollIntervalMs' | 'maxAttempts'>> & UploadPollingOptions {
+  const options: UploadPollingOptions =
+    typeof onProgressOrOptions === 'function'
+      ? { ...legacyOptions, onProgress: onProgressOrOptions }
+      : (onProgressOrOptions ?? {})
+  const pollIntervalMs = options.pollIntervalMs ?? 5000
+  const maxAttempts = options.maxAttempts ?? 30
+  if (!Number.isFinite(pollIntervalMs) || pollIntervalMs < 0) {
+    throw new Error('pollIntervalMs must be a non-negative number')
+  }
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+    throw new Error('maxAttempts must be a positive integer')
+  }
+  return { ...options, pollIntervalMs, maxAttempts }
+}
+
+function resolveTerminalUploadStatus(status: UploadStatusResponse): UploadStatusResponse | null {
+  if (status.status === 'anonymized') {
+    return status
+  }
+  if (status.status === 'error' || status.status === 'lost') {
+    throw terminalUploadError(status)
+  }
+  return null
+}
+
+function requireRemainingPollingAttempt(attempt: number, maxAttempts: number): void {
+  if (attempt === maxAttempts) {
+    throw new Error('Upload timeout - maximum polling attempts reached')
+  }
+}
+
 /**
  * Poll upload status until completion
  * @param statusUrl - The status URL to poll
@@ -257,36 +308,18 @@ export const pollUploadStatus = async (
   onProgressOrOptions?: ((status: UploadStatusResponse) => void) | UploadPollingOptions,
   legacyOptions: Omit<UploadPollingOptions, 'onProgress'> = {}
 ): Promise<UploadStatusResponse> => {
-  const options: UploadPollingOptions =
-    typeof onProgressOrOptions === 'function'
-      ? { ...legacyOptions, onProgress: onProgressOrOptions }
-      : (onProgressOrOptions ?? {})
-  const pollIntervalMs = options.pollIntervalMs ?? 5000
-  const maxAttempts = options.maxAttempts ?? 30
+  const options = normalizeUploadPollingOptions(onProgressOrOptions, legacyOptions)
 
-  if (!Number.isFinite(pollIntervalMs) || pollIntervalMs < 0) {
-    throw new Error('pollIntervalMs must be a non-negative number')
-  }
-  if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
-    throw new Error('maxAttempts must be a positive integer')
-  }
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
     throwIfUploadPollingAborted(options.signal)
     const status = await checkUploadStatus(statusUrl, options.signal)
     options.onProgress?.(status)
-
-    if (status.status === 'anonymized') {
-      return status
+    const terminalStatus = resolveTerminalUploadStatus(status)
+    if (terminalStatus) {
+      return terminalStatus
     }
-    if (status.status === 'error' || status.status === 'lost') {
-      throw terminalUploadError(status)
-    }
-
-    if (attempt === maxAttempts) {
-      throw new Error('Upload timeout - maximum polling attempts reached')
-    }
-    await waitForNextPoll(pollIntervalMs, options.signal)
+    requireRemainingPollingAttempt(attempt, options.maxAttempts)
+    await waitForNextPoll(options.pollIntervalMs, options.signal)
   }
 
   throw new Error('Upload polling ended unexpectedly')

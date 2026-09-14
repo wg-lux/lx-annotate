@@ -17,11 +17,15 @@
       <div
         v-if="loading"
         class="text-muted small"
-      >Prüfe Vorlagenregeln...</div>
+      >
+        Prüfe Vorlagenregeln...
+      </div>
       <div
         v-else-if="errorMessage"
         class="alert alert-danger py-2 mb-0"
-      >{{ errorMessage }}</div>
+      >
+        {{ errorMessage }}
+      </div>
       <div
         v-else-if="!result"
         class="text-muted small"
@@ -60,242 +64,250 @@
         >
           <summary class="small fw-semibold">Prüfdetails anzeigen</summary>
           <div class="mt-3">
-
-        <div
-          v-if="pendingDataIssues.length"
-          class="alert alert-warning py-2 mb-3"
-        >
-          <h6 class="small text-uppercase mb-2">Ausstehende Daten</h6>
-          <div
-            v-for="issue in pendingDataIssues"
-            :key="`${issue.validatorName || 'validator'}::${issue.message}`"
-            class="small mb-2"
-          >
-            <div>{{ issue.message }}</div>
             <div
-              v-if="missingConditionClassifications(issue).length"
-              class="text-muted"
+              v-if="pendingDataIssues.length"
+              class="alert alert-warning py-2 mb-3"
             >
-              Nachzutragen:
-              {{ missingConditionClassifications(issue).join(', ') }}
-            </div>
-            <div
-              v-if="issueFindingAnchor(issue)"
-              class="mt-1"
-            >
-              <a :href="`#${issueFindingAnchor(issue)}`">Zum betroffenen Befund springen</a>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="generalIssues.length"
-          class="mb-3"
-        >
-          <h6 class="small text-uppercase text-muted mb-2">Hinweise</h6>
-          <div
-            v-for="issue in generalIssues"
-            :key="`${issue.code}::${issue.message}`"
-            class="border rounded p-2 mb-2"
-          >
-            <div class="d-flex justify-content-between gap-2">
-              <strong>{{ issue.code }}</strong>
-              <span
-                class="badge"
-                :class="issue.level === 'warning' ? 'bg-warning text-dark' : 'bg-danger'"
+              <h6 class="small text-uppercase mb-2">Ausstehende Daten</h6>
+              <div
+                v-for="issue in pendingDataIssues"
+                :key="`${issue.validatorName || 'validator'}::${issue.message}`"
+                class="small mb-2"
               >
-                {{ issue.level === 'warning' ? 'Warnung' : 'Fehler' }}
-              </span>
-            </div>
-            <div class="small">{{ issue.message }}</div>
-            <div
-              v-if="issue.validatorName"
-              class="small text-muted"
-            >
-              {{ validatorKindLabel(issue.validatorKind) }}: {{ issue.validatorName }}
-            </div>
-            <div
-              v-if="issueFindingAnchor(issue)"
-              class="small mt-1"
-            >
-              <a :href="`#${issueFindingAnchor(issue)}`">Zum betroffenen Befund springen</a>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="result.classificationValidators.length"
-          class="mb-3"
-        >
-          <h6 class="small text-uppercase text-muted mb-2">Klassifikationsregeln</h6>
-          <div
-            v-for="validator in result.classificationValidators"
-            :key="validator.name"
-            class="border rounded p-2 mb-2"
-          >
-            <div class="d-flex justify-content-between align-items-center gap-2">
-              <div>
-                <strong>{{ validator.name }}</strong>
-                <div class="small text-muted">
-                  {{ validator.finding }} · {{ validator.classification }} · {{ validator.operator }}
-                </div>
-              </div>
-              <span
-                class="badge"
-                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
-              >
-                {{ validator.ok ? 'OK' : 'Offen' }}
-              </span>
-            </div>
-            <div class="small mt-1">
-              Treffer: {{ validator.matchedOccurrences }} · ausgelöst: {{ validator.triggeredOccurrences }}
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="result.interventionValidators.length"
-          class="mb-3"
-        >
-          <h6 class="small text-uppercase text-muted mb-2">Interventionsregeln</h6>
-          <div
-            v-for="validator in result.interventionValidators"
-            :key="validator.name"
-            class="border rounded p-2 mb-2"
-          >
-            <div class="d-flex justify-content-between align-items-center gap-2">
-              <div>
-                <strong>{{ validator.name }}</strong>
-                <div class="small text-muted">
-                  {{ validator.finding }} · {{ validator.intervention }} · {{ validator.operator }}
-                </div>
-              </div>
-              <span
-                class="badge"
-                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
-              >
-                {{ validator.ok ? 'OK' : 'Offen' }}
-              </span>
-            </div>
-            <div class="small mt-1">
-              Treffer: {{ validator.matchedOccurrences }} · ausgelöst: {{ validator.triggeredOccurrences }}
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="result.findingsValidators.length"
-          class="mb-3"
-        >
-          <h6 class="small text-uppercase text-muted mb-2">Befundregeln</h6>
-          <div
-            v-for="validator in result.findingsValidators"
-            :key="validator.name"
-            class="border rounded p-2 mb-2"
-          >
-            <div class="d-flex justify-content-between align-items-center gap-2">
-              <div>
-                <strong>{{ validator.name }}</strong>
-                <div class="small text-muted">{{ validator.finding }} · {{ validator.operator }}</div>
-              </div>
-              <span
-                class="badge"
-                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
-              >
-                {{ validator.ok ? 'OK' : 'Offen' }}
-              </span>
-            </div>
-            <div class="small mt-1">
-              Treffer: {{ validator.matchedOccurrences }} · ausgelöst: {{ validator.triggeredOccurrences }}
-            </div>
-            <div
-              v-if="validator.missingRequiredClassifications.length"
-              class="small text-danger mt-1"
-            >
-              Fehlende Pflicht-Klassifikationen:
-              {{ validator.missingRequiredClassifications.join(', ') }}
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="result.examinationValidators.length"
-          class="mb-3"
-        >
-          <h6 class="small text-uppercase text-muted mb-2">Untersuchungsregeln</h6>
-          <div
-            v-for="validator in result.examinationValidators"
-            :key="validator.name"
-            class="border rounded p-2 mb-2"
-          >
-            <div class="d-flex justify-content-between align-items-center gap-2">
-              <strong>{{ validator.name }}</strong>
-              <span
-                class="badge"
-                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
-              >
-                {{ validator.ok ? 'OK' : 'Offen' }}
-              </span>
-            </div>
-            <div
-              v-if="validator.findingValidatorStatus.length"
-              class="small mt-1"
-            >
-              Abhängige Befundregeln:
-              <template
-                v-for="(entry, entryIndex) in validator.findingValidatorStatus"
-                :key="entry.name"
-              >
-                <span v-if="entryIndex">, </span>
-                <a
-                  v-if="dependencyFindingAnchor(entry.name)"
-                  :href="`#${dependencyFindingAnchor(entry.name)}`"
+                <div>{{ issue.message }}</div>
+                <div
+                  v-if="missingConditionClassifications(issue).length"
+                  class="text-muted"
                 >
-                  {{ entry.name }} ({{ entry.ok ? 'OK' : 'Fehler' }}) · zum Befund
-                </a>
-                <span v-else>{{ entry.name }} ({{ entry.ok ? 'OK' : 'Fehler' }})</span>
-              </template>
-            </div>
-            <div
-              v-if="validator.examinationValidatorStatus.length"
-              class="small mt-1"
-            >
-              Abhängige Untersuchungsregeln:
-              {{
-                validator.examinationValidatorStatus
-                  .map((entry) => `${entry.name} (${entry.ok ? 'OK' : 'Fehler'})`)
-                  .join(', ')
-              }}
-            </div>
-          </div>
-        </div>
-
-        <div v-if="result.unitValidators.length">
-          <h6 class="small text-uppercase text-muted mb-2">Einheitenregeln</h6>
-          <div
-            v-for="validator in result.unitValidators"
-            :key="validator.name"
-            class="border rounded p-2 mb-2"
-          >
-            <div class="d-flex justify-content-between align-items-center gap-2">
-              <div>
-                <strong>{{ validator.name }}</strong>
-                <div class="small text-muted">
-                  {{ validator.finding }} · {{ validator.classification }} · {{ validator.unit }} · {{ validator.operator }}
+                  Nachzutragen:
+                  {{ missingConditionClassifications(issue).join(', ') }}
+                </div>
+                <div
+                  v-if="issueFindingAnchor(issue)"
+                  class="mt-1"
+                >
+                  <a :href="`#${issueFindingAnchor(issue)}`">Zum betroffenen Befund springen</a>
                 </div>
               </div>
-              <span
-                class="badge"
-                :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+            </div>
+
+            <div
+              v-if="generalIssues.length"
+              class="mb-3"
+            >
+              <h6 class="small text-uppercase text-muted mb-2">Hinweise</h6>
+              <div
+                v-for="issue in generalIssues"
+                :key="`${issue.code}::${issue.message}`"
+                class="border rounded p-2 mb-2"
               >
-                {{ validator.ok ? 'OK' : 'Offen' }}
-              </span>
+                <div class="d-flex justify-content-between gap-2">
+                  <strong>{{ issue.code }}</strong>
+                  <span
+                    class="badge"
+                    :class="issue.level === 'warning' ? 'bg-warning text-dark' : 'bg-danger'"
+                  >
+                    {{ issue.level === 'warning' ? 'Warnung' : 'Fehler' }}
+                  </span>
+                </div>
+                <div class="small">{{ issue.message }}</div>
+                <div
+                  v-if="issue.validatorName"
+                  class="small text-muted"
+                >
+                  {{ validatorKindLabel(issue.validatorKind) }}: {{ issue.validatorName }}
+                </div>
+                <div
+                  v-if="issueFindingAnchor(issue)"
+                  class="small mt-1"
+                >
+                  <a :href="`#${issueFindingAnchor(issue)}`">Zum betroffenen Befund springen</a>
+                </div>
+              </div>
             </div>
-            <div class="small mt-1">
-              Treffer: {{ validator.matchedOccurrences }} · ausgelöst: {{ validator.triggeredOccurrences }}
+
+            <div
+              v-if="result.classificationValidators.length"
+              class="mb-3"
+            >
+              <h6 class="small text-uppercase text-muted mb-2">Klassifikationsregeln</h6>
+              <div
+                v-for="validator in result.classificationValidators"
+                :key="validator.name"
+                class="border rounded p-2 mb-2"
+              >
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                  <div>
+                    <strong>{{ validator.name }}</strong>
+                    <div class="small text-muted">
+                      {{ validator.finding }} · {{ validator.classification }} ·
+                      {{ validator.operator }}
+                    </div>
+                  </div>
+                  <span
+                    class="badge"
+                    :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+                  >
+                    {{ validator.ok ? 'OK' : 'Offen' }}
+                  </span>
+                </div>
+                <div class="small mt-1">
+                  Treffer: {{ validator.matchedOccurrences }} · ausgelöst:
+                  {{ validator.triggeredOccurrences }}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+
+            <div
+              v-if="result.interventionValidators.length"
+              class="mb-3"
+            >
+              <h6 class="small text-uppercase text-muted mb-2">Interventionsregeln</h6>
+              <div
+                v-for="validator in result.interventionValidators"
+                :key="validator.name"
+                class="border rounded p-2 mb-2"
+              >
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                  <div>
+                    <strong>{{ validator.name }}</strong>
+                    <div class="small text-muted">
+                      {{ validator.finding }} · {{ validator.intervention }} ·
+                      {{ validator.operator }}
+                    </div>
+                  </div>
+                  <span
+                    class="badge"
+                    :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+                  >
+                    {{ validator.ok ? 'OK' : 'Offen' }}
+                  </span>
+                </div>
+                <div class="small mt-1">
+                  Treffer: {{ validator.matchedOccurrences }} · ausgelöst:
+                  {{ validator.triggeredOccurrences }}
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="result.findingsValidators.length"
+              class="mb-3"
+            >
+              <h6 class="small text-uppercase text-muted mb-2">Befundregeln</h6>
+              <div
+                v-for="validator in result.findingsValidators"
+                :key="validator.name"
+                class="border rounded p-2 mb-2"
+              >
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                  <div>
+                    <strong>{{ validator.name }}</strong>
+                    <div class="small text-muted">
+                      {{ validator.finding }} · {{ validator.operator }}
+                    </div>
+                  </div>
+                  <span
+                    class="badge"
+                    :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+                  >
+                    {{ validator.ok ? 'OK' : 'Offen' }}
+                  </span>
+                </div>
+                <div class="small mt-1">
+                  Treffer: {{ validator.matchedOccurrences }} · ausgelöst:
+                  {{ validator.triggeredOccurrences }}
+                </div>
+                <div
+                  v-if="validator.missingRequiredClassifications.length"
+                  class="small text-danger mt-1"
+                >
+                  Fehlende Pflicht-Klassifikationen:
+                  {{ validator.missingRequiredClassifications.join(', ') }}
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="result.examinationValidators.length"
+              class="mb-3"
+            >
+              <h6 class="small text-uppercase text-muted mb-2">Untersuchungsregeln</h6>
+              <div
+                v-for="validator in result.examinationValidators"
+                :key="validator.name"
+                class="border rounded p-2 mb-2"
+              >
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                  <strong>{{ validator.name }}</strong>
+                  <span
+                    class="badge"
+                    :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+                  >
+                    {{ validator.ok ? 'OK' : 'Offen' }}
+                  </span>
+                </div>
+                <div
+                  v-if="validator.findingValidatorStatus.length"
+                  class="small mt-1"
+                >
+                  Abhängige Befundregeln:
+                  <template
+                    v-for="(entry, entryIndex) in validator.findingValidatorStatus"
+                    :key="entry.name"
+                  >
+                    <span v-if="entryIndex">, </span>
+                    <a
+                      v-if="dependencyFindingAnchor(entry.name)"
+                      :href="`#${dependencyFindingAnchor(entry.name)}`"
+                    >
+                      {{ entry.name }} ({{ entry.ok ? 'OK' : 'Fehler' }}) · zum Befund
+                    </a>
+                    <span v-else>{{ entry.name }} ({{ entry.ok ? 'OK' : 'Fehler' }})</span>
+                  </template>
+                </div>
+                <div
+                  v-if="validator.examinationValidatorStatus.length"
+                  class="small mt-1"
+                >
+                  Abhängige Untersuchungsregeln:
+                  {{
+                    validator.examinationValidatorStatus
+                      .map((entry) => `${entry.name} (${entry.ok ? 'OK' : 'Fehler'})`)
+                      .join(', ')
+                  }}
+                </div>
+              </div>
+            </div>
+
+            <div v-if="result.unitValidators.length">
+              <h6 class="small text-uppercase text-muted mb-2">Einheitenregeln</h6>
+              <div
+                v-for="validator in result.unitValidators"
+                :key="validator.name"
+                class="border rounded p-2 mb-2"
+              >
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                  <div>
+                    <strong>{{ validator.name }}</strong>
+                    <div class="small text-muted">
+                      {{ validator.finding }} · {{ validator.classification }} ·
+                      {{ validator.unit }} · {{ validator.operator }}
+                    </div>
+                  </div>
+                  <span
+                    class="badge"
+                    :class="validator.ok ? 'bg-success' : 'bg-warning text-dark'"
+                  >
+                    {{ validator.ok ? 'OK' : 'Offen' }}
+                  </span>
+                </div>
+                <div class="small mt-1">
+                  Treffer: {{ validator.matchedOccurrences }} · ausgelöst:
+                  {{ validator.triggeredOccurrences }}
+                </div>
+              </div>
+            </div>
           </div>
         </details>
       </template>
@@ -373,7 +385,27 @@ function anchorForFinding(findingName: string | null): string | null {
   if (!findingName) {
     return null
   }
-  return props.findingAnchors[findingName] || props.findingAnchors[normalizeKey(findingName)] || null
+  return (
+    props.findingAnchors[findingName] || props.findingAnchors[normalizeKey(findingName)] || null
+  )
+}
+
+type FindingValidatorReference = { name: string; finding: string }
+
+function validatorsForKind(
+  result: ReportTemplateRuntimeValidationResult,
+  validatorKind: RuntimeValidationIssue['validatorKind']
+): FindingValidatorReference[] {
+  if (validatorKind === 'classification_validator') {
+    return result.classificationValidators
+  }
+  if (validatorKind === 'intervention_validator') {
+    return result.interventionValidators
+  }
+  if (validatorKind === 'unit_validator') {
+    return result.unitValidators
+  }
+  return result.findingsValidators
 }
 
 function findingForValidator(
@@ -383,16 +415,10 @@ function findingForValidator(
   if (!validatorName || !props.result) {
     return null
   }
-  if (validatorKind === 'classification_validator') {
-    return props.result.classificationValidators.find((entry) => entry.name === validatorName)?.finding || null
-  }
-  if (validatorKind === 'intervention_validator') {
-    return props.result.interventionValidators.find((entry) => entry.name === validatorName)?.finding || null
-  }
-  if (validatorKind === 'unit_validator') {
-    return props.result.unitValidators.find((entry) => entry.name === validatorName)?.finding || null
-  }
-  return props.result.findingsValidators.find((entry) => entry.name === validatorName)?.finding || null
+  return (
+    validatorsForKind(props.result, validatorKind).find((entry) => entry.name === validatorName)
+      ?.finding || null
+  )
 }
 
 function issueFindingAnchor(issue: RuntimeValidationIssue): string | null {

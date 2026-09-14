@@ -678,5 +678,4 @@ describe('FindingsCapturePage runtime draft flow', () => {
       'colonoscopy'
     )
   })
-
 })

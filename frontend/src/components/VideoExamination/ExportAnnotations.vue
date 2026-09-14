@@ -8,7 +8,9 @@
       <div
         v-if="!selectedVideoId"
         class="text-muted"
-      >Bitte zuerst ein Video auswählen.</div>
+      >
+        Bitte zuerst ein Video auswählen.
+      </div>
 
       <label class="form-label">Video auswählen:</label>
       <select
@@ -143,7 +145,9 @@
             <label
               class="form-check-label"
               for="export-videos"
-            > Video-Dateien exportieren </label>
+            >
+              Video-Dateien exportieren
+            </label>
           </div>
           <div class="form-check form-switch">
             <input
@@ -155,7 +159,9 @@
             <label
               class="form-check-label"
               for="export-frames"
-            > Frames exportieren </label>
+            >
+              Frames exportieren
+            </label>
           </div>
           <div class="form-check form-switch">
             <input
@@ -193,7 +199,8 @@
               <label
                 class="form-label mb-0"
                 for="transcode-quality"
-              >Quality</label>
+                >Quality</label
+              >
               <input
                 id="transcode-quality"
                 v-model.number="transcodeQuality"
@@ -207,7 +214,8 @@
               <label
                 class="form-label mb-0"
                 for="transcode-ext"
-              >Extension</label>
+                >Extension</label
+              >
               <input
                 id="transcode-ext"
                 v-model="transcodeExt"
@@ -253,6 +261,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
+import type { ExportMessage } from '@/types/exportMessage'
 import { formatTime as formatTimeHelper } from '@/utils/timeHelpers'
 import { useToastStore } from '@/stores/toastStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
@@ -475,7 +484,7 @@ const transcodeQuality = ref(23)
 const transcodeExt = ref('jpg')
 const useFramePkPaths = ref(false)
 const isExporting = ref(false)
-const exportMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
+const exportMessage = ref<ExportMessage | null>(null)
 const isBackfilling = ref(false)
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -532,8 +541,7 @@ const getRequestErrorMessage = (error: unknown, fallback: string): string => {
     return fallback
   }
   const errorRecord = isRecord(error) ? error : {}
-  const response =
-    isRecord(errorRecord.response) ? errorRecord.response : {}
+  const response = isRecord(errorRecord.response) ? errorRecord.response : {}
   const data = isRecord(response.data) ? response.data : {}
   const message = data.detail ?? data.error ?? errorRecord.message
   return typeof message === 'string' ? message : fallback
@@ -619,7 +627,6 @@ const startExport = async () => {
 const videoSelectionPlaceholder = computed(() =>
   hasVideos.value ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar'
 )
-
 </script>
 
 <style scoped>

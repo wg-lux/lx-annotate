@@ -8,7 +8,9 @@
         <h6
           id="branding-editor-title"
           class="mb-1"
-        >Klinikdesign und Berichtsvorschau</h6>
+        >
+          Klinikdesign und Berichtsvorschau
+        </h6>
         <p class="small text-muted mb-0">
           Logo und Anschrift werden als Bestandteile dieser Berichtsvorlage gespeichert.
         </p>
@@ -23,7 +25,8 @@
             <label
               class="form-label"
               for="hospital-logo-upload"
-            >Kliniklogo</label>
+              >Kliniklogo</label
+            >
             <input
               id="hospital-logo-upload"
               class="form-control"
@@ -55,7 +58,8 @@
             <label
               class="form-label"
               for="hospital-address"
-            >Klinikname und Anschrift</label>
+              >Klinikname und Anschrift</label
+            >
             <textarea
               id="hospital-address"
               class="form-control"
@@ -78,7 +82,7 @@
           <header class="report-paper-header">
             <div class="report-logo-slot">
               <img
-v-if="logoSource"
+                v-if="logoSource"
                 class="report-logo-image"
                 :src="logoSource"
                 alt="Vorschau des Kliniklogos"
@@ -91,7 +95,8 @@ v-if="logoSource"
                 <span
                   v-for="line in addressLines.slice(1)"
                   :key="line"
-                >{{ line }}</span>
+                  >{{ line }}</span
+                >
               </template>
               <template v-else>
                 <strong>Klinikname</strong>
@@ -106,12 +111,22 @@ v-if="logoSource"
           </div>
 
           <div class="report-patient-grid">
-            <div class="report-patient-field"><span class="report-patient-label">Patient</span><strong class="report-patient-value">Max Mustermann</strong></div>
-            <div class="report-patient-field"><span class="report-patient-label">Geburtsdatum</span><strong class="report-patient-value">01.01.1970</strong></div>
             <div class="report-patient-field">
-              <span class="report-patient-label">Untersuchung</span><strong class="report-patient-value">{{ examination || 'Nicht gewählt' }}</strong>
+              <span class="report-patient-label">Patient</span
+              ><strong class="report-patient-value">Max Mustermann</strong>
             </div>
-            <div class="report-patient-field"><span class="report-patient-label">Datum</span><strong class="report-patient-value">14.08.2026</strong></div>
+            <div class="report-patient-field">
+              <span class="report-patient-label">Geburtsdatum</span
+              ><strong class="report-patient-value">01.01.1970</strong>
+            </div>
+            <div class="report-patient-field">
+              <span class="report-patient-label">Untersuchung</span
+              ><strong class="report-patient-value">{{ examination || 'Nicht gewählt' }}</strong>
+            </div>
+            <div class="report-patient-field">
+              <span class="report-patient-label">Datum</span
+              ><strong class="report-patient-value">14.08.2026</strong>
+            </div>
           </div>
 
           <div class="report-section-preview">
@@ -123,7 +138,7 @@ v-if="logoSource"
                 <h3 class="report-section-heading">{{ section.name || section.sectionType }}</h3>
                 <template v-if="section.sectionType === 'patient_info'">
                   <p
-v-for="field in section.fields"
+                    v-for="field in section.fields"
                     :key="field.key"
                     class="report-section-paragraph"
                   >
@@ -134,9 +149,11 @@ v-for="field in section.fields"
                   <p
                     v-if="section.description"
                     class="report-section-paragraph"
-                  >{{ section.description }}</p>
+                  >
+                    {{ section.description }}
+                  </p>
                   <p
-v-for="finding in section.findings"
+                    v-for="finding in section.findings"
                     :key="finding.finding"
                     class="report-section-paragraph"
                   >
@@ -146,12 +163,16 @@ v-for="finding in section.findings"
                 <p
                   v-else
                   class="report-section-paragraph"
-                >{{ section.description }}</p>
+                >
+                  {{ section.description }}
+                </p>
               </section>
             </template>
             <section v-if="!printableSections.length">
               <h3 class="report-section-heading">Berichtstext</h3>
-              <p class="report-section-paragraph">Die konfigurierten Berichtsteile erscheinen hier in ihrer späteren Reihenfolge.</p>
+              <p class="report-section-paragraph">
+                Die konfigurierten Berichtsteile erscheinen hier in ihrer späteren Reihenfolge.
+              </p>
             </section>
           </div>
 

@@ -124,9 +124,9 @@ describe('ReportTemplateValidationPanel', () => {
     expect(text).toContain('missing_required_intervention')
     expect(text).toContain('zum Befund')
     expect(text).not.toContain('missing_data_requirement')
+    expect(wrapper.find('a[href="#finding-esophagus_polyp"]').exists()).toBe(true)
     expect(
-      wrapper.find('a[href="#finding-esophagus_polyp"]').exists()
-    ).toBe(true)
-    expect(wrapper.get('[data-testid="validation-technical-details"]').attributes('open')).toBeUndefined()
+      wrapper.get('[data-testid="validation-technical-details"]').attributes('open')
+    ).toBeUndefined()
   })
 })

@@ -217,9 +217,7 @@ describe('FrameAnnotation usability audit', () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
 
-    expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain(
-      'Frame wird geladen'
-    )
+    expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain('Frame wird geladen')
   })
 
   it('zeigt eine verständliche Fehlermeldung, wenn das Ziel-Label im Task fehlt', async () => {

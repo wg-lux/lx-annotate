@@ -85,7 +85,9 @@ describe('patientExaminationStore ReportingShell boundary', () => {
     // Assert
     expect(store.patientExaminations).toEqual([])
     expect(store.loading).toBe(false)
-    expect(store.error).toContain('Patient examination response does not match the expected contract')
+    expect(store.error).toContain(
+      'Patient examination response does not match the expected contract'
+    )
     expect(hoisted.loggerError).toHaveBeenCalledWith(
       'examination-detail-load-failed',
       expect.any(TypeError),

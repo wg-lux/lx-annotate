@@ -42,8 +42,7 @@
           class="alert alert-warning mt-3"
         >
           <i class="ni ni-user-run me-2"></i>
-          <strong>{{ anonymizationStore.processingFiles.length }} Datei(en)</strong> werden gerade
-          anonymisiert.
+          <strong>{{ processingFileCount }} Datei(en)</strong> werden gerade anonymisiert.
           <div class="mt-2">
             <router-link
               to="/anonymisierung/uebersicht"
@@ -498,74 +497,17 @@
                   class="dual-pdf-container"
                 >
                   <div class="row">
-                    <!-- Raw PDF (Original) -->
                     <div class="col-md-6">
-                      <div class="pdf-section raw-pdf">
-                        <h6 class="text-center mb-3 text-danger">
-                          <i class="ni ni-single-copy-04 me-1"></i>
-                          Original PDF (Raw)
-                        </h6>
-                        <iframe
-                          :src="rawPdfSrc"
-                          width="100%"
-                          height="700px"
-                          frameborder="0"
-                          title="Original PDF Vorschau"
-                        >
-                          Ihr Browser unterstützt keine eingebetteten PDFs.
-                        </iframe>
-                        <div class="mt-2 text-center">
-                          <a
-                            v-if="rawPdfSrc"
-                            class="btn btn-outline-danger btn-sm"
-                            :href="rawPdfSrc"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Original-PDF öffnen
-                          </a>
-                        </div>
-                        <div class="mt-2 text-center">
-                          <small class="text-muted">
-                            URL: {{ rawPdfSrc || 'Nicht verfügbar' }}
-                          </small>
-                        </div>
-                      </div>
+                      <AnonymizationPdfPreview
+                        :src="rawPdfSrc"
+                        variant="original"
+                      />
                     </div>
-
-                    <!-- Anonymized PDF (Processed) -->
                     <div class="col-md-6">
-                      <div class="pdf-section anonymized-pdf">
-                        <h6 class="text-center mb-3 text-success">
-                          <i class="ni ni-check-bold me-1"></i>
-                          Anonymisiertes PDF (Processed)
-                        </h6>
-                        <iframe
-                          :src="anonymizedPdfSrc"
-                          width="100%"
-                          height="700px"
-                          frameborder="0"
-                          title="Anonymisiertes PDF Vorschau"
-                        >
-                          Ihr Browser unterstützt keine eingebetteten PDFs.
-                        </iframe>
-                        <div class="mt-2 text-center">
-                          <a
-                            v-if="anonymizedPdfSrc"
-                            class="btn btn-outline-success btn-sm"
-                            :href="anonymizedPdfSrc"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Anonymisiertes PDF öffnen
-                          </a>
-                        </div>
-                        <div class="mt-2 text-center">
-                          <small class="text-muted">
-                            URL: {{ anonymizedPdfSrc || 'Nicht verfügbar' }}
-                          </small>
-                        </div>
-                      </div>
+                      <AnonymizationPdfPreview
+                        :src="anonymizedPdfSrc"
+                        variant="anonymized"
+                      />
                     </div>
                   </div>
 
@@ -615,38 +557,21 @@
                           <div class="small mt-1">
                             Modell: {{ videoModelDisplay }}<br />
                             Verfügbare OCR-Kaskade:
-                            {{ videoAnonymizationStatus.ocrEngines?.join(', ') || 'Nicht gemeldet'
-                            }}<br />
+                            {{ videoOcrEnginesLabel }}<br />
                             <span class="text-muted">
-                              {{
-                                videoAnonymizationStatus.selectedStrategy === 'detector_assisted'
-                                  ? 'OCR war nicht Bestandteil der All-Frame-Maskierung.'
-                                  : 'OCR war nicht Bestandteil dieses Prozessorregion-Laufs.'
-                              }}
+                              {{ videoOcrScopeLabel }}
                             </span>
                           </div>
                         </div>
                         <div class="text-end">
                           <span
                             class="badge"
-                            :class="
-                              videoAnonymizationStatus.processedArtifact.available
-                                ? 'bg-success'
-                                : 'bg-danger'
-                            "
+                            :class="videoArtifactPresentation.badgeClass"
                           >
-                            {{
-                              videoAnonymizationStatus.processedArtifact.available
-                                ? 'Anonymisierte Fassung verfügbar'
-                                : 'Kein anonymisiertes Artefakt'
-                            }}
+                            {{ videoArtifactPresentation.label }}
                           </span>
                           <div class="small mt-1">
-                            {{
-                              videoAnonymizationStatus.reviewRequired
-                                ? 'Menschliche Prüfung und Freigabe erforderlich'
-                                : 'Review-Anforderung fehlt'
-                            }}
+                            {{ videoReviewLabel }}
                           </div>
                         </div>
                       </div>
@@ -666,7 +591,7 @@
                         <video
                           ref="rawVideoElement"
                           controls
-                          style="width: 100%; max-height: 350px"
+                          class="comparison-video"
                           preload="none"
                           @error="onRawVideoError"
                           @loadstart="onRawVideoLoadStart"
@@ -705,7 +630,7 @@
                         <video
                           ref="anonymizedVideoElement"
                           controls
-                          style="width: 100%; max-height: 350px"
+                          class="comparison-video"
                           preload="none"
                           @error="onAnonymizedVideoError"
                           @loadstart="onAnonymizedVideoLoadStart"
@@ -799,10 +724,7 @@
                             <div class="badge bg-warning text-dark fs-6">
                               {{ outsideSegmentsValidated }} / {{ totalOutsideSegments }}
                             </div>
-                            <div
-                              class="progress mt-2"
-                              style="width: 200px; height: 8px"
-                            >
+                            <div class="progress validation-progress mt-2">
                               <div
                                 class="progress-bar bg-success"
                                 role="progressbar"
@@ -899,8 +821,7 @@
                 <!-- Unsaved changes indicator -->
                 <span
                   v-if="dirty"
-                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                  style="font-size: 0.6em"
+                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger correction-badge"
                   title="Ungespeicherte Änderungen"
                 >
                   !
@@ -1052,6 +973,7 @@
 </template>
 
 <script setup lang="ts">
+import AnonymizationPdfPreview from './AnonymizationPdfPreview.vue'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizationStore'
@@ -1108,12 +1030,12 @@ const isVideo = computed(() => mediaStore.isVideo)
 const canViewRawVideo = computed(() => authStore.isAuthenticated)
 
 function restoreLast(): { fileId?: number; scope?: MediaScope } {
-  const fid = Number(sessionStorage.getItem('last:fileId') || '')
-  const sc = sessionStorage.getItem('last:scope') as MediaScope | null
+  const storedFileId = Number(sessionStorage.getItem('last:fileId') || '')
+  const storedScope = sessionStorage.getItem('last:scope') as MediaScope | null
 
   return {
-    fileId: Number.isFinite(fid) ? fid : undefined,
-    scope: sc || undefined
+    fileId: Number.isFinite(storedFileId) ? storedFileId : undefined,
+    scope: storedScope || undefined
   }
 }
 const props = defineProps<{
@@ -1139,6 +1061,26 @@ const videoStrategyLabel = computed(() =>
   videoAnonymizationStatus.value?.selectedStrategy === 'processor_region'
     ? 'Prozessorregion'
     : 'PHI-Detektor-gestützte All-Frame-Anonymisierung'
+)
+
+const videoOcrEnginesLabel = computed(() => {
+  const engines = videoAnonymizationStatus.value?.ocrEngines
+  return engines?.join(', ') || 'Nicht gemeldet'
+})
+const videoOcrScopeLabel = computed(() =>
+  videoAnonymizationStatus.value?.selectedStrategy === 'detector_assisted'
+    ? 'OCR war nicht Bestandteil der All-Frame-Maskierung.'
+    : 'OCR war nicht Bestandteil dieses Prozessorregion-Laufs.'
+)
+const videoArtifactPresentation = computed(() =>
+  videoAnonymizationStatus.value?.processedArtifact.available
+    ? { badgeClass: 'bg-success', label: 'Anonymisierte Fassung verfügbar' }
+    : { badgeClass: 'bg-danger', label: 'Kein anonymisiertes Artefakt' }
+)
+const videoReviewLabel = computed(() =>
+  videoAnonymizationStatus.value?.reviewRequired
+    ? 'Menschliche Prüfung und Freigabe erforderlich'
+    : 'Review-Anforderung fehlt'
 )
 
 const videoModelDisplay = computed(() =>
@@ -1550,22 +1492,46 @@ const canApprove = computed(
 /**
  * Returns a user-friendly message explaining why approval is blocked.
  */
+function invalidPatientFieldLabels(): string[] {
+  return [
+    [firstNameOk.value, 'Vorname'],
+    [lastNameOk.value, 'Nachname'],
+    [isDobValid.value, 'gültiges Geburtsdatum'],
+    [isExaminationDateValid.value, 'gültiges Untersuchungsdatum']
+  ]
+    .filter(([isValid]) => !isValid)
+    .map(([, label]) => String(label))
+}
+
+function videoApprovalBlockReason(): string {
+  if (isLoadingVideoAnonymization.value) {
+    return 'Das anonymisierte Release-Artefakt wird noch geprüft.'
+  }
+
+  if (!videoAnonymizationStatus.value) {
+    return videoAnonymizationError.value || 'Der Anonymisierungsstatus konnte nicht geprüft werden.'
+  }
+
+  if (!videoAnonymizationStatus.value.processedArtifact.available) {
+    return 'Es ist noch keine anonymisierte Video-Fassung verfügbar.'
+  }
+
+  if (!videoAnonymizationStatus.value.reviewRequired) {
+    return 'Das Artefakt ist nicht als verpflichtend menschlich zu prüfende Fassung gekennzeichnet.'
+  }
+
+  if (shouldShowOutsideTimeline.value) {
+    const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value
+    return `Bitte validieren Sie zuerst alle Outside-Segmente (${String(remaining)} verbleibend)`
+  }
+
+  return ''
+}
+
 const approvalBlockReason = computed(() => {
-  if (!dataOk.value) {
-    const errors = []
-    if (!firstNameOk.value) {
-      errors.push('Vorname')
-    }
-    if (!lastNameOk.value) {
-      errors.push('Nachname')
-    }
-    if (!isDobValid.value) {
-      errors.push('gültiges Geburtsdatum')
-    }
-    if (!isExaminationDateValid.value) {
-      errors.push('gültiges Untersuchungsdatum')
-    }
-    return `Bitte korrigieren Sie: ${errors.join(', ')}`
+  const invalidFields = invalidPatientFieldLabels()
+  if (invalidFields.length > 0) {
+    return `Bitte korrigieren Sie: ${invalidFields.join(', ')}`
   }
 
   if (!hasValidDocumentType.value) {
@@ -1576,28 +1542,7 @@ const approvalBlockReason = computed(() => {
     return 'Bitte geben Sie eine gültige PatientExamination-ID ein oder wählen Sie "Automatisch bestimmen".'
   }
 
-  if (isVideo.value && isLoadingVideoAnonymization.value) {
-    return 'Das anonymisierte Release-Artefakt wird noch geprüft.'
-  }
-
-  if (isVideo.value && !videoAnonymizationStatus.value) {
-    return videoAnonymizationError.value || 'Der Anonymisierungsstatus konnte nicht geprüft werden.'
-  }
-
-  if (isVideo.value && !videoAnonymizationStatus.value?.processedArtifact.available) {
-    return 'Es ist noch keine anonymisierte Video-Fassung verfügbar.'
-  }
-
-  if (isVideo.value && !videoAnonymizationStatus.value?.reviewRequired) {
-    return 'Das Artefakt ist nicht als verpflichtend menschlich zu prüfende Fassung gekennzeichnet.'
-  }
-
-  if (isVideo.value && shouldShowOutsideTimeline.value) {
-    const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value
-    return `Bitte validieren Sie zuerst alle Outside-Segmente (${String(remaining)} verbleibend)`
-  }
-
-  return ''
+  return isVideo.value ? videoApprovalBlockReason() : ''
 })
 
 /**
@@ -1636,13 +1581,17 @@ const pseudoPatientId = computed(() => {
     null
   return typeof value === 'number' && value > 0 ? value : null
 })
+function firstDefined(values: unknown[]): unknown {
+  return values.find((value) => value !== null && value !== undefined)
+}
+
 const linkedPatientExaminationId = computed(() => {
-  const value =
-    caseResolution.value?.pseudoExamination?.linkedPatientExaminationId ??
-    currentItem.value?.patientExaminationId ??
-    caseResolution.value?.recommendedPatientExaminationId ??
-    currentItem.value?.pseudoExaminationId ??
-    null
+  const value = firstDefined([
+    caseResolution.value?.pseudoExamination?.linkedPatientExaminationId,
+    currentItem.value?.patientExaminationId,
+    caseResolution.value?.recommendedPatientExaminationId,
+    currentItem.value?.pseudoExaminationId
+  ])
   return typeof value === 'number' && value > 0 ? value : null
 })
 const linkageStatus = computed(() =>
@@ -2110,8 +2059,7 @@ async function fetchPatientExaminationOptions(): Promise<void> {
   }
 }
 
-function loadCurrentItemData(item: SensitiveMeta) {
-  // reset video validation state
+function resetItemValidationState(): void {
   shouldShowOutsideTimeline.value = false
   videoValidationStatus.value = null
   outsideSegmentsValidated.value = 0
@@ -2122,50 +2070,45 @@ function loadCurrentItemData(item: SensitiveMeta) {
   manualPatientExaminationId.value = ''
   customTagInput.value = ''
   noMoreNamesConfirmation.value = 'unknown'
+}
 
-  // dates
-  const rawExam = item.examinationDate || ''
-  const rawDob = item.patientDobDisplay || item.patientDob
+function stringOrEmpty(value: string | null | undefined): string {
+  return value || ''
+}
 
-  examinationDate.value = normalizeDateInputToGerman(rawExam)
-  const convertedGender = convertGender(item.patientGenderName)
-  editedPatient.value = {
-    patientFirstName: item.patientFirstName || '',
-    patientLastName: item.patientLastName || '',
-    patientGenderName: convertedGender || '',
-    patientDob: normalizeDateInputToGerman(rawDob),
-    casenumber: item.casenumber || '',
-    externalId: item.externalId ?? '',
-    externalIdOrigin: item.externalIdOrigin ?? '',
-    centerName: item.centerName ?? '',
-    text: item.text ?? '',
-    anonymizedText: item.anonymizedText ?? '',
-    examinersDisplay: item.examinersDisplay ?? '',
-    examinationDate: examinationDate.value
+function editablePatientFromItem(item: SensitiveMeta, normalizedExamDate: string): Editable {
+  return {
+    patientFirstName: stringOrEmpty(item.patientFirstName),
+    patientLastName: stringOrEmpty(item.patientLastName),
+    patientGenderName: stringOrEmpty(convertGender(item.patientGenderName)),
+    patientDob: normalizeDateInputToGerman(item.patientDobDisplay || item.patientDob),
+    casenumber: stringOrEmpty(item.casenumber),
+    externalId: stringOrEmpty(item.externalId),
+    externalIdOrigin: stringOrEmpty(item.externalIdOrigin),
+    centerName: stringOrEmpty(item.centerName),
+    text: stringOrEmpty(item.text),
+    anonymizedText: stringOrEmpty(item.anonymizedText),
+    examinersDisplay: stringOrEmpty(item.examinersDisplay),
+    examinationDate: normalizedExamDate
   }
+}
 
-  const normalizedAnonymizedText =
-    item.anonymizedText ?? editedPatient.value.anonymizedText ?? item.text ?? ''
-  editedAnonymizedText.value = normalizedAnonymizedText
-  editedPatient.value.anonymizedText = normalizedAnonymizedText
-  selectedTags.value = Array.isArray(item.tags)
-    ? [...item.tags]
-        .map((tag) => normalizeValidationTag(tag))
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b))
-    : []
-  validationComment.value = item.validationComment ?? item.validation_comment ?? ''
+function normalizedItemTags(tags: string[] | undefined): string[] {
+  if (!Array.isArray(tags)) {
+    return []
+  }
+  return [...tags]
+    .map((tag) => normalizeValidationTag(tag))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
+}
 
-  const backendDocumentType =
-    (item as SensitiveMeta & { documentType?: string | null }).documentType ??
-    (item as SensitiveMeta & { document_type?: string | null }).document_type ??
-    ''
-  selectedDocumentType.value = typeof backendDocumentType === 'string' ? backendDocumentType : ''
+function itemDocumentType(item: SensitiveMeta): string {
+  const value = firstDefined([item.documentType, item.document_type])
+  return typeof value === 'string' ? value : ''
+}
 
-  const backendPatientExaminationId = extractPatientExaminationId(item)
-  selectedPatientExaminationOption.value =
-    backendPatientExaminationId !== null ? String(backendPatientExaminationId) : ''
-
+function snapshotOriginalItemState(): void {
   original.value = {
     anonymizedText: editedAnonymizedText.value,
     examinationDate: examinationDate.value,
@@ -2173,14 +2116,37 @@ function loadCurrentItemData(item: SensitiveMeta) {
     validationComment: validationComment.value,
     patient: { ...editedPatient.value }
   }
+}
 
-  validateAllDates()
-
-  // optional: remember last file in sessionStorage
+function persistCurrentFileId(): void {
   const persistedFileId = resolveFileIdFromContext()
   if (persistedFileId !== null) {
     sessionStorage.setItem('last:fileId', String(persistedFileId))
   }
+}
+
+function loadCurrentItemData(item: SensitiveMeta): void {
+  resetItemValidationState()
+
+  const rawExam = item.examinationDate || ''
+  examinationDate.value = normalizeDateInputToGerman(rawExam)
+  editedPatient.value = editablePatientFromItem(item, examinationDate.value)
+
+  const normalizedAnonymizedText =
+    item.anonymizedText ?? editedPatient.value.anonymizedText ?? item.text ?? ''
+  editedAnonymizedText.value = normalizedAnonymizedText
+  editedPatient.value.anonymizedText = normalizedAnonymizedText
+  selectedTags.value = normalizedItemTags(item.tags)
+  validationComment.value = item.validationComment ?? item.validation_comment ?? ''
+  selectedDocumentType.value = itemDocumentType(item)
+
+  const backendPatientExaminationId = extractPatientExaminationId(item)
+  selectedPatientExaminationOption.value =
+    backendPatientExaminationId !== null ? String(backendPatientExaminationId) : ''
+
+  snapshotOriginalItemState()
+  validateAllDates()
+  persistCurrentFileId()
 }
 
 // Watch
@@ -2402,41 +2368,57 @@ function resolveFileIdFromContext(): number | null {
   return toPositiveInteger(sessionStorage.getItem('last:fileId'))
 }
 
+function firstDefinedProperty(payload: Record<string, unknown>, propertyNames: string[]): unknown {
+  return firstDefined(propertyNames.map((propertyName) => payload[propertyName]))
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null
+}
+
 function extractPatientExaminationId(payload: unknown): number | null {
-  if (!payload || typeof payload !== 'object') {
+  const payloadRecord = objectRecord(payload)
+  if (!payloadRecord) {
     return null
   }
 
-  const obj = payload as Record<string, unknown>
   const directMatch = toPositiveInteger(
-    obj.patient_examination_id ??
-      obj.patient_examination ??
-      obj.patientExaminationId ??
-      obj.examination_id ??
-      obj.examinationId
+    firstDefinedProperty(payloadRecord, [
+      'patient_examination_id',
+      'patient_examination',
+      'patientExaminationId',
+      'examination_id',
+      'examinationId'
+    ])
   )
   if (directMatch !== null) {
     return directMatch
   }
 
-  const reportFile = obj.reportFile ?? obj.report_file
-  if (reportFile && typeof reportFile === 'object') {
+  const reportFile = objectRecord(
+    firstDefinedProperty(payloadRecord, ['reportFile', 'report_file'])
+  )
+  if (reportFile) {
     const nestedMatch = extractPatientExaminationId(reportFile)
     if (nestedMatch !== null) {
       return nestedMatch
     }
   }
 
-  const patientExamination = obj.patientExamination ?? obj.patient_examination
-  if (patientExamination && typeof patientExamination === 'object') {
-    const nestedId = toPositiveInteger((patientExamination as Record<string, unknown>).id)
+  const patientExamination = objectRecord(
+    firstDefinedProperty(payloadRecord, ['patientExamination', 'patient_examination'])
+  )
+  if (patientExamination) {
+    const nestedId = toPositiveInteger(patientExamination.id)
     if (nestedId !== null) {
       return nestedId
     }
   }
 
-  const caseResolution = obj.caseResolution ?? obj.case_resolution
-  if (caseResolution && typeof caseResolution === 'object') {
+  const caseResolution = objectRecord(
+    firstDefinedProperty(payloadRecord, ['caseResolution', 'case_resolution'])
+  )
+  if (caseResolution) {
     const nestedId = extractPatientExaminationId(caseResolution)
     if (nestedId !== null) {
       return nestedId
@@ -2451,13 +2433,15 @@ function extractPatientId(payload: unknown): number | null {
     return null
   }
 
-  const obj = payload as Record<string, unknown>
-  const directMatch = toPositiveInteger(obj.patient_id ?? obj.patientId ?? obj.pseudo_patient_id)
+  const payloadRecord = payload as Record<string, unknown>
+  const directMatch = toPositiveInteger(
+    payloadRecord.patient_id ?? payloadRecord.patientId ?? payloadRecord.pseudo_patient_id
+  )
   if (directMatch !== null) {
     return directMatch
   }
 
-  const patientObject = obj.patient
+  const patientObject = payloadRecord.patient
   if (patientObject && typeof patientObject === 'object') {
     const nestedId = toPositiveInteger((patientObject as Record<string, unknown>).id)
     if (nestedId !== null) {
@@ -2584,6 +2568,14 @@ function resolveApprovalMediaKind(): ApprovalMediaKind {
   return 'unknown'
 }
 
+function optionalNonEmpty(value: string | undefined): string | undefined {
+  return value || undefined
+}
+
+function approvalDate(value: string | null): string {
+  return DateConverter.toGerman(value || '') || ''
+}
+
 function buildApprovalValidationPayload(
   mediaKind: Exclude<ApprovalMediaKind, 'unknown'>
 ): AnonymizationValidationPayload {
@@ -2591,18 +2583,18 @@ function buildApprovalValidationPayload(
     patient_first_name: editedPatient.value.patientFirstName,
     patient_last_name: editedPatient.value.patientLastName,
     patient_gender: editedPatient.value.patientGenderName,
-    patient_dob: DateConverter.toGerman(dobISO.value || '') || '',
-    examination_date: DateConverter.toGerman(examISO.value || '') || '',
-    casenumber: editedPatient.value.casenumber || '',
-    anonymized_text: editedAnonymizedText.value || undefined,
-    text: editedPatient.value.text || undefined,
+    patient_dob: approvalDate(dobISO.value),
+    examination_date: approvalDate(examISO.value),
+    casenumber: stringOrEmpty(editedPatient.value.casenumber),
+    anonymized_text: optionalNonEmpty(editedAnonymizedText.value),
+    text: optionalNonEmpty(editedPatient.value.text),
     is_verified: 'true',
     file_type: mediaKind,
-    center_name: editedPatient.value.centerName || '',
-    external_id: editedPatient.value.externalId || '',
-    external_id_origin: editedPatient.value.externalIdOrigin || '',
+    center_name: stringOrEmpty(editedPatient.value.centerName),
+    external_id: stringOrEmpty(editedPatient.value.externalId),
+    external_id_origin: stringOrEmpty(editedPatient.value.externalIdOrigin),
     tags: selectedTags.value,
-    validation_comment: validationComment.value || ''
+    validation_comment: stringOrEmpty(validationComment.value)
   }
   if (isPdf.value) {
     payload.document_type = selectedDocumentType.value
@@ -2644,63 +2636,93 @@ function applyApprovalErrorDetails(error: unknown): void {
   })
 }
 
-const approveItem = async () => {
-  if (!currentItem.value || !canSave.value || isApproving.value) {
-    return
+interface ApprovalContext {
+  mediaKind: Exclude<ApprovalMediaKind, 'unknown'>
+  validationFileId: number
+  approvedItem: SensitiveMeta
+  approvedExaminationId: number | null
+}
+
+function approvalCanStart(): boolean {
+  return Boolean(currentItem.value) && Boolean(canSave.value) && !isApproving.value
+}
+
+function approvalIsBlocked(): boolean {
+  if (canApprove.value) {
+    return false
   }
-  documentTypeTouched.value = true
-  editedPatient.value.anonymizedText = editedAnonymizedText.value
+  logger.warn('approval-blocked')
+  toast.warning({ text: approvalBlockReason.value })
+  return true
+}
 
-  // ============================================================================
-  // Phase 3.1: Segment Validation Enforcement
-  // ============================================================================
-
-  // Additional safety check: Prevent approval if outside segments not validated
-  if (!canApprove.value) {
-    const reason = approvalBlockReason.value
-    logger.warn('approval-blocked')
-    toast.warning({ text: reason })
-    return
+function outsideSegmentApprovalIsPending(): boolean {
+  if (!isVideo.value || !shouldShowOutsideTimeline.value) {
+    return false
   }
+  logger.warn('outside-segments-pending')
+  toast.error({
+    text: 'Bitte validieren Sie zuerst alle Outside-Segmente, bevor Sie das Video bestätigen.'
+  })
+  return true
+}
 
-  // For videos with outside segments: Ensure validation was completed
-  if (isVideo.value && shouldShowOutsideTimeline.value) {
-    logger.warn('outside-segments-pending')
-    toast.error({
-      text: 'Bitte validieren Sie zuerst alle Outside-Segmente, bevor Sie das Video bestätigen.'
-    })
-    return
+function approvalContext(): ApprovalContext | null {
+  const approvedItem = currentItem.value
+  if (!approvedItem) {
+    return null
   }
-
-  // ============================================================================
-  // End Phase 3.1
-  // ============================================================================
 
   const mediaKind = resolveApprovalMediaKind()
-
   if (mediaKind === 'unknown') {
     toast.error({ text: 'Bitte Medientyp auswählen, bevor bestätigt wird.' })
-    return
+    return null
   }
 
-  const validationPayload = buildApprovalValidationPayload(mediaKind)
   const validationFileId = resolveFileIdFromContext()
   if (validationFileId === null) {
     toast.error({
       text: 'Datei-ID konnte nicht bestimmt werden. Bitte Datei aus der Übersicht erneut öffnen.'
     })
+    return null
+  }
+
+  return {
+    mediaKind,
+    validationFileId,
+    approvedItem,
+    approvedExaminationId: selectedPatientExaminationIdForRouting.value
+  }
+}
+
+const approveItem = async () => {
+  if (!approvalCanStart()) {
     return
   }
-  const approvedItem = currentItem.value
-  const approvedExaminationId = selectedPatientExaminationIdForRouting.value
+  documentTypeTouched.value = true
+  editedPatient.value.anonymizedText = editedAnonymizedText.value
+
+  if (approvalIsBlocked()) {
+    return
+  }
+
+  if (outsideSegmentApprovalIsPending()) {
+    return
+  }
+
+  const context = approvalContext()
+  if (!context) {
+    return
+  }
+  const validationPayload = buildApprovalValidationPayload(context.mediaKind)
   isApproving.value = true
   try {
     logger.info('approval-started')
     const response = await axiosInstance.post(
-      r(endpoints.anonymization.validate(validationFileId)),
+      r(endpoints.anonymization.validate(context.validationFileId)),
       validationPayload
     )
-    if (!approvalViewActive || resolveFileIdFromContext() !== validationFileId) {
+    if (!approvalViewActive || resolveFileIdFromContext() !== context.validationFileId) {
       return
     }
     persistApprovedReportFileId(response.data)
@@ -2709,10 +2731,10 @@ const approveItem = async () => {
     toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' })
 
     await navigateAfterApproval(
-      mediaKind,
-      validationFileId,
-      approvedExaminationId,
-      approvedItem,
+      context.mediaKind,
+      context.validationFileId,
+      context.approvedExaminationId,
+      context.approvedItem,
       response.data
     )
   } catch (error: unknown) {
@@ -2829,35 +2851,14 @@ const correctionTitle = computed(() => (isVideo.value ? 'Video-Korrektur' : 'PDF
 const approvalButtonLabel = computed(() => (isApproving.value ? 'Wird bestätigt...' : 'Bestätigen'))
 
 const examinationHashLabel = computed(() => examinationHashDisplay.value || 'Nicht verfuegbar')
+const processingFileCount = computed(() => anonymizationStore.processingFiles.length)
 </script>
 
 <style scoped>
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  padding: 10px;
-  font-size: 0.9rem;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
 .form-control:focus,
 .form-select:focus {
   border-color: #80bdff;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-.pdf-viewer-container {
-  height: 850px;
-  overflow: hidden;
-}
-
-.pdf-viewer-container iframe {
-  border: 1px solid #dee2e6;
-  border-radius: 0.25rem;
 }
 
 .media-viewer-container {
@@ -2865,46 +2866,38 @@ pre {
   overflow: hidden;
 }
 
-.media-viewer-container iframe,
-.media-viewer-container video {
+.comparison-video {
+  width: 100%;
+  max-height: 350px;
   border: 1px solid #dee2e6;
   border-radius: 0.25rem;
 }
 
+.validation-progress {
+  width: 200px;
+  height: 8px;
+}
+
+.correction-badge {
+  font-size: 0.6em;
+}
+
 /* Dual Video/PDF Container Styles */
-.dual-video-container .video-section,
-.dual-pdf-container .pdf-section {
+.dual-video-container .video-section {
   border: 1px solid #e9ecef;
   border-radius: 0.375rem;
   padding: 1rem;
   background-color: #f8f9fa;
 }
 
-.dual-video-container .video-section.raw-video,
-.dual-pdf-container .pdf-section.raw-pdf {
+.dual-video-container .video-section.raw-video {
   border-color: #dc3545;
   background-color: #fff5f5;
 }
 
-.dual-video-container .video-section.anonymized-video,
-.dual-pdf-container .pdf-section.anonymized-pdf {
+.dual-video-container .video-section.anonymized-video {
   border-color: #198754;
   background-color: #f0fff4;
-}
-
-/* PDF-specific styling */
-.dual-pdf-container .pdf-section iframe {
-  border: 2px solid #dee2e6;
-  border-radius: 0.25rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.dual-pdf-container .pdf-section.raw-pdf iframe {
-  border-color: #dc3545;
-}
-
-.dual-pdf-container .pdf-section.anonymized-pdf iframe {
-  border-color: #198754;
 }
 
 /* ✅ NEW: Outside Timeline Container Styles */

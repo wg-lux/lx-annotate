@@ -106,9 +106,7 @@ describe('findings contract normalization', () => {
           classificationPayload({
             name_de: 'Größe',
             name_en: 'Size',
-            choices: [
-              choicePayload({ name_de: 'Klein', name_en: 'Small' })
-            ]
+            choices: [choicePayload({ name_de: 'Klein', name_en: 'Small' })]
           })
         ]
       })

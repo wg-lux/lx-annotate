@@ -71,9 +71,7 @@ describe('useReportTemplates', () => {
   it('ignores an older response after the same module changes bundle version', async () => {
     const versionOne = deferred<{ data: unknown[] }>()
     const versionTwo = deferred<{ data: unknown[] }>()
-    apiMocks.get
-      .mockReturnValueOnce(versionOne.promise)
-      .mockReturnValueOnce(versionTwo.promise)
+    apiMocks.get.mockReturnValueOnce(versionOne.promise).mockReturnValueOnce(versionTwo.promise)
     const catalog = useReportTemplates({
       initialModuleName: 'clinical_reporting',
       initialModuleVersion: '1.0.0'
@@ -161,7 +159,6 @@ describe('useReportTemplates', () => {
       reportSections: [],
       validators: { examinationValidators: [], findingsValidators: [] },
       conceptCoverage: null,
-      conceptCoverageState: 'missing' as const
     }
     catalog.applyTemplateOptions([verifiedTemplate])
 

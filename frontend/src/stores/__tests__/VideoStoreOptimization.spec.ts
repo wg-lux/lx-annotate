@@ -20,6 +20,12 @@ vi.mock('@/api/axiosInstance', () => ({
 const axiosGet = axiosMocks.get
 const axiosPost = axiosMocks.post
 
+function requireVideo(store: ReturnType<typeof useVideoStore>, videoId: number) {
+  const video = store.videoList.videos.find((candidate) => candidate.id === videoId)
+  if (!video) throw new Error(`Expected video ${String(videoId)} to be loaded.`)
+  return video
+}
+
 describe('VideoStore Performance Optimization', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -75,20 +81,23 @@ describe('VideoStore Performance Optimization', () => {
 
     expect(store.videoList.videos.length).toBe(2)
 
-    const videoA = store.videoList.videos.find((video) => video.id === 101)
-    expect(videoA).toBeDefined()
-    expect(videoA?.validatedAnnotators).toEqual(['reviewer-one'])
-    expect(videoA?.centerKey).toBe('north')
-    expect(videoA?.centerName).toBe('Center North')
-    expect(videoA?.segments?.length).toBe(1)
-    expect(videoA?.segments?.[0].label).toBe('polyp')
-    expect(videoA?.segments?.[0].startTime).toBe(10.5)
+    const videoA = requireVideo(store, 101)
+    expect(videoA.validatedAnnotators).toEqual(['reviewer-one'])
+    expect(videoA.centerKey).toBe('north')
+    expect(videoA.centerName).toBe('Center North')
+    const videoASegments = videoA.segments
+    if (!videoASegments) throw new Error('Expected Video A segments to be loaded.')
+    expect(videoASegments).toHaveLength(1)
+    expect(videoASegments[0]?.label).toBe('polyp')
+    expect(videoASegments[0]?.startTime).toBe(10.5)
 
-    const videoB = store.videoList.videos.find((video) => video.id === 102)
-    expect(videoB?.original_file_name).toBe('Video 102')
-    expect(videoB?.centerKey).toBe('south')
-    expect(videoB?.centerName).toBe('Center South')
-    expect(videoB?.segments?.length).toBe(0)
+    const videoB = requireVideo(store, 102)
+    expect(videoB.original_file_name).toBe('Video 102')
+    expect(videoB.centerKey).toBe('south')
+    expect(videoB.centerName).toBe('Center South')
+    const videoBSegments = videoB.segments
+    if (!videoBSegments) throw new Error('Expected Video B segments to be loaded.')
+    expect(videoBSegments).toHaveLength(0)
 
     expect(axiosGet).toHaveBeenCalledTimes(2)
     expect(axiosGet).toHaveBeenNthCalledWith(1, 'media/videos/labels/list/')
@@ -265,30 +274,28 @@ describe('VideoStore Performance Optimization', () => {
 
   it('does not apply another video segments after a cancelled request', async () => {
     const store = useVideoStore()
-    axiosGet
-      .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce({
-        data: {
-          results: [
-            {
-              id: 101,
-              original_file_name: 'Video A',
-              center_name: 'Center',
-              processor_name: 'Processor',
-              status: 'available',
-              segments: []
-            },
-            {
-              id: 102,
-              original_file_name: 'Video B',
-              center_name: 'Center',
-              processor_name: 'Processor',
-              status: 'available',
-              segments: []
-            }
-          ]
-        }
-      })
+    axiosGet.mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({
+      data: {
+        results: [
+          {
+            id: 101,
+            original_file_name: 'Video A',
+            center_name: 'Center',
+            processor_name: 'Processor',
+            status: 'available',
+            segments: []
+          },
+          {
+            id: 102,
+            original_file_name: 'Video B',
+            center_name: 'Center',
+            processor_name: 'Processor',
+            status: 'available',
+            segments: []
+          }
+        ]
+      }
+    })
     await store.fetchAllVideos()
 
     let rejectVideoA!: (reason: Error) => void

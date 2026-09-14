@@ -45,11 +45,7 @@ describe('reportSubmissionUtils', () => {
 
   it('preserves API selections when the finding has no local selection map', () => {
     expect(
-      mergeClassificationSelections(
-        10,
-        [{ classification: 1, classificationChoice: 11 }],
-        {}
-      )
+      mergeClassificationSelections(10, [{ classification: 1, classificationChoice: 11 }], {})
     ).toEqual([{ classification: 1, classificationChoice: 11 }])
   })
 

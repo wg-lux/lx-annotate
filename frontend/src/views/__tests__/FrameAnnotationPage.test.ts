@@ -203,9 +203,7 @@ function buildQueueStore(overrides: Partial<QueueStore> = {}) {
       datasetId: number | string | null = null
     ) => {
       store.aiDatasetId =
-        datasetId !== null && String(datasetId).trim()
-          ? String(datasetId).trim()
-          : null
+        datasetId !== null && String(datasetId).trim() ? String(datasetId).trim() : null
       store.aiDatasetName = datasetName?.trim() || null
       store.aiDatasetType = datasetType?.trim() || null
     }
@@ -335,19 +333,26 @@ describe('FrameAnnotation route', () => {
   })
 
   it.each(['array', 'results', 'labels', 'labelSets', 'label_sets', 'groups', 'empty', 'invalid'])(
-    'preserves label-list filtering and wrapper precedence for %s', async (shape) => {
+    'preserves label-list filtering and wrapper precedence for %s',
+    async (shape) => {
       // Arrange
       const rows = [null, false, 'invalid', { id: 3, name: 'Upper GI' }]
-      const data = shape === 'array' ? rows : shape === 'invalid' ? null
-        : shape === 'empty' ? { results: [], labels: rows }
-          : { results: false, [shape]: rows, groups: shape === 'groups' ? rows : [] }
+      const data =
+        shape === 'array'
+          ? rows
+          : shape === 'invalid'
+            ? null
+            : shape === 'empty'
+              ? { results: [], labels: rows }
+              : { results: false, [shape]: rows, groups: shape === 'groups' ? rows : [] }
       hoisted.get.mockResolvedValueOnce({ data })
       // Act
       const wrapper = mountFrameAnnotation()
       await flushPromises()
       // Assert
-      expect(wrapper.findAll('#label-group-id option').map((option) => option.attributes('value')))
-        .toEqual(shape === 'empty' || shape === 'invalid' ? [] : ['', '3'])
+      expect(
+        wrapper.findAll('#label-group-id option').map((option) => option.attributes('value'))
+      ).toEqual(shape === 'empty' || shape === 'invalid' ? [] : ['', '3'])
     }
   )
 
@@ -471,7 +476,9 @@ describe('FrameAnnotation route', () => {
 
     expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(1)
     expect(wrapper.get('[data-test="frame-id-badge"]').text()).toContain('Frame-ID 101')
-    expect(wrapper.get('[role="alert"]').text()).toContain('Speicherstatus der Annotation ist unklar')
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Speicherstatus der Annotation ist unklar'
+    )
     expect(wrapper.get('button.btn-success').attributes('disabled')).toBeDefined()
   })
 
@@ -485,7 +492,11 @@ describe('FrameAnnotation route', () => {
 
     expect(hoisted.createObjectURL).toHaveBeenCalledWith(frameBlob)
     expect(wrapper.get('[data-test="frame-box-stage"] img').attributes('src')).toBe('blob:frame-1')
-    expect(hoisted.get.mock.calls.filter(([url]) => url === '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed')).toHaveLength(1)
+    expect(
+      hoisted.get.mock.calls.filter(
+        ([url]) => url === '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed'
+      )
+    ).toHaveLength(1)
 
     wrapper.unmount()
 
@@ -552,7 +563,9 @@ describe('FrameAnnotation route', () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
 
-    expect(frameRequestUrls).toEqual(['/api/media/videos/1/frames/101/decoded-stream/?file_type=processed'])
+    expect(frameRequestUrls).toEqual([
+      '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed'
+    ])
     resolveFirstFrame({
       status: 200,
       data: new Blob(['first-frame'], { type: 'image/jpeg' }),
@@ -560,12 +573,18 @@ describe('FrameAnnotation route', () => {
     })
     await flushPromises()
 
-    expect(frameRequestUrls).toEqual(['/api/media/videos/1/frames/101/decoded-stream/?file_type=processed', '/api/media/videos/1/frames/202/decoded-stream/?file_type=processed'])
+    expect(frameRequestUrls).toEqual([
+      '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed',
+      '/api/media/videos/1/frames/202/decoded-stream/?file_type=processed'
+    ])
     await markFrameLoaded(wrapper)
     await wrapper.get('[data-test="exclude-dataset-button"]').trigger('click')
     await flushPromises()
 
-    expect(frameRequestUrls).toEqual(['/api/media/videos/1/frames/101/decoded-stream/?file_type=processed', '/api/media/videos/1/frames/202/decoded-stream/?file_type=processed'])
+    expect(frameRequestUrls).toEqual([
+      '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed',
+      '/api/media/videos/1/frames/202/decoded-stream/?file_type=processed'
+    ])
     resolveSecondFrame({
       status: 200,
       data: new Blob(['second-frame'], { type: 'image/jpeg' }),
@@ -604,7 +623,9 @@ describe('FrameAnnotation route', () => {
       mountFrameAnnotation()
       await flushPromises()
       const streamCallCount = () =>
-        hoisted.get.mock.calls.filter(([url]) => url === '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed').length
+        hoisted.get.mock.calls.filter(
+          ([url]) => url === '/api/media/videos/1/frames/101/decoded-stream/?file_type=processed'
+        ).length
 
       expect(streamCallCount()).toBe(1)
       await vi.advanceTimersByTimeAsync(1999)
@@ -766,9 +787,7 @@ describe('FrameAnnotation route', () => {
     const wrapper = mountFrameAnnotation()
     await flushPromises()
 
-    expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain(
-      'Frame wird geladen'
-    )
+    expect(wrapper.get('[data-test="frame-image-status"]').text()).toContain('Frame wird geladen')
   })
 
   it('shows decoded frame stream failures from the backend payload', async () => {

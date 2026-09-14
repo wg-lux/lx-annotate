@@ -22,14 +22,15 @@ const options = {
   maximumRows: 25000
 }
 
+const exportedWorkbook = { filename: 'study.xlsx', rowCount: 3 } as const
+
 describe('CaseStudyExcelExport', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     hoisted.fetchStudyExportOptions.mockResolvedValue(options)
     hoisted.fetchStudyExportWorkbook.mockResolvedValue({
       blob: new Blob(['xlsx']),
-      filename: 'study.xlsx',
-      rowCount: 3
+      ...exportedWorkbook
     })
     vi.stubGlobal('URL', {
       createObjectURL: hoisted.createObjectURL,
@@ -43,9 +44,13 @@ describe('CaseStudyExcelExport', () => {
     await flushPromises()
 
     expect(hoisted.fetchStudyExportOptions).toHaveBeenCalledOnce()
-    expect(wrapper.findAll('[data-test="option-examinations"]')).toHaveLength(2)
-    expect(wrapper.findAll('[data-test="option-findings"]')).toHaveLength(2)
-    expect(wrapper.findAll('[data-test="option-indications"]')).toHaveLength(2)
+    expect(wrapper.findAll('[data-test="option-examinations"]')).toHaveLength(
+      options.examinations.length
+    )
+    expect(wrapper.findAll('[data-test="option-findings"]')).toHaveLength(options.findings.length)
+    expect(wrapper.findAll('[data-test="option-indications"]')).toHaveLength(
+      options.indications.length
+    )
     expect(wrapper.get('[data-test="download-workbook"]').attributes('disabled')).toBeDefined()
 
     await wrapper.findAll('[data-test="option-examinations"]')[0].setValue(true)
@@ -122,8 +127,6 @@ describe('CaseStudyExcelExport', () => {
       expect(wrapper.find('[data-test="export-message"]').exists()).toBe(true)
     })
 
-    expect(wrapper.get('[data-test="export-message"]').text()).toContain(
-      'Keine passenden Fälle.'
-    )
+    expect(wrapper.get('[data-test="export-message"]').text()).toContain('Keine passenden Fälle.')
   })
 })

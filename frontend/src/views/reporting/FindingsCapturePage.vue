@@ -138,11 +138,15 @@
         <div
           v-if="errorMessage"
           class="alert alert-danger py-2"
-        >{{ errorMessage }}</div>
+        >
+          {{ errorMessage }}
+        </div>
         <div
           v-if="successMessage"
           class="alert alert-success py-2"
-        >{{ successMessage }}</div>
+        >
+          {{ successMessage }}
+        </div>
 
         <ReportingMediaPreviewCards class="mb-3" />
 
@@ -398,11 +402,14 @@ import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi'
 import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
 import type {
   ReportTemplateFinding,
+  ReportTemplateIdentity,
+  ReportTemplatePayload,
   ReportTemplateRuntimeClassificationChoiceInput,
   ReportTemplateRuntimeDescriptorInput,
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateSectionBlock
 } from '@/types/reportTemplate'
+import type { ReportingRuntimeDraft } from '@/stores/reportingFlowStore'
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
 import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue'
 import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue'
@@ -459,27 +466,41 @@ const {
 
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
 const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
-const draftMatchesSelectedTemplate = computed(() => {
-  const draft = currentRuntimeDraft.value
-  const template = selectedTemplate.value
+
+function templateIdentityConflicts(
+  draftIdentity: ReportTemplateIdentity | null | undefined,
+  templateIdentity: ReportTemplateIdentity
+): boolean {
+  const hashConflicts =
+    !!draftIdentity?.templateHash &&
+    !!templateIdentity.templateHash &&
+    draftIdentity.templateHash !== templateIdentity.templateHash
+  const versionConflicts =
+    !!draftIdentity?.templateVersion &&
+    !!templateIdentity.templateVersion &&
+    draftIdentity.templateVersion !== templateIdentity.templateVersion
+  return hashConflicts || versionConflicts
+}
+
+function draftMatchesTemplate(
+  draft: ReportingRuntimeDraft | null,
+  template: ReportTemplatePayload | null,
+  moduleName: string
+): boolean {
   if (!draft || !template || draft.templateName !== template.name) {
     return false
   }
-  if (draft.verificationStatus === 'unverified') {
+  if (draft.verificationStatus === 'unverified' || draft.moduleName !== moduleName) {
     return false
   }
-  if (draft.moduleName !== selectedKbModule.value) {
-    return false
-  }
-  const draftIdentity = draft.templateIdentity
-  const templateIdentity = template.identity
-  return !(
-    (draftIdentity?.templateHash &&
-      templateIdentity.templateHash &&
-      draftIdentity.templateHash !== templateIdentity.templateHash) ||
-    (draftIdentity?.templateVersion &&
-      templateIdentity.templateVersion &&
-      draftIdentity.templateVersion !== templateIdentity.templateVersion)
+  return !templateIdentityConflicts(draft.templateIdentity, template.identity)
+}
+
+const draftMatchesSelectedTemplate = computed(() => {
+  return draftMatchesTemplate(
+    currentRuntimeDraft.value,
+    selectedTemplate.value,
+    selectedKbModule.value
   )
 })
 const canValidateDraft = computed(
@@ -681,6 +702,91 @@ function templateFindingForName(findingName: string): ReportTemplateFinding | nu
   )
 }
 
+function inputChoicesForRequirement(
+  requirement: ReportTemplateFinding['classifications'][number],
+  existing: FindingClassification | undefined
+): FindingChoice[] {
+  return (requirement.input?.choices || []).map((choice) => ({
+    id:
+      existing?.choices.find(
+        (candidate) => normalizeKey(candidate.name) === normalizeKey(choice.name)
+      )?.id || 0,
+    name: choice.name,
+    displayName: choice.name,
+    subcategories: {},
+    numericalDescriptors: Object.fromEntries(
+      choice.descriptors
+        .filter((descriptor) => descriptor.type === 'numeric')
+        .map((descriptor) => [descriptor.name, descriptor])
+    )
+  }))
+}
+
+function mergedClassificationChoices(
+  existing: FindingClassification,
+  inputChoices: FindingChoice[]
+): FindingChoice[] {
+  const choicesByKey = new Map(
+    existing.choices.map((choice) => [normalizeKey(choice.name), choice])
+  )
+  for (const inputChoice of inputChoices) {
+    const choiceKey = normalizeKey(inputChoice.name)
+    const catalogChoice = choicesByKey.get(choiceKey)
+    choicesByKey.set(choiceKey, {
+      ...inputChoice,
+      ...catalogChoice,
+      numericalDescriptors: {
+        ...inputChoice.numericalDescriptors,
+        ...(catalogChoice?.numericalDescriptors || {})
+      }
+    })
+  }
+  return Array.from(choicesByKey.values())
+}
+
+function applyTemplateClassificationRequirement(
+  byKey: Map<string, FindingClassification>,
+  requirement: ReportTemplateFinding['classifications'][number]
+) {
+  const key = normalizeKey(requirement.classification)
+  const existing = byKey.get(key)
+  const inputChoices = inputChoicesForRequirement(requirement, existing)
+  if (existing) {
+    byKey.set(key, {
+      ...existing,
+      required: existing.required || requirement.required,
+      choices: mergedClassificationChoices(existing, inputChoices)
+    })
+    return
+  }
+  byKey.set(key, {
+    id: 0,
+    name: requirement.classification,
+    displayName: requirement.classification,
+    required: requirement.required,
+    classificationTypes: [],
+    choices: inputChoices
+  })
+}
+
+function addMissingRequiredClassification(
+  byKey: Map<string, FindingClassification>,
+  missing: string
+) {
+  const key = normalizeKey(missing)
+  if (byKey.has(key)) {
+    return
+  }
+  byKey.set(key, {
+    id: 0,
+    name: missing,
+    displayName: missing,
+    required: true,
+    classificationTypes: [],
+    choices: []
+  })
+}
+
 function visibleClassificationsForFinding(findingName: string): FindingClassification[] {
   const definitions = allDefinitionClassificationsForFinding(findingName)
   const extraRequired = stringListForKey(
@@ -694,68 +800,11 @@ function visibleClassificationsForFinding(findingName: string): FindingClassific
   }
 
   for (const requirement of templateFindingForName(findingName)?.classifications || []) {
-    const key = normalizeKey(requirement.classification)
-    const existing = byKey.get(key)
-    const inputChoices = (requirement.input?.choices || []).map((choice) => ({
-      id:
-        existing?.choices.find(
-          (candidate) => normalizeKey(candidate.name) === normalizeKey(choice.name)
-        )?.id || 0,
-      name: choice.name,
-      displayName: choice.name,
-      subcategories: {},
-      numericalDescriptors: Object.fromEntries(
-        choice.descriptors
-          .filter((descriptor) => descriptor.type === 'numeric')
-          .map((descriptor) => [descriptor.name, descriptor])
-      )
-    }))
-    if (existing) {
-      const choicesByKey = new Map(
-        existing.choices.map((choice) => [normalizeKey(choice.name), choice])
-      )
-      for (const inputChoice of inputChoices) {
-        const choiceKey = normalizeKey(inputChoice.name)
-        const catalogChoice = choicesByKey.get(choiceKey)
-        choicesByKey.set(choiceKey, {
-          ...inputChoice,
-          ...catalogChoice,
-          numericalDescriptors: {
-            ...inputChoice.numericalDescriptors,
-            ...(catalogChoice?.numericalDescriptors || {})
-          }
-        })
-      }
-      byKey.set(key, {
-        ...existing,
-        required: existing.required || requirement.required,
-        choices: Array.from(choicesByKey.values())
-      })
-      continue
-    }
-    byKey.set(key, {
-      id: 0,
-      name: requirement.classification,
-      displayName: requirement.classification,
-      required: requirement.required,
-      classificationTypes: [],
-      choices: inputChoices
-    })
+    applyTemplateClassificationRequirement(byKey, requirement)
   }
 
   for (const missing of extraRequired) {
-    const existing = byKey.get(normalizeKey(missing))
-    if (existing) {
-      continue
-    }
-    byKey.set(normalizeKey(missing), {
-      id: 0,
-      name: missing,
-      displayName: missing,
-      required: true,
-      classificationTypes: [],
-      choices: []
-    })
+    addMissingRequiredClassification(byKey, missing)
   }
 
   return Array.from(byKey.values())
@@ -858,17 +907,15 @@ function descriptorKeysForField(
     return existingChoice.descriptors.map((descriptor) => descriptor.classificationChoiceDescriptor)
   }
 
-  const normalizedClassification = normalizeKey(classificationName)
-  if (
-    normalizedClassification.includes('mm') ||
-    normalizedClassification.includes('size') ||
-    normalizedClassification.includes('length') ||
-    normalizedClassification.includes('distance')
-  ) {
-    return [`${normalizedClassification}_descriptor`]
-  }
+  return inferredDescriptorKeys(classificationName)
+}
 
-  return []
+function inferredDescriptorKeys(classificationName: string): string[] {
+  const normalizedClassification = normalizeKey(classificationName)
+  const hasNumericDimension = ['mm', 'size', 'length', 'distance'].some((term) =>
+    normalizedClassification.includes(term)
+  )
+  return hasNumericDimension ? [`${normalizedClassification}_descriptor`] : []
 }
 
 function compiledDescriptorsForSelectedChoice(
@@ -1143,10 +1190,8 @@ function onDescriptorInput(
 }
 
 async function runRuntimeValidation(forceFeedback = false) {
-  const draft = currentRuntimeDraft.value
-  const templateName = selectedTemplateName.value
-  const patientExaminationId = flow.patientExaminationId
-  if (!draft || !templateName || !patientExaminationId) {
+  const target = currentValidationTarget()
+  if (!target) {
     templateValidationError.value = null
     flow.setLastTemplateValidation(null)
     return
@@ -1168,9 +1213,9 @@ async function runRuntimeValidation(forceFeedback = false) {
   try {
     const result = await validateReportTemplateRuntime(
       flow.selectedKbModule,
-      draft.payload.knowledgeBaseVersion || '',
-      templateName,
-      draft.payload
+      target.draft.payload.knowledgeBaseVersion || '',
+      target.templateName,
+      target.draft.payload
     )
     flow.setLastTemplateValidation(result)
   } catch (e: unknown) {
@@ -1181,17 +1226,34 @@ async function runRuntimeValidation(forceFeedback = false) {
       'Template-Validierung konnte nicht ausgefuehrt werden.'
     )
   } finally {
-    try {
-      await flow.persistCurrentRuntimeDraft()
-    } catch (e: unknown) {
-      if (!validationFailed) {
-        templateValidationError.value = reportingApiErrorMessage(
-          e,
-          'Der Reporting-Entwurf konnte nach der Validierung nicht gespeichert werden.'
-        )
-      }
-    }
+    await persistDraftAfterValidation(validationFailed)
     templateValidationLoading.value = false
+  }
+}
+
+function currentValidationTarget(): {
+  draft: ReportingRuntimeDraft
+  templateName: string
+} | null {
+  const draft = currentRuntimeDraft.value
+  const templateName = selectedTemplateName.value
+  if (!draft || !templateName || !flow.patientExaminationId) {
+    return null
+  }
+  return { draft, templateName }
+}
+
+async function persistDraftAfterValidation(validationFailed: boolean) {
+  try {
+    await flow.persistCurrentRuntimeDraft()
+  } catch (error: unknown) {
+    if (validationFailed) {
+      return
+    }
+    templateValidationError.value = reportingApiErrorMessage(
+      error,
+      'Der Reporting-Entwurf konnte nach der Validierung nicht gespeichert werden.'
+    )
   }
 }
 

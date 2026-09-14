@@ -7,7 +7,9 @@
       <h5
         id="case-study-export-title"
         class="mb-0"
-      >Pseudonymisierte Fallliste</h5>
+      >
+        Pseudonymisierte Fallliste
+      </h5>
       <p class="text-muted mb-0">
         Untersuchungen, Befunde oder Indikationen auswählen und passende Patientenverläufe als
         Excel-Liste exportieren.
@@ -75,7 +77,9 @@
           :data-test="`option-group-${group.key}`"
         >
           <fieldset class="concept-group h-100">
-            <legend class="form-label d-flex justify-content-between align-items-center concept-group-heading">
+            <legend
+              class="form-label d-flex justify-content-between align-items-center concept-group-heading"
+            >
               <span>{{ group.label }}</span>
               <span class="badge bg-secondary">{{ selections[group.key].length }}</span>
             </legend>
@@ -154,10 +158,10 @@ import {
   fetchStudyExportWorkbook,
   type StudyExportOptions
 } from '@/api/studyExportApi'
+import type { ExportMessage } from '@/types/exportMessage'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 type GroupKey = 'examinations' | 'findings' | 'indications'
-type ExportMessage = { type: 'success' | 'error'; text: string }
 
 interface OptionGroup {
   key: GroupKey

@@ -19,10 +19,9 @@ export function initHttpKC() {
       return Promise.reject(
         error instanceof Error
           ? error
-          : Object.assign(
-              new Error('HTTP response interceptor rejected a non-Error value'),
-              { cause: error }
-            )
+          : Object.assign(new Error('HTTP response interceptor rejected a non-Error value'), {
+              cause: error
+            })
       )
     }
   )

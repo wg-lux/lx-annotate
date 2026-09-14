@@ -2,13 +2,8 @@
   <DashboardComponent />
 </template>
 
-<script>
-import DashboardComponent from '../components/Dashboard/AnnotationDashboard.vue';
+<script setup lang="ts">
+import DashboardComponent from '../components/Dashboard/AnnotationDashboard.vue'
 
-export default {
-  name: 'Dashboard',
-  components: {
-    DashboardComponent,
-  },
-};
+defineOptions({ name: 'Dashboard' })
 </script>

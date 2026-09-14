@@ -72,7 +72,6 @@ function graph(): ExaminationReportingContext {
         reportSections: [],
         validators: { examinationValidators: [], findingsValidators: [] },
         conceptCoverage: null,
-        conceptCoverageState: 'missing'
       }
     ]
   }

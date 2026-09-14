@@ -53,4 +53,3 @@ defineProps<{
   artifacts: PersistedArtifacts
 }>()
 </script>
-

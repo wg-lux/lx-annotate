@@ -719,7 +719,9 @@ import {
   type ApplicationAiDatasetExportResult,
   type ApplicationVideoDimensionBackfillRun,
   type ApplicationSettingsDropdowns,
-  type ApplicationSettingsRecord
+  type ApplicationSettingsRecord,
+  type ApplicationSettingsUpdatePayload,
+  type ApplicationAiDatasetExportPayload
 } from '@/api/applicationSettingsApi'
 import { isAxiosError } from 'axios'
 import { terminologyBatchImportMessage, useTerminologyStore } from '@/stores/terminologyStore'
@@ -978,26 +980,43 @@ const terminologyStatusMessage = computed(() => {
 
 const isDirty = computed(() => applicationSettingsChanged(currentSettings.value, form))
 
+type AiDatasetOption = ApplicationSettingsDropdowns['aiDatasets'][number]
+
+function findDatasetById(settings: ApplicationSettingsRecord): AiDatasetOption | null {
+  if (settings.aiDatasetId === null) return null
+  return dropdowns.aiDatasets.find((dataset) => dataset.id === settings.aiDatasetId) ?? null
+}
+
+function findDatasetByLegacyIdentity(settings: ApplicationSettingsRecord): AiDatasetOption | null {
+  const datasetName = settings.aiDatasetName ?? EMPTY_OPTION
+  const datasetType = settings.aiDatasetType ?? EMPTY_OPTION
+  return (
+    dropdowns.aiDatasets.find(
+      (dataset) => dataset.value === datasetName && dataset.datasetType === datasetType
+    ) ?? null
+  )
+}
+
+function resolveConfiguredDataset(settings: ApplicationSettingsRecord): AiDatasetOption | null {
+  const exactDataset = findDatasetById(settings) ?? findDatasetByLegacyIdentity(settings)
+  return exactDataset
+}
+
+function applyConfiguredDataset(
+  settings: ApplicationSettingsRecord,
+  dataset: AiDatasetOption | null
+) {
+  form.aiDatasetId = dataset ? String(dataset.id) : EMPTY_OPTION
+  form.aiDatasetName = dataset?.value ?? settings.aiDatasetName ?? EMPTY_OPTION
+  form.aiDatasetType = dataset?.datasetType ?? settings.aiDatasetType ?? EMPTY_OPTION
+}
+
 function applySettings(settings: ApplicationSettingsRecord) {
   currentSettings.value = settings
   Object.assign(form, applicationSettingsFormValues(settings))
-  const exactDataset =
-    settings.aiDatasetId === null
-      ? null
-      : (dropdowns.aiDatasets.find((dataset) => dataset.id === settings.aiDatasetId) ?? null)
-  const fallbackDataset =
-    exactDataset ??
-    dropdowns.aiDatasets.find(
-      (dataset) =>
-        dataset.value === (settings.aiDatasetName ?? EMPTY_OPTION) &&
-        dataset.datasetType === (settings.aiDatasetType ?? EMPTY_OPTION)
-    ) ??
-    null
-  form.aiDatasetId = fallbackDataset ? String(fallbackDataset.id) : EMPTY_OPTION
-  form.aiDatasetName = fallbackDataset?.value ?? settings.aiDatasetName ?? EMPTY_OPTION
-  form.aiDatasetType = fallbackDataset?.datasetType ?? settings.aiDatasetType ?? EMPTY_OPTION
-  aiDatasetExportCenterKey.value =
-    settings.centerKey ?? selectedDefaultCenter.value?.centerKey ?? EMPTY_OPTION
+  applyConfiguredDataset(settings, resolveConfiguredDataset(settings))
+  const selectedCenterKey = selectedDefaultCenter.value?.centerKey ?? EMPTY_OPTION
+  aiDatasetExportCenterKey.value = settings.centerKey ?? selectedCenterKey
 }
 
 function resetForm() {
@@ -1131,30 +1150,39 @@ async function saveSettings() {
   applySelectedAiDataset()
 
   try {
-    const updated = await updateApplicationSettings({
-      centerId: form.centerId ? Number(form.centerId) : null,
-      processorId: form.processorId ? Number(form.processorId) : null,
-      annotatorName: form.annotatorName || null,
-      reportTemplateName: form.reportTemplateName || null,
-      aiDatasetId: form.aiDatasetId ? Number(form.aiDatasetId) : null,
-      aiDatasetName: form.aiDatasetName || null,
-      aiDatasetType: form.aiDatasetType || null
-    })
+    const updated = await updateApplicationSettings(applicationSettingsUpdatePayload())
 
     applySettings(updated)
     toast.success({ text: 'Anwendungseinstellungen gespeichert.' })
   } catch (error) {
     const payload = applicationSettingsErrorPayload(error)
-    errorMessage.value =
-      payload.errors?.aiDatasetId ||
-      payload.errors?.aiDatasetName ||
-      payload.errors?.aiDatasetType ||
-      payload.detail ||
-      'Anwendungseinstellungen konnten nicht gespeichert werden.'
+    errorMessage.value = applicationSettingsSaveError(payload)
     logger.error('settings-save-failed', error)
   } finally {
     saving.value = false
   }
+}
+
+function applicationSettingsUpdatePayload(): ApplicationSettingsUpdatePayload {
+  return {
+    centerId: form.centerId ? Number(form.centerId) : null,
+    processorId: form.processorId ? Number(form.processorId) : null,
+    annotatorName: form.annotatorName || null,
+    reportTemplateName: form.reportTemplateName || null,
+    aiDatasetId: form.aiDatasetId ? Number(form.aiDatasetId) : null,
+    aiDatasetName: form.aiDatasetName || null,
+    aiDatasetType: form.aiDatasetType || null
+  }
+}
+
+function applicationSettingsSaveError(payload: ApplicationSettingsErrorPayload): string {
+  return (
+    payload.errors?.aiDatasetId ||
+    payload.errors?.aiDatasetName ||
+    payload.errors?.aiDatasetType ||
+    payload.detail ||
+    'Anwendungseinstellungen konnten nicht gespeichert werden.'
+  )
 }
 
 async function runVideoDimensionBackfill() {
@@ -1239,31 +1267,39 @@ async function runAiDatasetExport() {
   aiDatasetExportResult.value = null
 
   try {
-    const payload = {
-      datasetId: selected.id,
-      onlyValidated: true,
-      allCenters: aiDatasetExportScope.value === 'all',
-      centerKey:
-        aiDatasetExportScope.value === 'center'
-          ? aiDatasetExportCenterKey.value || currentSettings.value?.centerKey || null
-          : null
-    }
-    const result = await triggerApplicationAiDatasetExport({
-      ...payload
-    })
+    const result = await triggerApplicationAiDatasetExport(aiDatasetExportPayload(selected.id))
     aiDatasetExportResult.value = result
     toast.success({ text: 'KI-Datensatz erfolgreich exportiert.' })
   } catch (error: unknown) {
     const payload = applicationSettingsErrorPayload(error)
-    aiDatasetExportError.value =
-      payload.errors?.aiDatasetName ||
-      payload.errors?.aiDatasetType ||
-      payload.detail ||
-      'KI-Datensatz konnte nicht exportiert werden.'
+    aiDatasetExportError.value = aiDatasetExportFailureMessage(payload)
     logger.error('dataset-export-failed', error)
   } finally {
     aiDatasetExportInProgress.value = false
   }
+}
+
+function selectedAiDatasetExportCenterKey(): string | null {
+  if (aiDatasetExportScope.value !== 'center') return null
+  return aiDatasetExportCenterKey.value || currentSettings.value?.centerKey || null
+}
+
+function aiDatasetExportPayload(datasetId: number): ApplicationAiDatasetExportPayload {
+  return {
+    datasetId,
+    onlyValidated: true,
+    allCenters: aiDatasetExportScope.value === 'all',
+    centerKey: selectedAiDatasetExportCenterKey()
+  }
+}
+
+function aiDatasetExportFailureMessage(payload: ApplicationSettingsErrorPayload): string {
+  return (
+    payload.errors?.aiDatasetName ||
+    payload.errors?.aiDatasetType ||
+    payload.detail ||
+    'KI-Datensatz konnte nicht exportiert werden.'
+  )
 }
 
 function formatBytes(value: number): string {

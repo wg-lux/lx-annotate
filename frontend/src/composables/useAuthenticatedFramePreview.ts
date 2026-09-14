@@ -2,6 +2,30 @@ import { onScopeDispose, ref } from 'vue'
 import axiosInstance from '@/api/axiosInstance'
 import { decodedFrameUrl, type ReportFrameSelection } from '@/utils/frameStreams'
 
+function frameTimestamp(headers: Record<string, unknown>): number {
+  const value = headers['x-frame-timestamp']
+  return typeof value === 'string' && value.trim() ? Number(value) : NaN
+}
+
+function isVerifiedFrameResponse(
+  response: { status: number; data: Blob; headers: Record<string, unknown> },
+  frameNumber: number,
+  timestamp: number
+): boolean {
+  const frameHeader = response.headers['x-frame-number']
+  return [
+    response.status === 200,
+    response.data instanceof Blob,
+    response.data.size > 0,
+    String(response.headers['content-type']).startsWith('image/'),
+    Number.isFinite(timestamp),
+    timestamp >= 0,
+    typeof frameHeader === 'string',
+    Boolean(typeof frameHeader === 'string' && frameHeader.trim()),
+    Number(frameHeader) === frameNumber
+  ].every(Boolean)
+}
+
 export function useAuthenticatedFramePreview() {
   const imageUrl = ref<string | null>(null)
   const error = ref<string | null>(null)
@@ -34,23 +58,8 @@ export function useAuthenticatedFramePreview() {
       if (current !== generation) {
         return null
       }
-      const timestampHeader: unknown = response.headers['x-frame-timestamp']
-      const frameHeader: unknown = response.headers['x-frame-number']
-      const timestamp =
-        typeof timestampHeader === 'string' && timestampHeader.trim()
-          ? Number(timestampHeader)
-          : NaN
-      if (
-        response.status !== 200 ||
-        !(response.data instanceof Blob) ||
-        !response.data.size ||
-        !String(response.headers['content-type']).startsWith('image/') ||
-        !Number.isFinite(timestamp) ||
-        timestamp < 0 ||
-        typeof frameHeader !== 'string' ||
-        !frameHeader.trim() ||
-        Number(frameHeader) !== frameNumber
-      ) {
+      const timestamp = frameTimestamp(response.headers)
+      if (!isVerifiedFrameResponse(response, frameNumber, timestamp)) {
         throw new TypeError('Frame stream did not return a verified frame and timestamp')
       }
       imageUrl.value = URL.createObjectURL(response.data)

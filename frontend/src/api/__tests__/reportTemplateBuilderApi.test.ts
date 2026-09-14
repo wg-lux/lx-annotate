@@ -76,7 +76,9 @@ describe('reportTemplateBuilderApi', () => {
     hoisted.get.mockResolvedValue({
       data: { can_publish: true, lifecycle_status: 'draft', errors: [], warnings: [] }
     })
-    await expect(fetchReportTemplateReadiness('module', '2.0.0', 'template')).resolves.toMatchObject({
+    await expect(
+      fetchReportTemplateReadiness('module', '2.0.0', 'template')
+    ).resolves.toMatchObject({
       canPublish: true,
       lifecycleStatus: 'draft'
     })

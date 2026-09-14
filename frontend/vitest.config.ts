@@ -12,13 +12,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['tests/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
-    exclude: [
-      '**/.direnv/**',
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/e2e/**',
-      '**/types/**'
-    ],
+    exclude: ['**/.direnv/**', '**/node_modules/**', '**/dist/**', '**/e2e/**', '**/types/**'],
     root: fileURLToPath(new URL('./', import.meta.url)),
     globals: true,
     setupFiles: ['./tests/setup.ts'],

@@ -31,6 +31,12 @@ async function selectFile(wrapper: ReturnType<typeof mount>, file: File): Promis
   await flushPromises()
 }
 
+function latestSections(wrapper: ReturnType<typeof mount>): ReportTemplateBuilderSection[] {
+  const sections = wrapper.emitted('update:sections')?.at(-1)?.[0]
+  if (!Array.isArray(sections)) throw new Error('Expected an update:sections payload.')
+  return sections as ReportTemplateBuilderSection[]
+}
+
 describe('ReportTemplateBrandingEditor', () => {
   it('renders hospital identity and editable report sections in the page preview', () => {
     const findings = section('findings', 'Klinischer Befundtext')
@@ -63,9 +69,7 @@ describe('ReportTemplateBrandingEditor', () => {
       .get('[data-testid="hospital-address"]')
       .setValue('Klinikum Beispiel\nMusterstraße 1\n12345 Berlin')
 
-    const addressSections = addressWrapper.emitted('update:sections')?.at(-1)?.[0] as
-      | ReportTemplateBuilderSection[]
-      | undefined
+    const addressSections = latestSections(addressWrapper)
     expect(addressSections).toEqual([
       expect.objectContaining({
         sectionType: 'clinic_address',
@@ -79,12 +83,10 @@ describe('ReportTemplateBrandingEditor', () => {
     })
     await selectFile(logoWrapper, new File(['png'], 'logo.png', { type: 'image/png' }))
 
-    const logoSections = logoWrapper.emitted('update:sections')?.at(-1)?.[0] as
-      | ReportTemplateBuilderSection[]
-      | undefined
-    expect(logoSections?.[0]?.sectionType).toBe('logo')
-    expect(logoSections?.[0]?.name).toBe('clinic_logo')
-    expect(logoSections?.[0]?.description).toMatch(/^data:image\/png;base64,/)
+    const logoSections = latestSections(logoWrapper)
+    expect(logoSections[0]?.sectionType).toBe('logo')
+    expect(logoSections[0]?.name).toBe('clinic_logo')
+    expect(logoSections[0]?.description).toMatch(/^data:image\/png;base64,/)
   })
 
   it('removes an uploaded logo section without changing other report parts', async () => {
@@ -99,9 +101,7 @@ describe('ReportTemplateBrandingEditor', () => {
 
     await wrapper.get('[data-testid="remove-hospital-logo"]').trigger('click')
 
-    const updatedSections = wrapper.emitted('update:sections')?.at(-1)?.[0] as
-      | ReportTemplateBuilderSection[]
-      | undefined
+    const updatedSections = latestSections(wrapper)
     expect(updatedSections).toEqual([address])
   })
 

@@ -16,7 +16,8 @@
         <RouterLink
           class="btn btn-outline-secondary"
           to="/patienten"
-        >Patienten</RouterLink>
+          >Patienten</RouterLink
+        >
         <RouterLink
           class="btn btn-outline-primary"
           :to="{ name: 'Patientenmedikation', params: { patientId } }"
@@ -44,7 +45,9 @@
       v-else-if="error"
       class="alert alert-danger"
       role="alert"
-    >{{ error }}</div>
+    >
+      {{ error }}
+    </div>
     <div
       v-else-if="documents.length === 0"
       class="card card-body text-center text-muted"
@@ -89,7 +92,8 @@
             <span
               v-else
               class="small text-muted"
-            >Keine Datei verfügbar</span>
+              >Keine Datei verfügbar</span
+            >
           </div>
         </article>
       </div>

@@ -29,39 +29,39 @@ describe('anonymizationStore quarantine overview', () => {
     hoisted.get.mockImplementation((url: string) => {
       if (url === 'api/anonymization/items/overview/') {
         return resolvedData([
-            {
-              id: 17,
-              filename: 'processed-video.mp4',
-              mediaType: 'video',
-              anonymizationStatus: 'validated',
-              annotationStatus: 'validated',
-              createdAt: '2026-05-15T07:00:00Z',
-              metadataImported: true
-            }
-          ])
+          {
+            id: 17,
+            filename: 'processed-video.mp4',
+            mediaType: 'video',
+            anonymizationStatus: 'validated',
+            annotationStatus: 'validated',
+            createdAt: '2026-05-15T07:00:00Z',
+            metadataImported: true
+          }
+        ])
       }
       if (url.includes('runtime/quarantine/')) {
         return resolvedData({
-            count: 1,
-            totalSize: 65011712,
-            files: [
-              {
-                id: 'lx_annotate_quarantine:NINJAU_S001_S001_T016.MOV',
-                directoryKey: 'lx_annotate_quarantine',
-                directoryLabel: 'lx-annotate quarantine',
-                filename: 'NINJAU_S001_S001_T016.MOV',
-                mediaType: 'video',
-                size: 65011712,
-                quarantinedAt: '2026-05-15T07:20:22Z',
-                modifiedAt: '2026-05-15T07:19:35Z',
-                reason: 'Die Datei wurde unter Quarantäne gestellt.',
-                reviewStatus: 'pending_review',
-                nextAction: 'review_required',
-                sourceUploadJobId: '49b399f7-328e-42e5-927b-d0502d9231ab',
-                orphaned: false
-              }
-            ]
-          })
+          count: 1,
+          totalSize: 65011712,
+          files: [
+            {
+              id: 'lx_annotate_quarantine:NINJAU_S001_S001_T016.MOV',
+              directoryKey: 'lx_annotate_quarantine',
+              directoryLabel: 'lx-annotate quarantine',
+              filename: 'NINJAU_S001_S001_T016.MOV',
+              mediaType: 'video',
+              size: 65011712,
+              quarantinedAt: '2026-05-15T07:20:22Z',
+              modifiedAt: '2026-05-15T07:19:35Z',
+              reason: 'Die Datei wurde unter Quarantäne gestellt.',
+              reviewStatus: 'pending_review',
+              nextAction: 'review_required',
+              sourceUploadJobId: '49b399f7-328e-42e5-927b-d0502d9231ab',
+              orphaned: false
+            }
+          ]
+        })
       }
       return Promise.reject(new Error(`Unexpected URL: ${url}`))
     })
@@ -85,10 +85,12 @@ describe('anonymizationStore quarantine overview', () => {
     expect(quarantined?.uploadJob?.status).toBe('quarantined')
   })
 
-  it.each(['failed', 'done_processing_anonymization', 'validated'])('preserves backend status %s when a duplicate import fails', async (anonymizationStatus) => {
-    hoisted.get.mockImplementation((url: string) => {
-      if (url === 'api/anonymization/items/overview/') {
-        return resolvedData([
+  it.each(['failed', 'done_processing_anonymization', 'validated'])(
+    'preserves backend status %s when a duplicate import fails',
+    async (anonymizationStatus) => {
+      hoisted.get.mockImplementation((url: string) => {
+        if (url === 'api/anonymization/items/overview/') {
+          return resolvedData([
             {
               id: 17,
               filename: 'previously-annotated.mp4',
@@ -102,32 +104,34 @@ describe('anonymizationStore quarantine overview', () => {
                 status: 'error',
                 ingestMode: 'watcher',
                 errorCode: 'duplicate_content',
-                errorDetail: 'duplicate key value violates unique constraint "endoreg_db_videofile_video_hash_key"'
+                errorDetail:
+                  'duplicate key value violates unique constraint "endoreg_db_videofile_video_hash_key"'
               }
             }
           ])
-      }
-      if (url.includes('runtime/quarantine/')) {
-        return resolvedData({
+        }
+        if (url.includes('runtime/quarantine/')) {
+          return resolvedData({
             count: 0,
             totalSize: 0,
             files: []
           })
-      }
-      return Promise.reject(new Error(`Unexpected URL: ${url}`))
-    })
+        }
+        return Promise.reject(new Error(`Unexpected URL: ${url}`))
+      })
 
-    const store = useAnonymizationStore()
-    const overview = await store.fetchOverview()
+      const store = useAnonymizationStore()
+      const overview = await store.fetchOverview()
 
-    expect(overview).toHaveLength(1)
-    expect(store.overview[0]).toMatchObject({
-      filename: 'previously-annotated.mp4',
-      anonymizationStatus,
-      annotationStatus: 'not_started',
-      uploadJob: {
-        status: 'error'
-      }
-    })
-  })
+      expect(overview).toHaveLength(1)
+      expect(store.overview[0]).toMatchObject({
+        filename: 'previously-annotated.mp4',
+        anonymizationStatus,
+        annotationStatus: 'not_started',
+        uploadJob: {
+          status: 'error'
+        }
+      })
+    }
+  )
 })

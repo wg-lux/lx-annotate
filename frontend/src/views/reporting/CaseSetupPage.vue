@@ -8,7 +8,8 @@
       <span
         class="badge"
         :class="sessionBadgeClass"
-      >{{ sessionBadgeLabel }}</span>
+        >{{ sessionBadgeLabel }}</span
+      >
     </div>
     <div class="card-body">
       <div
@@ -57,10 +58,12 @@
             for="reporting-patient-select"
           >
             <span class="setup-step">1</span>
-            Patient auswählen <span
-                                class="text-danger"
-                                aria-hidden="true"
-                              >*</span>
+            Patient auswählen
+            <span
+              class="text-danger"
+              aria-hidden="true"
+              >*</span
+            >
           </label>
           <select
             id="reporting-patient-select"
@@ -92,10 +95,12 @@
             for="reporting-examination-type-select"
           >
             <span class="setup-step">2</span>
-            Untersuchung auswählen <span
-                                     class="text-danger"
-                                     aria-hidden="true"
-                                   >*</span>
+            Untersuchung auswählen
+            <span
+              class="text-danger"
+              aria-hidden="true"
+              >*</span
+            >
           </label>
           <select
             id="reporting-examination-type-select"
@@ -176,11 +181,15 @@
           </div>
           <div class="setup-technical-fact">
             <dt class="setup-technical-label">Patientenuntersuchung</dt>
-            <dd class="setup-technical-value">{{ flow.patientExaminationId || 'Noch nicht angelegt' }}</dd>
+            <dd class="setup-technical-value">
+              {{ flow.patientExaminationId || 'Noch nicht angelegt' }}
+            </dd>
           </div>
           <div class="setup-technical-fact">
             <dt class="setup-technical-label">Entwurf</dt>
-            <dd class="setup-technical-value">{{ flow.currentRuntimeDraft ? 'Geladen' : 'Noch nicht geladen' }}</dd>
+            <dd class="setup-technical-value">
+              {{ flow.currentRuntimeDraft ? 'Geladen' : 'Noch nicht geladen' }}
+            </dd>
           </div>
         </dl>
       </details>
@@ -229,8 +238,8 @@ const examinations = computed(() => examinationStore.examinationsDropdown)
 const patientsLoading = computed(() => patientStore.loading)
 const examinationsLoading = computed(() => examinationStore.loading)
 const returnToPath = computed(() => {
-  const raw = route.query.returnTo
-  return typeof raw === 'string' && raw.trim() ? raw : null
+  const returnPath = route.query.returnTo
+  return typeof returnPath === 'string' && returnPath.trim() ? returnPath : null
 })
 
 const nextRoute = computed(() =>
@@ -276,19 +285,19 @@ function applyPreferredExaminationSelection() {
   }
 }
 
-function onPatientChange(raw: string) {
+function onPatientChange(rawSelection: string) {
   clearMessages()
-  const id = parseOptionalInt(raw)
+  const patientId = parseOptionalInt(rawSelection)
   const previousPatientId = flow.selectedPatientId
-  if (previousPatientId && id !== previousPatientId) {
+  if (previousPatientId && patientId !== previousPatientId) {
     flow.resetForPatientSwitch()
   }
-  flow.setCaseSelection({ selectedPatientId: id })
+  flow.setCaseSelection({ selectedPatientId: patientId })
 }
 
-function onExaminationChange(raw: string) {
+function onExaminationChange(rawSelection: string) {
   clearMessages()
-  flow.setCaseSelection({ selectedExaminationId: parseOptionalInt(raw) })
+  flow.setCaseSelection({ selectedExaminationId: parseOptionalInt(rawSelection) })
 }
 
 async function reloadLists() {
@@ -328,16 +337,16 @@ async function createPatientExaminationContext() {
       }
     })
 
-    const pe = result.patientExamination as PatientExamination
+    const patientExamination = result.patientExamination as PatientExamination
     const patientCase = result.case
-    patientExaminationStore.addPatientExamination(pe)
-    patientExaminationStore.setCurrentPatientExaminationId(pe.id)
+    patientExaminationStore.addPatientExamination(patientExamination)
+    patientExaminationStore.setCurrentPatientExaminationId(patientExamination.id)
     flow.setCaseContext({
       caseId: patientCase.caseId,
       selectedPatientId: flow.selectedPatientId
     })
     flow.setPatientExaminationContext({
-      patientExaminationId: pe.id,
+      patientExaminationId: patientExamination.id,
       selectedPatientId: flow.selectedPatientId,
       selectedExaminationId: flow.selectedExaminationId,
       preserveTemplateSelection: true
@@ -357,8 +366,8 @@ async function createPatientExaminationContext() {
 }
 
 function parseOptionalInt(value: string): number | null {
-  const n = Number(value)
-  return Number.isFinite(n) && value !== '' ? n : null
+  const parsedNumber = Number(value)
+  return Number.isFinite(parsedNumber) && value !== '' ? parsedNumber : null
 }
 
 onMounted(async () => {

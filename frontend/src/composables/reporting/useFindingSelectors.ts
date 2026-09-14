@@ -156,10 +156,7 @@ function useFindingCatalogState() {
   }
 }
 
-function findingCatalogContextKey(
-  examinationId: number,
-  context?: FindingsCatalogContext
-): string {
+function findingCatalogContextKey(examinationId: number, context?: FindingsCatalogContext): string {
   if (!context) {
     return String(examinationId)
   }

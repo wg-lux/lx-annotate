@@ -45,16 +45,33 @@ export function isVerifiedRuntimeDraftForBundle(
   bundle: { moduleName: string; version: string } | null,
   patientExaminationId?: number | null
 ): boolean {
-  if (!draft || !bundle || draft.verificationStatus !== 'verified' || !draft.templateName) {
-    return false
-  }
-  if (patientExaminationId && draft.patientExaminationId !== patientExaminationId) {
-    return false
-  }
+  if (!draft || !bundle) return false
+  return (
+    isVerifiedTemplatedDraft(draft) &&
+    matchesPatientExamination(draft, patientExaminationId) &&
+    matchesTemplateBundle(draft, bundle)
+  )
+}
+
+function matchesTemplateBundle(
+  draft: ReportingRuntimeDraft,
+  bundle: { moduleName: string; version: string }
+): boolean {
   const identity = draft.templateIdentity
   const moduleName = identity?.moduleName || draft.payload.knowledgeBaseModule || draft.moduleName
   const version = identity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
   return moduleName === bundle.moduleName && version === bundle.version
+}
+
+function isVerifiedTemplatedDraft(draft: ReportingRuntimeDraft): boolean {
+  return draft.verificationStatus === 'verified' && Boolean(draft.templateName)
+}
+
+function matchesPatientExamination(
+  draft: ReportingRuntimeDraft,
+  patientExaminationId?: number | null
+): boolean {
+  return !patientExaminationId || draft.patientExaminationId === patientExaminationId
 }
 
 type PersistedReportingFlowState = {
@@ -171,18 +188,12 @@ function draftRevisionConflict(
     expectedRevision: number
   }
 ): DraftRevisionConflict | null {
-  const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
-  const response =
-    errorRecord.response && typeof errorRecord.response === 'object'
-      ? (errorRecord.response as Record<string, unknown>)
-      : {}
+  const errorRecord = recordOrEmpty(error)
+  const response = recordOrEmpty(errorRecord.response)
   if (response.status !== 409) {
     return null
   }
-  const data =
-    response.data && typeof response.data === 'object'
-      ? (response.data as Record<string, unknown>)
-      : {}
+  const data = recordOrEmpty(response.data)
   const currentRevision = safeRevision(data.currentRevision ?? data.current_revision)
   if (currentRevision === null) {
     return null
@@ -200,26 +211,15 @@ function draftPersistenceErrorMessage(error: unknown): string {
   if (error instanceof DraftRevisionConflictError) {
     return error.message
   }
-  const errorRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : {}
-  const response =
-    errorRecord.response && typeof errorRecord.response === 'object'
-      ? (errorRecord.response as Record<string, unknown>)
-      : {}
-  const data =
-    response.data && typeof response.data === 'object'
-      ? (response.data as Record<string, unknown>)
-      : {}
+  const errorRecord = recordOrEmpty(error)
+  const response = recordOrEmpty(errorRecord.response)
+  const data = recordOrEmpty(response.data)
   const nonFieldErrors = data.nonFieldErrors ?? data.non_field_errors
-  const firstNonFieldError =
-    Array.isArray(nonFieldErrors) && typeof nonFieldErrors[0] === 'string'
-      ? nonFieldErrors[0]
-      : null
-  return (
-    (typeof data.detail === 'string' ? data.detail : null) ||
-    firstNonFieldError ||
-    (typeof errorRecord.message === 'string' ? errorRecord.message : null) ||
-    'Der Reporting-Entwurf konnte nicht gespeichert werden.'
-  )
+  const firstNonFieldError: unknown = Array.isArray(nonFieldErrors) ? nonFieldErrors[0] : null
+  if (typeof data.detail === 'string') return data.detail
+  if (typeof firstNonFieldError === 'string') return firstNonFieldError
+  if (typeof errorRecord.message === 'string') return errorRecord.message
+  return 'Der Reporting-Entwurf konnte nicht gespeichert werden.'
 }
 
 function clearPersistedState() {
@@ -235,6 +235,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
+function recordOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {}
+}
+
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string'
 }
@@ -243,25 +247,39 @@ function isReportTemplateIdentity(value: unknown): value is ReportTemplateIdenti
   if (!isRecord(value)) {
     return false
   }
-  const readiness = value.readiness
-  const readinessIsValid =
-    readiness === null ||
-    (isRecord(readiness) &&
-      (readiness.canPublish === null || typeof readiness.canPublish === 'boolean') &&
-      Array.isArray(readiness.blockingIssues) &&
-      readiness.blockingIssues.every((item: unknown) => typeof item === 'string') &&
-      Array.isArray(readiness.warnings) &&
-      readiness.warnings.every((item: unknown) => typeof item === 'string') &&
-      isRecord(readiness.raw))
+  return (
+    hasValidTemplateIdentityStrings(value) &&
+    isTemplateLifecycleStatus(value.lifecycleStatus) &&
+    isTemplateReadiness(value.readiness)
+  )
+}
+
+function hasValidTemplateIdentityStrings(value: Record<string, unknown>): boolean {
   return (
     isNullableString(value.moduleName) &&
     isNullableString(value.knowledgeBaseVersion) &&
     isNullableString(value.templateVersion) &&
-    isNullableString(value.templateHash) &&
-    (value.lifecycleStatus === null ||
-      value.lifecycleStatus === 'draft' ||
-      value.lifecycleStatus === 'published') &&
-    readinessIsValid
+    isNullableString(value.templateHash)
+  )
+}
+
+function isTemplateLifecycleStatus(value: unknown): boolean {
+  return value === null || value === 'draft' || value === 'published'
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item: unknown) => typeof item === 'string')
+}
+
+function isTemplateReadiness(value: unknown): boolean {
+  if (value === null) return true
+  if (!isRecord(value)) return false
+  const canPublishIsValid = value.canPublish === null || typeof value.canPublish === 'boolean'
+  return (
+    canPublishIsValid &&
+    isStringArray(value.blockingIssues) &&
+    isStringArray(value.warnings) &&
+    isRecord(value.raw)
   )
 }
 
@@ -300,17 +318,29 @@ function isRuntimePatientFinding(
 }
 
 function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload {
+  if (!isRecord(value)) return false
+  return hasValidRuntimePayloadCore(value) && hasValidRuntimePayloadOptionals(value)
+}
+
+function hasValidRuntimePayloadCore(value: Record<string, unknown>): boolean {
   return (
-    isRecord(value) &&
     typeof value.patient === 'string' &&
-    Array.isArray(value.examiners) &&
-    value.examiners.every((examiner: unknown) => typeof examiner === 'string') &&
-    (value.date === undefined || isNullableString(value.date)) &&
+    isStringArray(value.examiners) &&
     typeof value.examination === 'string' &&
-    (value.knowledgeBaseModule === undefined || isNullableString(value.knowledgeBaseModule)) &&
-    (value.knowledgeBaseVersion === undefined || isNullableString(value.knowledgeBaseVersion)) &&
     Array.isArray(value.patientFindings) &&
     value.patientFindings.every(isRuntimePatientFinding)
+  )
+}
+
+function isOptionalNullableString(value: unknown): boolean {
+  return value === undefined || isNullableString(value)
+}
+
+function hasValidRuntimePayloadOptionals(value: Record<string, unknown>): boolean {
+  return (
+    isOptionalNullableString(value.date) &&
+    isOptionalNullableString(value.knowledgeBaseModule) &&
+    isOptionalNullableString(value.knowledgeBaseVersion)
   )
 }
 
@@ -318,6 +348,14 @@ function isReportingRuntimeDraft(value: unknown): value is ReportingRuntimeDraft
   if (!isRecord(value)) {
     return false
   }
+  return (
+    hasValidRuntimeDraftIdentity(value) &&
+    hasValidRuntimeDraftPolicy(value) &&
+    hasValidRuntimeDraftProvenance(value)
+  )
+}
+
+function hasValidRuntimeDraftIdentity(value: Record<string, unknown>): boolean {
   const templateIdentity = value.templateIdentity
   return (
     typeof value.draftId === 'string' &&
@@ -328,13 +366,23 @@ function isReportingRuntimeDraft(value: unknown): value is ReportingRuntimeDraft
     isNullableString(value.templateName) &&
     (templateIdentity === undefined ||
       templateIdentity === null ||
-      isReportTemplateIdentity(templateIdentity)) &&
+      isReportTemplateIdentity(templateIdentity))
+  )
+}
+
+function hasValidRuntimeDraftPolicy(value: Record<string, unknown>): boolean {
+  return (
     (value.verificationStatus === undefined ||
       value.verificationStatus === 'verified' ||
       value.verificationStatus === 'unverified') &&
     (value.persistencePolicy === undefined ||
       value.persistencePolicy === 'persistable' ||
-      value.persistencePolicy === 'blocked_until_verified') &&
+      value.persistencePolicy === 'blocked_until_verified')
+  )
+}
+
+function hasValidRuntimeDraftProvenance(value: Record<string, unknown>): boolean {
+  return (
     isRuntimePayload(value.payload) &&
     (value.hydratedFrom === 'session_storage' ||
       value.hydratedFrom === 'backend_context' ||
@@ -345,17 +393,29 @@ function isReportingRuntimeDraft(value: unknown): value is ReportingRuntimeDraft
 }
 
 function normalizePersistedState(parsed: Record<string, unknown>): PersistedReportingFlowState {
-  const runtimeDraftsByPatientExaminationId: Partial<Record<string, ReportingRuntimeDraft>> =
-    isRecord(parsed.runtimeDraftsByPatientExaminationId)
-      ? Object.fromEntries(
-          Object.entries(parsed.runtimeDraftsByPatientExaminationId).filter(
-            (entry): entry is [string, ReportingRuntimeDraft] => isReportingRuntimeDraft(entry[1])
-          )
-        )
-      : {}
+  return {
+    ...normalizePersistedContext(parsed),
+    ...normalizePersistedReportConfiguration(parsed),
+    runtimeDraftsByPatientExaminationId: normalizePersistedRuntimeDrafts(
+      parsed.runtimeDraftsByPatientExaminationId
+    )
+  }
+}
 
-  const indicationRows = Array.isArray(parsed.indications) ? parsed.indications : []
-  const indications = indicationRows.map((row: unknown): ReportingIndicationRow => {
+function normalizePersistedRuntimeDrafts(
+  value: unknown
+): Partial<Record<string, ReportingRuntimeDraft>> {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, ReportingRuntimeDraft] =>
+      isReportingRuntimeDraft(entry[1])
+    )
+  )
+}
+
+function normalizePersistedIndications(value: unknown): ReportingIndicationRow[] {
+  const rows = Array.isArray(value) ? value : []
+  return rows.map((row: unknown): ReportingIndicationRow => {
     const record = isRecord(row) ? row : {}
     return {
       examinationIndicationId:
@@ -364,25 +424,41 @@ function normalizePersistedState(parsed: Record<string, unknown>): PersistedRepo
         typeof record.indicationChoiceId === 'number' ? record.indicationChoiceId : null
     }
   })
+}
 
-  const templateSectionDrafts: Partial<Record<string, ReportTemplateSectionDraft>> = isRecord(
-    parsed.templateSectionDrafts
+function normalizeTemplateSectionDrafts(
+  value: unknown
+): Partial<Record<string, ReportTemplateSectionDraft>> {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).map(([key, section]) => {
+      const draft = recordOrEmpty(section)
+      return [
+        key,
+        {
+          note: typeof draft.note === 'string' ? draft.note : '',
+          includePatientData: draft.includePatientData === true,
+          includeExaminationData: draft.includeExaminationData === true
+        }
+      ]
+    })
   )
-    ? Object.fromEntries(
-        Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
-          const draft = isRecord(value) ? value : {}
-          return [
-            key,
-            {
-              note: typeof draft.note === 'string' ? draft.note : '',
-              includePatientData: draft.includePatientData === true,
-              includeExaminationData: draft.includeExaminationData === true
-            }
-          ]
-        })
-      )
-    : {}
+}
 
+function normalizePersistedContext(
+  parsed: Record<string, unknown>
+): Pick<
+  PersistedReportingFlowState,
+  | 'lookupToken'
+  | 'caseId'
+  | 'patientExaminationId'
+  | 'selectedPatientId'
+  | 'selectedExaminationId'
+  | 'activeReportId'
+  | 'reportTextMode'
+  | 'renderedReportText'
+  | 'indications'
+> {
   return {
     lookupToken: typeof parsed.lookupToken === 'string' ? parsed.lookupToken : null,
     caseId: typeof parsed.caseId === 'string' && parsed.caseId.trim() ? parsed.caseId : null,
@@ -396,7 +472,21 @@ function normalizePersistedState(parsed: Record<string, unknown>): PersistedRepo
     reportTextMode: parsed.reportTextMode === 'manual' ? 'manual' : 'generated',
     renderedReportText:
       typeof parsed.renderedReportText === 'string' ? parsed.renderedReportText : '',
-    indications,
+    indications: normalizePersistedIndications(parsed.indications)
+  }
+}
+
+function normalizePersistedReportConfiguration(
+  parsed: Record<string, unknown>
+): Pick<
+  PersistedReportingFlowState,
+  | 'selectedKbModule'
+  | 'selectedReportLanguage'
+  | 'selectedTemplateName'
+  | 'selectedTemplateIdentity'
+  | 'templateSectionDrafts'
+> {
+  return {
     selectedKbModule:
       typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
         ? parsed.selectedKbModule
@@ -412,8 +502,7 @@ function normalizePersistedState(parsed: Record<string, unknown>): PersistedRepo
     selectedTemplateIdentity: isReportTemplateIdentity(parsed.selectedTemplateIdentity)
       ? parsed.selectedTemplateIdentity
       : null,
-    templateSectionDrafts,
-    runtimeDraftsByPatientExaminationId
+    templateSectionDrafts: normalizeTemplateSectionDrafts(parsed.templateSectionDrafts)
   }
 }
 
@@ -576,25 +665,38 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     selectedExaminationId?: number | null
     preserveTemplateSelection?: boolean
   }) {
-    const cachedDraft = params.patientExaminationId
-      ? runtimeDraftsByPatientExaminationId.value[String(params.patientExaminationId)]
+    markCachedDraftUnverifiedForContextChange(params.patientExaminationId)
+    applyPatientExaminationSelection(params)
+    resetPatientExaminationWorkflow(params.preserveTemplateSelection ?? false)
+  }
+
+  function markCachedDraftUnverifiedForContextChange(nextPatientExaminationId: number | null) {
+    const cachedDraft = nextPatientExaminationId
+      ? runtimeDraftsByPatientExaminationId.value[String(nextPatientExaminationId)]
       : null
-    if (cachedDraft && params.patientExaminationId !== patientExaminationId.value) {
-      const requiresTemplateVerification = Boolean(
-        cachedDraft.templateName ||
-        cachedDraft.moduleName ||
-        cachedDraft.templateIdentity?.moduleName ||
-        cachedDraft.payload.knowledgeBaseModule
-      )
-      runtimeDraftsByPatientExaminationId.value = {
-        ...runtimeDraftsByPatientExaminationId.value,
-        [String(params.patientExaminationId)]: {
-          ...cachedDraft,
-          verificationStatus: 'unverified',
-          persistencePolicy: requiresTemplateVerification ? 'blocked_until_verified' : 'persistable'
-        }
+    if (!cachedDraft || nextPatientExaminationId === patientExaminationId.value) return
+
+    const requiresTemplateVerification = Boolean(
+      cachedDraft.templateName ||
+      cachedDraft.moduleName ||
+      cachedDraft.templateIdentity?.moduleName ||
+      cachedDraft.payload.knowledgeBaseModule
+    )
+    runtimeDraftsByPatientExaminationId.value = {
+      ...runtimeDraftsByPatientExaminationId.value,
+      [String(nextPatientExaminationId)]: {
+        ...cachedDraft,
+        verificationStatus: 'unverified',
+        persistencePolicy: requiresTemplateVerification ? 'blocked_until_verified' : 'persistable'
       }
     }
+  }
+
+  function applyPatientExaminationSelection(params: {
+    patientExaminationId: number | null
+    selectedPatientId?: number | null
+    selectedExaminationId?: number | null
+  }) {
     patientExaminationId.value = params.patientExaminationId
     if (params.selectedPatientId !== undefined) {
       selectedPatientId.value = params.selectedPatientId
@@ -602,7 +704,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     if (params.selectedExaminationId !== undefined) {
       selectedExaminationId.value = params.selectedExaminationId
     }
+  }
 
+  function resetPatientExaminationWorkflow(preserveTemplateSelection: boolean) {
     lookupToken.value = null
     sessionStatus.value = 'idle'
     activeReportId.value = null
@@ -611,13 +715,11 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     lastTemplateValidation.value = null
     findingsRevision.value = 0
     lastFindingsEvent.value = null
-    if (!(params.preserveTemplateSelection ?? false)) {
+    if (!preserveTemplateSelection) {
       selectedTemplateName.value = null
       selectedTemplateIdentity.value = null
-      templateSectionDrafts.value = {}
-    } else {
-      templateSectionDrafts.value = {}
     }
+    templateSectionDrafts.value = {}
   }
 
   function setCaseContext(params: { caseId: string | null; selectedPatientId?: number | null }) {
@@ -866,6 +968,86 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     draftAutosaveTimer.value = null
   }
 
+  type DraftSaveAttempt = {
+    patientExaminationId: number
+    expectedRevision: number
+  }
+
+  async function persistDraftChanges(
+    generation: number,
+    attemptState: { last: DraftSaveAttempt | null }
+  ) {
+    while (shouldContinueDraftPersistence(generation)) {
+      const currentPayload = currentDraftPersistencePayload.value
+      const signatureToPersist = currentDraftPersistenceSignature.value
+      if (!currentPayload || !signatureToPersist) return
+      if (signatureToPersist === draftAutosaveSignature.value) break
+
+      const payloadSnapshot = JSON.parse(JSON.stringify(currentPayload)) as typeof currentPayload
+      attemptState.last = {
+        patientExaminationId: payloadSnapshot.patientExaminationId,
+        expectedRevision: payloadSnapshot.expectedRevision
+      }
+      const response = await savePatientExaminationDraft(payloadSnapshot)
+      if (generation !== draftPersistenceGeneration) return
+      if (patientExaminationId.value !== payloadSnapshot.patientExaminationId) continue
+
+      lastPersistedDraftAt.value = response.updatedAt ?? response.updated_at ?? null
+      const persistedDraft = currentRuntimeDraft.value
+      if (persistedDraft) {
+        setRuntimeDraft({ ...persistedDraft, revision: response.revision })
+      }
+      draftAutosaveSignature.value = signatureToPersist
+      draftConflict.value = null
+    }
+  }
+
+  function shouldContinueDraftPersistence(generation: number): boolean {
+    return generation === draftPersistenceGeneration && !savingFinalReport.value
+  }
+
+  function markDraftPersistenceComplete(generation: number) {
+    if (generation !== draftPersistenceGeneration) return
+    if (currentDraftPersistenceSignature.value !== draftAutosaveSignature.value) return
+    draftPersistenceStatus.value = 'saved'
+  }
+
+  function handleDraftPersistenceFailure(
+    error: unknown,
+    generation: number,
+    lastAttempt: DraftSaveAttempt | null
+  ): never {
+    if (generation !== draftPersistenceGeneration) throw error
+    const conflict = draftRevisionConflict(error, {
+      patientExaminationId: lastAttempt?.patientExaminationId ?? 0,
+      expectedRevision: lastAttempt?.expectedRevision ?? 0
+    })
+    if (!conflict) {
+      draftPersistenceStatus.value = 'error'
+      draftPersistenceError.value = draftPersistenceErrorMessage(error)
+      throw error
+    }
+    const conflictError = new DraftRevisionConflictError(conflict)
+    draftConflict.value = conflict
+    draftPersistenceStatus.value = 'conflict'
+    draftPersistenceError.value = draftPersistenceErrorMessage(conflictError)
+    throw conflictError
+  }
+
+  async function runDraftPersistence(generation: number): Promise<void> {
+    const attemptState: { last: DraftSaveAttempt | null } = { last: null }
+    try {
+      await persistDraftChanges(generation, attemptState)
+      markDraftPersistenceComplete(generation)
+    } catch (error: unknown) {
+      handleDraftPersistenceFailure(error, generation, attemptState.last)
+    } finally {
+      if (generation === draftPersistenceGeneration) {
+        draftPersistencePromise.value = null
+      }
+    }
+  }
+
   async function persistCurrentRuntimeDraft() {
     if (savingFinalReport.value) {
       return
@@ -882,77 +1064,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       return draftPersistencePromise.value
     }
     const generation = draftPersistenceGeneration
-    let lastAttempt: {
-      patientExaminationId: number
-      expectedRevision: number
-    } | null = null
     draftPersistenceStatus.value = 'saving'
     draftPersistenceError.value = null
-    const request: Promise<void> = (async () => {
-      try {
-        while (generation === draftPersistenceGeneration && !savingFinalReport.value) {
-          const currentPayload = currentDraftPersistencePayload.value
-          if (!currentPayload) {
-            return
-          }
-          const signatureToPersist = currentDraftPersistenceSignature.value
-          if (!signatureToPersist) {
-            return
-          }
-          const payloadSnapshot = JSON.parse(
-            JSON.stringify(currentPayload)
-          ) as typeof currentPayload
-          if (signatureToPersist === draftAutosaveSignature.value) {
-            break
-          }
-
-          lastAttempt = {
-            patientExaminationId: payloadSnapshot.patientExaminationId,
-            expectedRevision: payloadSnapshot.expectedRevision
-          }
-          const response = await savePatientExaminationDraft(payloadSnapshot)
-          if (generation !== draftPersistenceGeneration) {
-            return
-          }
-          if (patientExaminationId.value === payloadSnapshot.patientExaminationId) {
-            lastPersistedDraftAt.value = response.updatedAt ?? response.updated_at ?? null
-            const persistedDraft = currentRuntimeDraft.value
-            if (persistedDraft) {
-              setRuntimeDraft({ ...persistedDraft, revision: response.revision })
-            }
-            draftAutosaveSignature.value = signatureToPersist
-            draftConflict.value = null
-          }
-        }
-        if (
-          generation === draftPersistenceGeneration &&
-          currentDraftPersistenceSignature.value === draftAutosaveSignature.value
-        ) {
-          draftPersistenceStatus.value = 'saved'
-        }
-      } catch (error: unknown) {
-        if (generation === draftPersistenceGeneration) {
-          const conflict = draftRevisionConflict(error, {
-            patientExaminationId: lastAttempt?.patientExaminationId ?? 0,
-            expectedRevision: lastAttempt?.expectedRevision ?? 0
-          })
-          if (conflict) {
-            const conflictError = new DraftRevisionConflictError(conflict)
-            draftConflict.value = conflict
-            draftPersistenceStatus.value = 'conflict'
-            draftPersistenceError.value = draftPersistenceErrorMessage(conflictError)
-            throw conflictError
-          }
-          draftPersistenceStatus.value = 'error'
-          draftPersistenceError.value = draftPersistenceErrorMessage(error)
-        }
-        throw error
-      } finally {
-        if (generation === draftPersistenceGeneration) {
-          draftPersistencePromise.value = null
-        }
-      }
-    })()
+    const request = runDraftPersistence(generation)
     draftPersistencePromise.value = request
     return request
   }
@@ -1096,27 +1210,43 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     templateSectionDrafts.value = {}
   }
 
-  function applyPersistedReportConfiguration(persisted: PersistedReportingFlowState | null) {
+  function applyPersistedTemplateConfiguration(persisted: PersistedReportingFlowState | null) {
     selectedKbModule.value = persisted?.selectedKbModule ?? ''
-    selectedReportLanguage.value = persisted?.selectedReportLanguage ?? 'de'
     selectedTemplateName.value = persisted?.selectedTemplateName ?? null
     selectedTemplateIdentity.value = persisted?.selectedTemplateIdentity ?? null
     templateSectionDrafts.value = persisted?.templateSectionDrafts ?? {}
   }
 
-  function applyPersistedState(persisted: PersistedReportingFlowState | null) {
+  function applyPersistedCaseContext(persisted: PersistedReportingFlowState | null) {
     lookupToken.value = persisted?.lookupToken ?? null
     caseId.value = persisted?.caseId ?? null
     patientExaminationId.value = persisted?.patientExaminationId ?? null
+    applyPersistedCaseSelection(persisted)
+  }
+
+  function applyPersistedCaseSelection(persisted: PersistedReportingFlowState | null) {
     selectedPatientId.value = persisted?.selectedPatientId ?? null
     selectedExaminationId.value = persisted?.selectedExaminationId ?? null
+  }
+
+  function applyPersistedDocument(persisted: PersistedReportingFlowState | null) {
     activeReportId.value = persisted?.activeReportId ?? null
     reportTextMode.value = persisted?.reportTextMode ?? 'generated'
     renderedReportText.value = persisted?.renderedReportText ?? ''
+    applyPersistedIndicationsAndLanguage(persisted)
+  }
+
+  function applyPersistedIndicationsAndLanguage(persisted: PersistedReportingFlowState | null) {
     indications.value = persisted?.indications.length
       ? persisted.indications
       : [{ examinationIndicationId: null, indicationChoiceId: null }]
-    applyPersistedReportConfiguration(persisted)
+    selectedReportLanguage.value = persisted?.selectedReportLanguage ?? 'de'
+  }
+
+  function applyPersistedState(persisted: PersistedReportingFlowState | null) {
+    applyPersistedCaseContext(persisted)
+    applyPersistedDocument(persisted)
+    applyPersistedTemplateConfiguration(persisted)
     runtimeDraftsByPatientExaminationId.value = persisted?.runtimeDraftsByPatientExaminationId ?? {}
   }
 

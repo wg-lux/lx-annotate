@@ -48,11 +48,15 @@
         <div
           v-if="errorMessage"
           class="alert alert-danger py-2 mb-3"
-        >{{ errorMessage }}</div>
+        >
+          {{ errorMessage }}
+        </div>
         <div
           v-if="successMessage"
           class="alert alert-success py-2 mb-3"
-        >{{ successMessage }}</div>
+        >
+          {{ successMessage }}
+        </div>
         <div class="alert alert-secondary py-2 small mb-0">
           Änderungen in diesem Bereich werden erst nach dem Speichern dauerhaft übernommen.
         </div>
@@ -83,7 +87,9 @@
                   <option
                     value=""
                     disabled
-                  >Untersuchung wählen</option>
+                  >
+                    Untersuchung wählen
+                  </option>
                   <option
                     v-for="item in examinationOptions"
                     :key="item.name"
@@ -103,7 +109,9 @@
                   <option
                     value=""
                     disabled
-                  >Vorlage wählen</option>
+                  >
+                    Vorlage wählen
+                  </option>
                   <option
                     v-for="item in templateOptions"
                     :key="item.name"
@@ -203,7 +211,9 @@
                   <li
                     v-for="error in builderReadiness.errors"
                     :key="error"
-                  >{{ error }}</li>
+                  >
+                    {{ error }}
+                  </li>
                 </ul>
                 <ul
                   v-if="builderReadiness?.warnings.length"
@@ -212,7 +222,9 @@
                   <li
                     v-for="warning in builderReadiness.warnings"
                     :key="warning"
-                  >{{ warning }}</li>
+                  >
+                    {{ warning }}
+                  </li>
                 </ul>
               </div>
             </div>
@@ -298,7 +310,9 @@
                     <option
                       value=""
                       disabled
-                    >Befund wählen</option>
+                    >
+                      Befund wählen
+                    </option>
                     <option
                       v-for="item in findingOptions"
                       :key="item.name"
@@ -343,7 +357,9 @@
                       <option
                         value=""
                         disabled
-                      >Klassifikation waehlen</option>
+                      >
+                        Klassifikation waehlen
+                      </option>
                       <option
                         v-for="item in classificationOptions"
                         :key="item.name"
@@ -451,7 +467,9 @@
                   <div
                     v-if="issue.nodeId"
                     class="text-muted"
-                  >{{ issue.nodeId }}</div>
+                  >
+                    {{ issue.nodeId }}
+                  </div>
                 </li>
               </ul>
             </template>
@@ -636,396 +654,11 @@
           :examination="examination"
         />
 
-        <div class="border rounded p-3 mt-4 bg-light-subtle">
-          <div class="d-flex flex-wrap gap-2 align-items-end">
-            <div>
-              <label class="form-label form-label-sm mb-1">Neue Sektion</label>
-              <select
-                v-model="pendingSectionType"
-                class="form-select form-select-sm"
-              >
-                <option
-                  value=""
-                  disabled
-                >Sektionstyp wählen</option>
-                <option
-                  v-for="preset in availablePresets"
-                  :key="preset.type"
-                  :value="preset.type"
-                >
-                  {{ preset.label }}
-                </option>
-              </select>
-            </div>
-            <button
-              class="btn btn-outline-primary btn-sm"
-              :disabled="!pendingSectionType"
-              @click="addSection"
-            >
-              Sektion hinzufügen
-            </button>
-          </div>
-        </div>
-
-        <div
-          v-if="!sections.length"
-          class="alert alert-info mt-3 mb-0"
-        >
-          Noch keine Sektionen angelegt.
-        </div>
-
-        <div
-          v-for="(section, sectionIndex) in sections"
-          :key="section.id"
-          class="border rounded p-3 mt-3"
-        >
-          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <div>
-              <strong>{{ sectionTitle(section) }}</strong>
-              <div class="small text-muted">{{ sectionExampleLabel(section) }}</div>
-            </div>
-            <div class="d-flex gap-2">
-              <button
-                class="btn btn-outline-secondary btn-sm"
-                :disabled="sectionIndex === 0"
-                @click="moveSection(sectionIndex, -1)"
-              >
-                Hoch
-              </button>
-              <button
-                class="btn btn-outline-secondary btn-sm"
-                :disabled="sectionIndex === sections.length - 1"
-                @click="moveSection(sectionIndex, 1)"
-              >
-                Runter
-              </button>
-              <button
-                class="btn btn-outline-danger btn-sm"
-                @click="removeSection(section.id)"
-              >
-                Entfernen
-              </button>
-            </div>
-          </div>
-
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Sektionsname</label>
-              <input
-                v-model="section.name"
-                class="form-control"
-              />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Typ</label>
-              <input
-                :value="section.sectionType"
-                class="form-control"
-                readonly
-              />
-            </div>
-            <div class="col-12">
-              <label class="form-label">Beschreibung</label>
-              <textarea
-                v-model="section.description"
-                class="form-control"
-                rows="2"
-                :placeholder="sectionDescriptionPlaceholder(section)"
-              />
-            </div>
-          </div>
-
-          <template v-if="section.sectionType === 'patient_info'">
-            <div class="mt-4">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">Patientenfelder</h6>
-                <button
-                  class="btn btn-outline-secondary btn-sm"
-                  @click="addPatientField(section.id)"
-                >
-                  Feld hinzufügen
-                </button>
-              </div>
-              <div
-                v-for="(field, fieldIndex) in section.fields"
-                :key="`${section.id}-field-${fieldIndex}`"
-                class="row g-2 align-items-end mb-2"
-              >
-                <div class="col-md-4">
-                  <label class="form-label form-label-sm">Schlüssel</label>
-                  <input
-                    v-model="field.key"
-                    class="form-control form-control-sm"
-                  />
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label form-label-sm">Label</label>
-                  <input
-                    v-model="field.label"
-                    class="form-control form-control-sm"
-                  />
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label form-label-sm">Quelle</label>
-                  <select
-                    v-model="field.source"
-                    class="form-select form-select-sm"
-                  >
-                    <option value="patient">patient</option>
-                    <option value="patient_examination">patient_examination</option>
-                    <option value="history">history</option>
-                  </select>
-                </div>
-                <div class="col-md-1 d-flex align-items-center justify-content-center">
-                  <input
-                    v-model="field.required"
-                    class="form-check-input mt-4"
-                    type="checkbox"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template v-if="section.sectionType === 'findings'">
-            <div class="mt-4">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0">Befunde</h6>
-                <button
-                  class="btn btn-outline-secondary btn-sm"
-                  @click="addFinding(section.id)"
-                >
-                  Befund hinzufügen
-                </button>
-              </div>
-
-              <div
-                v-for="(finding, findingIndex) in section.findings"
-                :key="`${section.id}-finding-${findingIndex}`"
-                class="border rounded p-3 mb-3"
-              >
-                <div class="row g-3">
-                  <div class="col-md-4">
-                    <label class="form-label form-label-sm">Befund</label>
-                    <select
-                      v-model="finding.finding"
-                      class="form-select form-select-sm"
-                    >
-                      <option
-                        value=""
-                        disabled
-                      >Befund wählen</option>
-                      <option
-                        v-for="item in findingOptions"
-                        :key="item.name"
-                        :value="item.name"
-                      >
-                        {{ item.label }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label form-label-sm">Erforderlich</label>
-                    <select
-                      v-model="finding.required"
-                      class="form-select form-select-sm"
-                    >
-                      <option :value="true">ja</option>
-                      <option :value="false">nein</option>
-                    </select>
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label form-label-sm">Mehrfach erlaubt</label>
-                    <select
-                      v-model="finding.multipleAllowed"
-                      class="form-select form-select-sm"
-                    >
-                      <option :value="false">nein</option>
-                      <option :value="true">ja</option>
-                    </select>
-                  </div>
-                  <div class="col-md-2 d-flex align-items-end">
-                    <button
-                      class="btn btn-outline-danger btn-sm w-100"
-                      @click="removeFinding(section.id, findingIndex)"
-                    >
-                      Entfernen
-                    </button>
-                  </div>
-                </div>
-
-                <div class="mt-3">
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0 small text-uppercase text-muted">Klassifikationen</h6>
-                    <button
-                      class="btn btn-outline-secondary btn-sm"
-                      @click="addClassification(section.id, findingIndex)"
-                    >
-                      Klassifikation hinzufügen
-                    </button>
-                  </div>
-
-                  <div
-                    v-for="(classification, classificationIndex) in finding.classifications"
-                    :key="`${section.id}-finding-${findingIndex}-classification-${classificationIndex}`"
-                    class="row g-2 align-items-end mb-2"
-                  >
-                    <div class="col-md-8">
-                      <label class="form-label form-label-sm">Klassifikation</label>
-                      <select
-                        v-model="classification.classification"
-                        class="form-select form-select-sm"
-                      >
-                        <option
-                          value=""
-                          disabled
-                        >Klassifikation waehlen</option>
-                        <option
-                          v-for="item in classificationOptions"
-                          :key="item.name"
-                          :value="item.name"
-                        >
-                          {{ item.label }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="col-md-3">
-                      <label class="form-label form-label-sm">Pflicht</label>
-                      <select
-                        v-model="classification.required"
-                        class="form-select form-select-sm"
-                      >
-                        <option :value="true">ja</option>
-                        <option :value="false">nein</option>
-                      </select>
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                      <button
-                        class="btn btn-outline-danger btn-sm w-100"
-                        @click="removeClassification(section.id, findingIndex, classificationIndex)"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="mt-3">
-                  <div class="form-check mb-2">
-                    <input
-                      v-model="finding.validator.enabled"
-                      class="form-check-input"
-                      type="checkbox"
-                    />
-                    <label class="form-check-label">Regel für diesen Befund aktivieren</label>
-                  </div>
-
-                  <div
-                    v-if="finding.validator.enabled"
-                    class="row g-3"
-                  >
-                    <div class="col-md-4">
-                      <label class="form-label form-label-sm">Regelname</label>
-                      <input
-                        v-model="finding.validator.name"
-                        class="form-control form-control-sm"
-                      />
-                    </div>
-                    <div class="col-md-4">
-                      <label class="form-label form-label-sm">Bedingung</label>
-                      <select
-                        v-model="finding.validator.operator"
-                        class="form-select form-select-sm"
-                      >
-                        <option value="exists">muss vorhanden sein</option>
-                        <option value="missing">darf nicht vorhanden sein</option>
-                        <option value="condition">abhängig von Bedingung</option>
-                      </select>
-                    </div>
-                    <template v-if="finding.validator.operator === 'condition'">
-                      <div class="col-md-4">
-                        <label class="form-label form-label-sm">Bedingungs-Klassifikation</label>
-                        <select
-                          v-model="finding.validator.condition.classification"
-                          class="form-select form-select-sm"
-                        >
-                          <option
-                            value=""
-                            disabled
-                          >Klassifikation wählen</option>
-                          <option
-                            v-for="item in classificationOptions"
-                            :key="item.name"
-                            :value="item.name"
-                          >
-                            {{ item.label }}
-                          </option>
-                        </select>
-                      </div>
-                      <div class="col-md-3">
-                        <label class="form-label form-label-sm">Vergleich</label>
-                        <select
-                          v-model="finding.validator.condition.comparator"
-                          class="form-select form-select-sm"
-                        >
-                          <option
-                            v-for="item in comparatorOptions"
-                            :key="item"
-                            :value="item"
-                          >
-                            {{ item }}
-                          </option>
-                        </select>
-                      </div>
-                      <div class="col-md-3">
-                        <label class="form-label form-label-sm">Wert</label>
-                        <input
-                          v-model="finding.validator.condition.value"
-                          class="form-control form-control-sm"
-                        />
-                      </div>
-                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Dann erforderlich</label>
-                        <select
-                          class="form-select form-select-sm"
-                          @change="
-                            appendThenRequire(
-                              finding.validator.condition.thenRequires,
-                              ($event.target as HTMLSelectElement).value
-                            )
-                          "
-                        >
-                          <option value="">Klassifikation anhängen</option>
-                          <option
-                            v-for="item in classificationOptions"
-                            :key="item.name"
-                            :value="item.name"
-                          >
-                            {{ item.label }}
-                          </option>
-                        </select>
-                        <div class="d-flex flex-wrap gap-2 mt-2">
-                          <span
-                            v-for="item in finding.validator.condition.thenRequires"
-                            :key="item"
-                            class="badge bg-secondary"
-                          >
-                            {{ item }}
-                          </span>
-                        </div>
-                      </div>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <div class="mt-4">
-            <h6 class="mb-2">Beispielansicht</h6>
-            <pre class="small bg-light p-3 rounded mb-0">{{ renderSectionPreview(section) }}</pre>
-          </div>
-        </div>
+        <ReportTemplateSectionsEditor
+          v-model="sections"
+          :finding-options="findingOptions"
+          :classification-options="classificationOptions"
+        />
       </div>
     </div>
 
@@ -1080,6 +713,7 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from 'vue'
+import ReportTemplateSectionsEditor from '@/components/Reporting/ReportTemplateSectionsEditor.vue'
 import ReportTemplateBrandingEditor from '@/components/Reporting/ReportTemplateBrandingEditor.vue'
 import {
   fetchReportTemplateByName,
@@ -1096,9 +730,6 @@ import {
   publishReportTemplate,
   unpublishReportTemplate,
   type ReportTemplateBuilderReadiness,
-  type ReportTemplateBuilderClassification,
-  type ReportTemplateBuilderField,
-  type ReportTemplateBuilderFinding,
   type ReportTemplateBuilderSection
 } from '@/api/reportTemplateBuilderApi'
 import type {
@@ -1132,7 +763,6 @@ const templateName = ref('')
 const examination = ref('')
 const templateDescription = ref('')
 const fileName = ref('')
-const pendingSectionType = ref<'' | ReportTemplateBuilderSection['sectionType']>('')
 const sections = ref<ReportTemplateBuilderSection[]>([])
 const showSavePrompt = ref(false)
 const saving = ref(false)
@@ -1187,22 +817,6 @@ const runtimeKnowledgeBaseVersion = computed(
 )
 const runtimeExaminersInput = ref('')
 const runtimeFindings = ref<RuntimeFindingDraft[]>([])
-
-const comparatorOptions = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'in', 'not_in'] as const
-
-const availablePresets = computed(() => {
-  const taken = new Set(sections.value.map((section) => section.sectionType))
-  return [
-    { type: 'logo', label: 'Logo' },
-    { type: 'patient_info', label: 'Patienteninfo' },
-    { type: 'clinic_address', label: 'Klinikadresse' },
-    { type: 'findings', label: 'Findings-Section' }
-  ].filter(
-    (preset) =>
-      preset.type === 'findings' ||
-      !taken.has(preset.type as ReportTemplateBuilderSection['sectionType'])
-  )
-})
 
 const examinationOptions = computed(() =>
   (coreConcepts.value?.examination || [])
@@ -1266,219 +880,6 @@ function syncSelectedTemplateMetadata() {
   if (selectedTemplate.value?.name !== option?.name) {
     selectedTemplate.value = null
   }
-}
-
-function defaultField(): ReportTemplateBuilderField {
-  return {
-    key: '',
-    label: '',
-    source: 'patient',
-    required: false
-  }
-}
-
-function defaultClassification(): ReportTemplateBuilderClassification {
-  return {
-    classification: '',
-    required: false
-  }
-}
-
-function defaultFinding(): ReportTemplateBuilderFinding {
-  return {
-    finding: '',
-    required: false,
-    multipleAllowed: false,
-    classifications: [],
-    validator: {
-      enabled: false,
-      name: '',
-      operator: 'exists',
-      condition: {
-        classification: '',
-        comparator: 'eq',
-        value: '',
-        thenRequires: []
-      }
-    }
-  }
-}
-
-function createSection(
-  sectionType: ReportTemplateBuilderSection['sectionType']
-): ReportTemplateBuilderSection {
-  if (sectionType === 'logo') {
-    return {
-      id: uid('section'),
-      sectionType,
-      name: 'clinic_logo',
-      description: 'https://example.org/logo.png',
-      fields: [],
-      findings: []
-    }
-  }
-
-  if (sectionType === 'patient_info') {
-    return {
-      id: uid('section'),
-      sectionType,
-      name: 'patient_information',
-      description: 'Patientenstammdaten für den Berichtskopf',
-      fields: [
-        { key: 'first_name', label: 'Vorname', source: 'patient', required: false },
-        { key: 'last_name', label: 'Nachname', source: 'patient', required: false },
-        { key: 'patient_birth_date', label: 'Geburtsdatum', source: 'patient', required: false },
-        { key: 'patient_gender', label: 'Geschlecht', source: 'patient', required: false }
-      ],
-      findings: []
-    }
-  }
-
-  if (sectionType === 'clinic_address') {
-    return {
-      id: uid('section'),
-      sectionType,
-      name: 'clinic_address',
-      description:
-        'Universitätsklinikum Musterstadt\nKlinik für Endoskopie\nMusterstraße 1\n97070 Würzburg',
-      fields: [],
-      findings: []
-    }
-  }
-
-  return {
-    id: uid('section'),
-    sectionType: 'findings',
-    name: `findings_section_${String(sections.value.filter((item) => item.sectionType === 'findings').length + 1)}`,
-    description: 'Klinische Befunde und zugehörige Prüfregeln',
-    fields: [],
-    findings: [defaultFinding()]
-  }
-}
-
-function addSection() {
-  if (!pendingSectionType.value) {
-    return
-  }
-  sections.value = [...sections.value, createSection(pendingSectionType.value)]
-  pendingSectionType.value = ''
-}
-
-function removeSection(sectionId: string) {
-  sections.value = sections.value.filter((section) => section.id !== sectionId)
-}
-
-function moveSection(index: number, delta: -1 | 1) {
-  const nextIndex = index + delta
-  if (nextIndex < 0 || nextIndex >= sections.value.length) {
-    return
-  }
-  const next = sections.value.slice()
-  const [item] = next.splice(index, 1)
-  next.splice(nextIndex, 0, item)
-  sections.value = next
-}
-
-function addPatientField(sectionId: string) {
-  const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) {
-    return
-  }
-  section.fields.push(defaultField())
-}
-
-function addFinding(sectionId: string) {
-  const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) {
-    return
-  }
-  section.findings.push(defaultFinding())
-}
-
-function removeFinding(sectionId: string, findingIndex: number) {
-  const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) {
-    return
-  }
-  section.findings.splice(findingIndex, 1)
-}
-
-function addClassification(sectionId: string, findingIndex: number) {
-  const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) {
-    return
-  }
-  section.findings[findingIndex]?.classifications.push(defaultClassification())
-}
-
-function removeClassification(
-  sectionId: string,
-  findingIndex: number,
-  classificationIndex: number
-) {
-  const section = sections.value.find((item) => item.id === sectionId)
-  if (!section) {
-    return
-  }
-  section.findings[findingIndex]?.classifications.splice(classificationIndex, 1)
-}
-
-function appendThenRequire(items: string[], nextValue: string) {
-  if (!nextValue || items.includes(nextValue)) {
-    return
-  }
-  items.push(nextValue)
-}
-
-function sectionTitle(section: ReportTemplateBuilderSection): string {
-  return section.name || section.sectionType
-}
-
-function sectionExampleLabel(section: ReportTemplateBuilderSection): string {
-  if (section.sectionType === 'findings') {
-    return `${String(section.findings.length)} Befund(e) konfiguriert`
-  }
-  return `Typ: ${section.sectionType}`
-}
-
-function sectionDescriptionPlaceholder(section: ReportTemplateBuilderSection): string {
-  if (section.sectionType === 'logo') {
-    return 'Logo-URL oder Pfad'
-  }
-  if (section.sectionType === 'clinic_address') {
-    return 'Klinikadresse oder Briefkopftext'
-  }
-  if (section.sectionType === 'patient_info')
-    {
-      return 'Optionaler Einführungstext für die Patientensektion'
-    }
-  return 'Beschreibung der Befundsektion'
-}
-
-function renderSectionPreview(section: ReportTemplateBuilderSection): string {
-  if (section.sectionType === 'logo') {
-    return `[[ LOGO ]]\nQuelle: ${section.description || 'https://example.org/logo.png'}`
-  }
-  if (section.sectionType === 'patient_info') {
-    return [
-      'Patient',
-      ...section.fields.map(
-        (field) => `- ${field.label || field.key}: {{ ${field.source}.${field.key} }}`
-      )
-    ].join('\n')
-  }
-  if (section.sectionType === 'clinic_address') {
-    return section.description || 'Klinikadresse / Briefkopf'
-  }
-  return [
-    `## ${section.name || 'Befunde'}`,
-    ...section.findings.map((finding) => {
-      const classes = finding.classifications
-        .map((entry) => `${entry.classification}${entry.required ? ' *' : ''}`)
-        .join(', ')
-      return `- ${finding.finding || 'finding'}${classes ? ` (${classes})` : ''}`
-    })
-  ].join('\n')
 }
 
 function defaultRuntimeClassificationChoice(): RuntimeClassificationChoiceDraft {
@@ -1568,21 +969,45 @@ const runtimePayload = computed<ReportTemplateRuntimePayload>(() => ({
 
 const runtimePayloadPreview = computed(() => JSON.stringify(runtimePayload.value, null, 2))
 
+function activeModuleVersion(): string {
+  return lifecycleContext?.activeModuleVersion.value.trim() || ''
+}
+
+function clearCatalogSelection(): void {
+  coreConcepts.value = null
+  examination.value = ''
+  templateOptions.value = []
+  selectedTemplate.value = null
+}
+
+function isCoreConceptRequestCurrent(module: string, version: string): boolean {
+  return moduleName.value.trim() === module && activeModuleVersion() === version
+}
+
+function applyCoreConceptGraph(graph: Awaited<ReturnType<typeof fetchKnowledgeBaseGraphSnapshot>>) {
+  coreConcepts.value = graph.concepts
+  const shellExamination = lifecycleContext?.activeExaminationName.value.trim() || ''
+  if (shellExamination) {
+    examination.value = requireUniqueReportingExaminationName(
+      coreConcepts.value.examination,
+      shellExamination
+    ).name
+    return
+  }
+  if (!examination.value && examinationOptions.value.length) {
+    examination.value = examinationOptions.value[0]?.name || ''
+  }
+}
+
 async function loadCoreConcepts() {
   const requestedModuleName = moduleName.value.trim()
-  const requestedModuleVersion = lifecycleContext?.activeModuleVersion.value.trim() || ''
+  const requestedModuleVersion = activeModuleVersion()
   if (!requestedModuleName) {
-    coreConcepts.value = null
-    examination.value = ''
-    templateOptions.value = []
-    selectedTemplate.value = null
+    clearCatalogSelection()
     return
   }
   if (!requestedModuleVersion) {
-    coreConcepts.value = null
-    examination.value = ''
-    templateOptions.value = []
-    selectedTemplate.value = null
+    clearCatalogSelection()
     setError('Für die Graph-Auflösung wird eine exakte Terminologieversion benötigt.')
     return
   }
@@ -1590,50 +1015,64 @@ async function loadCoreConcepts() {
   catalogLoading.value = true
   try {
     const graph = await fetchKnowledgeBaseGraphSnapshot(requestedModuleName, requestedModuleVersion)
-    if (
-      moduleName.value.trim() !== requestedModuleName ||
-      lifecycleContext?.activeModuleVersion.value.trim() !== requestedModuleVersion
-    ) {
+    if (!isCoreConceptRequestCurrent(requestedModuleName, requestedModuleVersion)) {
       return
     }
-    coreConcepts.value = graph.concepts
-    const shellExamination = lifecycleContext.activeExaminationName.value.trim()
-    if (shellExamination) {
-      examination.value = requireUniqueReportingExaminationName(
-        coreConcepts.value.examination,
-        shellExamination
-      ).name
-    } else if (!examination.value && examinationOptions.value.length) {
-      examination.value = examinationOptions.value[0]?.name || ''
-    }
+    applyCoreConceptGraph(graph)
   } catch (error: unknown) {
-    if (
-      moduleName.value.trim() !== requestedModuleName ||
-      lifecycleContext?.activeModuleVersion.value.trim() !== requestedModuleVersion
-    ) {
+    if (!isCoreConceptRequestCurrent(requestedModuleName, requestedModuleVersion)) {
       return
     }
-    coreConcepts.value = null
-    examination.value = ''
-    templateOptions.value = []
-    selectedTemplate.value = null
+    clearCatalogSelection()
     setError(reportingApiErrorMessage(error, 'Core concepts konnten nicht geladen werden.'))
   } finally {
-    if (
-      moduleName.value.trim() === requestedModuleName &&
-      lifecycleContext?.activeModuleVersion.value.trim() === requestedModuleVersion
-    ) {
+    if (isCoreConceptRequestCurrent(requestedModuleName, requestedModuleVersion)) {
       catalogLoading.value = false
     }
   }
 }
 
+type TemplateOptionsRequest = Readonly<{
+  moduleName: string
+  moduleVersion: string
+  examination: string
+  generation: number
+}>
+
+function isTemplateOptionsRequestCurrent(request: TemplateOptionsRequest): boolean {
+  const matchesIdentity =
+    moduleName.value.trim() === request.moduleName &&
+    activeModuleVersion() === request.moduleVersion &&
+    examination.value.trim() === request.examination
+  return request.generation === templateOptionsRequestGeneration && matchesIdentity
+}
+
+function assertTemplatesMatchRequest(
+  templates: ReportTemplatePayload[],
+  request: TemplateOptionsRequest
+): void {
+  const hasMismatch = templates.some((template) => {
+    const matchesModule = template.identity.moduleName === request.moduleName
+    const matchesVersion = template.identity.knowledgeBaseVersion === request.moduleVersion
+    return !matchesModule || !matchesVersion
+  })
+  if (hasMismatch) {
+    throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
+  }
+}
+
+function hasCompleteTemplateOptionsRequest(request: TemplateOptionsRequest): boolean {
+  return Boolean(request.moduleName && request.moduleVersion && request.examination)
+}
+
 async function refreshTemplateOptions() {
-  const requestedModuleName = moduleName.value.trim()
-  const requestedModuleVersion = lifecycleContext?.activeModuleVersion.value.trim() || ''
-  const requestedExamination = examination.value.trim()
-  const requestGeneration = ++templateOptionsRequestGeneration
-  if (!requestedModuleName || !requestedModuleVersion || !requestedExamination) {
+  const request: TemplateOptionsRequest = Object.freeze({
+    moduleName: moduleName.value.trim(),
+    moduleVersion: activeModuleVersion(),
+    examination: examination.value.trim(),
+    generation: ++templateOptionsRequestGeneration
+  })
+  if (!hasCompleteTemplateOptionsRequest(request)) {
     templateOptions.value = []
     selectedTemplate.value = null
     return
@@ -1642,55 +1081,74 @@ async function refreshTemplateOptions() {
   templatesLoading.value = true
   try {
     const templates = await fetchBuilderReportTemplatesByExamination(
-      requestedModuleName,
-      requestedModuleVersion,
-      requestedExamination
+      request.moduleName,
+      request.moduleVersion,
+      request.examination
     )
-    if (
-      requestGeneration !== templateOptionsRequestGeneration ||
-      moduleName.value.trim() !== requestedModuleName ||
-      lifecycleContext?.activeModuleVersion.value.trim() !== requestedModuleVersion ||
-      examination.value.trim() !== requestedExamination
-    ) {
+    if (!isTemplateOptionsRequestCurrent(request)) {
       return
     }
-    if (
-      templates.some(
-        (template) =>
-          template.identity.moduleName !== requestedModuleName ||
-          template.identity.knowledgeBaseVersion !== requestedModuleVersion
-      )
-    ) {
-      throw new Error(
-        'Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.'
-      )
-    }
+    assertTemplatesMatchRequest(templates, request)
     templateOptions.value = templates
     if (!templateOptions.value.some((item) => item.name === templateName.value)) {
       templateName.value = templateOptions.value[0]?.name || ''
     }
     syncSelectedTemplateMetadata()
   } catch (error: unknown) {
-    if (requestGeneration !== templateOptionsRequestGeneration) {
+    if (request.generation !== templateOptionsRequestGeneration) {
       return
     }
     setError(reportingApiErrorMessage(error, 'Templates konnten nicht geladen werden.'))
   } finally {
-    if (requestGeneration === templateOptionsRequestGeneration) {
+    if (request.generation === templateOptionsRequestGeneration) {
       templatesLoading.value = false
     }
   }
+}
+
+type SelectedTemplateRequest = BuilderRequestIdentity & Readonly<{ generation: number }>
+
+function isSelectedTemplateRequestCurrent(request: SelectedTemplateRequest): boolean {
+  return (
+    request.generation === selectedTemplateRequestGeneration &&
+    isBuilderRequestIdentityCurrent(request)
+  )
+}
+
+function assertTemplateMatchesRequest(
+  template: ReportTemplatePayload | null,
+  request: SelectedTemplateRequest
+): asserts template is ReportTemplatePayload {
+  if (!template) {
+    throw new Error('Ungültiges Format der Berichtsvorlage.')
+  }
+  const matchesModule = template.identity.moduleName === request.moduleName
+  const matchesVersion = template.identity.knowledgeBaseVersion === request.moduleVersion
+  if (!matchesModule || !matchesVersion) {
+    throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
+  }
+}
+
+function applySelectedTemplate(template: ReportTemplatePayload): void {
+  selectedTemplate.value = template
+  lifecycleStatus.value = template.identity.lifecycleStatus
+  builderReadiness.value = readinessFromTemplate(template)
+  examination.value = template.examination || examination.value
+  runtimeValidationResult.value = null
+  definitionValidationResult.value = null
 }
 
 async function loadSelectedTemplate() {
   if (!templateName.value) {
     return
   }
-  const requestedModuleName = moduleName.value.trim()
-  const requestedModuleVersion = lifecycleContext?.activeModuleVersion.value.trim() || ''
-  const requestedTemplateName = templateName.value
-  const requestGeneration = ++selectedTemplateRequestGeneration
-  if (!requestedModuleName || !requestedModuleVersion) {
+  const request: SelectedTemplateRequest = Object.freeze({
+    moduleName: moduleName.value.trim(),
+    moduleVersion: activeModuleVersion(),
+    templateName: templateName.value,
+    generation: ++selectedTemplateRequestGeneration
+  })
+  if (!request.moduleName || !request.moduleVersion) {
     return
   }
   templateLoading.value = true
@@ -1700,40 +1158,22 @@ async function loadSelectedTemplate() {
         ? fetchReportTemplatePreviewByName
         : fetchReportTemplateByName
     const template = await fetchTemplate(
-      requestedModuleName,
-      requestedModuleVersion,
-      requestedTemplateName
+      request.moduleName,
+      request.moduleVersion,
+      request.templateName
     )
-    if (
-      requestGeneration !== selectedTemplateRequestGeneration ||
-      moduleName.value.trim() !== requestedModuleName ||
-      lifecycleContext?.activeModuleVersion.value.trim() !== requestedModuleVersion ||
-      templateName.value !== requestedTemplateName
-    ) {
+    if (!isSelectedTemplateRequestCurrent(request)) {
       return
     }
-    if (!template) {
-      throw new Error('Ungültiges Format der Berichtsvorlage.')
-    }
-    if (
-      template.identity.moduleName !== requestedModuleName ||
-      template.identity.knowledgeBaseVersion !== requestedModuleVersion
-    ) {
-      throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
-    }
-    selectedTemplate.value = template
-    lifecycleStatus.value = template.identity.lifecycleStatus
-    builderReadiness.value = readinessFromTemplate(template)
-    examination.value = template.examination || examination.value
-    runtimeValidationResult.value = null
-    definitionValidationResult.value = null
+    assertTemplateMatchesRequest(template, request)
+    applySelectedTemplate(template)
   } catch (error: unknown) {
-    if (requestGeneration !== selectedTemplateRequestGeneration) {
+    if (request.generation !== selectedTemplateRequestGeneration) {
       return
     }
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht geladen werden.'))
   } finally {
-    if (requestGeneration === selectedTemplateRequestGeneration) {
+    if (request.generation === selectedTemplateRequestGeneration) {
       templateLoading.value = false
     }
   }
@@ -1811,6 +1251,15 @@ async function refreshReadiness() {
   }
 }
 
+function isLifecycleRequestCurrent(
+  requestGeneration: number,
+  identity: BuilderRequestIdentity
+): boolean {
+  return (
+    requestGeneration === lifecycleRequestGeneration && isBuilderRequestIdentityCurrent(identity)
+  )
+}
+
 async function publishTemplate() {
   const identity = captureBuilderRequestIdentity()
   if (!identity || !builderReadiness.value?.canPublish) {
@@ -1825,10 +1274,7 @@ async function publishTemplate() {
       identity.moduleVersion,
       identity.templateName
     )
-    if (
-      requestGeneration !== lifecycleRequestGeneration ||
-      !isBuilderRequestIdentityCurrent(identity)
-    ) {
+    if (!isLifecycleRequestCurrent(requestGeneration, identity)) {
       return
     }
     lifecycleStatus.value = result.lifecycleStatus
@@ -1843,10 +1289,7 @@ async function publishTemplate() {
       lifecycleStatus: result.lifecycleStatus
     })
   } catch (error: unknown) {
-    if (
-      requestGeneration !== lifecycleRequestGeneration ||
-      !isBuilderRequestIdentityCurrent(identity)
-    ) {
+    if (!isLifecycleRequestCurrent(requestGeneration, identity)) {
       return
     }
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht veröffentlicht werden.'))
@@ -1978,10 +1421,7 @@ async function saveTemplate() {
     await refreshTemplateOptions()
     await loadSelectedTemplate()
   } catch (error: unknown) {
-    if (
-      requestGeneration !== saveRequestGeneration ||
-      !isBuilderRequestIdentityCurrent(identity)
-    ) {
+    if (requestGeneration !== saveRequestGeneration || !isBuilderRequestIdentityCurrent(identity)) {
       return
     }
     setError(reportingApiErrorMessage(error, 'Vorlage konnte nicht gespeichert werden.'))

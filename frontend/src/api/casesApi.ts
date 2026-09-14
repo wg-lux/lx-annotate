@@ -141,34 +141,37 @@ function requireIntegerArray(value: unknown, path: string): number[] {
   return value.map((entry, index) => requireInteger(entry, `${path}[${String(index)}]`))
 }
 
+function optionalPatientData(
+  value: unknown,
+  path: string
+): CasePatientExamination['patientData'] | undefined {
+  if (value === undefined || value === null) {
+    return value
+  }
+  const record = requireRecord(value, path)
+  return { id: optionalInteger(record.id, `${path}.id`) }
+}
+
+function optionalExamination(
+  value: unknown,
+  path: string
+): CasePatientExamination['examination'] | undefined {
+  if (value === undefined || value === null || typeof value === 'string') {
+    return value
+  }
+  const record = typeof value === 'object' ? requireRecord(value, path) : null
+  return {
+    id: optionalInteger(record?.id, `${path}.id`),
+    name: optionalString(record?.name, `${path}.name`),
+    nameDe: optionalString(record?.nameDe, `${path}.nameDe`),
+    nameEn: optionalString(record?.nameEn, `${path}.nameEn`)
+  }
+}
+
 function requireCasePatientExamination(value: unknown, path: string): CasePatientExamination {
   const record = requireRecord(value, path)
-  const patientDataValue = record.patientData
-  const patientData =
-    patientDataValue === undefined || patientDataValue === null
-      ? patientDataValue
-      : {
-          id: optionalInteger(
-            requireRecord(patientDataValue, `${path}.patientData`).id,
-            `${path}.patientData.id`
-          )
-        }
-  const examinationValue = record.examination
-  const examinationRecord =
-    examinationValue && typeof examinationValue === 'object'
-      ? requireRecord(examinationValue, `${path}.examination`)
-      : null
-  const examination =
-    examinationValue === undefined ||
-    examinationValue === null ||
-    typeof examinationValue === 'string'
-      ? examinationValue
-      : {
-          id: optionalInteger(examinationRecord?.id, `${path}.examination.id`),
-          name: optionalString(examinationRecord?.name, `${path}.examination.name`),
-          nameDe: optionalString(examinationRecord?.nameDe, `${path}.examination.nameDe`),
-          nameEn: optionalString(examinationRecord?.nameEn, `${path}.examination.nameEn`)
-        }
+  const patientData = optionalPatientData(record.patientData, `${path}.patientData`)
+  const examination = optionalExamination(record.examination, `${path}.examination`)
   const examinationName = optionalNullableString(record.examinationName, `${path}.examinationName`)
   const dateStart = optionalNullableString(record.dateStart, `${path}.dateStart`)
   const knowledgeBaseModule = optionalNullableString(

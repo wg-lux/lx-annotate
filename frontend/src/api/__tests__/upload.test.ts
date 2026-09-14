@@ -25,11 +25,7 @@ vi.mock('@/api/axiosInstance', () => ({
   endoregApi: (path: string) => `/endoreg/${path}`
 }))
 
-import {
-  pollUploadStatus,
-  resolveUploadedReportId,
-  uploadFiles
-} from '@/api/upload'
+import { pollUploadStatus, resolveUploadedReportId, uploadFiles } from '@/api/upload'
 
 describe('upload API', () => {
   beforeEach(() => {

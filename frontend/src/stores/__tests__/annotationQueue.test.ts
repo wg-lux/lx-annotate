@@ -5,7 +5,10 @@ import { useAnnotationQueueStore } from '@/stores/annotationQueue'
 
 const hoisted = vi.hoisted(() => ({
   get: vi.fn<
-    (url: string, config?: { params: Record<string, string | number> }) => Promise<{ data: unknown }>
+    (
+      url: string,
+      config?: { params: Record<string, string | number> }
+    ) => Promise<{ data: unknown }>
   >(),
   fetchApplicationSettings: vi.fn()
 }))

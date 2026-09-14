@@ -40,6 +40,7 @@
       <div class="zoom-controls">
         <button
           type="button"
+          class="zoom-button"
           title="Timeline verkleinern"
           aria-label="Timeline verkleinern"
           :disabled="zoomLevel <= 1"
@@ -50,6 +51,7 @@
         <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
         <button
           type="button"
+          class="zoom-button"
           title="Timeline vergrößern"
           aria-label="Timeline vergrößern"
           :disabled="zoomLevel >= 5"
@@ -143,7 +145,7 @@
                 class="resize-handle start-handle"
                 :title="'Segment-Start ändern'"
               >
-                <i class="ni ni-collection"></i>
+                <i class="resize-handle-icon ni ni-collection"></i>
               </div>
 
               <div class="segment-content">
@@ -170,7 +172,7 @@
                 class="resize-handle end-handle"
                 :title="'Segment-Ende ändern'"
               >
-                <i class="ni ni-collection"></i>
+                <i class="resize-handle-icon ni ni-collection"></i>
               </div>
 
               <div
@@ -346,14 +348,14 @@
         class="context-menu-item"
         @click="playSegment(contextMenu.segment)"
       >
-        <i class="ni ni-button-play"></i>
+        <i class="context-menu-icon ni ni-button-play"></i>
         Segment abspielen
       </div>
       <div
         class="context-menu-item danger"
         @click="deleteSegment(contextMenu.segment)"
       >
-        <i class="ni ni-basket"></i>
+        <i class="context-menu-icon ni ni-basket"></i>
         Segment löschen
       </div>
     </div>
@@ -443,7 +445,7 @@ import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const toast = useToastStore()
 const videoStore = useVideoStore()
-const log = createRuntimeLogger('video-timeline')
+const logger = createRuntimeLogger('video-timeline')
 
 // Type definitions
 interface TimeMarker {
@@ -843,8 +845,8 @@ const segmentRows = computed((): SegmentRow[] => {
       maxEndTime: 0
     }
 
-    for (const seg of segs) {
-      if (seg.start < currentRow.maxEndTime - 1e-4) {
+    for (const segment of segs) {
+      if (segment.start < currentRow.maxEndTime - 1e-4) {
         rows.push(currentRow)
         physicalIdx += 1
         currentRow = {
@@ -855,8 +857,8 @@ const segmentRows = computed((): SegmentRow[] => {
           maxEndTime: 0
         }
       }
-      currentRow.segments.push(seg)
-      currentRow.maxEndTime = Math.max(currentRow.maxEndTime, seg.end)
+      currentRow.segments.push(segment)
+      currentRow.maxEndTime = Math.max(currentRow.maxEndTime, segment.end)
     }
     rows.push(currentRow)
   })
@@ -865,10 +867,10 @@ const segmentRows = computed((): SegmentRow[] => {
 })
 
 const getSegmentRowNumber = (segmentId: number): number | null => {
-  const row = segmentRows.value.find((item) =>
+  const matchingRow = segmentRows.value.find((item) =>
     item.segments.some((segment) => segment.id === segmentId)
   )
-  return row?.rowNumber ?? null
+  return matchingRow?.rowNumber ?? null
 }
 
 const getTimelineMaxScrollTop = (): number => {
@@ -958,14 +960,14 @@ const formatTime = (seconds: number | undefined): string => {
 }
 
 const formatDuration = (startTime: number, endTime: number): string => {
-  const d = endTime - startTime
-  return formatTimeHelper(d)
+  const segmentDuration = endTime - startTime
+  return formatTimeHelper(segmentDuration)
 }
 
 const getSegmentPosition = (startTime: number): number => {
   const position = calculateSegmentPosition(startTime, duration.value)
   if (!Number.isFinite(position) || position < 0) {
-    log.warn('segment-position.invalid')
+    logger.warn('segment-position.invalid')
     return 0
   }
   return position
@@ -974,7 +976,7 @@ const getSegmentPosition = (startTime: number): number => {
 const getSegmentWidth = (startTime: number, endTime: number): number => {
   const width = calculateSegmentWidth(startTime, endTime, duration.value)
   if (!Number.isFinite(width) || width <= 0) {
-    log.warn('segment-width.invalid')
+    logger.warn('segment-width.invalid')
     return 0
   }
   return width
@@ -1031,20 +1033,20 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     if (!mode) {
       return
     }
-    const dx = ev.clientX - pxStart
-    if (Math.abs(dx) > 3) {
+    const horizontalDelta = ev.clientX - pxStart
+    if (Math.abs(horizontalDelta) > 3) {
       suppressNextSegmentClick.value = true
     }
 
     if (mode === 'drag') {
-      const left = Math.min(Math.max(0, startLeft + dx), opt.trackPx() - startWidth)
+      const left = Math.min(Math.max(0, startLeft + horizontalDelta), opt.trackPx() - startWidth)
       el.style.left = `${String(left)}px`
       draftStart = left
       draftEnd = left + startWidth
     }
 
     if (mode === 'start') {
-      const left = Math.min(startLeft + dx, startLeft + startWidth - 10)
+      const left = Math.min(startLeft + horizontalDelta, startLeft + startWidth - 10)
       const width = startWidth + (startLeft - left)
       el.style.left = `${String(left)}px`
       el.style.width = `${String(width)}px`
@@ -1053,7 +1055,7 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     }
 
     if (mode === 'end') {
-      const width = Math.max(10, startWidth + dx)
+      const width = Math.max(10, startWidth + horizontalDelta)
       el.style.width = `${String(width)}px`
       el.style.left = `${String(startLeft)}px`
       draftStart = startLeft
@@ -1218,7 +1220,7 @@ const stepFrame = async (direction: -1 | 1): Promise<void> => {
     }
   } catch (error) {
     frameNavigationUnavailable.value = true
-    log.error('frame-navigation.failed', error)
+    logger.error('frame-navigation.failed', error)
     toast.error({ text: 'Framegenaue Navigation ist für dieses Video nicht verfügbar.' })
   } finally {
     frameStepPending.value = false
@@ -1516,10 +1518,13 @@ const parseEditorTime = (value: string): number | null => {
   return numericParts[0] * 3600 + numericParts[1] * 60 + numericParts[2]
 }
 
+type ValidEditorRange = { start: number; end: number; error: null }
+type InvalidEditorRange = { start: number; end: number; error: string }
+
 const validateEditorRange = (
   startInput: string,
   endInput: string
-): { start: number; end: number; error: string | null } => {
+): ValidEditorRange | InvalidEditorRange => {
   const parsedStart = parseEditorTime(startInput)
   const parsedEnd = parseEditorTime(endInput)
 
@@ -1547,6 +1552,34 @@ const validateEditorRange = (
   return { start: parsedStart, end: parsedEnd, error: null }
 }
 
+const resolveEditorLabelId = (labelName: string): number | null => {
+  const selected = labelsForEditor.value.find((label) => label.name === labelName)
+  if (!selected || selected.id <= 0) return null
+  return selected.id
+}
+
+const updateDisplayedSegment = (
+  segmentId: number,
+  labelName: string,
+  range: ValidEditorRange
+): void => {
+  const localSegment = displayedSegments.value.find((segment) => segment.id === segmentId)
+  if (!localSegment) return
+  localSegment.label = labelName
+  localSegment.color = getColorForLabel(labelName)
+  localSegment.start = range.start
+  localSegment.end = range.end
+  localSegment.startTime = range.start
+  localSegment.endTime = range.end
+}
+
+const editorRangeChanged = (
+  originalRange: { start: number; end: number },
+  updatedRange: ValidEditorRange
+): boolean =>
+  Math.abs(originalRange.start - updatedRange.start) > 0.0005 ||
+  Math.abs(originalRange.end - updatedRange.end) > 0.0005
+
 const applyContextMenuChanges = (): void => {
   const menuState = contextMenu.value
   if (!menuState.visible || !menuState.segment) {
@@ -1560,7 +1593,7 @@ const applyContextMenuChanges = (): void => {
   }
 
   const validated = validateEditorRange(menuState.startInput, menuState.endInput)
-  if (validated.error) {
+  if (validated.error !== null) {
     contextMenu.value.error = validated.error
     return
   }
@@ -1570,29 +1603,17 @@ const applyContextMenuChanges = (): void => {
     return
   }
 
-  const selectedLabel = labelsForEditor.value.find((label) => label.name === labelName)
-  const labelId = selectedLabel && selectedLabel.id > 0 ? selectedLabel.id : null
-  const originalLabel = menuState.segment.label
-  const originalRange = getSegmentRange(menuState.segment)
-
-  const localSegment = displayedSegments.value.find((s) => s.id === menuState.segment?.id)
-  if (localSegment) {
-    localSegment.label = labelName
-    localSegment.color = getColorForLabel(labelName)
-    localSegment.start = validated.start
-    localSegment.end = validated.end
-    localSegment.startTime = validated.start
-    localSegment.endTime = validated.end
-  }
+  const editedSegment = menuState.segment
+  const labelId = resolveEditorLabelId(labelName)
+  const originalLabel = editedSegment.label
+  const originalRange = getSegmentRange(editedSegment)
+  updateDisplayedSegment(editedSegment.id, labelName, validated)
 
   if (originalLabel !== labelName) {
     emit('segment-label-change', numericId, labelName, labelId)
   }
 
-  if (
-    Math.abs(originalRange.start - validated.start) > 0.0005 ||
-    Math.abs(originalRange.end - validated.end) > 0.0005
-  ) {
+  if (editorRangeChanged(originalRange, validated)) {
     emit('segment-resize', numericId, validated.start, validated.end, 'manual', true)
   }
 
@@ -1879,7 +1900,7 @@ watch(
     rows.forEach((row) => {
       row.segments.forEach((s) => {
         if (getSegmentWidth(s.start, s.end) === 0) {
-          log.warn('segment-width.zero')
+          logger.warn('segment-width.zero')
         }
       })
     })
@@ -1927,7 +1948,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   if (Number.isFinite(segmentId)) {
     return segmentId
   }
-  log.warn('segment-id.invalid')
+  logger.warn('segment-id.invalid')
   return null
 }
 </script>
@@ -2034,7 +2055,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   gap: 8px;
 }
 
-.zoom-controls button {
+.zoom-button {
   background-color: transparent;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -2047,12 +2068,12 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   transition: all 0.3s ease;
 }
 
-.zoom-controls button:hover:not(:disabled) {
+.zoom-button:hover:not(:disabled) {
   background-color: #f0f0f0;
   border-color: #bbb;
 }
 
-.zoom-controls button:disabled {
+.zoom-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -2530,7 +2551,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   color: #d32f2f;
 }
 
-.context-menu-item i {
+.context-menu-icon {
   margin-right: 8px;
   width: 16px;
 }
@@ -2588,7 +2609,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   cursor: e-resize;
 }
 
-.resize-handle i {
+.resize-handle-icon {
   font-size: 8px;
   color: rgba(255, 255, 255, 0.8);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);

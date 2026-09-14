@@ -68,7 +68,9 @@
               <h5
                 id="hub-sync-overview-title"
                 class="mb-1"
-              >Dateisynchronisation</h5>
+              >
+                Dateisynchronisation
+              </h5>
               <p class="text-sm text-muted mb-0">
                 Lokaler Bestand verarbeiteter Dateien und bekannte Transfersituationen.
               </p>
@@ -189,7 +191,9 @@
                 <p
                   v-else
                   class="text-sm text-muted mb-0"
-                >Keine Ablehnungen gemeldet.</p>
+                >
+                  Keine Ablehnungen gemeldet.
+                </p>
               </div>
             </div>
             <div class="col-lg-6">
@@ -234,7 +238,9 @@
               <h5
                 id="hub-transfer-monitor-title"
                 class="mb-1"
-              >Transferfortschritt</h5>
+              >
+                Transferfortschritt
+              </h5>
               <p class="text-sm text-muted mb-0">
                 Der Status wird automatisch aktualisiert, solange Übertragungen laufen.
               </p>
@@ -380,7 +386,9 @@
               <h6
                 id="hub-export-verification-title"
                 class="mb-1"
-              >Freigabeprüfung</h6>
+              >
+                Freigabeprüfung
+              </h6>
               <p class="text-sm text-muted mb-0">
                 Die Markierung wird serverseitig dem angemeldeten Benutzer zugeordnet.
               </p>
@@ -463,7 +471,8 @@
             <label
               for="hub-resource-type-filter"
               class="form-label mb-1"
-            >Ressourcentyp</label>
+              >Ressourcentyp</label
+            >
             <select
               id="hub-resource-type-filter"
               v-model="resourceKindFilter"
@@ -479,7 +488,9 @@
             <label
               for="hub-storage-state-filter"
               class="form-label mb-1"
-            > Speicherstatus </label>
+            >
+              Speicherstatus
+            </label>
             <select
               id="hub-storage-state-filter"
               v-model="physicalStorageStateFilter"
@@ -576,7 +587,8 @@
                   <span
                     v-else
                     class="text-muted"
-                  >-</span>
+                    >-</span
+                  >
                 </td>
                 <td>
                   <input
@@ -616,7 +628,8 @@
                   <span
                     v-else
                     class="text-muted"
-                  >Nicht zutreffend</span>
+                    >Nicht zutreffend</span
+                  >
                 </td>
                 <td :data-test="`hub-export-integrity-status-${item.resourceKind}-${item.id}`">
                   <span
@@ -729,18 +742,20 @@ const physicalStorageStateFilter = ref<PhysicalStorageStateFilter>('all')
 
 const operationError = computed(() => hubExportStore.mutationError || hubExportStore.error)
 const configurationMessage = computed(
-  () => hubExportStore.configError ||
+  () =>
+    hubExportStore.configError ||
     'Es wird ein aktiver Site-Node und genau ein aktiver Central-Hub-Node benötigt.'
 )
-const emptyState = computed(() => hubExportStore.items.length
-  ? {
-      heading: 'Keine passenden Ressourcen',
-      description: 'Die gewählten Filter liefern keine Tabellenzeilen.'
-    }
-  : {
-      heading: 'Keine exportierbaren Ressourcen',
-      description: 'Es sind aktuell keine anonymisierten Ressourcen für den Hub-Export verfügbar.'
-    }
+const emptyState = computed(() =>
+  hubExportStore.items.length
+    ? {
+        heading: 'Keine passenden Ressourcen',
+        description: 'Die gewählten Filter liefern keine Tabellenzeilen.'
+      }
+    : {
+        heading: 'Keine exportierbaren Ressourcen',
+        description: 'Es sind aktuell keine anonymisierten Ressourcen für den Hub-Export verfügbar.'
+      }
 )
 
 const ACTIVE_TRANSFER_STATUSES = new Set([
@@ -872,7 +887,9 @@ const activeTransferCount = computed(
     transferItems.value.filter((item) => ACTIVE_TRANSFER_STATUSES.has(item.outboundStatus)).length
 )
 const needsTransferPolling = computed(
-  () => activeTransferCount.value > 0 || transferItems.value.some(item => item.outboundStatus === 'failed')
+  () =>
+    activeTransferCount.value > 0 ||
+    transferItems.value.some((item) => item.outboundStatus === 'failed')
 )
 const refreshStateLabel = computed(() =>
   needsTransferPolling.value ? 'Automatische Aktualisierung aktiv' : 'Aktuell'
@@ -937,13 +954,15 @@ const readinessCandidates = computed(() =>
   hubExportStore.items.filter((item) => canCheckReadiness(item))
 )
 const checkingReadiness = computed(() => checkingVideoIds.value.size > 0)
-const offloadActionLabel = computed(() => offloadingEligibleVideos.value
-  ? 'Videos werden eingeplant …'
-  : 'Alle geeigneten Videos zum Hub übertragen'
+const offloadActionLabel = computed(() =>
+  offloadingEligibleVideos.value
+    ? 'Videos werden eingeplant …'
+    : 'Alle geeigneten Videos zum Hub übertragen'
 )
-const readinessActionLabel = computed(() => checkingReadiness.value
-  ? 'Exportfreigabe wird geprüft …'
-  : 'Alle Videos auf Exportfreigabe prüfen'
+const readinessActionLabel = computed(() =>
+  checkingReadiness.value
+    ? 'Exportfreigabe wird geprüft …'
+    : 'Alle Videos auf Exportfreigabe prüfen'
 )
 const bulkOffloadCandidateCount = computed(
   () =>
@@ -1206,8 +1225,7 @@ watch(
   (needsPolling) => {
     if (needsPolling) {
       startPolling()
-    }
-    else {
+    } else {
       stopPolling()
     }
   },

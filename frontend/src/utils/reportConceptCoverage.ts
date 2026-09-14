@@ -6,11 +6,7 @@ import type {
 } from '@/types/reportTemplate'
 
 export type ReportConceptCoverageStatus =
-  | 'present'
-  | 'missing'
-  | 'not_applicable'
-  | 'invalid'
-  | 'unknown'
+  'present' | 'missing' | 'not_applicable' | 'invalid' | 'unknown'
 
 export type ReportConceptDocumentationStatus = 'recorded' | 'absent'
 export type ReportConceptApplicabilityStatus = 'applicable' | 'not_applicable' | 'undetermined'
@@ -212,6 +208,108 @@ function classificationCoverageStatus(params: {
   return 'present'
 }
 
+function conceptValidationStatus(
+  documentation: ReportConceptDocumentationStatus,
+  validatorNames: readonly string[],
+  messages: readonly string[]
+): ReportConceptValidationStatus {
+  if (documentation === 'absent' || validatorNames.length === 0) {
+    return 'not_evaluated'
+  }
+  return messages.length ? 'invalid' : 'valid'
+}
+
+type FindingInstance = ReturnType<typeof findingInstances>[number]
+type CoverageClassification = CoverageTemplateFinding['classifications'][number]
+
+function buildFindingCoverageItem(params: {
+  templateFinding: CoverageTemplateFinding
+  payload: { patientFindings?: ReportTemplateRuntimePatientFindingInput[] } | null
+  validation: ReportTemplateRuntimeValidationResult | null
+}): { item: ReportConceptCoverageItem; instances: FindingInstance[] } {
+  const { templateFinding, payload, validation } = params
+  const instances = findingInstances(payload, templateFinding.finding)
+  const applicability = applicabilityStatus(templateFinding)
+  const messages = findingMessages(validation, templateFinding.finding)
+  const validatorNames = findingValidationEvidence(validation, templateFinding.finding)
+  const documentation: ReportConceptDocumentationStatus = instances.length ? 'recorded' : 'absent'
+  const validationStatus = conceptValidationStatus(documentation, validatorNames, messages)
+  return {
+    instances,
+    item: {
+      conceptId: normalizeKey(templateFinding.finding),
+      label: templateFinding.finding,
+      kind: 'finding',
+      finding: templateFinding.finding,
+      status: findingCoverageStatus({ applicability, documentation, validation: validationStatus }),
+      required: templateFinding.required,
+      documentation,
+      applicability,
+      validation: validationStatus,
+      validatorNames,
+      evidencePath: instances.length ? `patientFindings[${String(instances[0].index)}]` : null,
+      messages
+    }
+  }
+}
+
+function classificationChoicePath(
+  instances: FindingInstance[],
+  classificationName: string
+): string | null {
+  const choice = instances
+    .flatMap(({ instance, index }) =>
+      instance.classificationChoices.map((candidate, choiceIndex) => ({
+        candidate,
+        path: `patientFindings[${String(index)}].classificationChoices[${String(choiceIndex)}]`
+      }))
+    )
+    .find(
+      ({ candidate }) =>
+        normalizeKey(candidate.classification) === normalizeKey(classificationName) &&
+        hasValue(candidate.classificationChoice)
+    )
+  return choice?.path || null
+}
+
+function buildClassificationCoverageItem(params: {
+  finding: string
+  classification: CoverageClassification
+  applicability: ReportConceptApplicabilityStatus
+  instances: FindingInstance[]
+  validation: ReportTemplateRuntimeValidationResult | null
+}): ReportConceptCoverageItem {
+  const { finding, classification, applicability, instances, validation } = params
+  const evidencePath = classificationChoicePath(instances, classification.classification)
+  const messages = classificationMessages(validation, finding, classification.classification)
+  const validatorNames = classificationValidationEvidence(
+    validation,
+    finding,
+    classification.classification
+  )
+  const documentation: ReportConceptDocumentationStatus = evidencePath ? 'recorded' : 'absent'
+  const validationStatus = conceptValidationStatus(documentation, validatorNames, messages)
+  return {
+    conceptId: `${normalizeKey(finding)}.${normalizeKey(classification.classification)}`,
+    label: classification.classification,
+    kind: 'classification',
+    finding,
+    status: classificationCoverageStatus({
+      applicability,
+      documentation,
+      required: classification.required,
+      validation: validationStatus
+    }),
+    required: classification.required,
+    documentation,
+    applicability,
+    validation: validationStatus,
+    validatorNames,
+    evidencePath,
+    messages
+  }
+}
+
 export function deriveReportConceptCoverage(params: {
   sections: ReportTemplateSection[]
   payload: { patientFindings?: ReportTemplateRuntimePatientFindingInput[] } | null
@@ -221,101 +319,24 @@ export function deriveReportConceptCoverage(params: {
 
   for (const section of params.sections) {
     for (const templateFinding of section.findings) {
-      const findingId = normalizeKey(templateFinding.finding)
-      const applicability = applicabilityStatus(templateFinding)
-      const instances = findingInstances(params.payload, templateFinding.finding)
-      const messages = findingMessages(params.validation, templateFinding.finding)
-      const validatorNames = findingValidationEvidence(params.validation, templateFinding.finding)
-      const documentation: ReportConceptDocumentationStatus = instances.length
-        ? 'recorded'
-        : 'absent'
-      const validationStatus: ReportConceptValidationStatus =
-        documentation === 'absent'
-          ? 'not_evaluated'
-          : !validatorNames.length
-            ? 'not_evaluated'
-            : messages.length
-              ? 'invalid'
-              : 'valid'
-      const findingStatus = findingCoverageStatus({
-        applicability,
-        documentation,
-        validation: validationStatus
+      const findingCoverage = buildFindingCoverageItem({
+        templateFinding,
+        payload: params.payload,
+        validation: params.validation
       })
-
-      addItem(items, {
-        conceptId: findingId,
-        label: templateFinding.finding,
-        kind: 'finding',
-        finding: templateFinding.finding,
-        status: findingStatus,
-        required: templateFinding.required,
-        documentation,
-        applicability,
-        validation: validationStatus,
-        validatorNames,
-        evidencePath: instances.length ? `patientFindings[${String(instances[0].index)}]` : null,
-        messages
-      })
+      addItem(items, findingCoverage.item)
 
       for (const classification of templateFinding.classifications) {
-        const classificationId = `${findingId}.${normalizeKey(classification.classification)}`
-        const classificationApplicability = applicability
-        const choice = instances
-          .flatMap(({ instance, index }) =>
-            instance.classificationChoices.map((candidate, choiceIndex) => ({
-              candidate,
-              path: `patientFindings[${String(index)}].classificationChoices[${String(choiceIndex)}]`
-            }))
-          )
-          .find(
-            ({ candidate }) =>
-              normalizeKey(candidate.classification) ===
-                normalizeKey(classification.classification) &&
-              hasValue(candidate.classificationChoice)
-          )
-        const messagesForClassification = classificationMessages(
-          params.validation,
-          templateFinding.finding,
-          classification.classification
+        addItem(
+          items,
+          buildClassificationCoverageItem({
+            finding: templateFinding.finding,
+            classification,
+            applicability: findingCoverage.item.applicability,
+            instances: findingCoverage.instances,
+            validation: params.validation
+          })
         )
-        const classificationValidatorNames = classificationValidationEvidence(
-          params.validation,
-          templateFinding.finding,
-          classification.classification
-        )
-        const classificationDocumentation: ReportConceptDocumentationStatus = choice
-          ? 'recorded'
-          : 'absent'
-        const classificationValidationStatus: ReportConceptValidationStatus =
-          classificationDocumentation === 'absent'
-            ? 'not_evaluated'
-            : !classificationValidatorNames.length
-              ? 'not_evaluated'
-              : messagesForClassification.length
-                ? 'invalid'
-                : 'valid'
-        const classificationStatus = classificationCoverageStatus({
-          applicability: classificationApplicability,
-          documentation: classificationDocumentation,
-          required: classification.required,
-          validation: classificationValidationStatus
-        })
-
-        addItem(items, {
-          conceptId: classificationId,
-          label: classification.classification,
-          kind: 'classification',
-          finding: templateFinding.finding,
-          status: classificationStatus,
-          required: classification.required,
-          documentation: classificationDocumentation,
-          applicability: classificationApplicability,
-          validation: classificationValidationStatus,
-          validatorNames: classificationValidatorNames,
-          evidencePath: choice?.path || null,
-          messages: messagesForClassification
-        })
       }
     }
   }

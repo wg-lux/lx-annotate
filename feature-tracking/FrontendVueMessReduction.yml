@@ -14,7 +14,7 @@ definition_of_done:
   category: testing
   title: Default detector findings are substantially reduced and frontend behavior is verified
   acceptance:
-  - Run npx vue-mess-detector analyze --exclude=.devenv from frontend before and after changes.
+  - Run npm --prefix frontend run vue-mess-detector before and after changes.
   - Preserve detector rules and exclusions and existing workflow behavior.
   - Record exact count reduction and frontend verification results.
   required: true
@@ -27,7 +27,7 @@ definition_of_done:
     status: verified
     evidence:
     - kind: command
-      reference: cd frontend && npx vue-mess-detector analyze --exclude=.devenv
+      reference: npm --prefix frontend run vue-mess-detector
     - kind: command
       reference: cd frontend && npm run test:unit -- --run
     - kind: command
@@ -55,16 +55,16 @@ definition_of_done:
         src/views/reporting/ReportingShell.vue src/views/reporting/__tests__/FrameSelectorPage.test.ts
         src/views/reporting/__tests__/reportingValidationPresentation.test.ts src/views/reporting/reportingValidationPresentation.ts
         tests/keycloak/can_kc.spec.ts tests/keycloak/http_kc.spec.ts
-    note: 'Detector history: original 4342 findings; pass one 2442; pass two 2032 (519 errors/1513 warnings);
-      pass three before Prettier 1893 (496/1397), after Prettier 1894 (498/1396). Third-pass net reduction
-      138 (6.79%); cumulative reduction 2448 (56.38%). Final scan covers 319 files with the same default
-      53 rules and .devenv exclusion under Vue Mess Detector 0.68.1. Prettier --write --single-attribute-per-line
-      ran on 40 third-pass files and its --check passed; formatting increased findings by one, transparently
-      retained for consistency. Final 134 test files / 989 tests, application and component TypeScript
-      checks, lint, build, and git diff --check passed. Build retains non-failing large-chunk advisory.
-      Remaining 1894 findings include real complexity and heuristic false positives.'
-    assessed_by: codex-vue-detector-20260911
-    assessed_at: '2026-09-11T09:09:57.307233Z'
+    - kind: code
+      reference: frontend/.prettierrc.json
+    note: 'September 14 continuous complexity pass: repository-wide ESLint complexity warnings fell
+      from 165 to 0. Full ESLint passes with --max-warnings 0; all 142 unit-test files / 1035 tests,
+      application vue-tsc, component-test vue-tsc, production build, changed-file formatting and git
+      diff --check pass. The default Vue Mess Detector completes with 1822 findings (545 errors, 1277
+      warnings), 112592 lines in 348 files and 99% reported code health. No detector or ESLint rules,
+      exclusions, thresholds or dependencies changed.'
+    assessed_by: codex-frontend-continuous-0914
+    assessed_at: '2026-09-14T09:13:45Z'
 - id: scope
   category: requirements
   title: Cleanup scope is explicit
@@ -80,14 +80,13 @@ definition_of_done:
     evidence:
     - kind: code
       reference: frontend/src
-    note: Third pass uses seven implementation subagents and one independent static reviewer. Changed
-      40 frontend files including 9 new files (5 typed helpers and 4 focused test files), plus this existing
-      YAML tracker. Introduced cohesive reporting, dataset, settings, administration and navigation helpers;
-      simplified annotation gating and local names; preserved pre-existing staged work. User-requested
-      Prettier --write applied only to these 40 files with --single-attribute-per-line. No backend, dependency,
-      formatter configuration, detector rule or exclusion changes.
-    assessed_by: codex-vue-detector-20260911
-    assessed_at: '2026-09-11T09:10:00.222876Z'
+    note: 'The continuous pass is limited to first-party frontend source/tests and this YAML. It covers
+      API normalization, reporting and annotation orchestration, stores, presentation helpers and test
+      fixtures. One verified-unreferenced component, ReportConceptCoveragePanel.vue, was removed. Shared
+      Patient, PatientExaminationOption and ExportMessage contracts were centralized under frontend/src/types.
+      Existing staged user changes were preserved; exact feature locks were used and released.'
+    assessed_by: codex-frontend-continuous-0914
+    assessed_at: '2026-09-14T09:13:45Z'
 - id: behavior
   category: functionality
   title: Existing workflow behavior is preserved
@@ -108,16 +107,21 @@ definition_of_done:
       reference: frontend/src
     - kind: code
       reference: frontend/src/views/reporting/CaseResolutionPage.vue
-    note: Third-pass independent review found no concrete regressions in approval gates, projection fields,
-      dataset duplicate/label/order precedence, training readiness, reporting grouping/traversal, segment
-      navigation and status presentation. Focused new tests exercise helper boundaries. Binding changes
-      preserve resolved references, literals, exports and property keys; eight edited existing test files
-      passed exact reverse-edit equivalence before formatting. Prettier script AST comparison passed across
-      all 40 files after normalizing positions, raw formatting and equivalent quoted/unquoted property
-      names. Final 989 tests, both TypeScript checks and lint passed. No real-browser visual comparison
-      was performed.
-    assessed_by: codex-vue-detector-20260911
-    assessed_at: '2026-09-11T09:10:03.547287Z'
+    - kind: command
+      reference: npx eslint frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue
+    note: Reporting indexes preserve normalized keys, occurrence ordering, first-wins classification references,
+      descriptor completeness and advisory workflow status. Parent review restored explicit no-active-reference
+      guards to preserve empty results even with malformed empty-name inputs. Statistics cards share category/status
+      descriptors; tests cover navigation, counts/progress, ranking ties/reactivity and achievement eligibility.
+      Video dropdown presentation is shared by search and render; anonymization and segment validation
+      remain distinct. Wrapper component names and toast themes preserved. Existing test fixture values/case
+      counts were checked by reversing extraction against snapshots. The September 14 continuous pass
+      extracted bounded validation, normalization, request-currentness and presentation helpers across
+      every remaining ESLint complexity hotspot, reducing repository-wide complexity warnings from 165
+      to 0 without suppressions. All 1035 tests, both TypeScript checks, full lint and production build
+      pass. No browser visual comparison was performed.
+    assessed_by: codex-frontend-continuous-0914
+    assessed_at: '2026-09-14T09:13:45Z'
 - id: security
   category: security
   title: Security boundaries are preserved
@@ -133,13 +137,12 @@ definition_of_done:
     evidence:
     - kind: code
       reference: frontend/src/api/reportExportApi.ts
-    note: Third-pass review confirms anonymization and segment-validation gates remain distinct, annotation
-      principal scoping is preserved, and navigation/readiness refactors keep the original reactive inputs
-      and status precedence. API/auth conditional simplifications passed 34 focused tests, including malformed-user/coverage
-      rejection. No transport, encryption, storage, authorization policy, configuration secrets or API
-      write contract changes. Final 989 tests and independent static review passed.
-    assessed_by: codex-vue-detector-20260911
-    assessed_at: '2026-09-11T09:10:06.324518Z'
+    note: API payload keys, authentication bootstrap and cancellation semantics, annotation principal
+      scope, same-origin authenticated media loading, permission gates, reporting provenance validation
+      and clinical validation ownership are preserved. No storage, cryptographic, transport, backend,
+      environment or secret configuration changes were made.
+    assessed_by: codex-frontend-continuous-0914
+    assessed_at: '2026-09-14T09:13:45Z'
 - id: reproducibility
   category: operations
   title: Detector comparison is reproducible
@@ -154,14 +157,15 @@ definition_of_done:
     status: verified
     evidence:
     - kind: command
-      reference: cd frontend && npx vue-mess-detector analyze --exclude=.devenv
-    note: Third-pass scans used Vue Mess Detector 0.68.1 and all default 53 rules with only .devenv excluded.
-      Baseline 2032 across 310 files; new helpers/tests expand final coverage to 319 files. Frozen post-Prettier
-      result 498 errors + 1396 warnings = 1894. Prettier uses existing configuration plus the explicit
-      single-attribute-per-line flag; the exact 40-file write command is retained as measured_reduction
-      evidence. No thresholds, exclusions or rule suppressions were changed.
-    assessed_by: codex-vue-detector-20260911
-    assessed_at: '2026-09-11T09:10:09.115250Z'
+      reference: npm --prefix frontend run vue-mess-detector
+    note: 'The continuous pass uses the existing npm run vue-mess-detector command with its unchanged
+      .devenv exclusion and default rules. The current result is 545 errors + 1277 warnings = 1822 across
+      348 files, with 99% reported code health. ESLint complexity was measured independently with the
+      unchanged repository configuration: 165 warnings before and 0 after. The final detector log is
+      /tmp/lx-vue-continuous-final-detector.txt and the final ESLint log is
+      /tmp/lx-annotate-eslint-continuous-final-candidate.txt; temporary logs are not production evidence.'
+    assessed_by: codex-frontend-continuous-0914
+    assessed_at: '2026-09-14T09:13:45Z'
 - id: evidence
   category: documentation
   title: Verification evidence is recorded in English
@@ -177,10 +181,10 @@ definition_of_done:
     evidence:
     - kind: document
       reference: feature-tracking/FrontendVueMessReduction.yml
-    note: 'English YAML records all three passes: 4342 to 2442 to 2032 to 1894 findings, with exact formatting
-      command, final integration results, source scope and limitations. Formatting itself changed 1893
-      to 1894; reduction is attributed to source improvements. All final checks pass, including Prettier
-      check on the same files. Residual limitations include remaining real and heuristic detector findings,
-      existing build chunk-size advisory and no real-browser visual acceptance run.'
-    assessed_by: codex-vue-detector-20260911
-    assessed_at: '2026-09-11T09:10:11.664950Z'
+    note: 'English YAML records the continuous-pass ESLint complexity baseline/result, scope, type
+      centralization, unused-component audit and completed checks. Complexity warnings are 165 to 0.
+      The current default detector result is 1822 total findings and 99% code health; its remaining
+      non-complexity findings stay outside this request. The existing build chunk-size advisory remains
+      non-failing. No suppression/configuration changes, deployment, or browser visual acceptance claimed.'
+    assessed_by: codex-frontend-continuous-0914
+    assessed_at: '2026-09-14T09:13:45Z'

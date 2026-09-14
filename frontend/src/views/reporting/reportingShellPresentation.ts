@@ -1,10 +1,9 @@
 import type { PatientCase } from '@/api/casesApi'
+import type { PatientExaminationOption as BasePatientExaminationOption } from '@/types/patientExamination'
 import type { ReportConceptCoverageStatus } from '@/utils/reportConceptCoverage'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 
-export interface PatientExaminationOption {
-  id: number
-  label: string
+export interface PatientExaminationOption extends BasePatientExaminationOption {
   examinationName: string
   examinationDisplayName: string
   patientId: number | null
@@ -121,6 +120,12 @@ export const conceptCoverageStatusTone = (status: ReportConceptCoverageStatus): 
   return 'warning'
 }
 
+const stringListEntry = (entry: unknown): string => {
+  if (typeof entry === 'string') return entry.trim()
+  const record = readRecord(entry)
+  return firstNonEmptyString(record.label, record.message, record.action) || ''
+}
+
 export const extractStringList = (value: unknown): string[] => {
   if (typeof value === 'string' && value.trim()) {
     return [value.trim()]
@@ -128,23 +133,40 @@ export const extractStringList = (value: unknown): string[] => {
   if (!Array.isArray(value)) {
     return []
   }
-  return value
-    .map((entry) => {
-      if (typeof entry === 'string') {
-        return entry.trim()
-      }
-      if (!entry || typeof entry !== 'object') {
-        return ''
-      }
-      const record = entry as Record<string, unknown>
-      return (
-        (typeof record.label === 'string' && record.label.trim()) ||
-        (typeof record.message === 'string' && record.message.trim()) ||
-        (typeof record.action === 'string' && record.action.trim()) ||
-        ''
-      )
-    })
-    .filter((entry): entry is string => Boolean(entry))
+  return value.map(stringListEntry).filter((entry): entry is string => Boolean(entry))
+}
+
+const examinationDateLabel = (record: Record<string, unknown>): string => {
+  const raw = firstNonEmptyString(record.date_start, record.dateStart)
+  return raw ? new Date(raw).toLocaleDateString('de-DE') : ''
+}
+
+const patientIdFromExamination = (
+  record: Record<string, unknown>,
+  patient: Record<string, unknown>
+): number | null => {
+  const patientData = readRecord(record.patient_data)
+  const camelPatientData = readRecord(record.patientData)
+  return toPositiveInteger(
+    patient.id ?? patientData.id ?? camelPatientData.id ?? record.patient_id ?? record.patientId
+  )
+}
+
+const knowledgeBaseIdentityFields = (
+  record: Record<string, unknown>
+): Pick<PatientExaminationOption, 'knowledgeBaseModule' | 'knowledgeBaseVersion'> => {
+  const knowledgeBaseModule = firstNonEmptyString(
+    record.knowledgeBaseModule,
+    record.knowledge_base_module
+  )
+  const knowledgeBaseVersion = firstNonEmptyString(
+    record.knowledgeBaseVersion,
+    record.knowledge_base_version
+  )
+  return {
+    ...(knowledgeBaseModule ? { knowledgeBaseModule } : {}),
+    ...(knowledgeBaseVersion ? { knowledgeBaseVersion } : {})
+  }
 }
 
 export const normalizePatientExaminationOption = (
@@ -156,8 +178,6 @@ export const normalizePatientExaminationOption = (
   const examinationRecord = raw as Record<string, unknown>
   const examination = readRecord(examinationRecord.examination)
   const patient = readRecord(examinationRecord.patient)
-  const patientData = readRecord(examinationRecord.patient_data)
-  const camelPatientData = readRecord(examinationRecord.patientData)
   const patientExaminationId = toPositiveInteger(examinationRecord.id)
   if (patientExaminationId === null) {
     return null
@@ -171,32 +191,17 @@ export const normalizePatientExaminationOption = (
     ) || 'Untersuchung'
   const examinationDisplayName =
     firstNonEmptyString(examination.nameDe, examination.name_de) || examinationName
-  const dateStartRaw =
-    typeof examinationRecord.date_start === 'string'
-      ? examinationRecord.date_start
-      : typeof examinationRecord.dateStart === 'string'
-        ? examinationRecord.dateStart
-        : ''
-  const dateLabel = dateStartRaw ? new Date(dateStartRaw).toLocaleDateString('de-DE') : ''
-  const knowledgeBaseModule = firstNonEmptyString(
-    examinationRecord.knowledgeBaseModule,
-    examinationRecord.knowledge_base_module
-  )
-  const knowledgeBaseVersion = firstNonEmptyString(
-    examinationRecord.knowledgeBaseVersion,
-    examinationRecord.knowledge_base_version
-  )
+  const dateLabel = examinationDateLabel(examinationRecord)
   return {
     id: patientExaminationId,
     label: dateLabel ? `${examinationDisplayName} · ${dateLabel}` : examinationDisplayName,
     examinationName,
     examinationDisplayName,
-    patientId: toPositiveInteger(
-      patient.id ?? patientData.id ?? camelPatientData.id ?? examinationRecord.patient_id ?? examinationRecord.patientId
+    patientId: patientIdFromExamination(examinationRecord, patient),
+    examinationId: toPositiveInteger(
+      examination.id ?? examinationRecord.examination_id ?? examinationRecord.examinationId
     ),
-    examinationId: toPositiveInteger(examination.id ?? examinationRecord.examination_id ?? examinationRecord.examinationId),
-    ...(knowledgeBaseModule ? { knowledgeBaseModule } : {}),
-    ...(knowledgeBaseVersion ? { knowledgeBaseVersion } : {})
+    ...knowledgeBaseIdentityFields(examinationRecord)
   }
 }
 

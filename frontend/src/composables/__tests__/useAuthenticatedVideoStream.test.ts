@@ -73,26 +73,29 @@ interface HostVm {
   playbackSourceUrl: string
 }
 
+type HostVmShape = Record<keyof HostVm, unknown>
+
+function hasHostVmKeys(value: object): value is HostVmShape {
+  const keys: Array<keyof HostVm> = [
+    'video',
+    'videoId',
+    'artifactKind',
+    'playbackMode',
+    'playbackSourceUrl'
+  ]
+  return keys.every((key) => key in value)
+}
+
 function isHostVm(value: unknown): value is HostVm {
-  if (typeof value !== 'object' || value === null) {
-    return false
-  }
-  if (
-    !('video' in value) ||
-    !('videoId' in value) ||
-    !('artifactKind' in value) ||
-    !('playbackMode' in value) ||
-    !('playbackSourceUrl' in value)
-  ) {
-    return false
-  }
-  return (
-    (value.video === null || value.video instanceof HTMLVideoElement) &&
-    (value.videoId === null || typeof value.videoId === 'number') &&
-    (value.artifactKind === 'raw' || value.artifactKind === 'processed') &&
-    typeof value.playbackMode === 'string' &&
+  if (typeof value !== 'object' || value === null || !hasHostVmKeys(value)) return false
+  const validFields = [
+    value.video === null || value.video instanceof HTMLVideoElement,
+    value.videoId === null || typeof value.videoId === 'number',
+    value.artifactKind === 'raw' || value.artifactKind === 'processed',
+    typeof value.playbackMode === 'string',
     typeof value.playbackSourceUrl === 'string'
-  )
+  ]
+  return validFields.every(Boolean)
 }
 
 function requireHostVm(wrapper: ReturnType<typeof mountHost>): HostVm {
@@ -153,7 +156,8 @@ describe('useAuthenticatedVideoStream', () => {
   it('waits for HTTP 202 Retry-After before configuring playback', async () => {
     vi.useFakeTimers()
     axiosMock.get.mockResolvedValueOnce({
-      status: 202, data: '{"status":"preparing"}',
+      status: 202,
+      data: '{"status":"preparing"}',
       headers: { 'content-type': 'application/json', 'retry-after': '3' }
     })
     const wrapper = mountHost()
@@ -192,7 +196,9 @@ describe('useAuthenticatedVideoStream', () => {
     await flushPromises()
     await vi.advanceTimersByTimeAsync(120_000)
     expect(requireHostVm(wrapper).playbackMode).toBe('error')
-    expect(fatalError).toHaveBeenCalledWith(expect.objectContaining({ reason: 'hls_preparation_timeout' }))
+    expect(fatalError).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: 'hls_preparation_timeout' })
+    )
     expect(hlsMock.instances).toHaveLength(0)
     wrapper.unmount()
   })

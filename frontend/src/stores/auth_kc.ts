@@ -49,26 +49,34 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
 }
 
-function normalizeUser(value: unknown): User | null {
-  if (
-    !isRecord(value) ||
-    typeof value.username !== 'string' ||
-    !value.username.trim() ||
-    !isStringArray(value.roles)
-  ) {
-    return null
-  }
-  const subject = typeof value.sub === 'string' ? value.sub : undefined
+function isUserRecord(
+  value: unknown
+): value is Record<string, unknown> & { username: string; roles: string[] } {
+  return (
+    isRecord(value) &&
+    typeof value.username === 'string' &&
+    Boolean(value.username.trim()) &&
+    isStringArray(value.roles)
+  )
+}
+
+function annotationPrincipalOverride(value: Record<string, unknown>): boolean | undefined {
   const camelOverride = value.canOverrideAnnotationPrincipal
   const snakeOverride = value.can_override_annotation_principal
-  if (
-    (camelOverride !== undefined && typeof camelOverride !== 'boolean') ||
-    (snakeOverride !== undefined && typeof snakeOverride !== 'boolean') ||
-    (camelOverride !== undefined && snakeOverride !== undefined && camelOverride !== snakeOverride)
-  ) {
+  const camelInvalid = camelOverride !== undefined && typeof camelOverride !== 'boolean'
+  const snakeInvalid = snakeOverride !== undefined && typeof snakeOverride !== 'boolean'
+  const valuesConflict =
+    camelOverride !== undefined && snakeOverride !== undefined && camelOverride !== snakeOverride
+  if (camelInvalid || snakeInvalid || valuesConflict) {
     throw new TypeError('Invalid annotation principal override capability')
   }
-  const canOverrideAnnotationPrincipal = camelOverride ?? snakeOverride
+  return camelOverride ?? snakeOverride
+}
+
+function normalizeUser(value: unknown): User | null {
+  if (!isUserRecord(value)) return null
+  const subject = typeof value.sub === 'string' ? value.sub : undefined
+  const canOverrideAnnotationPrincipal = annotationPrincipalOverride(value)
   return {
     username: value.username,
     roles: value.roles,
@@ -120,6 +128,69 @@ function emptyCapabilities(): CapMap {
   return {}
 }
 
+interface AuthBootstrapState {
+  user: User | null
+  roles: string[]
+  caps: CapMap
+  loaded: boolean
+  bootstrapFailed: boolean
+}
+
+function firstString(record: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string') return value
+  }
+  return null
+}
+
+function bootstrapUser(bootstrap: Record<string, unknown>): User | null {
+  const user = normalizeUser(bootstrap.user)
+  if (!user) return null
+  const fallbackSub = firstString(bootstrap, ['sub', 'oidcSub', 'oidc_sub'])
+  return {
+    ...user,
+    sub: typeof user.sub === 'string' && user.sub.trim() ? user.sub : (fallbackSub ?? undefined)
+  }
+}
+
+function applyBootstrapData(store: AuthBootstrapState, data: unknown): void {
+  const bootstrap = isRecord(data) ? data : {}
+  const user = bootstrapUser(bootstrap)
+  store.user = user
+  store.roles = user && isStringArray(bootstrap.roles) ? bootstrap.roles : (user?.roles ?? [])
+  store.caps = user ? normalizeCaps(bootstrap.capabilities) : {}
+  store.bootstrapFailed = false
+}
+
+function resetFailedBootstrap(store: AuthBootstrapState): void {
+  store.user = null
+  store.roles = []
+  store.caps = {}
+  store.bootstrapFailed = true
+}
+
+async function performBootstrap(
+  store: AuthBootstrapState,
+  request: () => Promise<void>
+): Promise<void> {
+  try {
+    const response = await axios.get<unknown>(r(endpoints.auth.bootstrap), {
+      withCredentials: true
+    })
+    if (bootstrapRequests.get(store) !== request()) return
+    applyBootstrapData(store, response.data)
+  } catch (error: unknown) {
+    if (bootstrapRequests.get(store) === request()) resetFailedBootstrap(store)
+    throw error
+  } finally {
+    if (bootstrapRequests.get(store) === request()) {
+      store.loaded = true
+      bootstrapRequests.delete(store)
+    }
+  }
+}
+
 export const useAuthKcStore = defineStore('auth_kc', {
   state: () => ({
     /** Filled from backend bootstrap */
@@ -153,61 +224,9 @@ export const useAuthKcStore = defineStore('auth_kc', {
         return pending
       }
 
-      const request: Promise<void> = Promise.resolve().then(async () => {
-        try {
-          const response = await axios.get<unknown>(r(endpoints.auth.bootstrap), {
-            withCredentials: true
-          })
-          // A logout or newer session invalidates this result before publication.
-          if (bootstrapRequests.get(this) !== request) {
-            return
-          }
-          const data = response.data
-
-          // User & roles (support both shapes)
-          const bootstrap = isRecord(data) ? data : {}
-          const rawUser = normalizeUser(bootstrap.user)
-          const fallbackSub =
-            typeof bootstrap.sub === 'string'
-              ? bootstrap.sub
-              : typeof bootstrap.oidcSub === 'string'
-                ? bootstrap.oidcSub
-                : typeof bootstrap.oidc_sub === 'string'
-                  ? bootstrap.oidc_sub
-                  : null
-          const user = rawUser
-            ? {
-                ...rawUser,
-                sub:
-                  typeof rawUser.sub === 'string' && rawUser.sub.trim()
-                    ? rawUser.sub
-                    : (fallbackSub ?? undefined)
-              }
-            : null
-          let roles = user?.roles ?? []
-          if (user && isStringArray(bootstrap.roles)) {
-            roles = bootstrap.roles
-          }
-
-          this.user = user
-          this.roles = roles
-          this.caps = user ? normalizeCaps(bootstrap.capabilities) : {}
-          this.bootstrapFailed = false
-        } catch (error: unknown) {
-          if (bootstrapRequests.get(this) === request) {
-            this.user = null
-            this.roles = []
-            this.caps = {}
-            this.bootstrapFailed = true
-          }
-          throw error
-        } finally {
-          if (bootstrapRequests.get(this) === request) {
-            this.loaded = true
-            bootstrapRequests.delete(this)
-          }
-        }
-      })
+      const request: Promise<void> = Promise.resolve().then(() =>
+        performBootstrap(this, () => request)
+      )
       bootstrapRequests.set(this, request)
       return request
     },

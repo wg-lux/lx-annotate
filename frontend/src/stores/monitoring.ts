@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { isAxiosError } from 'axios'
 import { fetchMonitoringSnapshot, type MonitoringSnapshot } from '@/api/monitoringApi'
 
+function isForbiddenMonitoringError(error: unknown): boolean {
+  if (!isAxiosError(error)) return false
+  return [401, 403].includes(error.response?.status ?? 0)
+}
+
 export const useMonitoringStore = defineStore('runtime_monitoring', {
   state: () => ({
     snapshot: null as MonitoringSnapshot | null,
@@ -31,8 +36,7 @@ export const useMonitoringStore = defineStore('runtime_monitoring', {
         if (requestId === this.requestId) this.snapshot = snapshot
       } catch (error: unknown) {
         if (requestId !== this.requestId) return
-        this.forbidden =
-          isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)
+        this.forbidden = isForbiddenMonitoringError(error)
         this.error = this.forbidden
           ? 'Administrator access is required.'
           : 'Monitoring could not be refreshed. Application health is unknown.'

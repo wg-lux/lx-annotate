@@ -9,7 +9,9 @@
         <h5 class="mb-2">Bericht schreiben</h5>
         <div class="report-editor-facts">
           <span class="report-editor-fact">{{ reportPatientLabel }}</span>
-          <span class="report-editor-fact">{{ selectedExaminationDisplayName || 'Untersuchung fehlt' }}</span>
+          <span class="report-editor-fact">{{
+            selectedExaminationDisplayName || 'Untersuchung fehlt'
+          }}</span>
           <span class="report-editor-fact">{{ selectedTemplateDisplayName }}</span>
         </div>
       </div>
@@ -18,9 +20,7 @@
           class="report-status-pill"
           :class="reportStatusPresentation.className"
         >
-          {{
-            reportStatusPresentation.label
-          }}
+          {{ reportStatusPresentation.label }}
         </div>
         <RouterLink
           class="btn btn-outline-secondary btn-sm"
@@ -36,11 +36,15 @@
         <div
           v-if="errorMessage"
           class="alert alert-danger py-2"
-        >{{ errorMessage }}</div>
+        >
+          {{ errorMessage }}
+        </div>
         <div
           v-if="successMessage"
           class="alert alert-success py-2"
-        >{{ successMessage }}</div>
+        >
+          {{ successMessage }}
+        </div>
         <div
           v-if="flow.draftPersistenceStatus === 'conflict'"
           class="alert alert-danger draft-revision-conflict"
@@ -60,60 +64,19 @@
             Lokalen Entwurf verwerfen und Serverstand neu laden
           </button>
         </div>
-        <div
+        <HistoricalReportViewer
           v-if="historicalReadOnlyReport"
-          class="alert alert-secondary historical-report-read-only"
-          data-testid="historical-report-read-only"
-        >
-          <div class="d-flex justify-content-between gap-3 align-items-start">
-            <div>
-              <strong>Historischer Bericht (nur lesbar)</strong>
-              <div class="small mt-1">
-                {{ historicalReportIdentityLabel }}
-              </div>
-            </div>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-secondary"
-              data-testid="close-historical-report"
-              @click="historicalReadOnlyReport = null"
-            >
-              Schließen
-            </button>
-          </div>
-          <textarea
-            class="form-control mt-2"
-            rows="8"
-            readonly
-            :value="historicalReadOnlyReport.renderedText || ''"
-            aria-label="Historischer Berichtstext"
-          ></textarea>
-        </div>
+          :identity-label="historicalReportIdentityLabel"
+          :rendered-text="historicalReadOnlyReport.renderedText || ''"
+          @close="historicalReadOnlyReport = null"
+        />
 
-        <div
-          v-if="sectionCompletionSummary.totalSections"
-          class="report-readiness-strip mb-3"
-        >
-          <div class="readiness-item is-primary">
-            <span class="readiness-label">Vollständigkeit</span>
-            <strong class="readiness-value">
-              {{ sectionCompletionSummary.completedSections }}/{{
-                sectionCompletionSummary.totalSections
-              }}
-            </strong>
-          </div>
-          <div
-            class="readiness-item"
-            :class="{ 'has-warning': missingRequiredCount > 0 }"
-          >
-            <span class="readiness-label">Noch offen</span>
-            <strong class="readiness-value">{{ missingRequiredCount }}</strong>
-          </div>
-          <div class="readiness-item">
-            <span class="readiness-label">Bericht</span>
-            <strong class="readiness-value">{{ reportWordCount }} Wörter</strong>
-          </div>
-        </div>
+        <ReportReadinessSummary
+          :completed-sections="sectionCompletionSummary.completedSections"
+          :total-sections="sectionCompletionSummary.totalSections"
+          :missing-required-count="missingRequiredCount"
+          :word-count="reportWordCount"
+        />
 
         <div class="report-editor-layout">
           <div class="report-editor-main">
@@ -237,8 +200,12 @@
               <template #default>
                 <div class="section-status-row mb-3">
                   <span class="section-status-badge">{{ section.findings.length }} Befunde</span>
-                  <span class="section-status-badge">{{ section.requiredFindingsCount }} erforderlich</span>
-                  <span class="section-status-badge">{{ section.requiredClassificationsCount }} Pflicht-Klassifikationen</span>
+                  <span class="section-status-badge"
+                    >{{ section.requiredFindingsCount }} erforderlich</span
+                  >
+                  <span class="section-status-badge"
+                    >{{ section.requiredClassificationsCount }} Pflicht-Klassifikationen</span
+                  >
                 </div>
                 <div class="mb-3">
                   <div class="fw-semibold small mb-1">Aktueller Inhalt</div>
@@ -257,7 +224,9 @@
                   <div
                     v-else
                     class="small text-muted"
-                  >Noch keine Befunde in diesem Abschnitt.</div>
+                  >
+                    Noch keine Befunde in diesem Abschnitt.
+                  </div>
                 </div>
 
                 <div class="d-flex flex-wrap gap-3 mb-3 section-toggle-row">
@@ -336,7 +305,8 @@
                 <label
                   class="form-label"
                   for="report-rendered-text"
-                >Texteditor</label>
+                  >Texteditor</label
+                >
                 <textarea
                   id="report-rendered-text"
                   class="form-control report-text-editor"
@@ -426,7 +396,9 @@
                 </div>
                 <div class="report-preview-fact">
                   <span class="report-preview-label">Untersuchung</span>
-                  <strong class="report-preview-value">{{ selectedExaminationDisplayName || 'Nicht gewählt' }}</strong>
+                  <strong class="report-preview-value">{{
+                    selectedExaminationDisplayName || 'Nicht gewählt'
+                  }}</strong>
                 </div>
               </div>
 
@@ -434,7 +406,9 @@
                 <summary class="report-technical-toggle">Technische Berichtsdetails</summary>
                 <div class="report-technical-fact">
                   <span>Berichtsreferenz</span>
-                  <strong class="report-technical-value">{{ flow.activeReportId || 'Noch nicht vergeben' }}</strong>
+                  <strong class="report-technical-value">{{
+                    flow.activeReportId || 'Noch nicht vergeben'
+                  }}</strong>
                 </div>
               </details>
 
@@ -484,7 +458,9 @@
           <li
             v-for="(warning, idx) in saveWarnings"
             :key="idx"
-          >{{ warning }}</li>
+          >
+            {{ warning }}
+          </li>
         </ul>
       </div>
     </div>
@@ -582,6 +558,8 @@ import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue'
 import ReportArtifactsPanel from '@/components/Reporting/ReportArtifactsPanel.vue'
+import HistoricalReportViewer from '@/components/Reporting/HistoricalReportViewer.vue'
+import ReportReadinessSummary from '@/components/Reporting/ReportReadinessSummary.vue'
 import { useDebug } from '@/composables/useDebug'
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
 import { useExaminationStore } from '@/stores/examinationStore'
@@ -735,7 +713,8 @@ const selectedExaminationDisplayName = computed(
   () => selectedExamination.value?.displayName || selectedExaminationName.value || null
 )
 const catalogWarningMessage = computed(
-  () => findingCatalogError.value || findingCatalogLocalizationWarning.value || coreConceptsError.value
+  () =>
+    findingCatalogError.value || findingCatalogLocalizationWarning.value || coreConceptsError.value
 )
 
 const selectedPatient = computed(() =>
@@ -792,62 +771,101 @@ function isPositiveReportInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 }
 
+const invalidReportSaveResponse = () =>
+  new TypeError('Die Speicherbestätigung des Berichts ist ungültig.')
+
+function hasValidReportIdentity(
+  report: Record<string, unknown>,
+  request: SaveReportSubmissionRequest
+): boolean {
+  return (
+    isPositiveReportInteger(report.id) &&
+    isPositiveReportInteger(report.version) &&
+    report.patientExaminationId === request.patientExaminationId &&
+    report.status === request.status
+  )
+}
+
+function hasValidRequestedReport(
+  report: Record<string, unknown>,
+  request: SaveReportSubmissionRequest
+): boolean {
+  const snakeCaseExaminationId = report.patient_examination_id
+  const reportIdMatches = request.reportId === undefined || report.id === request.reportId
+  const versionMatches =
+    request.expectedVersion === undefined || report.version === request.expectedVersion + 1
+  return (
+    (snakeCaseExaminationId === undefined ||
+      snakeCaseExaminationId === request.patientExaminationId) &&
+    reportIdMatches &&
+    versionMatches
+  )
+}
+
+function hasValidReportMetadata(
+  value: Record<string, unknown>,
+  report: Record<string, unknown>,
+  request: SaveReportSubmissionRequest
+): boolean {
+  const creationMatches =
+    value.created === false || (report.version === 1 && request.reportId === undefined)
+  return (
+    typeof value.created === 'boolean' &&
+    creationMatches &&
+    isUnknownArray(value.warnings) &&
+    value.warnings.every((warning) => typeof warning === 'string') &&
+    (value.historyContext === null || isRecord(value.historyContext))
+  )
+}
+
 function assertReportSaveResponse(
   value: unknown,
   request: SaveReportSubmissionRequest
 ): asserts value is SaveReportSubmissionResponse {
-  const invalid = () => new TypeError('Die Speicherbestätigung des Berichts ist ungültig.')
   if (!isRecord(value) || !isRecord(value.report)) {
-    throw invalid()
+    throw invalidReportSaveResponse()
   }
   const report = value.report
   if (
-    !isPositiveReportInteger(report.id) ||
-    !isPositiveReportInteger(report.version) ||
-    report.patientExaminationId !== request.patientExaminationId ||
-    (report.patient_examination_id !== undefined &&
-      report.patient_examination_id !== request.patientExaminationId) ||
-    report.status !== request.status ||
-    (request.reportId !== undefined && report.id !== request.reportId) ||
-    (request.expectedVersion !== undefined && report.version !== request.expectedVersion + 1) ||
-    typeof value.created !== 'boolean' ||
-    (value.created && (report.version !== 1 || request.reportId !== undefined)) ||
-    !isUnknownArray(value.warnings) ||
-    !value.warnings.every((warning) => typeof warning === 'string') ||
-    (value.historyContext !== null && !isRecord(value.historyContext))
+    !hasValidReportIdentity(report, request) ||
+    !hasValidRequestedReport(report, request) ||
+    !hasValidReportMetadata(value, report, request)
   ) {
-    throw invalid()
+    throw invalidReportSaveResponse()
   }
 
   assertReportSaveArtifacts(value)
 }
 
 function assertReportSaveArtifacts(value: Record<string, unknown>) {
-  const invalid = () => new TypeError('Die Speicherbestätigung des Berichts ist ungültig.')
-  for (const field of ['persistedReportArtifactId', 'persistedPdfArtifactId']) {
+  assertOptionalPositiveFields(value, ['persistedReportArtifactId', 'persistedPdfArtifactId'])
+  const artifacts = value.persistedArtifacts
+  if (artifacts === null) {
+    return
+  }
+  if (!isRecord(artifacts)) {
+    throw invalidReportSaveResponse()
+  }
+  assertOptionalPositiveFields(artifacts, ['fullReportId', 'pdfId'])
+  assertOptionalArtifactUrls(artifacts)
+}
+
+function assertOptionalPositiveFields(value: Record<string, unknown>, fields: string[]) {
+  for (const field of fields) {
     const entry = value[field]
     if (entry !== undefined && entry !== null && !isPositiveReportInteger(entry)) {
-      throw invalid()
+      throw invalidReportSaveResponse()
     }
   }
-  const artifacts = value.persistedArtifacts
-  if (artifacts !== null) {
-    if (!isRecord(artifacts)) {
-      throw invalid()
+}
+
+function assertOptionalArtifactUrls(artifacts: Record<string, unknown>) {
+  for (const field of ['pdfViewUrl', 'pdfDownloadUrl', 'patientTimelineUrl']) {
+    const entry = artifacts[field]
+    if (entry !== undefined && entry !== null && typeof entry !== 'string') {
+      throw invalidReportSaveResponse()
     }
-    for (const field of ['fullReportId', 'pdfId']) {
-      const entry = artifacts[field]
-      if (entry !== undefined && entry !== null && !isPositiveReportInteger(entry)) {
-        throw invalid()
-      }
-    }
-    for (const field of ['pdfViewUrl', 'pdfDownloadUrl', 'patientTimelineUrl']) {
-      const entry = artifacts[field]
-      if (entry !== undefined && entry !== null && typeof entry !== 'string') {
-        throw invalid()
-      }
-      requireReportArtifactUrl(entry)
-    }
+    requireReportArtifactUrl(entry)
   }
 }
 
@@ -877,36 +895,44 @@ const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null
 const findingsByName = computed(
   () => new Map(findingCatalog.value.map((finding) => [finding.name, finding]))
 )
-const draftMatchesSelectedTemplate = computed(() => {
+
+function draftHasMatchingTemplate(): boolean {
   const draft = currentRuntimeDraft.value
   const template = selectedTemplate.value
+  return Boolean(draft && template && draft.templateName === template.name)
+}
+
+function draftHasVerifiedBundle(): boolean {
+  const draft = currentRuntimeDraft.value
   const activeBundle = terminology.activeBundle
-  if (!draft || !template || draft.templateName !== template.name) {
-    return false
-  }
-  if (!activeBundle) {
-    return false
-  }
-  if (draft.verificationStatus === 'unverified') {
-    return false
-  }
-  if (draft.moduleName !== selectedKbModule.value) {
+  if (!draft || !activeBundle || draft.verificationStatus === 'unverified') {
     return false
   }
   const draftKnowledgeBaseVersion =
     draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
-  if (draft.moduleName !== activeBundle.moduleName) {
-    return false
-  }
-  if (draftKnowledgeBaseVersion !== activeBundle.version) {
-    return false
-  }
-  const currentTemplateHash = template.identity.templateHash || null
-  const currentTemplateVersion = template.identity.templateVersion || null
-  return !(
-    (currentTemplateHash && draft.templateIdentity?.templateHash !== currentTemplateHash) ||
-    (currentTemplateVersion && draft.templateIdentity?.templateVersion !== currentTemplateVersion)
+  return (
+    draft.moduleName === selectedKbModule.value &&
+    draft.moduleName === activeBundle.moduleName &&
+    draftKnowledgeBaseVersion === activeBundle.version
   )
+}
+
+function draftHasCurrentTemplateIdentity(): boolean {
+  const draftIdentity = currentRuntimeDraft.value?.templateIdentity
+  const templateIdentity = selectedTemplate.value?.identity
+  if (!templateIdentity) {
+    return false
+  }
+  const hashMatches =
+    !templateIdentity.templateHash || draftIdentity?.templateHash === templateIdentity.templateHash
+  const versionMatches =
+    !templateIdentity.templateVersion ||
+    draftIdentity?.templateVersion === templateIdentity.templateVersion
+  return hashMatches && versionMatches
+}
+
+const draftMatchesSelectedTemplate = computed(() => {
+  return draftHasMatchingTemplate() && draftHasVerifiedBundle() && draftHasCurrentTemplateIdentity()
 })
 const canSave = computed(
   () =>
@@ -938,10 +964,10 @@ const reportPatientLabel = computed(() => {
 
 const normalizedIndications = computed<SaveReportSubmissionRequest['indications']>(() =>
   flow.indications
-    .filter((row) => row.examinationIndicationId != null)
-    .map((row) => ({
-      examinationIndicationId: row.examinationIndicationId as number,
-      indicationChoiceId: row.indicationChoiceId ?? undefined
+    .filter((indication) => indication.examinationIndicationId != null)
+    .map((indication) => ({
+      examinationIndicationId: indication.examinationIndicationId as number,
+      indicationChoiceId: indication.indicationChoiceId ?? undefined
     }))
 )
 
@@ -949,69 +975,57 @@ const normalizedIndicationsPreview = computed(() =>
   JSON.stringify(normalizedIndications.value, null, 2)
 )
 
-const indicationOptionsForEditor = computed<ReportingIndicationOption[]>(() => {
-  const optionsById = new Map<number, ReportingIndicationOption>()
-
-  const upsert = (option: ReportingIndicationOption) => {
-    const existing = optionsById.get(option.id)
-    if (!existing) {
-      optionsById.set(option.id, {
-        id: option.id,
-        label: option.label || 'Bezeichnung nicht verfügbar',
-        choices: option.choices.slice()
-      })
-      return
-    }
-    existing.label = existing.label || option.label || 'Bezeichnung nicht verfügbar'
-    const choiceById = new Map<number, ReportingIndicationChoiceOption>()
-    for (const choice of existing.choices) {
-      choiceById.set(choice.id, choice)
-    }
-    for (const choice of option.choices) {
-      choiceById.set(choice.id, {
-        id: choice.id,
-        label: choice.label || 'Bezeichnung nicht verfügbar'
-      })
-    }
-    existing.choices = Array.from(choiceById.values())
-  }
-
-  for (const option of indicationOptions.value) {
-    upsert({
+function upsertIndicationOption(
+  optionsById: Map<number, ReportingIndicationOption>,
+  option: ReportingIndicationOption
+) {
+  const existing = optionsById.get(option.id)
+  if (!existing) {
+    optionsById.set(option.id, {
       id: option.id,
-      label: option.label,
+      label: option.label || 'Bezeichnung nicht verfügbar',
       choices: option.choices.slice()
     })
+    return
   }
-
-  for (const row of flow.indications) {
-    const indicationId = row.examinationIndicationId
-    if (indicationId == null) {
-      continue
-    }
-    if (!optionsById.has(indicationId)) {
-      upsert({
-        id: indicationId,
-        label: 'Gespeicherte Indikation nicht mehr verfügbar',
-        choices: []
-      })
-    }
-    const choiceId = row.indicationChoiceId
-    if (choiceId == null) {
-      continue
-    }
-    const option = optionsById.get(indicationId)
-    if (!option) {
-      continue
-    }
-    if (!option.choices.some((choice) => choice.id === choiceId)) {
-      option.choices = [
-        { id: choiceId, label: 'Gespeicherte Auswahl nicht mehr verfügbar' },
-        ...option.choices
-      ]
-    }
+  existing.label = existing.label || option.label || 'Bezeichnung nicht verfügbar'
+  const choiceById = new Map<number, ReportingIndicationChoiceOption>(
+    existing.choices.map((choice) => [choice.id, choice])
+  )
+  for (const choice of option.choices) {
+    choiceById.set(choice.id, {
+      id: choice.id,
+      label: choice.label || 'Bezeichnung nicht verfügbar'
+    })
   }
+  existing.choices = Array.from(choiceById.values())
+}
 
+function includeStoredIndication(
+  optionsById: Map<number, ReportingIndicationOption>,
+  indicationId: number,
+  choiceId?: number | null
+) {
+  if (!optionsById.has(indicationId)) {
+    upsertIndicationOption(optionsById, {
+      id: indicationId,
+      label: 'Gespeicherte Indikation nicht mehr verfügbar',
+      choices: []
+    })
+  }
+  const option = optionsById.get(indicationId)
+  if (choiceId == null || !option || option.choices.some((choice) => choice.id === choiceId)) {
+    return
+  }
+  option.choices = [
+    { id: choiceId, label: 'Gespeicherte Auswahl nicht mehr verfügbar' },
+    ...option.choices
+  ]
+}
+
+function sortIndicationOptions(
+  optionsById: Map<number, ReportingIndicationOption>
+): ReportingIndicationOption[] {
   return Array.from(optionsById.values())
     .map((option) => ({
       ...option,
@@ -1020,6 +1034,28 @@ const indicationOptionsForEditor = computed<ReportingIndicationOption[]>(() => {
         .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
+}
+
+const indicationOptionsForEditor = computed<ReportingIndicationOption[]>(() => {
+  const optionsById = new Map<number, ReportingIndicationOption>()
+
+  for (const option of indicationOptions.value) {
+    upsertIndicationOption(optionsById, {
+      id: option.id,
+      label: option.label,
+      choices: option.choices.slice()
+    })
+  }
+
+  for (const indication of flow.indications) {
+    const indicationId = indication.examinationIndicationId
+    if (indicationId == null) {
+      continue
+    }
+    includeStoredIndication(optionsById, indicationId, indication.indicationChoiceId)
+  }
+
+  return sortIndicationOptions(optionsById)
 })
 
 const sectionDraftPreview = computed(() => JSON.stringify(flow.templateSectionDrafts, null, 2))
@@ -1027,52 +1063,64 @@ const runtimeFindingsPreview = computed(() =>
   JSON.stringify(currentPayload.value?.patientFindings || [], null, 2)
 )
 
-const sectionCompletionSummary = computed(() => {
-  const sections = sectionBlocks.value.map((section) => {
-    const sectionFindings = getSectionDraftFindings(section.name)
-    const missingFindings = section.findings
-      .filter((definition) => definition.required)
-      .filter(
-        (definition) => !sectionFindings.some((entry) => entry.finding === definition.finding)
-      )
-      .map((definition) => getFindingLabel(definition.finding))
+type ReportSectionBlock = (typeof sectionBlocks)['value'][number]
 
-    const missingClassificationSet = new Set<string>()
-    for (const definition of section.findings) {
-      const matchingFindings = sectionFindings.filter(
-        (entry) => entry.finding === definition.finding
-      )
-      if (!matchingFindings.length) {
-        continue
-      }
+function getMissingRequiredFindings(
+  section: ReportSectionBlock,
+  sectionFindings: ReportTemplateRuntimePatientFindingInput[]
+): string[] {
+  const presentFindingNames = new Set(sectionFindings.map((finding) => finding.finding))
+  return section.findings
+    .filter((definition) => definition.required && !presentFindingNames.has(definition.finding))
+    .map((definition) => getFindingLabel(definition.finding))
+}
 
-      for (const classification of definition.classifications.filter((entry) => entry.required)) {
-        const presentInAnyFinding = matchingFindings.some((entry) =>
-          entry.classificationChoices.some(
-            (choice) => choice.classification === classification.classification
-          )
+function getMissingRequiredClassifications(
+  section: ReportSectionBlock,
+  sectionFindings: ReportTemplateRuntimePatientFindingInput[]
+): string[] {
+  const missing = new Set<string>()
+  for (const definition of section.findings) {
+    const matchingFindings = sectionFindings.filter(
+      (finding) => finding.finding === definition.finding
+    )
+    if (!matchingFindings.length) {
+      continue
+    }
+    for (const classification of definition.classifications.filter((entry) => entry.required)) {
+      const isPresent = matchingFindings.some((finding) =>
+        finding.classificationChoices.some(
+          (choice) => choice.classification === classification.classification
         )
-        if (!presentInAnyFinding) {
-          missingClassificationSet.add(
-            `${getFindingLabel(definition.finding)}: ${getClassificationLabel(
-              definition.finding,
-              classification.classification
-            )}`
-          )
-        }
+      )
+      if (!isPresent) {
+        missing.add(
+          `${getFindingLabel(definition.finding)}: ${getClassificationLabel(
+            definition.finding,
+            classification.classification
+          )}`
+        )
       }
     }
+  }
+  return Array.from(missing)
+}
 
-    const missingClassifications = Array.from(missingClassificationSet.values())
+function buildSectionCompletion(section: ReportSectionBlock) {
+  const sectionFindings = getSectionDraftFindings(section.name)
+  const missingFindings = getMissingRequiredFindings(section, sectionFindings)
+  const missingClassifications = getMissingRequiredClassifications(section, sectionFindings)
+  return {
+    name: section.name,
+    title: section.title,
+    missingFindings,
+    missingClassifications,
+    isComplete: !missingFindings.length && !missingClassifications.length
+  }
+}
 
-    return {
-      name: section.name,
-      title: section.title,
-      missingFindings,
-      missingClassifications,
-      isComplete: !missingFindings.length && !missingClassifications.length
-    }
-  })
+const sectionCompletionSummary = computed(() => {
+  const sections = sectionBlocks.value.map(buildSectionCompletion)
 
   return {
     totalSections: sections.length,
@@ -1149,8 +1197,8 @@ function normalizePositiveId(value: unknown): number | null {
   if (!Number.isFinite(parsed)) {
     return null
   }
-  const id = Math.trunc(parsed)
-  return id > 0 ? id : null
+  const integerId = Math.trunc(parsed)
+  return integerId > 0 ? integerId : null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1177,30 +1225,43 @@ function readListPayload(value: unknown): unknown[] {
 }
 
 function requireReportListItem(value: unknown): PatientExaminationReportListItem {
-  const row = readRecord(value)
-  const id = row.id
-  const version = row.version
-  if (!isPositiveReportInteger(id) || !isPositiveReportInteger(version) ||
-    (row.status !== 'draft' && row.status !== 'final')) {
+  const reportRecord = readRecord(value)
+  const reportId = reportRecord.id
+  const version = reportRecord.version
+  if (
+    !isPositiveReportInteger(reportId) ||
+    !isPositiveReportInteger(version) ||
+    (reportRecord.status !== 'draft' && reportRecord.status !== 'final')
+  ) {
     throw new Error('Die Berichtsliste enthält einen ungültigen Eintrag.')
   }
-  return {
-    id,
+  const report: PatientExaminationReportListItem = {
+    id: reportId,
     version,
-    status: row.status,
-    ...(typeof row.templateName === 'string' ? { templateName: row.templateName } : {}),
-    ...(typeof row.updatedAt === 'string' ? { updatedAt: row.updatedAt } : {}),
-    ...(typeof row.renderedText === 'string' ? { renderedText: row.renderedText } : {}),
-    ...(typeof row.knowledgeBaseModule === 'string'
-      ? { knowledgeBaseModule: row.knowledgeBaseModule }
-      : {}),
-    ...(typeof row.knowledgeBaseVersion === 'string'
-      ? { knowledgeBaseVersion: row.knowledgeBaseVersion }
-      : {}),
-    ...(typeof row.templateVersion === 'string'
-      ? { templateVersion: row.templateVersion }
-      : {}),
-    ...(typeof row.templateHash === 'string' ? { templateHash: row.templateHash } : {})
+    status: reportRecord.status
+  }
+  copyOptionalStringFields(reportRecord, report, [
+    'templateName',
+    'updatedAt',
+    'renderedText',
+    'knowledgeBaseModule',
+    'knowledgeBaseVersion',
+    'templateVersion',
+    'templateHash'
+  ])
+  return report
+}
+
+function copyOptionalStringFields(
+  source: Record<string, unknown>,
+  target: object,
+  fields: string[]
+) {
+  for (const field of fields) {
+    const value = source[field]
+    if (typeof value === 'string') {
+      Object.assign(target, { [field]: value })
+    }
   }
 }
 
@@ -1235,6 +1296,64 @@ async function loadReportRenderedText(reportId: number): Promise<string | undefi
   return report.renderedText
 }
 
+async function appendIndicationPayload(
+  payloads: unknown[],
+  errors: string[],
+  errorKey: string,
+  request: () => Promise<{ data: unknown }>
+) {
+  try {
+    const response = await request()
+    payloads.push(response.data)
+  } catch {
+    errors.push(errorKey)
+  }
+}
+
+async function appendSelectedExaminationListPayload(
+  payloads: unknown[],
+  errors: string[],
+  selectedExaminationId: number
+) {
+  if (normalizeReportingIndicationOptions(payloads).length) {
+    return
+  }
+  try {
+    const listRes = await axiosInstance.get<unknown>(dtypesApi('examinations/'))
+    const selectedRow = readListPayload(listRes.data).find(
+      (entry) => normalizePositiveId(readRecord(entry).id) === selectedExaminationId
+    )
+    if (selectedRow) {
+      payloads.push(selectedRow)
+    }
+  } catch {
+    errors.push('examination-list')
+  }
+}
+
+function applyLoadedIndicationOptions(
+  context: EditorContext | undefined,
+  payloads: unknown[],
+  errors: string[]
+) {
+  if (!isEditorContextCurrent(context)) {
+    return
+  }
+  indicationOptions.value = normalizeReportingIndicationOptions(payloads)
+    .map((option) => ({
+      ...option,
+      choices: option.choices
+        .slice()
+        .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
+  if (!indicationOptions.value.length && errors.length) {
+    indicationOptionsError.value =
+      'Indikationsoptionen konnten aus der aktuellen Backend-Antwort nicht abgeleitet werden.'
+  }
+  indicationOptionsLoading.value = false
+}
+
 async function loadIndicationCatalog(context?: EditorContext) {
   const patientExaminationId = context?.patientExaminationId ?? flow.patientExaminationId
   const selectedExaminationId = context?.selectedExaminationId ?? flow.selectedExaminationId
@@ -1253,70 +1372,29 @@ async function loadIndicationCatalog(context?: EditorContext) {
   const loadErrors: string[] = []
 
   if (patientExaminationId) {
-    try {
-      const detailRes = await axiosInstance.get(
-        r(endpoints.examination.patientExaminationDetail(patientExaminationId))
-      )
-      indicationPayloads.push(detailRes.data)
-    } catch {
-      loadErrors.push('patient-examination')
-    }
+    await appendIndicationPayload(indicationPayloads, loadErrors, 'patient-examination', () =>
+      axiosInstance.get(r(endpoints.examination.patientExaminationDetail(patientExaminationId)))
+    )
   }
 
   if (selectedExaminationId) {
-    try {
-      const pathSuffix = patientExaminationId
-        ? `examinations/${String(selectedExaminationId)}/indications/?patient_examination_id=${String(patientExaminationId)}`
-        : `examinations/${String(selectedExaminationId)}/indications/`
-      const indicationRes = await axiosInstance.get<unknown>(dtypesApi(pathSuffix))
-      indicationPayloads.push(indicationRes.data)
-    } catch {
-      loadErrors.push('indication-catalog')
-    }
-
-    try {
-      const examRes = await axiosInstance.get(
-        dtypesApi(`examinations/${String(selectedExaminationId)}/`)
-      )
-      indicationPayloads.push(examRes.data)
-    } catch {
-      loadErrors.push('examination-detail')
-    }
+    const pathSuffix = patientExaminationId
+      ? `examinations/${String(selectedExaminationId)}/indications/?patient_examination_id=${String(patientExaminationId)}`
+      : `examinations/${String(selectedExaminationId)}/indications/`
+    await appendIndicationPayload(indicationPayloads, loadErrors, 'indication-catalog', () =>
+      axiosInstance.get<unknown>(dtypesApi(pathSuffix))
+    )
+    await appendIndicationPayload(indicationPayloads, loadErrors, 'examination-detail', () =>
+      axiosInstance.get(dtypesApi(`examinations/${String(selectedExaminationId)}/`))
+    )
+    await appendSelectedExaminationListPayload(
+      indicationPayloads,
+      loadErrors,
+      selectedExaminationId
+    )
   }
 
-  if (selectedExaminationId && !normalizeReportingIndicationOptions(indicationPayloads).length) {
-    try {
-      const listRes = await axiosInstance.get<unknown>(dtypesApi('examinations/'))
-      const rows = readListPayload(listRes.data)
-      const selectedRow = rows.find(
-        (entry) => normalizePositiveId(readRecord(entry).id) === selectedExaminationId
-      )
-      if (selectedRow) {
-        indicationPayloads.push(selectedRow)
-      }
-    } catch {
-      loadErrors.push('examination-list')
-    }
-  }
-
-  if (!isEditorContextCurrent(context)) {
-    return
-  }
-  indicationOptions.value = normalizeReportingIndicationOptions(indicationPayloads)
-    .map((option) => ({
-      ...option,
-      choices: option.choices
-        .slice()
-        .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
-
-  if (!indicationOptions.value.length && loadErrors.length) {
-    indicationOptionsError.value =
-      'Indikationsoptionen konnten aus der aktuellen Backend-Antwort nicht abgeleitet werden.'
-  }
-
-  indicationOptionsLoading.value = false
+  applyLoadedIndicationOptions(context, indicationPayloads, loadErrors)
 }
 
 function clearMessages() {
@@ -1471,53 +1549,65 @@ function getClassificationChoiceLabel(
   return choice ? getFindingCatalogLocalizedName(choice, flow.selectedReportLanguage) : choiceName
 }
 
-const findingCatalogLocalizationWarning = computed(() => {
-  const language = flow.selectedReportLanguage
-  const hasLocalizedLabel = (
-    concepts: CoreConceptBase[] | undefined,
-    name: string,
-    catalogLabel: string | undefined
-  ) => {
-    if (catalogLabel) {
-      return true
-    }
-    const concept = concepts?.find((entry) => entry.name === name)
-    return Boolean(concept && (language === 'de' ? concept.nameDe : concept.nameEn))
+function hasLocalizedCatalogLabel(
+  concepts: CoreConceptBase[] | undefined,
+  name: string,
+  catalogLabel: string | undefined
+): boolean {
+  if (catalogLabel) {
+    return true
   }
+  const concept = concepts?.find((entry) => entry.name === name)
+  return Boolean(
+    concept && (flow.selectedReportLanguage === 'de' ? concept.nameDe : concept.nameEn)
+  )
+}
+
+function countMissingClassificationLabels(finding: Finding): number {
+  const language = flow.selectedReportLanguage
   let missing = 0
-  for (const finding of findingCatalog.value) {
+  for (const classification of mergeFindingClassifications(finding)) {
     if (
-      !hasLocalizedLabel(
-        coreConcepts.value?.finding,
-        finding.name,
-        language === 'de' ? finding.nameDe : finding.nameEn
+      !hasLocalizedCatalogLabel(
+        coreConcepts.value?.classification,
+        classification.name,
+        language === 'de' ? classification.nameDe : classification.nameEn
       )
     ) {
       missing += 1
     }
-    for (const classification of mergeFindingClassifications(finding)) {
+    for (const choice of classification.choices) {
       if (
-        !hasLocalizedLabel(
-          coreConcepts.value?.classification,
-          classification.name,
-          language === 'de' ? classification.nameDe : classification.nameEn
+        !hasLocalizedCatalogLabel(
+          coreConcepts.value?.classificationChoice,
+          choice.name,
+          language === 'de' ? choice.nameDe : choice.nameEn
         )
       ) {
         missing += 1
       }
-      for (const choice of classification.choices) {
-        if (
-          !hasLocalizedLabel(
-            coreConcepts.value?.classificationChoice,
-            choice.name,
-            language === 'de' ? choice.nameDe : choice.nameEn
-          )
-        ) {
-          missing += 1
-        }
-      }
     }
   }
+  return missing
+}
+
+function countMissingCatalogLabels(): number {
+  const language = flow.selectedReportLanguage
+  return findingCatalog.value.reduce((missing, finding) => {
+    const findingLabelMissing = hasLocalizedCatalogLabel(
+      coreConcepts.value?.finding,
+      finding.name,
+      language === 'de' ? finding.nameDe : finding.nameEn
+    )
+      ? 0
+      : 1
+    return missing + findingLabelMissing + countMissingClassificationLabels(finding)
+  }, 0)
+}
+
+const findingCatalogLocalizationWarning = computed(() => {
+  const language = flow.selectedReportLanguage
+  const missing = countMissingCatalogLabels()
   if (!missing) {
     return null
   }
@@ -1615,37 +1705,78 @@ async function ensureExaminationsLoaded() {
   }
 }
 
+function applyFindingCatalog(context: EditorContext | undefined, findings: Finding[]) {
+  if (isEditorContextCurrent(context)) {
+    findingCatalog.value = findings
+  }
+}
+
+function applyFindingCatalogError(context: EditorContext | undefined, error: unknown) {
+  if (!isEditorContextCurrent(context)) {
+    return
+  }
+  findingCatalog.value = []
+  const status = reportingApiError(error).response?.status
+  findingCatalogError.value =
+    status === 401 || status === 403
+      ? 'Der Zugriff auf den Befundkatalog wurde abgelehnt. Bitte Anmeldung und Berechtigungen prüfen.'
+      : reportingApiErrorMessage(error, 'Der Befundkatalog konnte nicht geladen werden.')
+}
+
 async function loadFindingCatalog(context?: EditorContext) {
   if (isEditorContextCurrent(context)) {
     findingCatalogError.value = null
   }
   const examinationId = context?.selectedExaminationId ?? flow.selectedExaminationId
   if (!examinationId) {
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    findingCatalog.value = []
+    applyFindingCatalog(context, [])
     return
   }
   const catalogContext = getCatalogContext()
 
   try {
     const findings = await findingsApi.getExaminationFindings(examinationId, catalogContext)
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    findingCatalog.value = findings
+    applyFindingCatalog(context, findings)
   } catch (error: unknown) {
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    findingCatalog.value = []
-    const status = reportingApiError(error).response?.status
-    findingCatalogError.value =
-      status === 401 || status === 403
-        ? 'Der Zugriff auf den Befundkatalog wurde abgelehnt. Bitte Anmeldung und Berechtigungen prüfen.'
-        : reportingApiErrorMessage(error, 'Der Befundkatalog konnte nicht geladen werden.')
+    applyFindingCatalogError(context, error)
   }
+}
+
+function clearUnavailableTemplateContext(context: EditorContext | undefined) {
+  if (!isEditorContextCurrent(context)) {
+    return
+  }
+  coreConcepts.value = null
+  applyTemplateOptions([])
+  templateStatusMessage.value =
+    'Vorlagen werden angeboten, sobald eine Terminologie aktiviert wurde.'
+}
+
+function applyReportingProjection(
+  context: EditorContext | undefined,
+  examName: string,
+  projection: Awaited<ReturnType<typeof fetchExaminationReportingContext>>
+) {
+  if (!isEditorContextCurrent(context)) {
+    return
+  }
+  coreConcepts.value = projection.concepts
+  applyTemplateOptions(projection.reportTemplates)
+  templateStatusMessage.value = projection.reportTemplates.length
+    ? `${String(projection.reportTemplates.length)} Vorlage(n) für "${examName}" geladen.`
+    : `Keine Vorlagen für "${examName}" gefunden.`
+}
+
+function applyReportingProjectionError(context: EditorContext | undefined, error: unknown) {
+  if (!isEditorContextCurrent(context)) {
+    return
+  }
+  coreConcepts.value = null
+  applyTemplateOptions([])
+  coreConceptsError.value = reportingApiErrorMessage(
+    error,
+    'Der versionierte Reporting-Kontext konnte nicht geladen werden.'
+  )
 }
 
 async function refreshTemplatesForExamination(context?: EditorContext) {
@@ -1655,12 +1786,7 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
   }
   const bundle = terminology.activeBundle
   if (!bundle || !selectedKbModule.value) {
-    if (isEditorContextCurrent(context)) {
-      coreConcepts.value = null
-      applyTemplateOptions([])
-      templateStatusMessage.value =
-        'Vorlagen werden angeboten, sobald eine Terminologie aktiviert wurde.'
-    }
+    clearUnavailableTemplateContext(context)
     return
   }
   const examName = selectedExaminationName.value
@@ -1677,24 +1803,9 @@ async function refreshTemplatesForExamination(context?: EditorContext) {
       reportingContext.moduleVersion,
       examName
     )
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    coreConcepts.value = projection.concepts
-    applyTemplateOptions(projection.reportTemplates)
-    templateStatusMessage.value = projection.reportTemplates.length
-      ? `${String(projection.reportTemplates.length)} Vorlage(n) für "${examName}" geladen.`
-      : `Keine Vorlagen für "${examName}" gefunden.`
+    applyReportingProjection(context, examName, projection)
   } catch (error: unknown) {
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    coreConcepts.value = null
-    applyTemplateOptions([])
-    coreConceptsError.value = reportingApiErrorMessage(
-      error,
-      'Der versionierte Reporting-Kontext konnte nicht geladen werden.'
-    )
+    applyReportingProjectionError(context, error)
   }
 }
 
@@ -1747,40 +1858,55 @@ function buildEditorPayload(): Record<string, unknown> {
   }
 }
 
+function appendOptionalSectionContext(lines: string[], draft: ReportTemplateSectionDraft) {
+  if (draft.includePatientData) {
+    const patientText = buildPatientContextText()
+    if (patientText) {
+      lines.push(patientText)
+    }
+  }
+  if (draft.includeExaminationData) {
+    const examinationText = buildExaminationContextText()
+    if (examinationText) {
+      lines.push(examinationText)
+    }
+  }
+}
+
+function appendSectionFindingSummaries(lines: string[], sectionName: string) {
+  const findings = getSectionPreview(sectionName).findings
+  if (!findings.length) {
+    return
+  }
+  const summaries = findings.map((finding) =>
+    formatRuntimeFindingSummary(finding, flow.selectedReportVerbosity)
+  )
+  if (flow.selectedReportVerbosity === 'short') {
+    lines.push(summaries.join('; '))
+    return
+  }
+  lines.push(...summaries.map((summary) => `- ${summary}`))
+}
+
+function buildGeneratedSection(section: ReportSectionBlock): string[] {
+  const draft = getSectionDraft(section.name)
+  const lines: string[] = []
+  appendOptionalSectionContext(lines, draft)
+  const note = draft.note.trim()
+  if (note) {
+    lines.push(note)
+  }
+  appendSectionFindingSummaries(lines, section.name)
+  return lines
+}
+
 function buildGeneratedReportText(): string {
   const fallbackAnonymizedText = flow.mediaPreload?.latestReport?.anonymizedText?.trim() || ''
   const lines: string[] = []
   lines.push(`# ${selectedTemplateDisplayName.value}`)
   let hasStructuredContent = false
   for (const section of sectionBlocks.value) {
-    const draft = getSectionDraft(section.name)
-    const sectionPreview = getSectionPreview(section.name)
-    const sectionLines: string[] = []
-    if (draft.includePatientData) {
-      const patientText = buildPatientContextText()
-      if (patientText) {
-        sectionLines.push(patientText)
-      }
-    }
-    if (draft.includeExaminationData) {
-      const examText = buildExaminationContextText()
-      if (examText) {
-        sectionLines.push(examText)
-      }
-    }
-    if (draft.note.trim()) {
-      sectionLines.push(draft.note.trim())
-    }
-    if (sectionPreview.findingSummaries.length) {
-      const summaries = sectionPreview.findings.map((finding) =>
-        formatRuntimeFindingSummary(finding, flow.selectedReportVerbosity)
-      )
-      if (flow.selectedReportVerbosity === 'short') {
-        sectionLines.push(summaries.join('; '))
-      } else {
-        sectionLines.push(...summaries.map((summary) => `- ${summary}`))
-      }
-    }
+    const sectionLines = buildGeneratedSection(section)
     if (sectionLines.length) {
       hasStructuredContent = true
     }
@@ -1796,6 +1922,87 @@ function buildGeneratedReportText(): string {
   return lines.join('\n\n')
 }
 
+function clearActiveReportForEmptyHistory() {
+  historicalReadOnlyReport.value = null
+  flow.setActiveReportId(null)
+  currentReportVersion.value = null
+  successMessage.value =
+    'Kein bestehender Bericht gefunden. Das nächste Speichern erstellt einen neuen Bericht.'
+}
+
+function resolveHistoricalTemplate(report: PatientExaminationReportListItem) {
+  if (!report.templateName) {
+    return null
+  }
+  return (
+    (selectedTemplate.value?.name === report.templateName ? selectedTemplate.value : null) ||
+    templateOptions.value.find((template) => template.name === report.templateName) ||
+    null
+  )
+}
+
+async function selectHistoricalTemplate(
+  report: PatientExaminationReportListItem,
+  context?: EditorContext
+) {
+  if (!report.templateName) {
+    return
+  }
+  const historicalTemplate = resolveHistoricalTemplate(report)
+  if (!historicalTemplate) {
+    historicalReadOnlyReport.value = report
+    throw new Error(
+      `Die im historischen Bericht referenzierte Vorlage "${report.templateName}" ist in der aktiven Terminologieversion nicht verfügbar. Der Bericht wurde nicht aktiviert.`
+    )
+  }
+  if (!historicalReportMatchesTemplate(report, historicalTemplate)) {
+    historicalReadOnlyReport.value = report
+    throw new Error(
+      `Die Vorlagenidentität des historischen Berichts stimmt nicht mit der aktuell veröffentlichten Vorlage "${report.templateName}" überein. Der Bericht wurde nicht aktiviert.`
+    )
+  }
+  await selectTemplateByName(report.templateName)
+  if (!isEditorContextCurrent(context)) {
+    return
+  }
+}
+
+function applyLoadedReport(report: PatientExaminationReportListItem, renderedText?: string) {
+  historicalReadOnlyReport.value = null
+  flow.setActiveReportId(report.id)
+  currentReportVersion.value = report.version
+  if (typeof renderedText === 'string') {
+    flow.setRenderedReportText(renderedText, 'manual')
+  }
+  successMessage.value = `Der Bericht wurde geladen (Version ${String(report.version)}).`
+}
+
+async function applyLatestReportResponse(
+  responseData: unknown,
+  context?: EditorContext
+): Promise<void> {
+  if (!isEditorContextCurrent(context)) {
+    return
+  }
+  const items = readListPayload(responseData).map(requireReportListItem)
+  if (!items.length) {
+    clearActiveReportForEmptyHistory()
+    return
+  }
+  const latest = items[0]
+  await selectHistoricalTemplate(latest, context)
+  if (!isEditorContextCurrent(context)) {
+    return
+  }
+  const renderedText =
+    typeof latest.renderedText === 'string'
+      ? latest.renderedText
+      : await loadReportRenderedText(latest.id)
+  if (isEditorContextCurrent(context)) {
+    applyLoadedReport(latest, renderedText)
+  }
+}
+
 async function loadLatestReportMeta(context?: EditorContext) {
   const patientExaminationId = context?.patientExaminationId ?? flow.patientExaminationId
   if (!patientExaminationId) {
@@ -1805,58 +2012,10 @@ async function loadLatestReportMeta(context?: EditorContext) {
   loading.value = true
   clearMessages()
   try {
-    const res = await axiosInstance.get<unknown>(
+    const response = await axiosInstance.get<unknown>(
       r(endpoints.report.patientExaminationReportsByPatientExamination(patientExaminationId))
     )
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    const items = readListPayload(res.data).map(requireReportListItem)
-    if (!items.length) {
-      historicalReadOnlyReport.value = null
-      flow.setActiveReportId(null)
-      currentReportVersion.value = null
-      successMessage.value =
-        'Kein bestehender Bericht gefunden. Das nächste Speichern erstellt einen neuen Bericht.'
-      return
-    }
-    const latest = items[0]
-    if (latest.templateName) {
-      const historicalTemplate =
-        (selectedTemplate.value?.name === latest.templateName ? selectedTemplate.value : null) ||
-        templateOptions.value.find((template) => template.name === latest.templateName) ||
-        null
-      if (!historicalTemplate) {
-        historicalReadOnlyReport.value = latest
-        throw new Error(
-          `Die im historischen Bericht referenzierte Vorlage "${latest.templateName}" ist in der aktiven Terminologieversion nicht verfügbar. Der Bericht wurde nicht aktiviert.`
-        )
-      }
-      if (!historicalReportMatchesTemplate(latest, historicalTemplate)) {
-        historicalReadOnlyReport.value = latest
-        throw new Error(
-          `Die Vorlagenidentität des historischen Berichts stimmt nicht mit der aktuell veröffentlichten Vorlage "${latest.templateName}" überein. Der Bericht wurde nicht aktiviert.`
-        )
-      }
-      await selectTemplateByName(latest.templateName)
-      if (!isEditorContextCurrent(context)) {
-        return
-      }
-    }
-    const renderedText =
-      typeof latest.renderedText === 'string'
-        ? latest.renderedText
-        : await loadReportRenderedText(latest.id)
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    historicalReadOnlyReport.value = null
-    flow.setActiveReportId(latest.id)
-    currentReportVersion.value = latest.version
-    if (typeof renderedText === 'string') {
-      flow.setRenderedReportText(renderedText, 'manual')
-    }
-    successMessage.value = `Der Bericht wurde geladen (Version ${String(latest.version)}).`
+    await applyLatestReportResponse(response.data, context)
   } catch (e: unknown) {
     if (!isEditorContextCurrent(context)) {
       return
@@ -1884,20 +2043,26 @@ function resolveSaveSubmissionContext(): (EditorContext & { templateName: string
   return { ...context, templateName }
 }
 
+function buildSaveTemplateIdentity() {
+  const activeBundle = terminology.activeBundle
+  const templateIdentity = currentRuntimeDraft.value?.templateIdentity
+  return {
+    knowledgeBaseModule: activeBundle ? activeBundle.moduleName : '',
+    knowledgeBaseVersion: activeBundle ? activeBundle.version : '',
+    templateVersion: templateIdentity?.templateVersion || '',
+    templateHash: templateIdentity?.templateHash || ''
+  }
+}
+
 function buildSaveSubmissionPayload(
   status: ReportSubmissionStatus,
   context: EditorContext & { templateName: string },
   findings: SaveReportSubmissionRequest['findings']
 ): SaveReportSubmissionRequest {
-  return {
-    ...(flow.activeReportId ? { reportId: flow.activeReportId } : {}),
-    ...(currentReportVersion.value ? { expectedVersion: currentReportVersion.value } : {}),
+  const payload: SaveReportSubmissionRequest = {
     patientExaminationId: context.patientExaminationId,
     templateName: context.templateName,
-    knowledgeBaseModule: terminology.activeBundle?.moduleName || '',
-    knowledgeBaseVersion: terminology.activeBundle?.version || '',
-    templateVersion: currentRuntimeDraft.value?.templateIdentity?.templateVersion || '',
-    templateHash: currentRuntimeDraft.value?.templateIdentity?.templateHash || '',
+    ...buildSaveTemplateIdentity(),
     status,
     editorPayload: buildEditorPayload(),
     renderedText: renderedReportPreview.value,
@@ -1905,6 +2070,33 @@ function buildSaveSubmissionPayload(
     indications: normalizedIndications.value,
     findings
   }
+  if (flow.activeReportId) {
+    payload.reportId = flow.activeReportId
+  }
+  if (currentReportVersion.value) {
+    payload.expectedVersion = currentReportVersion.value
+  }
+  return payload
+}
+
+function applySaveResponse(data: SaveReportSubmissionResponse) {
+  flow.setActiveReportId(data.report.id)
+  currentReportVersion.value = data.report.version
+  lastSaveStatus.value = requireReportSubmissionStatus(data.report.status)
+  saveWarnings.value = data.warnings
+  historyContext.value = data.historyContext || null
+  persistedArtifacts.value = data.persistedArtifacts || null
+  successMessage.value = data.created
+    ? `Der Bericht wurde erstellt (Version ${String(data.report.version)}).`
+    : `Der Bericht wurde aktualisiert (Version ${String(data.report.version)}).`
+}
+
+function applySaveError(error: unknown) {
+  const versionConflict = reportingApiError(error).response?.data?.expectedVersion
+  errorMessage.value =
+    typeof versionConflict === 'string'
+      ? `Versionskonflikt: ${versionConflict}`
+      : reportingApiErrorMessage(error, 'Fehler beim Speichern des Berichts.')
 }
 
 async function saveReportSubmission(status: ReportSubmissionStatus) {
@@ -1928,36 +2120,22 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
 
     const payload = buildSaveSubmissionPayload(status, context, findings)
 
-    const res = await axiosInstance.post<unknown>(
+    const response = await axiosInstance.post<unknown>(
       r(endpoints.report.saveReportSubmission),
       payload
     )
     if (!isReportSaveOperationCurrent(context, operationGeneration)) {
       return
     }
-    const data = res.data
+    const data = response.data
     assertReportSaveResponse(data, payload)
 
-    flow.setActiveReportId(data.report.id)
-    currentReportVersion.value = data.report.version
-    lastSaveStatus.value = requireReportSubmissionStatus(data.report.status)
-    saveWarnings.value = Array.isArray(data.warnings) ? data.warnings : []
-    historyContext.value = data.historyContext || null
-    persistedArtifacts.value = data.persistedArtifacts || null
-
-    successMessage.value = data.created
-      ? `Der Bericht wurde erstellt (Version ${String(data.report.version)}).`
-      : `Der Bericht wurde aktualisiert (Version ${String(data.report.version)}).`
+    applySaveResponse(data)
   } catch (e: unknown) {
     if (!isReportSaveOperationCurrent(context, operationGeneration)) {
       return
     }
-    const versionConflict = reportingApiError(e).response?.data?.expectedVersion
-    if (typeof versionConflict === 'string') {
-      errorMessage.value = `Versionskonflikt: ${versionConflict}`
-    } else {
-      errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Speichern des Berichts.')
-    }
+    applySaveError(e)
   } finally {
     if (operationGeneration === reportSaveGeneration) {
       flow.setSavingFinalReport(false)
@@ -1970,58 +2148,83 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
 let initializedContextKey: string | null = null
 let initializationInFlightKey: string | null = null
 
-async function initializeEditorContext() {
+type EditorInitialization = {
+  generation: number
+  patientExaminationId: number
+  bundleKey: string
+  contextKey: string
+}
+
+function resolveEditorInitialization(): EditorInitialization | null {
   if (!flow.patientExaminationId) {
     errorMessage.value = 'Bitte zuerst das Fall-Setup abschließen.'
-    return
+    return null
   }
   if (!flow.currentRuntimeDraft) {
     errorMessage.value =
       'Der Befundentwurf wird vorbereitet. Diese Ansicht aktualisiert sich automatisch.'
-    return
+    return null
   }
   const generation = editorContextGeneration
   const patientExaminationId = flow.patientExaminationId
   const bundleKey = terminology.activeBundleKey
   const contextKey = `${String(patientExaminationId)}:${flow.currentRuntimeDraft.payload.examination}:${bundleKey}`
   if (initializedContextKey === contextKey || initializationInFlightKey === contextKey) {
+    return null
+  }
+  return { generation, patientExaminationId, bundleKey, contextKey }
+}
+
+function isInitializationCurrent(initialization: EditorInitialization): boolean {
+  return (
+    initialization.generation === editorContextGeneration &&
+    initialization.patientExaminationId === flow.patientExaminationId &&
+    initialization.bundleKey === terminology.activeBundleKey
+  )
+}
+
+async function loadEditorContextDependencies(): Promise<EditorContext | undefined> {
+  requireResolvedReportingExamination({
+    catalog: examinationStore.examinationsDropdown,
+    selectedExaminationId: flow.selectedExaminationId,
+    examinationName: flow.currentRuntimeDraft?.payload.examination
+  })
+  const context = captureEditorContext() || undefined
+  if (!context) {
+    return undefined
+  }
+  await loadPatientExaminationKnowledgeBaseIdentity(context)
+  if (!isEditorContextCurrent(context)) {
+    return context
+  }
+  await Promise.all([loadFindingCatalog(context), refreshTemplatesForExamination(context)])
+  if (!isEditorContextCurrent(context)) {
+    return context
+  }
+  await loadIndicationCatalog(context)
+  if (!isEditorContextCurrent(context)) {
+    return context
+  }
+  await loadLatestReportMeta(context)
+  return context
+}
+
+async function initializeEditorContext() {
+  const initialization = resolveEditorInitialization()
+  if (!initialization) {
     return
   }
+  const { contextKey } = initialization
   initializationInFlightKey = contextKey
   errorMessage.value = null
   let context: EditorContext | undefined
   try {
     await Promise.all([ensurePatientsLoaded(), ensureExaminationsLoaded()])
-    if (
-      generation !== editorContextGeneration ||
-      patientExaminationId !== flow.patientExaminationId ||
-      bundleKey !== terminology.activeBundleKey
-    ) {
+    if (!isInitializationCurrent(initialization)) {
       return
     }
-    requireResolvedReportingExamination({
-      catalog: examinationStore.examinationsDropdown,
-      selectedExaminationId: flow.selectedExaminationId,
-      examinationName: flow.currentRuntimeDraft.payload.examination
-    })
-    context = captureEditorContext() || undefined
-    if (!context) {
-      return
-    }
-    await loadPatientExaminationKnowledgeBaseIdentity(context)
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    await Promise.all([loadFindingCatalog(context), refreshTemplatesForExamination(context)])
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    await loadIndicationCatalog(context)
-    if (!isEditorContextCurrent(context)) {
-      return
-    }
-    await loadLatestReportMeta(context)
-    if (isEditorContextCurrent(context)) {
+    context = await loadEditorContextDependencies()
+    if (context && isEditorContextCurrent(context)) {
       initializedContextKey = contextKey
     }
   } catch (error: unknown) {
@@ -2126,49 +2329,6 @@ onMounted(async () => {
   justify-content: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
-}
-
-.report-readiness-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.readiness-item {
-  min-width: 0;
-  padding: 0.75rem;
-  border: 1px solid #d9e0ea;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.readiness-item.is-primary {
-  color: #fff;
-  background: #172234;
-  border-color: #172234;
-}
-
-.readiness-item.has-warning {
-  color: #842029;
-  background: #f8d7da;
-  border-color: #f5c2c7;
-}
-
-.readiness-item .readiness-label {
-  display: block;
-  margin-bottom: 0.2rem;
-  color: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.78;
-}
-
-.readiness-item .readiness-value {
-  display: block;
-  overflow-wrap: anywhere;
-  line-height: 1.25;
 }
 
 .report-editor-layout {
@@ -2373,10 +2533,6 @@ onMounted(async () => {
   .report-preview-toolbar {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .report-readiness-strip {
-    grid-template-columns: 1fr;
   }
 
   .report-editor-facts .report-editor-fact {

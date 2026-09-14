@@ -49,7 +49,9 @@
         <div
           v-if="loading"
           class="text-muted"
-        >Lade Berichte...</div>
+        >
+          Lade Berichte...
+        </div>
         <div
           v-else-if="!filteredItems.length"
           class="alert alert-info mb-0"
@@ -80,7 +82,9 @@
                   <details class="small text-muted">
                     <summary>Technische Angaben</summary>
                     <div>Berichtsreferenz: {{ row.id }}</div>
-                    <div>Untersuchungsreferenz: {{ patientExaminationId(row) ?? 'nicht verfügbar' }}</div>
+                    <div>
+                      Untersuchungsreferenz: {{ patientExaminationId(row) ?? 'nicht verfügbar' }}
+                    </div>
                   </details>
                 </td>
                 <td>
@@ -104,7 +108,8 @@
                   <span
                     v-else
                     class="text-muted small"
-                  >Kein Routing-Ziel</span>
+                    >Kein Routing-Ziel</span
+                  >
                 </td>
               </tr>
             </tbody>
@@ -166,8 +171,8 @@ async function loadReports() {
   loading.value = true
   errorMessage.value = null
   try {
-    const res = await axiosInstance.get<unknown>(r(endpoints.report.patientExaminationReports))
-    items.value = parseReportListPayload(res.data)
+    const response = await axiosInstance.get<unknown>(r(endpoints.report.patientExaminationReports))
+    items.value = parseReportListPayload(response.data)
   } catch (e: unknown) {
     errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden der Arbeitsliste.')
   } finally {

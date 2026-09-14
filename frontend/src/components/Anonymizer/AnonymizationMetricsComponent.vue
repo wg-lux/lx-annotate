@@ -33,31 +33,34 @@
           <label
             class="form-label"
             for="metrics-date-from"
-          >Von</label>
+            >Von</label
+          >
           <input
             id="metrics-date-from"
             v-model="filterForm.dateFrom"
             type="date"
             class="form-control"
-          >
+          />
         </div>
         <div class="col-md-2">
           <label
             class="form-label"
             for="metrics-date-to"
-          >Bis</label>
+            >Bis</label
+          >
           <input
             id="metrics-date-to"
             v-model="filterForm.dateTo"
             type="date"
             class="form-control"
-          >
+          />
         </div>
         <div class="col-md-2">
           <label
             class="form-label"
             for="metrics-media-type"
-          >Medientyp</label>
+            >Medientyp</label
+          >
           <select
             id="metrics-media-type"
             v-model="filterForm.mediaType"
@@ -72,7 +75,8 @@
           <label
             class="form-label"
             for="metrics-center-id"
-          >Center-ID</label>
+            >Center-ID</label
+          >
           <input
             id="metrics-center-id"
             v-model="filterForm.centerId"
@@ -80,33 +84,35 @@
             inputmode="numeric"
             class="form-control"
             placeholder="Alle"
-          >
+          />
         </div>
         <div class="col-md-2">
           <label
             class="form-label"
             for="metrics-document-type"
-          >Dokumenttyp</label>
+            >Dokumenttyp</label
+          >
           <input
             id="metrics-document-type"
             v-model="filterForm.documentType"
             type="text"
             class="form-control"
             placeholder="Alle"
-          >
+          />
         </div>
         <div class="col-md-2">
           <label
             class="form-label"
             for="metrics-source-system"
-          >Quelle</label>
+            >Quelle</label
+          >
           <input
             id="metrics-source-system"
             v-model="filterForm.sourceSystem"
             type="text"
             class="form-control"
             placeholder="Alle"
-          >
+          />
         </div>
         <div class="col-12 d-flex gap-2">
           <button
@@ -242,7 +248,9 @@
           <p
             v-else
             class="text-muted mb-0"
-          >Keine Feldqualitätsdaten im ausgewählten Zeitraum.</p>
+          >
+            Keine Feldqualitätsdaten im ausgewählten Zeitraum.
+          </p>
         </div>
       </section>
 
@@ -263,7 +271,9 @@
                 <div
                   v-if="metric.help"
                   class="small text-muted"
-                >{{ metric.help }}</div>
+                >
+                  {{ metric.help }}
+                </div>
               </div>
             </div>
           </div>
@@ -294,7 +304,8 @@ import type { PropType } from 'vue'
 import { useAnonymizationMetricsStore } from '@/stores/anonymizationMetricsStore'
 import type {
   AnonymizationFieldQualityMetric,
-  AnonymizationMetricsFilters
+  AnonymizationMetricsFilters,
+  AnonymizationPhiRegionMetrics
 } from '@/api/anonymizationMetricsApi'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
@@ -323,12 +334,7 @@ const MetricsStatusTable = defineComponent({
       props.rows.length
         ? h('div', { class: 'table-responsive' }, [
             h('table', { class: 'table align-items-center mb-0' }, [
-              h('thead', [
-                h('tr', [
-                  h('th', 'Status'),
-                  h('th', { class: 'text-end' }, 'Anzahl')
-                ])
-              ]),
+              h('thead', [h('tr', [h('th', 'Status'), h('th', { class: 'text-end' }, 'Anzahl')])]),
               h(
                 'tbody',
                 props.rows.map((row) =>
@@ -461,36 +467,31 @@ const validationStatusRows = computed(() =>
   statusRows(workflow.value?.totalsByValidationStatus ?? {})
 )
 
+function phiCountCard(key: string, label: string, value: number | undefined) {
+  return { key, label, value: formatInteger(value ?? 0), help: '' }
+}
+
+function phiRateCard(
+  key: string,
+  label: string,
+  value: AnonymizationPhiRegionMetrics['precision'] | undefined
+) {
+  return {
+    key,
+    label,
+    value: formatPercent(value),
+    help: value == null ? 'Nicht genug Human-Annotationen' : ''
+  }
+}
+
 const phiRegionCards = computed(() => {
   const phi = metricsStore.data?.phiRegions
   return [
-    {
-      key: 'proposal-count',
-      label: 'Vorschläge',
-      value: formatInteger(phi?.proposalCount ?? 0)
-    },
-    {
-      key: 'human-count',
-      label: 'Human-Annotationen',
-      value: formatInteger(phi?.humanAnnotationCount ?? 0)
-    },
-    {
-      key: 'matched-count',
-      label: 'Treffer',
-      value: formatInteger(phi?.matchedCount ?? 0)
-    },
-    {
-      key: 'precision',
-      label: 'Precision',
-      value: formatPercent(phi?.precision ?? null),
-      help: phi?.precision == null ? 'Nicht genug Human-Annotationen' : ''
-    },
-    {
-      key: 'recall',
-      label: 'Recall',
-      value: formatPercent(phi?.recall ?? null),
-      help: phi?.recall == null ? 'Nicht genug Human-Annotationen' : ''
-    }
+    phiCountCard('proposal-count', 'Vorschläge', phi?.proposalCount),
+    phiCountCard('human-count', 'Human-Annotationen', phi?.humanAnnotationCount),
+    phiCountCard('matched-count', 'Treffer', phi?.matchedCount),
+    phiRateCard('precision', 'Precision', phi?.precision),
+    phiRateCard('recall', 'Recall', phi?.recall)
   ]
 })
 
@@ -548,7 +549,9 @@ function formatDuration(seconds: number | null): string {
   }
   const hours = minutes / 60
   if (hours < 48) {
-    const formattedHours = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace('.', ',')
+    const formattedHours = Number.isInteger(hours)
+      ? String(hours)
+      : hours.toFixed(1).replace('.', ',')
     return `${formattedHours} h`
   }
   const days = hours / 24

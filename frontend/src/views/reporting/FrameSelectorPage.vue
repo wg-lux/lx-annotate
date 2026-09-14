@@ -22,11 +22,15 @@
         <div
           v-if="errorMessage"
           class="alert alert-danger py-2"
-        >{{ errorMessage }}</div>
+        >
+          {{ errorMessage }}
+        </div>
         <div
           v-if="successMessage"
           class="alert alert-success py-2"
-        >{{ successMessage }}</div>
+        >
+          {{ successMessage }}
+        </div>
 
         <LookupStatusPanel
           class="mb-3"
@@ -56,7 +60,9 @@
             <div
               v-else
               class="small text-muted"
-            >Keine vorab ausgewählten Frames verfügbar.</div>
+            >
+              Keine vorab ausgewählten Frames verfügbar.
+            </div>
           </div>
         </div>
 
@@ -154,7 +160,9 @@
                         <div
                           v-else
                           class="text-muted small"
-                        >Kein Frame ausgewählt.</div>
+                        >
+                          Kein Frame ausgewählt.
+                        </div>
                         <div class="mt-3 text-muted small">
                           Hinweis: Für eine echte Bildvorschau wäre ggf. ein dedizierter
                           Frame-Stream hilfreich, falls `relative_path` nicht direkt browserfähig
@@ -298,7 +306,7 @@ const findings = computed<readonly Finding[]>(() => catalogFindings.value)
 const latest_frames = computed(() => flow.mediaPreload?.latestFrames || [])
 const segments = computed<SegmentFrameItem[]>(() => frameSelectorState.value?.results || [])
 const selectedSegment = computed<SegmentFrameItem | null>(
-  () => segments.value.find((s) => s.segmentId === selectedSegmentId.value) || null
+  () => segments.value.find((segment) => segment.segmentId === selectedSegmentId.value) || null
 )
 
 function clearMessages() {
@@ -306,8 +314,8 @@ function clearMessages() {
   successMessage.value = null
 }
 
-function open_stream_url(url: string) {
-  window.open(url, '_blank', 'noopener,noreferrer')
+function open_stream_url(streamUrl: string) {
+  window.open(streamUrl, '_blank', 'noopener,noreferrer')
 }
 
 function selectorUrl(): string | null {
@@ -326,6 +334,23 @@ async function ensureFindingsLoaded() {
   await ensureCatalogLoaded(flow.selectedExaminationId)
 }
 
+function ensureSelectedSegment(): void {
+  const selectionExists = segments.value.some(
+    (segment) => segment.segmentId === selectedSegmentId.value
+  )
+  if (!selectedSegmentId.value || !selectionExists) {
+    selectedSegmentId.value = segments.value[0]?.segmentId ?? null
+  }
+}
+
+function applySelectedSegmentDefaults(segment: SegmentFrameItem): void {
+  manualFrameNumber.value =
+    segment.selectedFrameNumber ??
+    latest_frames.value.at(0)?.frameNumber ??
+    segment.startFrameNumber
+  selectedFindingIdForSegment.value = segment.attachedFinding?.findingId ?? null
+}
+
 function syncSelectionDefaults() {
   if (!segments.value.length) {
     selectedSegmentId.value = null
@@ -334,25 +359,18 @@ function syncSelectionDefaults() {
     return
   }
 
-  if (
-    !selectedSegmentId.value ||
-    !segments.value.some((s) => s.segmentId === selectedSegmentId.value)
-  ) {
-    selectedSegmentId.value = segments.value[0]?.segmentId ?? null
-  }
+  ensureSelectedSegment()
 
-  const seg = selectedSegment.value
-  if (!seg) {
+  const segment = selectedSegment.value
+  if (!segment) {
     return
   }
-  manualFrameNumber.value =
-    seg.selectedFrameNumber ?? latest_frames.value.at(0)?.frameNumber ?? seg.startFrameNumber
-  selectedFindingIdForSegment.value = seg.attachedFinding?.findingId ?? null
+  applySelectedSegmentDefaults(segment)
 }
 
 async function loadFrameSelectorState() {
-  const url = selectorUrl()
-  if (!url) {
+  const requestUrl = selectorUrl()
+  if (!requestUrl) {
     errorMessage.value = 'Bitte zuerst das Fall-Setup abschließen.'
     return
   }
@@ -360,17 +378,17 @@ async function loadFrameSelectorState() {
   loading.value = true
   clearMessages()
   try {
-    const res = await axiosInstance.get(url)
-    const state = res.data as SegmentFrameSelectorResponse
+    const response = await axiosInstance.get(requestUrl)
+    const state = response.data as SegmentFrameSelectorResponse
     frameSelectorState.value = state
     if (state.reportId) {
       flow.setActiveReportId(state.reportId)
     }
     syncSelectionDefaults()
     successMessage.value = 'Segment-Frame-Status geladen.'
-  } catch (e: unknown) {
+  } catch (error: unknown) {
     errorMessage.value = reportingApiErrorMessage(
-      e,
+      error,
       'Fehler beim Laden der Segment-Frame-Auswahl.'
     )
   } finally {
@@ -412,16 +430,16 @@ async function patchSegmentAction(action: 'random' | 'step' | 'clear', step?: nu
   loading.value = true
   clearMessages()
   try {
-    const res = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body)
-    const state = res.data as SegmentFrameSelectorResponse
+    const response = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body)
+    const state = response.data as SegmentFrameSelectorResponse
     frameSelectorState.value = state
     if (state.reportId) {
       flow.setActiveReportId(state.reportId)
     }
     syncSelectionDefaults()
     successMessage.value = 'Segment aktualisiert.'
-  } catch (e: unknown) {
-    errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Aktualisieren des Segments.')
+  } catch (error: unknown) {
+    errorMessage.value = reportingApiErrorMessage(error, 'Fehler beim Aktualisieren des Segments.')
   } finally {
     loading.value = false
   }
@@ -449,16 +467,16 @@ async function setFrameManual() {
   loading.value = true
   clearMessages()
   try {
-    const res = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body)
-    const state = res.data as SegmentFrameSelectorResponse
+    const response = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body)
+    const state = response.data as SegmentFrameSelectorResponse
     frameSelectorState.value = state
     if (state.reportId) {
       flow.setActiveReportId(state.reportId)
     }
     syncSelectionDefaults()
     successMessage.value = 'Frame manuell gesetzt.'
-  } catch (e: unknown) {
-    errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Setzen des Frames.')
+  } catch (error: unknown) {
+    errorMessage.value = reportingApiErrorMessage(error, 'Fehler beim Setzen des Frames.')
   } finally {
     loading.value = false
   }

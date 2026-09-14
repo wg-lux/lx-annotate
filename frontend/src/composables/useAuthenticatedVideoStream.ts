@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type AxiosResponse } from 'axios'
 import Hls from 'hls.js'
 import {
   computed,
@@ -159,6 +159,55 @@ function waitForPreparation(milliseconds: number, signal: AbortSignal): Promise<
   })
 }
 
+function preparationDelay(response: AxiosResponse<string>, deadline: number, url: string): number {
+  const remaining = deadline - Date.now()
+  const retryAfter = String(response.headers['retry-after'] ?? '').trim()
+  const seconds = Number(retryAfter)
+  const requestedDelay =
+    retryAfter && Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now()
+  const delay = Number.isFinite(requestedDelay) ? Math.max(1000, requestedDelay) : 2000
+  if (remaining <= 0 || delay >= remaining) {
+    throw new AuthenticatedVideoStreamError(
+      'hls_preparation_timeout',
+      'Video preparation timed out. Please reopen the video to retry.',
+      { status: 202, url }
+    )
+  }
+  return delay
+}
+
+async function handlePreparingPlaylist(params: {
+  response: AxiosResponse<string>
+  deadline: number
+  url: string
+  signal: AbortSignal
+  onPreparing: () => void
+}): Promise<boolean> {
+  if (params.response.status !== 202) return false
+  params.onPreparing()
+  await waitForPreparation(
+    preparationDelay(params.response, params.deadline, params.url),
+    params.signal
+  )
+  return true
+}
+
+function assertValidHlsPlaylist(response: AxiosResponse<string>, url: string): void {
+  const contentType = String(response.headers['content-type'] || '')
+    .split(';', 1)[0]
+    .trim()
+    .toLowerCase()
+  const valid =
+    HLS_PLAYLIST_CONTENT_TYPES.has(contentType) && response.data.trimStart().startsWith('#EXTM3U')
+  if (!valid) {
+    throw new AuthenticatedVideoStreamError(
+      'hls_playlist_invalid_response',
+      'The encrypted HLS playlist response is invalid.',
+      { url }
+    )
+  }
+}
+
 async function validateHlsPlaylist(
   url: string,
   signal: AbortSignal,
@@ -179,39 +228,8 @@ async function validateHlsPlaylist(
           withCredentials: true
         })
       )
-      if (response.status === 202) {
-        onPreparing()
-        const remaining = deadline - Date.now()
-        const retryAfter = String(response.headers['retry-after'] ?? '').trim()
-        const seconds = Number(retryAfter)
-        const requestedDelay = retryAfter && Number.isFinite(seconds)
-          ? seconds * 1000
-          : Date.parse(retryAfter) - Date.now()
-        const delay = Number.isFinite(requestedDelay) ? Math.max(1000, requestedDelay) : 2000
-        if (remaining <= 0 || delay >= remaining) {
-          throw new AuthenticatedVideoStreamError(
-            'hls_preparation_timeout',
-            'Video preparation timed out. Please reopen the video to retry.',
-            { status: 202, url }
-          )
-        }
-        await waitForPreparation(delay, signal)
-        continue
-      }
-      const contentType = String(response.headers['content-type'] || '')
-        .split(';', 1)[0]
-        .trim()
-        .toLowerCase()
-      if (
-        !HLS_PLAYLIST_CONTENT_TYPES.has(contentType) ||
-        !response.data.trimStart().startsWith('#EXTM3U')
-      ) {
-        throw new AuthenticatedVideoStreamError(
-          'hls_playlist_invalid_response',
-          'The encrypted HLS playlist response is invalid.',
-          { url }
-        )
-      }
+      if (await handlePreparingPlaylist({ response, deadline, url, signal, onPreparing })) continue
+      assertValidHlsPlaylist(response, url)
       return
     }
   } catch (error) {
@@ -327,6 +345,51 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     playbackError.value = null
   }
 
+  function resolveHlsPlaylistUrl(videoId: number): string | null {
+    const urls = buildVideoPlaybackUrls(videoId, readArtifactKind(options.artifactKind))
+    try {
+      return validateSameOriginMediaUrl(urls.hlsPlaylistUrl)
+    } catch (error) {
+      setError(normalizeStreamError(error))
+      return null
+    }
+  }
+
+  function supportedPlaybackModes(
+    video: HTMLVideoElement
+  ): { useHlsJs: boolean; useNativeHls: boolean } | null {
+    const useHlsJs = Hls.isSupported()
+    const useNativeHls = canPlayNativeHls(video)
+    if (useHlsJs || useNativeHls) {
+      return { useHlsJs, useNativeHls }
+    }
+    setError(
+      new AuthenticatedVideoStreamError(
+        'hls_playback_failed',
+        'This browser cannot securely play encrypted HLS video.'
+      )
+    )
+    return null
+  }
+
+  async function prepareHlsPlaylist(url: string, serial: number): Promise<boolean> {
+    const abortController = new AbortController()
+    playlistAbortController = abortController
+    try {
+      await validateHlsPlaylist(url, abortController.signal, () => {
+        if (serial === loadSerial) playbackMode.value = 'preparing'
+      })
+      return serial === loadSerial
+    } catch (error) {
+      if (serial === loadSerial) setError(normalizeStreamError(error))
+      return false
+    } finally {
+      if (playlistAbortController === abortController) {
+        playlistAbortController = null
+      }
+    }
+  }
+
   async function configurePlayback(): Promise<void> {
     const serial = ++loadSerial
     const video = options.videoElement.value
@@ -341,52 +404,13 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
       return
     }
 
-    const urls = buildVideoPlaybackUrls(videoId, readArtifactKind(options.artifactKind))
-    let hlsPlaylistUrl: string
-    try {
-      hlsPlaylistUrl = validateSameOriginMediaUrl(urls.hlsPlaylistUrl)
-    } catch (error) {
-      setError(normalizeStreamError(error))
-      return
-    }
-    const canUseHlsJs = Hls.isSupported()
-    const canUseNative = canPlayNativeHls(video)
+    const hlsPlaylistUrl = resolveHlsPlaylistUrl(videoId)
+    if (!hlsPlaylistUrl) return
 
-    if (!canUseHlsJs && !canUseNative) {
-      setError(
-        new AuthenticatedVideoStreamError(
-          'hls_playback_failed',
-          'This browser cannot securely play encrypted HLS video.'
-        )
-      )
-      return
-    }
+    const playbackModes = supportedPlaybackModes(video)
+    if (!playbackModes || !(await prepareHlsPlaylist(hlsPlaylistUrl, serial))) return
 
-    const abortController = new AbortController()
-    playlistAbortController = abortController
-    try {
-      await validateHlsPlaylist(hlsPlaylistUrl, abortController.signal, () => {
-        if (serial === loadSerial) {
-          playbackMode.value = 'preparing'
-        }
-      })
-    } catch (error) {
-      if (serial !== loadSerial) {
-        return
-      }
-      setError(normalizeStreamError(error))
-      return
-    } finally {
-      if (playlistAbortController === abortController) {
-        playlistAbortController = null
-      }
-    }
-
-    if (serial !== loadSerial) {
-      return
-    }
-
-    if (canUseHlsJs) {
+    if (playbackModes.useHlsJs) {
       useHlsJs(video, hlsPlaylistUrl)
       return
     }

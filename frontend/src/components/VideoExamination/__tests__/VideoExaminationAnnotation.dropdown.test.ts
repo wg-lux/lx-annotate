@@ -48,21 +48,17 @@ const apiResponse = <T>(data: T): AxiosResponse<T> => ({
 const resolvedApiResponse = <T>(data: T): Promise<AxiosResponse<T>> =>
   Promise.resolve(apiResponse(data))
 
-const routerMocks = vi.hoisted(
-  (): RouterMocks => ({
-    query: {},
-    replace: vi.fn(),
-    push: vi.fn()
-  })
-)
+const routerMocks = vi.hoisted((): RouterMocks => ({
+  query: {},
+  replace: vi.fn(),
+  push: vi.fn()
+}))
 
-const apiMocks = vi.hoisted(
-  (): ApiMocks => ({
-    get: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn()
-  })
-)
+const apiMocks = vi.hoisted((): ApiMocks => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  delete: vi.fn()
+}))
 
 vi.mock('@/api/axiosInstance', () => ({
   default: apiMocks,
@@ -94,6 +90,94 @@ vi.mock('@/stores/auth_kc', () => ({
     }
   })
 }))
+
+interface DropdownFixtureFactories {
+  mediaVideos: () => MediaVideoFixture[]
+  fpsNormalizationState: (videoId: number) => Record<string, unknown>
+  videoLabels: () => Array<{ id: number; name: string; color: string }>
+}
+
+const predictionModelsFixture = {
+  models: [
+    {
+      id: 7,
+      name: 'segmentation-meta',
+      version: '3',
+      modelName: 'segmentation-model',
+      aiModelId: 5,
+      labelsetName: 'colon-labels',
+      labelsetVersion: 1,
+      labelsetId: 9,
+      weightsAvailable: true,
+      isActive: true
+    }
+  ],
+  defaultHuggingfaceModelId: 'wg-lux/custom-segmentation',
+  defaultModelName: 'segmentation-model',
+  defaultLabelsetName: 'colon-labels',
+  huggingfaceModels: []
+}
+
+const aiDatasetsFixture = [
+  {
+    id: 300,
+    value: 'segment-study',
+    label: 'segment-study',
+    datasetType: 'video',
+    aiModelType: 'video_segment_classification',
+    isActive: true,
+    nameCount: 1
+  }
+]
+
+function createGetImplementation(factories: DropdownFixtureFactories) {
+  return (url: string): Promise<AxiosResponse<unknown>> => {
+    const exactResponses: Partial<Record<string, () => unknown>> = {
+      'media/videos/labels/list/': factories.videoLabels,
+      'media/videos/prediction-models/list/': () => predictionModelsFixture,
+      'settings/application/dropdowns/ai_datasets/': () => aiDatasetsFixture,
+      'media/videos/': factories.mediaVideos
+    }
+    const exactResponse = exactResponses[url]
+    if (exactResponse) return resolvedApiResponse(exactResponse())
+
+    const staticPatterns = [
+      {
+        matches: url.includes('/sensitive-metadata/'),
+        data: { patient_dob: null, patient_gender_name: null }
+      },
+      { matches: url.includes('/examinations/'), data: [] },
+      { matches: url.includes('/details/'), data: { duration: 90 } },
+      { matches: url.includes('/metadata/'), data: { duration: 90, fps: 25, frameCount: 2250 } },
+      { matches: url.includes('/fps/'), data: { fps: 25 } },
+      {
+        matches: url.includes('/segments/validation-status/'),
+        data: { validationComplete: true, byLabel: { outside: { total: 1, validated: 1 } } }
+      }
+    ]
+    const staticResponse = staticPatterns.find((candidate) => candidate.matches)
+    if (staticResponse) return resolvedApiResponse(staticResponse.data)
+
+    const normalizationMatch = url.match(/media\/videos\/(\d+)\/segments\/normalize-fps\//)
+    if (normalizationMatch) {
+      return resolvedApiResponse(factories.fpsNormalizationState(Number(normalizationMatch[1])))
+    }
+    const segmentMatch = url.match(/media\/videos\/(\d+)\/segments\//)
+    if (!segmentMatch) return resolvedApiResponse({})
+    const videoId = Number(segmentMatch[1])
+    return resolvedApiResponse([
+      {
+        id: videoId * 100,
+        videoId,
+        labelName: 'outside',
+        startTime: 1,
+        endTime: 5,
+        startFrameNumber: 25,
+        endFrameNumber: 125
+      }
+    ])
+  }
+}
 
 describe('VideoExaminationAnnotation dropdown status display', () => {
   let mediaVideosFactory: () => MediaVideoFixture[]
@@ -301,89 +385,13 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     ]
     anonymizationStore.fetchOverview = vi.fn().mockResolvedValue(undefined)
 
-    apiMocks.get.mockImplementation((url: string) => {
-      if (url === 'media/videos/labels/list/') {
-        return resolvedApiResponse(videoLabelsFactory())
-      }
-      if (url === 'media/videos/prediction-models/list/') {
-        return resolvedApiResponse({
-          models: [
-            {
-              id: 7,
-              name: 'segmentation-meta',
-              version: '3',
-              modelName: 'segmentation-model',
-              aiModelId: 5,
-              labelsetName: 'colon-labels',
-              labelsetVersion: 1,
-              labelsetId: 9,
-              weightsAvailable: true,
-              isActive: true
-            }
-          ],
-          defaultHuggingfaceModelId: 'wg-lux/custom-segmentation',
-          defaultModelName: 'segmentation-model',
-          defaultLabelsetName: 'colon-labels',
-          huggingfaceModels: []
-        })
-      }
-      if (url === 'settings/application/dropdowns/ai_datasets/') {
-        return resolvedApiResponse([
-          {
-            id: 300,
-            value: 'segment-study',
-            label: 'segment-study',
-            datasetType: 'video',
-            aiModelType: 'video_segment_classification',
-            isActive: true,
-            nameCount: 1
-          }
-        ])
-      }
-      if (url === 'media/videos/') {
-        return resolvedApiResponse(mediaVideosFactory())
-      }
-      if (url.includes('/sensitive-metadata/')) {
-        return resolvedApiResponse({ patient_dob: null, patient_gender_name: null })
-      }
-      if (url.includes('/examinations/')) {
-        return resolvedApiResponse([])
-      }
-      if (url.includes('/details/')) {
-        return resolvedApiResponse({ duration: 90 })
-      }
-      if (url.includes('/metadata/')) {
-        return resolvedApiResponse({ duration: 90, fps: 25, frameCount: 2250 })
-      }
-      const normalizationMatch = url.match(/media\/videos\/(\d+)\/segments\/normalize-fps\//)
-      if (normalizationMatch) {
-        return resolvedApiResponse(fpsNormalizationStateFactory(Number(normalizationMatch[1])))
-      }
-      if (url.includes('/fps/')) {
-        return resolvedApiResponse({ fps: 25 })
-      }
-      if (url.includes('/segments/validation-status/')) {
-        return resolvedApiResponse({
-          validationComplete: true,
-          byLabel: { outside: { total: 1, validated: 1 } }
-        })
-      }
-      const segmentMatch = url.match(/media\/videos\/(\d+)\/segments\//)
-      if (segmentMatch) {
-        return resolvedApiResponse([
-          {
-            id: Number(segmentMatch[1]) * 100,
-            videoId: Number(segmentMatch[1]),
-            labelName: 'outside',
-            startTime: 1,
-            endTime: 5,
-            startFrameNumber: 25,
-            endFrameNumber: 125
-          }
-        ])
-      }
-      return resolvedApiResponse({})
-    })
+    apiMocks.get.mockImplementation(
+      createGetImplementation({
+        mediaVideos: () => mediaVideosFactory(),
+        fpsNormalizationState: (videoId) => fpsNormalizationStateFactory(videoId),
+        videoLabels: () => videoLabelsFactory()
+      })
+    )
   })
 
   it('navigates sorted segments in both directions and filters the queue by multiple labels', async () => {
@@ -397,10 +405,29 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await selectVideoFromDropdown(wrapper, 'already-segment-validated.mp4')
     const store = useVideoStore()
     if (!store.currentVideo) throw new Error('Selected video was not loaded')
-    store.setVideo({ ...store.currentVideo, segments: [
-      { id: 2, videoID: 10, label: 'inside', startTime: 20, endTime: 30, avgConfidence: 1, labelID: 2 },
-      { id: 1, videoID: 10, label: 'outside', startTime: 2, endTime: 6, avgConfidence: 1, labelID: 1 }
-    ] })
+    store.setVideo({
+      ...store.currentVideo,
+      segments: [
+        {
+          id: 2,
+          videoID: 10,
+          label: 'inside',
+          startTime: 20,
+          endTime: 30,
+          avgConfidence: 1,
+          labelID: 2
+        },
+        {
+          id: 1,
+          videoID: 10,
+          label: 'outside',
+          startTime: 2,
+          endTime: 6,
+          avgConfidence: 1,
+          labelID: 1
+        }
+      ]
+    })
     await flushPromises()
     const video = wrapper.get('video').element
     Object.defineProperty(video, 'duration', { configurable: true, value: 90 })
@@ -502,7 +529,9 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await wrapper.get('.fullscreen-annotation-toggle').trigger('click')
     expect(wrapper.get<HTMLElement>('#video-annotation-panel').element.style.display).toBe('none')
     await wrapper.get('.fullscreen-annotation-toggle').trigger('click')
-    expect(wrapper.get<HTMLElement>('#video-annotation-panel').element.style.display).not.toBe('none')
+    expect(wrapper.get<HTMLElement>('#video-annotation-panel').element.style.display).not.toBe(
+      'none'
+    )
     expect(wrapper.get('.fullscreen-annotation-toggle').attributes('aria-expanded')).toBe('true')
     fullscreenElement = null
     document.dispatchEvent(new Event('fullscreenchange'))
@@ -520,12 +549,30 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     let finish!: (value: AxiosResponse<unknown>) => void
-    apiMocks.post.mockImplementation(() => new Promise(resolve => { finish = resolve }))
-    await requireDefined(findButtonByText(wrapper, 'Alle Segmente validieren'), 'Validate').trigger('click')
+    apiMocks.post.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    await requireDefined(findButtonByText(wrapper, 'Alle Segmente validieren'), 'Validate').trigger(
+      'click'
+    )
     await flushPromises()
-    expect(apiMocks.post).toHaveBeenCalledWith('media/videos/8/segments/validate-bulk/', expect.anything())
-    expect(requireDefined(findButtonByText(wrapper, 'Segmentänderungen speichern'), 'Save').attributes('disabled')).toBeDefined()
-    expect(requireDefined(findButtonByText(wrapper, 'KI neu berechnen'), 'KI rerun').attributes('disabled')).toBeDefined()
+    expect(apiMocks.post).toHaveBeenCalledWith(
+      'media/videos/8/segments/validate-bulk/',
+      expect.anything()
+    )
+    expect(
+      requireDefined(findButtonByText(wrapper, 'Segmentänderungen speichern'), 'Save').attributes(
+        'disabled'
+      )
+    ).toBeDefined()
+    expect(
+      requireDefined(findButtonByText(wrapper, 'KI neu berechnen'), 'KI rerun').attributes(
+        'disabled'
+      )
+    ).toBeDefined()
     finish(apiResponse({ status: 'completed', segmentAnnotationStatus: 'validated' }))
     await flushPromises()
     wrapper.unmount()
@@ -538,7 +585,10 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     const videoStore = useVideoStore()
     let finish!: (value: Awaited<ReturnType<typeof videoStore.rerunPredictionSegments>>) => void
     const rerun = vi.spyOn(videoStore, 'rerunPredictionSegments').mockImplementation(
-      () => new Promise(resolve => { finish = resolve })
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
     )
     const history = vi.spyOn(videoStore, 'fetchPredictionProcessingHistory')
     const model = videoStore.predictionModels.at(0)
@@ -546,13 +596,22 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await requireDefined(findButtonByText(wrapper, 'KI neu berechnen'), 'KI rerun').trigger('click')
     await flushPromises()
     expect(rerun).toHaveBeenCalledWith(8, expect.anything())
-    expect(requireDefined(findButtonByText(wrapper, 'Segmentänderungen speichern'), 'Save').attributes('disabled')).toBeDefined()
+    expect(
+      requireDefined(findButtonByText(wrapper, 'Segmentänderungen speichern'), 'Save').attributes(
+        'disabled'
+      )
+    ).toBeDefined()
     await selectVideoFromDropdown(wrapper, 'already-segment-validated.mp4')
     finish({
-      success: true, status: 'queued', queued: true, pending: false,
-      videoId: 8, modelMeta: model,
+      success: true,
+      status: 'queued',
+      queued: true,
+      pending: false,
+      videoId: 8,
+      modelMeta: model,
       job: { taskId: 'task-a', historyId: 81, mode: 'prediction', queue: 'inference' },
-      deletedPredictionSegments: 0, predictionSegmentsCount: 0
+      deletedPredictionSegments: 0,
+      predictionSegmentsCount: 0
     })
     await flushPromises()
     expect(history).not.toHaveBeenCalled()
@@ -562,9 +621,7 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
   it('starts FPS normalization automatically before loading segments', async () => {
     fpsNormalizationStateFactory = () => ({ status: 'required', fps: 60, maxFps: 50 })
-    apiMocks.post.mockResolvedValueOnce(
-      apiResponse({ status: 'queued', fps: 60, max_fps: 50 })
-    )
+    apiMocks.post.mockResolvedValueOnce(apiResponse({ status: 'queued', fps: 60, max_fps: 50 }))
 
     const wrapper = mountComponent()
     await flushPromises()

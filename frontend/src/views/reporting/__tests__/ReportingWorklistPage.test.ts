@@ -37,7 +37,9 @@ describe('ReportingWorklistPage', () => {
     expect(wrapper.text()).toContain('Entwurf')
     expect(wrapper.text()).not.toContain('#101')
     expect(wrapper.findAll('details')).toHaveLength(2)
-    expect(wrapper.findAll('details').every((details) => details.attributes('open') === undefined)).toBe(true)
+    expect(
+      wrapper.findAll('details').every((details) => details.attributes('open') === undefined)
+    ).toBe(true)
 
     await wrapper.find('select').setValue('final')
     expect(wrapper.get('tbody').text()).toContain('Abgeschlossen')

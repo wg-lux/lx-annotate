@@ -3,7 +3,7 @@
     <section class="page-heading">
       <div>
         <p class="section-kicker">KI-Datensatz</p>
-        <h1>Frame-Bucket-Verteilung</h1>
+        <h1 class="page-heading__title">Frame-Bucket-Verteilung</h1>
         <p class="heading-copy">
           Prüfen Sie die aktuellen Frame-Zahlen für datensatzbasierte Annotation und
           Trainingswarteschlangen.
@@ -38,7 +38,7 @@
     <section class="controls-panel">
       <div class="controls-grid">
         <label class="field-group">
-          <span>KI-Datensatz</span>
+          <span class="field-group__label">KI-Datensatz</span>
           <select
             v-model="selectedDatasetId"
             class="form-select"
@@ -57,7 +57,7 @@
         </label>
 
         <label class="field-group">
-          <span>Label-Gruppe</span>
+          <span class="field-group__label">Label-Gruppe</span>
           <select
             v-model="selectedLabelGroupId"
             class="form-select"
@@ -76,7 +76,7 @@
         </label>
 
         <label class="field-group">
-          <span>Ziel-Label</span>
+          <span class="field-group__label">Ziel-Label</span>
           <select
             v-model="selectedTargetLabelId"
             class="form-select"
@@ -101,7 +101,7 @@
             type="checkbox"
             data-test="prediction-segments-only"
           />
-          <span>Nur KI-Segmente für Segment-Buckets</span>
+          <span class="check-row__label">Nur KI-Segmente für Segment-Buckets</span>
         </label>
       </div>
 
@@ -141,20 +141,20 @@
           class="metric-tile"
           data-test="summary-merged-frames"
         >
-          <span>Bucket-Frames</span>
-          <strong>{{ formatNumber(distribution.summary.mergedFrameCount) }}</strong>
+          <span class="metric-tile__label">Bucket-Frames</span>
+          <strong class="metric-tile__value">{{ formatNumber(distribution.summary.mergedFrameCount) }}</strong>
         </div>
         <div class="metric-tile">
-          <span>Annotations-Frames</span>
-          <strong>{{ formatNumber(distribution.summary.annotationFrameCount) }}</strong>
+          <span class="metric-tile__label">Annotations-Frames</span>
+          <strong class="metric-tile__value">{{ formatNumber(distribution.summary.annotationFrameCount) }}</strong>
         </div>
         <div class="metric-tile">
-          <span>Segment-Frames</span>
-          <strong>{{ formatNumber(distribution.summary.segmentFrameCount) }}</strong>
+          <span class="metric-tile__label">Segment-Frames</span>
+          <strong class="metric-tile__value">{{ formatNumber(distribution.summary.segmentFrameCount) }}</strong>
         </div>
         <div class="metric-tile">
-          <span>Labels</span>
-          <strong>{{ formatNumber(distribution.summary.labelCount) }}</strong>
+          <span class="metric-tile__label">Labels</span>
+          <strong class="metric-tile__value">{{ formatNumber(distribution.summary.labelCount) }}</strong>
         </div>
       </section>
 
@@ -162,8 +162,8 @@
         <section class="distribution-panel">
           <div class="panel-heading">
             <div>
-              <h2>Ziel-Buckets</h2>
-              <p>{{ targetBucketSubtitle }}</p>
+              <h2 class="panel-heading__title">Ziel-Buckets</h2>
+              <p class="panel-heading__description">{{ targetBucketSubtitle }}</p>
             </div>
           </div>
 
@@ -187,9 +187,9 @@
                 class="bucket-meter"
                 aria-hidden="true"
               >
-                <span :style="{ width: bucketWidth(bucket.frameCount, targetBucketMax) }"></span>
+                <span class="bucket-meter__fill" :style="{ width: bucketWidth(bucket.frameCount, targetBucketMax) }"></span>
               </div>
-              <strong>{{ formatNumber(bucket.frameCount) }}</strong>
+              <strong class="bucket-row__count">{{ formatNumber(bucket.frameCount) }}</strong>
             </div>
           </div>
         </section>
@@ -197,27 +197,27 @@
         <section class="distribution-panel">
           <div class="panel-heading">
             <div>
-              <h2>Datensatzumfang</h2>
-              <p>{{ selectedDatasetLabel }}</p>
+              <h2 class="panel-heading__title">Datensatzumfang</h2>
+              <p class="panel-heading__description">{{ selectedDatasetLabel }}</p>
             </div>
           </div>
 
           <dl class="scope-list">
-            <div>
-              <dt>Typ</dt>
-              <dd>{{ datasetTypeLabel(distribution.datasetType) }}</dd>
+            <div class="scope-list__item">
+              <dt class="scope-list__term">Typ</dt>
+              <dd class="scope-list__value">{{ datasetTypeLabel(distribution.datasetType) }}</dd>
             </div>
-            <div>
-              <dt>Modell</dt>
-              <dd>{{ aiModelTypeLabel(distribution.aiModelType) }}</dd>
+            <div class="scope-list__item">
+              <dt class="scope-list__term">Modell</dt>
+              <dd class="scope-list__value">{{ aiModelTypeLabel(distribution.aiModelType) }}</dd>
             </div>
-            <div>
-              <dt>Videos</dt>
-              <dd>{{ formatNumber(distribution.summary.videoCount) }}</dd>
+            <div class="scope-list__item">
+              <dt class="scope-list__term">Videos</dt>
+              <dd class="scope-list__value">{{ formatNumber(distribution.summary.videoCount) }}</dd>
             </div>
-            <div>
-              <dt>Aktualisiert</dt>
-              <dd>{{ formatDate(distribution.updatedAt) }}</dd>
+            <div class="scope-list__item">
+              <dt class="scope-list__term">Aktualisiert</dt>
+              <dd class="scope-list__value">{{ formatDate(distribution.updatedAt) }}</dd>
             </div>
           </dl>
         </section>
@@ -228,8 +228,8 @@
       <section class="distribution-panel table-panel">
         <div class="panel-heading">
           <div>
-            <h2>Frame-Buckets pro Label</h2>
-            <p>
+            <h2 class="panel-heading__title">Frame-Buckets pro Label</h2>
+            <p class="panel-heading__description">
               Eindeutige Frame-Zahlen aus positiven Annotationen, Segmentbereichen und deren
               Vereinigung.
             </p>
@@ -252,13 +252,13 @@
           >
             <thead>
               <tr>
-                <th>Label</th>
-                <th>Kombinierte Frames</th>
-                <th>Annotations-Frames</th>
-                <th>Segment-Frames</th>
-                <th>Positive Einträge</th>
-                <th>Negative Einträge</th>
-                <th>Segmente</th>
+                <th class="bucket-table__heading bucket-table__label-cell">Label</th>
+                <th class="bucket-table__heading">Kombinierte Frames</th>
+                <th class="bucket-table__heading">Annotations-Frames</th>
+                <th class="bucket-table__heading">Segment-Frames</th>
+                <th class="bucket-table__heading">Positive Einträge</th>
+                <th class="bucket-table__heading">Negative Einträge</th>
+                <th class="bucket-table__heading">Segmente</th>
               </tr>
             </thead>
             <tbody>
@@ -266,20 +266,20 @@
                 v-for="row in mergedRows"
                 :key="row.labelId"
               >
-                <td>
+                <td class="bucket-table__cell bucket-table__label-cell">
                   <span class="label-name">{{ row.labelName }}</span>
                 </td>
-                <td>
+                <td class="bucket-table__cell bucket-table__combined-cell">
                   <div class="inline-meter">
-                    <span :style="{ width: bucketWidth(row.mergedFrames, mergedFrameMax) }"></span>
+                    <span class="inline-meter__fill" :style="{ width: bucketWidth(row.mergedFrames, mergedFrameMax) }"></span>
                   </div>
                   <strong>{{ formatNumber(row.mergedFrames) }}</strong>
                 </td>
-                <td>{{ formatNumber(row.annotationFrames) }}</td>
-                <td>{{ formatNumber(row.segmentFrames) }}</td>
-                <td>{{ formatNumber(row.framePositive) }}</td>
-                <td>{{ formatNumber(row.frameNegative) }}</td>
-                <td>{{ formatNumber(row.segmentCount) }}</td>
+                <td class="bucket-table__cell">{{ formatNumber(row.annotationFrames) }}</td>
+                <td class="bucket-table__cell">{{ formatNumber(row.segmentFrames) }}</td>
+                <td class="bucket-table__cell">{{ formatNumber(row.framePositive) }}</td>
+                <td class="bucket-table__cell">{{ formatNumber(row.frameNegative) }}</td>
+                <td class="bucket-table__cell">{{ formatNumber(row.segmentCount) }}</td>
               </tr>
             </tbody>
           </table>
@@ -548,7 +548,7 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
 }
 
-.page-heading h1 {
+.page-heading .page-heading__title {
   margin: 0;
   font-size: 2rem;
   font-weight: 700;
@@ -592,8 +592,8 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.field-group span,
-.check-row span {
+.field-group .field-group__label,
+.check-row .check-row__label {
   color: #334155;
 }
 
@@ -622,7 +622,7 @@ onBeforeUnmount(() => {
   padding: 0.85rem 1rem;
 }
 
-.metric-tile span {
+.metric-tile .metric-tile__label {
   display: block;
   color: #64748b;
   font-size: 0.82rem;
@@ -630,7 +630,7 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
 }
 
-.metric-tile strong {
+.metric-tile .metric-tile__value {
   display: block;
   margin-top: 0.25rem;
   font-size: 1.45rem;
@@ -650,13 +650,13 @@ onBeforeUnmount(() => {
   margin-bottom: 0.9rem;
 }
 
-.panel-heading h2 {
+.panel-heading .panel-heading__title {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
 }
 
-.panel-heading p {
+.panel-heading .panel-heading__description {
   margin: 0.3rem 0 0;
   color: #64748b;
   font-size: 0.9rem;
@@ -707,15 +707,15 @@ onBeforeUnmount(() => {
   background: #e6edf3;
 }
 
-.bucket-meter span,
-.inline-meter span {
+.bucket-meter .bucket-meter__fill,
+.inline-meter .inline-meter__fill {
   display: block;
   height: 100%;
   border-radius: inherit;
   background: #2f6f94;
 }
 
-.bucket-row strong {
+.bucket-row .bucket-row__count {
   text-align: right;
 }
 
@@ -725,18 +725,18 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
-.scope-list div {
+.scope-list .scope-list__item {
   display: grid;
   grid-template-columns: 5rem 1fr;
   gap: 0.75rem;
 }
 
-.scope-list dt {
+.scope-list .scope-list__term {
   color: #64748b;
   font-weight: 700;
 }
 
-.scope-list dd {
+.scope-list .scope-list__value {
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -751,28 +751,27 @@ onBeforeUnmount(() => {
   border-collapse: collapse;
 }
 
-.bucket-table th,
-.bucket-table td {
+.bucket-table .bucket-table__heading,
+.bucket-table .bucket-table__cell {
   padding: 0.75rem;
   border-bottom: 1px solid #e6edf3;
   vertical-align: middle;
   white-space: nowrap;
 }
 
-.bucket-table th {
+.bucket-table .bucket-table__heading {
   color: #475569;
   font-size: 0.78rem;
   text-transform: uppercase;
   background: #f8fbfc;
 }
 
-.bucket-table td:first-child,
-.bucket-table th:first-child {
+.bucket-table .bucket-table__label-cell {
   white-space: normal;
   min-width: 12rem;
 }
 
-.bucket-table td:nth-child(2) {
+.bucket-table .bucket-table__combined-cell {
   display: grid;
   grid-template-columns: minmax(7rem, 1fr) 4.5rem;
   gap: 0.75rem;

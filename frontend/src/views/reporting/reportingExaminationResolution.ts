@@ -5,11 +5,7 @@ export type ReportingExaminationCatalogEntry = {
 }
 
 export type ReportingExaminationResolutionCode =
-  | 'missing_name'
-  | 'name_not_found'
-  | 'ambiguous_name'
-  | 'id_not_found'
-  | 'contradictory_identity'
+  'missing_name' | 'name_not_found' | 'ambiguous_name' | 'id_not_found' | 'contradictory_identity'
 
 export type ReportingExaminationResolution<T extends ReportingExaminationCatalogEntry> =
   | { status: 'resolved'; examination: T }

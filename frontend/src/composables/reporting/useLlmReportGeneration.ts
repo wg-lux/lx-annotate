@@ -59,15 +59,51 @@ export function useLlmReportGeneration(options: {
   )
   onScopeDispose(cancel)
 
-  async function generate() {
+  function captureGenerationContext(): LlmReportContext | null {
     if (busy.value) {
-      return
+      return null
     }
     const context = options.getContext()
     if (!context) {
-      return
+      return null
     }
-    if (context.existingText.trim() && !options.confirmReplace()) {
+    const replacementAccepted = !context.existingText.trim() || options.confirmReplace()
+    return replacementAccepted ? context : null
+  }
+
+  function templateMatchesContext(
+    template: Awaited<
+      ReturnType<typeof fetchExaminationReportingContext>
+    >['reportTemplates'][number],
+    context: LlmReportContext
+  ): boolean {
+    const identity = template.identity
+    const expected = context.templateIdentity
+    const matchesKnowledgeBase =
+      identity.moduleName === expected.moduleName &&
+      identity.knowledgeBaseVersion === expected.knowledgeBaseVersion
+    const matchesTemplateRevision =
+      identity.templateVersion === expected.templateVersion &&
+      identity.templateHash === expected.templateHash
+    return (
+      identity.lifecycleStatus === 'published' && matchesKnowledgeBase && matchesTemplateRevision
+    )
+  }
+
+  function generationPayload(context: LlmReportContext) {
+    return {
+      patientExaminationId: context.patientExaminationId,
+      templateName: context.templateName,
+      language: context.language,
+      verbosity: context.verbosity ?? 'standard',
+      documentedFindings: context.documentedFindings,
+      sectionNotes: context.sectionNotes
+    }
+  }
+
+  async function generate() {
+    const context = captureGenerationContext()
+    if (!context) {
       return
     }
     const fingerprint = JSON.stringify(context)
@@ -94,26 +130,14 @@ export function useLlmReportGeneration(options: {
         return
       }
       const template = graph.reportTemplates.find((item) => item.name === context.templateName)
-      if (
-        !template ||
-        template.identity.lifecycleStatus !== 'published' ||
-        template.identity.moduleName !== context.templateIdentity.moduleName ||
-        template.identity.knowledgeBaseVersion !== context.templateIdentity.knowledgeBaseVersion ||
-        template.identity.templateVersion !== context.templateIdentity.templateVersion ||
-        template.identity.templateHash !== context.templateIdentity.templateHash
-      ) {
+      if (!template || !templateMatchesContext(template, context)) {
         throw new Error('Die gewählte Vorlage gehört nicht zum aktuellen Terminologiegraphen.')
       }
       phase.value = 'generating'
       const text = await generateLlmReport(
         {
-          patientExaminationId: context.patientExaminationId,
-          templateName: context.templateName,
-          language: context.language,
-          verbosity: context.verbosity ?? 'standard',
-          graph,
-          documentedFindings: context.documentedFindings,
-          sectionNotes: context.sectionNotes
+          ...generationPayload(context),
+          graph
         },
         signal
       )

@@ -153,32 +153,47 @@ function requireArrayPayload(value: unknown, path: string): unknown[] {
   throw new TypeError(`${path} must be an array or an object with a results array.`)
 }
 
-function parseMessages(data: unknown): string[] {
-  if (!data) {
-    return []
-  }
-  if (typeof data === 'string') {
-    return data.trim() ? [data] : []
-  }
-  if (!isRecord(data)) {
-    return []
-  }
+function parseStringMessage(value: string): string[] {
+  return value.trim() ? [value] : []
+}
+
+function preferredRecordMessage(data: Record<string, unknown>): string[] | null {
   if (typeof data.message === 'string' && data.message.trim()) {
     return [data.message]
   }
   if (typeof data.detail === 'string' && data.detail.trim()) {
     return [data.detail]
   }
+  return null
+}
 
-  const messages: string[] = []
-  for (const [key, value] of Object.entries(data)) {
-    if (Array.isArray(value) && value.length) {
-      messages.push(`${key}: ${value.join(', ')}`)
-    } else if (typeof value === 'string' && value.trim()) {
-      messages.push(`${key}: ${value}`)
-    }
+function formatRecordMessage([key, value]: [string, unknown]): string | null {
+  if (Array.isArray(value) && value.length) {
+    return `${key}: ${value.join(', ')}`
   }
-  return messages
+  if (typeof value === 'string' && value.trim()) {
+    return `${key}: ${value}`
+  }
+  return null
+}
+
+function parseMessages(data: unknown): string[] {
+  if (!data) {
+    return []
+  }
+  if (typeof data === 'string') {
+    return parseStringMessage(data)
+  }
+  if (!isRecord(data)) {
+    return []
+  }
+  const preferred = preferredRecordMessage(data)
+  if (preferred) {
+    return preferred
+  }
+  return Object.entries(data)
+    .map(formatRecordMessage)
+    .filter((message): message is string => message !== null)
 }
 
 type FindingsApiErrorContext = {
@@ -227,7 +242,11 @@ function classifyBadRequest(
   return buildFindingsApiError('bad-request', 'Ungültige Anfrage.', context)
 }
 
-export function parseFindingsApiError(error: unknown): FindingsApiError {
+function buildFindingsApiErrorContext(error: unknown): {
+  context: FindingsApiErrorContext
+  errorMessage: string
+  explicitCode: FindingsApiErrorCode | undefined
+} {
   const errorRecord = isRecord(error) ? error : {}
   const response = isRecord(errorRecord.response) ? errorRecord.response : {}
   const data = response.data
@@ -236,22 +255,27 @@ export function parseFindingsApiError(error: unknown): FindingsApiError {
     typeof response.status === 'number' && Number.isInteger(response.status)
       ? response.status
       : undefined
-  const explicitCode = isFindingsApiErrorCode(dataRecord.code) ? dataRecord.code : undefined
-  const errorMessage =
-    typeof errorRecord.message === 'string' ? errorRecord.message : 'Unbekannter Fehler'
-  const messages = parseMessages(data)
-  const context: FindingsApiErrorContext = { data, messages, status }
+  return {
+    context: { data, messages: parseMessages(data), status },
+    errorMessage:
+      typeof errorRecord.message === 'string' ? errorRecord.message : 'Unbekannter Fehler',
+    explicitCode: isFindingsApiErrorCode(dataRecord.code) ? dataRecord.code : undefined
+  }
+}
+
+export function parseFindingsApiError(error: unknown): FindingsApiError {
+  const { context, errorMessage, explicitCode } = buildFindingsApiErrorContext(error)
 
   if (explicitCode !== undefined) {
     return buildFindingsApiError(explicitCode, errorMessage, context)
   }
 
-  if (status === 404) {
+  if (context.status === 404) {
     return buildFindingsApiError('not-found', 'Ressource nicht gefunden.', context)
   }
 
-  if (status === 400) {
-    return classifyBadRequest(messages.join(' | ').toLowerCase(), context)
+  if (context.status === 400) {
+    return classifyBadRequest(context.messages.join(' | ').toLowerCase(), context)
   }
 
   return buildFindingsApiError('unknown', errorMessage, context)

@@ -7,7 +7,8 @@
       class="app-skip-link"
       href="#page-content"
       @click.prevent="focusContent"
-    >Zum Inhalt springen</a>
+      >Zum Inhalt springen</a
+    >
     <button
       v-if="isMenuOpen"
       type="button"
@@ -94,64 +95,60 @@
         </div>
       </div>
     </main>
-    
   </div>
 </template>
 
-<script>
-import NavbarComponent from './components/Menus/NavbarComponent.vue';
-import SidebarComponent from './components/Menus/SidebarComponent.vue';
-import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
-import axios from 'axios';
+<script setup>
+import { ref, nextTick } from 'vue'
+import NavbarComponent from './components/Menus/NavbarComponent.vue'
+import SidebarComponent from './components/Menus/SidebarComponent.vue'
+import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue'
+import axios from 'axios'
 
-// Move this to your http_kc.ts or main.ts if possible, but it works here too
-axios.defaults.baseURL = '/';
+// Side-effect config (ideally move to main.ts or an axios setup plugin)
+axios.defaults.baseURL = '/'
 
-export default {
-  name: "App",
-  components: {
-    NavbarComponent,
-    SidebarComponent,
-    ToastMessageContainer
-  },
-  data() {
-    return {
-      isMenuOpen: false,
-      menuOpener: null,
-    };
-  },
-  methods: {
-    toggleMenu() {
-      if (this.isMenuOpen) {
-        this.closeMenu();
-        return;
-      }
-      this.menuOpener = document.activeElement;
-      this.isMenuOpen = true;
-      this.$nextTick(() => this.$refs.sidebarCloser?.focus());
-    },
-    closeMenu() {
-      this.isMenuOpen = false;
-      this.$nextTick(() => {
-        const opener = this.menuOpener;
-        if (opener instanceof HTMLElement && opener.isConnected && opener !== document.body) {
-          opener.focus();
-        } else {
-          this.$refs.sidebarOpener?.focus();
-        }
-        this.menuOpener = null;
-      });
-    },
-    focusContent() {
-      this.isMenuOpen = false;
-      this.menuOpener = null;
-      this.$nextTick(() => this.$refs.pageContent.focus());
+// Reactive state
+const isMenuOpen = ref(false)
+const menuOpener = ref(null)
+
+// Template DOM Refs
+const sidebarOpener = ref(null)
+const sidebarCloser = ref(null)
+const pageContent = ref(null)
+
+// Handlers & Accessibility focus management
+function closeMenu() {
+  isMenuOpen.value = false
+  nextTick(() => {
+    const opener = menuOpener.value
+    if (opener instanceof HTMLElement && opener.isConnected && opener !== document.body) {
+      opener.focus()
+    } else {
+      sidebarOpener.value?.focus()
     }
+    menuOpener.value = null
+  })
+}
+
+function toggleMenu() {
+  if (isMenuOpen.value) {
+    closeMenu()
+    return
   }
-};
+  menuOpener.value = document.activeElement
+  isMenuOpen.value = true
+  nextTick(() => sidebarCloser.value?.focus())
+}
+
+function focusContent() {
+  isMenuOpen.value = false
+  menuOpener.value = null
+  nextTick(() => pageContent.value?.focus())
+}
 </script>
 
-<style>
+<style scoped>
 .app-skip-link {
   position: fixed;
   top: 0.75rem;
@@ -203,9 +200,7 @@ export default {
   position: fixed;
 }
 
-.g-sidenav-show
-  > aside.sidenav.navbar.sidebar-shell--open
-  > .sidebar-panel {
+.g-sidenav-show > aside.sidenav.navbar.sidebar-shell--open > .sidebar-panel {
   flex: 1 1 0;
   min-width: 0;
   min-height: 0;
@@ -226,7 +221,10 @@ export default {
   line-height: 1;
   border-radius: var(--lx-corner-radius);
   box-shadow: none !important;
-  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .sidebar-toggle-button .ni {
@@ -263,13 +261,12 @@ export default {
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
   z-index: 2;
 }
-/* Ensure the parent toolbar acts as the absolute anchor */
+
 .sidebar-shell__toolbar {
   position: relative;
   width: 100%;
 }
 
-/* For Top-Left Placement We Use The Most Specific Selector */
 .g-sidenav-show .sidebar-shell--open .sidebar-toggle-button--open {
   position: absolute !important;
   top: 0.75rem !important;

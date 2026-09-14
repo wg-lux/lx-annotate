@@ -121,8 +121,7 @@ vi.mock('@/api/axiosInstance', () => ({
 }))
 
 vi.mock('@/utils/mediaUrls', () => ({
-  buildVideoStreamUrl: (id: number) =>
-    `/api/media/videos/${String(id)}/stream/processed/`,
+  buildVideoStreamUrl: (id: number) => `/api/media/videos/${String(id)}/stream/processed/`,
   buildVideoPlaybackUrls: (id: number) => ({
     hlsPlaylistUrl: `/api/media/videos/${String(id)}/hls/playlist/?type=processed`,
     fallbackStreamUrl: `/api/media/videos/${String(id)}/stream/processed/`

@@ -126,9 +126,7 @@ function scalarStringOr(value: unknown, fallback: string): string {
 }
 
 function metricsMediaTypeOrUndefined(value: unknown): AnonymizationMetricsMediaType | undefined {
-  return value === '' || value === 'all' || value === 'pdf' || value === 'video'
-    ? value
-    : undefined
+  return value === '' || value === 'all' || value === 'pdf' || value === 'video' ? value : undefined
 }
 
 function sanitizeKey(value: unknown): string {

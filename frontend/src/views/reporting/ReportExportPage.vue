@@ -20,11 +20,15 @@
         <div
           v-if="errorMessage"
           class="alert alert-danger py-2"
-        >{{ errorMessage }}</div>
+        >
+          {{ errorMessage }}
+        </div>
         <div
           v-if="successMessage"
           class="alert alert-success py-2"
-        >{{ successMessage }}</div>
+        >
+          {{ successMessage }}
+        </div>
         <div
           v-if="!hasVerifiedTemplateContext"
           class="alert alert-info py-2"
@@ -75,9 +79,8 @@
               <span
                 class="badge"
                 :class="reportStatusClass"
-              >{{
-                reportStatusLabel(latestReport?.status)
-              }}</span>
+                >{{ reportStatusLabel(latestReport?.status) }}</span
+              >
             </div>
           </div>
           <div class="col-md-6">
@@ -150,7 +153,9 @@
           <div
             v-for="warning in warnings"
             :key="warning"
-          >{{ warning }}</div>
+          >
+            {{ warning }}
+          </div>
         </div>
         <div
           class="export-format-notes mt-3"
@@ -158,11 +163,15 @@
         >
           <div class="export-format-note">
             <strong>PDF</strong>
-            <span class="export-format-description">Layoutierter Bericht mit den ausgewählten Befundbildern.</span>
+            <span class="export-format-description"
+              >Layoutierter Bericht mit den ausgewählten Befundbildern.</span
+            >
           </div>
           <div class="export-format-note">
             <strong>TXT</strong>
-            <span class="export-format-description">UTF-8-Text mit Patientenkontext und dem gespeicherten Berichtstext.</span>
+            <span class="export-format-description"
+              >UTF-8-Text mit Patientenkontext und dem gespeicherten Berichtstext.</span
+            >
           </div>
         </div>
         <details
@@ -299,15 +308,15 @@ const canDownloadText = computed(() => hasPatientIdentity.value && hasTextReport
 const reportStatusClass = computed(() => reportStatusBadgeClass(latestReport.value?.status))
 
 const timelineUrl = computed<string | undefined>(() => {
-  const url = persistedArtifacts.value?.patientTimelineUrl
-  if (!url) {
+  const artifactUrl = persistedArtifacts.value?.patientTimelineUrl
+  if (!artifactUrl) {
     return undefined
   }
-  if (!patientExaminationId.value || url.includes('patient_examination_id=')) {
-    return url
+  if (!patientExaminationId.value || artifactUrl.includes('patient_examination_id=')) {
+    return artifactUrl
   }
-  const separator = url.includes('?') ? '&' : '?'
-  return `${url}${separator}patient_examination_id=${String(patientExaminationId.value)}`
+  const separator = artifactUrl.includes('?') ? '&' : '?'
+  return `${artifactUrl}${separator}patient_examination_id=${String(patientExaminationId.value)}`
 })
 
 function clearMessages() {
@@ -374,13 +383,13 @@ async function loadLatestReport() {
   const isCurrent = () => context === contextGeneration && generation === reportLoadGeneration
   clearMessages()
   try {
-    const res = await axiosInstance.get<unknown>(
+    const response = await axiosInstance.get<unknown>(
       r(endpoints.report.patientExaminationReportsByPatientExamination(patientExaminationId.value))
     )
     if (!isCurrent()) {
       return
     }
-    const items = parseReportListPayload(res.data)
+    const items = parseReportListPayload(response.data)
     latestReport.value = items.at(0) ?? null
     if (latestReport.value !== null) {
       flow.setActiveReportId(latestReport.value.id)
@@ -400,18 +409,48 @@ async function loadLatestReport() {
   }
 }
 
-async function onMakeReport() {
-  if (!patientExaminationId.value) {
+function validatePdfExportContext(): number | null {
+  const examinationId = patientExaminationId.value
+  if (!examinationId) {
     errorMessage.value = 'Keine Patientenuntersuchung ausgewählt.'
-    return
+    return null
   }
   if (!hasVerifiedTemplateContext.value) {
     errorMessage.value =
       'PDF-Export ist erst nach Auswahl und Prüfung einer kompatiblen Berichtsvorlage möglich.'
-    return
+    return null
   }
   if (!canMakeReport.value) {
     errorMessage.value = 'Vorname, Nachname und Geburtsdatum sind erforderlich.'
+    return null
+  }
+  return examinationId
+}
+
+function reportFrameExportSelection(): Partial<Parameters<typeof makeReport>[0]> {
+  if (flow.selectedReportFrames != null) {
+    return { selectedFrames: flow.selectedReportFrames }
+  }
+  return flow.preferredReportFrame ? { preferredFrame: flow.preferredReportFrame } : {}
+}
+
+function applyGeneratedReport(data: Awaited<ReturnType<typeof makeReport>>): void {
+  latestReport.value = {
+    ...(latestReport.value ?? {}),
+    id: data.report.id,
+    status: data.report.status,
+    version: data.report.version
+  }
+  flow.setActiveReportId(data.report.id)
+  persistedArtifacts.value = data.persistedArtifacts || null
+  includedFrameCount.value = data.includedFrameCount || 0
+  warnings.value = Array.isArray(data.warnings) ? data.warnings : []
+  successMessage.value = 'Der PDF-Bericht wurde erstellt.'
+}
+
+async function onMakeReport() {
+  const examinationId = validatePdfExportContext()
+  if (!examinationId) {
     return
   }
 
@@ -424,32 +463,18 @@ async function onMakeReport() {
   includedFrameCount.value = 0
   try {
     const data = await makeReport({
-      patientExaminationId: patientExaminationId.value,
+      patientExaminationId: examinationId,
       reportId: selectedReportId.value,
       knowledgeBaseModule: terminology.activeBundle?.moduleName || '',
       knowledgeBaseVersion: terminology.activeBundle?.version || '',
       patient: patient.value,
-      ...(flow.selectedReportFrames != null
-        ? { selectedFrames: flow.selectedReportFrames }
-        : flow.preferredReportFrame
-          ? { preferredFrame: flow.preferredReportFrame }
-          : {}),
+      ...reportFrameExportSelection(),
       maxFrames: 24
     })
     if (!isCurrent()) {
       return
     }
-    latestReport.value = {
-      ...(latestReport.value ?? {}),
-      id: data.report.id,
-      status: data.report.status,
-      version: data.report.version
-    }
-    flow.setActiveReportId(data.report.id)
-    persistedArtifacts.value = data.persistedArtifacts || null
-    includedFrameCount.value = data.includedFrameCount || 0
-    warnings.value = Array.isArray(data.warnings) ? data.warnings : []
-    successMessage.value = 'Der PDF-Bericht wurde erstellt.'
+    applyGeneratedReport(data)
   } catch (e: unknown) {
     if (!isCurrent()) {
       return

@@ -32,7 +32,10 @@ describe('application authentication startup', () => {
     expect(useAuthKcStore().isAuthenticated).toBe(false)
     expect(mocks.bindAuthSubject).toHaveBeenCalledExactlyOnceWith(null)
     expect(useToastStore().toasts).toMatchObject([
-      { status: 'error', text: 'Die Anmeldung konnte nicht geprüft werden. Bitte laden Sie die Seite erneut.' }
+      {
+        status: 'error',
+        text: 'Die Anmeldung konnte nicht geprüft werden. Bitte laden Sie die Seite erneut.'
+      }
     ])
   })
 })

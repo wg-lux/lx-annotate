@@ -7,15 +7,16 @@
           <i class="ni ni-circle-08 form-section-icon"></i>
           Grunddaten
         </h4>
-        
+
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
               <label
                 for="firstName"
                 class="required patient-field-label"
-              >Vorname</label>
-              <input 
+                >Vorname</label
+              >
+              <input
                 id="firstName"
                 v-model="form.firstName"
                 type="text"
@@ -32,14 +33,15 @@
               </div>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-group">
               <label
                 for="lastName"
                 class="required patient-field-label"
-              >Nachname</label>
-              <input 
+                >Nachname</label
+              >
+              <input
                 id="lastName"
                 v-model="form.lastName"
                 type="text"
@@ -64,8 +66,9 @@
               <label
                 class="patient-field-label"
                 for="dob"
-              >Geburtsdatum</label>
-              <input 
+                >Geburtsdatum</label
+              >
+              <input
                 id="dob"
                 v-model="form.dob"
                 type="date"
@@ -86,23 +89,24 @@
               </small>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-group">
               <label
                 class="patient-field-label"
                 for="gender"
-              >Geschlecht</label>
-              <select 
+                >Geschlecht</label
+              >
+              <select
                 id="gender"
                 v-model="form.gender"
                 class="form-control"
                 :class="{ 'is-invalid': errors.gender }"
               >
                 <option value="">Bitte wählen</option>
-                <option 
-                  v-for="gender in genders" 
-                  :key="gender.id" 
+                <option
+                  v-for="gender in genders"
+                  :key="gender.id"
                   :value="gender.name"
                 >
                   {{ gender.nameDe || gender.name }}
@@ -125,15 +129,16 @@
           <i class="ni ni-book-bookmark form-section-icon"></i>
           Kontaktdaten
         </h4>
-        
+
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
               <label
                 class="patient-field-label"
                 for="email"
-              >E-Mail</label>
-              <input 
+                >E-Mail</label
+              >
+              <input
                 id="email"
                 v-model="form.email"
                 type="email"
@@ -149,14 +154,15 @@
               </div>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-group">
               <label
                 class="patient-field-label"
                 for="phone"
-              >Telefon</label>
-              <input 
+                >Telefon</label
+              >
+              <input
                 id="phone"
                 v-model="form.phone"
                 type="tel"
@@ -181,24 +187,25 @@
           <i class="ni ni-collection form-section-icon"></i>
           Organisation
         </h4>
-        
+
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
               <label
                 class="patient-field-label"
                 for="center"
-              >Zentrum</label>
-              <select 
+                >Zentrum</label
+              >
+              <select
                 id="center"
                 v-model="form.centerKey"
                 class="form-control"
                 :class="{ 'is-invalid': errors.center }"
               >
                 <option value="">Bitte wählen</option>
-                <option 
-                  v-for="center in centers" 
-                  :key="center.id" 
+                <option
+                  v-for="center in centers"
+                  :key="center.id"
                   :value="center.centerKey || center.name"
                 >
                   {{ center.nameDe || center.name }}
@@ -212,11 +219,11 @@
               </div>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-group">
               <label class="patient-field-label">
-                <input 
+                <input
                   v-model="form.isRealPerson"
                   type="checkbox"
                   class="form-check-input me-2"
@@ -240,9 +247,9 @@
         >
           <strong>Fehler:</strong> {{ errors.general }}
         </div>
-        
-        <button 
-          type="submit" 
+
+        <button
+          type="submit"
           class="btn btn-primary"
           :disabled="loading || !isFormValid"
         >
@@ -256,9 +263,9 @@
           ></i>
           {{ loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
         </button>
-        
-        <button 
-          type="button" 
+
+        <button
+          type="button"
           class="btn btn-secondary ms-2"
           :disabled="loading"
           @click="$emit('cancel')"
@@ -282,7 +289,7 @@ const logger = createRuntimeLogger('patient-create-form')
 // Emits
 const emit = defineEmits<{
   'patient-created': [patient: Patient]
-  'cancel': []
+  cancel: []
 }>()
 
 // Composables
@@ -315,17 +322,17 @@ const calculatedAge = computed(() => {
   if (!form.value.dob) {
     return null
   }
-  
+
   try {
     const birthDate = new Date(form.value.dob)
     const today = new Date()
     let age = today.getFullYear() - birthDate.getFullYear()
     const monthDiff = today.getMonth() - birthDate.getMonth()
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--
     }
-    
+
     return age >= 0 ? age : null
   } catch {
     return null
@@ -333,39 +340,41 @@ const calculatedAge = computed(() => {
 })
 
 const isFormValid = computed(() => {
-  return form.value.firstName.trim() !== '' && 
-         form.value.lastName.trim() !== '' &&
-         Object.keys(errors.value).length === 0
+  return (
+    form.value.firstName.trim() !== '' &&
+    form.value.lastName.trim() !== '' &&
+    Object.keys(errors.value).length === 0
+  )
 })
 
 // Methods
 const validateForm = () => {
   errors.value = {}
-  
+
   // Required fields
   if (!form.value.firstName.trim()) {
     errors.value.firstName = 'Vorname ist erforderlich'
   }
-  
+
   if (!form.value.lastName.trim()) {
     errors.value.lastName = 'Nachname ist erforderlich'
   }
-  
+
   // Date validation
   if (form.value.dob) {
     const birthDate = new Date(form.value.dob)
     const today = new Date()
-    
+
     if (birthDate > today) {
       errors.value.dob = 'Geburtsdatum kann nicht in der Zukunft liegen'
     }
   }
-  
+
   // Email validation
   if (form.value.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
     errors.value.email = 'Ungültige E-Mail-Adresse'
   }
-  
+
   return Object.keys(errors.value).length === 0
 }
 
@@ -375,7 +384,7 @@ const handleSubmit = async () => {
     operation: 'create',
     state: loading.value ? 'loading' : 'idle'
   })
-  
+
   if (!validateForm()) {
     logger.info('validation-rejected', {
       operation: 'create',
@@ -389,16 +398,16 @@ const handleSubmit = async () => {
     loading.value = true
     errors.value = {} // Reset errors
     logger.debug('validation-accepted', { operation: 'create', outcome: 'accepted' })
-    
+
     // Format data for submission using patientStore method
     const formattedData = patientStore.formatPatientForSubmission(form.value)
     logger.debug('payload-normalized', { operation: 'create' })
     logger.debug('request-started', { operation: 'create' })
-    
+
     // Use patientStore instead of patientService for consistency
     const newPatient = await patientStore.createPatient(formattedData)
     logger.debug('request-completed', { operation: 'create', outcome: 'accepted' })
-    
+
     // Reset form
     form.value = {
       id: null,
@@ -414,12 +423,11 @@ const handleSubmit = async () => {
       comments: '',
       isRealPerson: true
     }
-    
+
     // Emit event with the created patient
     emit('patient-created', newPatient)
     logger.debug('created-event-emitted', { operation: 'create' })
     logger.info('submission-completed', { operation: 'create', outcome: 'accepted' })
-    
   } catch (error: unknown) {
     const caughtError =
       error instanceof Error ? error : new Error('Unbekannter Fehler beim Erstellen des Patienten')
@@ -427,15 +435,15 @@ const handleSubmit = async () => {
       operation: 'create',
       outcome: 'rejected'
     })
-    
+
     // Handle different error types
     if (caughtError.message.includes('HTTP error!')) {
       // This is from our fetch-based patientStore
-      errors.value.general = 'Server-Fehler beim Erstellen des Patienten. Prüfen Sie Ihre Verbindung.'
+      errors.value.general =
+        'Server-Fehler beim Erstellen des Patienten. Prüfen Sie Ihre Verbindung.'
     } else {
       errors.value.general = caughtError.message
     }
-    
   } finally {
     loading.value = false
     logger.debug('submission-settled', {
@@ -453,7 +461,7 @@ const loadLookupData = async () => {
       const gendersData = await patientService.getGenders()
       patientStore.genders = gendersData
     }
-    
+
     if (centers.value.length === 0) {
       const centersData = await patientService.getCenters()
       patientStore.centers = centersData
@@ -526,7 +534,9 @@ onMounted(async () => {
   border-radius: 6px;
   border: 1px solid #ced4da;
   padding: 0.75rem;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition:
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out;
 }
 
 .form-control:focus {
@@ -612,7 +622,7 @@ onMounted(async () => {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .form-actions .btn {
     width: 100%;
     justify-content: center;

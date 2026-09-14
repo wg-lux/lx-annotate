@@ -72,7 +72,10 @@ describe('patientFindingStore', () => {
   })
 
   it('updates and deletes the matching local finding', async () => {
-    listPatientFindings.mockResolvedValue([finding(1, ORIGINAL_FINDING_ID), finding(2, CREATED_FINDING_ID)])
+    listPatientFindings.mockResolvedValue([
+      finding(1, ORIGINAL_FINDING_ID),
+      finding(2, CREATED_FINDING_ID)
+    ])
     updatePatientFinding.mockResolvedValue(finding(1, 9, false))
     deletePatientFinding.mockResolvedValue(undefined)
     const store = usePatientFindingStore()
@@ -123,9 +126,12 @@ describe('patientFindingStore', () => {
     createPatientFinding.mockRejectedValueOnce(apiError)
     const store = usePatientFindingStore()
 
-    await expect(store.createPatientFinding({ patientExamination: PATIENT_EXAMINATION_ID, finding: CREATED_FINDING_ID })).rejects.toBe(
-      apiError
-    )
+    await expect(
+      store.createPatientFinding({
+        patientExamination: PATIENT_EXAMINATION_ID,
+        finding: CREATED_FINDING_ID
+      })
+    ).rejects.toBe(apiError)
 
     expect(store.patientFindings).toEqual([])
     expect(store.error).toContain('(duplicate-finding): Finding already exists')

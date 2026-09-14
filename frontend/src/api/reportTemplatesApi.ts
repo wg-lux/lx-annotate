@@ -3,7 +3,8 @@ import {
   extractFindingId,
   type Finding,
   type FindingClassification,
-  type JsonMap
+  type JsonMap,
+  type PatientFindingClassification
 } from '@/api/findings.contract'
 import { findingsApi } from '@/api/findingsApi'
 import { isReportVerbosity } from '@/types/reportTemplate'
@@ -257,6 +258,15 @@ function field(record: Record<string, unknown>, camel: string, snake: string): u
   return record[camel] ?? record[snake]
 }
 
+function firstField(record: Record<string, unknown>, keys: readonly string[]): unknown {
+  for (const key of keys) {
+    if (record[key] !== undefined && record[key] !== null) {
+      return record[key]
+    }
+  }
+  return undefined
+}
+
 function isSha256(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
 }
@@ -301,47 +311,67 @@ function normalizeCoverageProvenance(value: unknown): ReportConceptCoverageProve
   return provenance as ReportConceptCoverageProvenance
 }
 
+const APPLICABILITY_STATUSES: readonly ReportConceptApplicabilityStatus[] = [
+  'required',
+  'conditional',
+  'not_applicable',
+  'unknown'
+]
+const VALIDATION_STATUSES: readonly ReportConceptValidationStatus[] = [
+  'present',
+  'missing',
+  'invalid',
+  'unknown',
+  'undetermined'
+]
+
+function isApplicabilityStatus(value: string | null): value is ReportConceptApplicabilityStatus {
+  return (
+    value !== null && APPLICABILITY_STATUSES.includes(value as ReportConceptApplicabilityStatus)
+  )
+}
+
+function isValidationStatus(value: string | null): value is ReportConceptValidationStatus {
+  return value !== null && VALIDATION_STATUSES.includes(value as ReportConceptValidationStatus)
+}
+
+function hasValidApplicabilityDetails(
+  status: ReportConceptApplicabilityStatus,
+  validationStatus: ReportConceptValidationStatus,
+  rule: string | null,
+  reason: string | null
+): boolean {
+  if (status === 'conditional' && !rule) {
+    return false
+  }
+  if (status === 'not_applicable' && (!reason || validationStatus !== 'undetermined')) {
+    return false
+  }
+  return true
+}
+
 function normalizeCoverageItem(value: unknown): ReportConceptCoverageItem | null {
-  if (!isRecordLike(value)) {
+  if (!isRecordLike(value) || !isRecordLike(value.applicability)) {
     return null
   }
   const conceptId = asString(field(value, 'conceptId', 'concept_id'))
   const label = asString(value.label)
-  const applicability = isRecordLike(value.applicability) ? value.applicability : null
-  const applicabilityStatus = applicability
-    ? (asString(applicability.status) as ReportConceptApplicabilityStatus | null)
-    : null
-  const validationStatus = asString(
-    field(value, 'validationStatus', 'validation_status')
-  ) as ReportConceptValidationStatus | null
-  const evidencePath = value.evidencePath ?? value.evidence_path
-  const evidence = Array.isArray(evidencePath)
-    ? evidencePath.map((entry) => asString(entry)).filter((entry): entry is string => !!entry)
-    : []
-  if (!applicability) {
-    return null
-  }
+  const applicabilityStatus = asString(value.applicability.status)
+  const validationStatus = asString(field(value, 'validationStatus', 'validation_status'))
+  const evidence = asStringArray(field(value, 'evidencePath', 'evidence_path'))
   if (
     !conceptId ||
     !/^[a-z][a-z0-9_.:-]*$/.test(conceptId) ||
     !label ||
-    !applicabilityStatus ||
-    !['required', 'conditional', 'not_applicable', 'unknown'].includes(applicabilityStatus) ||
-    !validationStatus ||
-    !['present', 'missing', 'invalid', 'unknown', 'undetermined'].includes(validationStatus) ||
+    !isApplicabilityStatus(applicabilityStatus) ||
+    !isValidationStatus(validationStatus) ||
     !evidence.length
   ) {
     return null
   }
-  const rule = asString(applicability.rule)
-  const reason = asString(applicability.reason)
-  if (applicabilityStatus === 'conditional' && !rule) {
-    return null
-  }
-  if (applicabilityStatus === 'not_applicable' && !reason) {
-    return null
-  }
-  if (applicabilityStatus === 'not_applicable' && validationStatus !== 'undetermined') {
+  const rule = asString(value.applicability.rule)
+  const reason = asString(value.applicability.reason)
+  if (!hasValidApplicabilityDetails(applicabilityStatus, validationStatus, rule, reason)) {
     return null
   }
   return {
@@ -379,31 +409,28 @@ export function normalizeReportConceptCoverage(value: unknown): ReportConceptCov
 
 export function normalizeReportTemplateIdentity(payload: unknown): ReportTemplateIdentity {
   const record = isRecordLike(payload) ? payload : {}
-  const lifecycle = asString(record.lifecycleStatus ?? record.lifecycle_status)
+  const lifecycle = asString(field(record, 'lifecycleStatus', 'lifecycle_status'))
   const identity = isRecordLike(record.identity) ? record.identity : {}
   const readiness = normalizeReadiness(record.readiness)
   return {
     moduleName: asString(
-      record.knowledgeBaseModule ??
-        record.knowledge_base_module ??
-        record.moduleName ??
-        record.module_name
+      firstField(record, [
+        'knowledgeBaseModule',
+        'knowledge_base_module',
+        'moduleName',
+        'module_name'
+      ])
     ),
     knowledgeBaseVersion: asString(
-      record.knowledgeBaseVersion ?? record.knowledge_base_version ?? record.version
+      firstField(record, ['knowledgeBaseVersion', 'knowledge_base_version', 'version'])
     ),
     templateVersion: asString(
-      record.templateVersion ??
-        record.template_version ??
-        identity.templateVersion ??
-        identity.template_version
+      firstField(record, ['templateVersion', 'template_version']) ??
+        field(identity, 'templateVersion', 'template_version')
     ),
     templateHash: asString(
-      record.templateHash ??
-        record.template_hash ??
-        record.hash ??
-        identity.templateHash ??
-        identity.template_hash
+      firstField(record, ['templateHash', 'template_hash', 'hash']) ??
+        field(identity, 'templateHash', 'template_hash')
     ),
     lifecycleStatus: lifecycle === 'draft' || lifecycle === 'published' ? lifecycle : null,
     readiness
@@ -519,6 +546,20 @@ function buildFindingValidatorSummary(
   return `Wenn "${validator.finding}" die Bedingung erfüllt (${clauses.join(' oder ')}), ${required}`.trim()
 }
 
+function normalizeFindingValidatorIdentity(input: Record<string, unknown>): {
+  name: string | null
+  finding: string | null
+  operator: FindingsValidatorOperator | null
+} {
+  const queryInput = isRecordLike(input.query) ? input.query : {}
+  return {
+    name: asString(input.name),
+    finding: asString(input.finding) || asString(queryInput.finding),
+    operator: (asString(input.operator) ||
+      asString(queryInput.operator)) as FindingsValidatorOperator | null
+  }
+}
+
 function normalizeFindingValidator(
   input: unknown,
   sections: ReportTemplateSection[]
@@ -546,14 +587,7 @@ function normalizeFindingValidator(
     return null
   }
 
-  const name = asString(input.name)
-  const finding =
-    asString(input.finding) ||
-    asString((input.query as Record<string, unknown> | undefined)?.finding)
-  const operator = (asString(input.operator) ||
-    asString(
-      (input.query as Record<string, unknown> | undefined)?.operator
-    )) as FindingsValidatorOperator | null
+  const { name, finding, operator } = normalizeFindingValidatorIdentity(input)
   if (!name || !finding || !operator) {
     return null
   }
@@ -684,38 +718,39 @@ export function normalizeTemplatePayload(payload: unknown): ReportTemplatePayloa
   if (!name) {
     return null
   }
-  const reportSections = normalizeSections(payload.reportSections ?? payload.report_sections)
+  const reportSections = normalizeSections(field(payload, 'reportSections', 'report_sections'))
   const hasCoverage =
     Object.prototype.hasOwnProperty.call(payload, 'conceptCoverage') ||
     Object.prototype.hasOwnProperty.call(payload, 'concept_coverage')
-  const rawCoverage = payload.conceptCoverage ?? payload.concept_coverage
+  const rawCoverage = field(payload, 'conceptCoverage', 'concept_coverage')
   const conceptCoverage = hasCoverage ? normalizeReportConceptCoverage(rawCoverage) : null
-  let conceptCoverageState: ReportTemplatePayload['conceptCoverageState'] = 'missing'
-  if (hasCoverage) {
-    conceptCoverageState = conceptCoverage ? 'valid' : 'invalid'
-  }
-  const verbosityOptions: unknown = payload.verbosityOptions ??
-    payload.verbosity_options ?? ['standard']
-  if (
-    !Array.isArray(verbosityOptions) ||
-    !verbosityOptions.every(isReportVerbosity) ||
-    !verbosityOptions.includes('standard') ||
-    new Set(verbosityOptions).size !== verbosityOptions.length
-  ) {
-    throw new TypeError('Invalid report template verbosity_options')
-  }
+  const verbosityOptions = normalizeVerbosityOptions(
+    field(payload, 'verbosityOptions', 'verbosity_options')
+  )
   return {
     name,
     verbosityOptions,
-    nameDe: asString(payload.nameDe ?? payload.name_de) || undefined,
-    nameEn: asString(payload.nameEn ?? payload.name_en) || undefined,
+    nameDe: asString(field(payload, 'nameDe', 'name_de')) || undefined,
+    nameEn: asString(field(payload, 'nameEn', 'name_en')) || undefined,
     examination: asString(payload.examination) || '',
     identity: normalizeReportTemplateIdentity(payload),
     reportSections,
     validators: normalizeValidators(payload.validators, reportSections),
-    conceptCoverage,
-    conceptCoverageState
+    conceptCoverage
   }
+}
+
+function normalizeVerbosityOptions(value: unknown): ReportTemplatePayload['verbosityOptions'] {
+  const options = value == null ? ['standard'] : value
+  if (
+    !Array.isArray(options) ||
+    !options.every(isReportVerbosity) ||
+    !options.includes('standard') ||
+    new Set(options).size !== options.length
+  ) {
+    throw new TypeError('Invalid report template verbosity_options')
+  }
+  return options
 }
 
 export async function fetchReportTemplateByName(
@@ -903,22 +938,32 @@ function normalizeRuntimeIssue(input: unknown): RuntimeValidationIssue | null {
     return null
   }
   const levelRaw = asString(input.level)
-  return {
+  const issue: RuntimeValidationIssue = {
     code,
     message,
-    level: levelRaw === 'warning' ? 'warning' : 'error',
-    ...(asString(input.validatorName ?? input.validator_name)
-      ? { validatorName: asString(input.validatorName ?? input.validator_name) || undefined }
-      : {}),
-    ...(asString(input.validatorKind ?? input.validator_kind)
-      ? {
-          validatorKind: asString(
-            input.validatorKind ?? input.validator_kind
-          ) as RuntimeValidationIssue['validatorKind']
-        }
-      : {}),
-    ...(isRecordLike(input.details) ? { details: input.details } : {})
+    level: levelRaw === 'warning' ? 'warning' : 'error'
   }
+  const validatorName = asString(field(input, 'validatorName', 'validator_name'))
+  const validatorKind = asString(field(input, 'validatorKind', 'validator_kind'))
+  if (validatorName) {
+    issue.validatorName = validatorName
+  }
+  if (validatorKind) {
+    issue.validatorKind = validatorKind as RuntimeValidationIssue['validatorKind']
+  }
+  if (isRecordLike(input.details)) {
+    issue.details = input.details
+  }
+  return issue
+}
+
+function normalizeRuntimeIssues(value: unknown): RuntimeValidationIssue[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value
+    .map(normalizeRuntimeIssue)
+    .filter((issue): issue is RuntimeValidationIssue => issue !== null)
 }
 
 function normalizeDependencyStatuses(value: unknown): RuntimeValidatorDependencyStatus[] {
@@ -945,17 +990,13 @@ function normalizeFindingsValidatorExecutions(value: unknown): FindingsValidator
       ok: asBoolean(entry.ok),
       operator: asString(entry.operator) || '',
       finding: asString(entry.finding) || '',
-      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      matchedOccurrences: asNumber(field(entry, 'matchedOccurrences', 'matched_occurrences')) ?? 0,
       triggeredOccurrences:
-        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+        asNumber(field(entry, 'triggeredOccurrences', 'triggered_occurrences')) ?? 0,
       missingRequiredClassifications: asStringArray(
-        entry.missingRequiredClassifications ?? entry.missing_required_classifications
+        field(entry, 'missingRequiredClassifications', 'missing_required_classifications')
       ),
-      issues: Array.isArray(entry.issues)
-        ? entry.issues
-            .map((issue) => normalizeRuntimeIssue(issue))
-            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
-        : []
+      issues: normalizeRuntimeIssues(entry.issues)
     }))
     .filter((entry) => !!entry.name)
 }
@@ -970,16 +1011,12 @@ function normalizeExaminationValidatorExecutions(value: unknown): ExaminationVal
       name: asString(entry.name) || '',
       ok: asBoolean(entry.ok),
       findingValidatorStatus: normalizeDependencyStatuses(
-        entry.findingValidatorStatus ?? entry.finding_validator_status
+        field(entry, 'findingValidatorStatus', 'finding_validator_status')
       ),
       examinationValidatorStatus: normalizeDependencyStatuses(
-        entry.examinationValidatorStatus ?? entry.examination_validator_status
+        field(entry, 'examinationValidatorStatus', 'examination_validator_status')
       ),
-      issues: Array.isArray(entry.issues)
-        ? entry.issues
-            .map((issue) => normalizeRuntimeIssue(issue))
-            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
-        : []
+      issues: normalizeRuntimeIssues(entry.issues)
     }))
     .filter((entry) => !!entry.name)
 }
@@ -1007,15 +1044,11 @@ function normalizeClassificationValidatorExecutions(
       finding: asString(entry.finding) || '',
       classification: asString(entry.classification) || '',
       precedence: normalizePrecedence(entry.precedence),
-      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      matchedOccurrences: asNumber(field(entry, 'matchedOccurrences', 'matched_occurrences')) ?? 0,
       triggeredOccurrences:
-        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+        asNumber(field(entry, 'triggeredOccurrences', 'triggered_occurrences')) ?? 0,
       hint: normalizeValidatorHint(entry.hint),
-      issues: Array.isArray(entry.issues)
-        ? entry.issues
-            .map((issue) => normalizeRuntimeIssue(issue))
-            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
-        : []
+      issues: normalizeRuntimeIssues(entry.issues)
     }))
     .filter((entry) => !!entry.name)
 }
@@ -1035,15 +1068,11 @@ function normalizeInterventionValidatorExecutions(
       finding: asString(entry.finding) || '',
       intervention: asString(entry.intervention) || '',
       precedence: normalizePrecedence(entry.precedence),
-      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      matchedOccurrences: asNumber(field(entry, 'matchedOccurrences', 'matched_occurrences')) ?? 0,
       triggeredOccurrences:
-        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+        asNumber(field(entry, 'triggeredOccurrences', 'triggered_occurrences')) ?? 0,
       hint: normalizeValidatorHint(entry.hint),
-      issues: Array.isArray(entry.issues)
-        ? entry.issues
-            .map((issue) => normalizeRuntimeIssue(issue))
-            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
-        : []
+      issues: normalizeRuntimeIssues(entry.issues)
     }))
     .filter((entry) => !!entry.name)
 }
@@ -1062,15 +1091,11 @@ function normalizeUnitValidatorExecutions(value: unknown): UnitValidatorExecutio
       classification: asString(entry.classification) || '',
       unit: asString(entry.unit) || '',
       precedence: normalizePrecedence(entry.precedence),
-      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      matchedOccurrences: asNumber(field(entry, 'matchedOccurrences', 'matched_occurrences')) ?? 0,
       triggeredOccurrences:
-        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+        asNumber(field(entry, 'triggeredOccurrences', 'triggered_occurrences')) ?? 0,
       hint: normalizeValidatorHint(entry.hint),
-      issues: Array.isArray(entry.issues)
-        ? entry.issues
-            .map((issue) => normalizeRuntimeIssue(issue))
-            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
-        : []
+      issues: normalizeRuntimeIssues(entry.issues)
     }))
     .filter((entry) => !!entry.name)
 }
@@ -1089,27 +1114,23 @@ export function normalizeRuntimeValidationResult(
     templateName,
     ok: asBoolean(payload.ok),
     evaluatedFindingsCount:
-      asNumber(payload.evaluatedFindingsCount ?? payload.evaluated_findings_count) ?? 0,
+      asNumber(field(payload, 'evaluatedFindingsCount', 'evaluated_findings_count')) ?? 0,
     classificationValidators: normalizeClassificationValidatorExecutions(
-      payload.classificationValidators ?? payload.classification_validators
+      field(payload, 'classificationValidators', 'classification_validators')
     ),
     interventionValidators: normalizeInterventionValidatorExecutions(
-      payload.interventionValidators ?? payload.intervention_validators
+      field(payload, 'interventionValidators', 'intervention_validators')
     ),
     findingsValidators: normalizeFindingsValidatorExecutions(
-      payload.findingsValidators ?? payload.findings_validators
+      field(payload, 'findingsValidators', 'findings_validators')
     ),
     examinationValidators: normalizeExaminationValidatorExecutions(
-      payload.examinationValidators ?? payload.examination_validators
+      field(payload, 'examinationValidators', 'examination_validators')
     ),
     unitValidators: normalizeUnitValidatorExecutions(
-      payload.unitValidators ?? payload.unit_validators
+      field(payload, 'unitValidators', 'unit_validators')
     ),
-    issues: Array.isArray(payload.issues)
-      ? payload.issues
-          .map((issue) => normalizeRuntimeIssue(issue))
-          .filter((issue): issue is RuntimeValidationIssue => issue !== null)
-      : []
+    issues: normalizeRuntimeIssues(payload.issues)
   }
 }
 
@@ -1204,6 +1225,47 @@ function descriptorFromEntry(
   return {
     classificationChoiceDescriptor,
     descriptorValue
+  }
+}
+
+function buildRuntimeDescriptors(
+  classificationName: string,
+  numericalDescriptors: JsonMap
+): ReportTemplateRuntimeDescriptorInput[] {
+  const descriptors = Object.entries(numericalDescriptors)
+    .map(descriptorFromEntry)
+    .filter((entry): entry is ReportTemplateRuntimeDescriptorInput => entry !== null)
+  if (descriptors.length) {
+    return descriptors
+  }
+  const derivedValue = extractNumericalValue(classificationName, numericalDescriptors)
+  if (derivedValue === undefined || Array.isArray(derivedValue)) {
+    return []
+  }
+  return [
+    {
+      classificationChoiceDescriptor: `${normalizeKey(classificationName)}_descriptor`,
+      descriptorValue: derivedValue
+    }
+  ]
+}
+
+function normalizeRuntimeClassificationChoice(
+  classification: PatientFindingClassification,
+  definitions: readonly FindingClassification[]
+): ReportTemplateRuntimeClassificationChoiceInput | null {
+  const definition = findClassificationDefinition(definitions, classification.classification)
+  const classificationName = classification.classificationName || definition?.name || null
+  if (!classificationName) {
+    return null
+  }
+  const choiceName =
+    classification.classificationChoiceName ||
+    findChoiceName(definitions, classification.classification, classification.classificationChoice)
+  return {
+    classification: classificationName,
+    classificationChoice: choiceName || classificationName,
+    descriptors: buildRuntimeDescriptors(classificationName, classification.numericalDescriptors)
   }
 }
 
@@ -1319,47 +1381,9 @@ async function buildRuntimeValidationFindings(
     const classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[] =
       patientFinding.classifications
         .filter((classification) => classification.isActive)
-        .map((classification) => {
-          const classificationName =
-            classification.classificationName ||
-            findClassificationDefinition(findingDefinitions, classification.classification)?.name ||
-            null
-          if (!classificationName) {
-            return null
-          }
-
-          const derivedValue = extractNumericalValue(
-            classificationName,
-            classification.numericalDescriptors
-          )
-          const descriptors = Object.entries(classification.numericalDescriptors)
-            .map((entry) => descriptorFromEntry(entry))
-            .filter((entry): entry is ReportTemplateRuntimeDescriptorInput => entry !== null)
-          const choiceName =
-            classification.classificationChoiceName ||
-            findChoiceName(
-              findingDefinitions,
-              classification.classification,
-              classification.classificationChoice
-            ) ||
-            null
-
-          return {
-            classification: classificationName,
-            classificationChoice: choiceName || classificationName,
-            descriptors:
-              descriptors.length > 0
-                ? descriptors
-                : derivedValue !== undefined && !Array.isArray(derivedValue)
-                  ? [
-                      {
-                        classificationChoiceDescriptor: `${normalizeKey(classificationName)}_descriptor`,
-                        descriptorValue: derivedValue
-                      }
-                    ]
-                  : []
-          }
-        })
+        .map((classification) =>
+          normalizeRuntimeClassificationChoice(classification, findingDefinitions)
+        )
         .filter(
           (classification): classification is ReportTemplateRuntimeClassificationChoiceInput =>
             classification !== null

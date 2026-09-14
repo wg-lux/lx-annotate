@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 const mocks = vi.hoisted(() => ({
-  axiosGet: vi.fn<
-    (url: string, config?: { params: Record<string, string | number> }) => Promise<{ data: unknown }>
-  >(),
+  axiosGet:
+    vi.fn<
+      (
+        url: string,
+        config?: { params: Record<string, string | number> }
+      ) => Promise<{ data: unknown }>
+    >(),
   fetchApplicationSettings: vi.fn()
 }))
 

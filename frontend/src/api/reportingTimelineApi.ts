@@ -166,16 +166,22 @@ function requireTimelineLatestPayload(value: unknown): TimelineLatestPayload {
   }
 }
 
+function hasPatientTimelineItemText(value: Record<string, unknown>): boolean {
+  return (
+    isNullableString(value.timestamp) &&
+    isNullableString(value.examinationDate) &&
+    isNullableString(value.documentType) &&
+    isNullableString(value.fileName) &&
+    isOptionalNullableString(value.processedFileName)
+  )
+}
+
 function isPatientTimelineItem(value: unknown): value is PatientTimelineItem {
   return (
     isRecord(value) &&
     typeof value.mediaType === 'string' &&
     isInteger(value.id) &&
-    isNullableString(value.timestamp) &&
-    isNullableString(value.examinationDate) &&
-    isNullableString(value.documentType) &&
-    isNullableString(value.fileName) &&
-    isOptionalNullableString(value.processedFileName) &&
+    hasPatientTimelineItemText(value) &&
     isNullableInteger(value.patientExaminationId) &&
     (value.streamOptions === undefined || isTimelineStreamOptions(value.streamOptions))
   )
@@ -214,14 +220,17 @@ export async function fetchPatientTimelineLatest(params: {
   patientId: number
   patientExaminationId?: number | null
 }): Promise<TimelineLatestPayload> {
-  const response = await axiosInstance.get<unknown>(r(endpoints.media.patientTimeline(params.patientId)), {
-    params: {
-      latest_only: true,
-      ...(params.patientExaminationId
-        ? { patient_examination_id: params.patientExaminationId }
-        : {})
+  const response = await axiosInstance.get<unknown>(
+    r(endpoints.media.patientTimeline(params.patientId)),
+    {
+      params: {
+        latest_only: true,
+        ...(params.patientExaminationId
+          ? { patient_examination_id: params.patientExaminationId }
+          : {})
+      }
     }
-  })
+  )
 
   return requireTimelineLatestPayload(response.data)
 }
@@ -231,9 +240,7 @@ export async function fetchPatientTimeline(
   patientExaminationId?: number | null
 ): Promise<PatientTimelinePayload> {
   const response = await axiosInstance.get<unknown>(r(endpoints.media.patientTimeline(patientId)), {
-    params: patientExaminationId
-      ? { patient_examination_id: patientExaminationId }
-      : undefined
+    params: patientExaminationId ? { patient_examination_id: patientExaminationId } : undefined
   })
   return requirePatientTimelinePayload(response.data)
 }

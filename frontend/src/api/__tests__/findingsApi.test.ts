@@ -169,21 +169,25 @@ describe('findingsApi canonical routing', () => {
   it('accepts valid results envelopes and camel-cased nested records', async () => {
     hoisted.axios.get.mockResolvedValue({ data: { results: [findingPayload()] } })
 
-    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).resolves.toMatchObject([
-      { id: POLYP_FINDING_ID, name: 'polyp' }
-    ])
+    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).resolves.toMatchObject(
+      [{ id: POLYP_FINDING_ID, name: 'polyp' }]
+    )
   })
 
   it('rejects malformed list envelopes instead of returning an empty collection', async () => {
     hoisted.axios.get.mockResolvedValue({ data: {} })
 
-    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).rejects.toThrowError(/findings\.results/)
+    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).rejects.toThrowError(
+      /findings\.results/
+    )
   })
 
   it('rejects malformed nested finding identities and names', async () => {
     hoisted.axios.get.mockResolvedValue({ data: [findingPayload({ name: '' })] })
 
-    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).rejects.toThrowError(/findings\[0\]\.name/)
+    await expect(findingsApi.getExaminationFindings(CATALOG_EXAMINATION_ID)).rejects.toThrowError(
+      /findings\[0\]\.name/
+    )
   })
 
   it('rejects malformed classification envelopes and nested required choices', async () => {
@@ -194,7 +198,9 @@ describe('findingsApi canonical routing', () => {
     await expect(findingsApi.getFindingClassifications(POLYP_FINDING_ID)).rejects.toThrowError(
       /Finding classifications response/
     )
-    await expect(findingsApi.getFindingClassifications(POLYP_FINDING_ID)).rejects.toThrowError(/choices\[0\]\.id/)
+    await expect(findingsApi.getFindingClassifications(POLYP_FINDING_ID)).rejects.toThrowError(
+      /choices\[0\]\.id/
+    )
   })
 
   it('rejects malformed choice envelopes and nested required names', async () => {
@@ -202,7 +208,9 @@ describe('findingsApi canonical routing', () => {
       .mockResolvedValueOnce({ data: { choices: null } })
       .mockResolvedValueOnce({ data: { choices: [choicePayload({ name: ' ' })] } })
 
-    await expect(findingsApi.getClassificationChoices(SIZE_CLASSIFICATION_ID)).rejects.toThrowError(/expected contract/)
+    await expect(findingsApi.getClassificationChoices(SIZE_CLASSIFICATION_ID)).rejects.toThrowError(
+      /expected contract/
+    )
     await expect(findingsApi.getClassificationChoices(SIZE_CLASSIFICATION_ID)).rejects.toThrowError(
       /classificationChoices\[0\]\.name/
     )
@@ -229,18 +237,32 @@ describe('findingsApi canonical routing', () => {
         ]
       })
 
-    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(/patientFindings/)
-    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(/patientExamination/)
-    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(/classificationChoice/)
+    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(
+      /patientFindings/
+    )
+    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(
+      /patientExamination/
+    )
+    await expect(findingsApi.listPatientFindings(LIST_PATIENT_EXAMINATION_ID)).rejects.toThrowError(
+      /classificationChoice/
+    )
   })
 
   it('rejects incomplete patient-finding write responses', async () => {
     hoisted.axios.post.mockResolvedValue({
-      data: { id: PATIENT_FINDING_ID, finding: POLYP_FINDING_ID, isActive: true, classifications: [] }
+      data: {
+        id: PATIENT_FINDING_ID,
+        finding: POLYP_FINDING_ID,
+        isActive: true,
+        classifications: []
+      }
     })
 
     await expect(
-      findingsApi.createPatientFinding({ patientExamination: PATIENT_EXAMINATION_ID, finding: POLYP_FINDING_ID })
+      findingsApi.createPatientFinding({
+        patientExamination: PATIENT_EXAMINATION_ID,
+        finding: POLYP_FINDING_ID
+      })
     ).rejects.toThrowError(/patientExamination/)
   })
 

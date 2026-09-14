@@ -41,7 +41,8 @@
         <label
           for="ai-dataset-id"
           class="form-label"
-        >Datensatz</label>
+          >Datensatz</label
+        >
         <select
           id="ai-dataset-id"
           v-model="selectedAiDatasetId"
@@ -83,7 +84,8 @@
         <label
           for="label-group-id"
           class="form-label"
-        >Label-Gruppe</label>
+          >Label-Gruppe</label
+        >
         <select
           v-if="labelGroupOptions.length > 0"
           id="label-group-id"
@@ -142,7 +144,8 @@
         <label
           for="task-mode"
           class="form-label"
-        >Aufgabenquelle</label>
+          >Aufgabenquelle</label
+        >
         <select
           id="task-mode"
           v-model="taskMode"
@@ -165,7 +168,8 @@
         <label
           for="frame-file-type"
           class="form-label"
-        >Frame-Quelle</label>
+          >Frame-Quelle</label
+        >
         <select
           id="frame-file-type"
           v-model="frameFileType"
@@ -186,7 +190,8 @@
         <label
           for="target-label-name"
           class="form-label"
-        >Zu annotierendes Label</label>
+          >Zu annotierendes Label</label
+        >
         <input
           id="target-label-name"
           v-model.lazy="targetLabelName"
@@ -202,7 +207,8 @@
         <label
           for="information-source"
           class="form-label"
-        >Informationsquelle</label>
+          >Informationsquelle</label
+        >
         <select
           id="information-source"
           v-model.lazy="informationSource"
@@ -235,7 +241,8 @@
         <label
           for="frame-annotator-override"
           class="form-label"
-        >Annotator-Scope</label>
+          >Annotator-Scope</label
+        >
         <div class="d-flex flex-wrap gap-2">
           <input
             id="frame-annotator-override"
@@ -282,7 +289,8 @@
         <label
           for="filter-label-name"
           class="form-label"
-        >Nach vorherigem Label filtern</label>
+          >Nach vorherigem Label filtern</label
+        >
         <input
           id="filter-label-name"
           v-model.lazy="filterLabelName"
@@ -319,7 +327,9 @@
             <div
               v-if="isLoadingTask"
               class="text-muted"
-            >Aufgabe wird geladen...</div>
+            >
+              Aufgabe wird geladen...
+            </div>
             <div
               v-else-if="!currentTask"
               class="text-muted"
@@ -542,7 +552,8 @@
                     <label
                       for="box-label-id"
                       class="form-label"
-                    >Box-Label</label>
+                      >Box-Label</label
+                    >
                     <select
                       id="box-label-id"
                       v-model.number="selectedBoxLabelId"
@@ -953,27 +964,37 @@ const advancedSettingsLabel = computed(() =>
 
 const selectedLabelGroupId = computed({
   get: () => queueStore.selectedLabelGroupId ?? '',
-  set: (value: string) => { queueStore.setSelectedLabelGroupId(value.trim() || null) }
+  set: (value: string) => {
+    queueStore.setSelectedLabelGroupId(value.trim() || null)
+  }
 })
 
 const taskMode = computed({
   get: () => queueStore.taskMode,
-  set: (value: string) => { queueStore.setTaskMode(value === 'filtered' ? 'filtered' : 'random') }
+  set: (value: string) => {
+    queueStore.setTaskMode(value === 'filtered' ? 'filtered' : 'random')
+  }
 })
 
 const targetLabelName = computed({
   get: () => queueStore.targetLabelName,
-  set: (value: string) => { queueStore.setTargetLabelName(value) }
+  set: (value: string) => {
+    queueStore.setTargetLabelName(value)
+  }
 })
 
 const filterLabelName = computed({
   get: () => queueStore.filterLabelName ?? '',
-  set: (value: string) => { queueStore.setFilterLabelName(value.trim() || null) }
+  set: (value: string) => {
+    queueStore.setFilterLabelName(value.trim() || null)
+  }
 })
 
 const allowRandomFallback = computed({
   get: () => queueStore.allowRandomFallback,
-  set: (value: boolean) => { queueStore.setAllowRandomFallback(value) }
+  set: (value: boolean) => {
+    queueStore.setAllowRandomFallback(value)
+  }
 })
 
 const selectedAiDatasetId = computed({
@@ -1009,12 +1030,16 @@ const selectedAiDatasetId = computed({
 
 const informationSource = computed({
   get: () => queueStore.informationSource,
-  set: (value: string) => { queueStore.setInformationSource(value) }
+  set: (value: string) => {
+    queueStore.setInformationSource(value)
+  }
 })
 
 const frameFileType = computed({
   get: () => queueStore.frameFileType,
-  set: (value: string) => { queueStore.setFrameFileType(value) }
+  set: (value: string) => {
+    queueStore.setFrameFileType(value)
+  }
 })
 
 const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? [])
@@ -1413,8 +1438,12 @@ function readBlobText(blob: Blob): Promise<string> {
   if (typeof FileReader !== 'undefined') {
     return new Promise((resolve) => {
       const reader = new FileReader()
-      reader.onload = () => { resolve(typeof reader.result === 'string' ? reader.result : '') }
-      reader.onerror = () => { resolve('') }
+      reader.onload = () => {
+        resolve(typeof reader.result === 'string' ? reader.result : '')
+      }
+      reader.onerror = () => {
+        resolve('')
+      }
       reader.readAsText(blob)
     })
   }
@@ -1544,57 +1573,106 @@ async function extractPendingMessage(blob: Blob): Promise<string | null> {
   }
 }
 
+function isSuccessfulImageResponse(response: AxiosResponse<Blob>): boolean {
+  const contentType = String(response.headers['content-type'] ?? '').toLowerCase()
+  return response.status === 200 && contentType.startsWith('image/')
+}
+
+function applySuccessfulFrameImage(task: NonNullable<typeof currentTask.value>, data: Blob): void {
+  if (!(data instanceof Blob)) {
+    errorMessage.value =
+      'Frame-Antwort war als Bild gekennzeichnet, enthielt aber keine binären Bilddaten.'
+    frameImageLoadState.value = 'failed'
+    return
+  }
+  if (data.size === 0) {
+    errorMessage.value = 'Frame-Antwort enthielt ein leeres Bild.'
+    frameImageLoadState.value = 'failed'
+    return
+  }
+  setFrameImageBlobUrl(data, task.data.imageUrl)
+  frameImageLoadState.value = 'loading'
+  prefetchNextFrameImage()
+}
+
+function schedulePendingFrameResponse(
+  task: NonNullable<typeof currentTask.value>,
+  retryDelayMs: number,
+  exhaustedMessage: string | null = null
+): void {
+  if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
+    if (exhaustedMessage) {
+      errorMessage.value = exhaustedMessage
+    }
+    frameImageLoadState.value = 'failed'
+    return
+  }
+  frameImageRetryCount.value += 1
+  frameImageLoadState.value = 'pending'
+  scheduleFrameImageRetry(task, retryDelayMs)
+}
+
+function getRetryDelay(response: AxiosResponse<Blob>): number {
+  const retryAfterSeconds = Number(response.headers['retry-after'] ?? 1)
+  return Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+    ? retryAfterSeconds * 1000
+    : FRAME_IMAGE_RETRY_DELAY_MS
+}
+
+async function failUnexpectedFrameResponse(response: AxiosResponse<Blob>): Promise<void> {
+  const pendingMessage =
+    response.data instanceof Blob ? await extractPendingMessage(response.data) : null
+  errorMessage.value =
+    pendingMessage ?? `Frame-Anfrage fehlgeschlagen (HTTP ${String(response.status)}).`
+  frameImageLoadState.value = 'failed'
+}
+
 async function handleFrameImageResponse(
   task: NonNullable<typeof currentTask.value>,
   response: AxiosResponse<Blob>
 ): Promise<void> {
-  const contentType = String(response.headers['content-type'] ?? '').toLowerCase()
-  if (response.status === 200 && contentType.startsWith('image/')) {
-    if (!(response.data instanceof Blob)) {
-      errorMessage.value =
-        'Frame-Antwort war als Bild gekennzeichnet, enthielt aber keine binären Bilddaten.'
-      frameImageLoadState.value = 'failed'
-      return
-    }
-    if (response.data.size === 0) {
-      errorMessage.value = 'Frame-Antwort enthielt ein leeres Bild.'
-      frameImageLoadState.value = 'failed'
-      return
-    }
-    setFrameImageBlobUrl(response.data, task.data.imageUrl)
-    frameImageLoadState.value = 'loading'
-    prefetchNextFrameImage()
+  if (isSuccessfulImageResponse(response)) {
+    applySuccessfulFrameImage(task, response.data)
     return
   }
   if (response.status === 202) {
-    if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
-      frameImageLoadState.value = 'failed'
-      return
-    }
-    frameImageRetryCount.value += 1
-    frameImageLoadState.value = 'pending'
-    scheduleFrameImageRetry(task)
+    schedulePendingFrameResponse(task, FRAME_IMAGE_RETRY_DELAY_MS)
     return
   }
   if (response.status === 429) {
-    if (frameImageRetryCount.value >= FRAME_IMAGE_RETRY_LIMIT) {
-      errorMessage.value = 'Frame-Dekodierung ist ausgelastet. Bitte erneut versuchen.'
-      frameImageLoadState.value = 'failed'
-      return
-    }
-    const retryAfterSeconds = Number(response.headers['retry-after'] ?? 1)
-    const retryDelayMs =
-      Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
-        ? retryAfterSeconds * 1000
-        : FRAME_IMAGE_RETRY_DELAY_MS
-    frameImageRetryCount.value += 1
-    frameImageLoadState.value = 'pending'
-    scheduleFrameImageRetry(task, retryDelayMs)
+    schedulePendingFrameResponse(
+      task,
+      getRetryDelay(response),
+      'Frame-Dekodierung ist ausgelastet. Bitte erneut versuchen.'
+    )
     return
   }
-  errorMessage.value =
-    (response.data instanceof Blob ? await extractPendingMessage(response.data) : null) ??
-    `Frame-Anfrage fehlgeschlagen (HTTP ${String(response.status)}).`
+  await failUnexpectedFrameResponse(response)
+}
+
+function isStaleFrameProbe(
+  task: NonNullable<typeof currentTask.value>,
+  probeGeneration: number
+): boolean {
+  return probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id
+}
+
+function applyPrefetchedFrameImage(
+  task: NonNullable<typeof currentTask.value>,
+  blob: Blob | null
+): boolean {
+  if (!blob) {
+    return false
+  }
+  setFrameImageBlobUrl(blob, task.data.imageUrl)
+  frameImageLoadState.value = 'loading'
+  prefetchNextFrameImage()
+  return true
+}
+
+function handleFrameProbeError(error: unknown): void {
+  const detail = error instanceof Error && error.message.trim() ? ` ${error.message.trim()}` : ''
+  errorMessage.value = `Frame-Anfrage wurde im Browser abgebrochen oder ist fehlgeschlagen.${detail}`
   frameImageLoadState.value = 'failed'
 }
 
@@ -1602,26 +1680,20 @@ async function probeFrameImage(task: NonNullable<typeof currentTask.value>): Pro
   const probeGeneration = ++frameImageProbeGeneration
   frameImageLoadState.value = frameImageRetryCount.value > 0 ? 'pending' : 'probing'
   try {
-    const prefetchedBlob = takePrefetchedFrameImage(task.data.imageUrl)
-    if (prefetchedBlob) {
-      setFrameImageBlobUrl(prefetchedBlob, task.data.imageUrl)
-      frameImageLoadState.value = 'loading'
-      prefetchNextFrameImage()
+    if (applyPrefetchedFrameImage(task, takePrefetchedFrameImage(task.data.imageUrl))) {
       return
     }
 
     const response = await requestFrameImage(task.data.imageUrl)
-    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) {
+    if (isStaleFrameProbe(task, probeGeneration)) {
       return
     }
     await handleFrameImageResponse(task, response)
   } catch (error: unknown) {
-    if (probeGeneration !== frameImageProbeGeneration || currentTask.value?.id !== task.id) {
+    if (isStaleFrameProbe(task, probeGeneration)) {
       return
     }
-    const detail = error instanceof Error && error.message.trim() ? ` ${error.message.trim()}` : ''
-    errorMessage.value = `Frame-Anfrage wurde im Browser abgebrochen oder ist fehlgeschlagen.${detail}`
-    frameImageLoadState.value = 'failed'
+    handleFrameProbeError(error)
   }
 }
 
@@ -1672,9 +1744,9 @@ function startBoxDraft(event: PointerEvent): void {
   draftBox.value = buildBoxDraft(point, point)
   boxAnnotationError.value = null
   const target = event.currentTarget as HTMLElement | null
-      if (target) {
-        target.setPointerCapture(event.pointerId)
-      }
+  if (target) {
+    target.setPointerCapture(event.pointerId)
+  }
   event.preventDefault()
 }
 
@@ -1927,44 +1999,66 @@ function firstDefinedValue(values: unknown[]): unknown {
   return undefined
 }
 
-function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null {
-  const nestedLabelGroup =
-    raw.labelGroup && typeof raw.labelGroup === 'object'
-      ? (raw.labelGroup as Record<string, unknown>)
-      : raw.label_group && typeof raw.label_group === 'object'
-        ? (raw.label_group as Record<string, unknown>)
-        : null
+function recordOrNull(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null
+}
 
-  const groupIdRaw = firstDefinedValue([
+function parseGroupId(
+  raw: Record<string, unknown>,
+  nested: Record<string, unknown> | null
+): string | null {
+  const groupId = firstDefinedValue([
     raw.labelGroupId,
     raw.label_group_id,
     raw.groupId,
     raw.group_id,
-    nestedLabelGroup?.id,
+    nested?.id,
     raw.id
   ])
-  if (
-    groupIdRaw === null ||
-    groupIdRaw === undefined ||
-    (typeof groupIdRaw !== 'string' && typeof groupIdRaw !== 'number')
-  ) {
+  if (typeof groupId !== 'string' && typeof groupId !== 'number') {
     return null
   }
+  return String(groupId).trim() || null
+}
 
-  const id = String(groupIdRaw).trim()
-  if (!id) {
-    return null
-  }
-
-  const nameRaw = firstDefinedValue([
+function parseGroupName(
+  raw: Record<string, unknown>,
+  nested: Record<string, unknown> | null,
+  id: string
+): string {
+  const name = firstDefinedValue([
     raw.labelGroupName,
     raw.label_group_name,
     raw.groupName,
     raw.group_name,
-    nestedLabelGroup?.name,
+    nested?.name,
     raw.name
   ])
-  const name = typeof nameRaw === 'string' && nameRaw.trim() ? nameRaw.trim() : `Group ${id}`
+  return typeof name === 'string' && name.trim() ? name.trim() : `Group ${id}`
+}
+
+function buildGroupDisplayName(
+  name: string,
+  version: number | null,
+  labelCount: number | null
+): string {
+  const displayParts = [name]
+  if (version !== null) {
+    displayParts.push(`v${String(version)}`)
+  }
+  if (labelCount !== null) {
+    displayParts.push(`${String(labelCount)} Labels`)
+  }
+  return displayParts.join(' - ')
+}
+
+function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null {
+  const nestedLabelGroup = recordOrNull(raw.labelGroup) ?? recordOrNull(raw.label_group)
+  const id = parseGroupId(raw, nestedLabelGroup)
+  if (!id) {
+    return null
+  }
+  const name = parseGroupName(raw, nestedLabelGroup, id)
   const version = parseOptionalNumber(firstDefinedValue([raw.version, nestedLabelGroup?.version]))
   const labelCount = parseOptionalNumber(
     firstDefinedValue([
@@ -1974,15 +2068,13 @@ function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null
       nestedLabelGroup?.label_count
     ])
   )
-  const displayParts = [name]
-  if (version !== null) {
-    displayParts.push(`v${String(version)}`)
+  return {
+    id,
+    name,
+    version,
+    labelCount,
+    displayName: buildGroupDisplayName(name, version, labelCount)
   }
-  if (labelCount !== null) {
-    displayParts.push(`${String(labelCount)} Labels`)
-  }
-
-  return { id, name, version, labelCount, displayName: displayParts.join(' - ') }
 }
 
 async function loadLabelGroups(): Promise<void> {
@@ -2069,66 +2161,93 @@ function getTargetLabelId(task: NonNullable<typeof currentTask.value>): number |
   return match?.id ?? null
 }
 
-async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
+function getSubmittableTask(): NonNullable<typeof currentTask.value> | null {
   if (!currentTask.value) {
-    return
+    return null
   }
   if (frameImageLoadState.value !== 'loaded') {
     errorMessage.value = 'Labels können erst gespeichert werden, wenn der Frame sichtbar ist.'
+    return null
+  }
+  if ((currentTask.value.data.labelOptions ?? []).length === 0) {
+    errorMessage.value = 'Für diesen Frame sind keine Labels verfügbar.'
+    return null
+  }
+  return currentTask.value
+}
+
+function getExternalAnnotationId(
+  task: NonNullable<typeof currentTask.value>,
+  labelId: number,
+  existingId: string | null | undefined
+): string {
+  if (existingId) {
+    return existingId
+  }
+  const taskExternalId = task.data.existingExternalId
+  return taskExternalId && taskExternalId.trim() ? `${taskExternalId}:${String(labelId)}` : uuidv7()
+}
+
+function buildFrameAnnotationPayload(
+  task: NonNullable<typeof currentTask.value>,
+  selectedIds: number[]
+): FrameAnnotationBulkUpsertPayload {
+  const selectedSet = new Set(selectedIds)
+  const annotations = (task.data.labelOptions ?? []).map((label) => {
+    const existingManual = (task.data.manualAnnotations ?? []).find(
+      (annotation) => annotation.labelId === label.id
+    )
+    return {
+      frameId: task.data.frameId,
+      labelId: label.id,
+      value: selectedSet.has(label.id),
+      floatValue: null,
+      informationSourceName: informationSource.value,
+      annotator: activeAnnotatorPrincipal.value,
+      externalAnnotationId: getExternalAnnotationId(
+        task,
+        label.id,
+        existingManual?.externalAnnotationId
+      ),
+      modelMetaId: null
+    }
+  })
+  const payload: FrameAnnotationBulkUpsertPayload = { annotations }
+  if (task.data.videoId !== undefined) {
+    payload.videoId = task.data.videoId
+  }
+  const selectedAiDatasetId = Number(queueStore.aiDatasetId)
+  if (Number.isFinite(selectedAiDatasetId) && selectedAiDatasetId > 0) {
+    payload.aiDatasetId = selectedAiDatasetId
+  }
+  return payload
+}
+
+function handleAnnotationWriteError(error: unknown): void {
+  if (error instanceof FrameAnnotationBulkWriteError) {
+    annotationWriteRetryAllowed.value = error.failure.retryable
+    errorMessage.value = error.failure.retryable
+      ? `${error.failure.error} Es wurden keine Daten gespeichert; Sie können diese Aufgabe erneut speichern.`
+      : `${error.failure.error} Es wurden keine Daten gespeichert. Die Aufgabe bleibt geöffnet, erneutes Speichern ist für diesen Fehler gesperrt.`
     return
   }
-  const task = currentTask.value
-  const labelOptions = task.data.labelOptions ?? []
-  if (labelOptions.length === 0) {
-    errorMessage.value = 'Für diesen Frame sind keine Labels verfügbar.'
+  annotationWriteRetryAllowed.value = false
+  errorMessage.value =
+    'Der Speicherstatus der Annotation ist unklar. Die Aufgabe bleibt geöffnet; laden Sie sie vor einem weiteren Speicherversuch neu.'
+}
+
+async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
+  const task = getSubmittableTask()
+  if (!task) {
     return
   }
   isSubmitting.value = true
   errorMessage.value = null
-  const selectedSet = new Set(selectedIds)
   try {
-    const annotations = labelOptions.map((label) => {
-      const existingManual = (task.data.manualAnnotations ?? []).find(
-        (annotation) => annotation.labelId === label.id
-      )
-      return {
-        frameId: task.data.frameId,
-        labelId: label.id,
-        value: selectedSet.has(label.id),
-        floatValue: null,
-        informationSourceName: informationSource.value,
-        annotator: activeAnnotatorPrincipal.value,
-        externalAnnotationId:
-          existingManual?.externalAnnotationId ||
-          (task.data.existingExternalId && task.data.existingExternalId.trim()
-            ? `${task.data.existingExternalId}:${String(label.id)}`
-            : uuidv7()),
-        modelMetaId: null
-      }
-    })
-    const payload: FrameAnnotationBulkUpsertPayload = {
-      annotations
-    }
-    if (task.data.videoId !== undefined) {
-      payload.videoId = task.data.videoId
-    }
-    const selectedAiDatasetId = Number(queueStore.aiDatasetId)
-    if (Number.isFinite(selectedAiDatasetId) && selectedAiDatasetId > 0) {
-      payload.aiDatasetId = selectedAiDatasetId
-    }
-    await bulkUpsertFrameAnnotations(payload)
+    await bulkUpsertFrameAnnotations(buildFrameAnnotationPayload(task, selectedIds))
     await loadNextTask()
   } catch (error: unknown) {
-    if (error instanceof FrameAnnotationBulkWriteError) {
-      annotationWriteRetryAllowed.value = error.failure.retryable
-      errorMessage.value = error.failure.retryable
-        ? `${error.failure.error} Es wurden keine Daten gespeichert; Sie können diese Aufgabe erneut speichern.`
-        : `${error.failure.error} Es wurden keine Daten gespeichert. Die Aufgabe bleibt geöffnet, erneutes Speichern ist für diesen Fehler gesperrt.`
-      return
-    }
-    annotationWriteRetryAllowed.value = false
-    errorMessage.value =
-      'Der Speicherstatus der Annotation ist unklar. Die Aufgabe bleibt geöffnet; laden Sie sie vor einem weiteren Speicherversuch neu.'
+    handleAnnotationWriteError(error)
   } finally {
     isSubmitting.value = false
   }

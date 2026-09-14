@@ -8,9 +8,7 @@ import {
 } from './reportingKnowledgeBaseContext'
 import type { FindingsCatalogContext } from '@/api/findingsApi'
 
-export function useReportingKnowledgeBase(
-  detailRef?: MaybeRef<Record<string, unknown> | null>
-) {
+export function useReportingKnowledgeBase(detailRef?: MaybeRef<Record<string, unknown> | null>) {
   const flow = useReportingFlowStore()
   const terminology = useTerminologyStore()
 

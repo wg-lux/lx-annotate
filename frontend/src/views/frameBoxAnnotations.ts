@@ -110,51 +110,60 @@ export const extractFrameBoxRecords = (payload: unknown): Array<Record<string, u
   )
 }
 
+type RequiredFrameBoxFields = Pick<
+  FrameBoxAnnotationDraft,
+  | 'frameId'
+  | 'labelId'
+  | 'labelName'
+  | 'x'
+  | 'y'
+  | 'width'
+  | 'height'
+  | 'imageWidth'
+  | 'imageHeight'
+>
+
+function backendField(
+  raw: Record<string, unknown>,
+  camelCaseKey: string,
+  snakeCaseKey: string
+): unknown {
+  return raw[camelCaseKey] ?? raw[snakeCaseKey]
+}
+
+function requiredFrameBoxFields(raw: Record<string, unknown>): RequiredFrameBoxFields | null {
+  const labelNameValue = backendField(raw, 'labelName', 'label_name')
+  const values = {
+    frameId: parseOptionalNumber(backendField(raw, 'frameId', 'frame_id')),
+    labelId: parseOptionalNumber(backendField(raw, 'labelId', 'label_id')),
+    x: parseOptionalNumber(raw.x),
+    y: parseOptionalNumber(raw.y),
+    width: parseOptionalNumber(raw.width),
+    height: parseOptionalNumber(raw.height),
+    imageWidth: parseOptionalNumber(backendField(raw, 'imageWidth', 'image_width')),
+    imageHeight: parseOptionalNumber(backendField(raw, 'imageHeight', 'image_height')),
+    labelName: typeof labelNameValue === 'string' ? labelNameValue.trim() : ''
+  }
+  if (Object.values(values).some((value) => value === null || value === '')) return null
+  return values as RequiredFrameBoxFields
+}
+
 export const parseFrameBoxRecord = (
   raw: Record<string, unknown>,
   context: { fallbackAnnotator: string; createId: IdFactory }
 ): FrameBoxAnnotationDraft | null => {
   const annotationId = parseOptionalNumber(raw.id)
-  const frameId = parseOptionalNumber(raw.frameId ?? raw.frame_id)
-  const labelId = parseOptionalNumber(raw.labelId ?? raw.label_id)
-  const x = parseOptionalNumber(raw.x)
-  const y = parseOptionalNumber(raw.y)
-  const width = parseOptionalNumber(raw.width)
-  const height = parseOptionalNumber(raw.height)
-  const imageWidth = parseOptionalNumber(raw.imageWidth ?? raw.image_width)
-  const imageHeight = parseOptionalNumber(raw.imageHeight ?? raw.image_height)
-  const labelNameRaw = raw.labelName ?? raw.label_name
-  const labelName = typeof labelNameRaw === 'string' ? labelNameRaw.trim() : ''
-  if (
-    frameId === null ||
-    labelId === null ||
-    x === null ||
-    y === null ||
-    width === null ||
-    height === null ||
-    imageWidth === null ||
-    imageHeight === null ||
-    !labelName
-  ) {
-    return null
-  }
+  const fields = requiredFrameBoxFields(raw)
+  if (!fields) return null
 
-  const externalRaw = raw.externalAnnotationId ?? raw.external_annotation_id
+  const externalRaw = backendField(raw, 'externalAnnotationId', 'external_annotation_id')
   const annotatorRaw = raw.annotator
   return {
     id: annotationId,
     clientId: annotationId !== null ? `box-${String(annotationId)}` : context.createId(),
-    frameId,
-    labelId,
-    labelName,
+    ...fields,
     value: raw.value !== false,
-    floatValue: parseOptionalNumber(raw.floatValue ?? raw.float_value),
-    x,
-    y,
-    width,
-    height,
-    imageWidth,
-    imageHeight,
+    floatValue: parseOptionalNumber(backendField(raw, 'floatValue', 'float_value')),
     annotator: typeof annotatorRaw === 'string' ? annotatorRaw : context.fallbackAnnotator,
     externalAnnotationId:
       typeof externalRaw === 'string' && externalRaw.trim()

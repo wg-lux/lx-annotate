@@ -7,8 +7,8 @@
         Patienten-Dashboard
       </h1>
       <div class="header-actions">
-        <button 
-          class="btn btn-primary" 
+        <button
+          class="btn btn-primary"
           :disabled="loading"
           @click="showCreateForm = true"
         >
@@ -70,7 +70,7 @@
         </h3>
       </div>
       <div class="card-body">
-        <PatientCreateForm 
+        <PatientCreateForm
           @patient-created="onPatientCreated"
           @cancel="showCreateForm = false"
         />
@@ -89,12 +89,12 @@
             Patienten ({{ patients.length }})
           </h3>
           <div class="search-box">
-            <input 
+            <input
               v-model="searchTerm"
               type="text"
               class="form-control"
               placeholder="Patienten suchen..."
-            >
+            />
           </div>
         </div>
       </div>
@@ -104,17 +104,15 @@
           v-if="filteredPatients.length > 0"
           class="patients-grid"
         >
-          <div 
-            v-for="patient in filteredPatients" 
+          <div
+            v-for="patient in filteredPatients"
             :key="patient.id"
             class="patient-card"
-            :class="{ 'selected': selectedPatient?.id === patient.id }"
+            :class="{ selected: selectedPatient?.id === patient.id }"
             @click="selectPatient(patient)"
           >
             <div class="patient-card-header">
-              <h5 class="patient-name">
-                {{ patient.firstName }} {{ patient.lastName }}
-              </h5>
+              <h5 class="patient-name">{{ patient.firstName }} {{ patient.lastName }}</h5>
               <span class="patient-id">ID: {{ patient.id }}</span>
             </div>
             <div class="patient-card-body">
@@ -125,7 +123,8 @@
                   <small
                     v-if="patient.age"
                     class="patient-info-detail"
-                  >({{ patient.age }} Jahre)</small>
+                    >({{ patient.age }} Jahre)</small
+                  >
                 </div>
                 <div
                   v-if="patient.gender"
@@ -151,9 +150,7 @@
               </div>
             </div>
             <div class="patient-card-footer">
-              <small class="text-muted">
-                Klicken für Details
-              </small>
+              <small class="text-muted"> Klicken für Details </small>
             </div>
           </div>
         </div>
@@ -166,9 +163,13 @@
           <i class="ni ni-circle-08 ni-3x text-muted empty-state-icon"></i>
           <h4 class="empty-state-heading">Keine Patienten gefunden</h4>
           <p class="text-muted">
-            {{ searchTerm ? 'Keine Patienten entsprechen der Suche.' : 'Erstellen Sie den ersten Patienten.' }}
+            {{
+              searchTerm
+                ? 'Keine Patienten entsprechen der Suche.'
+                : 'Erstellen Sie den ersten Patienten.'
+            }}
           </p>
-          <button 
+          <button
             v-if="!searchTerm"
             class="btn btn-primary"
             @click="showCreateForm = true"
@@ -185,7 +186,7 @@
       v-if="selectedPatient && !showCreateForm && !loading"
       class="patient-detail-section"
     >
-      <PatientDetailView 
+      <PatientDetailView
         :patient="selectedPatient"
         @patient-updated="onPatientUpdated"
         @patient-deleted="onPatientDeleted"
@@ -225,13 +226,14 @@ const filteredPatients = computed(() => {
   if (!searchTerm.value) {
     return patients.value
   }
-  
+
   const term = searchTerm.value.toLowerCase()
-  return patients.value.filter(patient => 
-    patient.firstName.toLowerCase().includes(term) ||
-    patient.lastName.toLowerCase().includes(term) ||
-    patient.email?.toLowerCase().includes(term) ||
-    `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(term)
+  return patients.value.filter(
+    (patient) =>
+      patient.firstName.toLowerCase().includes(term) ||
+      patient.lastName.toLowerCase().includes(term) ||
+      patient.email?.toLowerCase().includes(term) ||
+      `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(term)
   )
 })
 
@@ -240,15 +242,10 @@ const loadData = async () => {
   try {
     loading.value = true
     error.value = ''
-    
-    await Promise.all([
-      loadPatients(),
-      loadLookupData()
-    ])
-    
+
+    await Promise.all([loadPatients(), loadLookupData()])
   } catch (err: unknown) {
-    error.value =
-      err instanceof Error && err.message ? err.message : 'Fehler beim Laden der Daten'
+    error.value = err instanceof Error && err.message ? err.message : 'Fehler beim Laden der Daten'
     logger.error('dashboard-load-failed', err, {
       operation: 'load',
       outcome: 'rejected'
@@ -282,9 +279,9 @@ const selectPatient = (patient: Patient) => {
 const onPatientCreated = (patient: Patient) => {
   showCreateForm.value = false
   selectedPatient.value = patient
-  
+
   successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich erstellt!`
-  
+
   // Clear success message after 5 seconds
   setTimeout(() => {
     successMessage.value = ''
@@ -293,15 +290,15 @@ const onPatientCreated = (patient: Patient) => {
 
 const onPatientUpdated = (patient: Patient) => {
   selectedPatient.value = patient
-  
+
   // Update in patients list
-  const index = patientStore.patients.findIndex(p => p.id === patient.id)
+  const index = patientStore.patients.findIndex((p) => p.id === patient.id)
   if (index !== -1) {
     patientStore.patients[index] = patient
   }
-  
+
   successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich aktualisiert!`
-  
+
   // Clear success message after 5 seconds
   setTimeout(() => {
     successMessage.value = ''
@@ -310,17 +307,17 @@ const onPatientUpdated = (patient: Patient) => {
 
 const onPatientDeleted = (patientId: number) => {
   // Remove patient from store
-  const index = patientStore.patients.findIndex(p => p.id === patientId)
+  const index = patientStore.patients.findIndex((p) => p.id === patientId)
   if (index !== -1) {
     const deletedPatient = patientStore.patients[index]
     patientStore.patients.splice(index, 1)
-    
+
     successMessage.value = `Patient "${deletedPatient.firstName} ${deletedPatient.lastName}" wurde erfolgreich gelöscht!`
   }
-  
+
   // Close detail view
   selectedPatient.value = null
-  
+
   // Clear success message after 5 seconds
   setTimeout(() => {
     successMessage.value = ''
@@ -331,7 +328,7 @@ const formatDate = (dateString?: string | null) => {
   if (!dateString) {
     return 'Nicht angegeben'
   }
-  
+
   try {
     const date = new Date(dateString)
     return date.toLocaleDateString('de-DE')
@@ -344,7 +341,7 @@ const getGenderName = (genderValue?: string | null) => {
   if (!genderValue) {
     return 'Nicht angegeben'
   }
-  const gender = genders.value.find(g => g.name === genderValue)
+  const gender = genders.value.find((g) => g.name === genderValue)
   return gender?.nameDe || gender?.name || genderValue
 }
 
@@ -352,7 +349,7 @@ const getCenterName = (centerValue?: string | null) => {
   if (!centerValue) {
     return 'Nicht zugeordnet'
   }
-  const center = centers.value.find(c => c.name === centerValue)
+  const center = centers.value.find((c) => c.name === centerValue)
   return center?.nameDe || center?.name || centerValue
 }
 
@@ -427,7 +424,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.3s ease;
   background: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .patient-card:hover {
@@ -568,25 +565,25 @@ onMounted(async () => {
   .patient-dashboard {
     padding: 1rem;
   }
-  
+
   .dashboard-header {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .patients-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .search-box {
     min-width: auto;
   }
-  
+
   .patient-card {
     padding: 1rem;
   }
-  
+
   .patient-card-header {
     flex-direction: column;
     gap: 0.5rem;

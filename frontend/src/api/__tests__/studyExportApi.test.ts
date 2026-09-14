@@ -83,9 +83,7 @@ describe('studyExportApi', () => {
     hoisted.axios.get.mockResolvedValue({ data: payload })
 
     await expect(fetchStudyExportOptions()).resolves.toBe(payload)
-    expect(hoisted.axios.get).toHaveBeenCalledWith(
-      '/endoreg/media/studies/case-export/options/'
-    )
+    expect(hoisted.axios.get).toHaveBeenCalledWith('/endoreg/media/studies/case-export/options/')
   })
 
   it('requests the workbook through the DRF JSON negotiation contract', async () => {
@@ -113,9 +111,7 @@ describe('studyExportApi', () => {
     const config = calls[0][1]
 
     // Assert
-    expect(hoisted.axios.get.mock.calls[0][0]).toBe(
-      '/endoreg/media/studies/case-export.xlsx'
-    )
+    expect(hoisted.axios.get.mock.calls[0][0]).toBe('/endoreg/media/studies/case-export.xlsx')
     expect(config.params.getAll('finding')).toEqual(['polyp'])
     expect(config.params.get('group_by')).toBe('examination')
     expect(config.responseType).toBe('blob')

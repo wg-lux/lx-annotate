@@ -240,12 +240,14 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
-import { useExaminationStore } from '@/stores/examinationStore'
+import { useExaminationStore, type Examination } from '@/stores/examinationStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
 import type { PatientExamination } from '@/stores/patientExaminationStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { endpoints } from '@/types/api/endpoints'
+import type { Patient, PatientFormData } from '@/types/patient'
+import type { PatientExaminationOption } from '@/types/patientExamination'
 import { DateConverter } from '@/utils/dateHelpers'
 import { reportingApiErrorMessage } from './reportingError'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
@@ -254,11 +256,6 @@ import { requireResolvedReportingExamination } from './reportingExaminationResol
 const logger = createRuntimeLogger('case-resolution')
 
 type MediaScope = 'pdf' | 'video'
-
-type PatientExaminationOption = {
-  id: number
-  label: string
-}
 
 type CaseResolutionMatch = {
   id: number
@@ -308,8 +305,8 @@ const targetScope = computed<MediaScope | null>(() => {
   return value === 'pdf' || value === 'video' ? value : null
 })
 const returnToPath = computed(() => {
-  const raw = route.query.returnTo
-  return typeof raw === 'string' && raw.trim() ? raw : null
+  const rawValue = route.query.returnTo
+  return typeof rawValue === 'string' && rawValue.trim() ? rawValue : null
 })
 const isCaseDataLoading = computed(() => patientStore.loading || examinationStore.loading)
 const currentItem = computed(() => anonymizationStore.current)
@@ -323,17 +320,17 @@ const caseResolutionSuggestedPatientExaminationOptions = computed<PatientExamina
     const matches = caseResolution.value?.patientExaminationMatches ?? []
     return matches
       .map((match) => {
-        const id = toPositiveInteger(match.id)
-        if (id === null) {
+        const examinationId = toPositiveInteger(match.id)
+        if (examinationId === null) {
           return null
         }
         const examName = match.examinationName?.trim() || 'Untersuchung'
         const dateStart = normalizeDateInputToGerman(match.dateStart)
         return {
-          id,
+          id: examinationId,
           label: dateStart
-            ? `#${String(id)} · ${examName} · ${dateStart}`
-            : `#${String(id)} · ${examName}`
+            ? `#${String(examinationId)} · ${examName} · ${dateStart}`
+            : `#${String(examinationId)} · ${examName}`
         }
       })
       .filter((entry): entry is PatientExaminationOption => entry !== null)
@@ -378,15 +375,18 @@ const linkedPatientExaminationId = computed(() => {
     null
   return typeof value === 'number' && value > 0 ? value : null
 })
+
+function explicitLinkageStatus(
+  value: string | null | undefined
+): 'linked' | 'deferred' | 'suggested' | null {
+  const explicitStatuses = new Set(['linked', 'deferred', 'suggested'])
+  return explicitStatuses.has(value || '') ? (value as 'linked' | 'deferred' | 'suggested') : null
+}
+
 const linkageStatus = computed<'not_linked' | 'suggested' | 'linked' | 'deferred'>(() => {
-  if (caseResolution.value?.matchStatus === 'linked') {
-    return 'linked'
-  }
-  if (caseResolution.value?.matchStatus === 'deferred') {
-    return 'deferred'
-  }
-  if (caseResolution.value?.matchStatus === 'suggested') {
-    return 'suggested'
+  const explicitStatus = explicitLinkageStatus(caseResolution.value?.matchStatus)
+  if (explicitStatus) {
+    return explicitStatus
   }
   if (linkedPatientExaminationId.value !== null) {
     return 'linked'
@@ -405,7 +405,8 @@ const linkagePresentation = {
   suggested: {
     label: 'Vorgeschlagen',
     badgeClass: 'bg-warning text-dark',
-    description: 'Hash- oder Pseudo-Patient-Hinweise sind vorhanden, die Zuordnung ist aber noch nicht final.'
+    description:
+      'Hash- oder Pseudo-Patient-Hinweise sind vorhanden, die Zuordnung ist aber noch nicht final.'
   },
   linked: {
     label: 'Verknüpft',
@@ -442,10 +443,9 @@ const pseudoPatientDisplay = computed(() => {
   return 'Nicht verknüpft'
 })
 const patientExaminationDisplay = computed(() => {
-  if (linkedPatientExaminationId.value !== null)
-    {
-      return `#${String(linkedPatientExaminationId.value)}`
-    }
+  if (linkedPatientExaminationId.value !== null) {
+    return `#${String(linkedPatientExaminationId.value)}`
+  }
   const suggestedId = caseResolution.value?.recommendedPatientExaminationId
   return typeof suggestedId === 'number' && suggestedId > 0
     ? `Vorschlag: #${String(suggestedId)}`
@@ -481,8 +481,8 @@ const patientDraftAvailable = computed(() => {
   }
   return Boolean(
     item.patientFirstName?.trim() &&
-      item.patientLastName?.trim() &&
-      DateConverter.toISO(item.patientDob)
+    item.patientLastName?.trim() &&
+    DateConverter.toISO(item.patientDob)
   )
 })
 const caseSetupRoute = computed(() => ({
@@ -539,23 +539,25 @@ function normalizeDateInputToGerman(value?: string | null): string {
   return isoDate ? DateConverter.toGerman(isoDate) : ''
 }
 
-function normalizePatientExaminationOption(raw: unknown): PatientExaminationOption | null {
-  const row = readRecord(raw)
-  const id = toPositiveInteger(row.id)
-  if (id === null) {
+function normalizePatientExaminationOption(rawValue: unknown): PatientExaminationOption | null {
+  const examinationRecord = readRecord(rawValue)
+  const examinationId = toPositiveInteger(examinationRecord.id)
+  if (examinationId === null) {
     return null
   }
   const examinationName =
-    (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
-    (typeof row.examination === 'string' && row.examination.trim()) ||
+    (typeof examinationRecord.examination_name === 'string' &&
+      examinationRecord.examination_name.trim()) ||
+    (typeof examinationRecord.examination === 'string' && examinationRecord.examination.trim()) ||
     'Untersuchung'
-  const dateStartRaw = typeof row.date_start === 'string' ? row.date_start : ''
+  const dateStartRaw =
+    typeof examinationRecord.date_start === 'string' ? examinationRecord.date_start : ''
   const dateStart = normalizeDateInputToGerman(dateStartRaw)
   return {
-    id,
+    id: examinationId,
     label: dateStart
-      ? `#${String(id)} · ${examinationName} · ${dateStart}`
-      : `#${String(id)} · ${examinationName}`
+      ? `#${String(examinationId)} · ${examinationName} · ${dateStart}`
+      : `#${String(examinationId)} · ${examinationName}`
   }
 }
 
@@ -616,7 +618,7 @@ async function fetchCasePatientExaminations(patientId: number): Promise<void> {
     )
     const rows = readListPayload(response.data)
     casePatientExaminationOptions.value = rows
-      .map((row: unknown) => normalizePatientExaminationOption(row))
+      .map((examinationRecord: unknown) => normalizePatientExaminationOption(examinationRecord))
       .filter(
         (entry: PatientExaminationOption | null): entry is PatientExaminationOption =>
           entry !== null
@@ -680,22 +682,18 @@ function normalizeGenderForPatientCreate(value?: string | null): string | null {
     return null
   }
   const normalized = value.trim().toLowerCase()
-  if (normalized === 'männlich' || normalized === 'male' || normalized === 'm') {
-    return 'male'
+  const genderAliases: Record<string, string> = {
+    männlich: 'male',
+    male: 'male',
+    m: 'male',
+    weiblich: 'female',
+    female: 'female',
+    w: 'female',
+    f: 'female',
+    divers: 'unknown',
+    unknown: 'unknown'
   }
-  if (
-    normalized === 'weiblich' ||
-    normalized === 'female' ||
-    normalized === 'w' ||
-    normalized === 'f'
-  )
-    {
-      return 'female'
-    }
-  if (normalized === 'divers' || normalized === 'unknown') {
-    return 'unknown'
-  }
-  return normalized || null
+  return (genderAliases[normalized] ?? normalized) || null
 }
 
 function resolveCenterKeyFromMetadataCenterName(centerName?: string | null): string | null {
@@ -724,23 +722,38 @@ function resolveCenterKeyFromMetadataCenterName(centerName?: string | null): str
     : null
 }
 
-async function createPatientFromMetadata(): Promise<void> {
-  clearMessages()
+type PatientCreateResolution =
+  { data: PatientFormData; error: null } | { data: null; error: string }
+
+function unresolvedCenterError(centerName: string, centerKey: string | null): string | null {
+  if (!centerName || centerKey) {
+    return null
+  }
+  return `Das Zentrum "${centerName}" konnte nicht auf einen center_key abgebildet werden.`
+}
+
+function resolvePatientCreateData(): PatientCreateResolution {
   const item = currentItem.value
   const patientDob = item?.patientDob ? DateConverter.toISO(item.patientDob) : null
   if (!item?.patientFirstName || !item.patientLastName || !patientDob) {
-    errorMessage.value =
-      'Für einen neuen Patienten werden mindestens Vorname, Nachname und ein gültiges Geburtsdatum benötigt.'
-    return
+    return {
+      data: null,
+      error:
+        'Für einen neuen Patienten werden mindestens Vorname, Nachname und ein gültiges Geburtsdatum benötigt.'
+    }
   }
+  const centerName = item.centerName?.trim() || ''
   const resolvedCenterKey = resolveCenterKeyFromMetadataCenterName(item.centerName)
-  if (item.centerName?.trim() && !resolvedCenterKey) {
-    errorMessage.value = `Das Zentrum "${item.centerName.trim()}" konnte nicht auf einen center_key abgebildet werden.`
-    return
+  const centerError = unresolvedCenterError(centerName, resolvedCenterKey)
+  if (centerError) {
+    return {
+      data: null,
+      error: centerError
+    }
   }
-  isCreatingPatientFromMetadata.value = true
-  try {
-    const createdPatient: unknown = await patientStore.createPatient({
+  return {
+    error: null,
+    data: {
       firstName: item.patientFirstName.trim(),
       lastName: item.patientLastName.trim(),
       dob: patientDob,
@@ -751,7 +764,20 @@ async function createPatientFromMetadata(): Promise<void> {
       patientHash: '',
       comments: '',
       isRealPerson: true
-    })
+    }
+  }
+}
+
+async function createPatientFromMetadata(): Promise<void> {
+  clearMessages()
+  const resolution = resolvePatientCreateData()
+  if (!resolution.data) {
+    errorMessage.value = resolution.error
+    return
+  }
+  isCreatingPatientFromMetadata.value = true
+  try {
+    const createdPatient: unknown = await patientStore.createPatient(resolution.data)
     const patientId = toPositiveInteger(readRecord(createdPatient).id)
     if (patientId !== null) {
       selectedCasePatientId.value = String(patientId)
@@ -775,52 +801,75 @@ function formatDateOnly(value?: string | null): string | null {
   return isoDate || null
 }
 
-async function createPatientExaminationFromSelection(): Promise<void> {
-  clearMessages()
+type PatientExaminationCreationSelection =
+  | {
+      patientId: number
+      examinationId: number
+      patient: Patient
+      examination: Examination
+      error: null
+    }
+  | { error: string }
+
+function resolvePatientExaminationCreationSelection(): PatientExaminationCreationSelection {
   const patientId = selectedCasePatientIdNumber.value
   const examinationId = toPositiveInteger(selectedNewCaseExaminationId.value)
   if (patientId === null) {
-    errorMessage.value = 'Bitte wählen Sie zuerst einen Patienten aus.'
-    return
+    return { error: 'Bitte wählen Sie zuerst einen Patienten aus.' }
   }
   if (examinationId === null) {
-    errorMessage.value = 'Bitte wählen Sie zuerst eine Untersuchung aus.'
-    return
+    return { error: 'Bitte wählen Sie zuerst eine Untersuchung aus.' }
   }
-  const selectedPatient = patientStore.getPatientById(patientId)
-  const selectedExam = availableExaminationOptions.value.find((exam) => exam.id === examinationId)
-  if (!selectedPatient || !selectedExam) {
-    errorMessage.value =
-      'Patient oder Untersuchung konnten nicht aufgelöst werden. Bitte laden Sie die Seite neu.'
+  const patient = patientStore.getPatientById(patientId)
+  const examination = availableExaminationOptions.value.find((exam) => exam.id === examinationId)
+  if (!patient || !examination) {
+    return {
+      error:
+        'Patient oder Untersuchung konnten nicht aufgelöst werden. Bitte laden Sie die Seite neu.'
+    }
+  }
+  return { patientId, examinationId, patient, examination, error: null }
+}
+
+function patientExaminationCreatePayload(patient: Patient, examination: Examination) {
+  const examinationDate =
+    formatDateOnly(currentItem.value?.examinationDate) ||
+    formatDateOnly(new Date().toISOString()) ||
+    ''
+  return {
+    patient: patient.patientHash || `patient_${String(patient.id)}`,
+    examination: examination.name,
+    dateStart: examinationDate,
+    patientBirthDate: formatDateOnly(patient.dob),
+    patientGender: patient.gender || null
+  }
+}
+
+async function createPatientExaminationFromSelection(): Promise<void> {
+  clearMessages()
+  const selection = resolvePatientExaminationCreationSelection()
+  if (!('patient' in selection)) {
+    errorMessage.value = selection.error
     return
   }
   isCreatingPatientExamination.value = true
   try {
     const response = await axiosInstance.post<PatientExamination>(
       r(endpoints.examination.patientExaminationCreate),
-      {
-        patient: selectedPatient.patientHash || `patient_${String(selectedPatient.id)}`,
-        examination: selectedExam.name,
-        dateStart:
-          formatDateOnly(currentItem.value?.examinationDate) ||
-          formatDateOnly(new Date().toISOString()) ||
-          '',
-        patientBirthDate: formatDateOnly(selectedPatient.dob),
-        patientGender: selectedPatient.gender || null
-      }
+      patientExaminationCreatePayload(selection.patient, selection.examination)
     )
     const createdPatientExaminationId = toPositiveInteger(response.data.id)
     if (createdPatientExaminationId === null) {
       throw new Error('Die neue Patientenuntersuchung konnte nicht identifiziert werden.')
     }
-    syncFlowPatientSelection(patientId, examinationId)
+    syncFlowPatientSelection(selection.patientId, selection.examinationId)
     addOrReplacePatientExaminationOption(casePatientExaminationOptions.value, {
       id: createdPatientExaminationId,
-      label: `#${String(createdPatientExaminationId)} · ${selectedExam.displayName || selectedExam.name}`
+      label: `#${String(createdPatientExaminationId)} · ${selection.examination.displayName || selection.examination.name}`
     })
     patientExaminationStore.addPatientExamination(response.data)
     applySelectedPatientExamination(createdPatientExaminationId)
-    await fetchCasePatientExaminations(patientId)
+    await fetchCasePatientExaminations(selection.patientId)
     selectedNewCaseExaminationId.value = ''
     successMessage.value =
       'Die neue Patientenuntersuchung wurde angelegt und in den Reporting-Flow übernommen.'

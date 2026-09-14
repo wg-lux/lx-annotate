@@ -10,8 +10,7 @@ const OTHER_PATIENT_EXAMINATION_ID = 43
 const ACTIVE_REPORT_ID = 88
 const AUTOSAVE_SETTLE_MS = 1500
 
-type SavePatientExaminationDraft =
-  typeof import('@/api/reportDraftApi').savePatientExaminationDraft
+type SavePatientExaminationDraft = typeof import('@/api/reportDraftApi').savePatientExaminationDraft
 
 const hoisted = vi.hoisted(() => ({
   reportDraftApi: {
@@ -264,7 +263,10 @@ describe('reportingFlowStore template draft state', () => {
     await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
     hoisted.reportDraftApi.savePatientExaminationDraft.mockClear()
 
-    flow.updateIndicationRow(0, { examinationIndicationId: EXAMINATION_INDICATION_ID, indicationChoiceId: INDICATION_CHOICE_ID })
+    flow.updateIndicationRow(0, {
+      examinationIndicationId: EXAMINATION_INDICATION_ID,
+      indicationChoiceId: INDICATION_CHOICE_ID
+    })
     flow.setTemplateSectionDraft('examination_baseline', {
       note: 'Clinically relevant note',
       includePatientData: true
@@ -278,7 +280,12 @@ describe('reportingFlowStore template draft state', () => {
 
     expect(hoisted.reportDraftApi.savePatientExaminationDraft).toHaveBeenCalledWith(
       expect.objectContaining({
-        indications: [{ examinationIndicationId: EXAMINATION_INDICATION_ID, indicationChoiceId: INDICATION_CHOICE_ID }],
+        indications: [
+          {
+            examinationIndicationId: EXAMINATION_INDICATION_ID,
+            indicationChoiceId: INDICATION_CHOICE_ID
+          }
+        ],
         templateSectionDrafts: {
           examination_baseline: {
             note: 'Clinically relevant note',
@@ -578,7 +585,10 @@ describe('reportingFlowStore template draft state', () => {
       revision: 3
     })
     flow.setRenderedReportText('Lokaler klinischer Freitext', 'manual')
-    flow.updateIndicationRow(0, { examinationIndicationId: EXAMINATION_INDICATION_ID, indicationChoiceId: INDICATION_CHOICE_ID })
+    flow.updateIndicationRow(0, {
+      examinationIndicationId: EXAMINATION_INDICATION_ID,
+      indicationChoiceId: INDICATION_CHOICE_ID
+    })
 
     await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
 
@@ -595,7 +605,12 @@ describe('reportingFlowStore template draft state', () => {
     })
     expect(flow.renderedReportText).toBe('Lokaler klinischer Freitext')
     expect(flow.reportTextMode).toBe('manual')
-    expect(flow.indications).toEqual([{ examinationIndicationId: EXAMINATION_INDICATION_ID, indicationChoiceId: INDICATION_CHOICE_ID }])
+    expect(flow.indications).toEqual([
+      {
+        examinationIndicationId: EXAMINATION_INDICATION_ID,
+        indicationChoiceId: INDICATION_CHOICE_ID
+      }
+    ])
     expect(flow.currentRuntimeDraft?.revision).toBe(3)
     expect(flow.hasUnpersistedDraftChanges).toBe(true)
 
@@ -612,7 +627,10 @@ describe('reportingFlowStore template draft state', () => {
     expect(flow.renderedReportText).toBe('')
     expect(flow.draftConflict).toBeNull()
     const persisted = JSON.parse(sessionStorage.getItem('reportingFlowState.v2') || '{}') as {
-      state?: { renderedReportText?: string; runtimeDraftsByPatientExaminationId?: Record<string, unknown> }
+      state?: {
+        renderedReportText?: string
+        runtimeDraftsByPatientExaminationId?: Record<string, unknown>
+      }
     }
     expect(persisted.state?.renderedReportText).toBe('')
     expect(persisted.state?.runtimeDraftsByPatientExaminationId?.['42']).toBeUndefined()

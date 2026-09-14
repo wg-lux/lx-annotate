@@ -3,8 +3,11 @@
     <section class="dashboard-hero mb-4">
       <div>
         <h2 class="dashboard-title mb-1">Dashboard</h2>
-        <p class="dashboard-subtitle mb-0">Status, offene Arbeitspakete und Schnellzugriffe an einem Ort.</p>
+        <p class="dashboard-subtitle mb-0">
+          Status und Schnellzugriffe an einem Ort.
+        </p>
       </div>
+
       <button
         class="btn btn-outline-primary btn-sm mb-0"
         type="button"
@@ -20,6 +23,7 @@
       class="operational-state-grid mb-4"
       aria-label="Aktueller Betriebszustand"
     >
+      <!-- Dataset Collections -->
       <article
         class="state-card"
         data-test="dataset-state"
@@ -29,15 +33,22 @@
             <p class="state-kicker">Datensätze</p>
             <h3 class="state-card-heading-text">Dataset Collections</h3>
           </div>
-          <router-link
+
+          <RouterLink
             to="/ai-dataset-settings"
             class="state-link"
-          >Verwalten</router-link>
+          >
+            Verwalten
+          </RouterLink>
         </div>
+
         <p
           v-if="datasetState.loading"
           class="state-message"
-        >Datensätze werden geladen …</p>
+        >
+          Datensätze werden geladen …
+        </p>
+
         <p
           v-else-if="datasetState.error"
           class="state-message text-danger"
@@ -45,11 +56,17 @@
         >
           Datensatzstatus ist derzeit nicht verfügbar.
         </p>
+
         <template v-else>
           <div class="state-metric">
-            <strong class="state-metric-value">{{ datasetState.items.length }}</strong>
-            <span class="state-metric-description">{{ activeDatasetCount }} aktiv</span>
+            <strong class="state-metric-value">
+              {{ datasetState.items.length }}
+            </strong>
+            <span class="state-metric-description">
+              {{ activeDatasetCount }} aktiv
+            </span>
           </div>
+
           <div
             v-if="datasetState.items.length"
             class="state-tags"
@@ -61,16 +78,21 @@
               class="state-tag"
               :class="{ 'state-tag-inactive': !dataset.isActive }"
             >
-              {{ dataset.label }} · {{ dataset.datasetType === 'video' ? 'Video' : 'Bild' }}
+              {{ dataset.label }} ·
+              {{ dataset.datasetType === 'video' ? 'Video' : 'Bild' }}
             </span>
           </div>
+
           <p
             v-else
             class="state-message mb-0"
-          >Keine Dataset Collections angelegt.</p>
+          >
+            Keine Dataset Collections angelegt.
+          </p>
         </template>
       </article>
 
+      <!-- Study cohort -->
       <article
         class="state-card"
         data-test="cohort-state"
@@ -80,15 +102,22 @@
             <p class="state-kicker">Registerstudie</p>
             <h3 class="state-card-heading-text">Aktuelle Studienkohorte</h3>
           </div>
-          <router-link
+
+          <RouterLink
             to="/studies"
             class="state-link"
-          >Öffnen</router-link>
+          >
+            Öffnen
+          </RouterLink>
         </div>
+
         <p
           v-if="cohortState.loading"
           class="state-message"
-        >Kohorte wird geladen …</p>
+        >
+          Kohorte wird geladen …
+        </p>
+
         <p
           v-else-if="cohortState.error"
           class="state-message text-danger"
@@ -96,17 +125,42 @@
         >
           Kohortenstatus ist derzeit nicht verfügbar.
         </p>
+
         <div
           v-else-if="cohortState.summary"
           class="cohort-metrics"
         >
-          <div class="cohort-metric-item"><strong class="cohort-metric-value">{{ cohortState.summary.caseCount }}</strong><span class="cohort-metric-description">Fälle</span></div>
-          <div class="cohort-metric-item"><strong class="cohort-metric-value">{{ cohortState.summary.patientCount }}</strong><span class="cohort-metric-description">Patienten</span></div>
-          <div class="cohort-metric-item"><strong class="cohort-metric-value">{{ cohortState.summary.reportCount }}</strong><span class="cohort-metric-description">Befunde</span></div>
-          <div class="cohort-metric-item"><strong class="cohort-metric-value">{{ cohortState.summary.videoCount }}</strong><span class="cohort-metric-description">Videos</span></div>
+          <div class="cohort-metric-item">
+            <strong class="cohort-metric-value">
+              {{ cohortState.summary.caseCount }}
+            </strong>
+            <span class="cohort-metric-description">Fälle</span>
+          </div>
+
+          <div class="cohort-metric-item">
+            <strong class="cohort-metric-value">
+              {{ cohortState.summary.patientCount }}
+            </strong>
+            <span class="cohort-metric-description">Patienten</span>
+          </div>
+
+          <div class="cohort-metric-item">
+            <strong class="cohort-metric-value">
+              {{ cohortState.summary.reportCount }}
+            </strong>
+            <span class="cohort-metric-description">Befunde</span>
+          </div>
+
+          <div class="cohort-metric-item">
+            <strong class="cohort-metric-value">
+              {{ cohortState.summary.videoCount }}
+            </strong>
+            <span class="cohort-metric-description">Videos</span>
+          </div>
         </div>
       </article>
 
+      <!-- Hub -->
       <article
         class="state-card"
         data-test="hub-state"
@@ -116,15 +170,22 @@
             <p class="state-kicker">Hub</p>
             <h3 class="state-card-heading-text">Hub-Zustand</h3>
           </div>
-          <router-link
+
+          <RouterLink
             to="/administration"
             class="state-link"
-          >Details</router-link>
+          >
+            Details
+          </RouterLink>
         </div>
+
         <p
           v-if="hubState.loading"
           class="state-message"
-        >Hub-Zustand wird geladen …</p>
+        >
+          Hub-Zustand wird geladen …
+        </p>
+
         <p
           v-else-if="hubState.error"
           class="state-message text-danger"
@@ -132,6 +193,7 @@
         >
           Hub-Zustand ist derzeit nicht verfügbar.
         </p>
+
         <template v-else-if="hubState.health">
           <div class="hub-readiness">
             <span
@@ -140,18 +202,28 @@
             >
               {{ hubState.health.ready ? 'Betriebsbereit' : 'Nicht bereit' }}
             </span>
-            <span class="hub-transport-description">{{ hubState.health.transport.requireMtls ? 'mTLS' : 'TLS' }}</span>
+
+            <span class="hub-transport-description">
+              {{ hubState.health.transport.requireMtls ? 'mTLS' : 'TLS' }}
+            </span>
           </div>
+
           <dl class="state-details mb-0">
             <div class="state-detail-row">
               <dt class="state-detail-term">Quellknoten</dt>
-              <dd class="state-detail-value">{{ hubState.health.sourceNodeKey || 'nicht konfiguriert' }}</dd>
+              <dd class="state-detail-value">
+                {{ hubState.health.sourceNodeKey || 'nicht konfiguriert' }}
+              </dd>
             </div>
+
             <div class="state-detail-row">
               <dt class="state-detail-term">Aktive Hubs</dt>
-              <dd class="state-detail-value">{{ hubState.health.hubNodes.length }}</dd>
+              <dd class="state-detail-value">
+                {{ hubState.health.hubNodes.length }}
+              </dd>
             </div>
           </dl>
+
           <div
             v-if="hubState.health.hubNodes.length"
             class="state-tags mt-3"
@@ -161,781 +233,180 @@
               :key="node.nodeKey"
               class="state-tag"
             >
-              {{ node.displayName }} · {{ node.httpsConfigured ? 'HTTPS' : 'kein HTTPS' }}
+              {{ node.displayName }} ·
+              {{ node.httpsConfigured ? 'HTTPS' : 'kein HTTPS' }}
             </span>
           </div>
         </template>
       </article>
     </section>
-
-    <!-- Einheitliche Annotation-Statistiken -->
-    <AnnotationStatsComponent />
-    
-    <!-- Detaillierte Annotation-Listen -->
-    <div class="row mt-4">
-      <!-- Video-Segmente -->
-      <div class="col-12 mb-4">
-        <div class="card dashboard-card">
-          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-              <i class="ni ni-button-play text-primary me-2"></i>
-              Video-Segment Annotationen
-            </h5>
-            <div class="header-actions">
-              <button 
-                class="btn btn-outline-primary btn-sm me-2" 
-                :disabled="loadingSegments"
-                @click="refreshSegments"
-              >
-                <i
-                  class="ni ni-bold-right"
-                  :class="{ 'ni-spin': loadingSegments }"
-                ></i>
-                Aktualisieren
-              </button>
-              <router-link 
-                to="/frame-annotation" 
-                class="btn btn-primary btn-sm"
-              >
-                <i class="ni ni-fat-add me-1"></i>
-                Neue Annotation
-              </router-link>
-            </div>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0 dashboard-table">
-                <thead class="table-light">
-                  <tr>
-                    <th class="dashboard-column-heading">Video ID</th>
-                    <th class="dashboard-column-heading">Segment</th>
-                    <th class="dashboard-column-heading">Label</th>
-                    <th class="dashboard-column-heading">Status</th>
-                    <th class="dashboard-column-heading">Benutzer</th>
-                    <th class="dashboard-column-heading">Letzte Änderung</th>
-                    <th class="dashboard-column-heading">Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody class="dashboard-table-body">
-                  <tr
-                    v-if="loadingSegments"
-                    class="dashboard-data-row"
-                  >
-                    <td
-                      colspan="7"
-                      class="text-center py-4 dashboard-data-cell"
-                    >
-                      <div class="table-loading-state">
-                        <i class="ni ni-button-play me-2"></i>
-                        Segmente werden geladen...
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    v-else-if="segments.length === 0"
-                    class="dashboard-data-row"
-                  >
-                    <td
-                      colspan="7"
-                      class="text-center text-muted dashboard-data-cell"
-                    >
-                      <i class="ni ni-button-play ni-2x mb-2"></i>
-                      <br>
-                      Keine Video-Segmente verfügbar
-                    </td>
-                  </tr>
-                  <tr
-v-for="segment in segments"
-                    v-else
-                    :key="segment.id"
-                    class="dashboard-data-row"
-                  >
-                    <td class="dashboard-data-cell"><code>{{ segment.videoId }}</code></td>
-                    <td class="dashboard-data-cell">{{ segment.startTime }}s - {{ segment.endTime }}s</td>
-                    <td class="dashboard-data-cell">
-                      <span class="badge bg-info">{{ segment.labelName }}</span>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <span
-                        class="badge"
-                        :class="getSegmentStatusClass(segment.status)"
-                      >
-                        {{ getSegmentStatusText(segment.status) }}
-                      </span>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <small>{{ segment.annotated_by || 'Nicht zugewiesen' }}</small>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <small>{{ formatDate(segment.updated_at) }}</small>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <div class="btn-group btn-group-sm">
-                        <button 
-                          class="btn btn-outline-primary" 
-                          :title="'Segment bearbeiten'"
-                          @click="editSegment(segment)"
-                        >
-                          <i class="ni ni-single-copy-04"></i>
-                        </button>
-                        <button 
-                          class="btn btn-outline-success" 
-                          :disabled="segment.status === 'completed'"
-                          :title="'Als abgeschlossen markieren'"
-                          @click="markSegmentComplete(segment)"
-                        >
-                          <i class="ni ni-check-bold"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Examination Annotationen -->
-      <div class="col-12 mb-4">
-        <div class="card dashboard-card">
-          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-              <i class="ni ni-user-run text-success me-2"></i>
-              Examination Annotationen
-            </h5>
-            <div class="header-actions">
-              <button 
-                class="btn btn-outline-primary btn-sm me-2" 
-                :disabled="loadingExaminations"
-                @click="refreshExaminations"
-              >
-                <i
-                  class="ni ni-bold-right"
-                  :class="{ 'ni-spin': loadingExaminations }"
-                ></i>
-                Aktualisieren
-              </button>
-              <router-link 
-                to="/reporting/case-setup" 
-                class="btn btn-success btn-sm"
-              >
-                <i class="ni ni-fat-add me-1"></i>
-                Neue Dokumentation
-              </router-link>
-            </div>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0 dashboard-table">
-                <thead class="table-light">
-                  <tr>
-                    <th class="dashboard-column-heading">ID</th>
-                    <th class="dashboard-column-heading">Patient</th>
-                    <th class="dashboard-column-heading">Untersuchungsdatum</th>
-                    <th class="dashboard-column-heading">Befunde</th>
-                    <th class="dashboard-column-heading">Status</th>
-                    <th class="dashboard-column-heading">Untersucher</th>
-                    <th class="dashboard-column-heading">Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody class="dashboard-table-body">
-                  <tr
-                    v-if="loadingExaminations"
-                    class="dashboard-data-row"
-                  >
-                    <td
-                      colspan="7"
-                      class="text-center py-4 dashboard-data-cell"
-                    >
-                      <div class="table-loading-state">
-                        <i class="ni ni-button-play me-2"></i>
-                        Untersuchungen werden geladen...
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    v-else-if="examinations.length === 0"
-                    class="dashboard-data-row"
-                  >
-                    <td
-                      colspan="7"
-                      class="text-center text-muted dashboard-data-cell"
-                    >
-                      <i class="ni ni-user-run ni-2x mb-2"></i>
-                      <br>
-                      Keine Untersuchungen verfügbar
-                    </td>
-                  </tr>
-                  <tr
-v-for="examination in examinations"
-                    v-else
-                    :key="examination.id"
-                    class="dashboard-data-row"
-                  >
-                    <td class="dashboard-data-cell"><code>{{ examination.id }}</code></td>
-                    <td class="dashboard-data-cell">
-                      {{ examination.patient?.first_name }} {{ examination.patient?.last_name }}
-                    </td>
-                    <td class="dashboard-data-cell">{{ formatDate(examination.examination_date) }}</td>
-                    <td class="dashboard-data-cell">
-                      <span
-                        v-for="finding in examination.findings?.slice(0, 2)"
-                        :key="finding.id"
-                        class="badge bg-secondary me-1"
-                      >
-                        {{ finding.name }}
-                      </span>
-                      <span
-                        v-if="examination.findings?.length > 2"
-                        class="badge bg-light text-dark"
-                      >
-                        +{{ examination.findings.length - 2 }} weitere
-                      </span>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <span
-                        class="badge"
-                        :class="getExaminationStatusClass(examination.status)"
-                      >
-                        {{ getExaminationStatusText(examination.status) }}
-                      </span>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <small>{{ examination.created_by || 'Unbekannt' }}</small>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <div class="btn-group btn-group-sm">
-                        <button 
-                          class="btn btn-outline-primary" 
-                          :title="'Untersuchung bearbeiten'"
-                          @click="editExamination(examination)"
-                        >
-                          <i class="ni ni-single-copy-04"></i>
-                        </button>
-                        <button 
-                          class="btn btn-outline-success" 
-                          :disabled="examination.status === 'completed'"
-                          :title="'Als abgeschlossen markieren'"
-                          @click="markExaminationComplete(examination)"
-                        >
-                          <i class="ni ni-check-bold"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Sensitive Meta Annotationen -->
-      <div class="col-12 mb-4">
-        <div class="card dashboard-card">
-          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-              <i class="ni ni-check-bold text-warning me-2"></i>
-              Patientendaten Validierung
-            </h5>
-            <div class="header-actions">
-              <button 
-                class="btn btn-outline-primary btn-sm me-2" 
-                :disabled="loadingSensitiveMeta"
-                @click="refreshSensitiveMeta"
-              >
-                <i
-                  class="ni ni-bold-right"
-                  :class="{ 'ni-spin': loadingSensitiveMeta }"
-                ></i>
-                Aktualisieren
-              </button>
-              <router-link 
-                to="/video-meta-annotation" 
-                class="btn btn-warning btn-sm"
-              >
-                <i class="ni ni-button-play me-1"></i>
-                Validierung starten
-              </router-link>
-            </div>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0 dashboard-table">
-                <thead class="table-light">
-                  <tr>
-                    <th class="dashboard-column-heading">ID</th>
-                    <th class="dashboard-column-heading">Typ</th>
-                    <th class="dashboard-column-heading">Patient</th>
-                    <th class="dashboard-column-heading">Untersuchungsdatum</th>
-                    <th class="dashboard-column-heading">Status</th>
-                    <th class="dashboard-column-heading">Validierung erforderlich</th>
-                    <th class="dashboard-column-heading">Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody class="dashboard-table-body">
-                  <tr
-                    v-if="loadingSensitiveMeta"
-                    class="dashboard-data-row"
-                  >
-                    <td
-                      colspan="7"
-                      class="text-center py-4 dashboard-data-cell"
-                    >
-                      <div class="table-loading-state">
-                        <i class="ni ni-button-play me-2"></i>
-                        Patientendaten werden geladen...
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    v-else-if="sensitiveMetaData.length === 0"
-                    class="dashboard-data-row"
-                  >
-                    <td
-                      colspan="7"
-                      class="text-center text-muted dashboard-data-cell"
-                    >
-                      <i class="ni ni-check-bold ni-2x mb-2"></i>
-                      <br>
-                      Keine Patientendaten zur Validierung verfügbar
-                    </td>
-                  </tr>
-                  <tr
-v-for="meta in sensitiveMetaData"
-                    v-else
-                    :key="meta.id"
-                    class="dashboard-data-row"
-                  >
-                    <td class="dashboard-data-cell"><code>{{ meta.id }}</code></td>
-                    <td class="dashboard-data-cell">
-                      <span
-                        class="badge"
-                        :class="meta.content_type === 'video' ? 'bg-primary' : 'bg-danger'"
-                      >
-                        <i :class="meta.content_type === 'video' ? 'ni ni-button-play' : 'ni ni-single-copy-04'"></i>
-                        {{ meta.content_type?.toUpperCase() || 'UNBEKANNT' }}
-                      </span>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      {{ meta.patient_first_name }} {{ meta.patient_last_name }}
-                    </td>
-                    <td class="dashboard-data-cell">{{ formatDate(meta.examination_date) }}</td>
-                    <td class="dashboard-data-cell">
-                      <span
-                        class="badge"
-                        :class="getSensitiveMetaStatusClass(meta.anonymization_status)"
-                      >
-                        {{ getSensitiveMetaStatusText(meta.anonymization_status) }}
-                      </span>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <span :class="meta.requires_validation ? 'text-warning' : 'text-success'">
-                        <i :class="meta.requires_validation ? 'ni ni-user-run' : 'ni ni-check-bold'"></i>
-                        {{ meta.requires_validation ? 'Ja' : 'Nein' }}
-                      </span>
-                    </td>
-                    <td class="dashboard-data-cell">
-                      <div class="btn-group btn-group-sm">
-                        <button 
-                          class="btn btn-outline-primary" 
-                          :title="'Patientendaten validieren'"
-                          @click="validateSensitiveMeta(meta)"
-                        >
-                          <i class="ni ni-single-copy-04"></i>
-                        </button>
-                        <button 
-                          class="btn btn-outline-success" 
-                          :disabled="!meta.requires_validation"
-                          :title="'Als validiert markieren'"
-                          @click="markSensitiveMetaComplete(meta)"
-                        >
-                          <i class="ni ni-check-bold"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
-<script setup>
-import { computed, ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAnnotationStatsStore } from '@/stores/annotationStats';
-import AnnotationStatsComponent from '@/components/Stats/AnnotationStatsComponent.vue';
-import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
-import axiosInstance, { r } from '@/api/axiosInstance';
-import { endpoints } from '@/types/api/endpoints';
-import { createRuntimeLogger } from '@/utils/runtimeLogger';
-import { fetchAiDatasetOptions } from '@/api/aiDatasetApi';
-import { fetchStudyCohortPreview } from '@/api/studyApi';
-import { fetchAdministrationOverview } from '@/api/administrationApi';
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import {
+  fetchAiDatasetOptions,
+  type AiDatasetOption
+} from '@/api/aiDatasetApi'
+import { fetchStudyCohortPreview } from '@/api/studyApi'
+import { fetchAdministrationOverview } from '@/api/administrationApi'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
-const logger = createRuntimeLogger('annotation-dashboard');
+type StudyCohortSummary =
+  Awaited<ReturnType<typeof fetchStudyCohortPreview>>['summary']
 
-const toast = useToastStore(); // Use your notification system here
-const router = useRouter();
-const annotationStatsStore = useAnnotationStatsStore();
+type HubHealth =
+  Awaited<ReturnType<typeof fetchAdministrationOverview>>['hubHealth']
 
-// State for detailed data
-const segments = ref([]);
-const examinations = ref([]);
-const sensitiveMetaData = ref([]);
-const datasetState = ref({ loading: true, error: false, items: [] });
-const cohortState = ref({ loading: true, error: false, summary: null });
-const hubState = ref({ loading: true, error: false, health: null });
-const loadingOperationalState = ref(false);
+interface DatasetState {
+  loading: boolean
+  error: boolean
+  items: AiDatasetOption[]
+}
+
+interface CohortState {
+  loading: boolean
+  error: boolean
+  summary: StudyCohortSummary | null
+}
+
+interface HubState {
+  loading: boolean
+  error: boolean
+  health: HubHealth | null
+}
+
+const logger = createRuntimeLogger('annotation-dashboard')
+
+const datasetState = ref<DatasetState>({
+  loading: true,
+  error: false,
+  items: []
+})
+
+const cohortState = ref<CohortState>({
+  loading: true,
+  error: false,
+  summary: null
+})
+
+const hubState = ref<HubState>({
+  loading: true,
+  error: false,
+  health: null
+})
+
+const loadingOperationalState = ref(false)
 
 const activeDatasetCount = computed(
   () => datasetState.value.items.filter((dataset) => dataset.isActive).length
-);
+)
 
-// Loading states
-const loadingSegments = ref(false);
-const loadingExaminations = ref(false);
-const loadingSensitiveMeta = ref(false);
-const MAX_VIDEOS_FOR_SEGMENT_OVERVIEW = 25;
-const MAX_SEGMENTS_IN_OVERVIEW = 500;
+async function loadDatasetState(): Promise<void> {
+  datasetState.value = {
+    ...datasetState.value,
+    loading: true,
+    error: false
+  }
 
-// Methods for fetching detailed data
-// Add at the top of script setup
-const showError = (message) => {
-  // Use your notification system here
-  logger.warn('user-notification-displayed', {
-    outcome: 'rejected',
-    source: 'dashboard'
-  });
-  toast.error(message) 
-};
-
-const loadDatasetState = async () => {
-  datasetState.value = { ...datasetState.value, loading: true, error: false };
   try {
-    const items = await fetchAiDatasetOptions();
-    datasetState.value = { loading: false, error: false, items };
-  } catch (error) {
+    const items = await fetchAiDatasetOptions()
+
+    datasetState.value = {
+      loading: false,
+      error: false,
+      items
+    }
+  } catch (error: unknown) {
     logger.error('dashboard-dataset-state-load-failed', error, {
       operation: 'read',
       outcome: 'rejected'
-    });
-    datasetState.value = { loading: false, error: true, items: [] };
-  }
-};
+    })
 
-const loadCohortState = async () => {
-  cohortState.value = { ...cohortState.value, loading: true, error: false };
+    datasetState.value = {
+      loading: false,
+      error: true,
+      items: []
+    }
+  }
+}
+
+async function loadCohortState(): Promise<void> {
+  cohortState.value = {
+    ...cohortState.value,
+    loading: true,
+    error: false
+  }
+
   try {
-    const cohort = await fetchStudyCohortPreview({ limit: 1 });
-    cohortState.value = { loading: false, error: false, summary: cohort.summary };
-  } catch (error) {
+    const cohort = await fetchStudyCohortPreview({ limit: 1 })
+
+    cohortState.value = {
+      loading: false,
+      error: false,
+      summary: cohort.summary
+    }
+  } catch (error: unknown) {
     logger.error('dashboard-cohort-state-load-failed', error, {
       operation: 'read',
       outcome: 'rejected'
-    });
-    cohortState.value = { loading: false, error: true, summary: null };
-  }
-};
+    })
 
-const loadHubState = async () => {
-  hubState.value = { ...hubState.value, loading: true, error: false };
+    cohortState.value = {
+      loading: false,
+      error: true,
+      summary: null
+    }
+  }
+}
+
+async function loadHubState(): Promise<void> {
+  hubState.value = {
+    ...hubState.value,
+    loading: true,
+    error: false
+  }
+
   try {
-    const overview = await fetchAdministrationOverview();
-    hubState.value = { loading: false, error: false, health: overview.hubHealth };
-  } catch (error) {
+    const overview = await fetchAdministrationOverview()
+
+    hubState.value = {
+      loading: false,
+      error: false,
+      health: overview.hubHealth
+    }
+  } catch (error: unknown) {
     logger.error('dashboard-hub-state-load-failed', error, {
       operation: 'read',
       outcome: 'rejected'
-    });
-    hubState.value = { loading: false, error: true, health: null };
-  }
-};
+    })
 
-const refreshOperationalState = async () => {
-  loadingOperationalState.value = true;
-  await Promise.all([loadDatasetState(), loadCohortState(), loadHubState()]);
-  loadingOperationalState.value = false;
-};
-
-// Methods for fetching detailed data
-const refreshSegments = async () => {
-  loadingSegments.value = true;
-  try {
-    const videosResponse = await axiosInstance.get(r(endpoints.media.videos));
-    const videos =
-      videosResponse.data?.results ||
-      videosResponse.data?.videos ||
-      videosResponse.data ||
-      [];
-
-    const videoIds = videos
-      .map((video) => Number(video.id))
-      .filter((id) => Number.isFinite(id))
-      .slice(0, MAX_VIDEOS_FOR_SEGMENT_OVERVIEW);
-
-    const segmentLists = await Promise.all(
-      videoIds.map(async (videoId) => {
-        try {
-          const response = await axiosInstance.get(
-            r(endpoints.media.videoSegments(videoId))
-          );
-          const videoSegments = response.data?.results || response.data || [];
-          return videoSegments.map((segment) => ({
-            ...segment,
-            videoId: segment.videoId ?? segment.video_id ?? videoId,
-          }));
-        } catch {
-          return [];
-        }
-      })
-    );
-
-    segments.value = segmentLists.flat().slice(0, MAX_SEGMENTS_IN_OVERVIEW);
-  } catch {
-    showError('Fehler beim Laden der Video-Segmente');
-    segments.value = [];
-  } finally {
-    loadingSegments.value = false;
-  }
-};
-
-const refreshExaminations = async () => {
-  loadingExaminations.value = true;
-  try {
-    const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList));
-    examinations.value = response.data.results || response.data || [];
-  } catch (error) {
-    logger.error('examination-list-load-failed', error, {
-      operation: 'list',
-      outcome: 'rejected'
-    });
-    examinations.value = [];
-  } finally {
-    loadingExaminations.value = false;
-  }
-};
-
-const refreshSensitiveMeta = async () => {
-  loadingSensitiveMeta.value = true;
-  try {
-    // Combine video and PDF sensitive meta data using Modern Media Framework
-    const [videoResponse, pdfResponse] = await Promise.all([
-      axiosInstance.get(r(endpoints.media.videos)).catch(() => ({ data: [] })),
-      axiosInstance.get(r(endpoints.media.pdfSensitiveMetadataList)).catch(() => ({ data: { results: [] } }))
-    ]);
-
-    // Extract data from responses
-    const videoData = Array.isArray(videoResponse.data?.results)
-      ? videoResponse.data.results
-      : Array.isArray(videoResponse.data?.videos)
-        ? videoResponse.data.videos
-        : Array.isArray(videoResponse.data)
-          ? videoResponse.data
-          : [];
-    
-    // PDF endpoint returns paginated data with 'results' array
-    const pdfData = pdfResponse.data?.results || 
-                   (Array.isArray(pdfResponse.data) ? pdfResponse.data : 
-                   pdfResponse.data ? [pdfResponse.data] : []);
-
-    // Add content type identifier
-    videoData.forEach(item => item.content_type = 'video');
-    pdfData.forEach(item => item.content_type = 'pdf');
-
-    sensitiveMetaData.value = [...videoData, ...pdfData];
-    logger.debug('sensitive-metadata-load-completed', {
-      operation: 'list',
-      count: sensitiveMetaData.value.length,
-      outcome: 'accepted'
-    });
-  } catch (error) {
-    logger.error('sensitive-metadata-load-failed', error, {
-      operation: 'list',
-      outcome: 'rejected'
-    });
-    sensitiveMetaData.value = [];
-  } finally {
-    loadingSensitiveMeta.value = false;
-  }
-};
-
-// Status helper methods
-const getSegmentStatusClass = (status) => {
-  const classes = {
-    'pending': 'bg-warning',
-    'in_progress': 'bg-info',
-    'completed': 'bg-success',
-    'rejected': 'bg-danger'
-  };
-  return classes[status] || 'bg-secondary';
-};
-
-const getSegmentStatusText = (status) => {
-  const texts = {
-    'pending': 'Ausstehend',
-    'in_progress': 'In Bearbeitung',
-    'completed': 'Abgeschlossen',
-    'rejected': 'Abgelehnt'
-  };
-  return texts[status] || status;
-};
-
-const getExaminationStatusClass = (status) => {
-  const classes = {
-    'pending': 'bg-warning',
-    'in_progress': 'bg-info',
-    'completed': 'bg-success',
-    'draft': 'bg-secondary'
-  };
-  return classes[status] || 'bg-secondary';
-};
-
-const getExaminationStatusText = (status) => {
-  const texts = {
-    'pending': 'Ausstehend',
-    'in_progress': 'In Bearbeitung',
-    'completed': 'Abgeschlossen',
-    'draft': 'Entwurf'
-  };
-  return texts[status] || status;
-};
-
-const getSensitiveMetaStatusClass = (status) => {
-  const classes = {
-    'pending_validation': 'bg-warning',
-    'validated_pending_anonymization': 'bg-info',
-    'anonymized': 'bg-success',
-    'no_sensitive_data': 'bg-primary'
-  };
-  return classes[status] || 'bg-secondary';
-};
-
-const getSensitiveMetaStatusText = (status) => {
-  const texts = {
-    'pending_validation': 'Validierung ausstehend',
-    'validated_pending_anonymization': 'Validiert - Anonymisierung ausstehend',
-    'anonymized': 'Anonymisiert',
-    'no_sensitive_data': 'Keine sensitiven Daten'
-  };
-  return texts[status] || status;
-};
-
-// Action methods
-const editSegment = (segment) => {
-  const videoId = segment.videoId ?? segment.video_id;
-  if (!videoId) {
-    showError('Segment kann nicht geöffnet werden: Video-ID fehlt');
-    return;
-  }
-  router.push({
-    name: 'Frame Annotation',
-    query: { videoId, segmentId: segment.id }
-  });
-};
-
-const markSegmentComplete = async (segment) => {
-  try {
-    const videoId = segment.videoId ?? segment.video_id;
-    if (!videoId) {
-      showError('Segment kann nicht aktualisiert werden: Video-ID fehlt');
-      return;
+    hubState.value = {
+      loading: false,
+      error: true,
+      health: null
     }
-    await axiosInstance.patch(
-      r(endpoints.media.videoSegmentDetail(videoId, segment.id)),
-      { status: 'completed' }
-    );
-    annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
-    await refreshSegments();
-  } catch (error) {
-    logger.error('segment-completion-failed', error, {
-      operation: 'update',
-      outcome: 'rejected'
-    });
   }
-};
+}
 
-const editExamination = (examination) => {
-  router.push({
-    path: '/reporting/case-setup',
-    query: { legacyExaminationId: String(examination.id) }
-  });
-};
+async function refreshOperationalState(): Promise<void> {
+  loadingOperationalState.value = true
 
-const markExaminationComplete = async (examination) => {
   try {
-    await axiosInstance.patch(
-      r(endpoints.examination.patientExaminationDetail(examination.id)),
-      { status: 'completed' }
-    );
-    annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
-    await refreshExaminations();
-  } catch (error) {
-    logger.error('examination-completion-failed', error, {
-      operation: 'update',
-      outcome: 'rejected'
-    });
+    await Promise.all([
+      loadDatasetState(),
+      loadCohortState(),
+      loadHubState()
+    ])
+  } finally {
+    loadingOperationalState.value = false
   }
-};
+}
 
-const validateSensitiveMeta = (meta) => {
-  if (meta.content_type === 'video') {
-    router.push('/video-meta-annotation');
-  } else if (meta.content_type === 'pdf') {
-    router.push('/pdf-meta-annotation');
-  }
-};
-
-const markSensitiveMetaComplete = async (meta) => {
-  try {
-    const endpoint = meta.content_type === 'video' 
-      ? r(endpoints.media.videos)
-      : r(endpoints.media.pdfs);
-    
-    await axiosInstance.patch(endpoint, { 
-      sensitive_meta_id: meta.id,
-      requires_validation: false,
-      anonymization_status: 'validated_pending_anonymization'
-    });
-    
-    annotationStatsStore.updateAnnotationStatus('sensitive_meta', 'pending', 'completed');
-    await refreshSensitiveMeta();
-  } catch (error) {
-    logger.error('sensitive-metadata-validation-failed', error, {
-      operation: 'validate',
-      outcome: 'rejected'
-    });
-  }
-};
-
-// Utility methods
-const formatDate = (dateString) => {
-  if (!dateString) {
-    return 'Nicht verfügbar';
-  }
-  try {
-    return new Date(dateString).toLocaleDateString('de-DE');
-  } catch {
-    return 'Ungültiges Datum';
-  }
-};
-
-// Initialize data on mount
-onMounted(async () => {
-  await Promise.all([
-    annotationStatsStore.fetchAnnotationStats(),
-    refreshOperationalState(),
-    refreshSegments(),
-    refreshExaminations(),
-    refreshSensitiveMeta()
-  ]);
-});
+onMounted(() => {
+  void refreshOperationalState()
+})
 </script>
 
 <style scoped>
@@ -944,14 +415,29 @@ onMounted(async () => {
 }
 
 .dashboard-hero {
-  background: radial-gradient(circle at top left, rgba(67, 86, 255, 0.16), rgba(67, 86, 255, 0.03) 45%, rgba(255, 255, 255, 0.95) 70%);
-  border: 1px solid var(--dashboard-border);
-  border-radius: 14px;
-  padding: 1rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 14px;
+  background: radial-gradient(
+    circle at top left,
+    rgba(67, 86, 255, 0.16),
+    rgba(67, 86, 255, 0.03) 45%,
+    rgba(255, 255, 255, 0.95) 70%
+  );
+}
+
+.dashboard-title {
+  color: #2d3047;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.dashboard-subtitle {
+  color: #63748a;
 }
 
 .operational-state-grid {
@@ -971,13 +457,13 @@ onMounted(async () => {
 
 .state-card-heading {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
-.state-card .state-card-heading-text {
+.state-card-heading-text {
   margin: 0;
   color: #2d3047;
   font-size: 1rem;
@@ -1009,13 +495,13 @@ onMounted(async () => {
   margin-bottom: 0.8rem;
 }
 
-.state-metric .state-metric-value {
+.state-metric-value {
   color: #2d3047;
   font-size: 1.8rem;
 }
 
-.state-metric .state-metric-description,
-.hub-readiness > .hub-transport-description:last-child {
+.state-metric-description,
+.hub-transport-description {
   color: #63748a;
   font-size: 0.8rem;
 }
@@ -1047,18 +533,18 @@ onMounted(async () => {
   gap: 0.75rem;
 }
 
-.cohort-metrics .cohort-metric-item {
+.cohort-metric-item {
   display: flex;
   flex-direction: column;
 }
 
-.cohort-metrics .cohort-metric-value {
+.cohort-metric-value {
   color: #2d3047;
   font-size: 1.25rem;
 }
 
-.cohort-metrics .cohort-metric-description,
-.state-details .state-detail-term {
+.cohort-metric-description,
+.state-detail-term {
   color: #63748a;
   font-size: 0.72rem;
 }
@@ -1070,14 +556,14 @@ onMounted(async () => {
   margin-bottom: 0.8rem;
 }
 
-.state-details .state-detail-row {
+.state-detail-row {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.25rem 0;
 }
 
-.state-details .state-detail-value {
+.state-detail-value {
   margin: 0;
   color: #344767;
   font-size: 0.78rem;
@@ -1085,106 +571,15 @@ onMounted(async () => {
   overflow-wrap: anywhere;
 }
 
-.dashboard-title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #2d3047;
-}
-
-.dashboard-subtitle {
-  color: #63748a;
-}
-
-.dashboard-card {
-  box-shadow: 0 14px 28px rgba(26, 36, 59, 0.08);
-  margin-bottom: 20px;
-  border-radius: 12px;
-  border: 1px solid var(--dashboard-border);
-  overflow: hidden;
-}
-
-.dashboard-card-header {
-  background: linear-gradient(180deg, #fcfdff 0%, #f6f9ff 100%);
-  border-bottom: 1px solid var(--dashboard-border);
-  padding: 0.9rem 1rem;
-}
-
-.table {
-  margin-bottom: 0;
-}
-
-.dashboard-table .dashboard-column-heading,
-.dashboard-table .dashboard-data-cell {
-  vertical-align: middle;
-  border-color: rgba(45, 48, 71, 0.08);
-}
-
-.dashboard-table .dashboard-column-heading {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #4f5e79;
-  font-weight: 700;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.table-hover .dashboard-table-body .dashboard-data-row:hover {
-  background-color: #f4f8ff;
-}
-
-.badge {
-  font-size: 0.75rem;
-}
-
-.btn-group-sm .btn {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-}
-
-.table-loading-state {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #4f5e79;
-  font-weight: 600;
-  background: linear-gradient(90deg, #f0f4fb 0%, #e7eef9 50%, #f0f4fb 100%);
-  background-size: 200% 100%;
-  animation: loading-shimmer 1.4s linear infinite;
-  padding: 0.7rem 1rem;
-  border-radius: 999px;
-}
-
-@keyframes loading-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
 @media (max-width: 768px) {
-  .header-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .dashboard-hero {
-    padding: 0.9rem 1rem;
-    align-items: flex-start;
     flex-direction: column;
+    align-items: flex-start;
+    padding: 0.9rem 1rem;
   }
 
   .operational-state-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .table-responsive {
-    font-size: 0.875rem;
   }
 }
 </style>

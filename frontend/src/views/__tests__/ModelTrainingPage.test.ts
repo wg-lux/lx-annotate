@@ -206,7 +206,9 @@ describe('ModelTrainingPage', () => {
       'Dataset B (ID: 9)'
     )
     expect(wrapper.text()).toContain('nicht als Frame-Annotationen gespeichert')
-    expect(wrapper.get('[data-test="training-dataset-summary"]').text()).toContain('6 Trainingsframes')
+    expect(wrapper.get('[data-test="training-dataset-summary"]').text()).toContain(
+      '6 Trainingsframes'
+    )
 
     await wrapper.get('[data-test="start-training-run"]').trigger('click')
     await flushPromises()
@@ -278,7 +280,9 @@ describe('ModelTrainingPage', () => {
     await wrapper.get('[data-test="start-training-run"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-test="training-dataset-summary"]').text()).toContain('4 Trainingsframes')
+    expect(wrapper.get('[data-test="training-dataset-summary"]').text()).toContain(
+      '4 Trainingsframes'
+    )
     expect(hoisted.createModelTrainingRun).toHaveBeenCalledWith(
       expect.objectContaining({
         datasetId: 7,
@@ -332,7 +336,8 @@ describe('ModelTrainingPage', () => {
       response: {
         data: {
           errors: {
-            annotationSourceScope: 'annotation_source_scope must be one of: all, frame_only, segment_only.'
+            annotationSourceScope:
+              'annotation_source_scope must be one of: all, frame_only, segment_only.'
           }
         }
       }

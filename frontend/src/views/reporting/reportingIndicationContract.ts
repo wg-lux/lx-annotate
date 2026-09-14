@@ -26,7 +26,12 @@ const displayLabel = (value: unknown): string | null =>
 
 const canonicalGermanLabel = (value: Record<string, unknown>): string | null =>
   displayLabel(
-    value.label ?? value.nameDe ?? value.name_de ?? value.displayName ?? value.display_name ?? value.name
+    value.label ??
+      value.nameDe ??
+      value.name_de ??
+      value.displayName ??
+      value.display_name ??
+      value.name
   )
 
 const indicationIdFromRecord = (row: Record<string, unknown>): number | null =>
@@ -136,44 +141,55 @@ function mergeOption(
   existing.choices = Array.from(choicesById.values())
 }
 
+function appendChoice(
+  option: ReportingIndicationOption | undefined,
+  choice: ReportingIndicationChoiceOption | null
+): void {
+  if (!option || !choice) return
+  if (!option.choices.some((candidate) => candidate.id === choice.id)) {
+    option.choices.push(choice)
+  }
+}
+
+function appendLinkedChoiceEntries(
+  optionsById: Map<number, ReportingIndicationOption>,
+  entries: unknown[]
+): void {
+  for (const entry of entries) {
+    if (!isRecord(entry)) continue
+    const indicationId = positiveInteger(
+      entry.examinationIndicationId ??
+        entry.examination_indication_id ??
+        entry.indicationId ??
+        entry.indication_id
+    )
+    appendChoice(
+      indicationId === null ? undefined : optionsById.get(indicationId),
+      normalizeChoice(entry)
+    )
+  }
+}
+
+function appendLinkedChoiceRecord(
+  optionsById: Map<number, ReportingIndicationOption>,
+  record: Record<string, unknown>
+): void {
+  for (const [rawIndicationId, rawChoices] of Object.entries(record)) {
+    const indicationId = positiveInteger(rawIndicationId)
+    const option = indicationId === null ? undefined : optionsById.get(indicationId)
+    for (const choice of normalizeChoices(rawChoices)) appendChoice(option, choice)
+  }
+}
+
 function appendLinkedChoices(
   optionsById: Map<number, ReportingIndicationOption>,
   value: unknown
 ): void {
   if (Array.isArray(value)) {
-    for (const entry of value) {
-      if (!isRecord(entry)) {
-        continue
-      }
-      const indicationId = positiveInteger(
-        entry.examinationIndicationId ??
-          entry.examination_indication_id ??
-          entry.indicationId ??
-          entry.indication_id
-      )
-      const choice = normalizeChoice(entry)
-      const option = indicationId === null ? null : optionsById.get(indicationId)
-      if (option && choice && !option.choices.some((candidate) => candidate.id === choice.id)) {
-        option.choices.push(choice)
-      }
-    }
+    appendLinkedChoiceEntries(optionsById, value)
     return
   }
-  if (!isRecord(value)) {
-    return
-  }
-  for (const [rawIndicationId, rawChoices] of Object.entries(value)) {
-    const indicationId = positiveInteger(rawIndicationId)
-    const option = indicationId === null ? null : optionsById.get(indicationId)
-    if (!option) {
-      continue
-    }
-    for (const choice of normalizeChoices(rawChoices)) {
-      if (!option.choices.some((candidate) => candidate.id === choice.id)) {
-        option.choices.push(choice)
-      }
-    }
-  }
+  if (isRecord(value)) appendLinkedChoiceRecord(optionsById, value)
 }
 
 function payloadRecords(payload: unknown): Record<string, unknown>[] {
@@ -241,6 +257,24 @@ function selectionCandidates(payload: unknown): unknown[] {
   ]
 }
 
+function normalizeSelection(entry: unknown): ReportingIndicationRow | null {
+  if (!isRecord(entry)) return null
+  const examinationIndicationId = indicationIdFromRecord(entry)
+  if (examinationIndicationId === null) return null
+  const choice = asRecord(entry.choice)
+  return {
+    examinationIndicationId,
+    indicationChoiceId:
+      positiveInteger(
+        entry.indicationChoiceId ??
+          entry.indication_choice_id ??
+          entry.choiceId ??
+          entry.choice_id ??
+          choice.id
+      ) ?? null
+  }
+}
+
 export function normalizeReportingIndicationSelections(payload: unknown): ReportingIndicationRow[] {
   const rows: ReportingIndicationRow[] = []
   for (const candidate of selectionCandidates(payload)) {
@@ -248,25 +282,8 @@ export function normalizeReportingIndicationSelections(payload: unknown): Report
       continue
     }
     for (const entry of candidate) {
-      if (!isRecord(entry)) {
-        continue
-      }
-      const examinationIndicationId = indicationIdFromRecord(entry)
-      if (examinationIndicationId === null) {
-        continue
-      }
-      const choice = asRecord(entry.choice)
-      rows.push({
-        examinationIndicationId,
-        indicationChoiceId:
-          positiveInteger(
-            entry.indicationChoiceId ??
-              entry.indication_choice_id ??
-              entry.choiceId ??
-              entry.choice_id ??
-              choice.id
-          ) ?? null
-      })
+      const row = normalizeSelection(entry)
+      if (row) rows.push(row)
     }
   }
   if (!rows.length) {

@@ -90,12 +90,12 @@
                             :class="getStatusBadgeClass(currentVideo.anonymizationStatus)"
                             class="badge ms-1"
                           >
-                            {{ getStatusText(currentVideo.anonymizationStatus) }}
+                            {{ currentStatusLabel }}
                           </span>
                         </p>
                         <p class="mb-1">
                           <strong>Größe:</strong>
-                          {{ formatFileSize(currentVideo.fileSize ?? null) }}
+                          {{ currentFileSizeLabel }}
                         </p>
                         <p class="mb-0">
                           <strong>Erstellt:</strong> {{ formatDate(currentVideo.createdAt) }}
@@ -311,12 +311,12 @@
                                 :class="getStatusBadgeClass(currentVideo.anonymizationStatus)"
                                 class="badge ms-1"
                               >
-                                {{ getStatusText(currentVideo.anonymizationStatus) }}
+                                {{ currentStatusLabel }}
                               </span>
                             </p>
                             <p class="mb-1">
                               <strong>Größe:</strong>
-                              {{ formatFileSize(currentVideo.fileSize ?? null) }}
+                              {{ currentFileSizeLabel }}
                             </p>
                             <p class="mb-1">
                               <strong>Erstellt:</strong> {{ formatDate(currentVideo.createdAt) }}
@@ -325,7 +325,7 @@
                           <div class="col-sm-6">
                             <p class="mb-1">
                               <strong>Sensitive Frames:</strong>
-                              {{ videoMetadata.sensitiveFrameCount || 'Unbekannt' }}
+                              {{ sensitiveFrameCountLabel }}
                             </p>
                             <p class="mb-1">
                               <strong>Gesamte Frames:</strong>
@@ -334,7 +334,7 @@
                             <p class="mb-1">
                               <strong>Sensitive Ratio:</strong>
                               <span :class="getSensitivityBadgeClass(videoMetadata.sensitiveRatio)">
-                                {{ formatPercentage(videoMetadata.sensitiveRatio) }}
+                                {{ sensitiveRatioLabel }}
                               </span>
                             </p>
                           </div>
@@ -832,10 +832,7 @@
                       </div>
                       <div class="flex-grow-1">
                         <h6 class="mb-1">{{ getOperationText(currentOperation) }}</h6>
-                        <div
-                          class="progress"
-                          style="height: 8px"
-                        >
+                        <div class="progress correction-progress">
                           <div
                             class="progress-bar progress-bar-striped progress-bar-animated"
                             :style="{ width: processingProgress + '%' }"
@@ -884,6 +881,7 @@
                     <div class="video-container">
                       <video
                         ref="videoElement"
+                        class="correction-video"
                         controls
                         width="100%"
                         height="600px"
@@ -943,11 +941,11 @@
                       <table class="table table-sm">
                         <thead>
                           <tr>
-                            <th>Zeitstempel</th>
-                            <th>Operation</th>
-                            <th>Status</th>
-                            <th>Details</th>
-                            <th>Aktionen</th>
+                            <th class="history-heading">Zeitstempel</th>
+                            <th class="history-heading">Operation</th>
+                            <th class="history-heading">Status</th>
+                            <th class="history-heading">Details</th>
+                            <th class="history-heading">Aktionen</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -955,8 +953,8 @@
                             v-for="entry in processingHistory"
                             :key="entry.id"
                           >
-                            <td>{{ formatDate(entry.timestamp) }}</td>
-                            <td>
+                            <td class="history-cell">{{ formatDate(entry.timestamp) }}</td>
+                            <td class="history-cell">
                               <span
                                 class="badge"
                                 :class="getOperationBadgeClass(entry.operation)"
@@ -964,7 +962,7 @@
                                 {{ getOperationText(entry.operation) }}
                               </span>
                             </td>
-                            <td>
+                            <td class="history-cell">
                               <span
                                 class="badge"
                                 :class="getStatusBadgeClass(entry.status)"
@@ -972,10 +970,10 @@
                                 {{ getStatusText(entry.status) }}
                               </span>
                             </td>
-                            <td>
+                            <td class="history-cell">
                               <small class="text-muted">{{ entry.details }}</small>
                             </td>
-                            <td>
+                            <td class="history-cell">
                               <button
                                 v-if="entry.status === 'success' && entry.downloadUrl"
                                 class="btn btn-outline-primary btn-sm"
@@ -1192,6 +1190,7 @@ const normalizeProcessingHistory = (raw: unknown) => {
 }
 
 type CorrectionMediaType = 'video' | 'pdf'
+type RecoveryFeedback = { message: string; error: string }
 type PdfRedactionBox = {
   x: number
   y: number
@@ -1219,6 +1218,24 @@ const drawCurrent = ref<{ x: number; y: number } | null>(null)
 
 let pdfJsLib: typeof import('pdfjs-dist/legacy/build/pdf.mjs') | null = null
 let pdfDocument: PDFDocumentProxy | null = null
+
+const correctionMediaTypeFromValue = (value: unknown): CorrectionMediaType | null => {
+  const normalized = Array.isArray(value)
+    ? value.map((part) => (typeof part === 'string' ? part : '')).join(',')
+    : typeof value === 'string'
+      ? value
+      : ''
+  const lowercaseValue = normalized.toLowerCase()
+  return lowercaseValue === 'pdf' || lowercaseValue === 'video' ? lowercaseValue : null
+}
+
+const correctionMediaTypeFromOverview = (fileId: number): CorrectionMediaType | null => {
+  const overviewItem = anonymizationStore.overview.find((item) => item.id === fileId)
+  return correctionMediaTypeFromValue(overviewItem?.mediaType)
+}
+
+const correctionMediaTypeFromFilename = (filename: string | undefined): CorrectionMediaType =>
+  filename?.toLowerCase().endsWith('.pdf') === true ? 'pdf' : 'video'
 
 // Computed properties
 const canApplyMask = computed(() => {
@@ -1285,29 +1302,12 @@ interface Props {
 const props = defineProps<Props>()
 
 const resolvedMediaType = computed<CorrectionMediaType>(() => {
-  const routeMediaType = String(route.query.mediaType || '').toLowerCase()
-  const propsMediaType = (props.mediaType || '').toLowerCase()
-  const explicit = propsMediaType || routeMediaType
-  if (explicit === 'pdf') {
-    return 'pdf'
-  }
-  if (explicit === 'video') {
-    return 'video'
-  }
-
-  const fromOverview = anonymizationStore.overview.find((item) => item.id === props.fileId)
-  if (fromOverview?.mediaType === 'pdf') {
-    return 'pdf'
-  }
-  if (fromOverview?.mediaType === 'video') {
-    return 'video'
-  }
-
-  const currentFilename = (currentVideo.value?.filename || '').toLowerCase()
-  if (currentFilename.endsWith('.pdf')) {
-    return 'pdf'
-  }
-  return 'video'
+  const explicitMediaType = props.mediaType || route.query.mediaType
+  return (
+    correctionMediaTypeFromValue(explicitMediaType) ??
+    correctionMediaTypeFromOverview(props.fileId) ??
+    correctionMediaTypeFromFilename(currentVideo.value?.filename)
+  )
 })
 
 const isPdfCorrection = computed(() => resolvedMediaType.value === 'pdf')
@@ -1391,6 +1391,51 @@ const revertAnnotatorOverride = () => {
   annotatorOverrideInput.value = ''
 }
 
+const feedbackForBlackeningStatus = (
+  status: string,
+  outsideCount: number,
+  responseData: Record<string, unknown>
+): RecoveryFeedback => {
+  switch (status) {
+    case 'completed':
+      return {
+        message: `Außerhalb-Segmente geschwärzt (${String(outsideCount)} Segmente).`,
+        error: ''
+      }
+    case 'queued':
+      return {
+        message: `Schwärzung der Außerhalb-Segmente gestartet (${String(outsideCount)} Segmente).`,
+        error: ''
+      }
+    case 'already_queued':
+      return { message: 'Schwärzung der Außerhalb-Segmente läuft bereits.', error: '' }
+    case 'busy':
+      return {
+        message: '',
+        error: 'Ein anderer Verarbeitungsvorgang für dieses Video läuft bereits.'
+      }
+    case 'noop':
+      return {
+        message: 'Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.',
+        error: ''
+      }
+    default:
+      if (!status && outsideCount === 0) {
+        return {
+          message: 'Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.',
+          error: ''
+        }
+      }
+      return {
+        message: '',
+        error: stringFromUnknown(
+          responseData.error ?? responseData.message,
+          'Unerwarteter Status beim Schwärzen der Außerhalb-Segmente.'
+        )
+      }
+  }
+}
+
 const blackenOutsideSegments = async () => {
   if (!canBlackenOutsideSegments.value) {
     return
@@ -1416,22 +1461,9 @@ const blackenOutsideSegments = async () => {
       responseData.outsideSegmentCount ?? responseData.outside_segment_count ?? 0
     )
 
-    if (status === 'completed') {
-      recoveryMessage.value = `Außerhalb-Segmente geschwärzt (${String(outsideCount)} Segmente).`
-    } else if (status === 'queued') {
-      recoveryMessage.value = `Schwärzung der Außerhalb-Segmente gestartet (${String(outsideCount)} Segmente).`
-    } else if (status === 'already_queued') {
-      recoveryMessage.value = 'Schwärzung der Außerhalb-Segmente läuft bereits.'
-    } else if (status === 'busy') {
-      recoveryError.value = 'Ein anderer Verarbeitungsvorgang für dieses Video läuft bereits.'
-    } else if (status === 'noop' || (!status && outsideCount === 0)) {
-      recoveryMessage.value = 'Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.'
-    } else {
-      recoveryError.value = stringFromUnknown(
-        responseData.error ?? responseData.message,
-        'Unerwarteter Status beim Schwärzen der Außerhalb-Segmente.'
-      )
-    }
+    const feedback = feedbackForBlackeningStatus(status, outsideCount, responseData)
+    recoveryMessage.value = feedback.message
+    recoveryError.value = feedback.error
   } catch (err: unknown) {
     recoveryError.value = getApiErrorMessage(
       err,
@@ -1483,10 +1515,7 @@ const loadCurrentItemDetails = async (fileId: number) => {
   await loadVideoDetails(fileId)
 }
 
-const loadPdfDetails = async (pdfId: number) => {
-  const generation = selection_generation
-  loading.value = true
-  error.value = ''
+const resetPdfCorrectionState = () => {
   pdfRenderError.value = ''
   pdfDocument = null
   pdfSourceBytes.value = null
@@ -1499,39 +1528,50 @@ const loadPdfDetails = async (pdfId: number) => {
     URL.revokeObjectURL(redactedPdfUrl.value)
     redactedPdfUrl.value = ''
   }
+}
+
+const isCurrentSelection = (generation: number) => generation === selection_generation
+
+const updatePdfDetails = (pdfId: number, details: PdfDetailsResponse) => {
+  const overviewStatus = anonymizationStore.overview.find(
+    (item) => item.id === pdfId && item.mediaType === 'pdf'
+  )?.anonymizationStatus
+  currentVideo.value = {
+    id: pdfId,
+    mediaType: 'pdf',
+    filename: details.filename || `document_${String(pdfId)}.pdf`,
+    anonymizationStatus: overviewStatus ?? 'unknown',
+    fileSize: details.fileSize ?? null,
+    createdAt: details.uploadedAt || null
+  }
+  mediaStore.setCurrentByKey('pdf', pdfId)
+}
+
+const loadPdfDetails = async (pdfId: number) => {
+  const generation = selection_generation
+  loading.value = true
+  error.value = ''
+  resetPdfCorrectionState()
 
   try {
     const response = await axiosInstance.get<PdfDetailsResponse>(r(`media/pdfs/${String(pdfId)}/`))
-    if (generation !== selection_generation) {
+    if (!isCurrentSelection(generation)) {
       return
     }
-    const details = response.data
-
-    currentVideo.value = {
-      id: pdfId,
-      mediaType: 'pdf',
-      filename: details.filename || `document_${String(pdfId)}.pdf`,
-      anonymizationStatus:
-        anonymizationStore.overview.find((item) => item.id === pdfId && item.mediaType === 'pdf')
-          ?.anonymizationStatus ?? 'unknown',
-      fileSize: details.fileSize ?? null,
-      createdAt: details.uploadedAt || null
-    }
-
-    mediaStore.setCurrentByKey('pdf', pdfId)
+    updatePdfDetails(pdfId, response.data)
   } catch (err: unknown) {
-    if (generation !== selection_generation) {
+    if (!isCurrentSelection(generation)) {
       return
     }
     error.value = getApiErrorMessage(err, 'Fehler beim Laden der PDF-Details')
     logger.error('pdf-details-load-failed', err)
   } finally {
-    if (generation === selection_generation) {
+    if (isCurrentSelection(generation)) {
       loading.value = false
     }
   }
 
-  if (generation === selection_generation && !error.value) {
+  if (isCurrentSelection(generation) && !error.value) {
     await nextTick()
     await loadPdfDocument(pdfId)
   }
@@ -1951,13 +1991,65 @@ const downloadRedactedPdf = () => {
   URL.revokeObjectURL(downloadLocation)
 }
 
-const uploadRedactedPdf = async () => {
-  if (!redactedPdfBytes.value || !currentVideo.value || !pdf_correction || isProcessing.value) {
-    return
-  }
+type PdfUploadContext = {
+  target: CorrectionMedia
+  artifact: PdfCorrectionArtifact
+  generation: number
+}
+
+const getPdfUploadContext = (): PdfUploadContext | null => {
   const target = currentVideo.value
   const artifact = pdf_correction
-  const generation = selection_generation
+  if (!redactedPdfBytes.value || !target || !artifact || isProcessing.value) {
+    return null
+  }
+  return { target, artifact, generation: selection_generation }
+}
+
+const pdfUploadName = (target: CorrectionMedia): string => {
+  const originalName = target.filename || `document_${String(target.id)}.pdf`
+  return originalName.toLowerCase().endsWith('.pdf')
+    ? `${originalName.slice(0, -4)}_anonymized.pdf`
+    : `${originalName}_anonymized.pdf`
+}
+
+const buildPdfUploadForm = (target: CorrectionMedia, artifact: PdfCorrectionArtifact): FormData => {
+  const formData = new FormData()
+  formData.append(
+    'file',
+    new File([artifact.bytes], pdfUploadName(target), { type: 'application/pdf' })
+  )
+  formData.append('source_type', 'raw')
+  formData.append('redaction_manifest', JSON.stringify(artifact.manifest))
+  formData.append('client_source_sha256', artifact.source_sha256)
+  return formData
+}
+
+const assertPdfCorrectionResponse = (response: PdfCorrectionResponse, targetId: number) => {
+  const isExpectedRevision =
+    response.fileId === targetId &&
+    !response.anonymizationValidated &&
+    response.status === 'done_processing_anonymization'
+  if (!isExpectedRevision) {
+    throw new Error('Unerwartete Antwort für die Berichtskorrektur.')
+  }
+}
+
+const applyPdfCorrectionResponse = (response: PdfCorrectionResponse, targetId: number) => {
+  assertPdfCorrectionResponse(response, targetId)
+  const selectedPdf = currentVideo.value
+  if (!selectedPdf || selectedPdf.id !== targetId) {
+    throw new Error('Die ausgewählte PDF hat sich während der Berichtskorrektur geändert.')
+  }
+  selectedPdf.anonymizationStatus = response.status
+}
+
+const uploadRedactedPdf = async () => {
+  const context = getPdfUploadContext()
+  if (!context) {
+    return
+  }
+  const { target, artifact, generation } = context
 
   isProcessing.value = true
   currentOperation.value = 'pdf_upload'
@@ -1965,37 +2057,19 @@ const uploadRedactedPdf = async () => {
   processingStatus.value = 'Anonymisierte PDF wird hochgeladen...'
 
   try {
-    const originalName = target.filename || `document_${String(target.id)}.pdf`
-    const uploadName = originalName.toLowerCase().endsWith('.pdf')
-      ? `${originalName.slice(0, -4)}_anonymized.pdf`
-      : `${originalName}_anonymized.pdf`
-    const file = new File([artifact.bytes], uploadName, { type: 'application/pdf' })
-
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('source_type', 'raw')
-    formData.append('redaction_manifest', JSON.stringify(artifact.manifest))
-    formData.append('client_source_sha256', artifact.source_sha256)
     const response = await axiosInstance.post<PdfCorrectionResponse>(
       r(`media/pdfs/${String(target.id)}/apply-redactions/`),
-      formData,
+      buildPdfUploadForm(target, artifact),
       {
         headers: { 'Content-Type': 'multipart/form-data' }
       }
     )
 
-    if (generation !== selection_generation) {
+    if (!isCurrentSelection(generation)) {
       return
     }
     processingProgress.value = 100
-    if (
-      response.data.fileId !== target.id ||
-      response.data.anonymizationValidated ||
-      response.data.status !== 'done_processing_anonymization'
-    ) {
-      throw new Error('Unerwartete Antwort für die Berichtskorrektur.')
-    }
-    currentVideo.value.anonymizationStatus = response.data.status
+    applyPdfCorrectionResponse(response.data, target.id)
     processingStatus.value = 'Korrektur gespeichert. Erneute Anonymisierungsprüfung erforderlich.'
     processingHistory.value.unshift({
       id: Date.now(),
@@ -2005,24 +2079,93 @@ const uploadRedactedPdf = async () => {
       details: `Revision: ${String(response.data.revisionId)}`
     })
   } catch (err: unknown) {
-    if (generation !== selection_generation) {
+    if (!isCurrentSelection(generation)) {
       return
     }
     error.value = getApiErrorMessage(err, 'Fehler beim Upload der anonymisierten PDF')
     logger.error('pdf-upload-failed', err)
   } finally {
-    if (generation === selection_generation) {
+    if (isCurrentSelection(generation)) {
       isProcessing.value = false
       currentOperation.value = ''
     }
   }
 }
 
-const applyMasking = async () => {
+const getMaskingVideoId = (): number | null => {
   if (!currentVideo.value || isProcessing.value) {
+    return null
+  }
+  return currentVideo.value.id
+}
+
+const buildVideoAnonymizationRequest = (): VideoAnonymizationRequest => ({
+  strategy: selectedStrategy.value,
+  processingMethod: maskConfig.value.processingMethod,
+  region:
+    maskConfig.value.type === 'custom'
+      ? {
+          mode: 'custom',
+          roi: {
+            x: maskConfig.value.endoscopeX,
+            y: maskConfig.value.endoscopeY,
+            width: maskConfig.value.endoscopeWidth,
+            height: maskConfig.value.endoscopeHeight
+          }
+        }
+      : {
+          mode: 'device',
+          deviceName: maskConfig.value.deviceName
+        },
+  humanReviewRequired: true
+})
+
+const isCurrentOperation = (generation: number) => generation === operation_generation
+
+const assertSuccessfulVideoCorrection = (status: VideoAnonymizationStatus) => {
+  if (status.latestRun?.status !== 'success' || !status.processedArtifact.available) {
+    throw new Error('Die korrigierte Videogeneration ist noch nicht erfolgreich verfügbar.')
+  }
+}
+
+const completeMaskingOperation = async (
+  responseStatus: VideoAnonymizationStatus,
+  videoId: number,
+  generation: number
+) => {
+  if (!isCurrentOperation(generation)) {
     return
   }
-  const video_id = currentVideo.value.id
+  const historyId = responseStatus.job?.historyId
+  processingStatus.value = responseStatus.message || 'Anonymisierung wurde eingereiht...'
+  const completedStatus = historyId
+    ? await pollAnonymizationCorrection(historyId, videoId, generation)
+    : responseStatus
+  if (!isCurrentOperation(generation)) {
+    return
+  }
+  assertSuccessfulVideoCorrection(completedStatus)
+  anonymizationStatus.value = completedStatus
+  selectedStrategy.value = completedStatus.selectedStrategy || selectedStrategy.value
+  processingProgress.value = 100
+  processingStatus.value = 'Anonymisierung abgeschlossen'
+  previewMode.value = 'processed'
+  const refresh = refreshCurrentVideo()
+  const refresh_generation = selection_generation
+  await refresh
+  if (!isCurrentSelection(refresh_generation)) {
+    return
+  }
+  videoElement.value?.load()
+  isProcessing.value = false
+  currentOperation.value = ''
+}
+
+const applyMasking = async () => {
+  const video_id = getMaskingVideoId()
+  if (video_id === null) {
+    return
+  }
   const generation = ++operation_generation
 
   isProcessing.value = true
@@ -2031,66 +2174,13 @@ const applyMasking = async () => {
   processingStatus.value = 'Maskierung wird vorbereitet...'
 
   try {
-    const payload: VideoAnonymizationRequest = {
-      strategy: selectedStrategy.value,
-      processingMethod: maskConfig.value.processingMethod,
-      region:
-        maskConfig.value.type === 'custom'
-          ? {
-              mode: 'custom',
-              roi: {
-                x: maskConfig.value.endoscopeX,
-                y: maskConfig.value.endoscopeY,
-                width: maskConfig.value.endoscopeWidth,
-                height: maskConfig.value.endoscopeHeight
-              }
-            }
-          : {
-              mode: 'device',
-              deviceName: maskConfig.value.deviceName
-            },
-      humanReviewRequired: true
-    }
-
     const response = await axiosInstance.post<VideoAnonymizationStatus>(
       r(endpoints.media.videoCorrectionAnonymization(video_id)),
-      payload
+      buildVideoAnonymizationRequest()
     )
-
-    if (generation !== operation_generation) {
-      return
-    }
-    const historyId = response.data.job?.historyId
-    processingStatus.value = response.data.message || 'Anonymisierung wurde eingereiht...'
-    anonymizationStatus.value = historyId
-      ? await pollAnonymizationCorrection(historyId, video_id, generation)
-      : response.data
-    if (generation !== operation_generation) {
-      return
-    }
-    if (
-      anonymizationStatus.value.latestRun?.status !== 'success' ||
-      !anonymizationStatus.value.processedArtifact.available
-    ) {
-      throw new Error('Die korrigierte Videogeneration ist noch nicht erfolgreich verfügbar.')
-    }
-    selectedStrategy.value = anonymizationStatus.value.selectedStrategy || selectedStrategy.value
-    processingProgress.value = 100
-    processingStatus.value = 'Anonymisierung abgeschlossen'
-    previewMode.value = 'processed'
-    const refresh = refreshCurrentVideo()
-    const refresh_generation = selection_generation
-    await refresh
-    if (refresh_generation !== selection_generation) {
-      return
-    }
-    if (videoElement.value) {
-      videoElement.value.load()
-    }
-    isProcessing.value = false
-    currentOperation.value = ''
+    await completeMaskingOperation(response.data, video_id, generation)
   } catch (err: unknown) {
-    if (generation !== operation_generation) {
+    if (!isCurrentOperation(generation)) {
       return
     }
     error.value = getApiErrorMessage(err, 'Fehler bei der Anonymisierung')
@@ -2098,6 +2188,27 @@ const applyMasking = async () => {
     isProcessing.value = false
     currentOperation.value = ''
   }
+}
+
+type LatestAnonymizationRun = NonNullable<VideoAnonymizationStatus['latestRun']>
+
+const matchingAnonymizationRun = (
+  status: VideoAnonymizationStatus,
+  historyId: number
+): LatestAnonymizationRun | null => {
+  const latestRun = status.latestRun
+  return String(latestRun?.id ?? '') === String(historyId) ? (latestRun ?? null) : null
+}
+
+const updateAnonymizationPollState = (latestRun: LatestAnonymizationRun) => {
+  if (latestRun.status === 'failure' || latestRun.status === 'cancelled') {
+    throw new Error(latestRun.details || 'Anonymisierung ist fehlgeschlagen.')
+  }
+  const isRunning = latestRun.status === 'running'
+  processingProgress.value = isRunning ? 50 : 10
+  processingStatus.value = isRunning
+    ? 'Anonymisierung und HLS-Erzeugung laufen im FFmpeg-Worker...'
+    : 'Anonymisierung wartet auf den FFmpeg-Worker...'
 }
 
 const pollAnonymizationCorrection = async (
@@ -2113,28 +2224,21 @@ const pollAnonymizationCorrection = async (
   const maxPolls = 4320
   for (
     let polls = 0;
-    polls < maxPolls && isProcessing.value && generation === operation_generation;
+    polls < maxPolls && isProcessing.value && isCurrentOperation(generation);
     polls += 1
   ) {
     const { data } = await axiosInstance.get<VideoAnonymizationStatus>(
       r(endpoints.media.videoCorrectionAnonymization(video_id))
     )
-    if (generation !== operation_generation) {
+    if (!isCurrentOperation(generation)) {
       throw new Error('Beobachtung beendet.')
     }
-    const latestRun = data.latestRun
-    if (String(latestRun?.id ?? '') === String(historyId)) {
-      if (latestRun?.status === 'success') {
-        return data
-      }
-      if (latestRun?.status === 'failure' || latestRun?.status === 'cancelled') {
-        throw new Error(latestRun.details || 'Anonymisierung ist fehlgeschlagen.')
-      }
-      processingProgress.value = latestRun?.status === 'running' ? 50 : 10
-      processingStatus.value =
-        latestRun?.status === 'running'
-          ? 'Anonymisierung und HLS-Erzeugung laufen im FFmpeg-Worker...'
-          : 'Anonymisierung wartet auf den FFmpeg-Worker...'
+    const latestRun = matchingAnonymizationRun(data, historyId)
+    if (latestRun?.status === 'success') {
+      return data
+    }
+    if (latestRun) {
+      updateAnonymizationPollState(latestRun)
     }
     await new Promise((resolve) => window.setTimeout(resolve, pollInterval))
   }
@@ -2501,6 +2605,14 @@ const selectedStrategyDescription = computed(() =>
 const previewTitle = computed(() =>
   previewMode.value === 'original' ? 'Original-Video' : 'Verarbeitetes Video'
 )
+const currentStatusLabel = computed(() =>
+  getStatusText(currentVideo.value?.anonymizationStatus ?? 'unknown')
+)
+const currentFileSizeLabel = computed(() => formatFileSize(currentVideo.value?.fileSize ?? null))
+const sensitiveFrameCountLabel = computed(
+  () => videoMetadata.value.sensitiveFrameCount || 'Unbekannt'
+)
+const sensitiveRatioLabel = computed(() => formatPercentage(videoMetadata.value.sensitiveRatio))
 </script>
 
 <style scoped>
@@ -2549,18 +2661,19 @@ const previewTitle = computed(() =>
   cursor: pointer;
 }
 
-.progress {
+.correction-progress {
+  height: 8px;
   background-color: #e9ecef;
 }
 
-.table th {
+.history-heading {
   border-top: none;
   font-weight: 600;
   color: #6c757d;
   font-size: 0.875rem;
 }
 
-.table td {
+.history-cell {
   vertical-align: middle;
 }
 
@@ -2578,7 +2691,7 @@ const previewTitle = computed(() =>
 }
 
 @media (max-width: 768px) {
-  .video-container video {
+  .correction-video {
     height: 300px;
   }
 

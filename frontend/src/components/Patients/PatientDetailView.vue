@@ -22,7 +22,7 @@
           Test-Patient
         </span>
       </div>
-      
+
       <div class="detail-actions">
         <RouterLink
           v-if="patient.id"
@@ -54,7 +54,7 @@
           Reporting
         </RouterLink>
 
-        <button 
+        <button
           class="btn btn-secondary btn-sm"
           :disabled="loading"
           @click="$emit('close')"
@@ -62,8 +62,8 @@
           <i class="ni ni-settings-gear-65"></i>
           Schließen
         </button>
-        
-        <button 
+
+        <button
           class="btn btn-primary btn-sm"
           :disabled="loading || showEditForm"
           @click="showEditForm = true"
@@ -71,8 +71,8 @@
           <i class="ni ni-single-copy-04"></i>
           Bearbeiten
         </button>
-        
-        <button 
+
+        <button
           class="btn btn-outline-danger btn-sm"
           :disabled="loading || showEditForm"
           @click="checkDeletionSafety"
@@ -113,7 +113,7 @@
           </h4>
         </div>
         <div class="card-body">
-          <PatientEditForm 
+          <PatientEditForm
             :patient="patient"
             @patient-updated="onPatientUpdated"
             @patient-deleted="onPatientDeleted"
@@ -142,11 +142,15 @@
               <div class="info-grid">
                 <div class="info-item">
                   <label class="patient-detail-label">Vorname:</label>
-                  <span class="patient-detail-value">{{ patient.firstName || 'Nicht angegeben' }}</span>
+                  <span class="patient-detail-value">{{
+                    patient.firstName || 'Nicht angegeben'
+                  }}</span>
                 </div>
                 <div class="info-item">
                   <label class="patient-detail-label">Nachname:</label>
-                  <span class="patient-detail-value">{{ patient.lastName || 'Nicht angegeben' }}</span>
+                  <span class="patient-detail-value">{{
+                    patient.lastName || 'Nicht angegeben'
+                  }}</span>
                 </div>
                 <div class="info-item">
                   <label class="patient-detail-label">Pseudonym:</label>
@@ -155,7 +159,7 @@
                     class="pseudonym-names patient-detail-value"
                   >
                     {{ patient.pseudonymFirstName }} {{ patient.pseudonymLastName }}
-                    <button 
+                    <button
                       class="btn btn-outline-secondary btn-sm ms-2"
                       :disabled="generatingPseudonym"
                       title="Neue Pseudonamen generieren"
@@ -172,7 +176,7 @@
                       {{ generatingPseudonym ? 'Generiere...' : 'Neu' }}
                     </button>
                   </span>
-                  <button 
+                  <button
                     v-else
                     class="btn btn-outline-primary btn-sm"
                     :disabled="generatingPseudonym"
@@ -196,7 +200,8 @@
                     <small
                       v-if="patient.age"
                       class="text-muted"
-                    >({{ patient.age }} Jahre)</small>
+                      >({{ patient.age }} Jahre)</small
+                    >
                   </span>
                 </div>
                 <div class="info-item">
@@ -232,7 +237,8 @@
                     <span
                       v-else
                       class="text-muted patient-detail-value"
-                    >Nicht angegeben</span>
+                      >Nicht angegeben</span
+                    >
                   </span>
                 </div>
                 <div class="info-item">
@@ -248,7 +254,8 @@
                     <span
                       v-else
                       class="text-muted patient-detail-value"
-                    >Nicht angegeben</span>
+                      >Nicht angegeben</span
+                    >
                   </span>
                 </div>
                 <div class="info-item">
@@ -259,9 +266,15 @@
                   <label class="patient-detail-label">Patient Hash:</label>
                   <div class="d-flex align-items-center gap-2">
                     <span class="font-mono patient-detail-value">
-                      {{ patient.patientHash ? (patient.patientHash.length >= 8 ? patient.patientHash.substring(0, 8) + '...' : patient.patientHash) : 'Nicht generiert' }}
+                      {{
+                        patient.patientHash
+                          ? patient.patientHash.length >= 8
+                            ? patient.patientHash.substring(0, 8) + '...'
+                            : patient.patientHash
+                          : 'Nicht generiert'
+                      }}
                     </span>
-                    <button 
+                    <button
                       class="btn btn-sm btn-outline-primary"
                       :disabled="generatingPseudonym"
                       title="Pseudonym-Hash generieren"
@@ -275,7 +288,13 @@
                         v-else
                         class="ni ni-check-bold me-1"
                       ></i>
-                      {{ generatingPseudonym ? 'Generiere...' : (patient.patientHash ? 'Aktualisieren' : 'Generieren') }}
+                      {{
+                        generatingPseudonym
+                          ? 'Generiere...'
+                          : patient.patientHash
+                            ? 'Aktualisieren'
+                            : 'Generieren'
+                      }}
                     </button>
                   </div>
                 </div>
@@ -325,11 +344,15 @@
                 <div class="col-md-6">
                   <div class="info-item">
                     <label class="patient-detail-label">Erstellt am:</label>
-                    <span class="patient-detail-value">{{ formatDateTime(patient.createdAt) }}</span>
+                    <span class="patient-detail-value">{{
+                      formatDateTime(patient.createdAt)
+                    }}</span>
                   </div>
                   <div class="info-item">
                     <label class="patient-detail-label">Zuletzt geändert:</label>
-                    <span class="patient-detail-value">{{ formatDateTime(patient.updatedAt) }}</span>
+                    <span class="patient-detail-value">{{
+                      formatDateTime(patient.updatedAt)
+                    }}</span>
                   </div>
                 </div>
               </div>
@@ -361,7 +384,7 @@
               <strong>Patient kann gelöscht werden.</strong>
               <p class="mb-0 mt-2">Sind Sie sicher, dass Sie diesen Patienten löschen möchten?</p>
             </div>
-            
+
             <div
               v-else
               class="alert alert-warning"
@@ -370,7 +393,7 @@
               <strong>Patient kann nicht gelöscht werden.</strong>
               <ul class="mt-2 mb-0">
                 <li
-                  v-for="warning in deletionCheck?.warnings?.filter((w: string) => w)"
+                  v-for="warning in deletionCheckFiltered"
                   :key="warning"
                 >
                   {{ warning }}
@@ -404,17 +427,17 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button 
-              type="button" 
+            <button
+              type="button"
               class="btn btn-secondary"
               :disabled="deleting"
               @click="closeDeletionModal"
             >
               Abbrechen
             </button>
-            <button 
+            <button
               v-if="deletionCheck?.canDelete"
-              type="button" 
+              type="button"
               class="btn btn-danger"
               :disabled="deleting"
               @click="confirmDeletion"
@@ -479,7 +502,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'patient-updated': [patient: Patient]
   'patient-deleted': [patientId: number]
-  'close': []
+  close: []
 }>()
 
 // Composables
@@ -494,6 +517,9 @@ const showDeletionModal = ref(false)
 const deleting = ref(false)
 const deletionCheck = ref<PatientDeletionCheck | null>(null)
 const generatingPseudonym = ref<boolean>(false)
+const deletionCheckFiltered = computed(() =>
+  deletionCheck.value?.warnings?.filter((warning) => warning)
+)
 
 // Computed
 const genders = computed(() => patientStore.genders)
@@ -505,7 +531,6 @@ const resolveRequiredPatientId = (candidate?: number): number => {
   }
   return candidate
 }
-
 
 // Methods
 const checkDeletionSafety = async () => {
@@ -519,15 +544,14 @@ const checkDeletionSafety = async () => {
       throw new Error('Aktueller Patient nicht gefunden')
     }
     const patientId = resolveRequiredPatientId(currentPatient.id)
-    
+
     // Use axiosInstance instead of fetch
     const response = await axiosInstance.get<PatientDeletionCheck>(
       r(endpoints.patient.patientDeletionSafety(patientId))
     )
-    
+
     deletionCheck.value = response.data
     showDeletionModal.value = true
-    
   } catch (err: unknown) {
     error.value = patientDetailErrorMessage(err, 'Fehler beim Prüfen der Löschbarkeit')
   } finally {
@@ -538,15 +562,14 @@ const checkDeletionSafety = async () => {
 const confirmDeletion = async () => {
   try {
     deleting.value = true
-    
+
     const patientId = resolveRequiredPatientId(props.patient.id)
     await patientService.deletePatient(patientId)
-    
+
     successMessage.value = `Patient "${props.patient.firstName} ${props.patient.lastName}" wurde erfolgreich gelöscht.`
-    
+
     emit('patient-deleted', patientId)
     closeDeletionModal()
-    
   } catch (err: unknown) {
     error.value = patientDetailErrorMessage(err, 'Fehler beim Löschen des Patienten')
   } finally {
@@ -563,7 +586,7 @@ const onPatientUpdated = (updatedPatient: Patient) => {
   showEditForm.value = false
   successMessage.value = `Patient wurde erfolgreich aktualisiert.`
   emit('patient-updated', updatedPatient)
-  
+
   // Clear success message after 5 seconds
   setTimeout(() => {
     successMessage.value = ''
@@ -579,7 +602,7 @@ const formatDate = (dateString?: string | null) => {
   if (!dateString) {
     return 'Nicht angegeben'
   }
-  
+
   try {
     const date = new Date(dateString)
     return date.toLocaleDateString('de-DE')
@@ -592,7 +615,7 @@ const formatDateTime = (dateString?: string | null) => {
   if (!dateString) {
     return 'Nicht angegeben'
   }
-  
+
   try {
     const date = new Date(dateString)
     return date.toLocaleString('de-DE')
@@ -605,7 +628,7 @@ const getGenderDisplay = (genderValue?: string | null) => {
   if (!genderValue) {
     return 'Nicht angegeben'
   }
-  const gender = genders.value.find(g => g.name === genderValue)
+  const gender = genders.value.find((g) => g.name === genderValue)
   return gender?.nameDe || gender?.name || genderValue
 }
 
@@ -613,7 +636,7 @@ const getCenterDisplay = (centerValue?: string | null) => {
   if (!centerValue) {
     return 'Nicht zugeordnet'
   }
-  const center = centers.value.find(c => c.name === centerValue)
+  const center = centers.value.find((c) => c.name === centerValue)
   return center?.nameDe || center?.name || centerValue
 }
 
@@ -627,7 +650,7 @@ const generatePseudonym = async (): Promise<void> => {
   try {
     generatingPseudonym.value = true
     error.value = ''
-    
+
     const id = resolveRequiredPatientId(props.patient.id)
     const data = await generatePatientPseudonym(id)
 
@@ -635,13 +658,16 @@ const generatePseudonym = async (): Promise<void> => {
     applyPatientHashUpdate(data.patientHash)
 
     // Safe UI text (guard substring)
-    const short = (data.patientHash && data.patientHash.length >= 8)
-      ? data.patientHash.substring(0, 8) + '...'
-      : data.patientHash || '—'
+    const short =
+      data.patientHash && data.patientHash.length >= 8
+        ? data.patientHash.substring(0, 8) + '...'
+        : data.patientHash || '—'
 
     successMessage.value = `Pseudonym-Hash erfolgreich generiert: ${short}`
 
-    setTimeout(() => { successMessage.value = '' }, 3000)
+    setTimeout(() => {
+      successMessage.value = ''
+    }, 3000)
   } catch (caughtError: unknown) {
     const detail = patientDetailErrorMessage(caughtError, 'Unbekannter Fehler')
     const missing = isAxiosError<PatientDetailErrorPayload | undefined>(caughtError)
@@ -856,18 +882,18 @@ const regeneratePseudonym = async (): Promise<void> => {
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .patient-header-info {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .detail-actions {
     justify-content: center;
     flex-wrap: wrap;
   }
-  
+
   .modal-dialog {
     margin: 0.5rem;
   }

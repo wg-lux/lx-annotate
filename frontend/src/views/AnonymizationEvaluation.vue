@@ -40,7 +40,8 @@
         <span
           v-if="loading"
           class="text-muted small"
-        >Loading...</span>
+          >Loading...</span
+        >
       </div>
 
       <div
@@ -85,7 +86,9 @@
               <td
                 colspan="12"
                 class="text-center text-muted py-4 sensitive-meta-table__cell"
-              >No SensitiveMeta rows found.</td>
+              >
+                No SensitiveMeta rows found.
+              </td>
             </tr>
             <template v-else>
               <tr
@@ -103,12 +106,20 @@
                 <td class="sensitive-meta-table__cell">
                   <code>{{ meta.id }}</code>
                 </td>
-                <td class="sensitive-meta-table__cell">{{ displayValue(meta.patientFirstName) }}</td>
+                <td class="sensitive-meta-table__cell">
+                  {{ displayValue(meta.patientFirstName) }}
+                </td>
                 <td class="sensitive-meta-table__cell">{{ displayValue(meta.patientLastName) }}</td>
-                <td class="sensitive-meta-table__cell">{{ formatDate(meta.patientDobDisplay || meta.patientDob) }}</td>
+                <td class="sensitive-meta-table__cell">
+                  {{ formatDate(meta.patientDobDisplay || meta.patientDob) }}
+                </td>
                 <td class="sensitive-meta-table__cell">{{ displayValue(meta.casenumber) }}</td>
-                <td class="sensitive-meta-table__cell">{{ formatDate(meta.examinationDateDisplay || meta.examinationDate) }}</td>
-                <td class="sensitive-meta-table__cell">{{ displayValue(meta.patientGenderName) }}</td>
+                <td class="sensitive-meta-table__cell">
+                  {{ formatDate(meta.examinationDateDisplay || meta.examinationDate) }}
+                </td>
+                <td class="sensitive-meta-table__cell">
+                  {{ displayValue(meta.patientGenderName) }}
+                </td>
                 <td class="sensitive-meta-table__cell">{{ displayValue(meta.centerName) }}</td>
                 <td class="sensitive-meta-table__cell">
                   <span
@@ -123,26 +134,32 @@
                     v-if="meta.text"
                     class="text-preview"
                   >
-                    <summary class="text-preview__disclosure">{{ truncateText(meta.text) }}</summary>
+                    <summary class="text-preview__disclosure">
+                      {{ truncateText(meta.text) }}
+                    </summary>
                     <pre class="text-preview__content">{{ meta.text }}</pre>
                   </details>
                   <span
                     v-else
                     class="text-muted"
-                  >Not available</span>
+                    >Not available</span
+                  >
                 </td>
                 <td class="text-preview-cell sensitive-meta-table__cell">
                   <details
                     v-if="meta.anonymizedText"
                     class="text-preview"
                   >
-                    <summary class="text-preview__disclosure">{{ truncateText(meta.anonymizedText) }}</summary>
+                    <summary class="text-preview__disclosure">
+                      {{ truncateText(meta.anonymizedText) }}
+                    </summary>
                     <pre class="text-preview__content">{{ meta.anonymizedText }}</pre>
                   </details>
                   <span
                     v-else
                     class="text-muted"
-                  >Not available</span>
+                    >Not available</span
+                  >
                 </td>
               </tr>
             </template>

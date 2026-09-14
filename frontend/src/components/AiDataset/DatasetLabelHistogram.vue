@@ -7,7 +7,9 @@
       <h2
         id="histogram-heading"
         class="h5"
-      >Label-Präsenz im Datensatz</h2>
+      >
+        Label-Präsenz im Datensatz
+      </h2>
       <p class="text-muted small">
         Eindeutige Frames mit positivem Label aus Annotationen und Segmentbereichen für die
         aktuellen Anzeigefilter. Ein Frame kann mehrere Labels tragen; Balken sind nicht additiv.
@@ -15,7 +17,9 @@
       <p
         v-if="rows.length === 0"
         class="text-muted"
-      >Keine Label-Frames vorhanden.</p>
+      >
+        Keine Label-Frames vorhanden.
+      </p>
       <div
         v-else
         class="histogram"

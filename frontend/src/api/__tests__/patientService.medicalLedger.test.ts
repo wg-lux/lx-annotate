@@ -58,10 +58,9 @@ describe('patientService medical ledger writes', () => {
       '/endoreg-api/patients/7/medications/',
       createPayload
     )
-    expect(hoisted.axios.patch).toHaveBeenCalledWith(
-      '/endoreg-api/patients/7/medications/21/',
-      { active: false }
-    )
+    expect(hoisted.axios.patch).toHaveBeenCalledWith('/endoreg-api/patients/7/medications/21/', {
+      active: false
+    })
   })
 
   it('creates and patches schedule membership through patient-scoped routes', async () => {
@@ -131,9 +130,7 @@ describe('patientService medical ledger writes', () => {
       })
 
     expect(
-      isMedicalLedgerContractUnavailable(
-        error({ code: 'medical-ledger-contract-unavailable' })
-      )
+      isMedicalLedgerContractUnavailable(error({ code: 'medical-ledger-contract-unavailable' }))
     ).toBe(true)
     expect(isMedicalLedgerContractUnavailable(error(null))).toBe(false)
     expect(isMedicalLedgerContractUnavailable(error('medical-ledger-contract-unavailable'))).toBe(

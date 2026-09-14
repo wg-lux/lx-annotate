@@ -7,7 +7,9 @@
       <h5
         id="study-cohort-export-title"
         class="mb-0"
-      >Vorbereitete Studienkohorte</h5>
+      >
+        Vorbereitete Studienkohorte
+      </h5>
       <p class="text-muted mb-0">
         Exportiert genau die zuletzt auf der Studienseite geprüften Untersuchungsfälle.
       </p>
@@ -22,7 +24,8 @@
       <router-link
         class="btn btn-primary mb-0"
         to="/studies"
-      >Studie vorbereiten</router-link>
+        >Studie vorbereiten</router-link
+      >
     </div>
 
     <div
@@ -35,12 +38,16 @@
         <dd
           class="col-sm-9"
           data-test="cohort-study-name"
-        >{{ definition.studyName }}</dd>
+        >
+          {{ definition.studyName }}
+        </dd>
         <dt class="col-sm-3">Hypothese</dt>
         <dd
           class="col-sm-9"
           data-test="cohort-hypothesis"
-        >{{ definition.hypothesis }}</dd>
+        >
+          {{ definition.hypothesis }}
+        </dd>
         <dt class="col-sm-3">Patienten</dt>
         <dd class="col-sm-9">{{ definition.summary.patientCount }}</dd>
         <dt class="col-sm-3">Untersuchungen</dt>
@@ -92,9 +99,8 @@ import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { fetchStudyCohortExportWorkbook } from '@/api/studyExportApi'
 import { useStudyCohortExportStore } from '@/stores/studyCohortExportStore'
+import type { ExportMessage } from '@/types/exportMessage'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
-
-type ExportMessage = { type: 'success' | 'error'; text: string }
 
 const log = createRuntimeLogger('study-cohort-excel-export')
 const cohortExportStore = useStudyCohortExportStore()
@@ -115,14 +121,8 @@ const activeFilters = computed(() => {
     ['Dokumenttyp', filters.documentType],
     ['Befund', filters.finding],
     ['Annotationslabel', filters.annotationLabel],
-    [
-      'Bericht vorhanden',
-      typeof filters.hasReport === 'boolean' ? String(filters.hasReport) : ''
-    ],
-    [
-      'Video vorhanden',
-      typeof filters.hasVideo === 'boolean' ? String(filters.hasVideo) : ''
-    ],
+    ['Bericht vorhanden', typeof filters.hasReport === 'boolean' ? String(filters.hasReport) : ''],
+    ['Video vorhanden', typeof filters.hasVideo === 'boolean' ? String(filters.hasVideo) : ''],
     ['Maximale Fälle', typeof filters.limit === 'number' ? String(filters.limit) : '']
   ]
   return values

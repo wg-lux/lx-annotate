@@ -123,10 +123,7 @@ export async function createTerminologyBundleArchives(files: File[]): Promise<Fi
   if (!files.length) {
     throw new Error('Die ausgewählten Verzeichnisse enthalten keine Dateien.')
   }
-  if (
-    files.length > 1 &&
-    files.some((file) => !directoryRelativePath(file).trim())
-  ) {
+  if (files.length > 1 && files.some((file) => !directoryRelativePath(file).trim())) {
     throw new Error(
       'Die Ordnerstruktur ist für diese Auswahl nicht verfügbar. Bitte die Paketverzeichnisse als ZIP-Dateien exportieren und über „ZIPs lokal/Cloud importieren“ wählen.'
     )

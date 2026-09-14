@@ -55,11 +55,13 @@ describe('reportingResolutionGraph AAA structural coverage', () => {
   it('freezes graph structure while passing the exact context to every wave', async () => {
     // Arrange
     const context = Object.freeze({ patientExaminationId: 314 })
-    const childRun = vi.fn((received: typeof context, inputs: { has: (id: string) => boolean }) => ({
-      received,
-      hasDetail: inputs.has('detail'),
-      hasUnknown: inputs.has('unknown')
-    }))
+    const childRun = vi.fn(
+      (received: typeof context, inputs: { has: (id: string) => boolean }) => ({
+        received,
+        hasDetail: inputs.has('detail'),
+        hasUnknown: inputs.has('unknown')
+      })
+    )
     const graph = createImmutableReportingDag([
       { id: 'detail', dependencies: [], run: () => 'ready' },
       { id: 'child', dependencies: ['detail'], run: childRun }

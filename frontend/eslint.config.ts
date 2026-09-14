@@ -38,7 +38,7 @@ export default defineConfigWithVueTs(
       }
     },
     rules: {
-      complexity: ['warn', 25],
+      complexity: ['warn', 10],
       'vue/multi-word-component-names': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-explicit-any': 'error',

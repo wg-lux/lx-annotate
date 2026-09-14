@@ -83,19 +83,25 @@ function sanitizeContext(context: SafeLogContext | undefined): SafeLogContext | 
   return safeEntries.length > 0 ? Object.fromEntries(safeEntries) : undefined
 }
 
+function unknownErrorType(error: unknown): string | undefined {
+  return typeof error === 'undefined' ? undefined : 'UnknownError'
+}
+
+function validHttpStatus(value: unknown): number | undefined {
+  const valid =
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 100 && value <= 599
+  return valid ? value : undefined
+}
+
 function classifyError(error: unknown): Pick<RuntimeLogRecord, 'errorType' | 'httpStatus'> {
   if (!isRecord(error)) {
-    return { errorType: typeof error === 'undefined' ? undefined : 'UnknownError' }
+    return { errorType: unknownErrorType(error) }
   }
 
   const rawName = typeof error.name === 'string' ? error.name : ''
   const errorType = SAFE_ERROR_TYPES.has(rawName) ? rawName : 'UnknownError'
   const response = isRecord(error.response) ? error.response : undefined
-  const status = response?.status
-  const httpStatus =
-    typeof status === 'number' && Number.isSafeInteger(status) && status >= 100 && status <= 599
-      ? status
-      : undefined
+  const httpStatus = validHttpStatus(response?.status)
 
   return {
     errorType,

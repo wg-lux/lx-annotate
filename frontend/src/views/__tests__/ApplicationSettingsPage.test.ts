@@ -321,9 +321,7 @@ describe('ApplicationSettingsPage', () => {
     expect(wrapper.get('[data-test="summary-processor"]').text()).toContain('Processor Two')
     expect(wrapper.get('[data-test="summary-annotator"]').text()).toContain('annotator_b')
     expect(wrapper.get('[data-test="summary-report-template"]').text()).toContain('Template B')
-    expect(wrapper.get('[data-test="summary-ai-dataset"]').text()).toContain(
-      'dataset_labels_beta'
-    )
+    expect(wrapper.get('[data-test="summary-ai-dataset"]').text()).toContain('dataset_labels_beta')
     expect(wrapper.get('[data-test="summary-ai-dataset-type"]').text()).toContain('Image')
   })
 

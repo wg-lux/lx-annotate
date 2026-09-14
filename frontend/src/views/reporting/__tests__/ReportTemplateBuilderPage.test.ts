@@ -59,7 +59,6 @@ const draftTemplate = {
   reportSections: [],
   validators: { findingsValidators: [], examinationValidators: [] },
   conceptCoverage: null,
-  conceptCoverageState: 'missing' as const
 }
 
 function deferred<T>() {
@@ -343,7 +342,7 @@ describe('ReportTemplateBuilderPage publication integration', () => {
 
   it('discards a delayed template list after the terminology version changes', async () => {
     const activeModuleVersion = ref('1.0.0')
-    const delayedVersionOne = deferred<typeof draftTemplate[]>()
+    const delayedVersionOne = deferred<(typeof draftTemplate)[]>()
     const versionTwoTemplate = {
       ...draftTemplate,
       name: 'custom_colonoscopy_v2',

@@ -428,7 +428,6 @@ describe('reportTemplatesApi', () => {
     })
 
     expect(payload?.conceptCoverage).toBeNull()
-    expect(payload?.conceptCoverageState).toBe('invalid')
   })
 
   it('normalizes runtime validation responses', async () => {

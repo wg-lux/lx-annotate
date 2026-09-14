@@ -1,13 +1,11 @@
 import type { MediaScope } from '@/stores/mediaTypeStore'
 import type { VideoAnonymizationModel } from '@/types/anonymizationPipeline'
+import type { PatientExaminationOption } from '@/types/patientExamination'
+
+export type { PatientExaminationOption } from '@/types/patientExamination'
 
 export interface DocumentTypeOption {
   value: string
-  label: string
-}
-
-export interface PatientExaminationOption {
-  id: number
   label: string
 }
 
@@ -23,6 +21,19 @@ const toPositiveInteger = (value: unknown): number | null => {
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
+
+const firstTrimmedString = (...values: unknown[]): string | null => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+const patientExaminationLabel = (
+  examinationId: number,
+  examinationName: string,
+  dateStart: string
+): string => [`#${String(examinationId)}`, examinationName, dateStart].filter(Boolean).join(' · ')
 
 export const normalizeDocumentTypeOptions = (raw: unknown): DocumentTypeOption[] => {
   if (!Array.isArray(raw)) {
@@ -57,18 +68,12 @@ export const normalizePatientExaminationOption = (
   }
 
   const examinationName =
-    (typeof examinationRecord.examination_name === 'string' &&
-      examinationRecord.examination_name.trim()) ||
-    (typeof examinationRecord.examination === 'string' && examinationRecord.examination.trim()) ||
+    firstTrimmedString(examinationRecord.examination_name, examinationRecord.examination) ||
     'Untersuchung'
-  const dateStartRaw =
-    typeof examinationRecord.date_start === 'string' ? examinationRecord.date_start : ''
-  const dateStart = dateStartRaw ? dateStartRaw.split('T')[0] : ''
+  const dateStart = firstTrimmedString(examinationRecord.date_start)?.split('T')[0] || ''
   return {
     id: examinationId,
-    label: dateStart
-      ? `#${String(examinationId)} · ${examinationName} · ${dateStart}`
-      : `#${String(examinationId)} · ${examinationName}`
+    label: patientExaminationLabel(examinationId, examinationName, dateStart)
   }
 }
 
@@ -117,6 +122,20 @@ export const caseLinkageStatusBadgeClass = (status: CaseLinkageStatus): string =
     deferred: 'bg-info text-dark'
   })[status]
 
+const suggestedMatchDescription = (context: {
+  matchStatus?: unknown
+  suggestedMatchCount?: number | null
+}): string | null => {
+  if (context.matchStatus !== 'suggested') return null
+  if ((context.suggestedMatchCount ?? 0) > 1) {
+    return 'Mehrere passende PatientExaminations wurden gefunden. Eine explizite Auswahl ist spaeter erforderlich.'
+  }
+  if ((context.suggestedMatchCount ?? 0) === 1) {
+    return 'Eine passende PatientExamination wurde vorgeschlagen, ist aber noch nicht final bestaetigt.'
+  }
+  return null
+}
+
 export const caseLinkageStatusDescription = (
   status: CaseLinkageStatus,
   context: {
@@ -133,12 +152,8 @@ export const caseLinkageStatusDescription = (
   if (status === 'deferred') {
     return 'Die Fallzuordnung wurde bewusst vertagt und kann spaeter abgeschlossen werden.'
   }
-  if (context.matchStatus === 'suggested' && (context.suggestedMatchCount ?? 0) > 1) {
-    return 'Mehrere passende PatientExaminations wurden gefunden. Eine explizite Auswahl ist spaeter erforderlich.'
-  }
-  if (context.matchStatus === 'suggested' && (context.suggestedMatchCount ?? 0) === 1) {
-    return 'Eine passende PatientExamination wurde vorgeschlagen, ist aber noch nicht final bestaetigt.'
-  }
+  const matchDescription = suggestedMatchDescription(context)
+  if (matchDescription) return matchDescription
   if (status === 'suggested') {
     return 'Hash- oder Pseudo-Patient-Hinweise sind vorhanden, die Zuordnung ist aber noch nicht final.'
   }

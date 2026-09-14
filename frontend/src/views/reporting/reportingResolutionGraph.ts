@@ -36,14 +36,10 @@ function freezeNode<Context>(node: ReportingDagNode<Context>): ReportingDagNode<
   })
 }
 
-function planWaves<Context>(
-  nodes: readonly ReportingDagNode<Context>[]
-): readonly (readonly string[])[] {
-  const nodeById = new Map(nodes.map((node) => [node.id, node]))
-  if (nodeById.size !== nodes.length) {
-    throw new ReportingDagStructureError('Reporting DAG node IDs must be unique.')
-  }
-
+function dependencyIndexes<Context>(
+  nodes: readonly ReportingDagNode<Context>[],
+  nodeById: ReadonlyMap<string, ReportingDagNode<Context>>
+): { inDegree: Map<string, number>; outgoing: Map<string, string[]> } {
   const inDegree = new Map<string, number>()
   const outgoing = new Map<string, string[]>()
   for (const node of nodes) {
@@ -58,6 +54,35 @@ function planWaves<Context>(
       outgoing.get(dependency)?.push(node.id)
     }
   }
+  return { inDegree, outgoing }
+}
+
+function nextWave<Context>(params: {
+  wave: readonly string[]
+  nodes: readonly ReportingDagNode<Context>[]
+  inDegree: Map<string, number>
+  outgoing: ReadonlyMap<string, readonly string[]>
+}): string[] {
+  const ready = new Set<string>()
+  for (const nodeId of params.wave) {
+    for (const dependentId of params.outgoing.get(nodeId) || []) {
+      const nextInDegree = (params.inDegree.get(dependentId) || 0) - 1
+      params.inDegree.set(dependentId, nextInDegree)
+      if (nextInDegree === 0) ready.add(dependentId)
+    }
+  }
+  return params.nodes.filter((node) => ready.has(node.id)).map((node) => node.id)
+}
+
+function planWaves<Context>(
+  nodes: readonly ReportingDagNode<Context>[]
+): readonly (readonly string[])[] {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]))
+  if (nodeById.size !== nodes.length) {
+    throw new ReportingDagStructureError('Reporting DAG node IDs must be unique.')
+  }
+
+  const { inDegree, outgoing } = dependencyIndexes(nodes, nodeById)
 
   let ready = nodes.filter((node) => inDegree.get(node.id) === 0).map((node) => node.id)
   const waves: string[][] = []
@@ -66,17 +91,7 @@ function planWaves<Context>(
     const wave = ready
     waves.push(Object.freeze([...wave]) as string[])
     visited += wave.length
-    const nextReady = new Set<string>()
-    for (const nodeId of wave) {
-      for (const dependentId of outgoing.get(nodeId) || []) {
-        const nextInDegree = (inDegree.get(dependentId) || 0) - 1
-        inDegree.set(dependentId, nextInDegree)
-        if (nextInDegree === 0) {
-          nextReady.add(dependentId)
-        }
-      }
-    }
-    ready = nodes.filter((node) => nextReady.has(node.id)).map((node) => node.id)
+    ready = nextWave({ wave, nodes, inDegree, outgoing })
   }
 
   if (visited !== nodes.length) {

@@ -21,9 +21,7 @@ vi.mock('@/api/axiosInstance', () => ({
   silentRequestConfig: () => ({ suppressErrorToast: true })
 }))
 
-function buildUploadJob(
-  overrides: Partial<ApiUploadJobOverview> = {}
-): ApiUploadJobOverview {
+function buildUploadJob(overrides: Partial<ApiUploadJobOverview> = {}): ApiUploadJobOverview {
   return {
     id: 'upload-job',
     status: 'pending',
@@ -79,7 +77,9 @@ describe('anonymizationStore video reimport', () => {
     const store = useAnonymizationStore()
     store.overview = [buildVideoFile()]
     expect(await store.dismissUploadJob('db0a99ff-0129-4c13-b5c9-f584bf21d1b2')).toBe(true)
-    expect(hoisted.post).toHaveBeenCalledWith('api/anonymization/upload-jobs/db0a99ff-0129-4c13-b5c9-f584bf21d1b2/dismiss/')
+    expect(hoisted.post).toHaveBeenCalledWith(
+      'api/anonymization/upload-jobs/db0a99ff-0129-4c13-b5c9-f584bf21d1b2/dismiss/'
+    )
     expect(store.overview).toEqual([])
   })
 

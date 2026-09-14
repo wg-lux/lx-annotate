@@ -4,7 +4,9 @@
     <p
       v-if="description"
       class="text-muted small"
-    >{{ description }}</p>
+    >
+      {{ description }}
+    </p>
     <div
       v-if="optionsError"
       class="alert alert-warning py-2 d-flex justify-content-between align-items-center"
@@ -21,7 +23,9 @@
     <div
       v-else-if="optionsLoading"
       class="small text-muted mb-2"
-    >Lade Indikationsoptionen...</div>
+    >
+      Lade Indikationsoptionen...
+    </div>
     <div
       v-else-if="!hasBaseIndicationOptions"
       class="alert alert-info py-2 d-flex justify-content-between align-items-center"

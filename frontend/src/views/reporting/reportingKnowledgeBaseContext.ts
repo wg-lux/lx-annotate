@@ -63,6 +63,31 @@ export function readReportingKnowledgeBaseIdentity(
   return { moduleName, moduleVersion }
 }
 
+function knowledgeBaseIdentitiesMismatch(
+  pinnedIdentity: ReportingKnowledgeBaseIdentity | null,
+  activeBundle: ReportingActiveBundle | null
+): boolean {
+  if (!pinnedIdentity || !activeBundle) return false
+  return (
+    pinnedIdentity.moduleName !== activeBundle.moduleName ||
+    pinnedIdentity.moduleVersion !== activeBundle.version
+  )
+}
+
+function assertCompatibleKnowledgeBases(
+  patientExaminationId: number,
+  pinnedIdentity: ReportingKnowledgeBaseIdentity | null,
+  activeBundle: ReportingActiveBundle | null
+): void {
+  if (!pinnedIdentity || !activeBundle) return
+  if (!knowledgeBaseIdentitiesMismatch(pinnedIdentity, activeBundle)) return
+  throw new ReportingKnowledgeBaseMismatchError({
+    patientExaminationId,
+    pinnedIdentity,
+    activeBundle
+  })
+}
+
 export function resolveReportingKnowledgeBaseContext(params: {
   patientExaminationId: number
   pinnedIdentity: ReportingKnowledgeBaseIdentity | null
@@ -70,14 +95,7 @@ export function resolveReportingKnowledgeBaseContext(params: {
 }): FindingsCatalogContext {
   const { patientExaminationId, pinnedIdentity, activeBundle } = params
 
-  if (
-    pinnedIdentity &&
-    activeBundle &&
-    (pinnedIdentity.moduleName !== activeBundle.moduleName ||
-      pinnedIdentity.moduleVersion !== activeBundle.version)
-  ) {
-    throw new ReportingKnowledgeBaseMismatchError({ patientExaminationId, pinnedIdentity, activeBundle })
-  }
+  assertCompatibleKnowledgeBases(patientExaminationId, pinnedIdentity, activeBundle)
 
   return {
     moduleName: activeBundle?.moduleName || pinnedIdentity?.moduleName || '',

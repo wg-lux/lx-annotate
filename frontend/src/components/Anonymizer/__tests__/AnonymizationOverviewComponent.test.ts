@@ -77,21 +77,21 @@ vi.mock('@/api/mediaManagement', () => ({
   })
 }))
 
+function defaultUploadErrorCode(status: string): string {
+  return ['error', 'lost', 'quarantined'].includes(status) ? 'processing_failed' : ''
+}
+
+function defaultUploadActions(status: string, errorCode: string): string[] {
+  if (status === 'anonymized') return ['delete']
+  const canReimport = ['error', 'lost'].includes(status) && errorCode !== 'duplicate_content'
+  return canReimport ? ['safe_reimport', 'delete'] : []
+}
+
 function buildUploadJob(overrides: Record<string, unknown> = {}) {
   const status = typeof overrides.status === 'string' ? overrides.status : 'pending'
   const errorCode =
-    typeof overrides.errorCode === 'string'
-      ? overrides.errorCode
-      : status === 'error' || status === 'lost' || status === 'quarantined'
-        ? 'processing_failed'
-        : ''
-  const allowedActions =
-    overrides.allowedActions ??
-    (status === 'anonymized'
-      ? ['delete']
-      : (status === 'error' || status === 'lost') && errorCode !== 'duplicate_content'
-        ? ['safe_reimport', 'delete']
-        : [])
+    typeof overrides.errorCode === 'string' ? overrides.errorCode : defaultUploadErrorCode(status)
+  const allowedActions = overrides.allowedActions ?? defaultUploadActions(status, errorCode)
 
   return {
     id: 'upload-job',

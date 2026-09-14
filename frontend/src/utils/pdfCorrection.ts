@@ -18,6 +18,60 @@ export interface PdfCorrectionArtifact {
   }
 }
 
+type PdfCorrectionPage = PdfCorrectionArtifact['manifest']['pages'][number]
+
+function isValidCorrectionBox(box: PdfCorrectionBox): boolean {
+  const finite = [box.x, box.y, box.width, box.height].every(Number.isFinite)
+  const withinBounds = [box.x >= 0, box.y >= 0, box.width > 0, box.height > 0]
+  const endsWithinPage = [box.x + box.width <= 1, box.y + box.height <= 1]
+  return finite && [...withinBounds, ...endsWithinPage].every(Boolean)
+}
+
+function validateCorrectionManifest(pages: PdfCorrectionPage[], pageCount: number): void {
+  for (const entry of pages) {
+    if (!Number.isInteger(entry.page) || entry.page < 1 || entry.page > pageCount) {
+      throw new Error('Ungültige PDF-Seite.')
+    }
+    if (!entry.boxes.every(isValidCorrectionBox)) {
+      throw new Error('Ungültiger Schwärzungsbereich.')
+    }
+  }
+}
+
+async function renderCorrectedPage(params: {
+  source: PDFDocumentProxy
+  output: PDFDocument
+  pageNumber: number
+  boxes: PdfCorrectionBox[]
+}): Promise<void> {
+  const page = await params.source.getPage(params.pageNumber)
+  const viewport = page.getViewport({ scale: 2 })
+  const canvas = window.document.createElement('canvas')
+  canvas.width = Math.ceil(viewport.width)
+  canvas.height = Math.ceil(viewport.height)
+  const context = canvas.getContext('2d')
+  if (!context) {
+    throw new Error('PDF-Zeichenfläche ist nicht verfügbar.')
+  }
+  await page.render({ canvasContext: context, viewport }).promise
+  context.fillStyle = '#000000'
+  for (const box of params.boxes) {
+    const left = Math.floor(box.x * canvas.width)
+    const topEdge = Math.floor(box.y * canvas.height)
+    context.fillRect(
+      left,
+      topEdge,
+      Math.ceil((box.x + box.width) * canvas.width) - left,
+      Math.ceil((box.y + box.height) * canvas.height) - topEdge
+    )
+  }
+  const image = await params.output.embedPng(canvas.toDataURL('image/png'))
+  const target = params.output.addPage([viewport.width / 2, viewport.height / 2])
+  target.drawImage(image, { x: 0, y: 0, width: target.getWidth(), height: target.getHeight() })
+  canvas.width = 0
+  canvas.height = 0
+}
+
 // Rebuild from rendered pixels: copying source pages would retain hidden text,
 // images, annotations, attachments and document metadata beneath black boxes.
 export async function build_pdf_correction(
@@ -33,55 +87,16 @@ export async function build_pdf_correction(
       boxes: (entries ?? []).map((box) => ({ ...box }))
     }))
   }
-  for (const entry of manifest.pages) {
-    if (!Number.isInteger(entry.page) || entry.page < 1 || entry.page > document.numPages) {
-      throw new Error('Ungültige PDF-Seite.')
-    }
-    for (const redactionBox of entry.boxes) {
-      if (
-        ![redactionBox.x, redactionBox.y, redactionBox.width, redactionBox.height].every(
-          Number.isFinite
-        ) ||
-        redactionBox.x < 0 ||
-        redactionBox.y < 0 ||
-        redactionBox.width <= 0 ||
-        redactionBox.height <= 0 ||
-        redactionBox.x + redactionBox.width > 1 ||
-        redactionBox.y + redactionBox.height > 1
-      ) {
-        throw new Error('Ungültiger Schwärzungsbereich.')
-      }
-    }
-  }
+  validateCorrectionManifest(manifest.pages, document.numPages)
   const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(source).buffer)
   const output = await PDFDocument.create()
   for (let index = 1; index <= document.numPages; index += 1) {
-    const page = await document.getPage(index)
-    const viewport = page.getViewport({ scale: 2 })
-    const canvas = window.document.createElement('canvas')
-    canvas.width = Math.ceil(viewport.width)
-    canvas.height = Math.ceil(viewport.height)
-    const context = canvas.getContext('2d')
-    if (!context) {
-      throw new Error('PDF-Zeichenfläche ist nicht verfügbar.')
-    }
-    await page.render({ canvasContext: context, viewport }).promise
-    context.fillStyle = '#000000'
-    for (const redactionBox of manifest.pages.find((entry) => entry.page === index)?.boxes ?? []) {
-      const left = Math.floor(redactionBox.x * canvas.width)
-      const topEdge = Math.floor(redactionBox.y * canvas.height)
-      context.fillRect(
-        left,
-        topEdge,
-        Math.ceil((redactionBox.x + redactionBox.width) * canvas.width) - left,
-        Math.ceil((redactionBox.y + redactionBox.height) * canvas.height) - topEdge
-      )
-    }
-    const image = await output.embedPng(canvas.toDataURL('image/png'))
-    const target = output.addPage([viewport.width / 2, viewport.height / 2])
-    target.drawImage(image, { x: 0, y: 0, width: target.getWidth(), height: target.getHeight() })
-    canvas.width = 0
-    canvas.height = 0
+    await renderCorrectedPage({
+      source: document,
+      output,
+      pageNumber: index,
+      boxes: manifest.pages.find((entry) => entry.page === index)?.boxes ?? []
+    })
   }
   return {
     bytes: new Uint8Array(await output.save()),

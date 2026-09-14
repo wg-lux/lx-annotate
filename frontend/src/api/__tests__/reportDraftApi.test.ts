@@ -123,7 +123,10 @@ describe('reportDraftApi', () => {
     })
 
     await expect(fetchPatientExaminationDraft(314)).resolves.toMatchObject({
-      patientExaminationId: 314, revision: 0, draft: {}, updatedAt: null
+      patientExaminationId: 314,
+      revision: 0,
+      draft: {},
+      updatedAt: null
     })
   })
 
@@ -135,21 +138,26 @@ describe('reportDraftApi', () => {
   ])('rejects an unbound or incorrect save acknowledgement: %j', async (response) => {
     hoisted.axios.put.mockResolvedValue({ data: { ...response, draft: {} } })
 
-    await expect(savePatientExaminationDraft({
-      patientExaminationId: 314,
-      expectedRevision: 4,
-      moduleName: 'report_template_examples',
-      templateName: 'star_upper_gi_main',
-      indications: [],
-      templateSectionDrafts: {},
-      selectedReportLanguage: 'de',
-      activeReportId: null,
-      reportTextMode: 'generated',
-      renderedText: '',
-      payload: {
-        patient: 'patient_42', examiners: [], examination: 'colonoscopy', patientFindings: []
-      }
-    })).rejects.toThrow(/Report draft response/)
+    await expect(
+      savePatientExaminationDraft({
+        patientExaminationId: 314,
+        expectedRevision: 4,
+        moduleName: 'report_template_examples',
+        templateName: 'star_upper_gi_main',
+        indications: [],
+        templateSectionDrafts: {},
+        selectedReportLanguage: 'de',
+        activeReportId: null,
+        reportTextMode: 'generated',
+        renderedText: '',
+        payload: {
+          patient: 'patient_42',
+          examiners: [],
+          examination: 'colonoscopy',
+          patientFindings: []
+        }
+      })
+    ).rejects.toThrow(/Report draft response/)
   })
 
   it('persists unvalidated runtime draft state without reshaping the payload', async () => {

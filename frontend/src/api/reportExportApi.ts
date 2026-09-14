@@ -96,6 +96,29 @@ function requireExportArtifacts(value: unknown) {
   }
 }
 
+function requireIncludedFrameText(frame: Record<string, unknown>) {
+  for (const field of ['labelName', 'findingName', 'caption']) {
+    const text = frame[field]
+    if (text !== undefined && text !== null && typeof text !== 'string') {
+      throw new TypeError('Invalid included report frame text')
+    }
+  }
+}
+
+function requireIncludedFrame(frame: unknown) {
+  if (
+    !isRecord(frame) ||
+    (frame.segmentId !== null && !isInteger(frame.segmentId)) ||
+    !isInteger(frame.videoId) ||
+    !isInteger(frame.frameId) ||
+    !isInteger(frame.frameNumber, 0)
+  ) {
+    throw new TypeError('Invalid included report frame')
+  }
+  requireIncludedFrameText(frame)
+  requireReportArtifactUrl(frame.streamUrl)
+}
+
 function requireIncludedFrames(value: unknown, count: number) {
   if (value === undefined) {
     return
@@ -103,34 +126,12 @@ function requireIncludedFrames(value: unknown, count: number) {
   if (!Array.isArray(value) || value.length !== count) {
     throw new TypeError('Invalid report frame count')
   }
-  for (const frame of value as unknown[]) {
-    if (
-      !isRecord(frame) ||
-      (frame.segmentId !== null && !isInteger(frame.segmentId)) ||
-      !isInteger(frame.videoId) ||
-      !isInteger(frame.frameId) ||
-      !isInteger(frame.frameNumber, 0)
-    ) {
-      throw new TypeError('Invalid included report frame')
-    }
-    for (const field of ['labelName', 'findingName', 'caption']) {
-      const text = frame[field]
-      if (text !== undefined && text !== null && typeof text !== 'string') {
-        throw new TypeError('Invalid included report frame text')
-      }
-    }
-    requireReportArtifactUrl(frame.streamUrl)
+  for (const frame of value) {
+    requireIncludedFrame(frame)
   }
 }
 
-function assertMakeReportResponse(
-  value: unknown,
-  request: MakeReportRequest
-): asserts value is MakeReportResponse {
-  if (!isRecord(value) || !isRecord(value.report)) {
-    throw new TypeError('Invalid report export response')
-  }
-  const report = value.report
+function requireReportIdentity(report: Record<string, unknown>, request: MakeReportRequest) {
   if (
     !isInteger(report.id) ||
     !isInteger(report.version) ||
@@ -142,43 +143,70 @@ function assertMakeReportResponse(
   ) {
     throw new TypeError('Report export response does not match the requested report')
   }
-  if (!isInteger(value.includedFrameCount, 0)) {
-    throw new TypeError('Invalid report frame count')
-  }
+}
+
+function requireReportWarnings(value: unknown) {
   if (
-    value.warnings !== undefined &&
-    (!Array.isArray(value.warnings) ||
-      !value.warnings.every((warning: unknown) => typeof warning === 'string'))
+    value !== undefined &&
+    (!Array.isArray(value) || !value.every((warning: unknown) => typeof warning === 'string'))
   ) {
     throw new TypeError('Invalid report export warnings')
   }
+}
+
+function requirePersistedArtifactIds(value: Record<string, unknown>) {
   for (const field of ['persistedReportArtifactId', 'persistedPdfArtifactId']) {
     const artifactId = value[field]
     if (artifactId !== undefined && artifactId !== null && !isInteger(artifactId)) {
       throw new TypeError('Invalid report artifact ID')
     }
   }
-  requireIncludedFrames(value.includedFrames, value.includedFrameCount)
-  const selected =
-    request.selectedFrames ?? (request.preferredFrame ? [request.preferredFrame] : null)
-  if (selected !== null) {
-    const included = value.includedFrames
-    if (
-      !Array.isArray(included) ||
-      value.includedFrameCount !== selected.length ||
-      selected.some((expected, index) => {
-        const frame: unknown = included[index]
-        return (
-          !isRecord(frame) ||
-          frame.videoId !== expected.videoId ||
-          frame.frameNumber !== expected.frameNumber ||
-          frame.timestamp !== expected.timestamp
-        )
-      })
-    ) {
-      throw new TypeError('Report export did not use the selected frames and timestamps')
-    }
+}
+
+function selectedRequestFrames(request: MakeReportRequest): ReportFrameSelection[] | null {
+  return request.selectedFrames ?? (request.preferredFrame ? [request.preferredFrame] : null)
+}
+
+function matchesSelectedFrame(frame: unknown, expected: ReportFrameSelection): boolean {
+  return (
+    isRecord(frame) &&
+    frame.videoId === expected.videoId &&
+    frame.frameNumber === expected.frameNumber &&
+    frame.timestamp === expected.timestamp
+  )
+}
+
+function requireSelectedFrames(value: Record<string, unknown>, request: MakeReportRequest) {
+  const selected = selectedRequestFrames(request)
+  if (selected === null) {
+    return
   }
+  const included = value.includedFrames
+  if (
+    !Array.isArray(included) ||
+    value.includedFrameCount !== selected.length ||
+    selected.some((expected, index) => !matchesSelectedFrame(included[index], expected))
+  ) {
+    throw new TypeError('Report export did not use the selected frames and timestamps')
+  }
+}
+
+function assertMakeReportResponse(
+  value: unknown,
+  request: MakeReportRequest
+): asserts value is MakeReportResponse {
+  if (!isRecord(value) || !isRecord(value.report)) {
+    throw new TypeError('Invalid report export response')
+  }
+  const report = value.report
+  requireReportIdentity(report, request)
+  if (!isInteger(value.includedFrameCount, 0)) {
+    throw new TypeError('Invalid report frame count')
+  }
+  requireReportWarnings(value.warnings)
+  requirePersistedArtifactIds(value)
+  requireIncludedFrames(value.includedFrames, value.includedFrameCount)
+  requireSelectedFrames(value, request)
   requireExportArtifacts(value.persistedArtifacts)
 }
 

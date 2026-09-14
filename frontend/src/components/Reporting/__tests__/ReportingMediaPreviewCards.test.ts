@@ -3,11 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ReportingMediaPreviewCards from '../ReportingMediaPreviewCards.vue'
 
-const {
-  flowStore,
-  buildPdfStreamUrl,
-  buildVideoStreamUrl,
-} = vi.hoisted(() => ({
+const { flowStore, buildPdfStreamUrl, buildVideoStreamUrl } = vi.hoisted(() => ({
   flowStore: {
     mediaPreloadStatus: 'ready',
     mediaPreloadError: null as string | null,
@@ -20,30 +16,30 @@ const {
         streamOptions: [
           { type: 'raw', url: '/backend/report/raw' },
           { type: 'processed', url: '/backend/report/processed' },
-          { type: 'audit', url: '/backend/report/audit' },
-        ],
+          { type: 'audit', url: '/backend/report/audit' }
+        ]
       },
       latestVideo: {
         id: 34,
         streamOptions: [
           { type: 'raw', url: '/backend/video/raw' },
           { type: 'processed', url: '/backend/video/processed' },
-          { type: 'poster', url: '/backend/video/poster' },
-        ],
-      },
-    },
+          { type: 'poster', url: '/backend/video/poster' }
+        ]
+      }
+    }
   },
   buildPdfStreamUrl: vi.fn(),
-  buildVideoStreamUrl: vi.fn(),
+  buildVideoStreamUrl: vi.fn()
 }))
 
 vi.mock('@/stores/reportingFlowStore', () => ({
-  useReportingFlowStore: () => flowStore,
+  useReportingFlowStore: () => flowStore
 }))
 
 vi.mock('@/utils/mediaUrls', () => ({
   buildPdfStreamUrl,
-  buildVideoStreamUrl,
+  buildVideoStreamUrl
 }))
 
 describe('ReportingMediaPreviewCards', () => {
@@ -60,26 +56,24 @@ describe('ReportingMediaPreviewCards', () => {
         streamOptions: [
           { type: 'raw', url: '/backend/report/raw' },
           { type: 'processed', url: '/backend/report/processed' },
-          { type: 'audit', url: '/backend/report/audit' },
-        ],
+          { type: 'audit', url: '/backend/report/audit' }
+        ]
       },
       latestVideo: {
         id: 34,
         streamOptions: [
           { type: 'raw', url: '/backend/video/raw' },
           { type: 'processed', url: '/backend/video/processed' },
-          { type: 'poster', url: '/backend/video/poster' },
-        ],
-      },
+          { type: 'poster', url: '/backend/video/poster' }
+        ]
+      }
     }
 
     buildPdfStreamUrl.mockImplementation(
-      (fileId: number, type: 'raw' | 'processed') =>
-        `/rebuilt/pdfs/${String(fileId)}/${type}`
+      (fileId: number, type: 'raw' | 'processed') => `/rebuilt/pdfs/${String(fileId)}/${type}`
     )
     buildVideoStreamUrl.mockImplementation(
-      (fileId: number, type: 'raw' | 'processed') =>
-        `/rebuilt/videos/${String(fileId)}/${type}`
+      (fileId: number, type: 'raw' | 'processed') => `/rebuilt/videos/${String(fileId)}/${type}`
     )
   })
 
@@ -100,21 +94,13 @@ describe('ReportingMediaPreviewCards', () => {
     expect(buildVideoStreamUrl).toHaveBeenCalledWith(34, 'raw')
     expect(buildVideoStreamUrl).toHaveBeenCalledWith(34, 'processed')
 
-    expect(openSpy).toHaveBeenCalledWith(
-      '/rebuilt/pdfs/12/raw',
-      '_blank',
-      'noopener,noreferrer'
-    )
+    expect(openSpy).toHaveBeenCalledWith('/rebuilt/pdfs/12/raw', '_blank', 'noopener,noreferrer')
     expect(openSpy).toHaveBeenCalledWith(
       '/rebuilt/pdfs/12/processed',
       '_blank',
       'noopener,noreferrer'
     )
-    expect(openSpy).toHaveBeenCalledWith(
-      '/rebuilt/videos/34/raw',
-      '_blank',
-      'noopener,noreferrer'
-    )
+    expect(openSpy).toHaveBeenCalledWith('/rebuilt/videos/34/raw', '_blank', 'noopener,noreferrer')
     expect(openSpy).toHaveBeenCalledWith(
       '/rebuilt/videos/34/processed',
       '_blank',
@@ -139,15 +125,7 @@ describe('ReportingMediaPreviewCards', () => {
 
     expect(buildPdfStreamUrl).not.toHaveBeenCalledWith(12, 'audit')
     expect(buildVideoStreamUrl).not.toHaveBeenCalledWith(34, 'poster')
-    expect(openSpy).toHaveBeenCalledWith(
-      '/backend/report/audit',
-      '_blank',
-      'noopener,noreferrer'
-    )
-    expect(openSpy).toHaveBeenCalledWith(
-      '/backend/video/poster',
-      '_blank',
-      'noopener,noreferrer'
-    )
+    expect(openSpy).toHaveBeenCalledWith('/backend/report/audit', '_blank', 'noopener,noreferrer')
+    expect(openSpy).toHaveBeenCalledWith('/backend/video/poster', '_blank', 'noopener,noreferrer')
   })
 })

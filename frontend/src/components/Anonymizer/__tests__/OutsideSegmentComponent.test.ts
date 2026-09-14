@@ -50,12 +50,22 @@ vi.mock('@/composables/useAuthenticatedVideoStream', () => ({
   useAuthenticatedVideoStream: hoisted.useAuthenticatedVideoStream
 }))
 
+const segmentFixture = {
+  firstOutsideId: 11,
+  secondOutsideId: 12,
+  polypId: 99,
+  startTime: 1.5,
+  endTime: 4.5,
+  videoDuration: 12,
+  outsideCount: 2
+} as const
+
 function buildSegment(id: number, label = 'outside') {
   return {
     id,
     label,
-    startTime: 1.5,
-    endTime: 4.5,
+    startTime: segmentFixture.startTime,
+    endTime: segmentFixture.endTime,
     avgConfidence: 1,
     labelID: null
   }
@@ -72,14 +82,18 @@ describe('OutsideSegmentComponent', () => {
     })
 
     hoisted.videoStoreRef.current = reactive({
-      allSegments: [buildSegment(11), buildSegment(12), buildSegment(99, 'polyp')],
+      allSegments: [
+        buildSegment(segmentFixture.firstOutsideId),
+        buildSegment(segmentFixture.secondOutsideId),
+        buildSegment(segmentFixture.polypId, 'polyp')
+      ],
       fetchAllSegments: vi.fn().mockResolvedValue(undefined)
     })
 
     hoisted.axiosGet.mockResolvedValue({
       data: {
         video_url: '/api/media/videos/7/stream/',
-        duration: 12
+        duration: segmentFixture.videoDuration
       }
     })
   })
@@ -107,21 +121,18 @@ describe('OutsideSegmentComponent', () => {
     await flushPromises()
 
     const buttons = wrapper.findAll('button.btn.btn-sm.btn-outline-success')
-    expect(buttons).toHaveLength(2)
+    expect(buttons).toHaveLength(segmentFixture.outsideCount)
 
     await buttons[0].trigger('click')
     await flushPromises()
 
-    expect(hoisted.axiosPost).toHaveBeenCalledWith(
-      'media/videos/7/segments/11/validate/',
-      {
-        isValidated: true,
-        informationSourceName: 'manual_annotation',
-        startTime: 1.5,
-        endTime: 4.5
-      }
-    )
-    expect(wrapper.emitted('segment-validated')).toEqual([[11]])
+    expect(hoisted.axiosPost).toHaveBeenCalledWith('media/videos/7/segments/11/validate/', {
+      isValidated: true,
+      informationSourceName: 'manual_annotation',
+      startTime: segmentFixture.startTime,
+      endTime: segmentFixture.endTime
+    })
+    expect(wrapper.emitted('segment-validated')).toEqual([[segmentFixture.firstOutsideId]])
     expect(wrapper.text()).toContain('1 / 2 validiert')
   })
 
@@ -155,7 +166,7 @@ describe('OutsideSegmentComponent', () => {
     await flushPromises()
     await nextTick()
 
-    expect(hoisted.axiosPost).toHaveBeenCalledTimes(2)
+    expect(hoisted.axiosPost).toHaveBeenCalledTimes(segmentFixture.outsideCount)
     expect(wrapper.emitted('validation-complete')).toEqual([[]])
     expect(wrapper.text()).toContain('2 / 2 validiert')
   })

@@ -887,22 +887,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function fieldErrorMessage(error: unknown, fallback: string): string {
-  if (!isRecord(error)) {
-    return fallback
-  }
-  const response = error.response
-  if (!isRecord(response)) {
-    return fallback
-  }
-  const data = response.data
-  if (!isRecord(data)) {
-    return fallback
-  }
-  const errors = data.errors
-  if (!isRecord(errors)) {
-    return fallback
-  }
+  const errors = fieldErrors(error)
+  if (!errors) return fallback
+  const messages = collectFieldErrorMessages(errors)
+  return messages.length ? messages.join(' ') : fallback
+}
 
+function fieldErrors(error: unknown): Record<string, unknown> | null {
+  if (!isRecord(error)) return null
+  if (!isRecord(error.response)) return null
+  if (!isRecord(error.response.data)) return null
+  return isRecord(error.response.data.errors) ? error.response.data.errors : null
+}
+
+function collectFieldErrorMessages(errors: Record<string, unknown>): string[] {
   const messages: string[] = []
   for (const value of Object.values(errors)) {
     const entries: unknown[] = Array.isArray(value) ? Array.from<unknown>(value) : [value]
@@ -912,8 +910,7 @@ function fieldErrorMessage(error: unknown, fallback: string): string {
       }
     }
   }
-
-  return messages.length ? messages.join(' ') : fallback
+  return messages
 }
 
 function artifactLabel(key: string): string {
@@ -1024,31 +1021,8 @@ async function loadPage(): Promise<void> {
       fetchModelTrainingOptions(),
       fetchModelTrainingRuns()
     ])
-    trainingTargetOptions.value = options.trainingTargets
-    datasetOptions.value = options.aiDatasets
-    backboneOptions.value = options.backbones
-    featureModeOptions.value = options.featureModes
-    phiBaseModelOptions.value = options.phiRegionDetector.baseModels
-    imageDefaults.value = options.defaults
-    phiDefaults.value = options.phiRegionDetector.defaults
-    recentRuns.value = runs
-    applyImageTrainingDefaults(options.defaults)
-    applyDefaults()
-    if (form.trainingTarget === 'image_multilabel') {
-      void loadDatasetSummary(form.datasetId)
-    }
-    applyPhiDefaults(options.phiRegionDetector.defaults)
-    const activeRun = runs.find(isRunActive) ?? runs.at(0) ?? null
-    const shouldPoll = activeRun !== null && isRunActive(activeRun)
-    currentRun.value = activeRun
-    runErrorMessage.value =
-      activeRun !== null && (activeRun.status === 'failed' || activeRun.status === 'lost')
-        ? activeRun.error || 'Training fehlgeschlagen.'
-        : ''
-    runPolling.value = shouldPoll
-    if (shouldPoll) {
-      startPolling(activeRun.runId)
-    }
+    applyLoadedOptions(options)
+    applyLoadedRuns(runs)
   } catch (error) {
     logger.error('page-load-failed', error)
     errorMessage.value =
@@ -1056,6 +1030,41 @@ async function loadPage(): Promise<void> {
   } finally {
     loading.value = false
   }
+}
+
+function applyLoadedOptions(options: ModelTrainingOptionsResponse): void {
+  trainingTargetOptions.value = options.trainingTargets
+  datasetOptions.value = options.aiDatasets
+  backboneOptions.value = options.backbones
+  featureModeOptions.value = options.featureModes
+  phiBaseModelOptions.value = options.phiRegionDetector.baseModels
+  imageDefaults.value = options.defaults
+  phiDefaults.value = options.phiRegionDetector.defaults
+  applyImageTrainingDefaults(options.defaults)
+  applyDefaults()
+  if (form.trainingTarget === 'image_multilabel') {
+    void loadDatasetSummary(form.datasetId)
+  }
+  applyPhiDefaults(options.phiRegionDetector.defaults)
+}
+
+function loadedRunError(run: ModelTrainingRunRecord | null): string {
+  if (!run) return ''
+  if (run.status !== 'failed' && run.status !== 'lost') return ''
+  return run.error || 'Training fehlgeschlagen.'
+}
+
+function applyLoadedRuns(runs: ModelTrainingRunRecord[]): void {
+  recentRuns.value = runs
+  const activeRun = runs.find(isRunActive) ?? runs.at(0) ?? null
+  currentRun.value = activeRun
+  runErrorMessage.value = loadedRunError(activeRun)
+  if (!activeRun || !isRunActive(activeRun)) {
+    runPolling.value = false
+    return
+  }
+  runPolling.value = true
+  startPolling(activeRun.runId)
 }
 
 async function refreshRun(runId: string): Promise<void> {

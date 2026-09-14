@@ -51,7 +51,9 @@ function mockStatsResponses(overrides: Partial<StatsResponseFixtures> = {}): voi
     if (fixtures.rejectPath && url.includes(fixtures.rejectPath)) {
       return Promise.reject(new Error('Statistics service unavailable'))
     }
-    if (url.includes('segments/stats')) return Promise.resolve({ data: fixtures.segment })
+    if (url.includes('segments/stats')) {
+      return Promise.resolve({ data: fixtures.segment })
+    }
     if (url.includes('patient-examinations/list')) {
       return Promise.resolve({ data: fixtures.examinations })
     }
@@ -62,10 +64,16 @@ function mockStatsResponses(overrides: Partial<StatsResponseFixtures> = {}): voi
   })
 }
 
+const publishedSnapshot = {
+  segmentPending: 9,
+  examinationCompleted: 2,
+  sensitiveMetaPending: 1
+} as const
+
 function seedPublishedSnapshot(store: ReturnType<typeof useAnnotationStatsStore>): void {
-  store.stats.segmentPending = 9
-  store.stats.examinationCompleted = 2
-  store.stats.sensitiveMetaPending = 1
+  store.stats.segmentPending = publishedSnapshot.segmentPending
+  store.stats.examinationCompleted = publishedSnapshot.examinationCompleted
+  store.stats.sensitiveMetaPending = publishedSnapshot.sensitiveMetaPending
   store.calculateTotals()
   store.lastUpdated = new Date('2026-08-01T10:00:00Z')
 }
@@ -114,9 +122,10 @@ describe('annotationStatsStore', () => {
       totalCompleted: 2,
       totalAnnotations: 11
     })
-    expect(store.pendingPercentage).toBe(73)
-    expect(store.inProgressPercentage).toBe(9)
-    expect(store.completionPercentage).toBe(18)
+    const expectedPercentages = { pending: 73, inProgress: 9, completed: 18 }
+    expect(store.pendingPercentage).toBe(expectedPercentages.pending)
+    expect(store.inProgressPercentage).toBe(expectedPercentages.inProgress)
+    expect(store.completionPercentage).toBe(expectedPercentages.completed)
     expect(store.loading).toBe(false)
     expect(store.lastUpdated).toBeInstanceOf(Date)
     expect(hoisted.axiosGet).toHaveBeenCalledTimes(3)

@@ -18,16 +18,22 @@
         <div
           v-if="errorMessage"
           class="alert alert-danger py-2"
-        >{{ errorMessage }}</div>
+        >
+          {{ errorMessage }}
+        </div>
         <div
           v-if="successMessage"
           class="alert alert-success py-2"
-        >{{ successMessage }}</div>
+        >
+          {{ successMessage }}
+        </div>
 
         <div
           v-if="loading"
           class="text-muted"
-        >Lade Abschlussdaten …</div>
+        >
+          Lade Abschlussdaten …
+        </div>
         <div
           v-else-if="!latestReport"
           class="alert alert-info mb-0"
@@ -42,9 +48,8 @@
                 <span
                   class="badge"
                   :class="statusClass"
-                >{{
-                  reportStatusLabel(latestReport.status)
-                }}</span>
+                  >{{ reportStatusLabel(latestReport.status) }}</span
+                >
               </div>
             </div>
             <div class="col-md-3">
@@ -53,7 +58,9 @@
             </div>
             <div class="col-md-3">
               <div class="small text-muted">Aktualisiert</div>
-              <div>{{ formatGermanReportTimestamp(latestReport.updatedAt || latestReport.createdAt) }}</div>
+              <div>
+                {{ formatGermanReportTimestamp(latestReport.updatedAt || latestReport.createdAt) }}
+              </div>
             </div>
           </div>
 
@@ -165,23 +172,22 @@ const statusClass = computed(() => reportStatusBadgeClass(latestReport.value?.st
 
 const persistedArtifacts = computed(() => latestReportDetail.value?.persistedArtifacts || null)
 
-const reportDocumentType = computed<string | null>(() => {
-  const fromArtifacts =
-    (
-      persistedArtifacts.value
-    )?.documentType ||
-    (
-      persistedArtifacts.value
-    )?.document_type
-  if (typeof fromArtifacts === 'string' && fromArtifacts.trim().length > 0) {
-    return fromArtifacts
-  }
-  const fromDetail =
-    latestReportDetail.value?.documentType || latestReportDetail.value?.document_type
-  if (typeof fromDetail === 'string' && fromDetail.trim().length > 0) {
-    return fromDetail
+function firstNonBlankString(values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value
+    }
   }
   return null
+}
+
+const reportDocumentType = computed<string | null>(() => {
+  return firstNonBlankString([
+    persistedArtifacts.value?.documentType,
+    persistedArtifacts.value?.document_type,
+    latestReportDetail.value?.documentType,
+    latestReportDetail.value?.document_type
+  ])
 })
 
 const fallbackPdfId = computed<number | null>(() => {

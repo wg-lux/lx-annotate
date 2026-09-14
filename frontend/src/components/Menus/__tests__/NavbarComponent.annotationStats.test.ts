@@ -94,9 +94,10 @@ describe('NavbarComponent annotation statistics status', () => {
     const store = useAnnotationStatsStore()
     let finishFetch: (() => void) | undefined
     vi.spyOn(store, 'fetchAnnotationStats').mockImplementation(
-      () => new Promise<void>((resolve) => {
-        finishFetch = resolve
-      })
+      () =>
+        new Promise<void>((resolve) => {
+          finishFetch = resolve
+        })
     )
 
     const wrapper = mountNavbar()

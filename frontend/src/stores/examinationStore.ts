@@ -40,6 +40,61 @@ type ClassifPayload = {
   morphologyClassifications: MorphologyClassification[]
 }
 
+function optionalString(record: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string') return value
+  }
+  return undefined
+}
+
+function normalizeExamination(entry: unknown): Examination | null {
+  if (!entry || typeof entry !== 'object') return null
+  const record = entry as Record<string, unknown>
+  const fallbackName = optionalString(record, 'name', 'name_de') ?? ''
+  const name = optionalString(record, 'name', 'nameDe') ?? fallbackName
+  const nameDe = optionalString(record, 'nameDe', 'name_de')
+  const nameEn = optionalString(record, 'nameEn', 'name_en')
+  const displayName = optionalString(record, 'displayName', 'display_name')
+  const id = Number(record.id)
+  if (!Number.isFinite(id)) return null
+  return {
+    id,
+    name,
+    nameDe,
+    nameEn,
+    name_de: nameDe,
+    name_en: nameEn,
+    displayName: getCoreConceptDisplayName({ name, nameDe, nameEn, displayName }, name)
+  }
+}
+
+function requireDropdownRows(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value
+  if (value && typeof value === 'object' && 'results' in value && Array.isArray(value.results)) {
+    return value.results
+  }
+  throw new TypeError('Examination dropdown response does not match the expected contract')
+}
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+}
+
+function stringProperty(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key]
+  return typeof value === 'string' ? value : null
+}
+
+function examinationRequestError(error: unknown): string {
+  const candidate = objectRecord(error)
+  const response = objectRecord(candidate.response)
+  const data = objectRecord(response.data)
+  return (
+    stringProperty(data, 'detail') ?? stringProperty(candidate, 'message') ?? 'Unbekannter Fehler'
+  )
+}
+
 export const useExaminationStore = defineStore('examination', {
   state: () => ({
     loading: false,
@@ -87,98 +142,15 @@ export const useExaminationStore = defineStore('examination', {
       this.loading = true
       this.error = null
       try {
-        const normalizeRows = (rows: unknown[]): void => {
-          this.exams = rows
-            .map((entry) => {
-              if (!entry || typeof entry !== 'object') return null
-              const examinationRecord = entry as Record<string, unknown>
-              const fallbackName =
-                typeof examinationRecord.name === 'string'
-                  ? examinationRecord.name
-                  : typeof examinationRecord.name_de === 'string'
-                    ? examinationRecord.name_de
-                    : ''
-              const name =
-                typeof examinationRecord.name === 'string'
-                  ? examinationRecord.name
-                  : typeof examinationRecord.nameDe === 'string'
-                    ? examinationRecord.nameDe
-                    : fallbackName
-              const nameDe =
-                typeof examinationRecord.nameDe === 'string'
-                  ? examinationRecord.nameDe
-                  : typeof examinationRecord.name_de === 'string'
-                    ? examinationRecord.name_de
-                    : undefined
-              const nameEn =
-                typeof examinationRecord.nameEn === 'string'
-                  ? examinationRecord.nameEn
-                  : typeof examinationRecord.name_en === 'string'
-                    ? examinationRecord.name_en
-                    : undefined
-              const displayNameSource =
-                typeof examinationRecord.displayName === 'string'
-                  ? examinationRecord.displayName
-                  : typeof examinationRecord.display_name === 'string'
-                    ? examinationRecord.display_name
-                    : undefined
-
-              return {
-                id: Number(examinationRecord.id),
-                name,
-                nameDe,
-                nameEn,
-                name_de: nameDe,
-                name_en: nameEn,
-                displayName: getCoreConceptDisplayName(
-                  {
-                    name,
-                    nameDe,
-                    nameEn,
-                    displayName: displayNameSource
-                  },
-                  name
-                )
-              }
-            })
-            .filter((entry) => entry && Number.isFinite(entry.id)) as Examination[]
-        }
-
         const dropdownPayload = await axiosInstance.get<unknown>(
           r(endpoints.examination.examinationsDropdown)
         )
-        const dropdownData = dropdownPayload.data
-        const dropdownRows: unknown[] = Array.isArray(dropdownData)
-          ? dropdownData
-          : dropdownData &&
-              typeof dropdownData === 'object' &&
-              'results' in dropdownData &&
-              Array.isArray(dropdownData.results)
-            ? dropdownData.results
-            : (() => {
-                throw new TypeError(
-                  'Examination dropdown response does not match the expected contract'
-                )
-              })()
-
-        normalizeRows(dropdownRows)
+        this.exams = requireDropdownRows(dropdownPayload.data)
+          .map(normalizeExamination)
+          .filter((entry): entry is Examination => entry !== null)
       } catch (e: unknown) {
         this.exams = []
-        const candidate = e !== null && typeof e === 'object' ? e : {}
-        const response =
-          'response' in candidate &&
-          candidate.response !== null &&
-          typeof candidate.response === 'object'
-            ? candidate.response
-            : {}
-        const data =
-          'data' in response && response.data !== null && typeof response.data === 'object'
-            ? response.data
-            : {}
-        const detail = 'detail' in data && typeof data.detail === 'string' ? data.detail : null
-        const message =
-          'message' in candidate && typeof candidate.message === 'string' ? candidate.message : null
-        this.error = detail ?? message ?? 'Unbekannter Fehler'
+        this.error = examinationRequestError(e)
       } finally {
         this.loading = false
       }

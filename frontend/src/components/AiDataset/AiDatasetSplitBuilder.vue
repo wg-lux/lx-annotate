@@ -7,7 +7,9 @@
       <h2
         id="split-heading"
         class="h5"
-      >Training, Validierung &amp; Test</h2>
+      >
+        Training, Validierung &amp; Test
+      </h2>
       <p class="text-muted">
         Patienten bleiben zusammen. Der Test-Bucket bleibt in allen Folds unverändert; jeder übrige
         Patient wird genau einmal zur Validierung verwendet.
@@ -21,7 +23,8 @@
           <label
             for="split-name"
             class="form-label"
-          >Name des Split-Plans</label>
+            >Name des Split-Plans</label
+          >
           <input
             id="split-name"
             v-model="config.name"
@@ -34,7 +37,8 @@
           <label
             for="split-k"
             class="form-label"
-          >Folds (k)</label>
+            >Folds (k)</label
+          >
           <input
             id="split-k"
             v-model.number="config.k"
@@ -50,7 +54,8 @@
           <label
             for="split-test"
             class="form-label"
-          >Test-Anteil (%)</label>
+            >Test-Anteil (%)</label
+          >
           <input
             id="split-test"
             v-model.number="config.testPercent"
@@ -66,7 +71,8 @@
           <label
             for="split-seed"
             class="form-label"
-          >Zufalls-Seed</label>
+            >Zufalls-Seed</label
+          >
           <input
             id="split-seed"
             v-model.number="config.seed"
@@ -97,7 +103,9 @@
         v-if="errorMessage"
         class="alert alert-danger"
         role="alert"
-      >{{ errorMessage }}</div>
+      >
+        {{ errorMessage }}
+      </div>
       <div
         v-if="successMessage"
         class="alert alert-success"
@@ -108,7 +116,9 @@
       <p
         v-if="loading"
         role="status"
-      >Split-Pläne werden geladen…</p>
+      >
+        Split-Pläne werden geladen…
+      </p>
       <div
         v-else-if="plans.length > 0"
         class="row g-3 mb-3"
@@ -117,7 +127,8 @@
           <label
             for="split-plan"
             class="form-label"
-          >Gespeicherter Plan</label>
+            >Gespeicherter Plan</label
+          >
           <select
             id="split-plan"
             v-model.number="selectedPlanId"
@@ -136,7 +147,8 @@
           <label
             for="split-fold"
             class="form-label"
-          >Fold anzeigen</label>
+            >Fold anzeigen</label
+          >
           <select
             id="split-fold"
             v-model.number="selectedFold"

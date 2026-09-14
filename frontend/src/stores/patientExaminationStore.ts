@@ -23,7 +23,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isPatient(value: unknown): value is Patient {
-  return isRecord(value) && typeof value.firstName === 'string' && typeof value.lastName === 'string'
+  return (
+    isRecord(value) && typeof value.firstName === 'string' && typeof value.lastName === 'string'
+  )
 }
 
 function isExamination(value: unknown): value is Examination {
@@ -34,13 +36,24 @@ function isVideo(value: unknown): value is Video {
   return isRecord(value) && typeof value.id === 'number'
 }
 
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || value === null || typeof value === 'string'
+}
+
+function isOptionalVideo(value: unknown): boolean {
+  return value === null || isVideo(value)
+}
+
 function isPatientExamination(value: unknown): value is PatientExamination {
-  return isRecord(value) && typeof value.id === 'number' && isPatient(value.patient) &&
-    isExamination(value.examination) && (value.video === null || isVideo(value.video)) &&
-    (value.knowledgeBaseModule === undefined || value.knowledgeBaseModule === null ||
-      typeof value.knowledgeBaseModule === 'string') &&
-    (value.knowledgeBaseVersion === undefined || value.knowledgeBaseVersion === null ||
-      typeof value.knowledgeBaseVersion === 'string')
+  return (
+    isRecord(value) &&
+    typeof value.id === 'number' &&
+    isPatient(value.patient) &&
+    isExamination(value.examination) &&
+    isOptionalVideo(value.video) &&
+    isOptionalString(value.knowledgeBaseModule) &&
+    isOptionalString(value.knowledgeBaseVersion)
+  )
 }
 
 function requirePatientExamination(value: unknown): PatientExamination {
@@ -105,7 +118,8 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
           r(endpoints.patient.checkPatientExaminationExists(id))
         )
         if (
-          response.status === 200 && isRecord(response.data) &&
+          response.status === 200 &&
+          isRecord(response.data) &&
           typeof response.data.exists === 'boolean'
         ) {
           return response.data.exists
@@ -115,9 +129,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
           'Patient examination existence response does not match the expected contract'
         )
       } catch (err: unknown) {
-        this.error =
-          'Fehler beim Überprüfen der Patientenuntersuchung: ' +
-          requestErrorMessage(err)
+        this.error = 'Fehler beim Überprüfen der Patientenuntersuchung: ' + requestErrorMessage(err)
         logger.error('existence-check-failed', err, {
           operation: 'check',
           outcome: 'rejected'
@@ -141,9 +153,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
         )
         this.patientExaminations = requirePatientExaminationList(response.data)
       } catch (err: unknown) {
-        this.error =
-          'Fehler beim Laden der Patientenuntersuchungen: ' +
-          requestErrorMessage(err)
+        this.error = 'Fehler beim Laden der Patientenuntersuchungen: ' + requestErrorMessage(err)
         logger.error('examination-list-load-failed', err, {
           operation: 'list',
           outcome: 'rejected'
@@ -161,16 +171,16 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
           r(endpoints.examination.patientExaminationDetail(id))
         )
         const patientExamination = requirePatientExamination(response.data)
-        const index = this.patientExaminations.findIndex((existingPe) => existingPe.id === patientExamination.id)
+        const index = this.patientExaminations.findIndex(
+          (existingPe) => existingPe.id === patientExamination.id
+        )
         if (index !== -1) {
           this.patientExaminations[index] = patientExamination
         } else {
           this.patientExaminations.push(patientExamination)
         }
       } catch (err: unknown) {
-        this.error =
-          'Fehler beim Laden der Patientenuntersuchung: ' +
-          requestErrorMessage(err)
+        this.error = 'Fehler beim Laden der Patientenuntersuchung: ' + requestErrorMessage(err)
         logger.error('examination-detail-load-failed', err, {
           operation: 'detail',
           outcome: 'rejected'
@@ -196,7 +206,9 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
       return this.selectedPatientExaminationId
     },
     getCurrentPatientExaminationExaminationId(): number | null {
-      const patientExamination = this.patientExaminations.find((pe) => pe.id === this.selectedPatientExaminationId)
+      const patientExamination = this.patientExaminations.find(
+        (pe) => pe.id === this.selectedPatientExaminationId
+      )
       return patientExamination ? patientExamination.examination.id : null
     }
   }

@@ -1,0 +1,1020 @@
+{
+  "components": {
+    "schemas": {
+      "JsonNull": {
+        "type": "null"
+      },
+      "JsonScalar": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "JsonValue": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/JsonNull"
+          },
+          {
+            "$ref": "#/components/schemas/JsonScalar"
+          },
+          {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "array"
+          },
+          {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "PatientExaminationReportSchema": {
+        "description": "Response schema for PatientExaminationReport.\n\nThis replaces the old DRF ModelSerializer and exposes the previously sourced\npatient_examination.dtypes_record fields through Ninja resolvers.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id"
+          },
+          "dtypes_record": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportJsonObject"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dtypes_record_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dtypes Record Updated At"
+          },
+          "editor_payload": {
+            "$ref": "#/components/schemas/ReportJsonObject"
+          },
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "finalized_by_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized By Id"
+          },
+          "history_context_snapshot": {
+            "$ref": "#/components/schemas/ReportJsonObject"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "knowledge_base_module": {
+            "title": "Knowledge Base Module",
+            "type": "string"
+          },
+          "knowledge_base_version": {
+            "title": "Knowledge Base Version",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "patient_context_snapshot": {
+            "$ref": "#/components/schemas/ReportJsonObject"
+          },
+          "patient_examination_id": {
+            "title": "Patient Examination Id",
+            "type": "integer"
+          },
+          "rendered_text": {
+            "title": "Rendered Text",
+            "type": "string"
+          },
+          "runtime_validation_snapshot": {
+            "$ref": "#/components/schemas/ReportJsonObject"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "template_hash": {
+            "title": "Template Hash",
+            "type": "string"
+          },
+          "template_name": {
+            "title": "Template Name",
+            "type": "string"
+          },
+          "template_version": {
+            "title": "Template Version",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By Id"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "patient_examination_id",
+          "template_name",
+          "template_version",
+          "template_hash",
+          "knowledge_base_module",
+          "knowledge_base_version",
+          "language",
+          "title",
+          "status",
+          "editor_payload",
+          "patient_context_snapshot",
+          "history_context_snapshot",
+          "runtime_validation_snapshot",
+          "rendered_text",
+          "version",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PatientExaminationReportSchema",
+        "type": "object"
+      },
+      "ReportFrameCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "frame_number": {
+            "minimum": 0,
+            "title": "Frame Number",
+            "type": "integer"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "timestamp": {
+            "minimum": 0,
+            "title": "Timestamp",
+            "type": "number"
+          },
+          "video_id": {
+            "minimum": 1,
+            "title": "Video Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "video_id",
+          "frame_number",
+          "timestamp",
+          "labels"
+        ],
+        "title": "ReportFrameCandidate",
+        "type": "object"
+      },
+      "ReportFrameCandidatesQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "limit": {
+            "default": 24,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "patient_examination_id": {
+            "minimum": 1,
+            "title": "Patient Examination Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient_examination_id"
+        ],
+        "title": "ReportFrameCandidatesQuery",
+        "type": "object"
+      },
+      "ReportFrameCandidatesResponse": {
+        "properties": {
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/ReportFrameCandidate"
+            },
+            "title": "Frames",
+            "type": "array"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          }
+        },
+        "required": [
+          "frames",
+          "labels",
+          "next_offset"
+        ],
+        "title": "ReportFrameCandidatesResponse",
+        "type": "object"
+      },
+      "ReportJsonObject": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/ReportJsonValue"
+        },
+        "type": "object"
+      },
+      "ReportJsonValue": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          {
+            "$ref": "#/components/schemas/JsonNull"
+          }
+        ]
+      },
+      "SegmentAttachedFindingSchema": {
+        "properties": {
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          },
+          "finding_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Name"
+          },
+          "patient_finding_id": {
+            "title": "Patient Finding Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient_finding_id",
+          "finding_id",
+          "finding_name"
+        ],
+        "title": "SegmentAttachedFindingSchema",
+        "type": "object"
+      },
+      "SegmentFrameControlsSchema": {
+        "properties": {
+          "random_frame_number": {
+            "title": "Random Frame Number",
+            "type": "integer"
+          },
+          "step_backward_5_frame_number": {
+            "title": "Step Backward 5 Frame Number",
+            "type": "integer"
+          },
+          "step_forward_5_frame_number": {
+            "title": "Step Forward 5 Frame Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "random_frame_number",
+          "step_backward_5_frame_number",
+          "step_forward_5_frame_number"
+        ],
+        "title": "SegmentFrameControlsSchema",
+        "type": "object"
+      },
+      "SegmentFramePreviewSchema": {
+        "properties": {
+          "file_exists": {
+            "title": "File Exists",
+            "type": "boolean"
+          },
+          "frame_id": {
+            "title": "Frame Id",
+            "type": "integer"
+          },
+          "frame_number": {
+            "title": "Frame Number",
+            "type": "integer"
+          },
+          "relative_path": {
+            "title": "Relative Path",
+            "type": "string"
+          },
+          "stream_url": {
+            "title": "Stream Url",
+            "type": "string"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          }
+        },
+        "required": [
+          "frame_id",
+          "frame_number",
+          "timestamp",
+          "relative_path",
+          "file_exists",
+          "stream_url"
+        ],
+        "title": "SegmentFramePreviewSchema",
+        "type": "object"
+      },
+      "SegmentFrameSelectorItemSchema": {
+        "properties": {
+          "attached_finding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SegmentAttachedFindingSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "controls": {
+            "$ref": "#/components/schemas/SegmentFrameControlsSchema"
+          },
+          "end_frame_number": {
+            "title": "End Frame Number",
+            "type": "integer"
+          },
+          "label_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Id"
+          },
+          "label_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Name"
+          },
+          "segment_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment Duration Seconds"
+          },
+          "segment_id": {
+            "title": "Segment Id",
+            "type": "integer"
+          },
+          "selected_frame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SegmentFramePreviewSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selected_frame_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Frame Number"
+          },
+          "selection_meta": {
+            "$ref": "#/components/schemas/SegmentSelectionMetaSchema"
+          },
+          "start_frame_number": {
+            "title": "Start Frame Number",
+            "type": "integer"
+          },
+          "video_id": {
+            "title": "Video Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "segment_id",
+          "video_id",
+          "label_id",
+          "label_name",
+          "start_frame_number",
+          "end_frame_number",
+          "segment_duration_seconds",
+          "selected_frame_number",
+          "selected_frame",
+          "controls",
+          "attached_finding",
+          "selection_meta"
+        ],
+        "title": "SegmentFrameSelectorItemSchema",
+        "type": "object"
+      },
+      "SegmentFrameSelectorResponseSchema": {
+        "properties": {
+          "auto_created_report": {
+            "title": "Auto Created Report",
+            "type": "boolean"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "patient_examination_id": {
+            "title": "Patient Examination Id",
+            "type": "integer"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "integer"
+          },
+          "report_status": {
+            "title": "Report Status",
+            "type": "string"
+          },
+          "report_template_name": {
+            "title": "Report Template Name",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentFrameSelectorItemSchema"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "storage_key": {
+            "title": "Storage Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patient_examination_id",
+          "report_id",
+          "report_status",
+          "report_template_name",
+          "auto_created_report",
+          "storage_key",
+          "count",
+          "results"
+        ],
+        "title": "SegmentFrameSelectorResponseSchema",
+        "type": "object"
+      },
+      "SegmentSelectionMetaSchema": {
+        "properties": {
+          "selection_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Source"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "updated_at",
+          "selection_source"
+        ],
+        "title": "SegmentSelectionMetaSchema",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "",
+    "title": "Endoreg DB API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/endoreg-api/patient-examination-reports/": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_list_reports",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Examination Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "template_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Template Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "is_active",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Is Active"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PatientExaminationReportSchema"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Reports",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/frame-candidates": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_get_report_frame_candidates",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Patient Examination Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportFrameCandidatesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Report Frame Candidates",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/history-context": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_history_context",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": true,
+            "schema": {
+              "title": "Patient Examination Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "History Context",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/make-report": {
+      "post": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_make_report",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Make Report",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/save-submission": {
+      "post": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_save_submission",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "summary": "Save Submission",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/segment-frame-selector": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_get_segment_frame_selector",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentFrameSelectorResponseSchema"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Segment Frame Selector",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      },
+      "patch": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_patch_segment_frame_selector",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentFrameSelectorResponseSchema"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Patch Segment Frame Selector",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/{report_id}": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_get_report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExaminationReportSchema"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Report",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    }
+  },
+  "servers": []
+}

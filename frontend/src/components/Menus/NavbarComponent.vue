@@ -7,9 +7,9 @@
   >
     <div class="container-fluid app-topbar-inner">
       <!-- Mobile sidebar toggle button -->
-      <button 
+      <button
         class="navbar-toggler app-topbar-menu"
-        type="button" 
+        type="button"
         aria-controls="sidenav-main"
         :aria-expanded="isSidebarOpen"
         :aria-label="isSidebarOpen ? 'Navigation schließen' : 'Navigation öffnen'"
@@ -21,7 +21,7 @@
           <span class="navbar-toggler-bar"></span>
         </span>
       </button>
-      
+
       <div
         id="navbar"
         class="navbar-collapse app-topbar-content"
@@ -29,9 +29,7 @@
         <div class="app-page-context">
           <nav aria-label="breadcrumb">
             <ol class="breadcrumb app-breadcrumb">
-              <li class="breadcrumb-item app-breadcrumb-eyebrow">
-                Arbeitsbereich
-              </li>
+              <li class="breadcrumb-item app-breadcrumb-eyebrow">Arbeitsbereich</li>
               <li
                 class="breadcrumb-item active app-breadcrumb-current"
                 aria-current="page"
@@ -43,15 +41,18 @@
         </div>
         <ul class="navbar-nav app-topbar-actions">
           <li class="nav-item d-flex align-items-center">
-            <router-link 
-              to="/annotationen" 
+            <router-link
+              to="/annotationen"
               class="btn btn-outline-primary btn-sm mb-0 annotation-status-button"
-              :class="{ 'btn-warning': showPendingCount, 'stats-unavailable': annotationStatsStore.hasError }"
+              :class="{
+                'btn-warning': showPendingCount,
+                'stats-unavailable': annotationStatsStore.hasError
+              }"
               :title="annotationStatsStatusTitle"
             >
               <i class="ni ni-single-copy-04 me-1"></i>
               Annotationen
-              <span 
+              <span
                 v-if="annotationStatsStore.isLoading"
                 class="spinner-border spinner-border-sm ms-1"
                 role="status"
@@ -124,13 +125,29 @@
         </ul>
       </div>
     </div>
+
+    <!-- Hidden OIDC logout form managed via Vue template ref -->
+    <form
+      ref="logoutForm"
+      action="/oidc/logout/"
+      method="post"
+      class="d-none"
+      aria-hidden="true"
+    >
+      <input
+        v-if="csrfToken"
+        type="hidden"
+        name="csrfmiddlewaretoken"
+        :value="csrfToken"
+      />
+    </form>
   </nav>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAuthKcStore } from '@/stores/auth_kc'             //  NEW store
+import { useAuthKcStore } from '@/stores/auth_kc'
 import { useAnnotationStatsStore } from '@/stores/annotationStats'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
@@ -143,18 +160,24 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
-const authStore = useAuthKcStore()                            //  use Keycloak store
+const authStore = useAuthKcStore()
 const annotationStatsStore = useAnnotationStatsStore()
+const logoutForm = ref<HTMLFormElement | null>(null)
+
 let annotationStatsRefreshTimer: ReturnType<typeof setInterval> | null = null
 let isUnmounted = false
+
+// Helper to extract Django CSRF token from cookies
+const csrfToken = computed(() => {
+  const match = document.cookie.match(/(?:^|; )csrftoken=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : ''
+})
 
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 
 const username = computed(() => {
   const u = authStore.user
-  // If you later include first_name/last_name in backend, you can prefer that:
-  // return u ? `${u.first_name} ${u.last_name}`.trim() || u.username : 'Unknown'
   return u?.username || 'Unknown'
 })
 
@@ -193,15 +216,12 @@ const handleLogin = () => {
 }
 
 const handleLogout = () => {
-  const form = document.getElementById('oidc-logout-form') as HTMLFormElement | null
-  if (form) {
-    form.submit()              //  real POST with CSRF, browser follows redirects
+  if (logoutForm.value) {
+    logoutForm.value.submit()
   } else {
-    // Fallback (should not happen if base.html is correct)
     window.location.href = '/oidc/logout/'
   }
 }
-
 
 const toggleSidebar = () => {
   emit('toggleSidebar')
@@ -216,13 +236,16 @@ onMounted(async () => {
   }
 
   // Auto-refresh every 5 minutes
-  annotationStatsRefreshTimer = setInterval(() => {
-    if (annotationStatsStore.needsRefresh) {
-      annotationStatsStore.refreshIfNeeded().catch((error: unknown) => {
-        logger.error('annotation-stats-refresh-failed', error)
-      })
-    }
-  }, 5 * 60 * 1000)
+  annotationStatsRefreshTimer = setInterval(
+    () => {
+      if (annotationStatsStore.needsRefresh) {
+        annotationStatsStore.refreshIfNeeded().catch((error: unknown) => {
+          logger.error('annotation-stats-refresh-failed', error)
+        })
+      }
+    },
+    5 * 60 * 1000
+  )
 })
 
 onUnmounted(() => {
@@ -234,10 +257,9 @@ onUnmounted(() => {
 })
 </script>
 
-
 <style scoped>
 .breadcrumb-item + .breadcrumb-item::before {
-  content: "/";
+  content: '/';
   color: #8a9a9e;
   padding-inline: 0.55rem;
 }
@@ -391,7 +413,6 @@ onUnmounted(() => {
   transform: translateY(-1px);
 }
 
-/* Mobile sidebar toggle button */
 .navbar-toggler {
   border: none;
   padding: 0.25rem 0.5rem;
@@ -427,7 +448,7 @@ onUnmounted(() => {
 }
 
 .navbar-toggler:hover .navbar-toggler-bar {
-  background-color: #596CFF;
+  background-color: #596cff;
 }
 
 @media (min-width: 1200px) {

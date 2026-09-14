@@ -37,26 +37,19 @@ export function buildDefaultAnonymizationMetricsFilters(
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+}
+
+function nonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && Boolean(value)
+}
+
 function errorToMessage(error: unknown): string {
-  const failure = error !== null && typeof error === 'object' ? error : {}
-  const response =
-    'response' in failure && failure.response !== null && typeof failure.response === 'object'
-      ? failure.response
-      : {}
-  const data =
-    'data' in response && response.data !== null && typeof response.data === 'object'
-      ? response.data
-      : {}
-  const candidates = [
-    'detail' in data ? data.detail : undefined,
-    'error' in data ? data.error : undefined,
-    'message' in failure ? failure.message : undefined
-  ]
-  return (
-    candidates.find(
-      (candidate): candidate is string => typeof candidate === 'string' && Boolean(candidate)
-    ) ?? 'Anonymisierungsmetriken konnten nicht geladen werden.'
-  )
+  const failure = asRecord(error)
+  const data = asRecord(asRecord(failure.response).data)
+  const candidates = [data.detail, data.error, failure.message]
+  return candidates.find(nonEmptyString) ?? 'Anonymisierungsmetriken konnten nicht geladen werden.'
 }
 
 export const useAnonymizationMetricsStore = defineStore('anonymizationMetrics', {

@@ -487,8 +487,12 @@ describe('ReportEditorPage draft-driven workflow', () => {
     const alert = wrapper.get('[data-testid="draft-revision-conflict"]')
     expect(alert.text()).toContain('nicht automatisch überschrieben')
     const reloadButton = wrapper.get('[data-testid="discard-conflicted-draft"]')
-    expect((wrapper.findAll('button').find((button) => button.text().includes('Final speichern'))
-      ?.element as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (
+        wrapper.findAll('button').find((button) => button.text().includes('Final speichern'))
+          ?.element as HTMLButtonElement
+      ).disabled
+    ).toBe(true)
 
     await reloadButton.trigger('click')
     expect(confirm).toHaveBeenCalledTimes(1)
@@ -627,7 +631,8 @@ describe('ReportEditorPage draft-driven workflow', () => {
 
   it('uses bilingual finding-catalog labels when core concept labels are unavailable', async () => {
     hoisted.flowRef.current.selectedReportLanguage = 'en'
-    const graphImplementation = hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.getMockImplementation()
+    const graphImplementation =
+      hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.getMockImplementation()
     if (!graphImplementation) throw new Error('Expected the graph fixture implementation.')
     hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementation(
       (...args: [string, string, string]) => {
@@ -686,15 +691,14 @@ describe('ReportEditorPage draft-driven workflow', () => {
     const wrapper = mountPage()
     await flushPromises()
 
-    expect(wrapper.text()).toContain(
-      'Esophageal polyp catalog: Size catalog: Millimetres catalog'
-    )
+    expect(wrapper.text()).toContain('Esophageal polyp catalog: Size catalog: Millimetres catalog')
     expect(wrapper.text()).not.toContain('stabile Bezeichner')
   })
 
   it('uses stable names and reports genuinely missing English catalog labels', async () => {
     hoisted.flowRef.current.selectedReportLanguage = 'en'
-    const graphImplementation = hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.getMockImplementation()
+    const graphImplementation =
+      hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.getMockImplementation()
     if (!graphImplementation) throw new Error('Expected the graph fixture implementation.')
     hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext.mockImplementation(
       (...args: [string, string, string]) => {
@@ -824,35 +828,40 @@ describe('ReportEditorPage draft-driven workflow', () => {
     { persistedArtifacts: { pdfDownloadUrl: 99 } },
     { persistedArtifacts: { pdfDownloadUrl: 'javascript:alert(1)' } },
     { persistedArtifacts: { pdfViewUrl: 'https://untrusted.example/report.pdf' } }
-  ])('preserves local draft and report identity on invalid final-save acknowledgement: %j', async (invalid) => {
-    const wrapper = mountPage()
-    await flushPromises()
-    const previousDraft = JSON.stringify(hoisted.flowRef.current.currentRuntimeDraft)
-    const previousText = hoisted.flowRef.current.renderedReportText
-    hoisted.axiosApi.post.mockResolvedValueOnce({
-      data: {
-        report: { id: 99, patientExaminationId: 42, status: 'final', version: 1 },
-        created: true,
-        warnings: [],
-        historyContext: null,
-        persistedArtifacts: null,
-        ...invalid
-      }
-    })
+  ])(
+    'preserves local draft and report identity on invalid final-save acknowledgement: %j',
+    async (invalid) => {
+      const wrapper = mountPage()
+      await flushPromises()
+      const previousDraft = JSON.stringify(hoisted.flowRef.current.currentRuntimeDraft)
+      const previousText = hoisted.flowRef.current.renderedReportText
+      hoisted.axiosApi.post.mockResolvedValueOnce({
+        data: {
+          report: { id: 99, patientExaminationId: 42, status: 'final', version: 1 },
+          created: true,
+          warnings: [],
+          historyContext: null,
+          persistedArtifacts: null,
+          ...invalid
+        }
+      })
 
-    const button = requireDefined(
-      wrapper.findAll('button').find((entry) => entry.text().includes('Final speichern')),
-      'the final-save button'
-    )
-    await button.trigger('click')
-    await flushPromises()
+      const button = requireDefined(
+        wrapper.findAll('button').find((entry) => entry.text().includes('Final speichern')),
+        'the final-save button'
+      )
+      await button.trigger('click')
+      await flushPromises()
 
-    expect(hoisted.flowRef.current.activeReportId).toBeNull()
-    expect(JSON.stringify(hoisted.flowRef.current.currentRuntimeDraft)).toBe(previousDraft)
-    expect(hoisted.flowRef.current.renderedReportText).toBe(previousText)
-    expect(wrapper.text()).toMatch(/Die Speicherbestätigung des Berichts ist ungültig\.|Untrusted report artifact URL/)
-    expect(wrapper.text()).not.toContain('Der Bericht wurde erstellt')
-  })
+      expect(hoisted.flowRef.current.activeReportId).toBeNull()
+      expect(JSON.stringify(hoisted.flowRef.current.currentRuntimeDraft)).toBe(previousDraft)
+      expect(hoisted.flowRef.current.renderedReportText).toBe(previousText)
+      expect(wrapper.text()).toMatch(
+        /Die Speicherbestätigung des Berichts ist ungültig\.|Untrusted report artifact URL/
+      )
+      expect(wrapper.text()).not.toContain('Der Bericht wurde erstellt')
+    }
+  )
 
   it('accepts a final-save acknowledgement for the current examination', async () => {
     const wrapper = mountPage()
@@ -908,7 +917,8 @@ describe('ReportEditorPage draft-driven workflow', () => {
     await flushPromises()
 
     expect(hoisted.axiosApi.post.mock.calls[1][1]).toMatchObject({
-      reportId: 88, expectedVersion: 1
+      reportId: 88,
+      expectedVersion: 1
     })
     expect(hoisted.flowRef.current.activeReportId).toBe(88)
     expect(wrapper.text()).toContain('Die Speicherbestätigung des Berichts ist ungültig.')
@@ -986,15 +996,23 @@ describe('ReportEditorPage draft-driven workflow', () => {
   })
 
   it.each([
-    { id: 88.5 }, { id: '88' }, { id: Number.MAX_SAFE_INTEGER + 1 },
-    { version: 1.5 }, { version: '1' }, { status: 'invalid' }
+    { id: 88.5 },
+    { id: '88' },
+    { id: Number.MAX_SAFE_INTEGER + 1 },
+    { version: 1.5 },
+    { version: '1' },
+    { status: 'invalid' }
   ])('rejects malformed historical report identity without activating it: %j', async (invalid) => {
     const wrapper = mountPage()
     await flushPromises()
-    hoisted.axiosApi.get.mockImplementation((url: string) => Promise.resolve({
-      data: url === 'patient-examination-reports/?patient_examination_id=42'
-        ? [{ id: 88, version: 1, status: 'draft', ...invalid }] : []
-    }))
+    hoisted.axiosApi.get.mockImplementation((url: string) =>
+      Promise.resolve({
+        data:
+          url === 'patient-examination-reports/?patient_examination_id=42'
+            ? [{ id: 88, version: 1, status: 'draft', ...invalid }]
+            : []
+      })
+    )
     const button = requireDefined(
       wrapper.findAll('button').find((entry) => entry.text().includes('Letzten Bericht laden')),
       'the report-refresh button'
@@ -1041,8 +1059,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
       'Historischer Bericht (nur lesbar)'
     )
     expect(
-      (wrapper.get('[aria-label="Historischer Berichtstext"]').element as HTMLTextAreaElement)
-        .value
+      (wrapper.get('[aria-label="Historischer Berichtstext"]').element as HTMLTextAreaElement).value
     ).toBe('Historischer Berichtstext')
     expect(
       (wrapper.get('[data-testid="report-text-editor"]').element as HTMLTextAreaElement).value
@@ -1082,9 +1099,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
 
     expect(hoisted.flowRef.current.activeReportId).toBe(88)
     expect(hoisted.flowRef.current.reportTextMode).toBe('manual')
-    expect(hoisted.flowRef.current.renderedReportText).toBe(
-      'Kompatibler historischer Berichtstext'
-    )
+    expect(hoisted.flowRef.current.renderedReportText).toBe('Kompatibler historischer Berichtstext')
     expect(wrapper.text()).toContain('Der Bericht wurde geladen (Version 2)')
   })
 
@@ -1164,8 +1179,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
     expect(wrapper.text()).toContain('Der Bericht wurde nicht aktiviert')
     expect(wrapper.text()).not.toContain('Der Bericht wurde geladen (Version 3)')
     expect(
-      (wrapper.get('[aria-label="Historischer Berichtstext"]').element as HTMLTextAreaElement)
-        .value
+      (wrapper.get('[aria-label="Historischer Berichtstext"]').element as HTMLTextAreaElement).value
     ).toBe('Text aus einer anderen Vorlagenrevision')
 
     await wrapper.get('[data-testid="close-historical-report"]').trigger('click')

@@ -31,10 +31,7 @@ function shouldSuppressErrorToast(url: string, explicitlySuppressed: boolean): b
   if (explicitlySuppressed) {
     return true
   }
-  return (
-    url.includes('/dtypes-api/') ||
-    url.startsWith('dtypes-api/')
-  )
+  return url.includes('/dtypes-api/') || url.startsWith('dtypes-api/')
 }
 
 function getResponseErrorMessage(err: AxiosError): string {
@@ -44,6 +41,30 @@ function getResponseErrorMessage(err: AxiosError): string {
   return detail || apiError || err.message || 'Unbekannter Netzwerk- oder Serverfehler'
 }
 
+function normalizeResponseError(error: unknown): AxiosError {
+  if (axios.isAxiosError(error)) {
+    return error
+  }
+  return new AxiosError(error instanceof Error ? error.message : undefined)
+}
+
+function getResponseErrorRequestContext(responseError: AxiosError): {
+  status: number | undefined
+  requestUrl: string
+  suppressErrorToast: boolean
+  isPollingRequest: boolean
+} {
+  const config = responseError.config as
+    (NonNullable<typeof responseError.config> & { suppressErrorToast?: boolean }) | undefined
+  const requestUrl = config?.url || ''
+  return {
+    status: responseError.response?.status,
+    requestUrl,
+    suppressErrorToast: shouldSuppressErrorToast(requestUrl, config?.suppressErrorToast === true),
+    isPollingRequest: requestUrl.includes('/status/') || requestUrl.includes('/polling-info/')
+  }
+}
+
 function handleResponseError(error: unknown): Promise<never> {
   // Superseded requests and component teardown are expected cancellations.
   // Preserve the rejection so callers can still apply their cancellation guards.
@@ -51,21 +72,11 @@ function handleResponseError(error: unknown): Promise<never> {
     return Promise.reject(error)
   }
 
-  const responseError: AxiosError = axios.isAxiosError(error)
-    ? error
-    : new AxiosError(error instanceof Error ? error.message : undefined)
+  const responseError = normalizeResponseError(error)
   const toast = useToastStore()
   const auth = useAuthKcStore()
-  const status = responseError.response?.status
-  const config = responseError.config as
-    | (NonNullable<typeof responseError.config> & { suppressErrorToast?: boolean })
-    | undefined
-  const requestUrl = config?.url || ''
-  const suppressErrorToast = shouldSuppressErrorToast(
-    requestUrl,
-    config?.suppressErrorToast === true
-  )
-  const isPollingRequest = requestUrl.includes('/status/') || requestUrl.includes('/polling-info/')
+  const { status, suppressErrorToast, isPollingRequest } =
+    getResponseErrorRequestContext(responseError)
 
   if (status === 401) {
     auth.login()
@@ -156,18 +167,15 @@ function localSnakecaseKeys(obj: unknown, options: { deep?: boolean } = {}): unk
     return obj
   }
 
-  return Object.keys(obj).reduce<Record<string, unknown>>(
-    (acc, key) => {
-      const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`)
-      const value = obj[key]
-      acc[newKey] =
-        options.deep && (Array.isArray(value) || isPlainObject(value))
-          ? localSnakecaseKeys(value, options)
-          : value
-      return acc
-    },
-    {}
-  )
+  return Object.keys(obj).reduce<Record<string, unknown>>((acc, key) => {
+    const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`)
+    const value = obj[key]
+    acc[newKey] =
+      options.deep && (Array.isArray(value) || isPlainObject(value))
+        ? localSnakecaseKeys(value, options)
+        : value
+    return acc
+  }, {})
 }
 
 // ─── Convert outgoing payload from camelCase → snake_case ───────────

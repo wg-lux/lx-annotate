@@ -21,7 +21,8 @@
             <label
               class="form-label"
               for="study-name"
-            >Studienname</label>
+              >Studienname</label
+            >
             <input
               id="study-name"
               v-model="studyName"
@@ -36,7 +37,8 @@
             <label
               class="form-label"
               for="study-hypothesis"
-            >Hypothese</label>
+              >Hypothese</label
+            >
             <textarea
               id="study-hypothesis"
               v-model="hypothesis"
@@ -60,7 +62,8 @@
           <span
             v-if="preview"
             class="badge bg-secondary"
-          >Schema {{ preview.schemaVersion }}</span>
+            >Schema {{ preview.schemaVersion }}</span
+          >
         </div>
         <div class="card-body">
           <div class="row g-3">
@@ -68,7 +71,8 @@
               <label
                 class="form-label"
                 for="date-from"
-              >Datum von</label>
+                >Datum von</label
+              >
               <input
                 id="date-from"
                 v-model="filters.dateFrom"
@@ -81,7 +85,8 @@
               <label
                 class="form-label"
                 for="date-to"
-              >Datum bis</label>
+                >Datum bis</label
+              >
               <input
                 id="date-to"
                 v-model="filters.dateTo"
@@ -94,7 +99,8 @@
               <label
                 class="form-label"
                 for="center-key"
-              >Zentrum</label>
+                >Zentrum</label
+              >
               <input
                 id="center-key"
                 v-model="filters.centerKey"
@@ -118,7 +124,8 @@
               <label
                 class="form-label"
                 for="examination-name"
-              >Untersuchung</label>
+                >Untersuchung</label
+              >
               <input
                 id="examination-name"
                 v-model="filters.examinationName"
@@ -140,7 +147,8 @@
               <label
                 class="form-label"
                 for="document-type"
-              >Dokumenttyp</label>
+                >Dokumenttyp</label
+              >
               <input
                 id="document-type"
                 v-model="filters.documentType"
@@ -162,7 +170,8 @@
               <label
                 class="form-label"
                 for="finding"
-              >Befund</label>
+                >Befund</label
+              >
               <input
                 id="finding"
                 v-model="filters.finding"
@@ -184,7 +193,8 @@
               <label
                 class="form-label"
                 for="annotation-label"
-              >Annotationslabel</label>
+                >Annotationslabel</label
+              >
               <input
                 id="annotation-label"
                 v-model="filters.annotationLabel"
@@ -206,7 +216,8 @@
               <label
                 class="form-label"
                 for="has-report"
-              >Bericht vorhanden</label>
+                >Bericht vorhanden</label
+              >
               <select
                 id="has-report"
                 v-model="hasReportFilter"
@@ -222,7 +233,8 @@
               <label
                 class="form-label"
                 for="has-video"
-              >Video vorhanden</label>
+                >Video vorhanden</label
+              >
               <select
                 id="has-video"
                 v-model="hasVideoFilter"
@@ -238,7 +250,8 @@
               <label
                 class="form-label"
                 for="case-limit"
-              >Maximale Fälle</label>
+                >Maximale Fälle</label
+              >
               <input
                 id="case-limit"
                 v-model.number="filters.limit"
@@ -296,7 +309,8 @@
               <strong
                 class="fs-4"
                 :data-test="`summary-${metric.key}`"
-              >{{ metric.value }}</strong>
+                >{{ metric.value }}</strong
+              >
             </div>
           </div>
         </div>
@@ -377,7 +391,9 @@
                   <div
                     v-if="!cohortCase.reports.length"
                     class="small text-muted"
-                  >Keine</div>
+                  >
+                    Keine
+                  </div>
                   <ul
                     v-else
                     class="list-unstyled small mb-0 d-grid gap-1"
@@ -410,7 +426,9 @@
                   <div
                     v-if="!cohortCase.videos.length"
                     class="small text-muted"
-                  >Keine</div>
+                  >
+                    Keine
+                  </div>
                   <ul
                     v-else
                     class="list-unstyled small mb-0 d-grid gap-1"

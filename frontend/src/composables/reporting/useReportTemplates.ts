@@ -121,61 +121,94 @@ export function useReportTemplates(params?: {
     selectedTemplateName.value = preferredTemplate?.name || null
   }
 
+  function isCurrentRequest(generation: number, requestedModule: string, version: string): boolean {
+    return (
+      generation === requestGeneration &&
+      requestedModule === moduleName.value &&
+      version === moduleVersion.value
+    )
+  }
+
+  function assertTemplateIdentity(
+    template: ReportTemplatePayload,
+    requestedModule: string,
+    version: string
+  ): void {
+    const matches =
+      template.identity.moduleName === requestedModule &&
+      template.identity.knowledgeBaseVersion === version
+    if (!matches) {
+      throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
+    }
+  }
+
+  function upsertTemplate(template: ReportTemplatePayload): void {
+    const existingIndex = templateOptions.value.findIndex((item) => item.name === template.name)
+    if (existingIndex >= 0) {
+      templateOptions.value.splice(existingIndex, 1, template)
+      return
+    }
+    templateOptions.value = [template, ...templateOptions.value]
+  }
+
+  function selectTemplateWhenRequested(
+    template: ReportTemplatePayload,
+    setAsSelected: boolean
+  ): void {
+    if (!setAsSelected) return
+    selectedTemplate.value = template
+    selectedTemplateName.value = template.name
+  }
+
+  function templateRequestContext(
+    moduleOverride?: string
+  ): { requestedModule: string; version: string } | null {
+    const requestedModule = moduleOverride || moduleName.value
+    const version = moduleVersion.value
+    return requestedModule && version ? { requestedModule, version } : null
+  }
+
+  function requireTemplate(payload: ReportTemplatePayload | null): ReportTemplatePayload {
+    if (!payload) throw new Error('Ungültiges Report-Template-Format.')
+    return payload
+  }
+
+  function handleRequestError(error: unknown, generation: number, fallback: string): void {
+    if (generation === requestGeneration) {
+      errorMessage.value = reportingApiErrorMessage(error, fallback)
+    }
+  }
+
+  function finishRequest(generation: number): void {
+    if (generation === requestGeneration) loading.value = false
+  }
+
   async function fetchTemplateByName(
     templateName: string,
     opts?: { setAsSelected?: boolean; moduleOverride?: string }
   ): Promise<ReportTemplatePayload | null> {
-    const useModule = opts?.moduleOverride || moduleName.value
-    const useVersion = moduleVersion.value
-    if (!templateName || !useModule || !useVersion) {
-      return null
-    }
+    const context = templateRequestContext(opts?.moduleOverride)
+    if (!templateName || !context) return null
     const generation = ++requestGeneration
 
     loading.value = true
     clearError()
     try {
-      const payload = await fetchTemplateByNameApi(useModule, useVersion, templateName)
-      if (
-        generation !== requestGeneration ||
-        useModule !== moduleName.value ||
-        useVersion !== moduleVersion.value
-      ) {
+      const payload = requireTemplate(
+        await fetchTemplateByNameApi(context.requestedModule, context.version, templateName)
+      )
+      if (!isCurrentRequest(generation, context.requestedModule, context.version)) {
         return null
       }
-      if (!payload) {
-        throw new Error('Ungültiges Report-Template-Format.')
-      }
-      if (
-        payload.identity.moduleName !== useModule ||
-        payload.identity.knowledgeBaseVersion !== useVersion
-      ) {
-        throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
-      }
-      const existingIndex = templateOptions.value.findIndex((item) => item.name === payload.name)
-      if (existingIndex >= 0) {
-        templateOptions.value.splice(existingIndex, 1, payload)
-      } else {
-        templateOptions.value = [payload, ...templateOptions.value]
-      }
-      if (opts?.setAsSelected ?? true) {
-        selectedTemplate.value = payload
-        selectedTemplateName.value = payload.name
-      }
+      assertTemplateIdentity(payload, context.requestedModule, context.version)
+      upsertTemplate(payload)
+      selectTemplateWhenRequested(payload, opts?.setAsSelected ?? true)
       return payload
     } catch (error: unknown) {
-      if (generation !== requestGeneration) {
-        return null
-      }
-      errorMessage.value = reportingApiErrorMessage(
-        error,
-        'Fehler beim Laden des Report-Templates.'
-      )
+      handleRequestError(error, generation, 'Fehler beim Laden des Report-Templates.')
       return null
     } finally {
-      if (generation === requestGeneration) {
-        loading.value = false
-      }
+      finishRequest(generation)
     }
   }
 
@@ -195,27 +228,13 @@ export function useReportTemplates(params?: {
     loading.value = true
     clearError()
     try {
-      const templates = await fetchTemplatesByExaminationApi(
-        useModule,
-        useVersion,
-        examinationName
-      )
-      if (
-        generation !== requestGeneration ||
-        useModule !== moduleName.value ||
-        useVersion !== moduleVersion.value
-      ) {
+      const templates = await fetchTemplatesByExaminationApi(useModule, useVersion, examinationName)
+      if (!isCurrentRequest(generation, useModule, useVersion)) {
         return []
       }
-      if (
-        templates.some(
-          (template) =>
-            template.identity.moduleName !== useModule ||
-            template.identity.knowledgeBaseVersion !== useVersion
-        )
-      ) {
-        throw new Error('Die Vorlagenantwort gehört nicht zur angeforderten Terminologieversion.')
-      }
+      templates.forEach((template) => {
+        assertTemplateIdentity(template, useModule, useVersion)
+      })
       applyTemplateOptions(templates)
 
       return templates

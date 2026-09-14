@@ -29,7 +29,7 @@ const emit = defineEmits<{
  * Local state for the player + meta
  */
 const videoEl = ref<HTMLVideoElement | null>(null)
-const duration = ref<number>(0)                   // seconds
+const duration = ref<number>(0) // seconds
 const currentTime = ref<number>(0)
 const isPlaying = ref<boolean>(false)
 
@@ -55,9 +55,7 @@ const validationError = ref<string>('')
  * Fetch backend detail for metadata, but keep stream URLs centralized in mediaUrls.ts.
  */
 async function loadVideoDetail(videoId: number) {
-  const { data } = await axiosInstance.get<unknown>(
-    `/${r(endpoints.media.videoDetail(videoId))}`
-  )
+  const { data } = await axiosInstance.get<unknown>(`/${r(endpoints.media.videoDetail(videoId))}`)
   const durationValue = isRecord(data) ? data.duration : undefined
   const parsedDuration =
     typeof durationValue === 'number' || typeof durationValue === 'string'
@@ -90,7 +88,7 @@ const outsideSegments = computed<Segment[]>(() => {
  * Get segments that still need validation
  */
 const unvalidatedSegments = computed<Segment[]>(() => {
-  return outsideSegments.value.filter(s => !validatedSegments.value.has(s.id))
+  return outsideSegments.value.filter((s) => !validatedSegments.value.has(s.id))
 })
 
 /**
@@ -112,15 +110,12 @@ async function validateSegment(segment: Segment) {
   validationError.value = ''
 
   try {
-    await axiosInstance.post(
-      r(endpoints.media.videoSegmentValidate(props.videoId, segment.id)),
-      {
-        isValidated: true,
-        informationSourceName: 'manual_annotation',
-        startTime: segment.startTime,
-        endTime: segment.endTime
-      }
-    )
+    await axiosInstance.post(r(endpoints.media.videoSegmentValidate(props.videoId, segment.id)), {
+      isValidated: true,
+      informationSourceName: 'manual_annotation',
+      startTime: segment.startTime,
+      endTime: segment.endTime
+    })
 
     validatedSegments.value.add(segment.id)
     emit('segment-validated', segment.id)
@@ -181,14 +176,22 @@ onMounted(() => {
     }
     currentTime.value = videoEl.value.currentTime
   })
-  videoEl.value.addEventListener('play', () => { isPlaying.value = true })
-  videoEl.value.addEventListener('pause', () => { isPlaying.value = false })
+  videoEl.value.addEventListener('play', () => {
+    isPlaying.value = true
+  })
+  videoEl.value.addEventListener('pause', () => {
+    isPlaying.value = false
+  })
 })
 
-watch(() => props.videoId, async (id) => {
-  resetValidation() // Reset validation when video changes
-  await Promise.all([loadVideoDetail(id), loadSegments(id)])
-}, { immediate: true })
+watch(
+  () => props.videoId,
+  async (id) => {
+    resetValidation() // Reset validation when video changes
+    await Promise.all([loadVideoDetail(id), loadSegments(id)])
+  },
+  { immediate: true }
+)
 
 /**
  * Wrapper handlers (avoid TS2322 from the child’s template listeners)
@@ -207,8 +210,7 @@ function onPlayPause() {
   }
   if (videoEl.value.paused) {
     videoEl.value.play().catch(() => {})
-  }
-  else {
+  } else {
     videoEl.value.pause()
   }
   isPlaying.value = !videoEl.value.paused
@@ -282,7 +284,7 @@ function onSegmentDelete() {}
     <video
       ref="videoEl"
       controls
-      style="width: 100%; max-height: 480px;"
+      style="width: 100%; max-height: 480px"
     />
     <div
       v-if="videoPlaybackError"

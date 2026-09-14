@@ -13,188 +13,23 @@
         <div class="small text-uppercase text-muted fw-semibold tracking-label">Reporting</div>
         <h4 class="mb-3">Bericht erstellen</h4>
         <div class="context-case-select w-100 w-xl-75">
-          <div
-            class="reporting-requirement-callout"
-            :class="{ 'is-complete': Boolean(activePatientExaminationId) }"
-            data-testid="reporting-context-requirement"
-            role="status"
-          >
-            <i
-              class="reporting-requirement-icon"
-              :class="activePatientExaminationId ? 'ni ni-check-bold' : 'ni ni-notification-70'"
-              aria-hidden="true"
-            ></i>
-            <div>
-              <strong class="reporting-requirement-title">
-                {{
-                  activePatientExaminationId
-                    ? 'Patient und Untersuchung ausgewählt'
-                    : 'Patient und Untersuchung erforderlich'
-                }}
-              </strong>
-              <small
-                v-if="!flow.caseId"
-                class="reporting-requirement-description"
-              >
-                Wählen Sie Patient und Untersuchung aus und klicken Sie anschließend auf
-                „Patientenuntersuchung anlegen“.
-              </small>
-              <small
-                v-else-if="!activePatientExaminationId"
-                class="reporting-requirement-description"
-              >
-                Der Patient ist gewählt. Wählen Sie jetzt die Untersuchung aus und legen Sie die
-                Patientenuntersuchung an.
-              </small>
-              <small
-                v-else
-                class="reporting-requirement-description"
-                >Der klinische Kontext für den Bericht ist vollständig.</small
-              >
-            </div>
-          </div>
-
-          <div
-            v-if="!activePatientExaminationId"
-            class="reporting-required-fields"
-          >
-            <div>
-              <label
-                class="form-label form-label-sm mb-1"
-                for="reporting-patient-select"
-              >
-                <span class="required-field-step">1</span>
-                Patient auswählen
-                <span
-                  class="text-danger"
-                  aria-hidden="true"
-                  >*</span
-                >
-              </label>
-              <select
-                id="reporting-patient-select"
-                class="form-select"
-                data-testid="patient-select"
-                :value="flow.selectedPatientId ?? ''"
-                :disabled="patientsLoading || patientExaminationCreationLoading"
-                aria-label="Patient für eine neue Patientenuntersuchung auswählen"
-                required
-                @change="onPatientSelection(($event.target as HTMLSelectElement).value)"
-              >
-                <option
-                  value=""
-                  disabled
-                >
-                  {{
-                    patientsLoading
-                      ? 'Patienten werden geladen...'
-                      : patients.length
-                        ? 'Bitte Patient wählen'
-                        : 'Keine Patienten verfügbar'
-                  }}
-                </option>
-                <option
-                  v-for="patient in patients"
-                  :key="patient.id"
-                  :value="patient.id"
-                >
-                  {{ patient.displayName }}
-                </option>
-              </select>
-            </div>
-            <div>
-              <label
-                class="form-label form-label-sm mb-1"
-                for="reporting-examination-type-select"
-              >
-                <span class="required-field-step">2</span>
-                Untersuchung auswählen
-                <span
-                  class="text-danger"
-                  aria-hidden="true"
-                  >*</span
-                >
-              </label>
-              <select
-                id="reporting-examination-type-select"
-                class="form-select"
-                data-testid="examination-select"
-                :value="flow.selectedExaminationId ?? ''"
-                :disabled="examinationsLoading || patientExaminationCreationLoading"
-                aria-label="Untersuchungstyp für eine neue Patientenuntersuchung auswählen"
-                required
-                @change="onExaminationSelection(($event.target as HTMLSelectElement).value)"
-              >
-                <option
-                  value=""
-                  disabled
-                >
-                  {{
-                    examinationsLoading
-                      ? 'Untersuchungen werden geladen...'
-                      : examinations.length
-                        ? 'Bitte Untersuchung wählen'
-                        : 'Keine Untersuchungen verfügbar'
-                  }}
-                </option>
-                <option
-                  v-for="examination in examinations"
-                  :key="examination.id"
-                  :value="examination.id"
-                >
-                  {{ examination.displayName }}
-                </option>
-              </select>
-            </div>
-            <div class="reporting-persistence-action">
-              <button
-                class="btn btn-primary"
-                type="button"
-                data-testid="persist-patient-examination"
-                :disabled="
-                  patientExaminationCreationLoading ||
-                  !flow.selectedPatientId ||
-                  !flow.selectedExaminationId
-                "
-                @click="createPatientExaminationContext"
-              >
-                <span
-                  v-if="patientExaminationCreationLoading"
-                  class="spinner-border spinner-border-sm me-1"
-                ></span>
-                Patientenuntersuchung anlegen
-              </button>
-              <small class="text-muted">
-                Mit „Patientenuntersuchung anlegen“ speichern Sie die Auswahl und beginnen den
-                Bericht.
-              </small>
-            </div>
-          </div>
-
-          <div
-            v-else
-            class="reporting-resolved-context"
-            data-testid="resolved-patient-examination"
-          >
-            <div>
-              <span class="reporting-resolved-label">Patient</span>
-              <strong>{{ patientHeaderLabel }}</strong>
-            </div>
-            <div>
-              <span class="reporting-resolved-label">Untersuchung</span>
-              <strong>{{ examinationTypeLabel }}</strong>
-            </div>
-            <small class="reporting-resolved-description"
-              >Persistierte Patientenuntersuchung {{ activePatientExaminationId }}</small
-            >
-            <button
-              class="btn btn-outline-secondary btn-sm"
-              type="button"
-              @click="startNewPatientExamination"
-            >
-              Neue Patientenuntersuchung
-            </button>
-          </div>
+          <ReportingContextSelection
+            :active-patient-examination-id="activePatientExaminationId"
+            :case-id="flow.caseId"
+            :selected-patient-id="flow.selectedPatientId"
+            :selected-examination-id="flow.selectedExaminationId"
+            :patients="patients"
+            :examinations="examinations"
+            :patients-loading="patientsLoading"
+            :examinations-loading="examinationsLoading"
+            :patient-examination-creation-loading="patientExaminationCreationLoading"
+            :patient-header-label="patientHeaderLabel"
+            :examination-type-label="examinationTypeLabel"
+            @select-patient="onPatientSelection"
+            @select-examination="onExaminationSelection"
+            @create="createPatientExaminationContext"
+            @restart="startNewPatientExamination"
+          />
 
           <div
             class="reporting-template-control mt-3"
@@ -746,9 +581,9 @@
             </div>
             <span
               class="context-status-pill"
-              :class="validationStatusPillClass"
+              :class="validationPresentation.pillClass"
             >
-              {{ validationStatusLabel }}
+              {{ validationPresentation.label }}
             </span>
           </div>
           <div class="card-body p-0">
@@ -1194,102 +1029,6 @@
         class="reporting-right-rail"
         aria-label="Technische Berichtsdetails"
       >
-        <div class="card shadow-sm concept-coverage-panel mb-3">
-          <div class="card-header d-flex justify-content-between align-items-start gap-2">
-            <div>
-              <h6 class="mb-0">LXDM-Konzeptabdeckung</h6>
-              <small class="text-muted">{{ conceptCoverageSubtitle }}</small>
-              <small
-                v-if="conceptCoverage.source === 'server' && conceptCoverage.identity"
-                class="d-block text-muted"
-                data-testid="concept-coverage-identity"
-              >
-                Modul {{ conceptCoverage.identity.moduleName }} v{{
-                  conceptCoverage.identity.moduleVersion
-                }}
-                · {{ conceptCoverage.identity.moduleDigest.slice(0, 12) }}… · Template
-                {{ conceptCoverage.identity.templateName }} v{{
-                  conceptCoverage.identity.templateVersion
-                }}
-                · {{ conceptCoverage.identity.templateDigest.slice(0, 12) }}…
-              </small>
-            </div>
-            <span
-              class="context-status-pill"
-              :class="conceptCoveragePresentation.pillClass"
-            >
-              {{ conceptCoveragePresentation.label }}
-            </span>
-          </div>
-          <div class="card-body">
-            <div
-              v-if="conceptCoverage.source === 'legacy_fallback'"
-              class="alert alert-warning py-2 small mb-2"
-              data-testid="concept-coverage-legacy-warning"
-            >
-              {{
-                templateReference?.conceptCoverageState === 'invalid'
-                  ? 'Der serverseitige Coverage-Vertrag ist ungültig.'
-                  : 'Keine serverseitige Coverage geliefert.'
-              }}
-              Diese technische Fallback-Auflösung ist nicht autoritativ.
-            </div>
-            <small
-              v-if="conceptCoverage.source === 'server' && conceptCoverage.provenance"
-              class="d-block text-muted mb-2"
-              data-testid="concept-coverage-provenance"
-            >
-              Serververtrag {{ templateReference?.conceptCoverage?.contractVersion }} · Resolver
-              {{ conceptCoverage.provenance.resolver }} v{{
-                conceptCoverage.provenance.resolverVersion
-              }}
-              · Evidenz {{ conceptCoverage.provenance.evidenceDigest.slice(0, 12) }}…
-            </small>
-            <div
-              v-if="conceptCoverage.items.length"
-              class="d-grid gap-2"
-            >
-              <div
-                v-for="item in conceptCoverage.items"
-                :key="item.conceptId"
-                class="small d-flex justify-content-between align-items-start gap-2"
-                :title="item.evidencePath || undefined"
-              >
-                <span>
-                  <span class="fw-semibold">{{ item.label }}</span>
-                  <span
-                    v-if="item.kind === 'classification'"
-                    class="text-muted"
-                  >
-                    · {{ item.finding }}
-                  </span>
-                  <small
-                    v-if="item.messages.length"
-                    class="d-block text-danger"
-                  >
-                    {{ item.messages.join(' ') }}
-                  </small>
-                </span>
-                <span
-                  class="text-nowrap"
-                  :class="`text-${conceptCoverageStatusTone(item.status)}`"
-                >
-                  {{ conceptCoverageStatusLabel(item.status) }}
-                </span>
-              </div>
-            </div>
-            <div
-              v-else
-              class="small text-muted"
-            >
-              Kein Berichtstemplate oder keine LXDM-Konzepte geladen.
-            </div>
-            <small class="d-block text-muted mt-3">
-              Technische Konzeptabdeckung; kein Nachweis klinischer Vollständigkeit oder
-              Leitlinienadhärenz.
-            </small>
-          </div>
-        </div>
         <div class="card shadow-sm kb-reference-panel">
           <div class="card-header">
             <div class="d-flex justify-content-between align-items-start gap-2">
@@ -1404,7 +1143,7 @@
                   >
                     <div class="d-flex justify-content-between gap-2">
                       <strong>{{ row.title }}</strong>
-                      <span>{{ row.kind }}</span>
+                      <span class="kb-advice-kind">{{ row.kind }}</span>
                     </div>
                     <small class="kb-advice-description">{{ row.detail }}</small>
                     <small
@@ -1455,6 +1194,7 @@
 </template>
 
 <script setup lang="ts">
+import ReportingContextSelection from '@/components/Reporting/ReportingContextSelection.vue'
 import { computed, onMounted, provide, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
@@ -1486,8 +1226,7 @@ import {
 import {
   getFindingCatalogLocalizedName,
   mergeFindingClassifications,
-  type Finding,
-  type FindingClassification
+  type Finding
 } from '@/api/findings.contract'
 import type {
   InterventionValidatorExecution,
@@ -1499,7 +1238,6 @@ import type {
   RuntimeValidationIssue,
   UnitValidatorExecution
 } from '@/types/reportTemplate'
-import { resolveReportConceptCoverage } from '@/utils/reportConceptCoverage'
 import { endpoints } from '@/types/api/endpoints'
 import {
   isVerifiedRuntimeDraftForBundle,
@@ -1542,10 +1280,15 @@ import {
   type FindingStatusFilter
 } from './reportingValidationPresentation'
 
+import {
+  classificationReferences,
+  groupFindingSections,
+  indexFindingInstances,
+  missingRequiredClassifications
+} from './reportingFindingReference'
+
 const logger = createRuntimeLogger('reporting-shell')
 import {
-  conceptCoverageStatusLabel,
-  conceptCoverageStatusTone,
   extractStringList,
   findingStatusIconClass,
   findingStatusLabel,
@@ -1601,21 +1344,6 @@ type FindingStatusRow = {
   iconClass: string
   messages: string[]
   templateFinding: ReportTemplateFinding | null
-}
-
-type FindingStatusSection = {
-  key: string
-  title: string
-  rows: FindingStatusRow[]
-}
-
-type KbClassificationReference = {
-  key: string
-  label: string
-  required: boolean
-  choicesLabel: string
-  inputLabel: string
-  description: string
 }
 
 type KbAdviceRow = {
@@ -1862,11 +1590,15 @@ const activeKbModule = computed(() =>
 )
 const activeKbVersion = computed(() => terminology.activeBundle?.version || '')
 
-const activeExaminationName = computed(() => {
-  const option =
+const selectedPatientExaminationOption = computed(
+  () =>
     patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
     patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
     null
+)
+
+const activeExaminationName = computed(() => {
+  const option = selectedPatientExaminationOption.value
   if (option?.examinationName && option.examinationName !== 'Untersuchung') {
     return option.examinationName
   }
@@ -2038,26 +1770,13 @@ const currentStepLabel = computed(
   () => navItems.value.find((item) => isActive(item.to))?.label || 'Arbeitsbereich'
 )
 
-const mediaPreloadLabel = computed(() => {
-  if (flow.mediaPreloadStatus === 'idle') {
-    return 'nicht geladen'
-  }
-  if (flow.mediaPreloadStatus === 'loading') {
-    return 'wird geladen'
-  }
-  if (flow.mediaPreloadStatus === 'error') {
-    return 'Fehler'
-  }
-  return 'bereit'
-})
-
-const selectedPatientExaminationOption = computed(() => {
-  return (
-    patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
-    patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
-    null
-  )
-})
+const mediaPreloadLabels = {
+  idle: 'nicht geladen',
+  loading: 'wird geladen',
+  error: 'Fehler',
+  ready: 'bereit'
+} satisfies Record<typeof flow.mediaPreloadStatus, string>
+const mediaPreloadLabel = computed(() => mediaPreloadLabels[flow.mediaPreloadStatus])
 
 const currentPayload = computed(() => flow.currentRuntimeDraft?.payload || null)
 
@@ -2072,44 +1791,72 @@ watch(
   { immediate: true }
 )
 
+function hasUsableLlmDraftContext(
+  draft: ReportingRuntimeDraft,
+  identity: ReportTemplateIdentity,
+  patientExaminationId: number
+): boolean {
+  const matchesDraft =
+    draft.verificationStatus === 'verified' &&
+    draft.patientExaminationId === patientExaminationId &&
+    draft.templateName === flow.selectedTemplateName
+  const matchesKnowledgeBase =
+    Boolean(identity.moduleName) &&
+    Boolean(identity.knowledgeBaseVersion) &&
+    identity.moduleName === activeKbModule.value &&
+    identity.knowledgeBaseVersion === activeKbVersion.value
+  return matchesDraft && matchesKnowledgeBase
+}
+
+function getLlmReportContext() {
+  const draft = flow.currentRuntimeDraft
+  const identity = flow.selectedTemplateIdentity
+  const patientExaminationId = activePatientExaminationId.value
+  const templateName = flow.selectedTemplateName
+  if (!draft || !identity || !patientExaminationId || !templateName) {
+    return null
+  }
+  const moduleName = identity.moduleName
+  const moduleVersion = identity.knowledgeBaseVersion
+  if (!moduleName || !moduleVersion) {
+    return null
+  }
+  if (!hasUsableLlmDraftContext(draft, identity, patientExaminationId)) {
+    return null
+  }
+  if (!llmGenerationIsReady(draft, identity)) {
+    return null
+  }
+  return {
+    patientExaminationId,
+    moduleName,
+    moduleVersion,
+    examinationName: draft.payload.examination,
+    templateName,
+    templateIdentity: identity,
+    language: flow.selectedReportLanguage,
+    verbosity: flow.selectedReportVerbosity,
+    documentedFindings: draft.payload.patientFindings,
+    sectionNotes: Object.entries(flow.templateSectionDrafts).flatMap(([name, section]) =>
+      section ? [{ name, note: section.note }] : []
+    ),
+    existingText: flow.renderedReportText
+  }
+}
+
+function llmGenerationIsReady(
+  draft: ReportingRuntimeDraft,
+  identity: ReportTemplateIdentity
+): boolean {
+  const templateIsPublished = identity.lifecycleStatus === 'published'
+  const hasRequiredContent = Boolean(draft.payload.examination)
+  const generationIsAvailable =
+    !templateReferenceLoading.value && flow.draftPersistenceStatus !== 'conflict'
+  return templateIsPublished && hasRequiredContent && generationIsAvailable
+}
+
 const llmReport = useLlmReportGeneration({
-  getContext: () => {
-    const draft = flow.currentRuntimeDraft
-    const identity = flow.selectedTemplateIdentity
-    if (
-      !activePatientExaminationId.value ||
-      !draft ||
-      draft.verificationStatus !== 'verified' ||
-      draft.patientExaminationId !== activePatientExaminationId.value ||
-      !identity?.moduleName ||
-      !identity.knowledgeBaseVersion ||
-      identity.moduleName !== activeKbModule.value ||
-      identity.knowledgeBaseVersion !== activeKbVersion.value ||
-      identity.lifecycleStatus !== 'published' ||
-      !flow.selectedTemplateName ||
-      draft.templateName !== flow.selectedTemplateName ||
-      !draft.payload.examination ||
-      templateReferenceLoading.value ||
-      flow.draftPersistenceStatus === 'conflict'
-    ) {
-      return null
-    }
-    return {
-      patientExaminationId: activePatientExaminationId.value,
-      moduleName: identity.moduleName,
-      moduleVersion: identity.knowledgeBaseVersion,
-      examinationName: draft.payload.examination,
-      templateName: flow.selectedTemplateName,
-      templateIdentity: identity,
-      language: flow.selectedReportLanguage,
-      verbosity: flow.selectedReportVerbosity,
-      documentedFindings: draft.payload.patientFindings,
-      sectionNotes: Object.entries(flow.templateSectionDrafts).flatMap(([name, section]) =>
-        section ? [{ name, note: section.note }] : []
-      ),
-      existingText: flow.renderedReportText
-    }
-  },
+  getContext: getLlmReportContext,
   applyText: (text, patientExaminationId) => {
     flow.setRenderedReportText(text, 'manual')
     void router.push(`/reporting/${String(patientExaminationId)}/report-editor`)
@@ -2124,7 +1871,7 @@ const selectedPatientCase = computed(
   () => caseOptions.value.find((patientCase) => patientCase.caseId === flow.caseId) || null
 )
 
-const patientHeaderLabel = computed(() => {
+function timelinePatientLabel(): string | null {
   const timelinePatient = flow.mediaPreload?.patient || null
   const timelineName = [timelinePatient?.firstName, timelinePatient?.lastName]
     .filter(Boolean)
@@ -2133,10 +1880,10 @@ const patientHeaderLabel = computed(() => {
   if (timelineName) {
     return timelineName
   }
-  if (timelinePatient?.patientHash) {
-    return timelinePatient.patientHash
-  }
+  return timelinePatient?.patientHash || null
+}
 
+function detailPatientLabel(): string | null {
   const detailPatient = readRecord(patientExaminationDetail.value?.patient)
   const detailName = [
     readString(detailPatient, 'firstName', 'first_name', 'givenName', 'given_name'),
@@ -2148,15 +1895,16 @@ const patientHeaderLabel = computed(() => {
   if (detailName) {
     return detailName
   }
+  return readString(detailPatient, 'patientHash', 'patient_hash', 'hash', 'pseudonym') || null
+}
 
-  const detailHash = readString(detailPatient, 'patientHash', 'patient_hash', 'hash', 'pseudonym')
-  if (detailHash) {
-    return detailHash
-  }
-  if (currentPayload.value?.patient) {
-    return currentPayload.value.patient
-  }
-  return flow.selectedPatientId ? 'Patient ausgewählt' : 'Nicht gewählt'
+const patientHeaderLabel = computed(() => {
+  return (
+    timelinePatientLabel() ||
+    detailPatientLabel() ||
+    currentPayload.value?.patient ||
+    (flow.selectedPatientId ? 'Patient ausgewählt' : 'Nicht gewählt')
+  )
 })
 
 const patientBirthDateLabel = computed(() => {
@@ -2183,8 +1931,8 @@ const patientBirthDateLabel = computed(() => {
   return formatDateLabel(value) || 'Nicht verfügbar'
 })
 
-const examinationTypeLabel = computed(() => {
-  return (
+const examinationTypeLabel = computed(
+  () =>
     selectedPatientExaminationOption.value?.examinationDisplayName ||
     readString(
       readRecord(patientExaminationDetail.value?.examination),
@@ -2197,8 +1945,7 @@ const examinationTypeLabel = computed(() => {
     readString(patientExaminationDetail.value, 'examinationName', 'examination_name') ||
     currentPayload.value?.examination ||
     'Nicht gewählt'
-  )
-})
+)
 
 const caseStatusLabel = computed(() => {
   if (selectedPatientCase.value?.isClosed) {
@@ -2228,18 +1975,13 @@ const caseStatusLabel = computed(() => {
   )
 })
 
-const validationStatusLabel = computed(() => {
+const validationPresentation = computed(() => {
   if (!flow.lastTemplateValidation) {
-    return 'ungeprüft'
+    return { label: 'ungeprüft', pillClass: 'is-idle' }
   }
-  return flow.lastTemplateValidation.ok ? 'valide' : 'offen'
-})
-
-const validationStatusPillClass = computed(() => {
-  if (!flow.lastTemplateValidation) {
-    return 'is-idle'
-  }
-  return flow.lastTemplateValidation.ok ? 'is-ready' : 'is-error'
+  return flow.lastTemplateValidation.ok
+    ? { label: 'valide', pillClass: 'is-ready' }
+    : { label: 'offen', pillClass: 'is-error' }
 })
 
 const templateSectionsForReference = computed(() =>
@@ -2256,40 +1998,6 @@ function getDescriptorLabel(name: string): string {
   return descriptorLabelsByName.value.get(normalizeKey(name)) || formatKnowledgeName(name)
 }
 
-const conceptCoverage = computed(() =>
-  resolveReportConceptCoverage({
-    serverCoverage: templateReference.value?.conceptCoverage || null,
-    sections: templateSectionsForReference.value,
-    payload: currentPayload.value,
-    validation: flow.lastTemplateValidation
-  })
-)
-
-const conceptCoverageSubtitle = computed(() => {
-  const identity = terminology.activeBundle
-    ? templateReference.value?.identity || flow.selectedTemplateIdentity
-    : null
-  const moduleName = activeKbModule.value || 'Keine aktive Terminologie'
-  const version =
-    identity?.knowledgeBaseVersion || terminology.activeBundle?.version || 'Version unbekannt'
-  return `${moduleName} · ${version}`
-})
-
-const conceptCoveragePresentation = computed(() => {
-  const counts = conceptCoverage.value.counts
-  if (!conceptCoverage.value.items.length) {
-    return { label: 'ungeprüft', pillClass: 'is-idle' }
-  }
-  const openCount = counts.invalid + counts.missing
-  if (counts.invalid || counts.missing) {
-    return { label: `${String(openCount)} offen`, pillClass: 'is-error' }
-  }
-  if (counts.unknown) {
-    return { label: `${String(counts.unknown)} ungeklärt`, pillClass: 'is-warning' }
-  }
-  return { label: `${String(counts.present)} nachgewiesen`, pillClass: 'is-ready' }
-})
-
 const catalogFindingsByName = computed(
   () => new Map(findingCatalog.value.map((finding) => [normalizeKey(finding.name), finding]))
 )
@@ -2298,24 +2006,22 @@ const validationIssueMessagesByFinding = computed(() =>
   groupValidationMessages(flow.lastTemplateValidation)
 )
 
-const findingStatusRows = computed<FindingStatusRow[]>(() => {
-  const rows: FindingStatusRow[] = []
+const findingInstancesByName = computed(() =>
+  indexFindingInstances(currentPayload.value?.patientFindings ?? [])
+)
 
-  for (const section of templateSectionsForReference.value) {
-    const sectionKey = normalizeKey(section.name)
-    const sectionTitle = getReportTemplateSectionDisplayName(section, flow.selectedReportLanguage)
-    for (const templateFinding of section.findings) {
-      rows.push(
-        buildFindingStatusRow({
-          findingName: templateFinding.finding,
-          sectionKey,
-          sectionTitle,
-          required: templateFinding.required,
-          templateFinding
-        })
-      )
-    }
-  }
+const findingStatusRows = computed<FindingStatusRow[]>(() => {
+  const rows = templateSectionsForReference.value.flatMap((section) =>
+    section.findings.map((templateFinding) =>
+      buildFindingStatusRow({
+        findingName: templateFinding.finding,
+        sectionKey: normalizeKey(section.name),
+        sectionTitle: getReportTemplateSectionDisplayName(section, flow.selectedReportLanguage),
+        required: templateFinding.required,
+        templateFinding
+      })
+    )
+  )
 
   if (rows.length) {
     return rows
@@ -2340,20 +2046,9 @@ const filteredFindingStatusRows = computed(() =>
   )
 )
 
-const findingStatusSections = computed<FindingStatusSection[]>(() => {
-  const sections = new Map<string, FindingStatusSection>()
-  for (const row of filteredFindingStatusRows.value.slice(0, findingStatusVisibleLimit.value)) {
-    if (!sections.has(row.sectionKey)) {
-      sections.set(row.sectionKey, {
-        key: row.sectionKey,
-        title: row.sectionTitle,
-        rows: []
-      })
-    }
-    sections.get(row.sectionKey)?.rows.push(row)
-  }
-  return Array.from(sections.values())
-})
+const findingStatusSections = computed(() =>
+  groupFindingSections(filteredFindingStatusRows.value.slice(0, findingStatusVisibleLimit.value))
+)
 
 const filteredFindingStatusCount = computed(() => filteredFindingStatusRows.value.length)
 
@@ -2395,120 +2090,55 @@ const findingProgressSummary = computed(() => {
     : `${String(complete)}/${String(rows.length)} vollständig`
 })
 
-const routeReferenceFindingKey = computed(() => {
-  const hash = typeof route.hash === 'string' ? route.hash : ''
-  const match = hash.match(/^#finding-(.+)$/)
-  return match ? normalizeKey(match[1]) : null
-})
+const routeReferenceFindingKey = computed(() =>
+  typeof route.hash === 'string' ? route.hash.match(/^#finding-(.+)$/)?.[1] : undefined
+)
 
-const activeReferenceFindingKey = computed(() => {
-  const availableKeys = new Set(findingStatusRows.value.map((row) => row.normalizedKey))
-  if (selectedReferenceFindingKey.value && availableKeys.has(selectedReferenceFindingKey.value)) {
-    return selectedReferenceFindingKey.value
-  }
-  if (routeReferenceFindingKey.value && availableKeys.has(routeReferenceFindingKey.value)) {
-    return routeReferenceFindingKey.value
-  }
-  return (
+const activeReferenceFindingKey = computed(
+  () =>
+    [selectedReferenceFindingKey.value, routeReferenceFindingKey.value]
+      .filter((key): key is string => Boolean(key))
+      .map((key) => findingStatusRows.value.find((row) => row.normalizedKey === normalizeKey(key)))
+      .find(Boolean)?.normalizedKey ||
     findingStatusRows.value.find((row) => row.status === 'warning' || row.status === 'missing')
       ?.normalizedKey ||
     findingStatusRows.value[0]?.normalizedKey ||
     null
-  )
-})
+)
 
 const activeReferenceFinding = computed(
   () =>
-    findingStatusRows.value.find((row) => row.normalizedKey === activeReferenceFindingKey.value) ||
+    findingStatusRows.value.find((row) => row.normalizedKey === activeReferenceFindingKey.value) ??
     null
 )
 
-const activeFindingInstances = computed(() => {
-  const active = activeReferenceFinding.value
-  if (!active) {
-    return []
-  }
-  return instancesForFinding(active.findingName)
-})
+const activeFindingInstances = computed(() =>
+  activeReferenceFinding.value
+    ? (findingInstancesByName.value.get(activeReferenceFinding.value.normalizedKey) ?? [])
+    : []
+)
 
-const activeFindingCatalogDefinition = computed(() => {
-  const active = activeReferenceFinding.value
-  if (!active) {
-    return null
-  }
-  return catalogFindingsByName.value.get(normalizeKey(active.findingName)) || null
-})
+const activeFindingCatalogDefinition = computed(() =>
+  activeReferenceFinding.value
+    ? (catalogFindingsByName.value.get(activeReferenceFinding.value.normalizedKey) ?? null)
+    : null
+)
 
-const activeFindingDescription = computed(() => {
-  const description = activeFindingCatalogDefinition.value?.description.trim()
-  return description || 'Keine Beschreibung in der geladenen KB-Definition.'
-})
+const activeFindingDescription = computed(
+  () =>
+    activeFindingCatalogDefinition.value?.description.trim() ||
+    'Keine Beschreibung in der geladenen KB-Definition.'
+)
 
-const activeReferenceClassifications = computed<KbClassificationReference[]>(() => {
-  const active = activeReferenceFinding.value
-  if (!active) {
-    return []
-  }
-
-  const templateClassifications = active.templateFinding?.classifications || []
-  const catalogClassifications = mergeFindingClassifications(activeFindingCatalogDefinition.value)
-  const catalogByName = new Map<string, FindingClassification>(
-    catalogClassifications.map((classification) => [
-      normalizeKey(classification.name),
-      classification
-    ])
-  )
-  const source =
-    templateClassifications.length > 0
-      ? templateClassifications.map((classification) => ({
-          key: normalizeKey(classification.classification),
-          name: classification.classification,
-          required: classification.required,
-          input: classification.input
-        }))
-      : catalogClassifications.map((classification) => ({
-          key: normalizeKey(classification.name),
-          name: classification.name,
-          required: classification.required,
-          input: null
-        }))
-
-  return source
-    .filter(
-      (classification, index, all) =>
-        all.findIndex((entry) => entry.key === classification.key) === index
-    )
-    .map((classification) => {
-      const catalog = catalogByName.get(classification.key)
-      const choices = (catalog?.choices || [])
-        .map((choice) => getFindingCatalogLocalizedName(choice, 'de'))
-        .filter(Boolean)
-      const descriptorInputs = (classification.input?.choices || []).flatMap(
-        (choice) => choice.descriptors
+const activeReferenceClassifications = computed(() =>
+  activeReferenceFinding.value
+    ? classificationReferences(
+        activeReferenceFinding.value.templateFinding,
+        activeFindingCatalogDefinition.value,
+        descriptorLabelsByName.value
       )
-      const descriptorLabels = Array.from(
-        new Set(
-          descriptorInputs.map((descriptor) => {
-            const unit = descriptor.unitAbbreviation || descriptor.unit
-            const label = getDescriptorLabel(descriptor.name)
-            return unit ? `${label} (${unit})` : label
-          })
-        )
-      )
-      return {
-        key: classification.key,
-        label: catalog
-          ? getFindingCatalogLocalizedName(catalog, 'de')
-          : formatKnowledgeName(classification.name),
-        required: classification.required,
-        choicesLabel: choices.length ? `Werte: ${choices.join(', ')}` : '',
-        inputLabel: descriptorLabels.length
-          ? `Erforderliche Eingabe: ${descriptorLabels.join(', ')}`
-          : '',
-        description: catalog?.description || ''
-      }
-    })
-})
+    : []
+)
 
 const activeAdviceRows = computed<KbAdviceRow[]>(() => {
   const active = activeReferenceFinding.value
@@ -2600,6 +2230,21 @@ const canAddReportFrame = computed(() => {
     )
   )
 })
+
+function isCurrentFrameCandidateRequest(generation: number): boolean {
+  return generation === frameCandidatesGeneration
+}
+
+function applyFrameCandidatePage(
+  page: Awaited<ReturnType<typeof fetchReportFrameCandidates>>,
+  append: boolean
+): void {
+  const previousFrames = append ? (frameCandidates.value ?? []) : []
+  frameCandidates.value = [...previousFrames, ...page.frames]
+  frameFilterLabels.value = page.labels
+  frameCandidatesNextOffset.value = page.nextOffset
+}
+
 async function loadFrameCandidates(append = false) {
   const examinationId = activePatientExaminationId.value
   if (!examinationId) {
@@ -2618,18 +2263,16 @@ async function loadFrameCandidates(append = false) {
       frameFilterLabel.value,
       append ? (frameCandidatesNextOffset.value ?? 0) : 0
     )
-    if (generation !== frameCandidatesGeneration) {
+    if (!isCurrentFrameCandidateRequest(generation)) {
       return
     }
-    frameCandidates.value = [...(append ? (frameCandidates.value ?? []) : []), ...page.frames]
-    frameFilterLabels.value = page.labels
-    frameCandidatesNextOffset.value = page.nextOffset
+    applyFrameCandidatePage(page, append)
   } catch {
-    if (generation === frameCandidatesGeneration) {
+    if (isCurrentFrameCandidateRequest(generation)) {
       frameCandidatesError.value = 'Frames konnten nicht geladen werden.'
     }
   } finally {
-    if (generation === frameCandidatesGeneration) {
+    if (isCurrentFrameCandidateRequest(generation)) {
       frameCandidatesLoading.value = false
     }
   }
@@ -2825,60 +2468,7 @@ function getClassificationLabel(findingName: string, classificationName: string)
 }
 
 function instancesForFinding(findingName: string): ReportTemplateRuntimePatientFindingInput[] {
-  const key = normalizeKey(findingName)
-  return (currentPayload.value?.patientFindings || []).filter(
-    (finding) => normalizeKey(finding.finding) === key
-  )
-}
-
-function requiredClassificationsMissing(
-  templateFinding: ReportTemplateFinding | null,
-  instances: ReportTemplateRuntimePatientFindingInput[]
-): string[] {
-  if (!templateFinding) {
-    return []
-  }
-  const required = templateFinding.classifications.filter(
-    (classification) => classification.required
-  )
-  return required
-    .filter((classification) => {
-      const key = normalizeKey(classification.classification)
-      return !instances.some((instance) => {
-        return instance.classificationChoices.some((choice) => {
-          if (
-            normalizeKey(choice.classification) !== key ||
-            typeof choice.classificationChoice !== 'string' ||
-            !choice.classificationChoice.trim()
-          ) {
-            return false
-          }
-
-          const inputChoice = classification.input?.choices.find(
-            (entry) => normalizeKey(entry.name) === normalizeKey(choice.classificationChoice)
-          )
-          if (!inputChoice?.descriptors.length) {
-            return true
-          }
-          return inputChoice.descriptors.every((descriptorInput) => {
-            const descriptor = choice.descriptors.find(
-              (entry) =>
-                normalizeKey(entry.classificationChoiceDescriptor) ===
-                normalizeKey(descriptorInput.name)
-            )
-            const value = descriptor?.descriptorValue
-            return (
-              value !== null &&
-              value !== undefined &&
-              (typeof value !== 'string' || value.trim().length > 0)
-            )
-          })
-        })
-      })
-    })
-    .map((classification) =>
-      getClassificationLabel(templateFinding.finding, classification.classification)
-    )
+  return findingInstancesByName.value.get(normalizeKey(findingName)) ?? []
 }
 
 function buildFindingStatusRow(params: {
@@ -2891,7 +2481,10 @@ function buildFindingStatusRow(params: {
   const normalizedKey = normalizeKey(params.findingName)
   const instances = instancesForFinding(params.findingName)
   const validationMessages = validationIssueMessagesByFinding.value.get(normalizedKey) || []
-  const missingClassifications = requiredClassificationsMissing(params.templateFinding, instances)
+  const missingClassifications = missingRequiredClassifications(
+    params.templateFinding,
+    instances
+  ).map((classification) => getClassificationLabel(params.findingName, classification))
   const messages = Array.from(
     new Set([
       ...validationMessages,
@@ -3061,20 +2654,15 @@ function markCurrentDraftUnverified() {
     return
   }
   const activeBundle = terminology.activeBundle
-  const draftVersion =
-    draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
-  if (
-    activeBundle &&
-    draft.moduleName === activeBundle.moduleName &&
-    draftVersion === activeBundle.version &&
-    draft.verificationStatus === 'verified'
-  ) {
+  const draftVersion = draftKnowledgeBaseVersion(draft)
+  const matchesActiveBundle = draftMatchesTerminologyBundle(draft, draftVersion, activeBundle)
+  if (matchesActiveBundle && draft.verificationStatus === 'verified') {
     return
   }
-  if (
+  const alreadyBlocked =
     draft.verificationStatus === 'unverified' &&
     draft.persistencePolicy === 'blocked_until_verified'
-  ) {
+  if (alreadyBlocked) {
     return
   }
   flow.setRuntimeDraft({
@@ -3082,6 +2670,21 @@ function markCurrentDraftUnverified() {
     verificationStatus: 'unverified',
     persistencePolicy: 'blocked_until_verified'
   })
+}
+
+function draftKnowledgeBaseVersion(draft: ReportingRuntimeDraft): string | null {
+  return draft.templateIdentity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
+}
+
+function draftMatchesTerminologyBundle(
+  draft: ReportingRuntimeDraft,
+  draftVersion: string | null,
+  activeBundle: typeof terminology.activeBundle
+): boolean {
+  if (!activeBundle) {
+    return false
+  }
+  return draft.moduleName === activeBundle.moduleName && draftVersion === activeBundle.version
 }
 
 function clearTerminologyDerivedViewState() {
@@ -3181,13 +2784,7 @@ function loadTemplateReferenceForSelection() {
   templateReferenceError.value = null
   templateReferenceKey.value = nextKey
   try {
-    const payload =
-      availableTemplates.value.find(
-        (template) =>
-          template.name === templateName &&
-          template.identity.moduleName === moduleName &&
-          template.identity.knowledgeBaseVersion === activeKbVersion.value
-      ) || null
+    const payload = findSelectedTemplateReference(templateName, moduleName)
     if (templateReferenceKey.value !== nextKey) {
       return
     }
@@ -3211,6 +2808,31 @@ function loadTemplateReferenceForSelection() {
   }
 }
 
+function findSelectedTemplateReference(
+  templateName: string,
+  moduleName: string
+): ReportTemplatePayload | null {
+  return (
+    availableTemplates.value.find((template) => {
+      const matchesTemplate = template.name === templateName
+      const matchesModule = template.identity.moduleName === moduleName
+      const matchesVersion = template.identity.knowledgeBaseVersion === activeKbVersion.value
+      return matchesTemplate && matchesModule && matchesVersion
+    }) || null
+  )
+}
+
+function isCurrentFindingCatalogRequest(
+  requestGeneration: number,
+  requestedBundleKey: string,
+  examinationId?: number | null
+): boolean {
+  const matchesGeneration = requestGeneration === findingCatalogRequestGeneration
+  const matchesBundle = requestedBundleKey === activeBundleIdentityKey.value
+  const matchesExamination = examinationId == null || examinationId === flow.selectedExaminationId
+  return matchesGeneration && matchesBundle && matchesExamination
+}
+
 async function loadFindingCatalogForExamination(examinationId: number | null | undefined) {
   const requestGeneration = ++findingCatalogRequestGeneration
   const requestedBundleKey = activeBundleIdentityKey.value
@@ -3222,27 +2844,17 @@ async function loadFindingCatalogForExamination(examinationId: number | null | u
   findingCatalogLoading.value = true
   try {
     const rows = await findingsApi.getExaminationFindings(examinationId, getCatalogContext())
-    if (
-      requestGeneration !== findingCatalogRequestGeneration ||
-      examinationId !== flow.selectedExaminationId ||
-      requestedBundleKey !== activeBundleIdentityKey.value
-    ) {
+    if (!isCurrentFindingCatalogRequest(requestGeneration, requestedBundleKey, examinationId)) {
       return
     }
     findingCatalog.value = Array.isArray(rows) ? rows : []
   } catch {
-    if (
-      requestGeneration !== findingCatalogRequestGeneration ||
-      requestedBundleKey !== activeBundleIdentityKey.value
-    ) {
+    if (!isCurrentFindingCatalogRequest(requestGeneration, requestedBundleKey)) {
       return
     }
     findingCatalog.value = []
   } finally {
-    if (
-      requestGeneration === findingCatalogRequestGeneration &&
-      requestedBundleKey === activeBundleIdentityKey.value
-    ) {
+    if (isCurrentFindingCatalogRequest(requestGeneration, requestedBundleKey)) {
       findingCatalogLoading.value = false
     }
   }
@@ -3287,10 +2899,8 @@ function toPositiveInteger(value: unknown): number | null {
 function resolvePatientKey(raw: Record<string, unknown>, patientExaminationId: number): string {
   const patient = readRecord(raw.patient)
   const patientHash =
-    (typeof patient.patient_hash === 'string' && patient.patient_hash.trim()) ||
-    (typeof patient.patientHash === 'string' && patient.patientHash.trim()) ||
-    (typeof raw.patient_hash === 'string' && raw.patient_hash.trim()) ||
-    (typeof raw.patientHash === 'string' && raw.patientHash.trim())
+    firstTrimmedString(patient, ['patient_hash', 'patientHash']) ||
+    firstTrimmedString(raw, ['patient_hash', 'patientHash'])
   if (patientHash) {
     return patientHash
   }
@@ -3774,78 +3384,65 @@ function draftHasRuntimeContent(): boolean {
   )
 }
 
+function restoreTemplateSelect(select: HTMLSelectElement | undefined, name: string | null): void {
+  if (select) {
+    select.value = name || ''
+  }
+}
+
+function confirmTemplateSelectionChange(select: HTMLSelectElement | undefined): boolean {
+  if (!draftHasRuntimeContent()) {
+    return true
+  }
+  const confirmed = window.confirm(
+    'Für diese Untersuchung existieren bereits Befunde oder ein Entwurf. Vorlage wirklich wechseln? Der bisherige Entwurf wird nicht weiterverwendet.'
+  )
+  if (!confirmed) {
+    restoreTemplateSelect(select, flow.selectedTemplateName)
+  }
+  return confirmed
+}
+
+function createDraftBootstrapContext(patientExaminationId: number): DraftBootstrapContext {
+  return Object.freeze({
+    generation: draftBootstrapGeneration,
+    patientExaminationId,
+    bundleKey: activeBundleIdentityKey.value,
+    moduleName: activeKbModule.value,
+    moduleVersion: activeKbVersion.value,
+    pinnedIdentity: pinnedIdentity.value ? Object.freeze({ ...pinnedIdentity.value }) : null
+  })
+}
+
 async function onTemplateSelectionChange(name: string, select?: HTMLSelectElement) {
   const previousName = flow.selectedTemplateName
   const previousIdentity = flow.selectedTemplateIdentity
   if (!name || name === previousName) {
     return
   }
-  const selected = availableTemplates.value.find((template) => template.name === name)
+  const selected = availableTemplates.value.find((template) => template.name === name) || null
   if (!selected) {
     templateSelectionError.value =
       'Die ausgewählte Vorlage ist nicht mehr veröffentlicht oder nicht verfügbar.'
-    if (select) {
-      select.value = previousName || ''
-    }
+    restoreTemplateSelect(select, previousName)
     return
   }
   if (!flow.patientExaminationId || !routePatientExaminationId.value) {
     templateSelectionError.value = 'Bitte wählen Sie zuerst eine Patientenuntersuchung.'
-    if (select) {
-      select.value = previousName || ''
-    }
+    restoreTemplateSelect(select, previousName)
     return
   }
 
-  if (draftHasRuntimeContent()) {
-    const confirmed = window.confirm(
-      'Für diese Untersuchung existieren bereits Befunde oder ein Entwurf. Vorlage wirklich wechseln? Der bisherige Entwurf wird nicht weiterverwendet.'
-    )
-    if (!confirmed) {
-      if (select) {
-        select.value = previousName || ''
-      }
-      return
-    }
+  if (!confirmTemplateSelectionChange(select)) {
+    return
   }
 
   templateSelectionError.value = null
-  const originContext: DraftBootstrapContext = Object.freeze({
-    generation: draftBootstrapGeneration,
-    patientExaminationId: flow.patientExaminationId,
-    bundleKey: activeBundleIdentityKey.value,
-    moduleName: activeKbModule.value,
-    moduleVersion: activeKbVersion.value,
-    pinnedIdentity: pinnedIdentity.value ? Object.freeze({ ...pinnedIdentity.value }) : null
-  })
-  let attemptedContext: DraftBootstrapContext | null = null
+  const originContext = createDraftBootstrapContext(flow.patientExaminationId)
   try {
-    if (draftHasRuntimeContent()) {
-      await flow.flushDraftAutosave()
-    }
-    assertBootstrapContextCurrent(originContext)
-    const option =
-      patientExaminationOptions.value.find(
-        (entry) => entry.id === originContext.patientExaminationId
-      ) || null
-    const generation = ++draftBootstrapGeneration
-    attemptedContext = Object.freeze({
-      ...originContext,
-      generation
-    })
-    flow.setTemplateSelection({
-      moduleName: selected.identity.moduleName || originContext.moduleName,
-      templateName: selected.name,
-      templateIdentity: selected.identity
-    })
-    await bootstrapRuntimeDraft(originContext.patientExaminationId, option, attemptedContext, false)
-    flow.clearTemplateSectionDrafts()
-    flow.setLastTemplateValidation(null)
+    await applyTemplateSelectionChange(selected, originContext)
   } catch (error: unknown) {
-    if (
-      error instanceof SupersededReportingContextError ||
-      !isBootstrapContextCurrent(attemptedContext ?? originContext)
-    ) {
+    if (error instanceof SupersededReportingContextError) {
       return
     }
     flow.setTemplateSelection({
@@ -3857,10 +3454,41 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
       error,
       'Die neue Berichtsvorlage konnte nicht vorbereitet werden; der bisherige Entwurf bleibt erhalten.'
     )
-    if (select) {
-      select.value = previousName || ''
-    }
+    restoreTemplateSelect(select, previousName)
   }
+}
+
+async function applyTemplateSelectionChange(
+  selected: ReportTemplatePayload,
+  originContext: DraftBootstrapContext
+): Promise<void> {
+  if (draftHasRuntimeContent()) {
+    await flow.flushDraftAutosave()
+  }
+  assertBootstrapContextCurrent(originContext)
+  const option =
+    patientExaminationOptions.value.find(
+      (entry) => entry.id === originContext.patientExaminationId
+    ) || null
+  const attemptedContext = Object.freeze({
+    ...originContext,
+    generation: ++draftBootstrapGeneration
+  })
+  flow.setTemplateSelection({
+    moduleName: selected.identity.moduleName || originContext.moduleName,
+    templateName: selected.name,
+    templateIdentity: selected.identity
+  })
+  try {
+    await bootstrapRuntimeDraft(originContext.patientExaminationId, option, attemptedContext, false)
+  } catch (error: unknown) {
+    if (!isBootstrapContextCurrent(attemptedContext)) {
+      throw new SupersededReportingContextError()
+    }
+    throw error
+  }
+  flow.clearTemplateSectionDrafts()
+  flow.setLastTemplateValidation(null)
 }
 
 async function resolveBootstrapDetail(
@@ -3989,10 +3617,7 @@ const bootstrapResolutionGraph = createImmutableReportingDag<BootstrapDagContext
 async function refreshPublishedTemplatesAfterLifecycleChange(
   change: ReportTemplateLifecycleChange
 ): Promise<void> {
-  if (
-    change.moduleName !== activeKbModule.value ||
-    change.moduleVersion !== activeKbVersion.value
-  ) {
+  if (!lifecycleChangeMatchesActiveBundle(change)) {
     return
   }
 
@@ -4010,21 +3635,11 @@ async function refreshPublishedTemplatesAfterLifecycleChange(
       examinationName
     )
     const templates = projection.reportTemplates
-    if (
-      change.moduleName !== activeKbModule.value ||
-      change.moduleVersion !== activeKbVersion.value ||
-      expectedBundleKey !== activeBundleIdentityKey.value ||
-      examinationName !== extractExaminationName(patientExaminationDetail.value || {})
-    ) {
+    if (!lifecycleRefreshIsCurrent(change, examinationName, expectedBundleKey)) {
       return
     }
     availableTemplates.value = templates
-    if (change.lifecycleStatus === 'draft' && flow.selectedTemplateName === change.templateName) {
-      templateSelectionError.value =
-        'Die aktuell verwendete Berichtsvorlage wurde entveröffentlicht. Der bestehende Entwurf bleibt erhalten, kann aber erst nach Auswahl einer veröffentlichten Vorlage weitergeführt werden.'
-    } else if (change.lifecycleStatus === 'published') {
-      templateSelectionError.value = null
-    }
+    applyLifecycleTemplateStatus(change)
   } catch (error: unknown) {
     templateSelectionError.value = reportingApiErrorMessage(
       error,
@@ -4034,6 +3649,35 @@ async function refreshPublishedTemplatesAfterLifecycleChange(
     if (expectedBundleKey === activeBundleIdentityKey.value) {
       templateLoading.value = false
     }
+  }
+}
+
+function lifecycleChangeMatchesActiveBundle(change: ReportTemplateLifecycleChange): boolean {
+  return (
+    change.moduleName === activeKbModule.value && change.moduleVersion === activeKbVersion.value
+  )
+}
+
+function lifecycleRefreshIsCurrent(
+  change: ReportTemplateLifecycleChange,
+  examinationName: string,
+  expectedBundleKey: string
+): boolean {
+  const matchesBundle =
+    lifecycleChangeMatchesActiveBundle(change) &&
+    expectedBundleKey === activeBundleIdentityKey.value
+  const currentExamination = extractExaminationName(patientExaminationDetail.value || {})
+  return matchesBundle && examinationName === currentExamination
+}
+
+function applyLifecycleTemplateStatus(change: ReportTemplateLifecycleChange): void {
+  if (change.lifecycleStatus === 'published') {
+    templateSelectionError.value = null
+    return
+  }
+  if (flow.selectedTemplateName === change.templateName) {
+    templateSelectionError.value =
+      'Die aktuell verwendete Berichtsvorlage wurde entveröffentlicht. Der bestehende Entwurf bleibt erhalten, kann aber erst nach Auswahl einer veröffentlichten Vorlage weitergeführt werden.'
   }
 }
 
@@ -4215,30 +3859,32 @@ function restoredDraftMatchesKnowledgeBase(
   selectedIdentity: ReportTemplateIdentity,
   context: DraftBootstrapContext
 ): boolean {
-  const identity = draft.templateIdentity
-  if (identity?.moduleName && identity.moduleName !== context.moduleName) {
+  const identityModuleMatches = optionalValueMatches(
+    draft.templateIdentity?.moduleName,
+    context.moduleName
+  )
+  if (!identityModuleMatches) {
     return false
   }
-  if (
-    draft.payload.knowledgeBaseModule &&
-    draft.payload.knowledgeBaseModule !== context.moduleName
-  ) {
+  const payloadModuleMatches = optionalValueMatches(
+    draft.payload.knowledgeBaseModule,
+    context.moduleName
+  )
+  if (!payloadModuleMatches) {
     return false
   }
 
-  const draftKnowledgeBaseVersion =
-    identity?.knowledgeBaseVersion || draft.payload.knowledgeBaseVersion || null
+  const draftVersion = draftKnowledgeBaseVersion(draft)
   const activeKnowledgeBaseVersion = terminology.activeBundle?.version || null
-  if (!draftKnowledgeBaseVersion || draftKnowledgeBaseVersion !== activeKnowledgeBaseVersion) {
+  const draftVersionMatches = Boolean(draftVersion) && draftVersion === activeKnowledgeBaseVersion
+  if (!draftVersionMatches) {
     return false
   }
-  if (
-    selectedIdentity.knowledgeBaseVersion &&
-    selectedIdentity.knowledgeBaseVersion !== activeKnowledgeBaseVersion
-  ) {
-    return false
-  }
-  return true
+  return optionalValueMatches(selectedIdentity.knowledgeBaseVersion, activeKnowledgeBaseVersion)
+}
+
+function optionalValueMatches(value: string | null | undefined, expected: string | null): boolean {
+  return !value || value === expected
 }
 
 function restoredDraftMatchesTemplateRevision(
@@ -4262,7 +3908,7 @@ function restoredDraftMatchesActiveTemplate(
   draft: ReportingRuntimeDraft,
   selected: ReportTemplatePayload | null,
   context: DraftBootstrapContext
-): boolean {
+): selected is ReportTemplatePayload {
   if (!selected) {
     return false
   }
@@ -4279,19 +3925,10 @@ async function validateRestoredDraftTemplate(
   draft: ReportingRuntimeDraft,
   context: DraftBootstrapContext
 ) {
-  const examinationName = extractExaminationName(detail)
-  const version = context.moduleVersion
-  const templates =
-    examinationName && version
-      ? (await fetchExaminationReportingContext(context.moduleName, version, examinationName))
-          .reportTemplates
-      : []
+  const templates = await fetchRestoredDraftTemplates(detail, context)
   assertBootstrapContextCurrent(context)
   availableTemplates.value = templates
-  const selected = draft.templateName
-    ? templates.find((template) => template.name === draft.templateName)
-    : null
-  const matchingTemplate = selected || null
+  const matchingTemplate = findRestoredDraftTemplate(templates, draft.templateName)
   const selectedIdentity = matchingTemplate?.identity || emptyTemplateIdentity
   if (!restoredDraftMatchesActiveTemplate(detail, draft, matchingTemplate, context)) {
     pendingBackendDraftDocuments.delete(context.patientExaminationId)
@@ -4305,25 +3942,62 @@ async function validateRestoredDraftTemplate(
       'Der gespeicherte Entwurf gehört zu keiner aktuell veröffentlichten und kompatiblen Berichtsvorlage.'
     )
   }
+  applyVerifiedRestoredDraft(draft, context, matchingTemplate, selectedIdentity)
+  applyPendingBackendDraftDocument(context.patientExaminationId)
+}
+
+function applyVerifiedRestoredDraft(
+  draft: ReportingRuntimeDraft,
+  context: DraftBootstrapContext,
+  matchingTemplate: ReportTemplatePayload,
+  selectedIdentity: ReportTemplateIdentity
+): void {
   flow.setRuntimeDraft({
     ...draft,
     moduleName: context.moduleName,
-    templateName: matchingTemplate?.name || null,
+    templateName: matchingTemplate.name,
     templateIdentity: selectedIdentity,
     verificationStatus: 'verified',
     persistencePolicy: 'persistable'
   })
   flow.setTemplateSelection({
     moduleName: selectedIdentity.moduleName || context.moduleName,
-    templateName: matchingTemplate?.name || null,
-    templateIdentity: matchingTemplate?.identity || emptyTemplateIdentity
+    templateName: matchingTemplate.name,
+    templateIdentity: matchingTemplate.identity
   })
-  const backendDraftDocument = pendingBackendDraftDocuments.get(context.patientExaminationId)
-  if (backendDraftDocument) {
-    flow.applyBackendDraftDocument(backendDraftDocument.draft)
-    flow.markDraftPersistenceHydrated(backendDraftDocument.updatedAt, backendDraftDocument.revision)
-    pendingBackendDraftDocuments.delete(context.patientExaminationId)
+}
+
+async function fetchRestoredDraftTemplates(
+  detail: Record<string, unknown>,
+  context: DraftBootstrapContext
+): Promise<ReportTemplatePayload[]> {
+  const examinationName = extractExaminationName(detail)
+  if (!examinationName || !context.moduleVersion) {
+    return []
   }
+  const result = await fetchExaminationReportingContext(
+    context.moduleName,
+    context.moduleVersion,
+    examinationName
+  )
+  return result.reportTemplates
+}
+
+function findRestoredDraftTemplate(
+  templates: ReportTemplatePayload[],
+  templateName: string | null
+): ReportTemplatePayload | null {
+  return templateName ? templates.find((template) => template.name === templateName) || null : null
+}
+
+function applyPendingBackendDraftDocument(patientExaminationId: number): void {
+  const backendDraftDocument = pendingBackendDraftDocuments.get(patientExaminationId)
+  if (!backendDraftDocument) {
+    return
+  }
+  flow.applyBackendDraftDocument(backendDraftDocument.draft)
+  flow.markDraftPersistenceHydrated(backendDraftDocument.updatedAt, backendDraftDocument.revision)
+  pendingBackendDraftDocuments.delete(patientExaminationId)
 }
 
 async function loadPatientExaminationDraftContext(
@@ -4394,32 +4068,13 @@ async function ensureRuntimeDraft(patientExaminationId: number, context: DraftBo
     ? flow.runtimeDraftsByPatientExaminationId[draftKey]
     : null
   if (existingDraft) {
-    flow.setRuntimeDraft({
-      ...existingDraft,
-      verificationStatus: 'unverified',
-      persistencePolicy:
-        !context.moduleName && !existingDraft.templateName
-          ? 'persistable'
-          : 'blocked_until_verified'
-    })
-    const detail = await loadPatientExaminationDraftContext(patientExaminationId, context)
-    if (context.moduleName) {
-      await validateRestoredDraftTemplate(detail, existingDraft, context)
-    } else {
-      clearInactiveTerminologySelection()
-    }
+    await activateExistingRuntimeDraft(existingDraft, patientExaminationId, context)
     return
   }
 
   const restoredFromDraftApi = await hydrateRuntimeDraftFromDraftApi(patientExaminationId, context)
   if (restoredFromDraftApi) {
-    const detail = await loadPatientExaminationDraftContext(patientExaminationId, context)
-    const restoredDraft = flow.currentRuntimeDraft
-    if (restoredDraft && context.moduleName) {
-      await validateRestoredDraftTemplate(detail, restoredDraft, context)
-    } else if (!context.moduleName) {
-      clearInactiveTerminologySelection()
-    }
+    await validateHydratedRuntimeDraft(patientExaminationId, context)
     return
   }
 
@@ -4434,6 +4089,40 @@ async function ensureRuntimeDraft(patientExaminationId: number, context: DraftBo
   flow.markDraftPersistenceHydrated(null)
 }
 
+async function activateExistingRuntimeDraft(
+  existingDraft: ReportingRuntimeDraft,
+  patientExaminationId: number,
+  context: DraftBootstrapContext
+): Promise<void> {
+  const annotationOnly = !context.moduleName && !existingDraft.templateName
+  flow.setRuntimeDraft({
+    ...existingDraft,
+    verificationStatus: 'unverified',
+    persistencePolicy: annotationOnly ? 'persistable' : 'blocked_until_verified'
+  })
+  const detail = await loadPatientExaminationDraftContext(patientExaminationId, context)
+  if (!context.moduleName) {
+    clearInactiveTerminologySelection()
+    return
+  }
+  await validateRestoredDraftTemplate(detail, existingDraft, context)
+}
+
+async function validateHydratedRuntimeDraft(
+  patientExaminationId: number,
+  context: DraftBootstrapContext
+): Promise<void> {
+  const detail = await loadPatientExaminationDraftContext(patientExaminationId, context)
+  const restoredDraft = flow.currentRuntimeDraft
+  if (!context.moduleName) {
+    clearInactiveTerminologySelection()
+    return
+  }
+  if (restoredDraft) {
+    await validateRestoredDraftTemplate(detail, restoredDraft, context)
+  }
+}
+
 async function hydrateDraftForRoutePatientExamination(patientExaminationId: number) {
   if (patientExaminationId !== routePatientExaminationId.value) {
     return
@@ -4445,89 +4134,149 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
     return
   }
 
-  const option =
-    patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
+  const option = findPatientExaminationOption(patientExaminationId)
   if (patientExaminationId !== routePatientExaminationId.value) {
     return
   }
-  if (
-    flow.patientExaminationId !== patientExaminationId ||
-    (option?.patientId ?? flow.selectedPatientId) !== flow.selectedPatientId ||
-    (option?.examinationId ?? flow.selectedExaminationId) !== flow.selectedExaminationId
-  ) {
-    flow.setPatientExaminationContext({
-      patientExaminationId,
-      selectedPatientId: option?.patientId ?? flow.selectedPatientId,
-      selectedExaminationId: option?.examinationId ?? flow.selectedExaminationId,
-      preserveTemplateSelection: true
-    })
-  }
+  reconcilePatientExaminationContext(patientExaminationId, option)
 
   const generation = ++draftBootstrapGeneration
-  const task = (async () => {
-    draftBootstrapError.value = null
-    supersededEvaluationNotice.value = null
-    let context: DraftBootstrapContext | null = null
-    try {
-      await ensureTerminologyBundlesLoaded()
-      context = Object.freeze({
-        generation,
-        patientExaminationId,
-        bundleKey: activeBundleIdentityKey.value,
-        moduleName: activeKbModule.value,
-        moduleVersion: activeKbVersion.value,
-        pinnedIdentity: pinnedIdentity.value ? Object.freeze({ ...pinnedIdentity.value }) : null
-      })
-      if (generation !== draftBootstrapGeneration) {
-        reportSupersededEvaluation(context, 'terminology-load-completed-after-context-change')
-        return
-      }
-      assertBootstrapContextCurrent(context)
-      await ensureRuntimeDraft(patientExaminationId, context)
-    } catch (error: unknown) {
-      if (
-        error instanceof SupersededReportingContextError ||
-        error instanceof SupersededReportingDagError
-      ) {
-        if (context) {
-          reportSupersededEvaluation(
-            context,
-            error instanceof SupersededReportingDagError
-              ? 'dag-context-changed'
-              : 'reporting-context-changed'
-          )
-        }
-        return
-      }
-      if (generation !== draftBootstrapGeneration) {
-        if (context) {
-          reportSupersededEvaluation(context, 'failure-after-context-change')
-        }
-        return
-      }
-      if (context) {
-        logger.error(
-          'evaluation-failed',
-          error,
-          evaluationLogContext(context, null, { reasonCode: 'bootstrap-failed' })
-        )
-      }
-      draftBootstrapError.value = reportingApiErrorMessage(
-        error,
-        'Der lokale Reporting-Entwurf konnte nicht initialisiert werden.'
-      )
-    } finally {
-      if (
-        draftBootstrapInFlight.value?.key === requestedKey &&
-        generation === draftBootstrapGeneration
-      ) {
-        draftBootstrapInFlight.value = null
-      }
-    }
-  })()
+  const task = runDraftHydration(patientExaminationId, requestedKey, generation)
 
   draftBootstrapInFlight.value = { key: requestedKey, promise: task }
   await task
+}
+
+function findPatientExaminationOption(
+  patientExaminationId: number
+): PatientExaminationOption | null {
+  return patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
+}
+
+function reconcilePatientExaminationContext(
+  patientExaminationId: number,
+  option: PatientExaminationOption | null
+): void {
+  const selectedPatientId = option?.patientId ?? flow.selectedPatientId
+  const selectedExaminationId = option?.examinationId ?? flow.selectedExaminationId
+  const contextChanged =
+    flow.patientExaminationId !== patientExaminationId ||
+    selectedPatientId !== flow.selectedPatientId ||
+    selectedExaminationId !== flow.selectedExaminationId
+  if (!contextChanged) {
+    return
+  }
+  flow.setPatientExaminationContext({
+    patientExaminationId,
+    selectedPatientId,
+    selectedExaminationId,
+    preserveTemplateSelection: true
+  })
+}
+
+function reportDraftHydrationError(
+  error: unknown,
+  context: DraftBootstrapContext | null,
+  generation: number
+): void {
+  if (
+    error instanceof SupersededReportingContextError ||
+    error instanceof SupersededReportingDagError
+  ) {
+    if (context) {
+      const reason =
+        error instanceof SupersededReportingDagError
+          ? 'dag-context-changed'
+          : 'reporting-context-changed'
+      reportSupersededEvaluation(context, reason)
+    }
+    return
+  }
+  if (generation !== draftBootstrapGeneration) {
+    if (context) {
+      reportSupersededEvaluation(context, 'failure-after-context-change')
+    }
+    return
+  }
+  if (context) {
+    logger.error(
+      'evaluation-failed',
+      error,
+      evaluationLogContext(context, null, { reasonCode: 'bootstrap-failed' })
+    )
+  }
+  draftBootstrapError.value = reportingApiErrorMessage(
+    error,
+    'Der lokale Reporting-Entwurf konnte nicht initialisiert werden.'
+  )
+}
+
+async function runDraftHydration(
+  patientExaminationId: number,
+  requestedKey: string,
+  generation: number
+): Promise<void> {
+  draftBootstrapError.value = null
+  supersededEvaluationNotice.value = null
+  let context: DraftBootstrapContext | null = null
+  try {
+    await ensureTerminologyBundlesLoaded()
+    context = { ...createDraftBootstrapContext(patientExaminationId), generation }
+    if (generation !== draftBootstrapGeneration) {
+      reportSupersededEvaluation(context, 'terminology-load-completed-after-context-change')
+      return
+    }
+    assertBootstrapContextCurrent(context)
+    await ensureRuntimeDraft(patientExaminationId, context)
+  } catch (error: unknown) {
+    reportDraftHydrationError(error, context, generation)
+  } finally {
+    const currentRequest = draftBootstrapInFlight.value?.key === requestedKey
+    if (currentRequest && generation === draftBootstrapGeneration) {
+      draftBootstrapInFlight.value = null
+    }
+  }
+}
+
+function isCurrentMediaPreloadRequest(
+  requestGeneration: number,
+  patientId: number,
+  patientExaminationId: number | null
+): boolean {
+  const currentExaminationId = routePatientExaminationId.value || flow.patientExaminationId
+  return (
+    requestGeneration === mediaPreloadRequestGeneration &&
+    patientId === flow.selectedPatientId &&
+    patientExaminationId === currentExaminationId
+  )
+}
+
+function applyMediaPreload(payload: Awaited<ReturnType<typeof fetchPatientTimelineLatest>>): void {
+  flow.setMediaPreload(payload)
+  selectedVideoArtifactKind.value =
+    preferredArtifactKind(payload.latestVideo?.streamOptions || []) ?? 'processed'
+  if (flow.reportFrameSelectionStatus !== 'idle') {
+    return
+  }
+  const preview = payload.latestFrames.at(0)
+  if (preview) {
+    void selectFrameStream(preview, false)
+  } else {
+    framePreview.clear()
+  }
+}
+
+function mediaPreloadErrorMessage(error: unknown): string {
+  const status = reportingApiError(error).response?.status as number | undefined
+  const statusMessages: Partial<Record<number, string>> = {
+    400: 'Ungültige patient_examination_id (400). Bitte Routing-Kontext prüfen.',
+    403: 'Zugriff auf Timeline verweigert (403). Berechtigungen prüfen.',
+    404: 'Patient wurde nicht gefunden (404). Bitte Fall-Setup prüfen.'
+  }
+  return (
+    (status ? statusMessages[status] : undefined) ||
+    `Fehler beim Laden der Medien: ${reportingApiErrorMessage(error, 'unbekannt') || 'unbekannt'}`
+  )
 }
 
 async function refreshMediaPreload() {
@@ -4545,40 +4294,15 @@ async function refreshMediaPreload() {
       patientId,
       patientExaminationId
     })
-    if (
-      requestGeneration !== mediaPreloadRequestGeneration ||
-      patientId !== flow.selectedPatientId ||
-      patientExaminationId !== (routePatientExaminationId.value || flow.patientExaminationId)
-    ) {
+    if (!isCurrentMediaPreloadRequest(requestGeneration, patientId, patientExaminationId)) {
       return
     }
-    flow.setMediaPreload(payload)
-    selectedVideoArtifactKind.value =
-      preferredArtifactKind(payload.latestVideo?.streamOptions || []) ?? 'processed'
-    if (flow.reportFrameSelectionStatus === 'idle') {
-      const preview = payload.latestFrames.at(0)
-      if (preview) {
-        void selectFrameStream(preview, false)
-      } else {
-        framePreview.clear()
-      }
-    }
+    applyMediaPreload(payload)
   } catch (error: unknown) {
     if (requestGeneration !== mediaPreloadRequestGeneration) {
       return
     }
-    const candidate = reportingApiError(error)
-    const status = candidate.response?.status
-    const detail = reportingApiErrorMessage(error, 'unbekannt')
-    const message =
-      status === 404
-        ? 'Patient wurde nicht gefunden (404). Bitte Fall-Setup prüfen.'
-        : status === 400
-          ? 'Ungültige patient_examination_id (400). Bitte Routing-Kontext prüfen.'
-          : status === 403
-            ? 'Zugriff auf Timeline verweigert (403). Berechtigungen prüfen.'
-            : `Fehler beim Laden der Medien: ${detail || 'unbekannt'}`
-    flow.setMediaPreloadError(message)
+    flow.setMediaPreloadError(mediaPreloadErrorMessage(error))
   }
 }
 
@@ -4819,76 +4543,6 @@ onMounted(() => {
   min-width: 0;
 }
 
-.reporting-requirement-callout {
-  display: flex;
-  gap: 0.65rem;
-  align-items: flex-start;
-  margin-bottom: 0.9rem;
-  padding: 0.75rem;
-  border: 1px solid #e4b55d;
-  border-radius: 8px;
-  color: #5c3b00;
-  background: #fff8e7;
-}
-
-.reporting-requirement-callout.is-complete {
-  border-color: #9bc7ad;
-  color: #155f36;
-  background: #effaf3;
-}
-
-.reporting-requirement-callout .reporting-requirement-icon {
-  margin-top: 0.15rem;
-  font-size: 1rem;
-}
-
-.reporting-requirement-callout .reporting-requirement-title,
-.reporting-requirement-callout .reporting-requirement-description {
-  display: block;
-}
-
-.reporting-requirement-callout .reporting-requirement-description {
-  margin-top: 0.15rem;
-}
-
-.reporting-required-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.reporting-persistence-action {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.reporting-resolved-context {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid #9bc7ad;
-  border-radius: 8px;
-  background: #effaf3;
-}
-
-.reporting-resolved-context .reporting-resolved-label,
-.reporting-resolved-context .reporting-resolved-description {
-  display: block;
-  color: #526174;
-}
-
-.reporting-resolved-context .reporting-resolved-description {
-  grid-column: 1 / -1;
-}
-
-.reporting-resolved-context .btn {
-  grid-column: 1 / -1;
-  width: fit-content;
-}
-
 .reporting-template-control {
   padding: 0.75rem;
   border: 1px solid #9bc7ad;
@@ -4899,20 +4553,6 @@ onMounted(() => {
 .reporting-template-control .form-text {
   display: block;
   margin-top: 0.35rem;
-}
-
-.required-field-step {
-  display: inline-flex;
-  width: 1.35rem;
-  height: 1.35rem;
-  align-items: center;
-  justify-content: center;
-  margin-right: 0.25rem;
-  border-radius: 999px;
-  color: #fff;
-  background: #315a94;
-  font-size: 0.75rem;
-  font-weight: 700;
 }
 
 .reporting-secondary-controls {
@@ -5271,12 +4911,6 @@ onMounted(() => {
   -webkit-line-clamp: 2;
 }
 
-.concept-coverage-panel .card-header > div,
-.concept-coverage-panel .card-body .d-flex > span:first-child {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
 .finding-status-meta,
 .finding-status-count {
   color: #66768c;
@@ -5379,7 +5013,7 @@ onMounted(() => {
   border-left-color: #198754;
 }
 
-.kb-advice-row > div span {
+.kb-advice-kind {
   color: #66768c;
   font-size: 0.7rem;
   font-weight: 800;
@@ -5418,18 +5052,6 @@ onMounted(() => {
 
   .kb-reference-panel .card-body {
     max-height: none;
-  }
-}
-
-@media (max-width: 767.98px) {
-  .reporting-required-fields,
-  .reporting-resolved-context {
-    grid-template-columns: 1fr;
-  }
-
-  .reporting-persistence-action {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
 

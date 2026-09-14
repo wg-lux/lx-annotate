@@ -11,18 +11,19 @@ type ReportingApiError = {
 }
 
 export function reportingApiError(error: unknown): ReportingApiError {
-  return error && typeof error === 'object' ? (error) : {}
+  return error && typeof error === 'object' ? error : {}
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null
 }
 
 export function reportingApiErrorMessage(error: unknown, fallback: string): string {
   const candidate = reportingApiError(error)
-  const detail = candidate.response?.data?.detail
-  if (typeof detail === 'string' && detail) {
-    return detail
-  }
-  const responseError = candidate.response?.data?.error
-  if (typeof responseError === 'string' && responseError) {
-    return responseError
-  }
-  return typeof candidate.message === 'string' && candidate.message ? candidate.message : fallback
+  const messages = [
+    candidate.response?.data?.detail,
+    candidate.response?.data?.error,
+    candidate.message
+  ]
+  return messages.map(nonEmptyString).find((message) => message !== null) ?? fallback
 }

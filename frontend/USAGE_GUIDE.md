@@ -2,7 +2,7 @@
 
 direnv allow
 uv sync
-mkdir 
+mkdir
 
 ## TypeSript compilation
 
@@ -15,7 +15,6 @@ General order of loading:
 
 App.vue -> router.ts -> views from frontend/views folder -> component from components folder -> stores, api etc.
 
-
 ## Components
 
 You will mostly work in components, these consist of HTML with vue elements (eg. v-f) and typescript code and css below.
@@ -26,7 +25,6 @@ IMPORTANT COMPONENTS:
 
 NavbarComponent.vue -> toplevel menu
 SidebarComponent.vue -> New components need to be registered here
-
 
 ## Views
 

@@ -1,6 +1,7 @@
 import { flushPromises, mount, RouterLinkStub, type DOMWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { routeLocationKey } from 'vue-router'
 import router from '@/router'
 import SidebarComponent from '../SidebarComponent.vue'
 
@@ -36,40 +37,43 @@ function getNodeByText(nodes: DOMWrapper<Element>[], text: string): DOMWrapper<E
   return node
 }
 
-async function getRouteImportError(path: string): Promise<string | null> {
-  const resolved = router.resolve(path)
-  if (resolved.matched.length === 0) {
-    return `Route "${path}" wird vom Router nicht aufgelöst.`
+function validateLoadedComponent(moduleOrComponent: unknown, path: string, recordPath: string) {
+  if (!moduleOrComponent) {
+    return `Route "${path}" liefert leere Komponente (record: "${recordPath}").`
   }
+  const isModule = typeof moduleOrComponent === 'object' && 'default' in moduleOrComponent
+  if (isModule && !(moduleOrComponent as { default?: unknown }).default) {
+    return `Route "${path}" lädt ein Modul ohne Default-Export (record: "${recordPath}").`
+  }
+  return null
+}
 
-  for (const record of resolved.matched) {
-    const comp = record.components
-    const defaultComponent = comp?.default
+async function loadRouteComponent(
+  defaultComponent: unknown,
+  path: string,
+  recordPath: string
+): Promise<string | null> {
+  if (typeof defaultComponent !== 'function') return null
+  try {
+    const loaded = await (defaultComponent as () => Promise<unknown>)()
+    return validateLoadedComponent(loaded, path, recordPath)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    return `Route "${path}" konnte nicht geladen werden (record: "${recordPath}"): ${message}`
+  }
+}
+
+async function getRouteImportError(path: string): Promise<string | null> {
+  const matchedRecords = router.resolve(path).matched
+  if (!matchedRecords.length) return `Route "${path}" wird vom Router nicht aufgelöst.`
+  for (const record of matchedRecords) {
+    const defaultComponent = record.components?.default
     if (!defaultComponent) {
       return `Route "${path}" hat keine Default-Komponente (record: "${record.path}").`
     }
-
-    if (typeof defaultComponent === 'function') {
-      try {
-        const moduleOrComponent = await (defaultComponent as () => Promise<unknown>)()
-        if (moduleOrComponent && typeof moduleOrComponent === 'object' && 'default' in moduleOrComponent) {
-          if (!(moduleOrComponent as { default?: unknown }).default) {
-            return `Route "${path}" lädt ein Modul ohne Default-Export (record: "${record.path}").`
-          }
-        } else {
-          if (!moduleOrComponent) {
-            return `Route "${path}" liefert leere Komponente (record: "${record.path}").`
-          }
-        }
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error)
-        return (
-          `Route "${path}" konnte nicht geladen werden (record: "${record.path}"): ${message}`
-        )
-      }
-    }
+    const error = await loadRouteComponent(defaultComponent, path, record.path)
+    if (error) return error
   }
-
   return null
 }
 
@@ -93,8 +97,8 @@ describe('Sidebar linked routes', () => {
         directives: {
           can: () => {}
         },
-        mocks: {
-          $route: {
+        provide: {
+          [routeLocationKey]: {
             path: '/'
           }
         }
@@ -153,8 +157,8 @@ describe('Sidebar linked routes', () => {
         directives: {
           can: () => {}
         },
-        mocks: {
-          $route: {
+        provide: {
+          [routeLocationKey]: {
             path: '/reporting'
           }
         }
@@ -163,16 +167,10 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
-    const reportingLink = getNodeByText(
-      wrapper.findAll('.nav-link'),
-      'Dokumentation: Übersicht'
-    )
+    const reportingLink = getNodeByText(wrapper.findAll('.nav-link'), 'Dokumentation: Übersicht')
     expect(reportingLink.classes()).toContain('active')
 
-    const caseSetupLink = getNodeByText(
-      wrapper.findAll('.nav-link'),
-      '3. Dokumentation starten'
-    )
+    const caseSetupLink = getNodeByText(wrapper.findAll('.nav-link'), '3. Dokumentation starten')
     expect(caseSetupLink.classes()).not.toContain('active')
 
     wrapper.unmount()
@@ -187,8 +185,8 @@ describe('Sidebar linked routes', () => {
         directives: {
           can: () => {}
         },
-        mocks: {
-          $route: {
+        provide: {
+          [routeLocationKey]: {
             path: '/reporting/case-setup'
           }
         }
@@ -197,16 +195,10 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
-    const caseSetupLink = getNodeByText(
-      wrapper.findAll('.nav-link'),
-      '3. Dokumentation starten'
-    )
+    const caseSetupLink = getNodeByText(wrapper.findAll('.nav-link'), '3. Dokumentation starten')
     expect(caseSetupLink.classes()).toContain('active')
 
-    const reportingLink = getNodeByText(
-      wrapper.findAll('.nav-link'),
-      'Dokumentation: Übersicht'
-    )
+    const reportingLink = getNodeByText(wrapper.findAll('.nav-link'), 'Dokumentation: Übersicht')
     expect(reportingLink.classes()).toContain('active')
 
     wrapper.unmount()
@@ -221,8 +213,8 @@ describe('Sidebar linked routes', () => {
         directives: {
           can: () => {}
         },
-        mocks: {
-          $route: {
+        provide: {
+          [routeLocationKey]: {
             path: '/anonymisierung/metriken'
           }
         }
@@ -231,10 +223,7 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
-    const metricsLink = getNodeByText(
-      wrapper.findAll('.nav-link'),
-      'Anonymisierungsmetriken'
-    )
+    const metricsLink = getNodeByText(wrapper.findAll('.nav-link'), 'Anonymisierungsmetriken')
     expect(metricsLink.classes()).toContain('active')
 
     wrapper.unmount()
@@ -249,8 +238,8 @@ describe('Sidebar linked routes', () => {
         directives: {
           can: () => {}
         },
-        mocks: {
-          $route: {
+        provide: {
+          [routeLocationKey]: {
             path: '/anonymisierung/evaluation'
           }
         }
@@ -259,10 +248,7 @@ describe('Sidebar linked routes', () => {
 
     await flushPromises()
 
-    const evaluationLink = getNodeByText(
-      wrapper.findAll('.nav-link'),
-      'Anonymisierungsevaluation'
-    )
+    const evaluationLink = getNodeByText(wrapper.findAll('.nav-link'), 'Anonymisierungsevaluation')
     expect(evaluationLink.classes()).toContain('active')
 
     wrapper.unmount()

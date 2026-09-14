@@ -96,39 +96,37 @@ function nonEmpty(value: string | null | undefined): string | undefined {
   return normalized || undefined
 }
 
+type StudyCohortStringQueryKey =
+  | 'date_from'
+  | 'date_to'
+  | 'center_key'
+  | 'examination_name'
+  | 'document_type'
+  | 'finding'
+  | 'annotation_label'
+
+function assignNonEmptyQueryValue(
+  query: StudyCohortPreviewQuery,
+  key: StudyCohortStringQueryKey,
+  value: string | null | undefined
+): void {
+  const normalized = nonEmpty(value)
+  if (normalized) {
+    query[key] = normalized
+  }
+}
+
 export function buildStudyCohortPreviewQuery(
   filters: StudyCohortPreviewFilters
 ): StudyCohortPreviewQuery {
   const query: StudyCohortPreviewQuery = {}
-  const dateFrom = nonEmpty(filters.dateFrom)
-  const dateTo = nonEmpty(filters.dateTo)
-  const centerKey = nonEmpty(filters.centerKey)
-  const examinationName = nonEmpty(filters.examinationName)
-  const documentType = nonEmpty(filters.documentType)
-  const finding = nonEmpty(filters.finding)
-  const annotationLabel = nonEmpty(filters.annotationLabel)
-
-  if (dateFrom) {
-    query.date_from = dateFrom
-  }
-  if (dateTo) {
-    query.date_to = dateTo
-  }
-  if (centerKey) {
-    query.center_key = centerKey
-  }
-  if (examinationName) {
-    query.examination_name = examinationName
-  }
-  if (documentType) {
-    query.document_type = documentType
-  }
-  if (finding) {
-    query.finding = finding
-  }
-  if (annotationLabel) {
-    query.annotation_label = annotationLabel
-  }
+  assignNonEmptyQueryValue(query, 'date_from', filters.dateFrom)
+  assignNonEmptyQueryValue(query, 'date_to', filters.dateTo)
+  assignNonEmptyQueryValue(query, 'center_key', filters.centerKey)
+  assignNonEmptyQueryValue(query, 'examination_name', filters.examinationName)
+  assignNonEmptyQueryValue(query, 'document_type', filters.documentType)
+  assignNonEmptyQueryValue(query, 'finding', filters.finding)
+  assignNonEmptyQueryValue(query, 'annotation_label', filters.annotationLabel)
   if (typeof filters.hasReport === 'boolean') {
     query.has_report = filters.hasReport
   }

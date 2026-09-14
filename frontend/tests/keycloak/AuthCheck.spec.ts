@@ -13,9 +13,11 @@ describe('AuthCheck bootstrap states', () => {
   it('shows loading until authentication is available', async () => {
     const store = useAuthKcStore()
     let complete!: () => void
-    vi.spyOn(store, 'loadBootstrap').mockReturnValue(new Promise<void>((resolve) => {
-      complete = resolve
-    }))
+    vi.spyOn(store, 'loadBootstrap').mockReturnValue(
+      new Promise<void>((resolve) => {
+        complete = resolve
+      })
+    )
     const wrapper = mount(AuthCheck, { slots })
     expect(wrapper.text()).toBe('Checking authentication')
 
@@ -44,7 +46,9 @@ describe('AuthCheck bootstrap states', () => {
     const wrapper = mount(AuthCheck, { slots })
     await flushPromises()
 
-    expect(wrapper.get('[role="alert"]').text()).toContain('Die Anmeldung konnte nicht geprüft werden.')
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Die Anmeldung konnte nicht geprüft werden.'
+    )
     expect(wrapper.text()).not.toContain('Internal response details')
     expect(wrapper.text()).not.toContain('Protected content')
     expect(wrapper.text()).not.toContain('Login required')

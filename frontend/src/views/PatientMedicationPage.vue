@@ -13,7 +13,8 @@
         <RouterLink
           class="btn btn-outline-secondary"
           to="/patienten"
-        >Patienten</RouterLink>
+          >Patienten</RouterLink
+        >
         <RouterLink
           class="btn btn-outline-primary"
           :to="{ name: 'Patientendokumente', params: { patientId } }"
@@ -48,7 +49,9 @@
       v-else-if="error"
       class="alert alert-danger"
       role="alert"
-    >{{ error }}</div>
+    >
+      {{ error }}
+    </div>
     <div
       v-else-if="cases.length === 0"
       class="card card-body text-center text-muted"
@@ -125,7 +128,8 @@
             <span
               v-else
               class="text-muted"
-            >Keine Medikation zugeordnet</span>
+              >Keine Medikation zugeordnet</span
+            >
           </div>
           <div class="col-md-6">
             <h3 class="h6">Medikationspläne</h3>
@@ -153,13 +157,16 @@
                 <div
                   v-else
                   class="small text-muted"
-                >Plandetails sind nicht verfügbar.</div>
+                >
+                  Plandetails sind nicht verfügbar.
+                </div>
               </div>
             </div>
             <span
               v-else
               class="text-muted"
-            >Kein Medikationsplan zugeordnet</span>
+              >Kein Medikationsplan zugeordnet</span
+            >
           </div>
         </div>
       </article>

@@ -10,6 +10,21 @@ export type VideoDropdownStatus =
 
 export type VideoDropdownFilter = 'all' | 'usable' | VideoDropdownStatus
 
+const parseBirthDate = (value: string): Date | null => {
+  const parsed = new Date(value)
+  if (!Number.isNaN(parsed.getTime())) return parsed
+  const deMatch = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
+  if (!deMatch) return null
+  const [, day, month, year] = deMatch
+  const localized = new Date(Number(year), Number(month) - 1, Number(day))
+  return Number.isNaN(localized.getTime()) ? null : localized
+}
+
+const birthdayOccurredThisYear = (birthDate: Date, today: Date): boolean => {
+  const monthDelta = today.getMonth() - birthDate.getMonth()
+  return monthDelta > 0 || (monthDelta === 0 && today.getDate() >= birthDate.getDate())
+}
+
 export const getAgeFromDob = (
   rawDob: string | null | undefined,
   today: Date = new Date()
@@ -22,25 +37,11 @@ export const getAgeFromDob = (
     return null
   }
 
-  let dob = new Date(trimmed)
-  if (Number.isNaN(dob.getTime())) {
-    const deMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
-    if (!deMatch) {
-      return null
-    }
-    const [, day, month, year] = deMatch
-    dob = new Date(Number(year), Number(month) - 1, Number(day))
-  }
-  if (Number.isNaN(dob.getTime())) {
-    return null
-  }
-
-  let age = today.getFullYear() - dob.getFullYear()
-  const monthDelta = today.getMonth() - dob.getMonth()
-  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate())) {
-    age -= 1
-  }
-  return age >= 0 ? age : null
+  const birthDate = parseBirthDate(trimmed)
+  if (!birthDate) return null
+  const ageThisYear = today.getFullYear() - birthDate.getFullYear()
+  const patientAge = ageThisYear - (birthdayOccurredThisYear(birthDate, today) ? 0 : 1)
+  return patientAge >= 0 ? patientAge : null
 }
 
 export const normalizeGenderLabel = (value: string | null | undefined): string => {
@@ -62,7 +63,7 @@ export const normalizeGenderLabel = (value: string | null | undefined): string =
 
 export const normalizeValidatedAnnotators = (annotators: readonly unknown[]): string[] =>
   [...new Set(annotators.map((annotator) => String(annotator).trim()).filter(Boolean))].sort(
-    (a, b) => a.localeCompare(b)
+    (firstAnnotator, secondAnnotator) => firstAnnotator.localeCompare(secondAnnotator)
   )
 
 export const getValidatedAnnotatorLabel = (

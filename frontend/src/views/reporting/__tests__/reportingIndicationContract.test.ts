@@ -117,9 +117,7 @@ describe('reporting indication contract', () => {
               {
                 id: 500,
                 name_de: 'Klassifikation',
-                classification_choices: [
-                  { id: 88, name: 'routine', name_de: 'Regelvorsorge' }
-                ]
+                classification_choices: [{ id: 88, name: 'routine', name_de: 'Regelvorsorge' }]
               }
             ]
           }
@@ -143,9 +141,7 @@ describe('reporting indication contract', () => {
               id: 7,
               name: 'screening_colonoscopy',
               nameDe: 'Vorsorgekoloskopie',
-              indicationChoices: [
-                { id: 88, name: 'routine_screening', name_de: 'Regelvorsorge' }
-              ]
+              indicationChoices: [{ id: 88, name: 'routine_screening', name_de: 'Regelvorsorge' }]
             }
           ]
         }

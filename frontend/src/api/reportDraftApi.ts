@@ -199,6 +199,10 @@ function normalizeReportTextMode(value: unknown): ReportDraftTextMode | undefine
   return value
 }
 
+function field(record: Record<string, unknown>, camel: string, snake: string): unknown {
+  return record[camel] ?? record[snake]
+}
+
 function normalizeReportDraftBlob(value: unknown): ReportDraftBlob {
   if (value === undefined || value === null) {
     return {}
@@ -208,11 +212,11 @@ function normalizeReportDraftBlob(value: unknown): ReportDraftBlob {
   }
 
   const rawIdentity = value.templateIdentity || value.template_identity
-  const rawSectionDrafts = value.templateSectionDrafts ?? value.template_section_drafts
-  const rawReportLanguage = value.selectedReportLanguage ?? value.selected_report_language
-  const rawActiveReportId = value.activeReportId ?? value.active_report_id
-  const rawReportTextMode = value.reportTextMode ?? value.report_text_mode
-  const rawRenderedText = value.renderedText ?? value.rendered_text
+  const rawSectionDrafts = field(value, 'templateSectionDrafts', 'template_section_drafts')
+  const rawReportLanguage = field(value, 'selectedReportLanguage', 'selected_report_language')
+  const rawActiveReportId = field(value, 'activeReportId', 'active_report_id')
+  const rawReportTextMode = field(value, 'reportTextMode', 'report_text_mode')
+  const rawRenderedText = field(value, 'renderedText', 'rendered_text')
   return {
     moduleName: optionalString(value.moduleName, 'draft.moduleName'),
     module_name: optionalString(value.module_name, 'draft.module_name'),
@@ -235,6 +239,23 @@ function normalizeReportDraftBlob(value: unknown): ReportDraftBlob {
   }
 }
 
+function requireRequestedPatientExaminationId(
+  value: Record<string, unknown>,
+  requestedPatientExaminationId: number
+): { patientExaminationId: number | undefined; snakeCaseId: number | undefined } {
+  const patientExaminationId = optionalNumber(value.patientExaminationId, 'patientExaminationId')
+  const snakeCaseId = optionalNumber(value.patient_examination_id, 'patient_examination_id')
+  if (
+    (patientExaminationId === undefined && snakeCaseId === undefined) ||
+    (patientExaminationId !== undefined &&
+      patientExaminationId !== requestedPatientExaminationId) ||
+    (snakeCaseId !== undefined && snakeCaseId !== requestedPatientExaminationId)
+  ) {
+    throw new TypeError('Report draft response does not match the requested patient examination')
+  }
+  return { patientExaminationId, snakeCaseId }
+}
+
 function normalizeReportDraftResponse(
   value: unknown,
   requestedPatientExaminationId: number,
@@ -244,15 +265,10 @@ function normalizeReportDraftResponse(
     throw new TypeError('Report draft response does not match the expected contract')
   }
   const draft = normalizeReportDraftBlob(value.draft)
-  const patientExaminationId = optionalNumber(value.patientExaminationId, 'patientExaminationId')
-  const snakeCaseId = optionalNumber(value.patient_examination_id, 'patient_examination_id')
-  if (
-    (patientExaminationId === undefined && snakeCaseId === undefined) ||
-    (patientExaminationId !== undefined && patientExaminationId !== requestedPatientExaminationId) ||
-    (snakeCaseId !== undefined && snakeCaseId !== requestedPatientExaminationId)
-  ) {
-    throw new TypeError('Report draft response does not match the requested patient examination')
-  }
+  const { patientExaminationId, snakeCaseId } = requireRequestedPatientExaminationId(
+    value,
+    requestedPatientExaminationId
+  )
   const revision = optionalNonNegativeNumber(value.revision, 'revision')
   if (revision === undefined) {
     throw new TypeError('Report draft response contains a missing revision')
@@ -323,5 +339,9 @@ export async function savePatientExaminationDraft(params: {
       payload: params.payload
     }
   )
-  return normalizeReportDraftResponse(response.data, params.patientExaminationId, params.expectedRevision)
+  return normalizeReportDraftResponse(
+    response.data,
+    params.patientExaminationId,
+    params.expectedRevision
+  )
 }

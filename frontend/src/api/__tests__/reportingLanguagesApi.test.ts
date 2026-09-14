@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  fetchReportingLanguages,
-  normalizeReportingLanguages
-} from '@/api/reportingLanguagesApi'
+import { fetchReportingLanguages, normalizeReportingLanguages } from '@/api/reportingLanguagesApi'
 
 const hoisted = vi.hoisted(() => ({
   get: vi.fn()

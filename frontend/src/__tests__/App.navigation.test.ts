@@ -45,7 +45,7 @@ const mountApp = () =>
     }
   })
 
- describe('App responsive navigation', () => {
+describe('App responsive navigation', () => {
   it('moves focus into navigation and returns it to the navbar after Escape', async () => {
     const wrapper = mountApp()
     const opener = wrapper.get<HTMLButtonElement>('[data-test="navbar-sidebar-toggle"]')
@@ -111,12 +111,10 @@ const mountApp = () =>
 
     expect(wrapper.find('.sidebar-shell--open').exists()).toBe(false)
   })
-it('places the sidebar panel directly inside the open shell', async () => {
+  it('places the sidebar panel directly inside the open shell', async () => {
     const wrapper = mountApp()
 
-    await wrapper
-      .get('[data-test="navbar-sidebar-toggle"]')
-      .trigger('click')
+    await wrapper.get('[data-test="navbar-sidebar-toggle"]').trigger('click')
 
     const panel = wrapper.find('.sidebar-shell--open > .sidebar-panel')
     expect(panel.exists()).toBe(true)

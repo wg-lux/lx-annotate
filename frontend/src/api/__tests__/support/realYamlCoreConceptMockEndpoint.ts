@@ -188,6 +188,118 @@ type FixtureGraphRelationship =
   | 'caused_by_intervention'
   | 'is_type'
 
+type GraphRelationshipSpec = {
+  sourceKind: FixtureGraphNodeKind
+  sourceField: string
+  relationship: FixtureGraphRelationship
+  targetKind: FixtureGraphNodeKind
+}
+
+const GRAPH_RELATIONSHIPS: GraphRelationshipSpec[] = [
+  {
+    sourceKind: 'classification',
+    sourceField: 'classification_choices',
+    relationship: 'has_choice',
+    targetKind: 'classification_choice'
+  },
+  {
+    sourceKind: 'classification',
+    sourceField: 'classification_types',
+    relationship: 'is_type',
+    targetKind: 'classification_type'
+  },
+  {
+    sourceKind: 'classification_choice',
+    sourceField: 'classification_choice_descriptors',
+    relationship: 'has_descriptor',
+    targetKind: 'classification_choice_descriptor'
+  },
+  {
+    sourceKind: 'classification_choice_descriptor',
+    sourceField: 'unit',
+    relationship: 'uses_unit',
+    targetKind: 'unit'
+  },
+  {
+    sourceKind: 'examination',
+    sourceField: 'findings',
+    relationship: 'has_finding',
+    targetKind: 'finding'
+  },
+  {
+    sourceKind: 'examination',
+    sourceField: 'indications',
+    relationship: 'has_indication',
+    targetKind: 'indication'
+  },
+  {
+    sourceKind: 'examination',
+    sourceField: 'examination_types',
+    relationship: 'is_type',
+    targetKind: 'examination_type'
+  },
+  {
+    sourceKind: 'finding',
+    sourceField: 'finding_types',
+    relationship: 'is_type',
+    targetKind: 'finding_type'
+  },
+  {
+    sourceKind: 'finding',
+    sourceField: 'classifications',
+    relationship: 'has_classification',
+    targetKind: 'classification'
+  },
+  {
+    sourceKind: 'finding',
+    sourceField: 'interventions',
+    relationship: 'supports_intervention',
+    targetKind: 'intervention'
+  },
+  {
+    sourceKind: 'finding',
+    sourceField: 'caused_by_interventions',
+    relationship: 'caused_by_intervention',
+    targetKind: 'intervention'
+  },
+  {
+    sourceKind: 'indication',
+    sourceField: 'indication_types',
+    relationship: 'is_type',
+    targetKind: 'indication_type'
+  },
+  {
+    sourceKind: 'indication',
+    sourceField: 'classifications',
+    relationship: 'has_classification',
+    targetKind: 'classification'
+  },
+  {
+    sourceKind: 'indication',
+    sourceField: 'interventions',
+    relationship: 'supports_intervention',
+    targetKind: 'intervention'
+  },
+  {
+    sourceKind: 'intervention',
+    sourceField: 'intervention_types',
+    relationship: 'is_type',
+    targetKind: 'intervention_type'
+  },
+  {
+    sourceKind: 'unit',
+    sourceField: 'unit_types',
+    relationship: 'is_type',
+    targetKind: 'unit_type'
+  },
+  {
+    sourceKind: 'information_source',
+    sourceField: 'information_source_types',
+    relationship: 'is_type',
+    targetKind: 'information_source_type'
+  }
+]
+
 function recordStringList(record: YamlRecord, field: string): string[] {
   const value = record[field]
   if (Array.isArray(value)) {
@@ -223,136 +335,16 @@ function graphPayloadFromConceptPayload(
     }
   }
 
-  for (const record of payload.classification) {
-    append(
-      'classification',
-      record.name,
-      'has_choice',
-      'classification_choice',
-      recordStringList(record, 'classification_choices')
-    )
-    append(
-      'classification',
-      record.name,
-      'is_type',
-      'classification_type',
-      recordStringList(record, 'classification_types')
-    )
-  }
-  for (const record of payload.classification_choice) {
-    append(
-      'classification_choice',
-      record.name,
-      'has_descriptor',
-      'classification_choice_descriptor',
-      recordStringList(record, 'classification_choice_descriptors')
-    )
-  }
-  for (const record of payload.classification_choice_descriptor) {
-    append(
-      'classification_choice_descriptor',
-      record.name,
-      'uses_unit',
-      'unit',
-      recordStringList(record, 'unit')
-    )
-  }
-  for (const record of payload.examination) {
-    append(
-      'examination',
-      record.name,
-      'has_finding',
-      'finding',
-      recordStringList(record, 'findings')
-    )
-    append(
-      'examination',
-      record.name,
-      'has_indication',
-      'indication',
-      recordStringList(record, 'indications')
-    )
-    append(
-      'examination',
-      record.name,
-      'is_type',
-      'examination_type',
-      recordStringList(record, 'examination_types')
-    )
-  }
-  for (const record of payload.finding) {
-    append(
-      'finding',
-      record.name,
-      'is_type',
-      'finding_type',
-      recordStringList(record, 'finding_types')
-    )
-    append(
-      'finding',
-      record.name,
-      'has_classification',
-      'classification',
-      recordStringList(record, 'classifications')
-    )
-    append(
-      'finding',
-      record.name,
-      'supports_intervention',
-      'intervention',
-      recordStringList(record, 'interventions')
-    )
-    append(
-      'finding',
-      record.name,
-      'caused_by_intervention',
-      'intervention',
-      recordStringList(record, 'caused_by_interventions')
-    )
-  }
-  for (const record of payload.indication) {
-    append(
-      'indication',
-      record.name,
-      'is_type',
-      'indication_type',
-      recordStringList(record, 'indication_types')
-    )
-    append(
-      'indication',
-      record.name,
-      'has_classification',
-      'classification',
-      recordStringList(record, 'classifications')
-    )
-    append(
-      'indication',
-      record.name,
-      'supports_intervention',
-      'intervention',
-      recordStringList(record, 'interventions')
-    )
-  }
-  for (const record of payload.intervention) {
-    append(
-      'intervention',
-      record.name,
-      'is_type',
-      'intervention_type',
-      recordStringList(record, 'intervention_types')
-    )
-  }
-  for (const record of payload.unit) {
-    append('unit', record.name, 'is_type', 'unit_type', recordStringList(record, 'unit_types'))
-  }
-  for (const record of payload.information_source) {
-    append(
-      'information_source',
-      record.name,
-      'is_type',
-      'information_source_type',
-      recordStringList(record, 'information_source_types')
-    )
+  for (const spec of GRAPH_RELATIONSHIPS) {
+    for (const record of payload[spec.sourceKind]) {
+      append(
+        spec.sourceKind,
+        record.name,
+        spec.relationship,
+        spec.targetKind,
+        recordStringList(record, spec.sourceField)
+      )
+    }
   }
 
   return {
@@ -369,6 +361,64 @@ function graphPayloadFromConceptPayload(
   }
 }
 
+const MODULE_FALLBACK_VERSIONS: Record<ModuleName, string> = {
+  mst_3_0: '3.0.0',
+  star_upper_gi: '0.1.1',
+  terminology: '0.1.0'
+}
+
+function parseMockRequest(url: string) {
+  const coreConceptMatch = /\/dtypes-api\/core-concepts\/([^/?]+)/.exec(url)
+  const graphMatch = /\/dtypes-api\/knowledge-bases\/([^/?]+)\/([^/?]+)\/graph(?:\?|$)/.exec(url)
+  const moduleSegment = coreConceptMatch?.[1] ?? graphMatch?.[1]
+  return {
+    requestedModule: moduleSegment ? decodeURIComponent(moduleSegment) : '',
+    requestedVersion: graphMatch?.[2] ? decodeURIComponent(graphMatch[2]) : null,
+    requestsGraph: Boolean(graphMatch)
+  }
+}
+
+function loadConceptPayload(
+  requestedModule: ModuleName,
+  sourcePreference: NonNullable<RealYamlEndpointOptions['sourcePreference']>
+) {
+  const livePath = LIVE_MODULE_PATHS[requestedModule]
+  const fallbackVersion = MODULE_FALLBACK_VERSIONS[requestedModule]
+  const shippedPath = join(SHIPPED_FIXTURE_ROOT, `${requestedModule}.yml`)
+  const shouldTryLive = sourcePreference === 'live-first' && existsSync(livePath)
+  if (!shouldTryLive) {
+    return {
+      source: 'shipped' as const,
+      sourcePath: shippedPath,
+      files: [shippedPath],
+      result: payloadFromFiles(requestedModule, [shippedPath], fallbackVersion),
+      liveLoadError: undefined
+    }
+  }
+  try {
+    const files = yamlFilesBelow(livePath)
+    return {
+      source: 'live' as const,
+      sourcePath: livePath,
+      files,
+      result: payloadFromFiles(
+        requestedModule,
+        files,
+        readConfigVersion(livePath, fallbackVersion)
+      ),
+      liveLoadError: undefined
+    }
+  } catch (error: unknown) {
+    return {
+      source: 'shipped' as const,
+      sourcePath: shippedPath,
+      files: [shippedPath],
+      result: payloadFromFiles(requestedModule, [shippedPath], fallbackVersion),
+      liveLoadError: error instanceof Error ? error.message : 'unknown live YAML load error'
+    }
+  }
+}
+
 export function createRealYamlCoreConceptMockEndpoint(options: RealYamlEndpointOptions = {}): {
   adapter: AxiosAdapter
   loads: RealYamlEndpointLoad[]
@@ -377,11 +427,8 @@ export function createRealYamlCoreConceptMockEndpoint(options: RealYamlEndpointO
   const sourcePreference = options.sourcePreference ?? 'live-first'
 
   const adapter: AxiosAdapter = (config) => {
-    const url = config.url || ''
-    const coreConceptMatch = /\/dtypes-api\/core-concepts\/([^/?]+)/.exec(url)
-    const graphMatch = /\/dtypes-api\/knowledge-bases\/([^/?]+)\/([^/?]+)\/graph(?:\?|$)/.exec(url)
-    const requestedModuleSegment = coreConceptMatch?.[1] ?? graphMatch?.[1]
-    const requestedModule = requestedModuleSegment ? decodeURIComponent(requestedModuleSegment) : ''
+    const request = parseMockRequest(config.url || '')
+    const requestedModule = request.requestedModule
     if (!isModuleName(requestedModule)) {
       return Promise.resolve({
         data: { detail: `Unknown real-YAML mock module: ${requestedModule || '<missing>'}` },
@@ -392,41 +439,13 @@ export function createRealYamlCoreConceptMockEndpoint(options: RealYamlEndpointO
       })
     }
 
-    const livePath = LIVE_MODULE_PATHS[requestedModule]
-    const shouldTryLive = sourcePreference === 'live-first' && existsSync(livePath)
-    const fallbackVersion =
-      requestedModule === 'mst_3_0'
-        ? '3.0.0'
-        : requestedModule === 'star_upper_gi'
-          ? '0.1.1'
-          : '0.1.0'
-    let source: RealYamlEndpointLoad['source'] = 'shipped'
-    let sourcePath = join(SHIPPED_FIXTURE_ROOT, `${requestedModule}.yml`)
-    let files = [sourcePath]
-    let liveLoadError: string | undefined
-    let result: ReturnType<typeof payloadFromFiles> | undefined
-    if (shouldTryLive) {
-      try {
-        source = 'live'
-        sourcePath = livePath
-        files = yamlFilesBelow(sourcePath)
-        result = payloadFromFiles(
-          requestedModule,
-          files,
-          readConfigVersion(sourcePath, fallbackVersion)
-        )
-      } catch (error: unknown) {
-        liveLoadError = error instanceof Error ? error.message : 'unknown live YAML load error'
-        source = 'shipped'
-        sourcePath = join(SHIPPED_FIXTURE_ROOT, `${requestedModule}.yml`)
-        files = [sourcePath]
-      }
-    }
-    result ??= payloadFromFiles(requestedModule, files, fallbackVersion)
-    const requestedVersion = graphMatch?.[2] ? decodeURIComponent(graphMatch[2]) : null
-    if (requestedVersion && requestedVersion !== result.payload.knowledge_base_version) {
+    const loaded = loadConceptPayload(requestedModule, sourcePreference)
+    if (
+      request.requestedVersion &&
+      request.requestedVersion !== loaded.result.payload.knowledge_base_version
+    ) {
       return Promise.resolve({
-        data: { detail: `Unknown mock version: ${requestedVersion}` },
+        data: { detail: `Unknown mock version: ${request.requestedVersion}` },
         status: 404,
         statusText: 'Not Found',
         headers: {},
@@ -435,15 +454,17 @@ export function createRealYamlCoreConceptMockEndpoint(options: RealYamlEndpointO
     }
     loads.push({
       moduleName: requestedModule,
-      source,
-      attemptedLivePath: livePath,
-      sourcePath,
-      loadedFiles: files.map((path) => basename(path)),
-      excludedModelCounts: result.excludedModelCounts,
-      ...(liveLoadError ? { liveLoadError } : {})
+      source: loaded.source,
+      attemptedLivePath: LIVE_MODULE_PATHS[requestedModule],
+      sourcePath: loaded.sourcePath,
+      loadedFiles: loaded.files.map((path) => basename(path)),
+      excludedModelCounts: loaded.result.excludedModelCounts,
+      ...(loaded.liveLoadError ? { liveLoadError: loaded.liveLoadError } : {})
     })
     return Promise.resolve({
-      data: graphMatch ? graphPayloadFromConceptPayload(result.payload) : result.payload,
+      data: request.requestsGraph
+        ? graphPayloadFromConceptPayload(loaded.result.payload)
+        : loaded.result.payload,
       status: 200,
       statusText: 'OK',
       headers: {},

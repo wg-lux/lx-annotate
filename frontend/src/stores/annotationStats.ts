@@ -100,7 +100,8 @@ function requireSensitiveMetadataRows(value: unknown): SensitiveMetadataVerifica
   const rows = requireResponseRows(value, 'Sensitive metadata list')
   if (
     !rows.every(
-      (row: unknown) => isRecord(row) &&
+      (row: unknown) =>
+        isRecord(row) &&
         (row.dob_verified === undefined || typeof row.dob_verified === 'boolean') &&
         (row.names_verified === undefined || typeof row.names_verified === 'boolean')
     )
@@ -129,7 +130,9 @@ function parseVideoSegmentStats(value: unknown): AnnotationSourceStats {
 }
 
 function isExaminationStatus(value: unknown): value is ExaminationStatus {
-  return value === 'pending' || value === 'in_progress' || value === 'completed' || value === 'draft'
+  return (
+    value === 'pending' || value === 'in_progress' || value === 'completed' || value === 'draft'
+  )
 }
 
 function parseExaminationStats(value: unknown): AnnotationSourceStats {
@@ -220,22 +223,30 @@ function buildUnifiedStats(
   }
 }
 
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null
+}
+
+function responseDataForError(error: Record<string, unknown>): Record<string, unknown> | null {
+  if (!isRecord(error.response)) return null
+  return isRecord(error.response.data) ? error.response.data : null
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   if (!isRecord(error)) {
     return fallback
   }
-  const response = isRecord(error.response) ? error.response : null
-  const responseData = response && isRecord(response.data) ? response.data : null
-  const responseError = responseData?.error
-  if (typeof responseError === 'string' && responseError) {
+  const responseData = responseDataForError(error)
+  const responseError = nonEmptyString(responseData?.error)
+  if (responseError) {
     return responseError
   }
-  const responseCode = responseData?.code
-  if (typeof responseCode === 'string' && responseCode) {
-    const detail = typeof responseData.detail === 'string' ? responseData.detail : null
+  const responseCode = nonEmptyString(responseData?.code)
+  if (responseCode) {
+    const detail = nonEmptyString(responseData?.detail)
     return detail ? `${responseCode}: ${detail}` : responseCode
   }
-  return typeof error.message === 'string' && error.message ? error.message : fallback
+  return nonEmptyString(error.message) ?? fallback
 }
 
 const annotationStatusKeys: Record<

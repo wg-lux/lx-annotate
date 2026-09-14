@@ -296,6 +296,32 @@ function normalizeAnnotationId(value: unknown): number | undefined {
   return Number.isFinite(parsedId) ? parsedId : undefined
 }
 
+function aliasedNumberOrNull(
+  record: Record<string, unknown>,
+  camelKey: string,
+  snakeKey: string
+): number | null {
+  const camelValue = record[camelKey]
+  if (typeof camelValue === 'number') {
+    return camelValue
+  }
+  const snakeValue = record[snakeKey]
+  return typeof snakeValue === 'number' ? snakeValue : null
+}
+
+function aliasedStringOrNull(
+  record: Record<string, unknown>,
+  camelKey: string,
+  snakeKey: string
+): string | null {
+  const camelValue = record[camelKey]
+  if (typeof camelValue === 'string') {
+    return camelValue
+  }
+  const snakeValue = record[snakeKey]
+  return typeof snakeValue === 'string' ? snakeValue : null
+}
+
 function normalizeAnnotation(item: unknown): NormalizedAnnotation | null {
   if (!item || typeof item !== 'object') {
     return null
@@ -312,24 +338,13 @@ function normalizeAnnotation(item: unknown): NormalizedAnnotation | null {
     labelId,
     labelName,
     value: !!annotationRecord.value,
-    floatValue:
-      typeof annotationRecord.floatValue === 'number'
-        ? annotationRecord.floatValue
-        : typeof annotationRecord.float_value === 'number'
-          ? annotationRecord.float_value
-          : null,
-    externalAnnotationId:
-      typeof annotationRecord.externalAnnotationId === 'string'
-        ? annotationRecord.externalAnnotationId
-        : typeof annotationRecord.external_annotation_id === 'string'
-          ? annotationRecord.external_annotation_id
-          : null,
-    modelMetaId:
-      typeof annotationRecord.modelMetaId === 'number'
-        ? annotationRecord.modelMetaId
-        : typeof annotationRecord.model_meta_id === 'number'
-          ? annotationRecord.model_meta_id
-          : null
+    floatValue: aliasedNumberOrNull(annotationRecord, 'floatValue', 'float_value'),
+    externalAnnotationId: aliasedStringOrNull(
+      annotationRecord,
+      'externalAnnotationId',
+      'external_annotation_id'
+    ),
+    modelMetaId: aliasedNumberOrNull(annotationRecord, 'modelMetaId', 'model_meta_id')
   }
   const annotationId = normalizeAnnotationId(annotationRecord.id)
   if (annotationId !== undefined) {
@@ -563,9 +578,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     datasetId: number | string | null = null
   ): void {
     aiDatasetId.value =
-      datasetId !== null && String(datasetId).trim()
-        ? String(datasetId).trim()
-        : null
+      datasetId !== null && String(datasetId).trim() ? String(datasetId).trim() : null
     aiDatasetName.value = datasetName?.trim() || null
     aiDatasetType.value = datasetType?.trim() || null
   }
@@ -574,28 +587,50 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     annotatorPrincipal.value = principal?.trim() || null
   }
 
+  function hasAiDatasetSelection(): boolean {
+    return (
+      aiDatasetId.value !== null || aiDatasetName.value !== null || aiDatasetType.value !== null
+    )
+  }
+
+  function requireValidPrimaryDataset(
+    settings: Awaited<ReturnType<typeof fetchApplicationSettings>>
+  ): void {
+    if (!settings.primaryAnnotationDatasetValid) {
+      throw new Error(
+        settings.primaryAnnotationDatasetError ||
+          'No valid primary annotation dataset is configured.'
+      )
+    }
+    if (settings.aiDatasetId === null) {
+      throw new Error('No primary annotation dataset is configured.')
+    }
+  }
+
+  function applyAiDatasetDefaults(
+    settings: Awaited<ReturnType<typeof fetchApplicationSettings>>
+  ): void {
+    aiDatasetId.value = String(settings.aiDatasetId)
+    aiDatasetName.value = settings.aiDatasetName?.trim() || null
+    aiDatasetType.value = settings.aiDatasetType?.trim() || null
+  }
+
+  function clearAiDatasetDefaults(): void {
+    aiDatasetId.value = null
+    aiDatasetName.value = null
+    aiDatasetType.value = null
+  }
+
   async function hydrateAiDatasetDefaults(): Promise<void> {
-    if (aiDatasetId.value !== null || aiDatasetName.value !== null || aiDatasetType.value !== null) {
+    if (hasAiDatasetSelection()) {
       return
     }
     try {
       const settings = await fetchApplicationSettings()
-      if (!settings.primaryAnnotationDatasetValid) {
-        throw new Error(
-          settings.primaryAnnotationDatasetError ||
-            'No valid primary annotation dataset is configured.'
-        )
-      }
-      if (settings.aiDatasetId === null) {
-        throw new Error('No primary annotation dataset is configured.')
-      }
-      aiDatasetId.value = String(settings.aiDatasetId)
-      aiDatasetName.value = settings.aiDatasetName?.trim() || null
-      aiDatasetType.value = settings.aiDatasetType?.trim() || null
+      requireValidPrimaryDataset(settings)
+      applyAiDatasetDefaults(settings)
     } catch (error) {
-      aiDatasetId.value = null
-      aiDatasetName.value = null
-      aiDatasetType.value = null
+      clearAiDatasetDefaults()
       throw error
     }
   }
@@ -715,50 +750,87 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     return message ?? 'Failed to fetch annotation tasks.'
   }
 
+  type QueueRequestIdentity = {
+    generation: number
+    signature: string
+  }
+
+  function captureQueueRequestIdentity(): QueueRequestIdentity {
+    return {
+      generation: queueGeneration,
+      signature: currentTaskRequestSignature()
+    }
+  }
+
+  function isCurrentQueueRequest(request: QueueRequestIdentity): boolean {
+    return isCurrentRequest(request.generation, request.signature)
+  }
+
+  function shouldFetchRandomFallback(tasks: AnnotationTask[]): boolean {
+    return taskMode.value === 'filtered' && allowRandomFallback.value && tasks.length === 0
+  }
+
+  function enqueueTaskBatch(
+    tasks: AnnotationTask[],
+    request: QueueRequestIdentity
+  ): AnnotationTask[] {
+    const queuedTasks = enqueueUniqueTasks(tasks)
+    return queuedTasks.length > 0
+      ? queuedTasks
+      : enqueueDummyTaskWhenQueueEmpty(request.generation, request.signature)
+  }
+
+  async function fetchCurrentTaskBatch(
+    batchSize: number,
+    request: QueueRequestIdentity
+  ): Promise<AnnotationTask[]> {
+    let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value)
+    if (!isCurrentQueueRequest(request)) {
+      return []
+    }
+    if (shouldFetchRandomFallback(parsed)) {
+      parsed = await fetchTaskBatchFromApi(batchSize, 'random')
+      if (!isCurrentQueueRequest(request)) {
+        return []
+      }
+    }
+    return enqueueTaskBatch(parsed, request)
+  }
+
+  async function recoverTaskBatch(
+    batchSize: number,
+    request: QueueRequestIdentity,
+    error: unknown
+  ): Promise<AnnotationTask[]> {
+    if (!isCurrentQueueRequest(request)) {
+      return []
+    }
+    if (taskMode.value === 'filtered' && allowRandomFallback.value) {
+      const fallback = await fetchRandomFallback(batchSize, request.generation, request.signature)
+      if (!fallback.current) {
+        return []
+      }
+      if (fallback.tasks.length > 0) {
+        return fallback.tasks
+      }
+    }
+    lastError.value = getTaskBatchErrorMessage(error)
+    return enqueueDummyTaskWhenQueueEmpty(request.generation, request.signature)
+  }
+
   async function fetchBatch(batchSize = 10): Promise<AnnotationTask[]> {
     if (!selectedLabelGroupId.value && dummyTaskModeEnabled) {
       selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID
     }
 
     lastError.value = null
-    let requestGeneration = queueGeneration
-    let requestSignature = currentTaskRequestSignature()
+    let request = captureQueueRequestIdentity()
     try {
       await hydrateAiDatasetDefaults()
-      requestGeneration = queueGeneration
-      requestSignature = currentTaskRequestSignature()
-      let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value)
-      if (!isCurrentRequest(requestGeneration, requestSignature)) {
-        return []
-      }
-
-      if (taskMode.value === 'filtered' && allowRandomFallback.value && parsed.length === 0) {
-        parsed = await fetchTaskBatchFromApi(batchSize, 'random')
-        if (!isCurrentRequest(requestGeneration, requestSignature)) {
-          return []
-        }
-      }
-
-      const queuedTasks = enqueueUniqueTasks(parsed)
-      return queuedTasks.length > 0
-        ? queuedTasks
-        : enqueueDummyTaskWhenQueueEmpty(requestGeneration, requestSignature)
+      request = captureQueueRequestIdentity()
+      return await fetchCurrentTaskBatch(batchSize, request)
     } catch (error: unknown) {
-      if (!isCurrentRequest(requestGeneration, requestSignature)) {
-        return []
-      }
-      if (taskMode.value === 'filtered' && allowRandomFallback.value) {
-        const fallback = await fetchRandomFallback(batchSize, requestGeneration, requestSignature)
-        if (!fallback.current) {
-          return []
-        }
-        if (fallback.tasks.length > 0) {
-          return fallback.tasks
-        }
-      }
-
-      lastError.value = getTaskBatchErrorMessage(error)
-      return enqueueDummyTaskWhenQueueEmpty(requestGeneration, requestSignature)
+      return await recoverTaskBatch(batchSize, request, error)
     }
   }
 

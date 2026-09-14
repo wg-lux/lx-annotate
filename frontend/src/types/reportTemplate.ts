@@ -116,7 +116,6 @@ export type ReportConceptCoverage = {
   concepts: ReportConceptCoverageItem[]
 }
 
-export type ReportTemplateCoverageState = 'valid' | 'missing' | 'invalid'
 
 export type FindingsValidatorOperator = 'exists' | 'missing' | 'condition'
 
@@ -203,7 +202,6 @@ export type ReportTemplatePayload = {
   reportSections: ReportTemplateSection[]
   validators: ReportTemplateValidators
   conceptCoverage: ReportConceptCoverage | null
-  conceptCoverageState: ReportTemplateCoverageState
 }
 
 export type ReportTemplateSectionBlock = {

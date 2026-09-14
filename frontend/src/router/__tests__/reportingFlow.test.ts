@@ -13,7 +13,9 @@ vi.mock('@/api/reportDraftApi', () => ({
 }))
 
 // Keep navigation and draft-persistence checks independent of page compilation.
-vi.mock('@/views/reporting/ReportingShell.vue', () => ({ default: { template: '<router-view />' } }))
+vi.mock('@/views/reporting/ReportingShell.vue', () => ({
+  default: { template: '<router-view />' }
+}))
 vi.mock('@/views/reporting/ReportingWorklistPage.vue', () => ({ default: { template: '<div />' } }))
 vi.mock('@/views/reporting/FindingsCapturePage.vue', () => ({ default: { template: '<div />' } }))
 vi.mock('@/views/reporting/ReportEditorPage.vue', () => ({ default: { template: '<div />' } }))

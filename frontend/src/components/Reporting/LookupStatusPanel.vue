@@ -5,7 +5,9 @@
         <div>
           <div class="fw-semibold small">{{ title }}</div>
           <div class="small text-muted">
-            {{ patientExaminationId ? 'Mit Untersuchung verknüpft' : 'Keine Untersuchung verknüpft' }}
+            {{
+              patientExaminationId ? 'Mit Untersuchung verknüpft' : 'Keine Untersuchung verknüpft'
+            }}
             · Abfrage {{ lookupToken ? 'aktiv' : 'nicht verbunden' }}
           </div>
         </div>
@@ -74,25 +76,28 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const props = withDefaults(defineProps<{
-  patientExaminationId?: number | null
-  selectedExaminationId?: number | null
-  lookupToken?: string | null
-  sessionStatus?: string
-  findingsRevision?: number
-  title?: string
-  collapsible?: boolean
-  initiallyCollapsed?: boolean
-}>(), {
-  patientExaminationId: null,
-  selectedExaminationId: null,
-  lookupToken: null,
-  sessionStatus: '',
-  findingsRevision: undefined,
-  title: 'Status',
-  collapsible: true,
-  initiallyCollapsed: true
-})
+const props = withDefaults(
+  defineProps<{
+    patientExaminationId?: number | null
+    selectedExaminationId?: number | null
+    lookupToken?: string | null
+    sessionStatus?: string
+    findingsRevision?: number
+    title?: string
+    collapsible?: boolean
+    initiallyCollapsed?: boolean
+  }>(),
+  {
+    patientExaminationId: null,
+    selectedExaminationId: null,
+    lookupToken: null,
+    sessionStatus: '',
+    findingsRevision: undefined,
+    title: 'Status',
+    collapsible: true,
+    initiallyCollapsed: true
+  }
+)
 
 const collapsed = ref(props.collapsible ? props.initiallyCollapsed : false)
 </script>
