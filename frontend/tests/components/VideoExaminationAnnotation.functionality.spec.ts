@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive, nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { useVideoStore } from '@/stores/videoStore'
 
 type VideoStoreFixture = ReturnType<typeof makeVideoStore>
 type AnonymizationStoreFixture = {
@@ -207,7 +208,16 @@ function noCurrentVideo(): CurrentVideoFixture | null {
 }
 
 function makeVideoStore() {
+  const draftState: Pick<
+    ReturnType<typeof useVideoStore>,
+    'draftSegment' | 'isDraftSaving' | 'isSavingSegments'
+  > = {
+    draftSegment: null,
+    isDraftSaving: false,
+    isSavingSegments: false
+  }
   const store = reactive({
+    ...draftState,
     videoList: { videos, labels: [] },
     currentVideo: noCurrentVideo(),
     allSegments: segments,
@@ -229,7 +239,9 @@ function makeVideoStore() {
     patchSegmentLocally: vi.fn(),
     patchDraftSegment: vi.fn(),
     commitDraft: vi.fn(),
-    persistDirtySegments: vi.fn().mockResolvedValue(undefined)
+    persistDirtySegments: vi
+      .fn<ReturnType<typeof useVideoStore>['persistDirtySegments']>()
+      .mockResolvedValue({ status: 'unchanged', savedCount: 0, remainingCount: 0 })
   })
   store.loadVideo.mockImplementation((videoId: number) => {
     store.currentVideo = { id: videoId, duration: 120 }

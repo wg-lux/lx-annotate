@@ -301,16 +301,19 @@
               v-if="hasStreamableVideo"
               ref="videoContainerRef"
               class="video-container"
+              :class="{ 'compact-fullscreen': isCompactMode }"
+              @wheel="handleCompactWheel"
             >
               <button
                 type="button"
                 class="fullscreen-toggle"
-                :title="isFullscreen ? 'Vollbild verlassen' : 'Vollbild'"
+                :aria-label="isCompactMode ? 'Vollbild verlassen' : 'Vollbild'"
+                :title="isCompactMode ? 'Vollbild verlassen' : 'Vollbild'"
                 @click="toggleFullscreen"
               >
                 <i
                   class="ni"
-                  :class="isFullscreen ? 'ni-settings-gear-65' : 'ni-tv-2'"
+                  :class="isCompactMode ? 'ni-settings-gear-65' : 'ni-tv-2'"
                 ></i>
               </button>
               <video
@@ -323,8 +326,7 @@
                 disablepictureinpicture
                 disableremoteplayback
                 controls
-                class="w-100"
-                style="max-height: 400px"
+                class="w-100 examination-video"
                 @timeupdate="handleTimeUpdate"
                 @loadedmetadata="onVideoLoaded"
                 @play="onVideoPlay"
@@ -334,25 +336,32 @@
               >
                 Ihr Browser unterstützt das Video-Element nicht.
               </video>
-              <button
-                v-if="isFullscreen"
-                type="button"
-                class="fullscreen-annotation-toggle"
-                :aria-expanded="fullscreenAnnotationOpen"
-                aria-controls="video-annotation-panel"
-                @click="fullscreenAnnotationOpen = !fullscreenAnnotationOpen"
-              >
-                Timeline und Labels
-              </button>
+              <CompactAnnotationToolbar
+                v-if="isCompactMode"
+                ref="compactToolbarRef"
+                :labels="timelineLabels"
+                :selected-label="selectedLabelType"
+                :open="isLabelSelectActive"
+                :marking="isMarkingLabel"
+                :draft-label="videoStore.draftSegment?.label || ''"
+                :disabled="
+                  isMarkingLabel
+                    ? !canMutateSelectedSegments || videoStore.isDraftSaving
+                    : !canStartLabeling
+                "
+                @toggle="isLabelSelectActive = !isLabelSelectActive"
+                @select="selectLabel"
+                @mark="isMarkingLabel ? finishLabelMarking() : startLabelMarking()"
+              />
               <VideoLabelOverlay
-                v-if="isLabelSelectActive"
+                v-if="isLabelSelectActive && !isCompactMode"
                 :labels="timelineLabels"
                 :selected-label="selectedLabelType"
                 @close="closeLabelOverlay"
                 @select="selectLabelFromOverlay"
               />
               <VideoStatusCard
-                v-if="selectedVideoId"
+                v-if="selectedVideoId && !isCompactMode"
                 :presentation="selectedVideoPresentation"
                 :segment-count="timelineSegmentsForSelectedVideo.length"
                 :examination-count="savedExaminations.length"
@@ -361,29 +370,14 @@
               />
             </div>
             <!-- Enhanced Timeline Component -->
-            <Teleport
-              :to="videoContainerRef || 'body'"
-              :disabled="!isFullscreen"
+            <div
+              v-show="!isCompactMode"
+              id="video-annotation-panel"
             >
               <div
-                v-show="!isFullscreen || fullscreenAnnotationOpen"
-                id="video-annotation-panel"
-                :class="{ 'fullscreen-annotation-panel': isFullscreen }"
-                :role="isFullscreen ? 'dialog' : undefined"
-                :aria-label="isFullscreen ? 'Timeline und Label-Befehle' : undefined"
+                v-if="selectedVideoId && isSelectedVideoViewable"
+                class="timeline-wrapper mt-3"
               >
-                <button
-                  v-if="isFullscreen"
-                  type="button"
-                  class="btn btn-outline-secondary btn-sm align-self-end mb-0"
-                  @click="fullscreenAnnotationOpen = false"
-                >
-                  Timeline und Labels ausblenden
-                </button>
-                <div
-                  v-if="selectedVideoId && isSelectedVideoViewable"
-                  class="timeline-wrapper mt-3"
-                >
                 <!-- Timeline Controls -->
                 <div
                   v-if="selectedVideoId && isSelectedVideoViewable"
@@ -437,6 +431,7 @@
                         v-if="isMarkingLabel"
                         class="btn btn-warning btn-sm control-button"
                         data-cy="finish-label-button"
+                        :disabled="videoStore.isDraftSaving"
                         @click="finishLabelMarking"
                       >
                         <i class="ni ni-button-play"></i>
@@ -516,7 +511,9 @@
                     @keydown="handleTimelineResizeKey"
                   />
                   <fieldset class="border rounded p-2 mb-2">
-                    <legend class="float-none w-auto fs-6">Springe zu Nächstem/Vorherigem Segment</legend>
+                    <legend class="float-none w-auto fs-6">
+                      Springe zu Nächstem/Vorherigem Segment
+                    </legend>
                     <div class="d-flex flex-wrap gap-3 mb-2">
                       <label
                         v-for="label in timelineLabels"
@@ -625,7 +622,11 @@
                     <button
                       class="btn"
                       :class="hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary'"
-                      :disabled="!canMutateSelectedSegments"
+                      :disabled="
+                        !canMutateSelectedSegments ||
+                        videoStore.isSavingSegments ||
+                        videoStore.isDraftSaving
+                      "
                       @click="saveSegmentChanges"
                     >
                       Segmentänderungen speichern
@@ -677,11 +678,8 @@
                     ></div>
                   </div>
                 </div>
-
-
-                </div>
               </div>
-            </Teleport>
+            </div>
           </div>
         </div>
 
@@ -968,6 +966,7 @@ import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
 import VideoFeedbackAlert from './VideoFeedbackAlert.vue'
 import VideoStatusCard from './VideoStatusCard.vue'
+import CompactAnnotationToolbar from './CompactAnnotationToolbar.vue'
 import VideoLabelOverlay from './VideoLabelOverlay.vue'
 import VideoAnnotatorControls from './VideoAnnotatorControls.vue'
 import VideoPredictionControls from './VideoPredictionControls.vue'
@@ -1250,7 +1249,10 @@ const savedExaminations = ref<SavedExamination[]>([])
 const currentMarker = ref<ExaminationMarker | null>(null)
 const selectedLabelType = ref<string>('')
 const isLabelSelectActive = ref<boolean>(false)
-const isMarkingLabel = ref<boolean>(false)
+const isMarkingLabel = computed(
+  () =>
+    videoStore.draftSegment !== null && videoStore.draftSegment.videoId === selectedVideoId.value
+)
 const labelMarkingStart = ref<number>(0)
 const selectedSegmentId = ref<number | null>(null)
 const isInitialLoading = ref<boolean>(true)
@@ -1280,7 +1282,30 @@ const errorMessage = ref<string>('')
 const messageTone = ref<MessageTone>('hint')
 const successMessage = ref<string>('')
 const isFullscreen = ref<boolean>(false)
-const fullscreenAnnotationOpen = ref(true)
+const isFallbackFullscreen = ref(false)
+const isCompactMode = computed(() => isFullscreen.value || isFallbackFullscreen.value)
+const compactToolbarRef = ref<InstanceType<typeof CompactAnnotationToolbar> | null>(null)
+let savedBodyOverflow: string | null = null
+let fullscreenRequestPending = false
+let fullscreenDisposed = false
+let wheelAccumulator = 0
+let lastWheelTime = 0
+const setFallbackFullscreen = (active: boolean): void => {
+  isFallbackFullscreen.value = active
+  const popover: Partial<Pick<HTMLElement, 'showPopover' | 'hidePopover'>> | null =
+    videoContainerRef.value
+  if (active) {
+    savedBodyOverflow ??= document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    videoContainerRef.value?.setAttribute('popover', 'manual')
+    popover?.showPopover?.()
+  } else {
+    popover?.hidePopover?.()
+    videoContainerRef.value?.removeAttribute('popover')
+    if (savedBodyOverflow !== null) document.body.style.overflow = savedBodyOverflow
+    savedBodyOverflow = null
+  }
+}
 const isValidatingSegments = computed(() => validationRequestVideoId.value !== null)
 const outsideBlackeningRequestVideoIds = ref<Set<number>>(new Set())
 const segmentValidationSummaryByVideoId = ref<Record<number, SegmentValidationSummary>>({})
@@ -2092,6 +2117,8 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  fullscreenDisposed = true
+  setFallbackFullscreen(false)
 })
 
 // Guarded function for error handling like VideoClassificationComponent
@@ -2521,26 +2548,72 @@ const onLabelSelect = (): void => {
 }
 
 const handleFullscreenChange = (): void => {
-  isFullscreen.value = document.fullscreenElement === videoContainerRef.value
-  if (isFullscreen.value) {
-    fullscreenAnnotationOpen.value = true
-  }
+  isFullscreen.value =
+    !!videoContainerRef.value && document.fullscreenElement === videoContainerRef.value
+  isLabelSelectActive.value = false
+  wheelAccumulator = 0
 }
 
 const toggleFullscreen = async (): Promise<void> => {
   const container = videoContainerRef.value
-  if (!container) {
+  if (!container || fullscreenRequestPending) return
+  if (isFallbackFullscreen.value) {
+    setFallbackFullscreen(false)
+    isLabelSelectActive.value = false
     return
   }
-
+  const native: Partial<Pick<HTMLElement, 'requestFullscreen'>> = container
+  fullscreenRequestPending = true
   try {
-    if (document.fullscreenElement === container) {
-      await document.exitFullscreen()
-    } else {
-      await container.requestFullscreen()
-    }
+    if (document.fullscreenElement === container) await document.exitFullscreen()
+    else if (native.requestFullscreen) await native.requestFullscreen.call(container)
+    else setFallbackFullscreen(true)
   } catch {
-    // Fullscreen requests may be rejected by the browser without requiring user feedback.
+    if (!fullscreenDisposed && document.fullscreenElement !== container) setFallbackFullscreen(true)
+  } finally {
+    fullscreenRequestPending = false
+  }
+}
+
+const selectLabel = (name: string): void => {
+  if (timelineLabels.value.some((label) => label.name === name)) selectedLabelType.value = name
+}
+
+const stepLabel = (delta: number): void => {
+  const labels = timelineLabels.value
+  if (!labels.length) return
+  const index = labels.findIndex((label) => label.name === selectedLabelType.value)
+  const start = index < 0 ? (delta > 0 ? -1 : 0) : index
+  selectLabel(labels[(start + delta + labels.length) % labels.length].name)
+}
+
+const isCompactWheelTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement &&
+  (target.matches('video, .video-container') || !!target.closest('.compact-label-selector'))
+
+const wheelPixels = (event: WheelEvent): number =>
+  event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1)
+
+const handleCompactWheel = (event: WheelEvent): void => {
+  if (
+    !isCompactMode.value ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    !event.deltaY ||
+    !isCompactWheelTarget(event.target)
+  )
+    return
+  event.preventDefault()
+  event.stopPropagation()
+  const delta = wheelPixels(event)
+  if (event.timeStamp - lastWheelTime > 180 || Math.sign(delta) !== Math.sign(wheelAccumulator))
+    wheelAccumulator = 0
+  lastWheelTime = event.timeStamp
+  wheelAccumulator += Math.max(-40, Math.min(40, delta))
+  if (Math.abs(wheelAccumulator) >= 40) {
+    stepLabel(Math.sign(wheelAccumulator))
+    wheelAccumulator = 0
   }
 }
 
@@ -2550,7 +2623,7 @@ const closeLabelOverlay = (): void => {
 }
 
 const selectLabelFromOverlay = (labelName: string): void => {
-  selectedLabelType.value = labelName
+  selectLabel(labelName)
   closeLabelOverlay()
 }
 
@@ -2571,21 +2644,20 @@ const isUnmodifiedKey = (event: KeyboardEvent, key: string): boolean =>
   !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === key
 
 const handleLabelOverlayKey = (event: KeyboardEvent): boolean => {
-  if (!isLabelSelectActive.value) {
+  if (
+    !isLabelSelectActive.value &&
+    !(
+      isCompactMode.value &&
+      event.target instanceof HTMLElement &&
+      event.target.closest('.compact-label-selector')
+    )
+  ) {
     return false
   }
   if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
     event.preventDefault()
     event.stopPropagation()
-    const labels = timelineLabels.value
-    if (labels.length === 0) {
-      return true
-    }
-    const currentIndex = labels.findIndex((label) => label.name === selectedLabelType.value)
-    const delta = event.key === 'ArrowUp' ? -1 : 1
-    const startIndex = currentIndex === -1 ? (delta > 0 ? -1 : 0) : currentIndex
-    const nextIndex = (startIndex + delta + labels.length) % labels.length
-    selectedLabelType.value = labels[nextIndex].name
+    stepLabel(event.key === 'ArrowUp' ? -1 : 1)
     return true
   }
   if (event.key !== 'Enter') {
@@ -2610,6 +2682,8 @@ const handleEscapeKey = (event: KeyboardEvent): boolean => {
   if (isMarkingLabel.value) {
     event.preventDefault()
     cancelLabelMarking()
+  } else if (isFallbackFullscreen.value) {
+    setFallbackFullscreen(false)
   }
   return true
 }
@@ -2622,6 +2696,7 @@ const openLabelOverlayFromShortcut = (event: KeyboardEvent): boolean => {
   event.stopPropagation()
   preselectLabelForOverlay()
   isLabelSelectActive.value = true
+  if (isCompactMode.value) compactToolbarRef.value?.focusSelector()
   return true
 }
 
@@ -2636,22 +2711,29 @@ const toggleFullscreenFromShortcut = (event: KeyboardEvent): boolean => {
 }
 
 const isPlusShortcut = (event: KeyboardEvent): boolean =>
-  event.key === '+' || event.code === 'NumpadAdd' || (event.code === 'Equal' && event.shiftKey)
+  event.key === '+' || event.code === 'NumpadAdd'
 
 const handleSegmentBoundaryShortcut = (event: KeyboardEvent): void => {
+  if (event.repeat) return
   if (isPlusShortcut(event)) {
     event.preventDefault()
     startLabelMarking()
     return
   }
-  if (event.key === '-' || event.code === 'Minus' || event.code === 'NumpadSubtract') {
+  if (event.key === '-' || event.code === 'NumpadSubtract') {
     event.preventDefault()
     void finishLabelMarking()
   }
 }
 
 const handleKeyDown = (event: KeyboardEvent): void => {
-  if (isEditableTarget(event.target)) {
+  if (
+    event.isComposing ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    isEditableTarget(event.target)
+  ) {
     return
   }
 
@@ -2667,6 +2749,7 @@ const handleKeyDown = (event: KeyboardEvent): void => {
 }
 
 const preselectLabelForOverlay = (): void => {
+  if (selectedLabelType.value) return
   const segments = timelineSegmentsForSelectedVideo.value
   if (segments.length === 0) {
     return
@@ -2693,11 +2776,10 @@ const startLabelMarking = (): void => {
     return
   }
 
-  if (selectedVideoId.value) {
+  if (selectedVideoId.value && videoStore.currentVideo?.id !== selectedVideoId.value) {
     videoStore.setCurrentVideo(selectedVideoId.value)
   }
 
-  isMarkingLabel.value = true
   labelMarkingStart.value = currentTime.value
 
   // FIX: Use startDraft statt startDraftSegment
@@ -2705,7 +2787,7 @@ const startLabelMarking = (): void => {
 }
 
 const finishLabelMarking = async (): Promise<void> => {
-  if (!isMarkingLabel.value || !selectedVideoId.value) {
+  if (!isMarkingLabel.value || videoStore.isDraftSaving) {
     return
   }
   if (!canMutateSelectedSegments.value) {
@@ -2714,27 +2796,24 @@ const finishLabelMarking = async (): Promise<void> => {
     return
   }
 
+  const draftId = videoStore.draftSegment?.id
+  const videoId = selectedVideoId.value
+  const ownsDraft = (): boolean =>
+    selectedVideoId.value === videoId && videoStore.draftSegment?.id === draftId
   try {
-    videoStore.setCurrentVideo(selectedVideoId.value)
-
-    // FIX: Use updateDraftEnd und commitDraft statt finishDraftSegment
     videoStore.updateDraftEnd(currentTime.value)
     const createdSegment = await videoStore.commitDraft()
-    if (!createdSegment) {
+    if (!createdSegment && ownsDraft()) {
       showErrorMessage(videoStore.errorMessage || 'Label konnte nicht gespeichert werden.')
       return
     }
-
-    // Reset state (keep last selected label)
-    isMarkingLabel.value = false
   } catch {
-    showErrorMessage('Label-Markierung konnte nicht abgeschlossen werden.')
+    if (ownsDraft()) showErrorMessage('Label-Markierung konnte nicht abgeschlossen werden.')
   }
 }
 
 const cancelLabelMarking = (): void => {
   videoStore.cancelDraft()
-  isMarkingLabel.value = false
 }
 
 const jumpToExamination = (examination: SavedExamination): void => {
@@ -3258,6 +3337,7 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
 }
 
 const saveSegmentChanges = async (): Promise<void> => {
+  clearSuccessMessage()
   if (!canMutateSelectedSegments.value) {
     showErrorMessage(getSegmentMutationBlockedMessage())
     return
@@ -3266,11 +3346,21 @@ const saveSegmentChanges = async (): Promise<void> => {
     await importPredictionSegmentsToCorrection()
     return
   }
+  const videoId = selectedVideoId.value
   try {
-    await videoStore.persistDirtySegments()
-    showSuccessMessage('Segment-Änderungen gespeichert')
+    const result = await videoStore.persistDirtySegments()
+    if (selectedVideoId.value !== videoId) return
+    if (result.status === 'saved') {
+      showSuccessMessage('Segment-Änderungen gespeichert')
+    } else if (result.status === 'incomplete') {
+      showErrorMessage(
+        videoStore.draftSegment
+          ? 'Bitte zuerst die Label-Markierung abschließen oder abbrechen.'
+          : `${String(result.remainingCount)} Segmentänderungen sind noch nicht gespeichert.`
+      )
+    }
   } catch (error: unknown) {
-    await guarded(rejectedUnknown(error))
+    if (selectedVideoId.value === videoId) await guarded(rejectedUnknown(error))
   }
 }
 
@@ -3615,44 +3705,24 @@ const blackeningButtonLabel = computed(() =>
   z-index: 100;
 }
 
-.video-container:fullscreen .examination-video {
+.video-container.compact-fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.video-container.compact-fullscreen .examination-video {
+  display: block;
+  width: 100%;
   height: 100%;
-  max-height: none !important;
+  max-height: none;
   object-fit: contain;
-}
-
-.video-container:fullscreen .video-status-card {
-  display: none;
-}
-
-.fullscreen-annotation-toggle {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 6;
-  padding: 6px 12px;
-  border: 1px solid #fff;
-  border-radius: 8px;
-  background: #fff;
-  color: #212529;
-}
-
-.fullscreen-annotation-panel {
-  position: absolute;
-  bottom: 56px;
-  left: 2%;
-  right: 2%;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  max-height: 45vh;
-  overflow: auto;
-  padding: 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 12px;
-  background: #fff;
-  color: #212529;
-  box-shadow: 0 4px 24px #0006;
 }
 
 .timeline-height-handle {
@@ -3670,26 +3740,6 @@ const blackeningButtonLabel = computed(() =>
   background: #adb5bd;
   outline: 2px solid #344767;
   outline-offset: 2px;
-}
-
-.fullscreen-annotation-panel > .timeline-controls {
-  order: -1;
-  position: sticky;
-  top: -12px;
-  z-index: 4;
-  background: #fff;
-  margin-top: 0 !important;
-  padding-top: 0;
-  border-top: 0;
-}
-
-.fullscreen-annotation-panel .timeline-controls > div {
-  flex-wrap: wrap;
-}
-
-:fullscreen .label-overlay {
-  display: flex !important;
-  z-index: 2147483647;
 }
 
 .fullscreen-toggle {

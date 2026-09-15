@@ -52,7 +52,7 @@ dependencies = [
     "daphne>=4.2.1",
     "psycopg[binary,pool]>=3.2.12",
     "mozilla-django-oidc>=4.0.1",
-    "endoreg-db==1.2.8",
+    "endoreg-db==1.2.9",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
     "sops>=1.18",

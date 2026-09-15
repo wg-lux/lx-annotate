@@ -330,9 +330,16 @@ export interface VideoList {
  */
 export interface DraftSegment {
   id: number // ⬅ negative numbers for drafts
+  videoId: number
   label: string
   startTime: number
   endTime: number | null
+}
+
+export interface SegmentSaveResult {
+  status: 'saved' | 'unchanged' | 'incomplete' | 'pending'
+  savedCount: number
+  remainingCount: number
 }
 
 /**
@@ -766,6 +773,12 @@ export const useVideoStore = defineStore('video', () => {
   const _fetchToken = ref<number>(0)
   let labelsLoaded = false
   const draftSegment = ref<DraftSegment | null>(null)
+  const pendingDraftIds = reactive(new Set<number>())
+  const draftCommits = new Map<number, Promise<Segment | null>>()
+  const isDraftSaving = computed(
+    () => draftSegment.value !== null && pendingDraftIds.has(draftSegment.value.id)
+  )
+  const isSavingSegments = ref(false)
   const hasRawVideoFile = ref<boolean | null>(null)
   let frameNavigationCache: FrameNavigationCache | null = null
 
@@ -1404,6 +1417,7 @@ export const useVideoStore = defineStore('video', () => {
   // ===================================================================
 
   function clearVideo(): void {
+    cancelDraft()
     resetFrameNavigationCache()
     currentVideo.value = null
     videoMeta.value = null
@@ -1412,11 +1426,13 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   function setVideo(video: VideoAnnotation): void {
+    cancelDraftOnVideoChange(video.id)
     resetFrameNavigationCache()
     currentVideo.value = video
   }
 
   function setCurrentVideo(videoId: number): VideoAnnotation | null {
+    cancelDraftOnVideoChange(videoId)
     resetFrameNavigationCache()
     activeVideoId.value = videoId
     resolvedVideoFps.value = null
@@ -1747,13 +1763,41 @@ export const useVideoStore = defineStore('video', () => {
     return response.data
   }
 
+  function isCurrentVideo(videoId: number): boolean {
+    return currentVideo.value?.id === videoId
+  }
+
+  function finishSegmentCreation(videoId: number, tempId: number, persisted: Segment | null): void {
+    if (isCurrentVideo(videoId)) {
+      if (persisted) replaceSegmentInStore(tempId, persisted)
+      else removeSegmentFromStore(tempId)
+      return
+    }
+    const cachedVideo = videoList.value.videos.find((video) => video.id === videoId)
+    if (cachedVideo?.segments) {
+      cachedVideo.segments = cachedVideo.segments.filter((segment) => segment.id !== tempId)
+      if (persisted) cachedVideo.segments.push(persisted)
+    }
+  }
+
+  function segmentCreationError(error: unknown, tempSegment: Segment | null): string {
+    const responseData: unknown = error instanceof AxiosError ? error.response?.data : undefined
+    const detail = getBulkOperationErrorDetail(responseData, 'creates', tempSegment?.id ?? 0, 0)
+    return (
+      formatValidationErrorDetail(detail) ||
+      (error instanceof Error ? error.message : 'Error creating segment. Please try again.')
+    )
+  }
+
   async function createSegment(
     videoId: number,
     label: string,
     startTime: number,
-    endTime: number
+    endTime: number,
+    ownsFeedback: () => boolean = () => currentVideo.value?.id === videoId
   ): Promise<Segment | null> {
     let tempSegment: Segment | null = null
+    if (ownsFeedback()) errorMessage.value = ''
     try {
       // Get label ID from existing labels in store
       const labelMeta = videoList.value.labels.find((l) => l.name === label)
@@ -1815,15 +1859,13 @@ export const useVideoStore = defineStore('video', () => {
         lastSyncError: null
       })
 
-      const newSegment = replaceSegmentInStore(tempSegmentId, persisted)
+      finishSegmentCreation(videoId, tempSegmentId, persisted)
       logger.info('segment.create-completed')
-      return newSegment
+      return persisted
     } catch (error) {
       logger.error('segment.create-failed', error)
-      errorMessage.value = 'Error creating segment. Please try again.'
-      if (tempSegment) {
-        removeSegmentFromStore(tempSegment.id)
-      }
+      if (ownsFeedback()) errorMessage.value = segmentCreationError(error, tempSegment)
+      if (tempSegment) finishSegmentCreation(videoId, tempSegment.id, null)
       return null
     }
   }
@@ -2157,9 +2199,12 @@ export const useVideoStore = defineStore('video', () => {
   // ===================================================================
 
   function startDraft(label: string, startTime: number): void {
+    if (!currentVideo.value) return
+    errorMessage.value = ''
     logger.debug('draft.started')
     draftSegment.value = {
       id: nextDraftId--, // -1, -2, ...
+      videoId: currentVideo.value.id,
       label,
       startTime,
       endTime: null
@@ -2168,14 +2213,13 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   function updateDraftEnd(endTime: number): void {
+    if (isDraftSaving.value) return
     if (!draftSegment.value) {
       logger.warn('draft.update-missing')
       return
     }
 
-    const clampedEndTime = Math.max(0, endTime)
-
-    draftSegment.value.endTime = clampedEndTime
+    draftSegment.value.endTime = endTime
 
     logger.debug('draft.end-updated')
   }
@@ -2201,7 +2245,7 @@ export const useVideoStore = defineStore('video', () => {
       logger.warn('draft.end-missing')
       return null
     }
-    if (!currentVideo.value.id) {
+    if (!currentVideo.value.id || currentVideo.value.id !== draft.videoId) {
       logger.warn('draft.video-id-missing')
       return null
     }
@@ -2221,40 +2265,45 @@ export const useVideoStore = defineStore('video', () => {
     return null
   }
 
-  async function commitDraft(): Promise<Segment | null> {
+  function commitDraft(): Promise<Segment | null> {
     logger.debug('draft.commit-started')
     logger.debug('draft.video-state-checked')
 
     const preparedDraft = prepareDraftCommit()
     if (!preparedDraft) {
-      return null
+      return Promise.resolve(null)
     }
-
-    try {
-      const { draft, videoId } = preparedDraft
-      const newSegment = await createSegment(videoId, draft.label, draft.startTime, draft.endTime)
-      if (!newSegment) {
-        return null
-      }
-
-      // Clear draft AFTER successful creation
-      draftSegment.value = null
-      logger.info('draft.commit-completed')
-
-      return newSegment
-    } catch (error) {
-      return handleDraftCommitError(error)
-    }
+    const { draft, videoId } = preparedDraft
+    const pending = draftCommits.get(draft.id)
+    if (pending) return pending
+    const ownsDraft = (): boolean =>
+      currentVideo.value?.id === videoId && draftSegment.value?.id === draft.id
+    pendingDraftIds.add(draft.id)
+    const operation = createSegment(videoId, draft.label, draft.startTime, draft.endTime, ownsDraft)
+      .then((segment) => {
+        if (segment && ownsDraft()) draftSegment.value = null
+        return segment
+      })
+      .catch((error: unknown) => (ownsDraft() ? handleDraftCommitError(error) : null))
+      .finally(() => {
+        pendingDraftIds.delete(draft.id)
+        draftCommits.delete(draft.id)
+      })
+    draftCommits.set(draft.id, operation)
+    return operation
   }
 
   function cancelDraft(): void {
     if (!draftSegment.value) {
-      logger.warn('draft.cancel-missing')
       return
     }
 
     logger.debug('draft.cancelled')
     draftSegment.value = null
+  }
+
+  function cancelDraftOnVideoChange(videoId: number): void {
+    if (!isCurrentVideo(videoId)) cancelDraft()
   }
 
   async function createFiveSecondSegment(
@@ -2272,22 +2321,125 @@ export const useVideoStore = defineStore('video', () => {
     return await commitDraft()
   }
 
-  async function persistDirtySegments(): Promise<void> {
+  function countUnsavedSegments(): number {
+    return allSegments.value.filter(
+      (s) => s.isDirty || s.isDraft || s.syncState === 'pending_create'
+    ).length
+  }
+
+  function matchesSegmentSnapshot(current: Segment | null, snapshot: Segment): boolean {
+    return (
+      current !== null &&
+      current.startTime === snapshot.startTime &&
+      current.endTime === snapshot.endTime &&
+      current.labelID === snapshot.labelID &&
+      current.label === snapshot.label &&
+      current.exportSegment === snapshot.exportSegment
+    )
+  }
+
+  function applySegmentSaveResponse(
+    videoId: number,
+    dirtySegments: Segment[],
+    response: SegmentBulkMutationResponse
+  ): SegmentSaveResult {
+    if (!isCurrentVideo(videoId)) {
+      return { status: 'incomplete', savedCount: 0, remainingCount: dirtySegments.length }
+    }
+    let savedCount = 0
+    for (const snapshot of dirtySegments) {
+      const acknowledged = response.updated.find((segment) => segment.id === snapshot.id)
+      const current = findSegmentById(snapshot.id)
+      if (acknowledged && matchesSegmentSnapshot(current, snapshot)) {
+        applyPersistedSegment(acknowledged)
+        savedCount += 1
+      } else if (current) {
+        updateSegmentInMemory(snapshot.id, { isDirty: true, syncState: 'dirty' }, false)
+      }
+    }
+    syncCurrentVideoSegments(videoId)
+    const remaining = countUnsavedSegments()
+    return {
+      status: remaining === 0 ? 'saved' : 'incomplete',
+      savedCount,
+      remainingCount: remaining
+    }
+  }
+
+  function showSegmentSaveError(videoId: number, dirtySegments: Segment[], error: unknown): void {
+    const axiosError = error as AxiosError
+    let validationErrorCount = 0
+    dirtySegments.forEach((segment, segmentIndex) => {
+      const detail = getBulkOperationErrorDetail(
+        axiosError.response?.data,
+        'updates',
+        segment.id,
+        segmentIndex
+      )
+      const detailText = formatValidationErrorDetail(detail)
+      if (detailText) {
+        validationErrorCount += 1
+      }
+      updateSegmentInMemory(
+        segment.id,
+        {
+          isDirty: true,
+          syncState: detailText ? 'error' : 'dirty',
+          lastSyncError: detailText || null
+        },
+        false
+      )
+    })
+    syncCurrentVideoSegments(videoId)
+    if (validationErrorCount > 0) {
+      getToastStore().error({
+        text:
+          validationErrorCount === 1
+            ? 'Speichern blockiert: 1 Segment enthält Fehler.'
+            : `Speichern blockiert: ${String(validationErrorCount)} Segmente enthalten Fehler.`
+      })
+    } else {
+      dirtySegments.forEach((segment) => {
+        updateSegmentInMemory(
+          segment.id,
+          {
+            isDirty: true,
+            syncState: 'error',
+            lastSyncError: axiosError.message
+          },
+          false
+        )
+      })
+      getToastStore().error({ text: 'Systemfehler beim Speichern' })
+    }
+  }
+
+  async function persistDirtySegments(): Promise<SegmentSaveResult> {
+    const remainingCount = countUnsavedSegments()
+    if (isSavingSegments.value || isDraftSaving.value) {
+      return { status: 'pending', savedCount: 0, remainingCount }
+    }
+    if (draftSegment.value) {
+      return { status: 'incomplete', savedCount: 0, remainingCount }
+    }
     if (!currentVideo.value?.id) {
-      return
+      return { status: 'unchanged', savedCount: 0, remainingCount }
     }
 
     // Filter for segments that have been moved/resized locally
-    const dirtySegments = allSegments.value.filter((s) => s.isDirty && !s.isDraft && s.id > 0)
+    const dirtySegments = allSegments.value
+      .filter((s) => s.isDirty && !s.isDraft && s.id > 0)
+      .map((segment) => ({ ...segment }))
     if (dirtySegments.length === 0) {
       logger.debug('segments.persist-skipped', { reasonCode: 'no-dirty-segments' })
-      return
+      return { status: 'unchanged', savedCount: 0, remainingCount }
     }
 
     logger.debug('segments.persist-started', { count: dirtySegments.length })
 
+    const videoId = currentVideo.value.id
+    isSavingSegments.value = true
     try {
-      const videoId = currentVideo.value.id
       const updates = dirtySegments.map((segment) => {
         const extra: SegmentUpdatePayload = {
           export_segment: segment.exportSegment
@@ -2318,70 +2470,14 @@ export const useVideoStore = defineStore('video', () => {
         updates
       })
 
-      response.updated.forEach((segment) => applyPersistedSegment(segment))
-      const successCount = response.updated.length
-
-      if (successCount === dirtySegments.length) {
-        getToastStore().success({ text: 'Alle Änderungen gespeichert' })
-      } else if (successCount > 0) {
-        getToastStore().warning({
-          text: `${String(successCount)} von ${String(dirtySegments.length)} Segmenten gespeichert`
-        })
-      } else {
-        getToastStore().error({ text: 'Speichern fehlgeschlagen' })
-      }
-
-      if (successCount > 0) {
-        syncCurrentVideoSegments(currentVideo.value.id)
-      }
+      return applySegmentSaveResponse(videoId, dirtySegments, response)
     } catch (error) {
       logger.error('segments.persist-failed', error)
-      const axiosError = error as AxiosError
-      let validationErrorCount = 0
-      dirtySegments.forEach((segment, segmentIndex) => {
-        const detail = getBulkOperationErrorDetail(
-          axiosError.response?.data,
-          'updates',
-          segment.id,
-          segmentIndex
-        )
-        const detailText = formatValidationErrorDetail(detail)
-        if (detailText) {
-          validationErrorCount += 1
-        }
-        updateSegmentInMemory(
-          segment.id,
-          {
-            isDirty: true,
-            syncState: detailText ? 'error' : 'dirty',
-            lastSyncError: detailText || null
-          },
-          false
-        )
-      })
-      syncCurrentVideoSegments(currentVideo.value.id)
-      if (validationErrorCount > 0) {
-        getToastStore().error({
-          text:
-            validationErrorCount === 1
-              ? 'Speichern blockiert: 1 Segment enthält Fehler.'
-              : `Speichern blockiert: ${String(validationErrorCount)} Segmente enthalten Fehler.`
-        })
-      } else {
-        dirtySegments.forEach((segment) => {
-          updateSegmentInMemory(
-            segment.id,
-            {
-              isDirty: true,
-              syncState: 'error',
-              lastSyncError: axiosError.message
-            },
-            false
-          )
-        })
-        getToastStore().error({ text: 'Systemfehler beim Speichern' })
-      }
+      if (!isCurrentVideo(videoId)) throw error
+      showSegmentSaveError(videoId, dirtySegments, error)
       throw error
+    } finally {
+      isSavingSegments.value = false
     }
   }
 
@@ -2389,6 +2485,7 @@ export const useVideoStore = defineStore('video', () => {
     videoId: number,
     options: { sourceKind?: SegmentSourceKind; knownFps?: number } = {}
   ): Promise<void> {
+    cancelDraftOnVideoChange(videoId)
     resetFrameNavigationCache()
     logger.debug('video.load-started')
     activeVideoId.value = videoId
@@ -2479,7 +2576,7 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   function patchDraftSegment(id: number, updates: Partial<DraftSegment>): void {
-    if (draftSegment.value && draftSegment.value.id === id) {
+    if (draftSegment.value && draftSegment.value.id === id && !pendingDraftIds.has(id)) {
       Object.assign(draftSegment.value, updates)
     }
   }
@@ -2501,6 +2598,8 @@ export const useVideoStore = defineStore('video', () => {
     videos,
     allSegments,
     draftSegment,
+    isDraftSaving,
+    isSavingSegments: readonly(isSavingSegments),
     activeSegment,
     duration,
     effectiveFps,

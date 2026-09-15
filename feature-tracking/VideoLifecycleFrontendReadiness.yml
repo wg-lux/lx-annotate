@@ -327,8 +327,11 @@ definition_of_done:
   - Selecting one or more labels restricts the navigation queue; no selection includes all labels.
   - Navigation remains available for validated tracks and never changes annotation data.
   - Timeline zoom expands the track from 100 to 500 percent with horizontal scrolling and accurate seeking.
-  - Fullscreen displays the existing timeline and label commands in a collapsible popup, preserving
-    their state when exiting fullscreen.
+  - Fullscreen defaults to a compact label selector and one stateful start/finish button, using the
+    existing selection and store draft. Wheel and arrow selection apply immediately; boundary keys
+    preserve draft identity and mutation permissions. The management panel remains in normal view.
+  - Native fullscreen and its viewport fallback retain the mounted video and draft. The video uses
+    object-fit contain without the normal 400px height cap; fallback exit restores body scrolling.
   - Zoom centers the current playback position on zoom, playback, seek and resize, clamped to track edges.
   - A bottom handle resizes the timeline row viewport vertically between 180 and 800 pixels, with
     Arrow Up/Down and Home/End keyboard controls. Resizing does not change segment data or sidebar width.
@@ -337,14 +340,33 @@ definition_of_done:
     kind: manual
     instructions: Exercise navigation with multiple labels, overlapping segments and validated tracks.
       Zoom and scroll the timeline, then seek and resize segments to verify pointer alignment.
-      Enter fullscreen with the player fullscreen button or F, set a label in the popup, hide and reopen
-      the popup, then exit fullscreen and verify state continuity and playback centering.
+      Enter fullscreen with the player fullscreen button or F, wheel-select a label, press +, advance
+      playback and press -. Verify one committed segment and unchanged draft label when selecting
+      another label mid-marking. Exit fullscreen and verify state continuity. Check native failure
+      fallback and browser-initiated exits. Browser layout acceptance remains pending.
       Drag the bottom timeline handle and use its keyboard controls; verify additional rows become
       visible, overflow remains scrollable, and pointer cancellation or page exit ends resizing.
     timeout_seconds: 600
   assessment:
     status: in_progress
     evidence:
+    - kind: test
+      reference: '2026-09-15 codex-compact-fullscreen-20260915: annotation component suites plus
+        videoStore.segmentDraft.test.ts — 87 tests passed across 8 files, including all 16 functionality
+        tests. The functionality fixture now supplies the typed draft/save contract; its missing
+        draftSegment previously caused 13 render failures. Compact workflow, wheel normalization,
+        keyboard exclusions, failed/duplicate commits, mutation locks and state continuity pass.'
+    - kind: test
+      reference: '2026-09-15 codex-compact-fullscreen-20260915: npm --prefix frontend run
+        type-check:component-tests, type-check (OpenAPI freshness, application typing and full ESLint),
+        and build-only all exited 0. Tracker validation passed for 49 definitions; diff checks passed.
+        Existing OpenAPI/Django diagnostics and Vite chunk-size warnings remain. The literal requested
+        Vitest wildcard matched no files; the concrete __tests__ directory was run instead.'
+    - kind: review
+      reference: '2026-09-15 codex-compact-fullscreen-20260915: reviewed 62c9cd254f237e44ef26bb63e2cc646e58e10480,
+        its parent and later annotation changes. Preserved staged store/save work and normal timeline
+        navigation/resizing. Browser visual validation explicitly skipped at user request after the
+        functionality failure report; no screenshot or visual sizing acceptance is claimed.'
     - kind: code
       reference: frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue;
         frontend/src/components/VideoExamination/Timeline.vue

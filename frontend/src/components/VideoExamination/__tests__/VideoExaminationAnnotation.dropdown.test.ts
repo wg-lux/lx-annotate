@@ -148,7 +148,19 @@ function createGetImplementation(factories: DropdownFixtureFactories) {
       },
       { matches: url.includes('/examinations/'), data: [] },
       { matches: url.includes('/details/'), data: { duration: 90 } },
-      { matches: url.includes('/metadata/'), data: { duration: 90, fps: 25, frameCount: 2250 } },
+      {
+        matches: url.includes('/metadata/'),
+        data: {
+          duration: 90,
+          fps: 25,
+          frameCount: 2250,
+          originalFileName: 'synthetic.mp4',
+          centerName: 'Test center',
+          processorName: 'test-processor',
+          assignedUser: null,
+          status: 'available'
+        }
+      },
       { matches: url.includes('/fps/'), data: { fps: 25 } },
       {
         matches: url.includes('/segments/validation-status/'),
@@ -507,13 +519,53 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     }
   })
 
-  it('moves the existing timeline and label commands into fullscreen and restores them on exit', async () => {
+  const compactFixture = async (labels = ['outside', 'inside']) => {
+    videoLabelsFactory = () =>
+      labels.map((name, index) => ({ id: index + 1, name, color: '#111111' }))
     const wrapper = mountComponent()
     await flushPromises()
     await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    await wrapper.get('.fullscreen-toggle').trigger('click')
+    await flushPromises()
+    return wrapper
+  }
+  const key = async (
+    value: string,
+    init: KeyboardEventInit = {},
+    target: EventTarget = document
+  ) => {
+    const event = new KeyboardEvent('keydown', {
+      key: value,
+      bubbles: true,
+      cancelable: true,
+      ...init
+    })
+    target.dispatchEvent(event)
+    await flushPromises()
+    return event
+  }
+  const wheel = async (
+    wrapper: ReturnType<typeof mount>,
+    deltaY: number,
+    init: WheelEventInit = {}
+  ) => {
+    const event = new WheelEvent('wheel', { deltaY, bubbles: true, cancelable: true, ...init })
+    wrapper.get('video').element.dispatchEvent(event)
+    await flushPromises()
+    return event
+  }
+
+  it('keeps the native fullscreen video, selection and draft while excluding the management panel', async () => {
+    const wrapper = await compactFixture()
+    const video = wrapper.get<HTMLVideoElement>('video').element
     const container = wrapper.get('.video-container').element
     const panel = wrapper.get('#video-annotation-panel').element
-    const labelSelect = wrapper.get('[data-cy="label-select"]').element
+    await wheel(wrapper, 100)
+    await key('+')
+    const draft = useVideoStore().draftSegment
+    video.currentTime = 12
+    const paused = video.paused
+    await wrapper.get('.fullscreen-toggle').trigger('click')
     let fullscreenElement: Element | null = container
     Object.defineProperty(document, 'fullscreenElement', {
       configurable: true,
@@ -521,26 +573,202 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     })
     document.dispatchEvent(new Event('fullscreenchange'))
     await flushPromises()
-    expect(container.contains(panel)).toBe(true)
-    expect(panel.getAttribute('role')).toBe('dialog')
-    expect(panel.querySelector('timeline-stub')).not.toBeNull()
-    expect(panel.querySelector('[data-cy="label-select"]')).toBe(labelSelect)
-    expect(panel.querySelector('[data-cy="start-label-button"]')).not.toBeNull()
-    await wrapper.get('.fullscreen-annotation-toggle').trigger('click')
-    expect(wrapper.get<HTMLElement>('#video-annotation-panel').element.style.display).toBe('none')
-    await wrapper.get('.fullscreen-annotation-toggle').trigger('click')
-    expect(wrapper.get<HTMLElement>('#video-annotation-panel').element.style.display).not.toBe(
-      'none'
-    )
-    expect(wrapper.get('.fullscreen-annotation-toggle').attributes('aria-expanded')).toBe('true')
+    expect(container.contains(panel)).toBe(false)
+    expect(wrapper.get('.compact-annotation-toolbar').findAll('button')).toHaveLength(2)
+    expect(container.querySelector('timeline-stub')).toBeNull()
     fullscreenElement = null
     document.dispatchEvent(new Event('fullscreenchange'))
     await flushPromises()
-    expect(container.contains(panel)).toBe(false)
-    expect(wrapper.get('#video-annotation-panel').element).toBe(panel)
-    expect(panel.getAttribute('role')).toBeNull()
+    expect(wrapper.get('video').element).toBe(video)
+    expect(video.currentTime).toBe(12)
+    expect(video.paused).toBe(paused)
+    expect(useVideoStore().draftSegment).toBe(draft)
+    expect(wrapper.get<HTMLSelectElement>('[data-cy="label-select"]').element.value).toBe('outside')
+    expect(wrapper.find('.compact-annotation-toolbar').exists()).toBe(false)
     Reflect.deleteProperty(document, 'fullscreenElement')
     wrapper.unmount()
+  })
+
+  it('wheel selects immediately, captures the draft label and commits exactly once with boundary shortcuts', async () => {
+    const wrapper = await compactFixture()
+    const video = wrapper.get<HTMLVideoElement>('video')
+    video.element.currentTime = 2
+    await video.trigger('timeupdate')
+    await wheel(wrapper, 100)
+    await key('+', { shiftKey: true })
+    const store = useVideoStore()
+    const draftId = store.draftSegment?.id
+    await key('+')
+    await wheel(wrapper, 100)
+    expect(store.draftSegment).toMatchObject({ id: draftId, label: 'outside', startTime: 2 })
+    expect(wrapper.get('.compact-mark-button').attributes('aria-label')).toContain('outside')
+    expect(wrapper.get('[role="combobox"]').text()).toContain('inside')
+    video.element.currentTime = 7
+    await video.trigger('timeupdate')
+    let resolve!: (value: AxiosResponse<unknown>) => void
+    apiMocks.post.mockReturnValueOnce(
+      new Promise<AxiosResponse<unknown>>((res) => {
+        resolve = res
+      })
+    )
+    await key('-', { code: 'NumpadSubtract' })
+    await key('-')
+    await wrapper.get('.compact-mark-button').trigger('click')
+    expect(apiMocks.post).toHaveBeenCalledTimes(1)
+    expect(store.draftSegment).toMatchObject({ label: 'outside', startTime: 2, endTime: 7 })
+    resolve(
+      apiResponse({
+        created: [
+          {
+            segment: {
+              id: 999,
+              videoId: 8,
+              labelId: 1,
+              labelName: 'outside',
+              startTime: 2,
+              endTime: 7
+            }
+          }
+        ],
+        updated: [],
+        deleted: []
+      })
+    )
+    await flushPromises()
+    expect(store.draftSegment).toBeNull()
+    expect(store.segments.find((segment) => segment.id === 999)).toMatchObject({
+      label: 'outside',
+      startTime: 2,
+      endTime: 7
+    })
+    wrapper.unmount()
+  })
+
+  it('normalizes wheel direction, wrapping, trackpads and zoom exclusions', async () => {
+    const wrapper = await compactFixture()
+    const selection = () => wrapper.get('[role="combobox"]').text()
+    await wheel(wrapper, -1, { deltaMode: 2 })
+    expect(selection()).toContain('inside')
+    await wheel(wrapper, 3, { deltaMode: 1 })
+    expect(selection()).toContain('outside')
+    for (let i = 0; i < 3; i++) await wheel(wrapper, 10)
+    expect(selection()).toContain('outside')
+    await wheel(wrapper, 10)
+    expect(selection()).toContain('inside')
+    expect((await wheel(wrapper, 100, { ctrlKey: true })).defaultPrevented).toBe(false)
+    expect((await wheel(wrapper, 100, { metaKey: true })).defaultPrevented).toBe(false)
+    await wrapper.get('[role="combobox"]').trigger('wheel', { deltaY: 100 })
+    expect(selection()).toContain('outside')
+    await wrapper.get('.fullscreen-toggle').trigger('click')
+    expect((await wheel(wrapper, 100)).defaultPrevented).toBe(false)
+    wrapper.unmount()
+  })
+
+  it.each([{ labels: [] }, { labels: ['outside'] }])(
+    'handles an empty or single label list: %j',
+    async ({ labels }) => {
+      const wrapper = await compactFixture(labels)
+      await wheel(wrapper, 100)
+      await wheel(wrapper, -100)
+      expect(wrapper.get('[role="combobox"]').text()).toContain(
+        labels.length ? 'outside' : 'Label auswählen'
+      )
+      expect(useVideoStore().draftSegment).toBeNull()
+      wrapper.unmount()
+    }
+  )
+
+  it('supports focused selector arrows, direct options and numpad without confirmation', async () => {
+    const wrapper = await compactFixture()
+    // Attach for document-level event propagation and real focus semantics.
+    document.body.appendChild(wrapper.element)
+    await key('o')
+    const selector = wrapper.get('[role="combobox"]').element
+    expect(document.activeElement).toBe(selector)
+    await key('ArrowDown', {}, selector)
+    await key('Add', { code: 'NumpadAdd' }, selector)
+    expect(useVideoStore().draftSegment?.label).toBe('outside')
+    await wrapper.findAll('[role="option"]')[1].trigger('click')
+    expect(useVideoStore().draftSegment?.label).toBe('outside')
+    await key('Enter', {}, selector)
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
+    await key('Escape', {}, selector)
+    expect(useVideoStore().draftSegment).toBeNull()
+    wrapper.unmount()
+    if (wrapper.element instanceof HTMLElement) wrapper.element.remove()
+  })
+
+  it('ignores composition, modifiers, repeated keys and unrelated text inputs', async () => {
+    const wrapper = await compactFixture()
+    await wheel(wrapper, 100)
+    for (const init of [
+      { ctrlKey: true },
+      { metaKey: true },
+      { altKey: true },
+      { isComposing: true },
+      { repeat: true }
+    ])
+      await key('+', init)
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    await key('+', {}, input)
+    input.remove()
+    expect(useVideoStore().draftSegment).toBeNull()
+    await key('-')
+    expect(apiMocks.post).not.toHaveBeenCalled()
+    await key('+')
+    await key('-', { repeat: true })
+    expect(apiMocks.post).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('retains a failed draft and obeys mutation locks', async () => {
+    const wrapper = await compactFixture()
+    await wheel(wrapper, 100)
+    await key('+')
+    const video = wrapper.get<HTMLVideoElement>('video')
+    video.element.currentTime = 5
+    await video.trigger('timeupdate')
+    apiMocks.post.mockRejectedValueOnce(new Error('save failed'))
+    await key('-')
+    expect(useVideoStore().draftSegment?.label).toBe('outside')
+    expect(wrapper.find('.alert-success').exists()).toBe(false)
+    wrapper.unmount()
+    const locked = await compactFixture()
+    await locked.get('.fullscreen-toggle').trigger('click')
+    await selectVideoFromDropdown(locked, 'segment-validated.mp4')
+    await locked.get('.fullscreen-toggle').trigger('click')
+    await wheel(locked, 100)
+    expect(locked.get('.compact-mark-button').attributes('disabled')).toBeDefined()
+    await key('+')
+    expect(useVideoStore().draftSegment).toBeNull()
+    locked.unmount()
+  })
+
+  it('falls back on rejected fullscreen and restores scroll and listeners on exit/unmount', async () => {
+    const remove = vi.spyOn(document, 'removeEventListener')
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'scroll'
+    const request = vi.fn().mockRejectedValue(new Error('denied'))
+    Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', {
+      configurable: true,
+      value: request
+    })
+    const wrapper = await compactFixture()
+    expect(request).toHaveBeenCalledOnce()
+    expect(document.fullscreenElement).toBeFalsy()
+    expect(wrapper.get('.video-container').classes()).toContain('compact-fullscreen')
+    expect(document.body.style.overflow).toBe('hidden')
+    await key('Escape')
+    expect(document.body.style.overflow).toBe('scroll')
+    await key('f')
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('scroll')
+    expect(remove.mock.calls.some(([name]) => name === 'keydown')).toBe(true)
+    expect(remove.mock.calls.some(([name]) => name === 'fullscreenchange')).toBe(true)
+    document.body.style.overflow = original
+    Reflect.deleteProperty(HTMLElement.prototype, 'requestFullscreen')
+    remove.mockRestore()
   })
 
   it('blocks segment mutations while validation has not responded', async () => {
@@ -1109,6 +1337,78 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     expect(wrapper.find('.label-overlay').exists()).toBe(false)
     expect(wrapper.find('.video-dropdown-menu').exists()).toBe(true)
 
+    wrapper.unmount()
+  })
+
+  it('disables repeated finish clicks and preserves a replacement marking after a late save', async () => {
+    videoLabelsFactory = () => [{ id: 1, name: 'outside', color: '#111111' }]
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    const store = useVideoStore()
+    await wrapper.get('[data-cy="label-select"]').setValue('outside')
+    await wrapper.get('[data-cy="start-label-button"]').trigger('click')
+    const video = wrapper.get<HTMLVideoElement>('video')
+    video.element.currentTime = 5
+    await video.trigger('timeupdate')
+    let resolve!: (value: AxiosResponse<unknown>) => void
+    apiMocks.post.mockReturnValueOnce(
+      new Promise<AxiosResponse<unknown>>((res) => {
+        resolve = res
+      })
+    )
+    const finish = wrapper.get('[data-cy="finish-label-button"]')
+    await finish.trigger('click')
+    expect(finish.attributes('disabled')).toBeDefined()
+    await finish.trigger('click')
+    expect(apiMocks.post).toHaveBeenCalledTimes(1)
+    store.cancelDraft()
+    store.startDraft('outside', 10)
+    const replacementId = store.draftSegment?.id
+    resolve(
+      apiResponse({
+        created: [
+          {
+            segment: {
+              id: 999,
+              videoId: store.currentVideo?.id,
+              labelId: 1,
+              labelName: 'outside',
+              startTime: 0,
+              endTime: 5,
+              startFrameNumber: 0,
+              endFrameNumber: 125
+            }
+          }
+        ],
+        updated: [],
+        deleted: []
+      })
+    )
+    await flushPromises()
+    expect(store.draftSegment?.id).toBe(replacementId)
+    expect(wrapper.get('[data-cy="finish-label-button"]').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('explains an incomplete draft without showing a successful save', async () => {
+    videoLabelsFactory = () => [{ id: 1, name: 'outside', color: '#111111' }]
+    const wrapper = mountComponent()
+    await flushPromises()
+    await selectVideoFromDropdown(wrapper, 'ready-for-reporting.mp4')
+    await wrapper.get('[data-cy="label-select"]').setValue('outside')
+    await wrapper.get('[data-cy="start-label-button"]').trigger('click')
+    const save = requireDefined(
+      wrapper.findAll('button').find((button) => button.text() === 'Segmentänderungen speichern'),
+      'Save button'
+    )
+    await save.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain(
+      'Bitte zuerst die Label-Markierung abschließen oder abbrechen.'
+    )
+    expect(wrapper.text()).not.toContain('Segment-Änderungen gespeichert')
+    expect(apiMocks.post).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
