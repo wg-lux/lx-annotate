@@ -1,0 +1,142 @@
+schema_version: '1.0'
+id: mypy_hook_type_safety
+name: Mypy Hook Type Safety
+description: Keep the pre-commit mypy scope free of model reflection and version parser type errors.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-mypy-hooks-20260825
+    changed_at: '2026-08-25T14:15:30.211514Z'
+    note: Fixed Pydantic model reflection and release-version tuple typing; changed-file pre-commit mypy
+      passes and contract tests remain green.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Existing typed contract workflow.
+definition_of_done:
+- id: contract_model_typing
+  category: functionality
+  title: Contract model reflection is typed
+  acceptance:
+  - Pydantic model fields type-check in the frontend/backend contract tests.
+  required: true
+  verification:
+    kind: command
+    command:
+    - mypy
+    - tests/contracts/test_frontend_backend_api_contract.py
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'mypy tests/contracts/test_frontend_backend_api_contract.py: passed'
+    note: Pydantic model fields are typed through BaseModel.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:15:11.334240Z'
+- id: version_tuple_typing
+  category: requirements
+  title: Release version parsing returns its declared tuple
+  acceptance:
+  - Version parsing type-checks as a three-integer tuple.
+  required: true
+  verification:
+    kind: command
+    command:
+    - mypy
+    - scripts/bump_release_version.py
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'mypy scripts/bump_release_version.py: passed'
+    note: Version parser now returns explicit major, minor, patch integers.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:15:12.588552Z'
+- id: hook_scope
+  category: operations
+  title: The configured mypy hook passes
+  acceptance:
+  - The repository mypy hook scope reports no errors.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pre-commit
+    - run
+    - mypy
+    - --files
+    - tests/contracts/test_frontend_backend_api_contract.py
+    - scripts/bump_release_version.py
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run mypy --files tests/contracts/test_frontend_backend_api_contract.py scripts/bump_release_version.py:
+        Passed'
+    note: The filename-driven pre-commit hook passes the changed source scope.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:15:13.793120Z'
+- id: regression_tests
+  category: testing
+  title: Contract tests remain green
+  acceptance:
+  - Existing API contract tests pass after typing fixes.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/contracts/test_frontend_backend_api_contract.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pytest tests/contracts/test_frontend_backend_api_contract.py -q: 9 passed'
+    note: API contract regressions remain green.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:15:14.915147Z'
+- id: fail_closed
+  category: security
+  title: Type errors are not suppressed
+  acceptance:
+  - Fixes use explicit types without disabling mypy checks.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the changed model and version parser annotations.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Changed files contain explicit annotations and no mypy suppression.
+    note: The fixes preserve visible type checking.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:15:16.037094Z'
+- id: documented_gate
+  category: documentation
+  title: The mypy gate remains reproducible
+  acceptance:
+  - The repository pre-commit configuration remains the source of the mypy scope.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the existing mypy hook in .pre-commit-config.yaml.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Reviewed the existing mirrors-mypy hook in .pre-commit-config.yaml.
+    note: The repository pre-commit configuration remains the source of the mypy file scope.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:15:22.174941Z'

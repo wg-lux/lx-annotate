@@ -1,0 +1,198 @@
+schema_version: '1.0'
+id: hub_export_failed_video_retry
+name: Hub Export Failed Video Retry
+description: Ensure an operator can retry eligible failed video transfers from the Hub Export overview.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-video-retry-20260826
+    changed_at: '2026-08-26T07:07:39.024008Z'
+    note: Eligible failed videos can be retried from the bulk Hub Export action; 127 backend tests and
+      13 component tests passed, both frontend type checks and Ruff passed.
+  - action: reopened
+    changed_by: codex-video-retry-20260826
+    changed_at: '2026-08-26T07:25:41.714490Z'
+    note: Restore the existing sync-situation UI block after full-suite regression evidence.
+  - action: done
+    changed_by: codex-video-retry-20260826
+    changed_at: '2026-08-26T07:34:42.362156Z'
+    note: Restored Hub Export sync summaries and made Sidebar route import validation concurrent; complete
+      frontend suite passed 102 files/689 tests and both frontend type checks passed.
+source_documents:
+- path: README.md
+  disposition: reference
+  note: Application and Hub Export context.
+definition_of_done:
+- id: retry_scope
+  category: requirements
+  title: Failed-video retry scope is explicit
+  acceptance:
+  - Retry applies only to an existing failed video job that remains eligible for Hub Export.
+  - Marked, active, completed, ineligible, and report jobs retain their existing behavior.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the implementation and focused tests against the Hub Export job state model.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: lx_annotate/hub/hub_export_jobs.py state transition and focused diff review
+    note: Bulk retry is limited to eligible video jobs whose locked local status is failed; all other
+      registered states retain the existing path.
+    assessed_by: codex-video-retry-20260826
+    assessed_at: '2026-08-26T07:06:19.333606Z'
+- id: failed_video_bulk_retry
+  category: functionality
+  title: The bulk video action retries eligible failed transfers
+  acceptance:
+  - An eligible failed video keeps its stable outbound job and transfer identity when retried.
+  - The bulk video action queues the failed job and dispatches it after the transaction commits.
+  - Ineligible or non-failed registered jobs are not reset by the retry path.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
+    - tests/hub/test_hub_export_api.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'uv run --frozen --extra dev pytest tests/hub/test_hub_export*.py -q: 127 passed'
+    note: An eligible failed video is requeued through the existing job, counted as queued, and dispatched
+      once after commit.
+    assessed_by: codex-video-retry-20260826
+    assessed_at: '2026-08-26T07:06:21.868449Z'
+- id: retry_transfer_identity
+  category: data_integrity
+  title: Retry preserves transfer identity
+  acceptance:
+  - Retry reuses the existing outbound job ID and transfer key.
+  - Retry clears prior failure fields only when transitioning the locked failed job to queued.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect the locked state transition and its backend assertions.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'test_bulk_video_offload_retries_existing_failed_job: original job ID and transfer key
+        preserved; failure fields cleared; queued'
+    note: The shared locked helper performs the same atomic failed-to-queued transition for bulk and row
+      retries.
+    assessed_by: codex-video-retry-20260826
+    assessed_at: '2026-08-26T07:06:24.078265Z'
+- id: retry_security_boundary
+  category: security
+  title: Retry preserves authentication and transport gates
+  acceptance:
+  - Retry continues to require an authenticated operator and an active source and target node.
+  - The change does not alter mTLS, payload handling, key material, or raw-media export policy.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the retry call path and confirm existing authentication and eligibility checks
+      remain authoritative.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Hub Export security/integration suite included mTLS, envelope, payload guards, and API
+        authentication: 127 passed'
+    note: Authentication, active-node, eligibility, transfer-key, and transport boundaries remain unchanged
+      and fail closed.
+    assessed_by: codex-video-retry-20260826
+    assessed_at: '2026-08-26T07:06:27.164049Z'
+- id: failed_video_retry_ui
+  category: testing
+  title: The Hub Export UI exposes retry for a failed video
+  acceptance:
+  - A configured overview containing an eligible failed video enables the bulk video action.
+  - Activating the action calls the existing bulk offload API.
+  - Existing row-level retry behavior remains covered.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - --run
+    - src/components/Export/__tests__/HubExportOverviewComponent.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'npm --prefix frontend run test:unit -- --run src/components/Export/__tests__/HubExportOverviewComponent.test.ts:
+        13 passed'
+    - kind: test
+      reference: 'npm --prefix frontend run test:unit -- --run: 102 files, 689 tests passed'
+    note: Restored the existing sync rejection and duplicate summaries; failed-video bulk and row retry
+      coverage pass in the complete frontend suite.
+    assessed_by: codex-video-retry-20260826
+    assessed_at: '2026-08-26T07:33:57.368452Z'
+- id: retry_regression_checks
+  category: operations
+  title: Focused frontend and backend checks pass
+  acceptance:
+  - The Hub Export API suite passes.
+  - The Hub Export component suite and frontend type check pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused backend and frontend suites followed by the frontend application type
+      check.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: Frontend type-check and type-check:component-tests passed; Ruff passed; Hub Export suite
+        127 passed
+    - kind: command
+      reference: Complete frontend suite 102 files/689 tests passed; application and component-test type
+        checks passed; git diff --check passed
+    note: The reported Hub Export regression is fixed, and concurrent Sidebar route imports eliminate
+      the reproducible 15-second serial timeout.
+    assessed_by: codex-video-retry-20260826
+    assessed_at: '2026-08-26T07:33:58.756275Z'
+- id: retry_operator_contract
+  category: documentation
+  title: Operator retry behavior is recorded
+  acceptance:
+  - The tracked contract distinguishes bulk failed-video retry from the existing row-level job retry.
+  - Verification evidence records the exact focused commands and results.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review this feature definition against the completed implementation and verification
+      evidence.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: feature-tracking/HubExportFailedVideoRetry.yml
+    note: The tracker records bulk versus row retry behavior and exact verification evidence.
+    assessed_by: codex-video-retry-20260826
+    assessed_at: '2026-08-26T07:06:41.946694Z'

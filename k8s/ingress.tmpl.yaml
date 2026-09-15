@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lx-annotate
+  namespace: lx-annotate
+  annotations:
+    # kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx # instead of legacy above
+  tls:
+    - hosts:
+        - ${HOST}
+      secretName: lx-annotate-tls
+  rules:
+    - host: ${HOST}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lx-annotate
+                port:
+                  number: 80

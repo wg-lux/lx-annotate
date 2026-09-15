@@ -1,0 +1,135 @@
+"""
+Development settings.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any, cast
+
+from lx_annotate.settings.oidc import oidc_scopes_with_center_groups
+
+from .settings_base import (
+    BASE_DIR,
+    DATABASES,
+    INSTALLED_APPS,
+    LOGGING,
+    LX_DTYPES_HOST_MODELS_MODULE,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    MIDDLEWARE,
+    REST_FRAMEWORK,
+    ROOT_URLCONF,
+    SECRET_KEY,
+    STATIC_ROOT,
+    STATIC_URL,
+    STATICFILES_DIRS,
+    STATICFILES_STORAGE,
+    STORAGES,
+    TEMPLATES,
+)
+from .settings_base import REPORTING_LLM as REPORTING_LLM
+
+LOGGING = cast(dict[str, Any], LOGGING)
+REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
+STORAGES = cast(dict[str, dict[str, str]], STORAGES)
+TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
+ROOT_URLCONF = cast(str, ROOT_URLCONF)
+STATIC_URL = cast(str, STATIC_URL)
+STATIC_ROOT = cast(str, STATIC_ROOT)
+STATICFILES_DIRS = cast(list[Path], STATICFILES_DIRS)
+STATICFILES_STORAGE = cast(str, STATICFILES_STORAGE)
+MEDIA_ROOT = cast(Path, MEDIA_ROOT)
+MEDIA_URL = cast(str, MEDIA_URL)
+DATABASES = cast(dict[str, Any], DATABASES)
+BASE_DIR = cast(Path, BASE_DIR)
+SECRET_KEY = cast(str, SECRET_KEY)
+LX_DTYPES_HOST_MODELS_MODULE = cast(str, LX_DTYPES_HOST_MODELS_MODULE)
+
+# Keep development settings usable for packaged runtime tests and local service
+# deployments.  The base settings use a checkout-relative SQLite database by
+# default; honor explicit service-provided database settings when present.
+DATABASES = {name: config.copy() for name, config in DATABASES.items()}
+if database_engine := os.getenv("DJANGO_DB_ENGINE"):
+    DATABASES["default"]["ENGINE"] = database_engine
+if database_name := os.getenv("DJANGO_DB_NAME"):
+    DATABASES["default"]["NAME"] = database_name
+
+# -----------------------------------------------------------------------------
+# 1. CORE OVERRIDES
+DEBUG = True
+ALLOWED_HOSTS = ["*"]
+
+# 2. VITE (Built Assets)
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": False,
+        "static_url_prefix": "",
+        "manifest_path": os.path.join(STATIC_ROOT, ".vite", "manifest.json"),
+    },
+}
+
+# 3. CORS & SECURITY (Relaxed)
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"]
+
+# 5. AUTHENTICATION TOGGLE (Dev Convenience)
+ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "0") == "1"
+
+if ENFORCE_AUTH:
+    print("🔒 AUTH: ENFORCED (Keycloak Mock/Real)")
+    try:
+        from endoreg_db.config.settings import keycloak as KEYCLOAK
+
+        INSTALLED_APPS.extend(KEYCLOAK.EXTRA_INSTALLED_APPS)
+        MIDDLEWARE.extend(KEYCLOAK.EXTRA_MIDDLEWARE)
+
+        LOGIN_URL = KEYCLOAK.LOGIN_URL
+        LOGIN_REDIRECT_URL = KEYCLOAK.LOGIN_REDIRECT_URL
+        LOGOUT_REDIRECT_URL = KEYCLOAK.LOGOUT_REDIRECT_URL
+
+        # OIDC Configs
+        KEYCLOAK_BASE_URL = KEYCLOAK.KEYCLOAK_BASE_URL
+        KEYCLOAK_REALM = KEYCLOAK.KEYCLOAK_REALM
+        OIDC_RP_CLIENT_ID = KEYCLOAK.OIDC_RP_CLIENT_ID
+        OIDC_RP_CLIENT_SECRET = KEYCLOAK.OIDC_RP_CLIENT_SECRET
+        OIDC_OP_DISCOVERY_ENDPOINT = KEYCLOAK.OIDC_OP_DISCOVERY_ENDPOINT
+        OIDC_OP_AUTHORIZATION_ENDPOINT = KEYCLOAK.OIDC_OP_AUTHORIZATION_ENDPOINT
+        OIDC_OP_TOKEN_ENDPOINT = KEYCLOAK.OIDC_OP_TOKEN_ENDPOINT
+        OIDC_OP_USER_ENDPOINT = KEYCLOAK.OIDC_OP_USER_ENDPOINT
+        OIDC_OP_JWKS_ENDPOINT = KEYCLOAK.OIDC_OP_JWKS_ENDPOINT
+        OIDC_RP_SCOPES = oidc_scopes_with_center_groups(KEYCLOAK.OIDC_RP_SCOPES)
+        OIDC_RP_SIGN_ALGO = KEYCLOAK.OIDC_RP_SIGN_ALGO
+        OIDC_OP_LOGOUT_ENDPOINT = KEYCLOAK.OIDC_OP_LOGOUT_ENDPOINT
+
+        AUTHENTICATION_BACKENDS = KEYCLOAK.AUTHENTICATION_BACKENDS
+        REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = (
+            KEYCLOAK.REST_FRAMEWORK_DEFAULT_AUTH
+        )
+        REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
+            "rest_framework.permissions.IsAuthenticated",
+            "endoreg_db.authz.permissions.PolicyPermission",
+        ]
+        import os
+
+        print("OIDC_RP_CLIENT_ID =", os.getenv("OIDC_RP_CLIENT_ID"))
+        print(
+            "OIDC_OP_TOKEN_ENDPOINT =",
+            os.getenv("OIDC_OP_TOKEN_ENDPOINT") or OIDC_OP_TOKEN_ENDPOINT,
+        )
+        print("OIDC_RP_CLIENT_SECRET set? =", bool(os.getenv("OIDC_RP_CLIENT_SECRET")))
+
+    except ImportError:
+        print(
+            "⚠️  WARNING: endoreg_db Keycloak integration is not installed in the "
+            "active environment, falling back to basic auth",
+        )
+else:
+    print("🔓 AUTH: DISABLED (Open Access)")
+    REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
+        "rest_framework.permissions.AllowAny",
+    ]
+
+print("🚀 DEV SETTINGS LOADED")

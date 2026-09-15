@@ -1,0 +1,990 @@
+# Historical summary derived from Git; update from committed history only.
+title: LX-Annotate detailed changelog
+language: en
+scope:
+  through_commit: 0b450b3479a6cba32693597207e51d5c0d6012d9
+  first_commit: e720ff8fe89a89caad3d40597142e2fbeec07b4e
+  first_author_date: '2024-09-23'
+  last_author_date: '2026-09-04'
+  reachable_commits: 856
+  non_merge_commits: 799
+  merge_commits: 57
+  history_command: git log --no-merges --date=short --format="%h %ad %s" 0b450b3479a6cba32693597207e51d5c0d6012d9
+  method: Curated chronological summary of significant changes across all history reachable from the recorded
+    HEAD, including merged branches. Dates use commit author dates. Related commits are grouped; merge
+    commits, repetitive build/dependency updates, and uninformative subjects are not separate feature
+    entries. Selected ambiguous and recent commits were checked against git show.
+  limitations: Describes recorded development history, not a line-by-line audit or proof that every historical
+    behavior remains present. Uncommitted changes are excluded. Test additions are historical; application
+    tests were not rerun to establish those claims. No deployment, publication, security certification,
+    or production-readiness approval is inferred from commit subjects or tags.
+recorded_tags:
+- tag: v1.1.6
+  commit: a7cffd9c
+  commit_date: '2026-08-28'
+- tag: v1.0.0
+  commit: c1134dea
+  commit_date: '2026-08-14'
+- tag: v0.9.64.0
+  commit: d3d9bf7d
+  commit_date: '2026-08-10'
+- tag: v1.0.9.57
+  commit: be41a343
+  commit_date: '2026-08-06'
+- tag: v1.0.9.56
+  commit: 2968e115
+  commit_date: '2026-08-05'
+- tag: v0.9.55
+  commit: 7e2ce390
+  commit_date: '2026-08-03'
+tag_note: These are local tags reachable from the recorded HEAD, ordered by their target commit author
+  date. Dates are not publication dates. Tag names are preserved exactly; package metadata and version-like
+  commit subjects may use different numbering.
+periods:
+- period: 2026-09
+  title: Authentication, long-running jobs, and repair workflows
+  reachable_commits: 9
+  changes:
+  - area: Authentication
+    description: Request the Keycloak groups scope in development and production alongside openid, email,
+      and profile. Preserve custom scopes and append missing required scopes so center claims can be requested
+      consistently; add focused settings tests.
+    commits:
+    - 0b450b34
+  - area: Background processing
+    description: Introduce a 25-hour default Celery visibility timeout and require a window at least one
+      hour longer than the larger of 24 hours and the configured FFmpeg timeout. Keep application, broker,
+      and result-backend timeouts aligned; reject inconsistent transport settings and route HLS materialization
+      to the FFmpeg media queue.
+    commits:
+    - c6cf3dfc
+    - c717ffd6
+  - area: Hub export
+    description: Propagate recipient-key configuration through settings and environment contracts. Add
+      bounded, sanitized rejection codes, phases, and field names to HTTP 400 transfer diagnostics and
+      classify configuration rejection as non-retryable.
+    commits:
+    - 381d062d
+  - area: Reporting
+    description: Promote published-template selection into the main reporting controls and revise template
+      resolution, with corresponding media-preload test updates.
+    commits:
+    - 6b4580ed
+  - area: Anonymization
+    description: Expose a bulk video-state repair action in the anonymization overview. Show repaired
+      and already-consistent counts and identify videos requiring reimport; the action requests repair
+      without annotation deletion.
+    commits:
+    - f3ba07d6
+  - area: Administration and workflow
+    description: Expand administration controls, refine anonymization reimport handling and reporting
+      media preload, and add associated frontend and administration API tests. Document encrypted model-weight
+      consumption and track its verification requirements.
+    commits:
+    - ba012108
+- period: 2026-08
+  title: Hub transfers, typed contracts, reporting, and study exports
+  reachable_commits: 64
+  changes:
+  - area: Hub export
+    description: Revise the outbound transfer worker and its end-to-end tests to use the updated upload
+      contract. The adjacent commits with the same upload-related subject also alter the report editor;
+      they are not three independent transfer features.
+    commits:
+    - d0723e7e
+  - area: Study export and dashboard
+    description: Add study-cohort Excel export UI and store support, extend the study export API, and
+      expand cohort, export, dashboard, and anonymization-correction tests. Integrate the related dashboard
+      and correction controls.
+    commits:
+    - a7cffd9c
+  - area: Hub export
+    description: Extend transfer configuration for large videos and improve transfer logging and test
+      coverage.
+    commits:
+    - d8296757
+    - 535353c4
+  - area: Reporting and intake
+    description: Enable reporting drafts and correct an intake path regression recorded in recent versions.
+    commits:
+    - a821cc38
+  - area: Hub export
+    description: Allow retries of failed Hub exports instead of rejecting them solely because the previous
+      attempt failed.
+    commits:
+    - e16348fd
+  - area: API contracts
+    description: Add API route checks to pre-commit and clarify boundaries between persistence and manipulation
+      to reduce frontend/backend route mismatches.
+    commits:
+    - 00f11da0
+  - area: Developer tooling
+    description: Introduce the feature-tracking MCP server. Preserve the recorded revert and reapply sequence
+      when reading this work; the repeated subjects are part of the same development history.
+    commits:
+    - b1be48af
+    - cfdd53c8
+    - a184b50f
+    - 8ea685a9
+  - area: Release history
+    description: Record repeated Version 1.0.4 commits followed by an explicit revert on August 20. These
+      subjects alone do not establish a distinct published release for each commit.
+    commits:
+    - d5f765c2
+    - 6764c406
+    - a8dc1829
+    - 8ce0ace8
+    - 0afbaf98
+  - area: Terminology and navigation
+    description: Use the dtypes resolver service, adjust terminology resolution across versions, explicitly
+      re-export Celery queues for packaging, and correct sidebar content.
+    commits:
+    - 60b8a2bf
+    - 6b4973bf
+    - 24242d4d
+    - 1a75e9b6
+  - area: Hub export
+    description: Develop Hub storage setup and transfer hashing alongside report-template resolution.
+    commits:
+    - 1c27329c
+    - c1134dea
+    - 25debfb5
+  - area: Schema and migration compatibility
+    description: Remove split migration history, add Pydantic models, and narrow contract boundaries.
+    commits:
+    - 5e714c6b
+    - 99598b69
+    - d3d9bf7d
+    - cab82211
+    - ff80dffe
+  - area: Patient and report payloads
+    description: Check report-persistence and patient payloads, normalize patient fields to strings, and
+      handle missing patient-examination status in annotation statistics.
+    commits:
+    - be41a343
+    - f6647856
+    - '91001597'
+    - ff4ecac0
+  - area: Frontend workflows
+    description: Refine reporting and patient-administration UX and refactor video annotation and anonymization
+      workflows.
+    commits:
+    - 09932af9
+    - 8572b30a
+  - area: Frontend contracts and tooling
+    description: Split API contracts, update endpoint typing, reorganize state/composable routing utilities,
+      and add tracking gates, lint tooling, and documentation/build synchronization.
+    commits:
+    - 7e175252
+    - 0652b505
+    - e71cfbbc
+  - area: Release engineering
+    description: Prepare the 0.9.55 package line, harden its Hub transfer API, pin runtime contracts,
+      and add checks for supported Linux installation and known decord wheel metadata.
+    commits:
+    - 0e8533ec
+    - dc29a572
+    - d4d4eba3
+    - 7e2ce390
+    - 0311817d
+  - area: Release verification
+    description: Make release tests checkout-independent, collect build-environment evidence, correct
+      interpreter/dependency ordering, and smoke-test installed Hub routes.
+    commits:
+    - 9954ef7c
+    - 1ab58f34
+    - 6d242848
+    - 369d09d4
+    - c947056d
+  - area: Release documentation
+    description: Record 0.9.55 publication provenance, document deployment source hygiene, and introduce
+      Hub 0.9.56 readiness tracking. These are historical documentation changes, not a new deployment
+      assessment.
+    commits:
+    - 70500a22
+    - d080f3a7
+    - cc70a1ef
+- period: 2026-07
+  title: Reporting governance, protected streaming, and runtime checks
+  reachable_commits: 44
+  changes:
+  - area: Reporting
+    description: Add governed report-language selection, contain scheduled autosave failures, and align
+      reporting with canonical dtypes API contracts.
+    commits:
+    - c03e0a1f
+    - cf5b0717
+    - ac54b465
+  - area: Reporting and terminology
+    description: Consume authoritative concept coverage, align template drafts with coverage, and require
+      governed terminology registry identity.
+    commits:
+    - d69c082e
+    - ef3720d0
+    - a58837b1
+  - area: Runtime validation
+    description: Add schema and native-capability checks and enforce release runtime invariants.
+    commits:
+    - 83e51a59
+    - 9a4a0692
+  - area: Administration
+    description: Support global and multiple-center scopes, allow superuser permission editing, and remove
+      a nonexistent role.
+    commits:
+    - 16385c5a
+    - 391aa250
+    - 4ccde2fd
+  - area: Hub export
+    description: Harden export lifecycle and reconciliation; develop Hub functionality together with HLS
+      security and k/l/t pseudonymization work.
+    commits:
+    - 4cff51ee
+    - ad009bb2
+  - area: Frontend and API alignment
+    description: Align reporting APIs with typed routes, refine media and administration flows, replace
+      legacy annotation tests, and add terminology compatibility and video-timeline coverage.
+    commits:
+    - 81d671c5
+    - b858a653
+    - 95dc240c
+    - 5148cc15
+  - area: Video annotation
+    description: Streamline examination-annotation loading and require validation before blackening media
+      outside selected segments.
+    commits:
+    - 9d630527
+    - cf198126
+  - area: Streaming
+    description: Introduce HLS streaming work, treat HLS media as sensitive, correct playlist offload
+      and stream endpoint selection, and address frontend streaming inconsistency.
+    commits:
+    - 4f3c213d
+    - 85f21724
+    - 9e5c470f
+    - 7239db55
+    - c2ac029b
+  - area: Reporting routes
+    description: Move examination requests to the versioned endpoint to correct a 404 response.
+    commits:
+    - e8b37490
+  - area: Media processing
+    description: Record the 0.9.20 integration of Rust-backed large-file operations, raise the streamable
+      migration limit, and increase the default FPS.
+    commits:
+    - 59729e3e
+    - 25f4b4d1
+    - 781824ee
+    - b3985559
+  - area: Build and maintenance
+    description: Add migration generation to the package Makefile workflow, remove the obsolete lx-data-models
+      development source input and unused/generated assets, and prepare package metadata for 0.9.53.
+    commits:
+    - d414f193
+    - 2367e20a
+    - d8d7cab6
+    - 1abc10f5
+- period: 2026-06
+  title: Dependency contracts, video migrations, and streaming configuration
+  reachable_commits: 10
+  changes:
+  - area: Dependency integration
+    description: Integrate the endoreg-db line described as strict-Pyright-clean and using dtypes contracts,
+      followed by updates through endoreg-db 1.0.3.9. This records dependency integration, not a fresh
+      type-check result for this repository.
+    commits:
+    - 3fee5648
+    - 033d6807
+    - ba5772db
+    - 143b99ff
+  - area: Video data and tests
+    description: Extend tests and migration work linking classifications to videos.
+    commits:
+    - 557d8ac9
+    - 809f8bfb
+    - f04e9136
+  - area: Streaming configuration
+    description: Restore environment-variable control for Nginx streaming.
+    commits:
+    - 46d525f3
+- period: 2026-05
+  title: Datasets, operational visibility, and annotation metrics
+  reachable_commits: 62
+  changes:
+  - area: Metrics
+    description: Add an anonymization metrics page and sidebar entry and summarize annotation progress.
+    commits:
+    - e04142d8
+    - ad40fcd9
+    - 68ac3cac
+  - area: Anonymization
+    description: Capture explicit confirmation that no more names remain and surface cleanup state and
+      PHI review links.
+    commits:
+    - d28692c1
+    - 8d02bfd2
+  - area: Quarantine
+    description: Expose runtime quarantine information through the API and anonymization overview and
+      localize the quarantine reason.
+    commits:
+    - ed3c8e13
+    - ab08d1d0
+    - bc349a0f
+  - area: AI datasets
+    description: Add dataset creation and manifest settings, export datasets by ID, and attach annotations
+      while scoping training.
+    commits:
+    - 737fe4c3
+    - 67605d98
+    - ebd2ef6c
+    - 1309362a
+  - area: Training and annotation
+    description: Add PHI-detector training controls, track segment dataset and cleanup status, and retain
+      dataset context when loading frame tasks.
+    commits:
+    - 62e31a77
+    - 223bdfbe
+    - 8ecdbf0d
+  - area: Reporting
+    description: Refresh the report editor workspace, add a report-export page, and accept camelCase draft
+      payloads.
+    commits:
+    - c4c63481
+    - 5e5f6f22
+    - c4fe89f1
+  - area: Hub export
+    description: Use explicit export state models, harden worker execution and privacy reporting, and
+      show a k-anonymity summary.
+    commits:
+    - c7c65477
+    - a4a9f18e
+    - 087f273d
+    - 09396dae
+  - area: Background processing
+    description: Split media operations across workers, initialize signals before filewatcher thread imports,
+      add worker-thread import coverage, and integrate task-safety work from endoreg-db.
+    commits:
+    - 1b22a638
+    - af193216
+    - 5ca75cda
+    - b3ac8315
+  - area: API and annotation state
+    description: Add explicit endoreg and dtypes API mounts, document the frontend contract, and normalize
+      annotation queue and segment payload state.
+    commits:
+    - abb2013e
+    - 550a97cf
+    - bcf736cf
+  - area: Media integrity
+    description: Add a media-integrity check supporting backfill workflows.
+    commits:
+    - aa842284
+  - area: Packaging and migrations
+    description: Prepare 0.6.0 metadata and a Nix package, integrate endoreg-db migrations, and improve
+      migration 13 compatibility while removing a stale test.
+    commits:
+    - c78ecd83
+    - 748051d8
+    - 720cae7a
+    - 061ce787
+  - area: Developer workflow
+    description: Run pre-commit hooks through devenv to use the managed development environment.
+    commits:
+    - 5b6d9b6c
+- period: 2026-04
+  title: Encrypted storage, safer file operations, and resilient intake
+  reachable_commits: 36
+  changes:
+  - area: Encrypted media
+    description: Set up encrypted directories, activate encryption, repair plaintext copies, and preserve
+      storage settings when reading the environment.
+    commits:
+    - b9c54ea6
+    - 483439c5
+    - 90e1532c
+    - 7347f1af
+  - area: File operations
+    description: Introduce atomic file-operation work and further centralize paths and filesystem operations
+      in shared helpers.
+    commits:
+    - 3c32875c
+    - 9098cdc7
+  - area: Storage and streaming
+    description: Address storage pressure, make encrypted streaming lazy and FileField-based, and skip
+      streamable artifacts during payload repair.
+    commits:
+    - efee238a
+    - 0d58387f
+    - 0eacee98
+  - area: Filewatcher
+    description: Improve repeat safety and add bounded drain mode; record frontend and watcher coordination
+      improvements in the 0.4.0 work.
+    commits:
+    - 20a83905
+    - 3a6b1186
+    - 08a4e613
+  - area: Video handling
+    description: Correct a video view loading a PDF URL, increase processing timeouts, retain video viewability
+      under annotation guards, and wire a safe FFmpeg timeout.
+    commits:
+    - baf339bc
+    - 4da4d403
+    - 27aac05a
+  - area: Hub and frame workflows
+    description: Introduce center-key usage and simplify Hub setup and frame annotation. The commit subject's
+      readiness wording is historical and does not establish current production approval.
+    commits:
+    - d09d7517
+    - c276cdd1
+  - area: Migration maintenance
+    description: Resolve migration conflicts and an idempotent migration-script bug, alongside Xorg support
+      changes.
+    commits:
+    - 3d98dcdb
+    - '63231969'
+    - 5b868ddb
+- period: 2026-03
+  title: Reporting infrastructure, typed settings, and deployment integration
+  reachable_commits: 69
+  changes:
+  - area: Reporting and redaction
+    description: Require document types during PDF anonymization, display report text, persist redaction,
+      and develop report streaming.
+    commits:
+    - dac7328f
+    - 4f31ad40
+    - 0a530d7a
+    - f9d5d8de
+  - area: Clinical APIs
+    description: Add examination/intervention route work, requirement evaluation, and revised data models.
+    commits:
+    - 75b3b5f4
+    - 4913a330
+    - fc445c59
+  - area: Annotation integration
+    description: Develop the Label Studio webhook and FPS integration and update Label Studio frontend
+      delivery.
+    commits:
+    - 8b2576f7
+    - 04a982de
+    - f2ef309b
+  - area: Performance
+    description: Reduce serializer overhead for segment requests.
+    commits:
+    - b9fef7a6
+  - area: Settings and security
+    description: Introduce pydantic-settings, validate deployment/security settings, harden Keycloak loading,
+      and develop application settings and encrypted streaming.
+    commits:
+    - 0d4a31df
+    - 592d9730
+    - 3ece958f
+    - a6d0795d
+  - area: Data-model integration
+    description: Add migration overrides and Django/dtypes integration, convert the terminology editor
+      from submodule to a regular directory, and add German translation and an lx-data-model API route.
+    commits:
+    - fdd17e6f
+    - 6cbb3feb
+    - 5255b9cf
+  - area: Build and static assets
+    description: Correct collectstatic behavior and Nginx static-base alignment, adjust static permissions,
+      avoid unnecessary Makefile rebuilds, and expose documentation in the frontend.
+    commits:
+    - 62c5f87f
+    - ecad8cd0
+    - e83a21d2
+    - 69236bd2
+    - c47001b7
+  - area: Development environment
+    description: Refresh devenv and type-safety work, target its active virtual environment during synchronization,
+      and integrate Nix-deployed anonymization.
+    commits:
+    - ffc830fa
+    - 629007a6
+    - 3aaae00c
+- period: 2026-02
+  title: Reporting screens and filewatcher startup
+  reachable_commits: 32
+  changes:
+  - area: Reporting
+    description: Introduce a new reporting mask and infrastructure, expand reporting pages and tests,
+      and improve report API feedback.
+    commits:
+    - 6d419138
+    - 0ae69ff4
+    - d842ae53
+    - 71edc13c
+  - area: Video controls
+    description: Revise the outside-segments control and related API work. Both changes have explicit
+      revert/reapply sequences in February, so intermediate states are not separate features.
+    commits:
+    - 01d2a580
+    - 9f1907f6
+    - 65ef4fbd
+    - 039c076c
+    - 1ffaeacf
+    - b71f413f
+  - area: Navigation
+    description: Update the application logo, its display, and sidebar behavior.
+    commits:
+    - 91bf9de3
+    - 7cb74c98
+    - 385981e7
+  - area: Environment and startup
+    description: Harden filewatcher startup, revise server virtual-environment activation, and remove
+      faulty activation/direnv behavior.
+    commits:
+    - 1562478d
+    - 9db7ba13
+    - fb34f678
+- period: 2026-01
+  title: Frame exports, segment state, authentication, and environment unification
+  reachable_commits: 139
+  changes:
+  - area: Annotation workflow
+    description: Separate segment state from anonymization state and repair frame/segment annotation workflows.
+    commits:
+    - '95695057'
+    - 2c9d9054
+    - 85a9a982
+  - area: Annotation usability
+    description: Add keyboard shortcuts, make annotation changes visible, and introduce label and segment
+      preselection.
+    commits:
+    - 5a8778d8
+    - 725f6bc1
+    - 6ef157dd
+    - a5d5e983
+  - area: Export
+    description: Add frame-export job support, extend exports to multiple sources and image-classification
+      annotations, enable the export button, and wire the output-directory setting.
+    commits:
+    - 3109fa43
+    - c7af634b
+    - 234fd577
+    - 507fbd5b
+    - 81a157b3
+  - area: Payload and segment fixes
+    description: Fix array handling during snake_case conversion, preserve video IDs for annotation, prefetch
+      segment relationships, and correct segment creation affected by information-source handling.
+    commits:
+    - 0eb42ea8
+    - a311e539
+    - '30565790'
+    - 004de40f
+  - area: Media streaming
+    description: Develop Nginx-protected streaming and transcode videos on move.
+    commits:
+    - 0f4e8685
+    - 6811cfdc
+    - cfa0c0f5
+  - area: Authentication
+    description: Rework Keycloak settings and middleware and restore login/logout behavior.
+    commits:
+    - 154c5697
+    - 2b028e59
+    - ee4fd905
+  - area: Configuration
+    description: Adopt SecretSpec for environment values, support configuration from Nix, and consolidate
+      DATA_DIR and STORAGE_DIR onto DATA_DIR.
+    commits:
+    - 721fe967
+    - 1057e089
+    - d2be51be
+    - d6a88279
+  - area: Development and packaging
+    description: Add a build backend, move to nixpkgs 25.11, revise development-environment setup, and
+      expose the filewatcher start command.
+    commits:
+    - a6216aa9
+    - '34807485'
+    - df887d91
+    - 93c67a61
+- period: 2025-12
+  title: Processing cleanup and quality automation
+  reachable_commits: 6
+  changes:
+  - area: Processing
+    description: Remove the external filewatcher and duplicate processing instances; the commit records
+      a performance improvement without a benchmark.
+    commits:
+    - 776c7b74
+  - area: Media identity
+    description: Replace UUID usage with video_hash in the affected workflow.
+    commits:
+    - 1070a561
+  - area: Quality and annotation
+    description: Add pre-commit/CI cleanup, model-installation work, and improved visual feedback during
+      segment annotation.
+    commits:
+    - '83735372'
+    - dcc2e7af
+- period: 2025-11
+  title: Session authentication and service operation
+  reachable_commits: 36
+  changes:
+  - area: Authentication
+    description: Integrate Keycloak session SSO, middleware, a Vue auth store and HTTP wrapper; add read-role
+      support, restrict access to the recorded endoregdb_user role, implement logout, and add minimal
+      authentication tests.
+    commits:
+    - 4c996060
+    - 30341f82
+    - 864bb065
+    - b73394aa
+    - 2f074a93
+  - area: Media state
+    description: Revise frontend/backend state communication, improve annotation state, and add external
+      source and external ID to sensitive metadata.
+    commits:
+    - d3aa2741
+    - 36ee747a
+    - ffd96dab
+  - area: Annotation UI
+    description: Add a FrameSelector, rework the timeline, remove the devlog, and remove the default AI
+      model.
+    commits:
+    - efdfa547
+    - a4b95923
+    - 7048a352
+  - area: Service and intake
+    description: Correct Daphne/systemd environment setup, revise service configuration, and add raw-PDF
+      deletion behavior to the watcher.
+    commits:
+    - 820a0ab8
+    - f7e2a3fc
+    - ba739fe2
+- period: 2025-10
+  title: Anonymization correction and application setup
+  reachable_commits: 60
+  changes:
+  - area: Anonymization
+    description: Develop the anonymization workflow and correction interface, simplify duplicate controls,
+      improve readability, and correct navigation to correction views.
+    commits:
+    - deb0f6f9
+    - efb9b354
+    - f6585438
+    - 96a91e81
+    - eebc5d7b
+  - area: Media and APIs
+    description: Revise raw-media state and streaming, replace deprecated components, update media setup,
+      and continue the API rework.
+    commits:
+    - 29782c10
+    - 99a251b9
+    - 4c5e43be
+  - area: Setup
+    description: Revise development/production setup, unify the setup script, and use packaged endoreg-db
+      and lx-anonymizer dependencies in production settings.
+    commits:
+    - 3e5c8670
+    - c3b30b12
+    - 8fff2c55
+  - area: Watcher and process lifecycle
+    description: Introduce an external watcher for path-based load balancing and establish early process
+      cleanup to avoid abandoned processes. The external watcher is subsequently removed in December 2025.
+    commits:
+    - 3315e03a
+    - 20b7bc0a
+  - area: Dependencies and maintenance
+    description: Update Hugging Face model handling through endoreg-db, remove purge tasks, ignore database-password
+      files, and clean up documentation.
+    commits:
+    - c961467a
+    - c58491a8
+    - 3505391c
+- period: 2025-09
+  title: Patient findings, pseudonyms, and report generation
+  reachable_commits: 15
+  changes:
+  - area: Patients and pseudonyms
+    description: Add frontend pseudonym creation, patient-hash generation, and a patient detail view.
+    commits:
+    - d965aadf
+    - 02883474
+    - 11ad6966
+  - area: Clinical findings
+    description: Build patient-finding entry, scope displayed findings to the current patient examination,
+      change finding persistence, correct classification fetching, and use the patient finding store.
+    commits:
+    - 2884f116
+    - c45e0a30
+    - 089616bb
+    - ae67fd61
+    - 7644c51a
+  - area: Reporting and verification
+    description: Develop the report generator and examination-specific behavior and expand the test suite
+      and review work.
+    commits:
+    - 08a8742f
+    - 519bd499
+    - f09d3468
+    - 80e1c25b
+- period: 2025-08
+  title: PDF intake and unified validation
+  reachable_commits: 29
+  changes:
+  - area: PDF workflow
+    description: Add watcher PDF support and PDF stores, revise validation, implement cropping, and fix
+      a raw-PDF-folder processing loop.
+    commits:
+    - e133ed86
+    - cc29fc24
+    - 2602d9cd
+    - 593a97a3
+  - area: Validation and media state
+    description: Unify PDF/video validation and remodel media/task management to improve overview reliability.
+    commits:
+    - 3898226e
+    - d834b23b
+    - 9027b19b
+  - area: Reporting
+    description: Restore the patient store, add requirement-set lookup, and develop report generation
+      using the new requirements.
+    commits:
+    - 03e4eaf7
+    - '33440842'
+  - area: Environment
+    description: Introduce the LuxNix production devenv setup, resolve dependency/workspace issues, document
+      setup, and align settings loading with the revised environment.
+    commits:
+    - dd78fdd9
+    - c6af6ef7
+    - ad077445
+    - 8a79876d
+- period: 2025-07
+  title: Anonymization overview, correction, and watched imports
+  reachable_commits: 54
+  changes:
+  - area: Intake
+    description: Add a drag-and-drop upload component, watch raw-video intake, and improve filewatcher/subrepository
+      management.
+    commits:
+    - ca26fb22
+    - 984b09b9
+    - 070529b5
+  - area: Anonymization
+    description: Rework the overview and validation components, refine controls, and revise validation
+      guards.
+    commits:
+    - 874ecccc
+    - ae65e755
+    - fd1822bf
+    - 5ce8b973
+  - area: Video state and correction
+    description: Move video workflow state through VideoState and develop correction and reimport handling.
+      Early commit wording describes work in progress rather than verified acceptance.
+    commits:
+    - c0dfcf9c
+    - 644090b7
+    - 11d098ad
+    - d04ca7d5
+  - area: Routing and HTTP
+    description: Handle polling and redirects through the router, revise Axios interceptors, remove a
+      request content-type override, and correct the PDF prefix.
+    commits:
+    - 415214ff
+    - 77966bb3
+    - fb1a5d6d
+    - 5d350076
+  - area: Frontend cleanup
+    description: Remove old components in favor of centralized endoreg-db views, refactor menus, and correct
+      production static-serving/build configuration.
+    commits:
+    - b51a8f4d
+    - b7fc4159
+    - 55d968c7
+- period: 2025-06
+  title: Interactive video segments and patient examinations
+  reachable_commits: 42
+  changes:
+  - area: Video timeline
+    description: Load labels in separate timeline rows, show segment names and colors, add toast feedback
+      and tests, and implement segment resizing.
+    commits:
+    - 764e8e29
+    - 1f5231aa
+    - 75df04aa
+    - 72e614db
+  - area: Annotation
+    description: Develop PDF and sensitive-metadata annotation alongside video segmentation and introduce
+      race-condition protection.
+    commits:
+    - 158191d9
+    - 966f068a
+    - 5817d7aa
+  - area: Patients and examinations
+    description: Add patient views, patient-examination screens, and conditional examination-form loading.
+    commits:
+    - cd986b56
+    - 37ae351f
+    - aa8545d7
+    - 25ac5421
+  - area: Streaming
+    description: Separate video streaming from the labels/metadata endpoint.
+    commits:
+    - 67a84293
+  - area: Platform
+    description: Establish a working Keycloak integration, split settings for different environments,
+      and add uv.lock for dependency reproducibility.
+    commits:
+    - c4b4872a
+    - 941c79bd
+    - '67887566'
+- period: 2025-05
+  title: Local backend integration and centralized API access
+  reachable_commits: 22
+  changes:
+  - area: Architecture
+    description: Remove the legacy microservice proxy in favor of local endoreg-db integration, rework
+      the application/backend boundary, and add endoreg-db as a submodule.
+    commits:
+    - b99cc5df
+    - add7d593
+    - 48bef31f
+  - area: HTTP and forms
+    description: Correct API routing/CORS, centralize Axios usage and video-store access, and implement
+      conditional examination loading.
+    commits:
+    - 68a9c1c2
+    - 102f483e
+    - 9b9b685a
+  - area: Annotation
+    description: Introduce working video/frame annotation components and update video-segmentation serialization.
+    commits:
+    - 7c738cf7
+    - 1e45768d
+  - area: Development
+    description: Enable pytest and automatic environment setup, stop tracking .env, and refactor environment
+      management.
+    commits:
+    - '15127983'
+    - a0e27b39
+    - a38e060e
+- period: 2025-04
+  title: Examination and anonymization interfaces
+  reachable_commits: 10
+  changes:
+  - area: Clinical UI
+    description: Introduce an examination component and the examination form in the findings tab.
+    commits:
+    - 694ae35e
+    - 2b6d7671
+  - area: Anonymization and dashboard
+    description: Add the anonymization form and data-backed interface and create an annotation-focused
+      dashboard with a scrollable container.
+    commits:
+    - 27b7ddc3
+    - b7293389
+    - 607bcf73
+  - area: API wiring
+    description: Extend URL configuration and API routing to support the new interfaces.
+    commits:
+    - d9070a7d
+    - 5ff0320d
+- period: 2025-03
+  title: Video API, Pinia state, and dashboard foundation
+  reachable_commits: 25
+  changes:
+  - area: Video workflow
+    description: Introduce Pinia video-state management, load local video through the API, retrieve segments,
+      and populate the video dropdown.
+    commits:
+    - b8760562
+    - cc8ac398
+    - 0f6f799a
+    - b4b7fadc
+  - area: Frontend
+    description: Build the video dashboard and case generator and revise navigation, colors, and overall
+      presentation.
+    commits:
+    - 1c6f4bbd
+    - 8fcd49fe
+    - 34b75ccb
+    - f3e20bb6
+  - area: Integration
+    description: Extract the video API service, update URL handling, and revise Django/environment settings.
+    commits:
+    - eb056165
+    - '58138518'
+    - 134b1491
+- period: 2025-02
+  title: Django/frontend connection and early clinical APIs
+  reachable_commits: 30
+  changes:
+  - area: Frontend integration
+    description: Repair the local development server, integrate the frontend with Django, and improve
+      asset loading and API functionality.
+    commits:
+    - c4b4857c
+    - 78a66bd5
+    - faa4d9cb
+  - area: Clinical API
+    description: Get API responses into the frontend, add patient serializers/views, and connect to endoreg-db.
+    commits:
+    - 4a4015a1
+    - 4c4ad048
+    - a835bda0
+  - area: Development UI
+    description: Add devenv build tasks and demo components, style the finding generator, and expand demo
+      pages.
+    commits:
+    - 691a3d58
+    - 4288cf43
+    - 266eac51
+- period: 2025-01
+  title: Frontend bootstrap and model work
+  reachable_commits: 10
+  changes:
+  - area: Foundation
+    description: Introduce model work and the frontend while revising the project/devenv structure.
+    commits:
+    - 6ce98808
+    - d62090c4
+    - 6bb7e209
+  - area: Tooling
+    description: Add an npm environment to the flake, adjust Python import paths, and remove obsolete
+      project material.
+    commits:
+    - a4a0d337
+    - d2752340
+    - 462a0527
+- period: 2024-10
+  title: API behavior and Nix runtime setup
+  reachable_commits: 22
+  changes:
+  - area: API and PDF support
+    description: Bind API behavior to the request validation parameter, revise views, switch from fitz
+      to pymupdf naming, and document the API.
+    commits:
+    - 13b8cce7
+    - b7bfa456
+    - d637ea39
+    - b0a6636d
+  - area: Runtime
+    description: Use Nix-provided OpenCV, iterate on runtime/flake directory setup and permissions, correct
+      paths, and add logging.
+    commits:
+    - ddf991e7
+    - 8de99ed9
+    - d139aa56
+    - 622d2c14
+    - 63a68791
+- period: 2024-09
+  title: Initial repository and Django/Nix bootstrap
+  reachable_commits: 30
+  changes:
+  - area: Foundation
+    description: Create the repository and establish a poetry2nix flake running the Django server.
+    commits:
+    - e720ff8f
+    - 9df63bf0
+  - area: Runtime setup
+    description: Configure the compiler path, move temporary-directory setup into the anonymizer flake,
+      refactor name loading, and update the NixOS input.
+    commits:
+    - d4778ad7
+    - 1ea861a7
+    - 31b59a69
+    - 23df15be

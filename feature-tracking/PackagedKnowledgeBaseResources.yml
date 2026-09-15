@@ -1,0 +1,215 @@
+schema_version: '1.0'
+id: packaged_knowledge_base_resources
+name: Packaged Knowledge Base Resources
+description: Deliver immutable lx-dtypes knowledge-base YAML as wheel resources and resolve built-in registry
+  entries through stable provider descriptors instead of persisted installation paths.
+owners:
+- lx-dtypes maintainers
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/terminology-delivery.md
+  disposition: reference
+  note: Runtime registry and packaged terminology delivery contract.
+definition_of_done:
+- id: wheel_resource_contract
+  category: requirements
+  title: lx-dtypes exposes immutable knowledge bases from its wheel
+  acceptance:
+  - The wheel contains the declared YAML resources and catalog.
+  - A typed public API resolves exact module versions and content digests.
+  - Resource identifiers are relative and independent of an installation path.
+  required: true
+  verification:
+    kind: manual
+    instructions: Build and inspect the wheel, then exercise the typed resource API.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: python -m build --wheel; zip-import catalog verification passed for 3 entries
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/knowledge_bases.py
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/data/catalog.json
+    note: Built lx-dtypes 0.2.19 wheel; 43 relevant API/catalog/YAML members were present and all three
+      catalog entries verified directly through importlib.resources from the wheel archive.
+    assessed_by: codex-resource-paths-review
+    assessed_at: '2026-08-17T07:07:30.288005Z'
+- id: provider_registry_resolution
+  category: security
+  title: Built-in registry entries remain valid across environment replacement
+  acceptance:
+  - Persisted built-in entries contain provider identity and content digest, not a site-packages path.
+  - Provider resolution verifies module version and content digest before loading.
+  - Filesystem-backed custom entries remain explicitly supported.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused resolver and bootstrap regression tests.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: /home/admin/lx-data-models/lx_dtypes/models/interface/tests/test_knowledge_base_resolver.py
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/models/interface/KnowledgeBaseResolver.py
+    note: Provider entries persist provider plus SHA-256 only; runtime resolution checks provider, version,
+      config identity, declared digest and actual YAML tree digest.
+    assessed_by: codex-resource-paths-review
+    assessed_at: '2026-08-17T07:07:31.587709Z'
+- id: consumer_bootstrap
+  category: testing
+  title: lx-dtypes provisions packaged reporting bundles idempotently
+  acceptance:
+  - The lx-dtypes CLI registers all supported reporting bundles through provider descriptors.
+  - Existing active selections remain unchanged.
+  - Re-running bootstrap does not rewrite an unchanged registry.
+  - LX-Annotate does not own a compatibility bootstrap command.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - --directory
+    - /home/admin/lx-data-models
+    - run
+    - pytest
+    - tests/unit/lx_dtypes/tests/test_knowledge_base_registry_bootstrap.py
+    - -q
+    timeout_seconds: 600
+  assessment:
+    status: blocked
+    evidence:
+    - kind: command
+      reference: 'uv run pytest bootstrap and registry coverage: 22 passed'
+    - kind: command
+      reference: 'PYTHONPATH=/home/admin/lx-data-models pytest focused LX consumer suite: 39 passed'
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/knowledge_base_registry.py
+    note: 'The strict lx-dtypes bootstrap boundary and LX-Annotate command removal are implemented. Focused
+      lx-dtypes tests passed (22 passed before a concurrent test-layout migration), LX consumer tests
+      passed (39 passed), and a local lx-dtypes 0.2.24 wheel bootstrap passed. Release integration is
+      blocked: published endoreg-db==1.0.21.0 requires lx-dtypes==0.2.23 exactly, while the new CLI first
+      exists in unreleased lx-dtypes==0.2.24; publish 0.2.24, release a compatible endoreg-db, then refresh
+      the LX-Annotate lock. Local wheel SHA-256 7e5cb24fcdf30f521559ced1c8926b7c0b0e95212d16b731b28511a13f92c2e2
+      is verification only, not release evidence.'
+    assessed_by: codex-terminology-audit
+    assessed_at: '2026-08-20T10:56:29.100745Z'
+- id: catalog_integrity
+  category: security
+  title: Catalog integrity is verified before packaged resources are used
+  acceptance:
+  - Every catalog entry has one exact module identity and a SHA-256 tree digest.
+  - Missing resources and digest mismatches fail loudly.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run packaged resource tests including tamper and missing-resource cases.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: /home/admin/lx-data-models/lx_dtypes/tests/test_packaged_knowledge_bases.py
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/scripts/verify_packaged_report_templates.py
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/data/dgvs_reporting/data/00_colonoscopy_reporting.yaml
+    - kind: test
+      reference: /home/admin/lx-data-models/lx_dtypes/utils/tests/test_kb_yaml_lint.py
+    note: Restored DGVS S2k/S3 provenance at the canonical dgvs_reporting YAML location and updated its
+      catalog SHA-256; packaged resource validation passes.
+    assessed_by: codex-resource-paths-review
+    assessed_at: '2026-08-17T07:33:47.507319Z'
+- id: filesystem_compatibility
+  category: functionality
+  title: Explicit deployment-owned filesystem sources remain compatible
+  acceptance:
+  - Existing input_dirs registry entries continue to resolve.
+  - Provider and filesystem entries are distinguished without ambiguous fallback.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run existing knowledge-base resolver tests and new provider cases.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: /home/admin/lx-data-models/lx_dtypes/tests/test_release_and_registry_scripts.py
+    - kind: test
+      reference: /home/admin/lx-data-models/lx_dtypes/django/api/tests/test_terminology_routes.py
+    - kind: test
+      reference: '/home/admin/lx-data-models/lx_dtypes/models/interface/tests/test_knowledge_base_resolver.py:
+        deep and broad structure tests, 2 passed'
+    - kind: command
+      reference: 'uv run pytest lx_dtypes/models/interface/tests/test_knowledge_base_resolver.py -q: 18
+        passed'
+    - kind: test
+      reference: /home/admin/lx-data-models/lx_dtypes/models/interface/tests/test_knowledge_base_resolver.py::test_resolver_merges_multiple_modules_into_one_knowledge_base
+    - kind: command
+      reference: 'uv run pytest lx_dtypes/models/interface/tests/test_knowledge_base_resolver.py -q: 19
+        passed'
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/models/interface/DataLoader.py
+    - kind: test
+      reference: /home/admin/lx-data-models/lx_dtypes/models/interface/tests/test_data_loader.py::TestDataLoader::test_collect_module_closure_traverses_dependencies_and_child_modules
+    - kind: command
+      reference: 'uv run pytest -q -k not test_create_black_video_uses_ffmpeg_fallback: 687 passed, 1
+        skipped, 1 deselected'
+    note: 'DataLoader now computes one transitive closure across depends_on and modules at every node.
+      Real packaged report_template_examples loads 4 examinations, 14 indications, 159 findings and 163
+      classifications; colonoscopy, ERCP and EUS templates all publish with zero blockers. Full suite
+      excluding the unrelated broken Nix ffmpeg executable: 687 passed, 1 skipped, 1 deselected.'
+    assessed_by: codex-resource-paths-review
+    assessed_at: '2026-08-17T07:33:46.347955Z'
+- id: maintained_documentation
+  category: documentation
+  title: The delivery contract documents stable resource ownership
+  acceptance:
+  - Documentation distinguishes immutable wheel providers from mutable filesystem sources.
+  - Documentation prohibits persisting wheel installation paths.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review terminology delivery documentation against the implemented registry schema.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: /home/admin/lx-data-models/docs/guides/knowledge-base-authoring.md
+    - kind: document
+      reference: docs/guides/terminology-delivery.md
+    note: Package and consumer guides assign strict bootstrap ownership to lx-dtypes, prohibit implicit
+      Django registry mutation, and retain provider/filesystem source rules.
+    assessed_by: codex-terminology-audit
+    assessed_at: '2026-08-20T10:53:41.967193Z'
+- id: replacement_observability
+  category: operations
+  title: Environment replacement failures are explicit and diagnosable
+  acceptance:
+  - Missing providers, versions, and digest mismatches produce distinct errors.
+  - Bootstrap output retains the selected exact module identity.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused failure-path tests and bootstrap event output.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/test_knowledge_base_registry_bootstrap.py
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/knowledge_base_registry.py
+    note: The lx-dtypes CLI emits structured success/error events with exact active identity and has no
+      best-effort mode; focused failure and idempotence cases pass.
+    assessed_by: codex-terminology-audit
+    assessed_at: '2026-08-20T10:56:36.437772Z'

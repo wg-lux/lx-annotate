@@ -1,0 +1,290 @@
+schema_version: '1.0'
+id: contextual_reporting_recommender
+name: Contextual Structured Reporting Recommender
+description: Deliver a clinically usable, provenance-preserving assistant that recommends the next valid
+  structured reporting action from the active knowledge-base graph and examination draft. The first clinical
+  release is deterministic and completion-focused; evidence-based and learned ranking are enabled only after
+  their independent safety, privacy, validation, monitoring, and rollback gates pass.
+owners:
+- lx-annotate reporting maintainers
+- lx-dtypes maintainers
+- endoreg-db maintainers
+- clinical product owner
+- clinical safety owner
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Existing clinical reporting workflow, lookup guidance, and advisory recommendation boundary.
+definition_of_done:
+- id: bounded_clinical_intended_use
+  category: requirements
+  title: Intended use and release stages are clinically bounded
+  acceptance:
+  - The assistant recommends the next structured reporting operation and never presents a recommendation
+    as a diagnosis, treatment decision, or autonomous report mutation.
+  - The supported examination types, user roles, deployment profiles, languages, exclusions, and escalation
+    path are approved by the clinical product owner and clinical safety owner.
+  - >-
+    Release stages are explicit: deterministic completion guidance first, evidence-supported ranking second,
+    and learned ranking only after its separate criteria are verified.
+  - Recommendation absence or service failure never blocks ordinary manual reporting, while invalid or
+    contradictory clinical context fails closed with a visible explanation.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review intended-use documentation, release configuration, user wording, exclusions, and
+      failure behavior with the clinical product owner and clinical safety owner.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+- id: typed_reproducible_contracts
+  category: interoperability
+  title: Context, candidates, recommendations, and events use versioned typed contracts
+  acceptance:
+  - lx-dtypes defines versioned schemas for reporting context, recommendation candidate, ranked recommendation,
+    reason, evidence reference, interaction event, and recommender identity; unknown fields and invalid enum
+    values are rejected at persistence and API boundaries.
+  - Every result binds patient examination, report draft revision, knowledge-base module and version, graph
+    snapshot or context identity, algorithm version, locale, current focus, and completed structured elements.
+  - Persisted JSON is validated at the model boundary and backend snake_case contracts are consumed through
+    the established frontend camelCase normalization boundary.
+  - The same immutable context and recommender identity reproduce the same deterministic candidate set and
+    ordering.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review lx-dtypes, endoreg-db, generated API, and frontend boundary schemas; run their focused
+      round-trip, malformed-payload, identity-mismatch, and deterministic-replay tests.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: authoritative_graph_candidates
+  category: functionality
+  title: The pinned knowledge graph exclusively determines valid actions
+  acceptance:
+  - Candidate generation uses the exact active knowledge_base_graph_v1 identity and published report-template
+    rules for the resolved examination; it does not invent concepts, classifications, units, interventions,
+    or relationships.
+  - Required missing elements, graph dependencies, classifications, interventions, and workflow actions are
+    generated with exhaustive typed branching and stable concept identifiers.
+  - Historical behavior, model evidence, user identity, center identity, or rank score can reorder valid
+    candidates but can never create one or bypass template and graph constraints.
+  - Missing, ambiguous, stale, unpublished, or contradictory graph and template identities yield no actionable
+    recommendations and a visible recovery path.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run candidate-generation fixtures for supported examinations, including missing required
+      fields, graph dependencies, irrelevant concepts, stale templates, ambiguous nodes, and deterministic replay.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: deterministic_clinical_ranking
+  category: functionality
+  title: The first clinical release provides explainable completion-first ranking
+  acceptance:
+  - >-
+    Ranking priority is explicit and versioned: required completion and safety-relevant review precede graph
+    dependency, evidence support, workflow convenience, and historical preference.
+  - Each displayed item contains a localized action label, target concept, reason, source module and version,
+    score components or priority tier, and any supporting evidence references.
+  - The UI presents a small hierarchical next-action set for the current examination, finding, attribute,
+    classification, intervention, or outcome instead of an unbounded flat feed.
+  - Identical deterministic inputs produce stable ordering, and ties use a documented semantic key rather
+    than database order or arrival timing.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the versioned scoring policy and execute golden ranking cases with clinicians for
+      representative complete, incomplete, tied, and contradictory report states.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: clinician_controlled_application
+  category: data_integrity
+  title: Recommendations cannot silently alter the clinical record
+  acceptance:
+  - Display, accept, reject, dismiss, and ignore are distinct actions; display alone never mutates a finding,
+    classification, intervention, report draft, or final report.
+  - Acceptance shows the exact proposed structured change and requires an authorized clinician action before
+    applying it through existing typed domain APIs.
+  - Application uses the current report-draft revision and recommendation context identity, is idempotent,
+    and fails visibly on stale context, concurrent edits, withdrawn concepts, or authorization failure.
+  - Users can undo an accepted change through the ordinary reporting workflow until finalization, and final
+    reports retain the existing authorization and immutability rules.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise display without mutation, accept, reject, dismiss, duplicate accept, undo, stale
+      draft conflict, revoked authorization, and finalized-report paths in two concurrent browser sessions.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: evidence_advisory_boundary
+  category: security
+  title: AI evidence remains advisory, attributable, and separated from record mutation
+  acceptance:
+  - Video or model output enters as typed observed evidence with model identity, version, confidence, media
+    timeline reference, and provenance; it is never persisted as an accepted clinical finding merely because
+    its confidence crosses a threshold.
+  - Only evidence linked to the same patient examination and authorized local storage boundary may influence
+    ranking, and stale, missing, malformed, or contradictory evidence is excluded with a logged reason.
+  - Raw media is not exported by the recommender; any permitted outbound processed media remains anonymized
+    and follows the existing mTLS, storage, and transfer controls without transmitting a master key.
+  - Evidence-supported suggestions are visually distinguishable from required deterministic completion items
+    and expose enough provenance for clinician review.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review evidence ingestion and authorization boundaries; test cross-examination references,
+      stale model output, malformed provenance, unavailable media, raw-media export attempts, and visible source
+      attribution.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: privacy_preserving_interaction_ledger
+  category: security
+  title: Interaction learning data is minimal, attributable, and privacy-safe
+  acceptance:
+  - Recommendation displayed, accepted, rejected, dismissed, ignored, modified, deleted, and report-finalized
+    events use a versioned schema with pseudonymous actor and center scope, target concept, context identity,
+    algorithm identity, timestamp, and outcome.
+  - Event payloads exclude patient names, free text, raw media, long-lived secrets, and unnecessary clinical
+    values; retention, access, deletion, export, and research-use rules are approved before collection begins.
+  - Event writes are append-only or equivalently auditable, idempotent, transactionally correlated with accepted
+    mutations where applicable, and emit privacy-safe structured diagnostics.
+  - Personal or center-level adaptation cannot learn documentation omissions as clinical validity and is disabled
+    until subgroup review and minimum-support rules are approved.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the event schema, data-flow inventory, permissions, retention job, replay protection,
+      and logs; demonstrate that sampled payloads contain no direct identifiers, free text, raw media, or secrets.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: learned_ranker_release_gate
+  category: requirements
+  title: Learned ranking cannot exceed the deterministic safety envelope
+  acceptance:
+  - The learning-to-rank model receives only graph-valid candidates and cannot change requiredness, candidate
+    validity, permissions, evidence provenance, or the clinician confirmation requirement.
+  - Training data lineage, cohort definition, leakage controls, feature definitions, labels, missing-data behavior,
+    model artifact digest, calibration, and reproducible evaluation are versioned and reviewable.
+  - Offline evaluation covers ranking quality, report completeness, editing burden, incorrect-suggestion rate,
+    subgroup and center performance, rare workflows, and comparison with the deterministic baseline.
+  - Learned ranking remains disabled in clinical mode until shadow evaluation, clinical safety approval, rollout
+    thresholds, drift thresholds, rollback criteria, and a deterministic fallback are all verified.
+  required: true
+  verification:
+    kind: manual
+    instructions: Audit the reproducible training and evaluation package, compare it with the deterministic
+      baseline, review subgroup results, and prove that disabling the model immediately restores deterministic
+      ordering without changing candidate validity.
+    timeout_seconds: 2400
+  assessment:
+    status: not_assessed
+- id: day_to_day_reporting_experience
+  category: functionality
+  title: Suggestions support fast, accessible day-to-day clinical reporting
+  acceptance:
+  - Suggestions update after relevant draft changes without stealing focus, resetting unsaved input, applying
+    stale asynchronous results, or obscuring the primary editor.
+  - Keyboard and pointer users can inspect reasons, navigate to the target, accept or dismiss, and return to
+    their previous focus; German and English labels use canonical localized terminology.
+  - Empty, loading, unavailable, stale, conflict, and no-valid-candidate states are distinct and actionable,
+    and recommendation failure does not prevent manual completion or finalization.
+  - Representative reports with at least 100 findings remain responsive at supported clinical workstation
+    widths and do not show more suggestions than the approved cognitive-load limit.
+  required: true
+  verification:
+    kind: manual
+    instructions: Conduct keyboard, screen-reader, pointer, latency, context-switch, and responsive-width
+      acceptance on representative small and 100-finding reports with clinicians and clinical documentation staff.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: layered_safety_regressions
+  category: testing
+  title: Contracts, ranking, mutation safety, and UI behavior have layered regression coverage
+  acceptance:
+  - Contract tests cover schema round trips, unknown fields, invalid enums, identity mismatch, provenance,
+    snake_case transport, and persisted JSON validation.
+  - Domain tests cover graph-only candidates, exhaustive relationships, stable ordering, required-item priority,
+    no-candidate states, idempotent acceptance, stale revisions, authorization, and deterministic fallback.
+  - Component and end-to-end tests cover advisory wording, provenance display, no mutation on display, accept,
+    reject, dismiss, undo, async supersession, accessibility, localization, and manual reporting during outage.
+  - Existing reporting, lookup, draft-persistence, graph, type-check, and finalization suites pass without weakened
+    assertions, silent fallback, or fabricated clinical fixtures.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused lx-dtypes, endoreg-db, and lx-annotate suites followed by the established broader
+      reporting and type-check lanes; retain exact commands, versions, pass counts, failures, and fixture provenance.
+    timeout_seconds: 3600
+  assessment:
+    status: not_assessed
+- id: prospective_clinical_acceptance
+  category: operations
+  title: A controlled clinical pilot demonstrates utility without unsafe workflow effects
+  acceptance:
+  - A pre-approved protocol defines representative examinations, sites, roles, sample size, baseline, success
+    thresholds, stopping rules, incident handling, and accountable clinical assessors.
+  - The deterministic assistant is evaluated before evidence ranking, and evidence ranking before learned ranking;
+    no stage inherits approval from an earlier stage.
+  - Pilot evidence includes completeness, time-to-report, editing burden, acceptance and dismissal rates, incorrect
+    or unsafe suggestion rate, overrides, final-report discrepancies, accessibility feedback, and subgroup results.
+  - Production enablement is limited to explicitly approved sites and roles and requires written clinical safety,
+    privacy, and operational acceptance with unresolved hazards recorded as blockers.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the approved protocol and signed stage-specific pilot report, reproduce metric summaries,
+      inspect incidents and subgroup outcomes, and confirm the deployment allowlist matches the approval scope.
+    timeout_seconds: 3600
+  assessment:
+    status: not_assessed
+- id: observable_safe_operations
+  category: operations
+  title: Operators can monitor, disable, and investigate the recommender safely
+  acceptance:
+  - Privacy-safe metrics separate candidate-generation failure, graph identity mismatch, ranking failure, stale
+    response, acceptance conflict, latency, no-candidate rate, suggestion rate, and user outcomes by algorithm version.
+  - Alerts and runbooks define owners, thresholds, investigation steps, clinical escalation, and preservation of
+    audit evidence without patient-identifying labels in metrics or logs.
+  - Authorized operators can disable evidence ranking or learned ranking independently and restore deterministic
+    recommendations, or disable all suggestions, without disabling manual reporting.
+  - Rollback preserves report drafts, accepted clinical data, event integrity, and the exact algorithm and graph
+    provenance needed to investigate prior recommendations.
+  required: true
+  verification:
+    kind: manual
+    instructions: In a production-like approved environment, inject each failure class, inspect alerts and audit
+      correlation, exercise staged kill switches and rollback, and confirm uninterrupted manual reporting.
+    timeout_seconds: 2400
+  assessment:
+    status: not_assessed
+- id: maintained_clinical_guidance
+  category: documentation
+  title: Clinicians, operators, and maintainers have current English guidance
+  acceptance:
+  - Clinician guidance explains intended use, recommendation tiers, evidence provenance, acceptance and undo,
+    limitations, outage behavior, and how to report an unsafe or incorrect suggestion.
+  - Operator guidance covers staged enablement, health checks, metrics, alerts, kill switches, rollback, incident
+    response, retention, and audit retrieval.
+  - Maintainer guidance identifies lx-dtypes as candidate and contract authority, endoreg-db as examination and
+    persistence authority, lx-annotate as interaction authority, and the approved ranker artifact boundary.
+  - Documentation and training material are reviewed after every contract, knowledge-base, algorithm, or intended-use
+    change, and release notes identify the exact enabled recommendation stage.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review English clinician, operator, maintainer, training, and release documentation against the
+      deployed contracts and conduct a role-based walkthrough with each owner group.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed

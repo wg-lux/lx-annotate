@@ -1,81 +1,33 @@
 {
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+  description = "Pure Nix packaging for lx-annotate frontend";
 
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }: flake-utils.lib.eachDefaultSystem (system:
-    let
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [];
-      };
-
-      # Define the common build inputs
-      commonBuildInputs = with pkgs; [
-        nodejs_22
-        yarn
-        nodePackages_latest.gulp
-        nodePackages_latest.typescript
-        vite
-        stdenv
-
-      ];
-
-      # Define the shellHook for convenience
-      commonShellHook = ''
-        export PATH="$PATH:$(yarn global bin)"
-      '';
-
-    in
-    {
-      # Development shell environment
-      devShell = pkgs.mkShell {
-        buildInputs = commonBuildInputs;
-        shellHook = commonShellHook;
-      };
-
-      # Default package definition
-      defaultPackage = pkgs.stdenv.mkDerivation {
-        name = "lx-annotate";
-        src = ./lx-annotate;
-
-        buildInputs = commonBuildInputs;
-        shellHook = commonShellHook;
-
-        # Define the build phase
-        buildPhase = ''
-          yarn install
-          yarn build
-        '';
-
-        # Define the install phase (optional, for copying build artifacts)
-        installPhase = ''
-          mkdir -p $out
-          cp -r * $out/
-        '';
-
-        # Define how to run the app
-        doInstallCheck = true;
-        installCheckPhase = ''
-          yarn start
-        '';
-
-        # Define the run command for the app
-        passthru = {
-          run = "${self.defaultPackage}/bin/start";
+  outputs =
+    { nixpkgs, flake-utils, ... }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
         };
-      };
 
-      # Example of defining other outputs if necessary
-      packages = {
-        myApp = self.defaultPackage;
-      };
+        frontend = pkgs.callPackage ./default.nix { };
+      in
+      {
+        packages = {
+          default = frontend;
+          frontend = frontend;
+        };
 
-      # Optionally, you can define tests or other outputs
-      # apps = {};
-      # checks = {};
-    }
-  );
+        devShells.default = pkgs.mkShell {
+          packages = [
+            pkgs.nodejs_22
+          ];
+        };
+      }
+    );
 }

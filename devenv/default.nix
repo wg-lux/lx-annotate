@@ -1,33 +1,40 @@
 # nix file importing devenv files
 { 
   pkgs,
-  djangoModuleName, 
-  host, 
-  port, 
-  base_url,
-  dataDir,
-  confDir, 
-  confTemplateDir,
+  lib,
   uvPackage,
+  isDev ? false,
+  env
 }:
 let
-  # import lx_vars from vars.nix
-  lx_vars = import ./vars.nix {
-    dataDir = dataDir;
-    confDir = confDir;
-    confTemplateDir = confTemplateDir;
-    djangoModuleName = djangoModuleName;
-    host = host;
-    port = port;
-    base_url = base_url;
-  };
+
   # import build inputs from build_inputs.nix
   buildInputs = import ./build_inputs.nix { inherit pkgs; };
   runtimePackages = import ./runtime_packages.nix { inherit pkgs uvPackage; };
+    # import modular configurations
+  scripts = import ./scripts.nix { 
+    inherit pkgs lib env isDev; 
+  };
+  
+
+  processes = import ./processes.nix { 
+    inherit pkgs lib env isDev; 
+  };
+  
+  environment = import ./environment.nix { 
+    inherit buildInputs runtimePackages pkgs lib isDev;
+  };
+
+  # Import centralized management system
+  managementSystem = import ./management.nix { inherit pkgs lib env isDev; };
 
 in 
 {
-  lx_vars = lx_vars;
   buildInputs = buildInputs;
   runtimePackages = runtimePackages;
+  # Integrate centralized management with legacy modular components
+  # Unified system: management.nix provides all functionality
+  scripts = managementSystem.scripts;
+  processes = processes;
+  environment = environment;
 }

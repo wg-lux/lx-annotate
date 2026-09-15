@@ -1,0 +1,277 @@
+"""
+Production settings.
+"""
+
+from __future__ import annotations
+
+import os
+from importlib import import_module
+from pathlib import Path
+from typing import Any, cast
+
+from lx_annotate.settings import config as config_module
+from lx_annotate.settings.config import AppConfig
+from lx_annotate.settings.oidc import oidc_scopes_with_center_groups
+
+from .settings_base import (
+    APP_DATA_DIR,
+    BASE_DIR,
+    INSTALLED_APPS,
+    LOGGING,
+    LX_DTYPES_HOST_MODELS_MODULE,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    MIDDLEWARE,
+    REST_FRAMEWORK,
+    ROOT_URLCONF,
+    SECRET_KEY,
+    STATIC_URL,
+    STATICFILES_STORAGE,
+    STORAGES,
+    TEMPLATES,
+    config,
+)
+
+base_settings = import_module("lx_annotate.settings.settings_base")
+
+# Django exposes only uppercase names from the active settings module. Keep the
+# complete base contract available in production, including settings whose
+# values were resolved from environment variables in settings_base.
+for _base_setting_name in dir(base_settings):
+    if _base_setting_name.isupper():
+        globals()[_base_setting_name] = getattr(base_settings, _base_setting_name)
+
+LOGGING = cast(dict[str, Any], LOGGING)
+REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
+STORAGES = cast(dict[str, dict[str, str]], STORAGES)
+TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
+ROOT_URLCONF = cast(str, ROOT_URLCONF)
+STATIC_URL = cast(str, STATIC_URL)
+STATICFILES_STORAGE = cast(str, STATICFILES_STORAGE)
+MEDIA_ROOT = cast(Path, MEDIA_ROOT)
+MEDIA_URL = cast(str, MEDIA_URL)
+LX_DTYPES_HOST_MODELS_MODULE = cast(str, LX_DTYPES_HOST_MODELS_MODULE)
+config = cast(AppConfig, config)
+
+# Celery reads configuration only from the active Django settings module.
+# settings_base owns the queue topology, so production must re-export it
+# explicitly instead of silently falling back to Celery's built-in `celery`
+# queue.
+CELERY_BROKER_URL = base_settings.CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = base_settings.CELERY_RESULT_BACKEND
+CELERY_TASK_IGNORE_RESULT = base_settings.CELERY_TASK_IGNORE_RESULT
+CELERY_VISIBILITY_TIMEOUT = base_settings.CELERY_VISIBILITY_TIMEOUT
+CELERY_BROKER_TRANSPORT_OPTIONS = base_settings.CELERY_BROKER_TRANSPORT_OPTIONS
+CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = (
+    base_settings.CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS
+)
+CELERY_TASK_DEFAULT_QUEUE = base_settings.CELERY_TASK_DEFAULT_QUEUE
+CELERY_PIPELINE_QUEUE = base_settings.CELERY_PIPELINE_QUEUE
+CELERY_FRAME_EXTRACTION_QUEUE = base_settings.CELERY_FRAME_EXTRACTION_QUEUE
+CELERY_FFMPEG_MEDIA_QUEUE = base_settings.CELERY_FFMPEG_MEDIA_QUEUE
+CELERY_INFERENCE_QUEUE = base_settings.CELERY_INFERENCE_QUEUE
+CELERY_TRAINING_QUEUE = base_settings.CELERY_TRAINING_QUEUE
+CELERY_LLM_INFERENCE_QUEUE = base_settings.CELERY_LLM_INFERENCE_QUEUE
+CELERY_MAINTENANCE_QUEUE = base_settings.CELERY_MAINTENANCE_QUEUE
+CELERY_HUB_TRANSFER_QUEUE = base_settings.CELERY_HUB_TRANSFER_QUEUE
+CELERY_TASK_CREATE_MISSING_QUEUES = base_settings.CELERY_TASK_CREATE_MISSING_QUEUES
+CELERY_TASK_QUEUES = base_settings.CELERY_TASK_QUEUES
+CELERY_TASK_ROUTES = base_settings.CELERY_TASK_ROUTES
+
+# -----------------------------------------------------------------------------
+
+config = cast(AppConfig, config_module.load_config())
+
+STATIC_ROOT = config.static_root
+static_root_path = Path(STATIC_ROOT).resolve(strict=False)
+vite_source_root = (BASE_DIR / "static").resolve(strict=False)
+if static_root_path == vite_source_root:
+    raise RuntimeError(
+        "🚨 PRODUCTION ERROR: DJANGO_STATIC_ROOT must not point to BASE_DIR/static "
+        "(Vite source assets). Use BASE_DIR/staticfiles as STATIC_ROOT.",
+    )
+# 1. SECURITY
+DEBUG = False
+
+if SECRET_KEY.startswith("***UNSAFE") or not SECRET_KEY:
+    raise RuntimeError(
+        "🚨 PRODUCTION ERROR: DJANGO_SECRET_KEY is missing/unsafe! "
+        "Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE.",
+    )
+
+# 2. VITE (Built Assets)
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": False,
+        "static_url_prefix": "",
+        "manifest_path": os.path.join(STATIC_ROOT, ".vite", "manifest.json"),
+    },
+}
+
+# Vite already owns the frontend asset graph and manifest.
+# ManifestStaticFilesStorage would rewrite `main.js` to an older hashed bundle
+# via Django's own manifest, which breaks route loading after deploy.
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+STORAGES["staticfiles"] = {"BACKEND": STATICFILES_STORAGE}
+
+# 3. SECURITY HEADERS
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+# SECURITY: Debug MUST be off in production
+DEBUG = False
+
+# Set Permission classes to require authentication
+DEFAULT_PERMISSION_CLASSES = ["rest_framework.permissions.IsAuthenticated"]
+
+
+# SECURITY: Fail fast if using unsafe secret key
+if SECRET_KEY.startswith("***UNSAFE"):
+    raise RuntimeError(
+        "🚨 SECURITY ERROR: SECRET_KEY must be set from environment in production!\n"
+        "Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE to a secure value.",
+    )
+
+# SECURITY: Strict host validation - must be configured
+ALLOWED_HOSTS = config.allowed_hosts
+
+if not ALLOWED_HOSTS:
+    raise RuntimeError(
+        "🚨 SECURITY ERROR: DJANGO_ALLOWED_HOSTS must be set in production!\n"
+        "Example: DJANGO_ALLOWED_HOSTS=yourdomain.com,api.yourdomain.com",
+    )
+
+# SECURITY: Strict CSRF protection
+CSRF_TRUSTED_ORIGINS = config.csrf_trusted_origins
+if not CSRF_TRUSTED_ORIGINS:
+    raise RuntimeError(
+        "🚨 SECURITY ERROR: DJANGO_CSRF_TRUSTED_ORIGINS must be set in production!\n"
+        "Example: DJANGO_CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com",
+    )
+
+# SECURITY: Strict CORS - NO wildcard origins
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = config.cors_allowed_origins
+if not CORS_ALLOWED_ORIGINS:
+    raise RuntimeError(
+        "🚨 SECURITY ERROR: DJANGO_CORS_ALLOWED_ORIGINS must be set in production!\n"
+        "Example: DJANGO_CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com",
+    )
+
+CORS_ALLOW_CREDENTIALS = True
+
+# SECURITY: SSL/TLS enforcement
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+
+# SECURITY: HSTS headers
+SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365  # 1 year
+SECURE_HSTS_PRELOAD = True
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+# SECURITY: Additional security headers
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# SECURITY: API must require authentication
+assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
+    "rest_framework.permissions.IsAuthenticated",
+], "🚨 SECURITY ERROR: Production API must require authentication!"
+
+
+# SECURITY: Keycloak configuration must be complete in production
+if not config.keycloak_client_secret:
+    raise RuntimeError(
+        "🚨 SECURITY ERROR: KEYCLOAK_CLIENT_SECRET must be set in production!\n"
+        "Set DJANGO_KEYCLOAK_CLIENT_SECRET or DJANGO_KEYCLOAK_CLIENT_SECRET_FILE.",
+    )
+
+# 4. LOGGING (File based)
+LOG_FILE = APP_DATA_DIR / "logs" / "production.log"
+
+# 5. Database
+
+DATABASES = {
+    "default": {
+        "ENGINE": config.db_engine,
+        "NAME": config.db_name,
+        "USER": config.db_user,
+        "PASSWORD": config.db_password,
+        "HOST": config.db_host,
+        "PORT": config.db_port,
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "sslmode": config.db_sslmode,
+        },
+    },
+}
+
+# Ensure database password is set
+if not DATABASES["default"]["PASSWORD"]:
+    raise RuntimeError(
+        "🚨 SECURITY ERROR: Database password must be set in production!\n"
+        "Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.",
+    )
+
+ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "1") == "1"  # default OFF
+
+try:
+    from endoreg_db.config.settings import keycloak as KEYCLOAK
+
+    DEBUG = False  # force prod behavior so PolicyPermission doesn't bypass
+
+    INSTALLED_APPS += KEYCLOAK.EXTRA_INSTALLED_APPS
+    MIDDLEWARE += KEYCLOAK.EXTRA_MIDDLEWARE
+
+    LOGIN_URL = KEYCLOAK.LOGIN_URL
+    LOGIN_REDIRECT_URL = KEYCLOAK.LOGIN_REDIRECT_URL
+    LOGOUT_REDIRECT_URL = KEYCLOAK.LOGOUT_REDIRECT_URL
+
+    KEYCLOAK_BASE_URL = KEYCLOAK.KEYCLOAK_BASE_URL
+    KEYCLOAK_REALM = KEYCLOAK.KEYCLOAK_REALM
+    OIDC_RP_CLIENT_ID = KEYCLOAK.OIDC_RP_CLIENT_ID
+    OIDC_RP_CLIENT_SECRET = config.keycloak_client_secret
+    OIDC_OP_DISCOVERY_ENDPOINT = KEYCLOAK.OIDC_OP_DISCOVERY_ENDPOINT
+    OIDC_OP_AUTHORIZATION_ENDPOINT = KEYCLOAK.OIDC_OP_AUTHORIZATION_ENDPOINT
+    OIDC_OP_TOKEN_ENDPOINT = KEYCLOAK.OIDC_OP_TOKEN_ENDPOINT
+    OIDC_OP_USER_ENDPOINT = KEYCLOAK.OIDC_OP_USER_ENDPOINT
+    OIDC_OP_JWKS_ENDPOINT = KEYCLOAK.OIDC_OP_JWKS_ENDPOINT
+    OIDC_VERIFY_SSL = KEYCLOAK.OIDC_VERIFY_SSL
+    OIDC_RP_SCOPES = oidc_scopes_with_center_groups(KEYCLOAK.OIDC_RP_SCOPES)
+    OIDC_RP_SIGN_ALGO = KEYCLOAK.OIDC_RP_SIGN_ALGO
+    OIDC_OP_LOGOUT_ENDPOINT = KEYCLOAK.OIDC_OP_LOGOUT_ENDPOINT
+    OIDC_STORE_ID_TOKEN = KEYCLOAK.OIDC_STORE_ID_TOKEN
+    OIDC_LOGOUT_REDIRECT_URL = KEYCLOAK.OIDC_LOGOUT_REDIRECT_URL
+    OIDC_AUTH_REQUEST_EXTRA_PARAMS = KEYCLOAK.OIDC_AUTH_REQUEST_EXTRA_PARAMS
+
+    AUTHENTICATION_BACKENDS = KEYCLOAK.AUTHENTICATION_BACKENDS
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = (
+        KEYCLOAK.REST_FRAMEWORK_DEFAULT_AUTH
+    )
+
+    REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
+        "rest_framework.permissions.IsAuthenticated",
+        "endoreg_db.authz.permissions.PolicyPermission",
+    ]
+
+    print("🔒 ENFORCE_AUTH=1 → Keycloak enabled (session SSO) + RBAC ON")
+except ImportError as e:
+    print(f"❌ Keycloak integration failed to load from installed packages: {e}")
+    if ENFORCE_AUTH:
+        raise RuntimeError(
+            "🚨 SECURITY ERROR: ENFORCE_AUTH=1 but Keycloak integration failed to load!",
+        ) from e
+    else:
+        print("🔓 ENFORCE_AUTH=0 → Keycloak disabled, no authentication")
+# Stable Hosting using NGINX, so we can trust the X-Forwarded-* headers
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+
+print("🔐 PRODUCTION SETTINGS LOADED")

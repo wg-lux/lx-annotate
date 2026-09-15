@@ -1,0 +1,10 @@
+owner: codex-deadcode-20260907-7a93
+scope: Untouched first-party Python and frontend sources; generated files and existing edits excluded.
+removed: Duplicate list-filter branches in FrameAnnotation.vue and timeUtils.formatTime implementation.
+preserved: Wrapper priority, empty-list handling, record filtering, both formatter exports, and all existing assertions.
+callers: FrameAnnotation router entry -> loadLabelGroups -> extractListPayload; timeUtils re-exports timeHelpers.formatTime.
+tests: 'From frontend: npx vitest run src/views/__tests__/FrameAnnotationPage.test.ts src/views/__tests__/FrameAnnotationPage.usability.test.ts src/utils/__tests__/timeUtils.test.ts src/utils/__tests__/timeHelpers.test.ts --silent; 73 passed.'
+checks: Application and component-test vue-tsc, scoped ESLint, git diff --check, and tracker validate passed.
+retained: Public type names, Django-discovered classes, compatibility shims, and hash helpers with distinct validation contracts.
+python: 'No Python changes; Radon baseline 881 blocks, average 3.92. For Python removals use python -m trace --count -C <artifact-directory> --module pytest <focused-test>; missing trace hits alone do not prove dead code.'
+gaps: Vulture baseline and quality:dead-code task absent; Knip, Oxlint and Biome researched but not installed or run.

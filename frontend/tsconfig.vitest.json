@@ -2,14 +2,11 @@
   "extends": "./tsconfig.app.json",
   "exclude": [],
   "compilerOptions": {
-    "declaration": true,
-
     "lib": [],
     "skipLibCheck": true,
     "types": ["node", "jsdom"],
     "composite": true,
-    "noEmit": false,
-    "declarationDir": "./types",
+    "noEmit": true,
     "module": "esnext",
     "moduleResolution": "bundler"
   }

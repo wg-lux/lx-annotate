@@ -1,0 +1,32 @@
+# Representative frontend contract slice from STAR Upper GI 0.1.1.
+- model: examination
+  name: star_upper_gi_endoscopy
+  findings:
+    - star_upper_gi_polyp
+    - star_upper_gi_biopsy_documentation
+  indications: []
+- model: classification_choice
+  name: star_upper_gi_erefs_edema_none
+  description: No edema observed
+- model: classification
+  name: distance_cm
+  classification_choices: [distance_cm]
+- model: classification_choice_descriptor
+  name: length_cm_descriptor
+  unit: centimeter
+  classification_choice_descriptor_type: numeric
+  default_value_num: 0.0
+- model: finding
+  name: star_upper_gi_polyp
+  description: Polyp or suspected superficial lesion documented by location, size, and Paris morphology.
+  classifications:
+    - star_upper_gi_location_classification
+    - star_upper_gi_lesion_paris
+    - size_oval_mm
+    - additional_text_info
+  interventions: null
+- model: finding_type
+  name: preprocedure
+- model: intervention
+  name: star_upper_gi_biopsy_performed
+  description: Upper-GI biopsy with linked sampling documentation.

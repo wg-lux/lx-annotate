@@ -1,0 +1,12 @@
+schema_version: '1.0'
+required_categories:
+- requirements
+- functionality
+- testing
+- security
+- operations
+- documentation
+minimum_required_criteria: 6
+require_owner: true
+verified_evidence_minimum: 1
+migrated_markdown_trackers: []

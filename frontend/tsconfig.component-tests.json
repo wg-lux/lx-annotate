@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": [
+    "env.d.ts",
+    "src/components/VideoExamination/__tests__/VideoExaminationAnnotation.dropdown.test.ts",
+    "tests/keycloak/**/*.ts",
+    "src/router/__tests__/authGuard.test.ts",
+    "src/api/__tests__/axiosInstance.errors.test.ts",
+    "src/api/__tests__/reportDraftApi.test.ts",
+    "src/api/__tests__/reportExportApi.test.ts",
+    "src/views/reporting/__tests__/ReportEditorPage.test.ts",
+    "src/views/reporting/__tests__/ReportExportPage.test.ts",
+    "src/views/reporting/__tests__/reportListPayload.test.ts"
+  ],
+  "exclude": [],
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "types": ["node", "vitest/globals"]
+  }
+}

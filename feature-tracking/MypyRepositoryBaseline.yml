@@ -1,0 +1,142 @@
+schema_version: '1.0'
+id: mypy_repository_baseline
+name: Repository Mypy Baseline
+description: Remove actionable mypy errors from the application and test source tree.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-mypy-hooks-20260825
+    changed_at: '2026-08-25T14:25:55.713160Z'
+    note: Repository-wide mypy now reports no errors across lx_annotate and tests; affected tests and
+      formatting checks pass.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Existing typed contract workflow.
+definition_of_done:
+- id: all_errors_fixed
+  category: requirements
+  title: Mypy reports no errors in application and tests
+  acceptance:
+  - mypy lx_annotate tests exits successfully.
+  required: true
+  verification:
+    kind: command
+    command:
+    - mypy
+    - lx_annotate
+    - tests
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'mypy lx_annotate tests: Success, no issues found in 178 source files'
+    note: All 32 actionable errors are resolved; annotation-unchecked messages are informational notes
+      only.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:25:31.135196Z'
+- id: contract_tests
+  category: functionality
+  title: API contract typing remains valid
+  acceptance:
+  - Contract tests pass after annotations are tightened.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/contracts/test_frontend_backend_api_contract.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pytest tests/contracts/test_frontend_backend_api_contract.py -q: 9 passed'
+    note: API contract typing and behavior remain green.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:25:32.919966Z'
+- id: affected_tests
+  category: testing
+  title: Affected test modules remain green
+  acceptance:
+  - All modules touched by typing repairs pass.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/hub/test_hub_export_worker.py
+    - tests/api/test_storage_orchestration_api.py
+    - -q
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'Affected test modules: 143 passed'
+    note: All touched test and integration modules pass.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:25:34.659881Z'
+- id: no_suppressions
+  category: security
+  title: Fixes preserve visible type failures
+  acceptance:
+  - No broad mypy suppression is added to hide errors.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the changed annotations and casts.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Reviewed changed annotations and casts; no broad mypy suppression added.
+    note: Dynamic boundaries are explicit and failures remain visible.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:25:44.921324Z'
+- id: formatting
+  category: operations
+  title: Changed Python files satisfy repository formatting
+  acceptance:
+  - Ruff check and format checks pass.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ruff
+    - check
+    - tests
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'Ruff check and format checks: passed'
+    note: Changed Python files satisfy repository formatting.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:25:46.548631Z'
+- id: maintainable_types
+  category: documentation
+  title: Dynamic test boundaries are explicit
+  acceptance:
+  - Casts and annotations document dynamic framework boundaries without changing behavior.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review changed test boundaries for explicit Any/cast usage.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Reviewed explicit casts at Django/DRF/Pydantic dynamic boundaries.
+    note: Typing annotations document framework boundaries without runtime changes.
+    assessed_by: codex-mypy-hooks-20260825
+    assessed_at: '2026-08-25T14:25:48.098678Z'

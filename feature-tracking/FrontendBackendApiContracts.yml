@@ -1,0 +1,241 @@
+schema_version: '1.0'
+id: frontend_backend_api_contracts
+name: Frontend And Backend API Contracts
+description: Keep frontend route paths, HTTP methods, request payloads, and response handling aligned
+  with the mounted backend APIs.
+owners:
+- lx-annotate frontend maintainers
+- endoreg-db maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-api-contracts-20260825
+    changed_at: '2026-08-25T12:09:49.621373Z'
+    note: Frontend route ownership, exact paths and methods, representative request/response schemas,
+      media URL handling, and retired-call removal verified by frontend and backend contract suites.
+  - action: reopened
+    changed_by: codex-api-contracts-20260825
+    changed_at: '2026-08-25T12:13:45.105238Z'
+    note: Reopened to resolve residual scoped ESLint findings reported during final verification.
+  - action: done
+    changed_by: codex-api-contracts-20260825
+    changed_at: '2026-08-25T12:16:06.151943Z'
+    note: Residual scoped ESLint findings resolved; scoped lint, frontend type-check, focused UI tests,
+      tracker validation, and production gate all pass.
+source_documents:
+- path: docs/guides/terminology-delivery.md
+  disposition: reference
+  note: Documents the dtypes-api ownership boundary and canonical mount.
+- path: tests/README.md
+  disposition: reference
+  note: Documents API and cross-package contract test ownership.
+definition_of_done:
+- id: route_paths
+  category: requirements
+  title: Frontend paths resolve against the intended backend mount
+  acceptance:
+  - Every active frontend API call targets an existing endoreg-api or dtypes-api route.
+  - Trailing-slash behavior matches the backend route exactly for mutation requests.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - tests/contracts/test_frontend_backend_api_contract.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: devenv shell -- .devenv/state/venv/bin/pytest tests/contracts/test_frontend_backend_api_contract.py
+        -q (9 passed)
+    note: All 118 registered endoreg frontend endpoints resolve; dtypes catalog ownership and repaired
+      no-slash Ninja paths are asserted; known absent legacy calls were removed.
+    assessed_by: codex-api-contracts-20260825
+    assessed_at: '2026-08-25T12:08:44.432822Z'
+- id: http_methods
+  category: functionality
+  title: Frontend HTTP methods are accepted by their backend routes
+  acceptance:
+  - GET, POST, PUT, PATCH, and DELETE callers use methods exposed by the resolved backend view.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - tests/contracts/test_frontend_backend_api_contract.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: tests/contracts/test_frontend_backend_api_contract.py::test_reporting_methods_and_trailing_slashes_match_ninja_routes
+    note: OPTIONS contracts verify POST report mutations, GET/PATCH selector access, and GET report reads
+      on exact backend routes.
+    assessed_by: codex-api-contracts-20260825
+    assessed_at: '2026-08-25T12:08:46.246079Z'
+- id: request_payloads
+  category: functionality
+  title: Mutation payloads match backend input contracts
+  acceptance:
+  - Typed frontend request payloads map through camelCase-to-snake_case conversion to backend schema fields.
+  - Multipart and binary bodies bypass JSON key conversion.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/api/__tests__
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'frontend API tests: 151 passed'
+    - kind: command
+      reference: 'tests/contracts/test_frontend_backend_api_contract.py: 9 passed'
+    note: Report save, export, and segment-selector request fields are compared to installed lx-dtypes
+      Pydantic models; frontend API boundary tests pass.
+    assessed_by: codex-api-contracts-20260825
+    assessed_at: '2026-08-25T12:08:48.314609Z'
+- id: response_payloads
+  category: functionality
+  title: Frontend response handling matches backend output contracts
+  acceptance:
+  - Snake-case backend JSON is converted once and validated or normalized at the frontend boundary.
+  - Binary responses are not transformed as JSON.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/api/__tests__
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'frontend API tests: 151 passed'
+    - kind: review
+      reference: frontend/src/api/axiosInstance.ts and processing-history serializer boundary
+    note: Segment-selector response fields match the backend schema exactly; processing history consumes
+      backend download_url; JSON and binary interceptor behavior is covered.
+    assessed_by: codex-api-contracts-20260825
+    assessed_at: '2026-08-25T12:08:50.147537Z'
+- id: contract_regression_tests
+  category: testing
+  title: Cross-boundary route and representative payload regressions are tested
+  acceptance:
+  - A backend resolver test covers every repaired cross-boundary route.
+  - Frontend tests cover URL construction and response normalization for repaired contracts.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - tests/contracts/test_frontend_backend_api_contract.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'backend API and contract tests: 137 passed, 1 skipped'
+    - kind: command
+      reference: 'focused UI tests: 35 passed'
+    note: Cross-boundary regression tests cover registered routes, route ownership, methods, request schemas,
+      response schemas, media URLs, and retired routes.
+    assessed_by: codex-api-contracts-20260825
+    assessed_at: '2026-08-25T12:08:51.843136Z'
+- id: fail_closed_contracts
+  category: security
+  title: Contract mismatches fail visibly
+  acceptance:
+  - Missing routes or incompatible payloads fail tests instead of using silent fallback data.
+  - Backend-supplied media URLs are used instead of reconstructing unverified filesystem or download paths.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review route resolution, payload parsing, and media URL handling.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: frontend auth, anonymization correction, validation, and video examination call sites
+    note: Removed the nonexistent auth fallback and legacy mutation calls; media URLs are backend-supplied
+      and same-origin checked; unsupported async correction responses fail explicitly.
+    assessed_by: codex-api-contracts-20260825
+    assessed_at: '2026-08-25T12:08:53.275408Z'
+- id: contract_documentation
+  category: documentation
+  title: API ownership and conversion boundaries are documented in code
+  acceptance:
+  - Route ownership between endoreg-api and dtypes-api is explicit.
+  - Request and response case conversion is described at the shared client boundary.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review endpoint registry and axios client documentation.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/src/types/api/endpoints.ts and frontend/src/api/axiosInstance.ts
+    note: Endpoint registry and shared axios boundary document endoreg-api versus dtypes-api ownership
+      and case conversion.
+    assessed_by: codex-api-contracts-20260825
+    assessed_at: '2026-08-25T12:08:54.770396Z'
+- id: operational_validation
+  category: operations
+  title: The complete contract suite is reproducible in the project environment
+  acceptance:
+  - Tracker validation, backend contract tests, frontend API tests, and frontend type checking pass.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ./feature-tracking/tracker.py
+    - validate
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: scoped npx eslint --max-warnings 0 (exit 0)
+    - kind: command
+      reference: npm --prefix frontend run type-check (exit 0)
+    - kind: command
+      reference: 'focused UI tests: 35 passed'
+    note: Residual scoped ESLint findings were resolved with explicit ref types and removal of redundant
+      assertions, optional chains, and unused computed values; lint, type-check, and focused UI tests
+      pass.
+    assessed_by: codex-api-contracts-20260825
+    assessed_at: '2026-08-25T12:15:55.098759Z'

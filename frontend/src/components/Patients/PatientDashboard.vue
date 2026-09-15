@@ -3,51 +3,74 @@
     <!-- Header -->
     <div class="dashboard-header">
       <h1 class="dashboard-title">
-        <i class="fas fa-users"></i>
+        <i class="ni ni-circle-08 dashboard-heading-icon"></i>
         Patienten-Dashboard
       </h1>
       <div class="header-actions">
-        <button 
-          class="btn btn-primary" 
-          @click="showCreateForm = true"
+        <button
+          class="btn btn-primary"
           :disabled="loading"
+          @click="showCreateForm = true"
         >
-          <i class="fas fa-plus"></i>
+          <i class="ni ni-fat-add"></i>
           Neuer Patient
         </button>
       </div>
     </div>
 
     <!-- Error Alert -->
-    <div v-if="error" class="alert alert-danger alert-dismissible">
+    <div
+      v-if="error"
+      class="alert alert-danger alert-dismissible"
+    >
       <strong>Fehler:</strong> {{ error }}
-      <button type="button" class="btn-close" @click="error = ''"></button>
+      <button
+        type="button"
+        class="btn-close"
+        @click="error = ''"
+      ></button>
     </div>
 
     <!-- Success Alert -->
-    <div v-if="successMessage" class="alert alert-success alert-dismissible">
+    <div
+      v-if="successMessage"
+      class="alert alert-success alert-dismissible"
+    >
       <strong>Erfolg:</strong> {{ successMessage }}
-      <button type="button" class="btn-close" @click="successMessage = ''"></button>
+      <button
+        type="button"
+        class="btn-close"
+        @click="successMessage = ''"
+      ></button>
     </div>
 
     <!-- Loading Spinner -->
-    <div v-if="loading" class="loading-container">
-      <div class="spinner-border text-primary" role="status">
+    <div
+      v-if="loading"
+      class="loading-container"
+    >
+      <div
+        class="spinner-border text-primary"
+        role="status"
+      >
         <span class="visually-hidden">Laden...</span>
       </div>
       <p>Lade Patientendaten...</p>
     </div>
 
     <!-- Patient Creation Form -->
-    <div v-if="showCreateForm && !loading" class="card form-card">
+    <div
+      v-if="showCreateForm && !loading"
+      class="card form-card"
+    >
       <div class="card-header">
         <h3 class="card-title">
-          <i class="fas fa-user-plus"></i>
+          <i class="ni ni-fat-add card-heading-icon"></i>
           Neuen Patienten erstellen
         </h3>
       </div>
       <div class="card-body">
-        <PatientCreateForm 
+        <PatientCreateForm
           @patient-created="onPatientCreated"
           @cancel="showCreateForm = false"
         />
@@ -55,81 +78,103 @@
     </div>
 
     <!-- Patient List -->
-    <div v-if="!loading && !showCreateForm" class="card patients-card">
+    <div
+      v-if="!loading && !showCreateForm"
+      class="card patients-card"
+    >
       <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
           <h3 class="card-title mb-0">
-            <i class="fas fa-list"></i>
+            <i class="ni ni-single-copy-04 card-heading-icon"></i>
             Patienten ({{ patients.length }})
           </h3>
           <div class="search-box">
-            <input 
+            <input
               v-model="searchTerm"
               type="text"
               class="form-control"
               placeholder="Patienten suchen..."
-            >
+            />
           </div>
         </div>
       </div>
       <div class="card-body">
         <!-- Patient Cards Grid -->
-        <div v-if="filteredPatients.length > 0" class="patients-grid">
-          <div 
-            v-for="patient in filteredPatients" 
+        <div
+          v-if="filteredPatients.length > 0"
+          class="patients-grid"
+        >
+          <div
+            v-for="patient in filteredPatients"
             :key="patient.id"
             class="patient-card"
+            :class="{ selected: selectedPatient?.id === patient.id }"
             @click="selectPatient(patient)"
-            :class="{ 'selected': selectedPatient?.id === patient.id }"
           >
             <div class="patient-card-header">
-              <h5 class="patient-name">
-                {{ patient.firstName }} {{ patient.lastName }}
-              </h5>
+              <h5 class="patient-name">{{ patient.firstName }} {{ patient.lastName }}</h5>
               <span class="patient-id">ID: {{ patient.id }}</span>
             </div>
             <div class="patient-card-body">
               <div class="patient-info">
                 <div class="info-item">
-                  <i class="fas fa-birthday-cake"></i>
+                  <i class="ni ni-book-bookmark patient-info-icon"></i>
                   <span>{{ formatDate(patient.dob) }}</span>
-                  <small v-if="patient.age">({{ patient.age }} Jahre)</small>
+                  <small
+                    v-if="patient.age"
+                    class="patient-info-detail"
+                    >({{ patient.age }} Jahre)</small
+                  >
                 </div>
-                <div class="info-item" v-if="patient.gender">
-                  <i class="fas fa-venus-mars"></i>
+                <div
+                  v-if="patient.gender"
+                  class="info-item"
+                >
+                  <i class="ni ni-circle-08 patient-info-icon"></i>
                   <span>{{ getGenderName(patient.gender) }}</span>
                 </div>
-                <div class="info-item" v-if="patient.center">
-                  <i class="fas fa-hospital"></i>
+                <div
+                  v-if="patient.center"
+                  class="info-item"
+                >
+                  <i class="ni ni-collection patient-info-icon"></i>
                   <span>{{ getCenterName(patient.center) }}</span>
                 </div>
-                <div class="info-item" v-if="patient.email">
-                  <i class="fas fa-envelope"></i>
+                <div
+                  v-if="patient.email"
+                  class="info-item"
+                >
+                  <i class="ni ni-single-copy-04 patient-info-icon"></i>
                   <span>{{ patient.email }}</span>
                 </div>
               </div>
             </div>
             <div class="patient-card-footer">
-              <small class="text-muted">
-                Klicken für Details
-              </small>
+              <small class="text-muted"> Klicken für Details </small>
             </div>
           </div>
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!loading" class="empty-state">
-          <i class="fas fa-users fa-3x text-muted"></i>
-          <h4>Keine Patienten gefunden</h4>
+        <div
+          v-else-if="!loading"
+          class="empty-state"
+        >
+          <i class="ni ni-circle-08 ni-3x text-muted empty-state-icon"></i>
+          <h4 class="empty-state-heading">Keine Patienten gefunden</h4>
           <p class="text-muted">
-            {{ searchTerm ? 'Keine Patienten entsprechen der Suche.' : 'Erstellen Sie den ersten Patienten.' }}
+            {{
+              searchTerm
+                ? 'Keine Patienten entsprechen der Suche.'
+                : 'Erstellen Sie den ersten Patienten.'
+            }}
           </p>
-          <button 
+          <button
             v-if="!searchTerm"
             class="btn btn-primary"
             @click="showCreateForm = true"
           >
-            <i class="fas fa-plus"></i>
+            <i class="ni ni-fat-add empty-state-icon"></i>
             Ersten Patienten erstellen
           </button>
         </div>
@@ -137,8 +182,11 @@
     </div>
 
     <!-- Patient Detail View -->
-    <div v-if="selectedPatient && !showCreateForm && !loading" class="patient-detail-section">
-      <PatientDetailView 
+    <div
+      v-if="selectedPatient && !showCreateForm && !loading"
+      class="patient-detail-section"
+    >
+      <PatientDetailView
         :patient="selectedPatient"
         @patient-updated="onPatientUpdated"
         @patient-deleted="onPatientDeleted"
@@ -150,10 +198,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
+import { usePatientStore, type Patient } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
 import PatientCreateForm from './PatientCreateForm.vue'
 import PatientDetailView from './PatientDetailView.vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-dashboard')
 
 // Composables
 const patientStore = usePatientStore()
@@ -172,14 +223,17 @@ const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
 const filteredPatients = computed(() => {
-  if (!searchTerm.value) return patients.value
-  
+  if (!searchTerm.value) {
+    return patients.value
+  }
+
   const term = searchTerm.value.toLowerCase()
-  return patients.value.filter(patient => 
-    patient.firstName?.toLowerCase().includes(term) ||
-    patient.lastName?.toLowerCase().includes(term) ||
-    patient.email?.toLowerCase().includes(term) ||
-    `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(term)
+  return patients.value.filter(
+    (patient) =>
+      patient.firstName.toLowerCase().includes(term) ||
+      patient.lastName.toLowerCase().includes(term) ||
+      patient.email?.toLowerCase().includes(term) ||
+      `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(term)
   )
 })
 
@@ -188,15 +242,14 @@ const loadData = async () => {
   try {
     loading.value = true
     error.value = ''
-    
-    await Promise.all([
-      loadPatients(),
-      loadLookupData()
-    ])
-    
-  } catch (err: any) {
-    error.value = err.message || 'Fehler beim Laden der Daten'
-    console.error('Error loading dashboard data:', err)
+
+    await Promise.all([loadPatients(), loadLookupData()])
+  } catch (err: unknown) {
+    error.value = err instanceof Error && err.message ? err.message : 'Fehler beim Laden der Daten'
+    logger.error('dashboard-load-failed', err, {
+      operation: 'load',
+      outcome: 'rejected'
+    })
   } finally {
     loading.value = false
   }
@@ -207,21 +260,15 @@ const loadPatients = async () => {
   patientStore.patients = patientsData
 }
 const loadLookupData = async () => {
-  try {
-    // Load genders and centers if not already loaded
-    if (genders.value.length === 0) {
-      const gendersData = await patientService.getGenders()
-      patientStore.genders = gendersData
-    }
-    
-    if (centers.value.length === 0) {
-      const centersData = await patientService.getCenters()
-      patientStore.centers = centersData
-    }
-  } catch (error) {
-    console.error('Error loading lookup data:', error)
-    // Either re-throw to show error to user or implement fallback
-    // throw new Error('Fehler beim Laden der Nachschlagedaten')
+  // Lookup failures propagate to loadData so the dashboard's visible error state owns them.
+  if (genders.value.length === 0) {
+    const gendersData = await patientService.getGenders()
+    patientStore.genders = gendersData
+  }
+
+  if (centers.value.length === 0) {
+    const centersData = await patientService.getCenters()
+    patientStore.centers = centersData
   }
 }
 
@@ -232,9 +279,9 @@ const selectPatient = (patient: Patient) => {
 const onPatientCreated = (patient: Patient) => {
   showCreateForm.value = false
   selectedPatient.value = patient
-  
+
   successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich erstellt!`
-  
+
   // Clear success message after 5 seconds
   setTimeout(() => {
     successMessage.value = ''
@@ -243,15 +290,15 @@ const onPatientCreated = (patient: Patient) => {
 
 const onPatientUpdated = (patient: Patient) => {
   selectedPatient.value = patient
-  
+
   // Update in patients list
-  const index = patientStore.patients.findIndex(p => p.id === patient.id)
+  const index = patientStore.patients.findIndex((p) => p.id === patient.id)
   if (index !== -1) {
     patientStore.patients[index] = patient
   }
-  
+
   successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich aktualisiert!`
-  
+
   // Clear success message after 5 seconds
   setTimeout(() => {
     successMessage.value = ''
@@ -260,17 +307,17 @@ const onPatientUpdated = (patient: Patient) => {
 
 const onPatientDeleted = (patientId: number) => {
   // Remove patient from store
-  const index = patientStore.patients.findIndex(p => p.id === patientId)
+  const index = patientStore.patients.findIndex((p) => p.id === patientId)
   if (index !== -1) {
     const deletedPatient = patientStore.patients[index]
     patientStore.patients.splice(index, 1)
-    
+
     successMessage.value = `Patient "${deletedPatient.firstName} ${deletedPatient.lastName}" wurde erfolgreich gelöscht!`
   }
-  
+
   // Close detail view
   selectedPatient.value = null
-  
+
   // Clear success message after 5 seconds
   setTimeout(() => {
     successMessage.value = ''
@@ -278,8 +325,10 @@ const onPatientDeleted = (patientId: number) => {
 }
 
 const formatDate = (dateString?: string | null) => {
-  if (!dateString) return 'Nicht angegeben'
-  
+  if (!dateString) {
+    return 'Nicht angegeben'
+  }
+
   try {
     const date = new Date(dateString)
     return date.toLocaleDateString('de-DE')
@@ -289,20 +338,24 @@ const formatDate = (dateString?: string | null) => {
 }
 
 const getGenderName = (genderValue?: string | null) => {
-  if (!genderValue) return 'Nicht angegeben'
-  const gender = genders.value.find(g => g.name === genderValue)
+  if (!genderValue) {
+    return 'Nicht angegeben'
+  }
+  const gender = genders.value.find((g) => g.name === genderValue)
   return gender?.nameDe || gender?.name || genderValue
 }
 
 const getCenterName = (centerValue?: string | null) => {
-  if (!centerValue) return 'Nicht zugeordnet'
-  const center = centers.value.find(c => c.name === centerValue)
+  if (!centerValue) {
+    return 'Nicht zugeordnet'
+  }
+  const center = centers.value.find((c) => c.name === centerValue)
   return center?.nameDe || center?.name || centerValue
 }
 
 // Lifecycle
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadData()
 })
 </script>
 
@@ -327,7 +380,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.dashboard-title i {
+.dashboard-title .dashboard-heading-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -348,7 +401,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.card-title i {
+.card-title .card-heading-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -371,7 +424,7 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
   background: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .patient-card:hover {
@@ -428,12 +481,12 @@ onMounted(() => {
   color: #495057;
 }
 
-.info-item i {
+.info-item .patient-info-icon {
   width: 16px;
   color: #6c757d;
 }
 
-.info-item small {
+.info-item .patient-info-detail {
   color: #6c757d;
   margin-left: 0.25rem;
 }
@@ -449,11 +502,11 @@ onMounted(() => {
   padding: 4rem 2rem;
 }
 
-.empty-state i {
+.empty-state .empty-state-icon {
   margin-bottom: 1rem;
 }
 
-.empty-state h4 {
+.empty-state .empty-state-heading {
   color: #2c3e50;
   margin-bottom: 0.5rem;
 }
@@ -512,25 +565,25 @@ onMounted(() => {
   .patient-dashboard {
     padding: 1rem;
   }
-  
+
   .dashboard-header {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .patients-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .search-box {
     min-width: auto;
   }
-  
+
   .patient-card {
     padding: 1rem;
   }
-  
+
   .patient-card-header {
     flex-direction: column;
     gap: 0.5rem;

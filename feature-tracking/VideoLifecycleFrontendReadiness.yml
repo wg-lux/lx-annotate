@@ -1,0 +1,541 @@
+schema_version: '1.0'
+id: video_lifecycle_frontend_readiness
+name: Video Lifecycle Frontend Readiness
+description: Review import, recovery, anonymization approval, segment annotation and hub export as one
+  operator workflow. September 7 review covers local frontend and mounted application/backend contracts;
+  it does not establish browser acceptance on gc-05 or gc-10.
+owners:
+- lx-annotate frontend maintainers
+- endoreg-db maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: tests/README.md
+  disposition: reference
+  note: Test and contract verification boundaries.
+definition_of_done:
+- id: api_first_overview_operations
+  category: functionality
+  title: Overview capacity and media operations reflect authoritative API state
+  acceptance:
+  - The overview displays an authenticated filesystem-capacity observation with total, used,
+    available and system-reserved bytes, explicit filesystem scope and observation time.
+    Table filtering and partial raw-file byte sums never masquerade as general storage usage.
+  - Permission denial and unavailable capacity remain explicit; failed refresh removes stale
+    capacity. Storage reads are bounded and disclose neither protected paths nor media contents.
+  - Active import and HLS stages have accessible indeterminate progress unless the backend
+    supplies measured progress with a meaningful denominator. Terminal states stop progress.
+  - Overview requests coalesce, discover newly active work, recover after request failures,
+    and cannot restart polling after the component is disposed.
+  - Import interruption is a persisted, center-authorized cancellation request by upload-job UUID.
+    The UI distinguishes requested cancellation from acknowledged cancellation. Cooperative worker
+    checkpoints, completion races and redelivery preserve encrypted sources and valid published media.
+  - Transcode artifact semantics are explicitly chosen before enabling a web action. Durable
+    jobs serialize incompatible media operations, preserve temporal annotation integrity, and
+    expose real stages and measured terminal byte savings without guaranteeing a target size.
+  - Operators can shrink the processed derivative, individually or in bounded, idempotent batches
+    from video state repair. HLS provides playback; no additional full-video playback copy can be
+    submitted. Raw media and annotation timing are preserved.
+  - The current job model and migrated field choices expose only replacement transcoding.
+    The backend model has no optimized-playback fields. The undeployed copy schema and its
+    compatibility code are removed directly, without adding a retirement migration.
+  - Replacement cleanup is durably recorded and retried before another generation is encoded.
+    Failed cleanup never claims reclaimed bytes or permits repeated attempts to accumulate artifacts.
+    Previous canonical generations retire only after the replacement and HLS are verified.
+  - State repair preserves failed upload diagnostics and never treats historical HLS or file
+    existence as proof of a successful replacement import or permission to delete a source.
+  - Transcode decryption failures fail closed, plaintext scope remains restrictive, and a
+    post-publication cleanup failure never deletes the currently referenced published artifact.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run mounted capacity API and overview client/component tests, cancellation
+      worker/authorization/race tests, and encrypted transcode publication/concurrency tests.
+      Review the dependency versions and perform browser acceptance only after the safe
+      transcode contract and artifact semantics are settled.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: '2026-09-15 undeployed-copy revert, codex-api-overview-20260914: original migration
+        0009 and current job model expose replacement only; no 0010 retirement migration.
+        Historical-copy frontend types, parsing and labels removed. Updated frontend lane:
+        76 passed; app/component Vue typing and ESLint passed. Earlier compatibility evidence
+        below describes the superseded implementation.'
+    - kind: test
+      reference: '2026-09-15 final simplified application lane: 66 API, bulk-repair, worker and
+        initial-migration/model schema tests passed in 8.65s, including real FFmpeg/HLS replacement
+        cleanup and explicit rejection of older backends with a copy-mode default. Focused Pyright
+        0 errors/0 warnings and Ruff passed. Both app/backend migration drift checks report no changes.
+        Backend fresh-graph, canonical playback selector and writer-entry lane: 14 passed;
+        simplified backend transcode/cleanup/management lane: 37 passed.'
+    - kind: code
+      reference: lx_annotate/views/anonymization_storage.py; frontend/src/api/anonymizationOperations.ts;
+        frontend/src/components/Anonymizer/OverviewStorageSummary.vue
+    - kind: code
+      reference: frontend/src/components/Anonymizer/AnonymizationOverviewComponent.vue;
+        frontend/src/components/Anonymizer/AnonymizationOverviewRow.vue
+    - kind: review
+      reference: /home/admin/endoreg-db/endoreg_db/services/video_processed_transcode.py;
+        /home/admin/endoreg-db/endoreg_db/utils/storage/files.py;
+        /home/admin/endoreg-db/endoreg_db/services/video_files/_io.py
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/services/hub/upload_job_cancellation.py;
+        /home/admin/endoreg-db/endoreg_db/migrations/0079_upload_job_cancellation.py;
+        /home/admin/lx-data-models/lx_dtypes/models/contracts/anonymization_overview.py
+    - kind: code
+      reference: lx_annotate/services/video_transcode_jobs.py; lx_annotate/views/video_transcode_jobs.py;
+        lx_annotate/migrations/0009_videotranscodejob.py; lx_annotate/views/video_state_repair.py;
+        frontend/src/components/Anonymizer/OverviewTranscodePanel.vue
+    - kind: test
+      reference: '2026-09-15 replacement-only frontend: 76 focused Vitest tests passed; app and
+        component-test Vue typing, focused ESLint and diff checks passed. Submission types and
+        server capability parsing reject playback_copy; historical job responses remain readable.'
+    - kind: test
+      reference: '2026-09-15 replacement-only API/worker/repair: final combined source-overlay lane
+        68 passed in 5.77s, including real FFmpeg/HLS using the canonical storage directory.
+        It verifies encrypted replacement
+        and physical old-master deletion. Cleanup exceptions report transcode_cleanup_pending with
+        no claimed savings. Cleanup UI/stage follow-up: 11 panel tests passed. Focused API typing,
+        Ruff and diff checks passed.'
+    - kind: test
+      reference: '2026-09-15 owning-backend cleanup: encrypted transcode/reaper/management 39 passed,
+        HLS cleanup 44 passed, import finalization admission 30 passed, reanonymization/writer-entry
+        17 passed. These local checks do not establish deployed or PostgreSQL acceptance.'
+    - kind: review
+      reference: '/home/admin/.local/state/lx-annotate-diagnostics/gc-02-20260914T142435Z/report.yml:
+        deployed derivative codec/pixel-format mismatches, wrapped OCR soft deadline and stale
+        import heartbeat, historical HLS generation mismatch, and failed sources without proven
+        replacement. These observations do not prove source corruption or authorize deletion.
+        No live host action was performed.'
+    - kind: test
+      reference: '2026-09-14 follow-up: 55 frontend tests passed for overview bulk integration
+        and reimport store; separate panel/API lane 20 passed. Scoped ESLint and app/component
+        Vue type checks passed. Mounted repair/lifecycle source-overlay lane 44 passed; focused Pyright and Ruff
+        passed. Recoverable import heartbeat DatabaseError propagation regression lane 40 passed
+        in the owning source; the deployed stale-heartbeat root cause remains unproven.'
+    - kind: test
+      reference: '2026-09-14 follow-up: 50 mounted transcode API/worker tests passed, including
+        actual encrypted FFmpeg/HLS execution for both modes and immediate publication fencing
+        on heartbeat failure. Source-overlay service/view Pyright and Ruff passed. Migration drift
+        check with migrations explicitly enabled passed for lx-annotate and endoreg-db.'
+    - kind: test
+      reference: '2026-09-14 follow-up: installed-backend storage/lifecycle compatibility lane
+        77 passed, 2 source-only cancellation cases skipped (covered by the passing source lane).
+        Owning-backend transcode/gate/playback/command lane 46 passed; HLS service/stream lane
+        66 passed; artifact writer entry/storage lane 17 passed; updated gate/anonymization lane
+        41 passed; existing finalization unit lane 10 passed with a writer-boundary stub (real
+        admission covered by the entry/gate lanes). Gate cases overlap between cohorts. These
+        are isolated SQLite checks, not PostgreSQL concurrency acceptance.'
+    - kind: test
+      reference: '2026-09-14: overview/storage/API/store/upload-caller frontend lane 94 passed; component-test
+        vue-tsc passed and focused ESLint passed. Source-overlay mounted lifecycle tests 29 passed;
+        storage API and existing mount/monitoring tests 67 passed. Transcode cleanup lane 6 passed
+        in isolated SQLite; focused Pyright and Ruff passed.'
+    - kind: test
+      reference: '2026-09-14: installed-wheel mounted lifecycle compatibility lane 27 passed,
+        2 cancellation-source-only cases skipped; those cases pass in the source-overlay lane.
+        Full owning-backend Pyright is not green in the shared development typing environment;
+        focused modified cancellation and transcode services pass.'
+    - kind: test
+      reference: '2026-09-14: owning-backend SQLite cancellation, lease, watcher, monitoring,
+        anonymization and finalization integration lane 100 passed with 2 dependency warnings.
+        Includes 25 cancellation/API/staging-cleanup cases. Canonical lx-dtypes cancellation
+        contract lane 47 passed; targeted strict Pyright and Ruff passed. Migration drift check
+        reported no changes. PostgreSQL concurrency and deployed browser acceptance remain open.'
+    note: Capacity, truthful stage progress, serialized polling and UUID-scoped cooperative
+      cancellation are implemented locally. Cancellation requires the reviewed endoreg-db and
+      lx-dtypes source changes plus the new migration; the currently pinned published backend
+      does not advertise cancellation and direct requests explicitly return unavailable.
+      Processed replacement and bounded bulk submission during state repair are implemented
+      locally; HLS is the playback copy. The undeployed full-video copy model, migration fields,
+      and compatibility paths are removed. Encrypted candidate staging, exclusive media leases, generation checks and short
+      pointer-publication transactions protect the existing artifact and annotation timeline.
+      HLS publication retains the old generation until the replacement is ready. Published-artifact
+      cleanup failures remain explicit and preserve the referenced output. Transcoding requires
+      the corresponding endoreg-db source and migration 0080 plus lx-annotate migration 0009;
+      unsupported installed dependencies fail explicitly with 503. Encoding uses the existing
+      balanced profile and preserves FPS; it does not promise a particular size reduction.
+      No production operation or readiness approval is claimed. SQLite checks do not establish
+      PostgreSQL concurrency acceptance, and the gc-02 OCR timeout still requires runtime diagnosis.
+    assessed_by: codex-api-overview-20260914
+    assessed_at: '2026-09-14T15:33:14Z'
+- id: truthful_import_and_reimport
+  category: requirements
+  title: Import and reimport retain truthful state and visible recovery
+  acceptance:
+  - Duplicate detection never substitutes for anonymization approval or segment validation.
+  - Validated videos show only the anonymized master derivative in the overview HTTP Live Streaming summary.
+    Historical raw-video failures remain in the audit data and never override validation; queued or failed
+    processed-video derivatives remain visibly pending or failed.
+  - Reimport regenerates missing metadata or explicitly reports that only state repair was performed.
+  - A partial import cannot become ANONYMIZED solely because metadata exists.
+  - On a central hub, users from every center can discover, read, and prepare training data from validated
+    processed videos after original raw-video deletion, through the mounted backend routes.
+  - Retried imports remain visible through pending, processing and terminal failures and resume monitoring.
+  - Failed import-only rows offer scoped removal from the overview by upload-job UUID. Dismissal preserves
+    sources and audit history, requires confirmation and server authorization, and never calls media deletion.
+  - Report corrections save a revision on the same report through apply-redactions with a source hash
+    and normalized manifest, remove underlying source content, and require renewed anonymization review.
+  - Report and video correction responses remain scoped to the selected media type and identifier; navigation
+    cannot apply stale details or correction results to another item.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise a duplicate unvalidated video, metadata-only failed import, missing metadata
+      with retained raw media, and unattached retry through processing and failure.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/stores/anonymizationStore.ts; frontend/src/components/Anonymizer/AnonymizationOverviewComponent.vue;
+        lx_annotate/views/video_state_repair.py; lx_annotate/views/anonymization_overview.py
+    - kind: test
+      reference: tests/api/test_video_lifecycle_readiness.py; frontend/src/stores/__tests__/anonymizationStore.quarantine.spec.ts;
+        frontend/src/components/Anonymizer/__tests__/AnonymizationOverviewComponent.test.ts
+    - kind: test
+      reference: '2026-09-07: PYTHONPATH=/home/admin/endoreg-db .devenv/state/venv/bin/python -m pytest
+        -q tests/api/test_central_hub_training_access.py => 15 passed. Covers users from source, another
+        center, and no membership; actual processed JPEG reads, default training manifests, PyTorch tensor
+        reads, wrong-key/tamper rejection, private plaintext cleanup, and non-hub/raw/write/anonymous
+        denials after deleting the original video.'
+    - kind: test
+      reference: '2026-09-07 full lx-annotate suite with updated backend source: 786 passed, 2 skipped,
+        1 failed in 191.15s. The installed-wheel RECORD attestation rejected the intentional PYTHONPATH
+        source override. No release acceptance or deployment claimed; new endoreg-db wheel required.'
+    - kind: test
+      reference: '2026-09-07 installed-wheel lane without PYTHONPATH override: .devenv/state/venv/bin/python
+        -m pytest -q tests/system/test_production_celery_redis_recovery.py => 1 passed in 14.90s. This
+        verifies the unchanged published 1.1.8 wheel, not the new training source changes.'
+    - kind: code
+      reference: '2026-09-08: lx_annotate/views/anonymization_overview.py verwendet overview_upload_job_retry_summary
+        aus endoreg-db. Der lx-dtypes-Vertrag erlaubt zustandskonforme Einschränkungen der Aktionen. Generische
+        ERROR/LOST-Importzeilen bieten keinen vom Retry-Endpunkt abgelehnten Neuimport mehr an; vorhandene
+        Medien behalten ihren separaten Reimport-Vertrag.'
+    - kind: command
+      reference: '2026-09-08: endoreg-db mit PYTHONPATH=/home/admin/lx-data-models:/home/admin/endoreg-db:
+        36 Import-/Overview-/Lease-Tests und 19 Reconciliation-Tests bestanden. lx-annotate tests/api/test_video_lifecycle_readiness.py:
+        23 bestanden. lx-dtypes test_anonymization_overview.py: 17 bestanden (isoliert ohne Django-Plugin;
+        eine Konfigurationswarnung). Vollständiger endoreg-db-Pyright: 0 errors, 0 warnings. Fokussierter
+        lx-dtypes-Pyright und lx-annotate-Pyright mit expliziten Quellpfaden: 0 errors. Ruff für alle
+        geänderten Python-Dateien bestanden.'
+    - kind: review
+      reference: '2026-09-08 gc-10 site-client: autorisierter SSH-/sudo-Lesezugriff auf import-state-audit-20260908/report.yml;
+        lx-annotate 1.2.2, endoreg-db 1.1.9, lx-dtypes 0.2.36 installiert. Web und Medienworker aktiv,
+        ein FFmpeg-Prozess, 12 GiB frei bei 99 Prozent Dateisystembelegung. Keine Produktionseinspielung,
+        Job-Replays, Zustandsänderungen oder Medien-/Annotationsänderungen. Video 55 bleibt stillgelegt.
+        Stale Quellflags, historische Gruppierung und Recovery für 35/37/42 bleiben offen. Endoreg-db-Audit-YAML-Dateien
+        waren durch codex-gc10-audit-20260908 gesperrt; Ergebnisübergabe über Tracker-Nachrichten.'
+    - kind: code
+      reference: '2026-09-08: AnonymizationCorrectionComponent.vue integrates reports and videos. PDF
+        corrections use the existing apply-redactions contract, original-source SHA-256 and normalized
+        boxes, preserve report identity, record revision and require renewed review. pdfCorrection.ts
+        rebuilds image-only pages so covered source text and attachments are not retained. Media selection
+        guards prevent stale report loads and video anonymization polling from updating another selection.
+        State repair is labelled separately from media reprocessing.'
+    - kind: test
+      reference: '2026-09-08: Four focused frontend suites passed 40 tests (correction 5, PDF artifact
+        4, overview 21, validation 10). Backend Pyright for PDF redaction view and tests: 0 errors. Report
+        endpoint suite separately: 5 passed. Combined report/video backend run: 12 passed, 5 failed because
+        test module imports obscure PatientExaminationViewSet; isolated report suite passes. Browser acceptance
+        and gc-10 deployment not performed; rendered PDF quality and production worker behavior remain
+        unverified.'
+    - kind: command
+      reference: '2026-09-08 final local verification: OpenAPI freshness check passed with PYTHONPATH=/home/admin/lx-data-models:/home/admin/endoreg-db.
+        vue-tsc --build --force and vue-tsc --noEmit -p tsconfig.component-tests.json passed; final correction/helper
+        rerun 9 passed. Full frontend lint found one template-expression issue in the new test; corrected
+        with String(id), then ESLint on all four changed frontend files passed. tracker validate: 42 feature
+        definitions valid. Installed backend wheel lacks the new overview helper, so deployment requires
+        matching backend and contract packages.'
+    - kind: test
+      reference: '2026-09-08: focused frontend overview and reimport store Vitest: 32 passed; component-test
+        vue-tsc and focused ESLint exit 0. Mounted lifecycle API suite using /home/admin/endoreg-db: 25
+        passed. Tests cover UUID dismissal, preserved encrypted source and audit history, permission enforcement,
+        and validated videos displaying only processed HLS while retaining raw attempts in data. Frontend
+        source changes not deployed.'
+    - kind: command
+      reference: gc-10 VideoFile 12 authenticated canonical processed master hash matches both persisted
+        identities; API anonymization and annotation statuses validated. Misleading failure was historical
+        raw HLS; processed generation 173 queued, legacy generation 1 rejected as stale. No database validation
+        repair warranted.
+    assessed_by: codex-gc10-20260908-diagnostics
+    assessed_at: '2026-09-08T14:36:27.795133Z'
+- id: scoped_lifecycle_actions
+  category: security
+  title: Recovery and hub export enforce operator and center authorization
+  acceptance:
+  - Repair, export overview, marking, bulk offload, retry and unmark enforce resource center scope.
+  - Mutations enforce their governed operator capability independently of frontend visibility.
+  required: true
+  verification:
+    kind: manual
+    instructions: Verify denial for centerless and unrelated-center users and unauthorized roles through
+      the mounted APIs, including bulk actions, with authorized positive controls.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: lx_annotate/permissions.py; lx_annotate/views/video_state_repair.py; lx_annotate/views/hub_export.py;
+        lx_annotate/hub/hub_export_jobs.py; lx_annotate/views/anonymization_overview.py
+    - kind: test
+      reference: tests/api/test_video_lifecycle_readiness.py; tests/hub/test_hub_export_api.py
+    note: Mounted mutations enforce the existing backend route-role policy without DEBUG bypass and use
+      the canonical center resolver. Overview and bulk discovery are scoped; mark/unmark reject mixed-center
+      resources atomically; retry checks resource and stored source center. Local roleless/centerless/wrong-center
+      denials and authorized controls pass. Existing privileged scope semantics are retained. Live authorization
+      acceptance remains pending.
+    assessed_by: codex-video-readiness-20260907
+    assessed_at: '2026-09-07T11:36:39.022552Z'
+- id: anonymization_review_continuity
+  category: functionality
+  title: Anonymization review waits for media and preserves the approved target
+  acceptance:
+  - HLS HTTP202 with Retry-After displays preparation and retries with bounded cancellation-aware waiting.
+  - Approval completion and navigation remain bound to the item submitted when the selection changes.
+  required: true
+  verification:
+    kind: manual
+    instructions: Open a video requiring HLS materialization; then approve one item while attempting Skip
+      or Reject before its request resolves. Verify target identity and completion feedback.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/composables/useAuthenticatedVideoStream.ts; frontend/src/components/Anonymizer/AnonymizationValidationComponent.vue
+    - kind: test
+      reference: frontend/src/composables/__tests__/useAuthenticatedVideoStream.test.ts (14 passed); frontend/src/components/Anonymizer/__tests__/AnonymizationValidationComponent.test.ts
+        (10 passed)
+    note: HTTP 202 enters visible preparation, honors Retry-After and bounds waiting to two minutes with
+      cancellation on target change or unmount. Skip/Reject are disabled and guarded during approval;
+      navigation receives captured file, examination and item identity and ignores stale/unmounted completion.
+      Local preparation, cancellation, timeout and approval-control regressions pass. Deployed HLS and
+      browser navigation acceptance remains pending.
+    assessed_by: codex-video-readiness-20260907
+    assessed_at: '2026-09-07T11:36:41.462439Z'
+- id: segment_navigation_and_timeline_zoom
+  category: functionality
+  title: Label-filtered segment navigation and timeline zoom
+  acceptance:
+  - The navigation queue sorts segments by start time, end time and ID without changing stored order.
+  - Forward and backward traverse each queued segment's start, midpoint and end without wrapping.
+  - Selecting one or more labels restricts the navigation queue; no selection includes all labels.
+  - Navigation remains available for validated tracks and never changes annotation data.
+  - Timeline zoom expands the track from 100 to 500 percent with horizontal scrolling and accurate seeking.
+  - Fullscreen defaults to a compact label selector and one stateful start/finish button, using the
+    existing selection and store draft. Wheel and arrow selection apply immediately; boundary keys
+    preserve draft identity and mutation permissions. The management panel remains in normal view.
+  - Native fullscreen and its viewport fallback retain the mounted video and draft. The video uses
+    object-fit contain without the normal 400px height cap; fallback exit restores body scrolling.
+  - Zoom centers the current playback position on zoom, playback, seek and resize, clamped to track edges.
+  - A bottom handle resizes the timeline row viewport vertically between 180 and 800 pixels, with
+    Arrow Up/Down and Home/End keyboard controls. Resizing does not change segment data or sidebar width.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise navigation with multiple labels, overlapping segments and validated tracks.
+      Zoom and scroll the timeline, then seek and resize segments to verify pointer alignment.
+      Enter fullscreen with the player fullscreen button or F, wheel-select a label, press +, advance
+      playback and press -. Verify one committed segment and unchanged draft label when selecting
+      another label mid-marking. Exit fullscreen and verify state continuity. Check native failure
+      fallback and browser-initiated exits. Browser layout acceptance remains pending.
+      Drag the bottom timeline handle and use its keyboard controls; verify additional rows become
+      visible, overflow remains scrollable, and pointer cancellation or page exit ends resizing.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: '2026-09-15 codex-compact-fullscreen-20260915: annotation component suites plus
+        videoStore.segmentDraft.test.ts — 87 tests passed across 8 files, including all 16 functionality
+        tests. The functionality fixture now supplies the typed draft/save contract; its missing
+        draftSegment previously caused 13 render failures. Compact workflow, wheel normalization,
+        keyboard exclusions, failed/duplicate commits, mutation locks and state continuity pass.'
+    - kind: test
+      reference: '2026-09-15 codex-compact-fullscreen-20260915: npm --prefix frontend run
+        type-check:component-tests, type-check (OpenAPI freshness, application typing and full ESLint),
+        and build-only all exited 0. Tracker validation passed for 49 definitions; diff checks passed.
+        Existing OpenAPI/Django diagnostics and Vite chunk-size warnings remain. The literal requested
+        Vitest wildcard matched no files; the concrete __tests__ directory was run instead.'
+    - kind: review
+      reference: '2026-09-15 codex-compact-fullscreen-20260915: reviewed 62c9cd254f237e44ef26bb63e2cc646e58e10480,
+        its parent and later annotation changes. Preserved staged store/save work and normal timeline
+        navigation/resizing. Browser visual validation explicitly skipped at user request after the
+        functionality failure report; no screenshot or visual sizing acceptance is claimed.'
+    - kind: code
+      reference: frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue;
+        frontend/src/components/VideoExamination/Timeline.vue
+    - kind: test
+      reference: VideoExaminationAnnotation.dropdown.test.ts and Timeline.pts-navigation.test.ts — 20 tests passed.
+        Component-test vue-tsc and focused ESLint passed.
+    - kind: test
+      reference: VideoExaminationAnnotation.functionality.spec.ts and segmentTimeline.test.ts — 21 tests passed.
+    - kind: test
+      reference: 'codex-timeline-height-20260910: Timeline.pts-navigation.test.ts,
+        VideoExaminationAnnotation.dropdown.test.ts, VideoExaminationAnnotation.functionality.spec.ts,
+        Timeline.spec.ts and segmentTimeline.test.ts — 46 tests passed. Component-test vue-tsc passed.
+        Tests cover viewport height, retained overflow rows, pointer limits and cancellation,
+        keyboard controls, and listener cleanup on unmount. Browser acceptance remains pending.'
+    note: Tests cover sorted bidirectional navigation, multi-label filtering, empty queues, validated
+      tracks, zoom limits, seeking with expanded scrolled bounds, fullscreen DOM relocation and restoration,
+      popup visibility controls and playback centering with edge clamping. Deployed browser acceptance remains pending.
+    assessed_by: codex-segment-jump-20260909
+    assessed_at: '2026-09-09T12:34:00Z'
+- id: segment_annotation_continuity
+  category: functionality
+  title: Segment operations preserve target and pending-operation boundaries
+  acceptance:
+  - KI rerun polling and completion remain bound to the video and history ID originally submitted.
+  - Segment mutation controls honor outstanding validation and incompatible processing operations.
+  - Anonymization approval and segment validation remain independent workflow gates.
+  - A newly queued annotation expansion must not be reported as failed because a previous rebuild history
+    failed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Switch videos during delayed KI submission/model refresh and attempt editing during
+      validation cleanup. Verify read-only validated tracks and reversible annotator overrides.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue
+    - kind: test
+      reference: frontend/src/components/VideoExamination/__tests__/VideoExaminationAnnotation.dropdown.test.ts
+        (15 passed)
+    note: KI submission and history polling capture the original video and selection generation; stale
+      completion cannot update another selection. Segment mutations are blocked during outstanding validation
+      and KI work, while validation waiting feedback remains visible. Regressions cover delayed submission
+      after selection change, pending-validation controls, independent anonymization gates and reversible
+      annotator overrides. Deployed browser acceptance remains pending. Diagnostic follow-up on 2026-09-08
+      by codex-video-validation-20260908 on gc-02 (site-client). Read-only journal inspection confirms
+      bulk validation saved 83 segments for video 5 at 08:20:57 Europe/Berlin. Annotation expansion completed
+      at 08:21:14 and dispatched rebuild task 8d6a0cb4-16e4-4073-8e4b-8bec051ac638. Through 08:25:14 the
+      task retried with MediaOperationDeferred because stream leases were active; the latest reported
+      lease expired at 08:27:56. The actual consuming unit was lx-annotate-celery-ffmpeg-worker.service.
+      Source finding — The installed segments_crud.py bulk response reports annotation_expansion_queued
+      while resolve_segment_annotation_status still prioritizes the latest rebuild history. The frontend
+      submitVideoSegments ignores annotation_expansion_queued, treats cleanup_failed as terminal, and
+      uses the generic Bulk validation completed message as its failure detail. An old failed rebuild
+      can therefore be displayed as failure of a newly accepted validation request. Verification — hostname
+      and inventory confirm gc-02 (172.16.255.102), configured as a site client in wheel mode. systemctl
+      show reports web and frame-extraction services active/running. journalctl --namespace=lx-annotate
+      --since today and JSON unit metadata establish the task sequence. No media contents, secret values,
+      database writes, service restarts or deployment changes. Limitations — The cause of the earlier
+      rebuild returning false and eventual completion of the new rebuild are not established. Source corrections
+      and regression tests remain outstanding.
+    assessed_by: codex-video-readiness-20260907
+    assessed_at: '2026-09-07T11:36:44.728509Z'
+- id: hub_export_recovery_visibility
+  category: operations
+  title: Hub export remains observable across navigation and automatic retries
+  acceptance:
+  - Returning to a retained active export store restarts progress polling.
+  - Transient failed jobs remain observable while automatic reconciliation can redispatch them.
+  - Eligibility continues to require actual anonymization approval, finalized segment validation, processed
+    media and matching export integrity.
+  required: true
+  verification:
+    kind: manual
+    instructions: Navigate away and back with unchanged active count; observe transient failure through
+      automatic recovery. Verify backend rejection of unvalidated or nonprocessed export candidates.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/components/Export/HubExportOverviewComponent.vue
+    - kind: test
+      reference: frontend/src/components/Export/__tests__/HubExportOverviewComponent.test.ts (15 passed);
+        tests/hub/test_hub_export_reconciliation.py (5 passed); tests/hub/test_hub_export_video_state_path.py
+        (7 passed)
+    note: Polling immediately evaluates retained state on remount and continues for failed transfers while
+      automatic reconciliation may redispatch them; failed status remains distinct from active transfer
+      counts. Queued/failed remount regressions and existing backend eligibility/reconciliation tests
+      pass. Observation of deployed automatic recovery remains pending.
+    assessed_by: codex-video-readiness-20260907
+    assessed_at: '2026-09-07T11:36:48.511172Z'
+- id: verification_baseline
+  category: testing
+  title: Existing frontend and API verification has a recorded baseline
+  acceptance:
+  - Application OpenAPI freshness, TypeScript and ESLint checks pass.
+  - Component-test TypeScript and focused lifecycle tests pass.
+  - Mounted frontend/backend API contract checks pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run npm run type-check, npm run type-check:component-tests, focused lifecycle Vitest
+      suites and tests/contracts/test_frontend_backend_api_contract.py; record actual results.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: frontend npm run type-check exit 0 (OpenAPI freshness, application TypeScript and ESLint);
+        npm run type-check:component-tests exit 0.
+    - kind: test
+      reference: 'Focused Vitest: 83 passed across 7 files with --maxWorkers=1: authenticated stream,
+        anonymization quarantine/reimport stores, anonymization overview/validation, hub export overview
+        and VideoExamination dropdown lifecycle regressions.'
+    - kind: test
+      reference: .devenv/state/venv/bin/pytest -q tests/api/test_video_lifecycle_readiness.py tests/hub/test_hub_export_api.py
+        tests/contracts/test_frontend_backend_api_contract.py tests/hub/test_hub_export_overview_aaa.py
+        tests/hub/test_hub_export_end_to_end.py tests/hub/test_hub_export_reconciliation.py tests/hub/test_hub_export_video_state_path.py
+        => 70 passed.
+    - kind: test
+      reference: Focused Ruff check passed for changed backend application and test files; git diff --check
+        passed.
+    note: Implementation and regression verification completed locally against the installed endoreg-db
+      package. The tests now reproduce the reported source defects. Test settings use SQLite and isolated
+      media; these results do not establish PostgreSQL concurrency guarantees or browser acceptance on
+      gc-05/gc-10. Existing test-mode Vite manifest, broker and duplicate namespace warnings remain.
+    assessed_by: codex-video-readiness-20260907
+    assessed_at: '2026-09-07T11:38:30.069950Z'
+- id: browser_lifecycle_acceptance
+  category: operations
+  title: A deployed browser completes the entire lifecycle and recovery scenarios
+  acceptance:
+  - A fresh authorized login completes import, recovery, anonymization review, segment save/reload and
+    hub export on a named host while background work is active, with attributable release evidence.
+  - Wrong-center access, missing media, HLS preparation, expired sessions and navigation during requests
+    produce correct safe behavior without losing review state or misrepresenting completion.
+  required: true
+  verification:
+    kind: manual
+    instructions: Perform reviewed browser acceptance on gc-05 or gc-10 after deployment/storage/worker
+      blockers are resolved. Record host, release, outcomes and timings without clinical payloads.
+    timeout_seconds: 3600
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: readiness_findings_documented
+  category: documentation
+  title: Readiness findings distinguish source evidence from deployed acceptance
+  acceptance:
+  - Each blocked lifecycle stage records concrete source locations and observable failure conditions.
+  - Passing existing tests is not represented as coverage of the reported defects or live browser acceptance.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review this assessment against the inspected source and executed test results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: feature-tracking/VideoLifecycleFrontendReadiness.yml
+    - kind: review
+      reference: /home/admin/endoreg-db/feature-tracking/BackendIdempotencyGuarantee.yml
+    note: The original source findings are corrected locally and replaced with implementation and regression
+      evidence. Functional criteria remain in progress until manual deployed acceptance; no deployment,
+      clinical-media inspection or production approval was performed. Backend idempotency has a separate
+      nine-criterion tracker in endoreg-db and is not inferred from frontend or SQLite tests.
+    assessed_by: codex-video-readiness-20260907
+    assessed_at: '2026-09-07T11:38:33.394188Z'

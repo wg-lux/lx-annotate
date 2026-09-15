@@ -1,244 +1,485 @@
 /* @stores/anonymizationStore.ts */
-import { defineStore } from 'pinia';
-import axiosInstance, { a, r } from '@/api/axiosInstance';
-import axios from 'axios';
-import { ref } from 'vue';
+import { defineStore } from 'pinia'
+import axiosInstance, { r, silentRequestConfig } from '@/api/axiosInstance'
+import axios, { type AxiosError } from 'axios'
+import { ref } from 'vue'
+import { endpoints } from '@/types/api/endpoints'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import type { TranscodeOption, VideoTranscodeJob } from '@/api/anonymizationOperations'
+
+const runtimeLogger = createRuntimeLogger('anonymization-store')
 
 /* ------------------------------------------------------------------ */
 /* Typen                                                               */
 /* ------------------------------------------------------------------ */
 
-// New interface for file overview
+export type UploadJobMonitoringStatus =
+  'pending' | 'processing' | 'retrying' | 'cancel_requested' | 'cancelled' | 'anonymized' | 'error' | 'lost'
+export type UploadJobIngestMode = 'api' | 'watcher'
+export type UploadJobCleanupStatus = 'pending' | 'eligible' | 'deleting' | 'completed' | 'skipped'
+export type ImportErrorCode =
+  | ''
+  | 'dispatch_unavailable'
+  | 'duplicate_content'
+  | 'invalid_configuration'
+  | 'invalid_input'
+  | 'media_integrity_failed'
+  | 'processing_failed'
+  | 'source_missing'
+export type HlsMaterializationErrorCode =
+  | ''
+  | 'dispatch_failed'
+  | 'inconsistent_artifact'
+  | 'materialization_failed'
+  | 'validation_failed'
+  | 'stale_attempt'
+
+// Canonical camelCase representation of OverviewUploadJobMonitoringData.
+export interface ApiUploadJobOverview {
+  id: string
+  status: UploadJobMonitoringStatus
+  ingestMode: UploadJobIngestMode
+  sourceSystem: string
+  sourceCenterKey: string | null
+  originalFilename: string
+  sourceFilePersisted: boolean
+  cleanupStatus: UploadJobCleanupStatus
+  allowedActions: Array<'safe_reimport' | 'delete' | 'cancel'>
+  errorCode: ImportErrorCode
+  errorDetail: string
+  retryable: boolean
+  retryCount: number
+  maxRetries: number
+  nextRetryAt: string | null
+  lastAttemptAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface QuarantineUploadJobOverview extends Omit<ApiUploadJobOverview, 'status'> {
+  status: 'quarantined'
+}
+
+export type UploadJobOverview = ApiUploadJobOverview | QuarantineUploadJobOverview
+
+export interface HlsMaterializationOverview {
+  artifactKind: 'raw' | 'processed'
+  status: 'queued' | 'materializing' | 'ready' | 'failed'
+  triggeringUploadJobId: string | null
+  sourceGenerationId: string
+  targetGenerationId: string
+  segmentCount: number
+  errorCode: HlsMaterializationErrorCode
+  createdAt: string
+  updatedAt: string
+}
+
 export interface FileItem {
-  id: number;
-  filename: string;
-  mediaType: "pdf" | "video";
-  anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-  annotationStatus: "not_started" | "done";
-  createdAt: string; // ISO
-  sensitiveMetaId?: number; // Add this for video file lookup
-  metadataImported: boolean; // New field to track if metadata was properly imported
-  fileSize?: number|undefined; // Optional field for file size
-  rawFile?: string; // New field for raw file path (for videos)
+  id: number
+  filename: string
+  mediaType: 'pdf' | 'video' | 'unknown'
+  anonymizationStatus:
+    | 'not_started'
+    | 'processing_anonymization'
+    | 'done_processing_anonymization'
+    | 'failed'
+    | 'validated'
+    | 'predicting_segments'
+    | 'extracting_frames'
+
+  annotationStatus: 'not_started' | 'validated' | ''
+  createdAt: string // ISO
+  sensitiveMetaId?: number // Add this for video file lookup
+  documentType?: string | null
+  patientHashDisplay?: string | null
+  examinationHashDisplay?: string | null
+  pseudoPatientId?: number | null
+  pseudoExaminationId?: number | null
+  metadataImported?: boolean // New field to track if metadata was properly imported
+  fileSize?: number | undefined // Optional field for file size
+  rawFile?: string // New field for raw file path (for videos)
+  uploadJob?: UploadJobOverview | null
+  hlsMaterializations?: HlsMaterializationOverview[]
+  quarantined?: boolean
+  quarantineId?: string
+  quarantineDirectoryKey?: string
+  quarantineDirectoryLabel?: string
+  quarantineReviewStatus?: string
+  quarantineNextAction?: string
+  quarantineOrphaned?: boolean
+  errorDetail?: string
+  importOnly?: boolean
+  canDismissImport?: boolean
+}
+
+function isOverviewPollingTerminal(file: FileItem, stopStatuses: ReadonlySet<string>): boolean {
+  return stopStatuses.has(file.anonymizationStatus) || file.uploadJob?.status === 'cancelled'
+}
+
+export interface QuarantineFileItem {
+  id: string
+  directoryKey: string
+  directoryLabel: string
+  filename: string
+  mediaType: 'pdf' | 'video' | 'unknown'
+  size: number
+  quarantinedAt?: string | null
+  createdAt?: string | null
+  modifiedAt?: string | null
+  reason?: string
+  reviewStatus?: string
+  nextAction?: string
+  sourceUploadJobId?: string | null
+  orphaned?: boolean
+}
+
+export interface QuarantineOverviewResponse {
+  count: number
+  totalSize: number
+  files: QuarantineFileItem[]
+}
+
+export interface VideoStateRepairResponse {
+  dryRun: boolean
+  count: number
+  summary: Record<'repaired' | 'consistent' | 'reimport_required', number> & { blocked?: number }
+  items: Array<{
+    videoId: number
+    filename: string
+    status: 'repaired' | 'consistent' | 'reimport_required' | 'blocked'
+    changes: string[]
+    missing: string[]
+    annotationsPreserved: true
+  }>
+  annotationsPreserved: true
+  transcodes?: {
+    count: number
+    queued: number
+    existing: number
+    rejected: number
+    nextAfterVideoId: number | null
+    items: Array<{
+      videoId: number
+      status: 'queued' | 'existing' | 'rejected'
+      job?: VideoTranscodeJob
+      errorCode?: string
+    }>
+  }
 }
 
 export interface AnonymizationState {
-  anonymizationStatus: string;
-  loading: boolean;
-  error: string | null;
-  current: PatientData | null;
+  anonymizationStatus: string
+  loading: boolean
+  error: string | null
+  pending: [boolean]
+  current: SensitiveMeta | null
   // New state for overview functionality
-  overview: FileItem[];
-  pollingHandles: Record<number, ReturnType<typeof setInterval>>;
-  isPolling: boolean;
-  hasAvailableFiles: boolean;
-  availableFiles: FileItem[];
-  // NEW: IDs der Dateien, die validiert werden müssen (anonymizationStatus === 'done' && annotationStatus !== 'done')
-  needsValidationIds: number[];
+  overview: FileItem[]
+  pollingHandles: Partial<Record<number, ReturnType<typeof setTimeout>>>
+  isPolling: boolean
+  hasAvailableFiles: boolean
+  availableFiles: FileItem[]
+  // NEW: IDs der Dateien, die validiert werden müssen (anonymizationStatus === 'done_processing_anonymization' && annotationStatus !== 'done_processing_anonymization')
+  needsValidationIds: number[]
+  reimportQueuedIds: number[]
 }
 
 // Interface matching the actual API response for sensitivemeta
+// THIS IS THE SINGLE SOURCE OF TRUTH FOR SENSITIVEMETA IN THE ANONYMIZATION VALIDATION CONTEXT
 export interface SensitiveMeta {
-  id: number;
-  patientFirstName: string | null;
-  patientLastName: string | null;
-  patientDob: string | null;
-  patientGender: string;
-  examinationDate: string | null;
-  casenumber?: string | null;
-  centerName?: string;
-  patientGenderName?: string;
-  endoscopeType?: string;
-  endoscopeSn?: string;
-  isVerified?: boolean;
-  dobVerified?: boolean;
-  namesVerified?: boolean;
-  // PDF specific fields
-  file?: string;
-  pdfUrl?: string;
-  fullPdfPath?: string;
+  id: number // pk of db Object!!
+  casenumber?: string | null
+  patientFirstName?: string | null
+  patientLastName?: string | null
+  patientDob?: string | null
+  patientDobDisplay?: string | null
+  patientGender: string
+  examinationDate: string | null
+  centerName?: string
+  patientGenderName?: string
+  examinersDisplay: string | null
+  endoscopeType?: string
+  endoscopeSn?: string
+  isVerified?: boolean
+  dobVerified?: boolean
+  namesVerified?: boolean
+  anonymizedText?: string
+  text?: string
+  documentType?: string | null
+  document_type?: string | null
+  externalId?: string
+  externalIdOrigin?: string
+  tags?: string[]
+  validationComment?: string | null
+  validation_comment?: string | null
+  patientHashDisplay?: string | null
+  examinationHashDisplay?: string | null
+  pseudoPatientId?: number | null
+  pseudoExaminationId?: number | null
+  patientExaminationId?: number | null
+  patientId?: number | null
 }
 
-// NEW – matches your VideoDetailSer
-export interface VideoDetailApiResponse {
-  id: number;
-  sensitiveMetaId: number;     // ✔︎ camelCase
-  videoUrl: string | null;
-  thumbnail: string | null;
-  patientFirstName: string | null;
-  patientLastName: string | null;
-  patientDob: string | null;
-  examinationDate: string | null;
-  casenumber?: string | null;
-  file: string | null;
+function unknownErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
 }
 
-// Updated interface for PDF data from anony_text endpoint
-export interface PdfDataResponse {
-  id: number;
-  sensitiveMetaId: number;
-  text: string;
-  anonymizedText: string;
-  status?: string;
-  error?: boolean;
+function axiosStatus(error: AxiosError): string {
+  return String(error.response?.status ?? 'unbekannt')
 }
 
-export interface PatientData {
-  id: number;
-  sensitiveMetaId: number;
-  videoUrl?: string | null;
-  thumbnail?: string | null;
-  text: string;
-  anonymizedText: string;
-  reportMeta?: SensitiveMeta;
-  status?: string;
-  error?: boolean;
-  pdfStreamUrl?: string; // Add this field from VoPPatientDataSerializer
+function axiosErrorField(error: AxiosError, field: string): string | null {
+  const data = error.response?.data
+  if (!isRecord(data)) {
+    return null
+  }
+  const value = data[field]
+  return typeof value === 'string' ? value : null
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+interface AnonymizationStatusResponse {
+  anonymizationStatus?: unknown
+}
+
+interface PdfReimportResponse {
+  sensitiveMetaCreated?: boolean
+  sensitive_meta_created?: boolean
+}
+
+function isFileAnonymizationStatus(value: unknown): value is FileItem['anonymizationStatus'] {
+  return (
+    typeof value === 'string' &&
+    [
+      'not_started',
+      'processing_anonymization',
+      'done_processing_anonymization',
+      'failed',
+      'validated',
+      'predicting_segments',
+      'extracting_frames'
+    ].includes(value)
+  )
+}
+
+function syntheticQuarantineId(quarantineId: string, usedIds: Set<number>): number {
+  let hash = 0
+  for (let i = 0; i < quarantineId.length; i += 1) {
+    hash = (hash * 31 + quarantineId.charCodeAt(i)) | 0
+  }
+
+  let candidate = -Math.max(1, Math.abs(hash))
+  while (usedIds.has(candidate)) {
+    candidate -= 1
+  }
+  usedIds.add(candidate)
+  return candidate
+}
+
+function buildQuarantineOverviewRows(
+  quarantineFiles: QuarantineFileItem[],
+  existingIds: Set<number>
+): FileItem[] {
+  return quarantineFiles.map((file) => {
+    const mediaType =
+      file.mediaType === 'pdf' || file.mediaType === 'video' ? file.mediaType : 'unknown'
+    const quarantineTimestamp = file.quarantinedAt || file.createdAt || file.modifiedAt || ''
+    const reason = file.reason || 'Die Datei wurde vor dem Import in die Quarantäne verschoben.'
+
+    return {
+      id: syntheticQuarantineId(file.id, existingIds),
+      filename: file.filename,
+      mediaType,
+      anonymizationStatus: 'failed',
+      annotationStatus: '',
+      createdAt: quarantineTimestamp,
+      metadataImported: false,
+      fileSize: file.size,
+      uploadJob: {
+        id: file.id,
+        status: 'quarantined',
+        ingestMode: 'watcher',
+        sourceSystem: file.directoryLabel,
+        sourceCenterKey: null,
+        originalFilename: file.filename,
+        sourceFilePersisted: true,
+        cleanupStatus: 'skipped',
+        allowedActions: [],
+        errorCode: 'processing_failed',
+        errorDetail: reason,
+        retryable: false,
+        retryCount: 0,
+        maxRetries: 0,
+        nextRetryAt: null,
+        lastAttemptAt: null,
+        createdAt: quarantineTimestamp,
+        updatedAt: file.modifiedAt || quarantineTimestamp
+      },
+      quarantined: true,
+      quarantineId: file.id,
+      quarantineDirectoryKey: file.directoryKey,
+      quarantineDirectoryLabel: file.directoryLabel,
+      quarantineReviewStatus: file.reviewStatus,
+      quarantineNextAction: file.nextAction,
+      quarantineOrphaned: file.orphaned,
+      errorDetail: reason
+    }
+  })
+}
+
+const STATUS_POLL_INTERVAL_MS = 15000
+const STATUS_POLL_BACKOFF_MS = 30000
+const STATUS_POLL_JITTER_MS = 5000
+const STATUS_POLL_STORAGE_PREFIX = 'lx-annotate:anonymization-status:next-check'
+const FINAL_ANONYMIZATION_STATUSES = new Set([
+  'done_processing_anonymization',
+  'validated',
+  'failed'
+])
+const ACTIVE_UPLOAD_JOB_STATUSES = new Set(['pending', 'processing', 'retrying'])
+function isUploadJobActive(file: FileItem): boolean {
+  return ACTIVE_UPLOAD_JOB_STATUSES.has((file.uploadJob?.status || '').toLowerCase())
+}
+
+function statusPollIntervalMs(fileId: number): number {
+  return STATUS_POLL_INTERVAL_MS + (Math.abs(fileId) % 5) * 500
+}
+
+function statusPollStorageKey(fileId: number, kind: string): string {
+  return `${STATUS_POLL_STORAGE_PREFIX}:${kind}:${String(fileId)}`
+}
+
+function getStatusPollStorage(): Storage | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
+
+function claimStatusPollSlot(fileId: number, kind: string, delayMs: number): boolean {
+  const storage = getStatusPollStorage()
+  if (!storage) {
+    return true
+  }
+
+  try {
+    const key = statusPollStorageKey(fileId, kind)
+    const currentTime = Date.now()
+    const nextCheckAt = Number(storage.getItem(key) || '0')
+    if (Number.isFinite(nextCheckAt) && nextCheckAt > currentTime) {
+      return false
+    }
+
+    storage.setItem(key, String(currentTime + delayMs))
+    return true
+  } catch {
+    return true
+  }
+}
+
+function deferStatusPollSlot(fileId: number, kind: string, delayMs: number): void {
+  const storage = getStatusPollStorage()
+  if (!storage) {
+    return
+  }
+
+  try {
+    storage.setItem(statusPollStorageKey(fileId, kind), String(Date.now() + delayMs))
+  } catch {
+    // Ignore storage failures; polling still has the per-tab interval guard.
+  }
 }
 
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
 
-export const availableFiles = ref<FileItem[]>([]);
+export const availableFiles = ref<FileItem[]>([])
 export const useAnonymizationStore = defineStore('anonymization', {
-  state: (): AnonymizationState & { pending: PatientData[] } => ({
+  state: (): AnonymizationState => ({
     anonymizationStatus: 'idle',
     loading: false,
     error: null,
-    pending: [],
     current: null,
     overview: [],
     pollingHandles: {},
     isPolling: false,
     hasAvailableFiles: false,
-    availableFiles: availableFiles.value, // Use the value of the ref to get the actual array
-    // NEW
+    availableFiles: availableFiles.value,
     needsValidationIds: [],
+    reimportQueuedIds: [],
+    pending: [false] // TODO: Implement reactive getter here
   }),
 
   getters: {
     getCurrentItem: (state) => state.current,
-    isAnyFileProcessing: (state) => state.overview.some(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments'),
-    processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments'),
+    isAnyFileProcessing: (state) =>
+      state.overview.some(
+        (f) =>
+          f.anonymizationStatus === 'processing_anonymization' ||
+          f.anonymizationStatus === 'extracting_frames' ||
+          f.anonymizationStatus === 'predicting_segments'
+      ),
+    processingFiles: (state) =>
+      state.overview.filter(
+        (f) =>
+          f.anonymizationStatus === 'processing_anonymization' ||
+          f.anonymizationStatus === 'extracting_frames' ||
+          f.anonymizationStatus === 'predicting_segments'
+      ),
+    isVideoReimportQueued: (state) => (fileId: number) => state.reimportQueuedIds.includes(fileId),
     getState: (state) => state
   },
 
   actions: {
-    /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
-     *  und fügt beides zusammen. */
-    async fetchNext(lastId?: number): Promise<any> {
-      this.loading = true;
-      this.error = null;
+    /** Gets the next anonymization file + its metadata */
+    async fetchNext(lastId?: number): Promise<SensitiveMeta | null | undefined> {
+      this.loading = true
+      this.error = null
 
       try {
         // Check if we have a specific file selected from overview
         if (lastId) {
-          const item = this.overview.find(f => f.id === lastId);
-          
-          if (item?.mediaType === 'video') {
-            // **Use the sensitive_meta_id (!) and keep the trailing slash**
-            console.log(`Fetching video detail for sensitiveMetaId: ${item.id}`);
-            const { data: video } = await axiosInstance.get<VideoDetailApiResponse>(
-              r(`media/videos/${item.id}/`)
-            );
-            console.log('Received video detail:', video);
-            
-            this.current = {
-              id: video.id,
-              sensitiveMetaId: video.sensitiveMetaId,
-              videoUrl: video.videoUrl,
-              thumbnail: video.thumbnail,
-              text: '',            // Videos haben keinen Text
-              anonymizedText: '',
-              reportMeta: {
-                id: video.sensitiveMetaId,
-                patientFirstName: video.patientFirstName,
-                patientLastName:  video.patientLastName,
-                patientDob:       video.patientDob,
-                patientGender: '',
-                examinationDate:  video.examinationDate,
-                casenumber:       video.casenumber
-              }
-            };
-            return this.current;
+          const item = this.overview.find((f) => f.id === lastId)
+          if (!item) {
+            this.error = `Datei mit ID ${String(lastId)} nicht gefunden.`
+            return null
           }
-        
-
-        else {
-          /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
-        const pdfUrl = lastId
-          ? a(`anony_text/?last_id=${lastId}`)
-          : a('anony_text/');
-        
-        console.log(`Fetching PDF data from: ${pdfUrl}`);
-        const { data: pdf } = await axiosInstance.get<PdfDataResponse>(pdfUrl);
-        console.log('Received PDF data:', pdf);
-
-        if (!pdf?.id) {
-          this.$patch({ current: null });
-          throw new Error('Backend lieferte keinen gültigen PDF-Datensatz.');
-        }
-        if (pdf.error) {
-          this.$patch({ current: null });
-          throw new Error('Backend meldet Fehler-Flag im PDF-Datensatz.');
-        }
-
-        /* 2) Sensitive-Meta nachladen ---------------------------------- */
-        const metaUrl = a(`sensitivemeta/?id=${pdf.sensitiveMetaId}`);
-        console.log(`Fetching sensitive meta from: ${metaUrl}`);
-        const { data: metaResponse } = await axiosInstance.get<SensitiveMeta>(metaUrl);
-        console.log('Received sensitive meta response data:', metaResponse);
-
-        if (typeof metaResponse?.id !== 'number') {
-          console.error('Received invalid sensitive meta data structure:', metaResponse);
-          this.$patch({ current: null });
-          throw new Error('Ungültige Metadaten vom Backend empfangen (keine gültige ID gefunden).');
-        }
-
-        /* 3) Merge & State-Update -------------------------------------- */
-        const merged: PatientData = { 
-          ...pdf, 
-          reportMeta: metaResponse 
-        };
-        console.log('Merged data:', merged);
-
-        this.$patch({
-          current: merged
-        });
-
-        return merged;
-      } 
-    }
-    else {
-        if (this.current) {
-          return
-        }
-        else{
-            console.warn('No lastId provided and current item is not set.');
-            const currentItem = this.getCurrentItem;
-            if (currentItem && currentItem.id) {
-                this.current = currentItem;
-                return this.fetchNext(currentItem.id);
-            } else {
-                console.warn('No valid current item available to fetch. Stopping to prevent infinite recursion.');
-                return null;
-            }
-        }
-    }
-    }
-      catch (err: any) {
-        console.error('Error in fetchNext:', err);
-        if (axios.isAxiosError(err)) {
-          console.error('Axios error details:', err.response?.status, err.response?.data);
-          this.error = `Fehler beim Laden der Metadaten (${err.response?.status}): ${err.message}`;
+          await this.setCurrentForValidation(item.id, item.mediaType)
+          return this.current
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim Laden.';
+          if (this.current) {
+            return
+          } else {
+            runtimeLogger.warn('fetch-next-selection-missing')
+            const currentItem = this.getCurrentItem
+            if (currentItem && currentItem.id) {
+              this.current = currentItem
+              return await this.fetchNext(currentItem.id)
+            } else {
+              runtimeLogger.warn('fetch-next-current-item-missing')
+              return null
+            }
+          }
         }
-        this.$patch({ current: null });
-        return null;
+      } catch (err: unknown) {
+        runtimeLogger.error('fetch-next-failed', err)
+        if (axios.isAxiosError<unknown>(err)) {
+          this.error = `Fehler beim Laden der Metadaten (${axiosStatus(err)}): ${err.message}`
+        } else {
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim Laden.')
+        }
+        this.$patch({ current: null })
+        return null
       } finally {
-        this.loading = false;
+        this.loading = false
       }
     },
 
@@ -246,101 +487,153 @@ export const useAnonymizationStore = defineStore('anonymization', {
     /* Update-Methoden                                                  */
     /* ---------------------------------------------------------------- */
 
-    async patchPdf(payload: { id?: number; sensitive_meta_id?: number; [key: string]: any }): Promise<any> {
-      if (!payload.id && !payload.sensitive_meta_id) {
-        throw new Error('patchPdf: id oder sensitive_meta_id fehlt im Payload.');
+    async patchPdf(payload: { id: number; [key: string]: unknown }) {
+      if (!payload.id) {
+        throw new Error('patchPdf: PDF ID fehlt im Payload.')
       }
-      console.log('Patching PDF with payload:', payload);
-      
-      // Use the correct endpoint for PDF sensitive meta updates
-      if (payload.sensitive_meta_id) {
-        return axiosInstance.patch(a('update_sensitivemeta/'), payload);
-      } else {
-        return axiosInstance.patch(a('update_anony_text/'), payload);
-      }
+      runtimeLogger.debug('sensitive-metadata-patch-started', { fileType: 'pdf' })
+
+      // Remove id from payload before sending (it's in URL)
+      const { id, ...updateData } = payload
+
+      // Use Modern Media Framework endpoint
+      return axiosInstance.patch(r(endpoints.media.pdfSensitiveMetadata(id)), updateData)
     },
 
-    async patchVideo(payload: { id?: number; sensitive_meta_id?: number; [key: string]: any }): Promise<any> {
-        if (!payload.id && !payload.sensitive_meta_id) {
-            throw new Error('patchVideo: id oder sensitive_meta_id fehlt im Payload.');
-        }
-        console.log('Patching Video with payload:', payload);
-        
-        // Use the video media endpoint which handles both streaming and updates
-        if (payload.sensitive_meta_id) {
-            return axiosInstance.patch(`media/videos/`, payload);
-        } else {
-            return axiosInstance.patch(`media/videos/${payload.id}/`, payload);
-        }
+    async patchVideo(payload: { id: number; [key: string]: unknown }) {
+      if (!payload.id) {
+        throw new Error('patchVideo: Video ID fehlt im Payload.')
+      }
+      runtimeLogger.debug('sensitive-metadata-patch-started', { fileType: 'video' })
+
+      // Remove id from payload before sending (it's in URL)
+      const { id, ...updateData } = payload
+
+      // Use Modern Media Framework endpoint
+      return axiosInstance.patch(r(endpoints.media.videoSensitiveMetadata(id)), updateData)
     },
     fetchPendingAnonymizations() {
-      return this.pending;
+      return this.pending
     },
-
-    /**
-     * Upload files and fetch the resulting anonymization data
-     * @param files - FileList or File array containing files to upload
-     * @returns Promise that resolves when upload and fetch are complete
-     */
-
 
     /**
      * Fetch overview of all uploaded files with their statuses
      */
     async fetchOverview() {
-      this.loading = true;
-      this.error = null;
+      this.loading = true
+      this.error = null
 
       try {
-        console.log('Fetching file overview...');
-        const { data } = await axiosInstance.get<FileItem[]>(r('anonymization/items/overview/'));
-        console.log('Received overview data:', data);
-        
+        runtimeLogger.debug('overview-fetch-started')
+        const { data } = await axiosInstance.get<FileItem[]>(
+          r(endpoints.anonymization.itemsOverview)
+        )
+        runtimeLogger.debug('overview-fetch-completed', { count: data.length })
+        let quarantineRows: FileItem[] = []
+        try {
+          const quarantineResponse = await axiosInstance.get<QuarantineOverviewResponse>(
+            r(endpoints.runtime.quarantine),
+            silentRequestConfig()
+          )
+          quarantineRows = buildQuarantineOverviewRows(
+            quarantineResponse.data.files,
+            new Set(data.map((file) => file.id))
+          )
+        } catch {
+          runtimeLogger.warn('quarantine-overview-unavailable', { operation: 'fetch-overview' })
+        }
+
+        const overviewData = [...data, ...quarantineRows]
+
         // Update overview and available files
-        this.overview = data;
-        
+        this.overview = overviewData
+
         // Clear and update availableFiles to prevent duplicates
-        this.availableFiles.length = 0; // Clear the array
-        this.availableFiles.push(...data); // Add all files from the fresh data
-        
-        // Update the reactive ref as well
-        availableFiles.value = [...data];
-        
-        // NEW: Ermittele IDs, die validiert werden müssen (Anonymisierung abgeschlossen, Annotation noch nicht erledigt)
-        const needsValidation = data
-          .filter(f => f.anonymizationStatus === 'done' && f.annotationStatus !== 'done')
-          .map(f => f.id);
-        this.needsValidationIds = needsValidation;
+        this.availableFiles.length = 0 // Clear the array
+        this.availableFiles.push(...overviewData) // Add all files from the fresh data
+
+        availableFiles.value = [...overviewData]
+
+        const needsValidation = overviewData
+          .filter((f) => f.anonymizationStatus === 'done_processing_anonymization')
+          .map((f) => f.id)
+        this.needsValidationIds = needsValidation
+
+        const stopStatuses = new Set([
+          'done_processing_anonymization',
+          'validated',
+          'failed',
+          'not_started'
+        ])
+        this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => {
+          const queuedFile = overviewData.find((f) => f.id === id)
+          return !!queuedFile && !stopStatuses.has(queuedFile.anonymizationStatus)
+        })
 
         // NEW: Polling sofort stoppen für
         // 1) Dateien, die nicht mehr existieren
-        const currentPollingIds = Object.keys(this.pollingHandles).map((k) => Number(k));
-        const existingIds = new Set(data.map(f => f.id));
-        for (const pid of currentPollingIds) {
-          if (!existingIds.has(pid)) {
-            this.stopPolling(pid);
+        const currentPollingIds = Object.keys(this.pollingHandles).map((k) => Number(k))
+        const existingIds = new Set(overviewData.map((f) => f.id))
+        for (const pollingId of currentPollingIds) {
+          if (!existingIds.has(pollingId)) {
+            this.stopPolling(pollingId)
           }
         }
         // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
-        const stopStatuses = new Set(['done', 'validated', 'failed', 'not_started']);
-        for (const f of data) {
-          if (stopStatuses.has(f.anonymizationStatus) && this.pollingHandles[f.id]) {
-            this.stopPolling(f.id);
+        for (const fileOverview of overviewData) {
+          if (
+            isOverviewPollingTerminal(fileOverview, stopStatuses) &&
+            this.pollingHandles[fileOverview.id] !== undefined
+          ) {
+            this.stopPolling(fileOverview.id)
           }
         }
-        
-        this.hasAvailableFiles = data.length > 0;
-        return data;
-      } catch (err: any) {
-        console.error('Error fetching overview:', err);
-        if (axios.isAxiosError(err)) {
-          this.error = `Fehler beim Laden der Übersicht (${err.response?.status}): ${err.message}`;
+
+        this.hasAvailableFiles = overviewData.length > 0
+        return overviewData
+      } catch (err: unknown) {
+        runtimeLogger.error('overview-fetch-failed', err)
+        if (axios.isAxiosError<unknown>(err)) {
+          this.error = `Fehler beim Laden der Übersicht (${axiosStatus(err)}): ${err.message}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim Laden der Übersicht.';
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim Laden der Übersicht.')
         }
-        return [];
+        return []
       } finally {
-        this.loading = false;
+        this.loading = false
+      }
+    },
+
+    async dismissUploadJob(jobId: string): Promise<boolean> {
+      this.error = null
+      try {
+        await axiosInstance.post(r(endpoints.anonymization.dismissUploadJob(jobId)))
+        await this.fetchOverview()
+        return true
+      } catch (err: unknown) {
+        runtimeLogger.error('upload-job-dismiss-failed', err)
+        this.error =
+          'Der Import konnte nicht aus der Übersicht entfernt werden. Bitte aktualisieren und erneut versuchen.'
+        return false
+      }
+    },
+
+    async retryUploadJob(jobId: string): Promise<boolean> {
+      try {
+        await axiosInstance.post(r(endpoints.anonymization.retryUploadJob(jobId)))
+        await this.fetchOverview()
+        return true
+      } catch (err: unknown) {
+        runtimeLogger.error('upload-job-retry-failed', err)
+        if (axios.isAxiosError<unknown>(err)) {
+          this.error = `Fehler beim erneuten Starten des Imports (${axiosStatus(err)}): ${err.message}`
+        } else {
+          this.error = unknownErrorMessage(
+            err,
+            'Unbekannter Fehler beim erneuten Starten des Imports.'
+          )
+        }
+        return false
       }
     },
 
@@ -348,38 +641,41 @@ export const useAnonymizationStore = defineStore('anonymization', {
      * Start anonymization for a specific file
      */
     async startAnonymization(id: number) {
-      const file = this.overview.find(f => f.id === id);
+      const file = this.overview.find((f) => f.id === id)
       if (!file) {
-        this.error = `Datei mit ID ${id} nicht gefunden.`;
-        return false;
+        this.error = `Datei mit ID ${String(id)} nicht gefunden.`
+        return false
       }
 
       try {
-        console.log(`Starting anonymization for file ${id}...`);
-        
+        runtimeLogger.debug('anonymization-start-requested', { fileType: file.mediaType })
+
         // Optimistic UI update
-        file.anonymizationStatus = 'processing_anonymization';
-        
+        file.anonymizationStatus = 'processing_anonymization'
+
         // Trigger anonymization
-        await axiosInstance.post(r(`anonymization/${id}/start/`));
-        console.log(`Anonymization started for file ${id}`);
-        
+        await axiosInstance.post(r(endpoints.anonymization.start(id)))
+        runtimeLogger.info('anonymization-start-accepted', { fileType: file.mediaType })
+
         // Start polling
-        this.startPolling(id);
-        
-        return true;
-      } catch (err: any) {
-        console.error(`Error starting anonymization for file ${id}:`, err);
-        
+        this.startPolling(id)
+
+        return true
+      } catch (err: unknown) {
+        runtimeLogger.error('anonymization-start-failed', err, { fileType: file.mediaType })
+
         // Revert optimistic update
-        file.anonymizationStatus = 'not_started';
-        
-        if (axios.isAxiosError(err)) {
-          this.error = `Fehler beim Starten der Anonymisierung (${err.response?.status}): ${err.message}`;
+        file.anonymizationStatus = 'not_started'
+
+        if (axios.isAxiosError<unknown>(err)) {
+          this.error = `Fehler beim Starten der Anonymisierung (${axiosStatus(err)}): ${err.message}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim Starten der Anonymisierung.';
+          this.error = unknownErrorMessage(
+            err,
+            'Unbekannter Fehler beim Starten der Anonymisierung.'
+          )
         }
-        return false;
+        return false
       }
     },
 
@@ -387,141 +683,159 @@ export const useAnonymizationStore = defineStore('anonymization', {
      * Start polling status for a specific file
      */
     startPolling(id: number) {
-      if (this.pollingHandles[id]) {
-        console.log(`Polling for file ${id} is already running`);
-        return;
+      if (this.pollingHandles[id] !== undefined) {
+        runtimeLogger.debug('status-poll-already-running')
+        return
       }
-      if (id in this.needsValidationIds) {
-        console.log(`File ${id} is in needsValidationIds, skipping polling`);
-        const file = this.overview.find(f => f.id === id);
-        if (file) {
-          file.anonymizationStatus = 'validated'; // Set status to validated
+
+      // 1. Find the file to determine its type
+      const file = this.overview.find((f) => f.id === id)
+      if (!file) {
+        runtimeLogger.warn('status-poll-file-missing')
+        return
+      }
+
+      runtimeLogger.debug('status-poll-started', { fileType: file.mediaType })
+      this.isPolling = true
+
+      const kindParam = file.mediaType === 'pdf' ? 'report' : 'video'
+      let nextDelayMs = statusPollIntervalMs(id)
+      const jitter = () => Math.floor(Math.random() * STATUS_POLL_JITTER_MS)
+
+      const applyStatusUpdate = (data: AnonymizationStatusResponse): boolean => {
+        const currentFile = this.overview.find((candidate) => candidate.id === id)
+        if (!currentFile || !isFileAnonymizationStatus(data.anonymizationStatus)) return false
+        const statusFromBackend = data.anonymizationStatus
+        runtimeLogger.debug('status-poll-update-applied', { fileType: currentFile.mediaType })
+        currentFile.anonymizationStatus = statusFromBackend
+        if (!FINAL_ANONYMIZATION_STATUSES.has(statusFromBackend)) return false
+        runtimeLogger.info('status-poll-final-state-reached', { fileType: currentFile.mediaType })
+        this.stopPolling(id)
+        return true
+      }
+
+      const updateDelayAfterFailure = (error: unknown): void => {
+        if (axios.isAxiosError(error) && error.response?.status === 429) {
+          nextDelayMs = STATUS_POLL_BACKOFF_MS
+          runtimeLogger.debug('status-poll-rate-limited', { httpStatus: 429 })
+          return
         }
-        return;
+        nextDelayMs = statusPollIntervalMs(id)
+        runtimeLogger.error('status-poll-failed', error, { fileType: file.mediaType })
       }
-      
-      console.log(`Starting status polling for file ${id}`);
-      this.isPolling = true;
-      
-      const timer = setInterval(async () => {
+
+      const poll = async () => {
+        if (this.pollingHandles[id] === undefined) {
+          return
+        }
+
+        if (!claimStatusPollSlot(id, kindParam, nextDelayMs)) {
+          this.pollingHandles[id] = setTimeout(() => void poll(), nextDelayMs + jitter())
+          return
+        }
+
         try {
-          const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`));
-          const file = this.overview.find(f => f.id === id);
-          
-          if (file && data.anonymizationStatus) {
-              // ✅ FIX: Remove redundant normalization
-              const statusFromBackend = data.anonymizationStatus;
-  
-              console.log(`Status update for file ${id}: ${statusFromBackend}`);
-              file.anonymizationStatus = statusFromBackend as any;
-  
-              // ✅ FIX: Include 'validated' as a stopping condition
-              if (['done', 'validated', 'failed'].includes(statusFromBackend)) {
-                console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`);
-                this.stopPolling(id);
-              }
-            }
+          const { data } = await axiosInstance.get<AnonymizationStatusResponse>(
+            r(endpoints.anonymization.status(id)),
+            { params: { kind: kindParam } }
+          )
+
+          if (this.pollingHandles[id] === undefined) return
+          if (applyStatusUpdate(data)) return
+          nextDelayMs = statusPollIntervalMs(id)
         } catch (err) {
-          console.error(`Error polling status for file ${id}:`, err);
-          // Continue polling even on error to be resilient
+          updateDelayAfterFailure(err)
         }
-      }, 10000); // Reduced from 1500ms to 10000ms (10 seconds)
 
-      this.pollingHandles[id] = timer;
+        if (this.pollingHandles[id] === undefined) {
+          return
+        }
+        deferStatusPollSlot(id, kindParam, nextDelayMs)
+        this.pollingHandles[id] = setTimeout(() => void poll(), nextDelayMs + jitter())
+      }
+
+      this.pollingHandles[id] = setTimeout(() => void poll(), nextDelayMs + jitter())
     },
-
     /**
      * Stop polling for a specific file
      */
     stopPolling(id: number) {
-      const timer = this.pollingHandles[id];
-      if (timer) {
-        clearInterval(timer);
-        delete this.pollingHandles[id];
-        console.log(`Stopped polling for file ${id}`);
+      const timer = this.pollingHandles[id]
+      if (timer !== undefined) {
+        clearTimeout(timer)
+        Reflect.deleteProperty(this.pollingHandles, id)
+        runtimeLogger.debug('status-poll-stopped')
       }
-      
+
       // Update global polling state
-      this.isPolling = Object.keys(this.pollingHandles).length > 0;
+      this.isPolling = Object.keys(this.pollingHandles).length > 0
     },
 
     /**
      * Stop all polling
      */
     stopAllPolling() {
-      Object.keys(this.pollingHandles).forEach(id => {
-        this.stopPolling(parseInt(id));
-      });
-      this.isPolling = false;
-      console.log('Stopped all polling');
+      Object.keys(this.pollingHandles).forEach((id) => {
+        this.stopPolling(parseInt(id))
+      })
+      this.isPolling = false
+      runtimeLogger.debug('all-status-polls-stopped')
     },
 
     /**
      * Set current item for validation (called when clicking "Validate")
      */
-    async setCurrentForValidation(id: number) {
+    async setCurrentForValidation(id: number, mediaType: string) {
       try {
+        runtimeLogger.debug('validation-selection-started')
 
-        console.log(`Setting current item for validation: ${id}`);
-
-                        
-        // Find the item in overview to get mediaType and sensitiveMetaId
-        const item = this.overview.find(f => f.id === id);
+        // Find the item in overview to know if wrong parameters were passed.
+        const item = this.overview.find((f) => f.id === id)
         if (!item) {
-            throw new Error(`Item with ID ${id} not found in overview`);
+          throw new Error(`Item with ID ${String(id)} not found in overview`)
         }
-        
-        console.log('Found item for validation:', item);
-        
-        if (item.mediaType === 'video') {
-            // For videos, use the ID to load the video data
 
-            console.log(`Loading video data for sensitiveMetaId: ${item.id}`);
-            const { data: video } = await axiosInstance.get<VideoDetailApiResponse>(
-              r(`media/videos/${item.id}/`)
-            );
-            console.log('Received video detail:', video);
-            
-            this.current = {
-              id: video.id,
-              sensitiveMetaId: video.sensitiveMetaId,
-              videoUrl: video.videoUrl,
-              thumbnail: video.thumbnail,
-              text: 'd', // Videos don't have text
-              anonymizedText: '', // Videos don't have anonymized text
-              reportMeta: {
-                id: video.sensitiveMetaId,
-                patientFirstName: video.patientFirstName,
-                patientLastName: video.patientLastName,
-                patientDob: video.patientDob,
-                patientGender: '', // Will be filled from backend if available
-                examinationDate: video.examinationDate,
-                casenumber: video.casenumber
-              }
-            };
-            return this.current;
-        } 
-        else {
-            // For PDFs, use the original endpoint
-        console.log(`Setting current item for validation: ${id}`);
-        const { data } = await axiosInstance.put<PatientData>(
-          r(`anonymization/${id}/current/`)
-        );
-        console.log('Received validation data:', data);
-        
-        this.current = data;
-        return data;
-      } 
-    }
-      
-      catch (err: any) {
-        console.error(`Error setting current for validation (ID: ${id}):`, err);
-        if (axios.isAxiosError(err)) {
-          this.error = `Fehler beim Laden der Validierungsdaten (${err.response?.status}): ${err.message}`;
-        } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim Laden der Validierungsdaten.';
+        runtimeLogger.debug('validation-selection-found', { fileType: item.mediaType })
+
+        if (mediaType === 'video') {
+          runtimeLogger.debug('sensitive-metadata-fetch-started', { fileType: 'video' })
+          const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(
+            r(endpoints.media.videoSensitiveMetadata(item.id))
+          )
+          runtimeLogger.debug('sensitive-metadata-fetch-completed', { fileType: 'video' })
+
+          this.current = sensitiveMeta
+          return this.current
+        } else if (mediaType === 'pdf') {
+          runtimeLogger.debug('validation-selection-confirmed', { fileType: 'pdf' })
+
+          const metaUrl = r(endpoints.media.pdfSensitiveMetadata(item.id))
+          runtimeLogger.debug('sensitive-metadata-fetch-started', { fileType: 'pdf' })
+          const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(metaUrl)
+          runtimeLogger.debug('sensitive-metadata-fetch-completed', { fileType: 'pdf' })
+
+          if (typeof sensitiveMeta.id !== 'number') {
+            runtimeLogger.error(
+              'sensitive-metadata-contract-invalid',
+              new TypeError('Sensitive metadata response contract invalid'),
+              { fileType: 'pdf' }
+            )
+            throw new Error('Ungültige Metadaten vom Backend empfangen.')
+          }
+          this.current = sensitiveMeta
+          return sensitiveMeta
         }
-        return null;
+      } catch (err: unknown) {
+        runtimeLogger.error('validation-selection-failed', err)
+        if (axios.isAxiosError<unknown>(err)) {
+          this.error = `Fehler beim Laden der Validierungsdaten (${axiosStatus(err)}): ${err.message}`
+        } else {
+          this.error = unknownErrorMessage(
+            err,
+            'Unbekannter Fehler beim Laden der Validierungsdaten.'
+          )
+        }
+        return null
       }
     },
 
@@ -529,62 +843,141 @@ export const useAnonymizationStore = defineStore('anonymization', {
      * Refresh overview data
      */
     async refreshOverview() {
-      await this.fetchOverview();
+      await this.fetchOverview()
     },
 
-    /**
-     * Re-import a video file to regenerate metadata
-     */
+    async repairAllVideoStates(
+      dryRun = false,
+      transcode?: { option: TranscodeOption; idempotencyKey: string; afterVideoId: number }
+    ): Promise<VideoStateRepairResponse | null> {
+      this.error = null
+      try {
+        const { data } = await axiosInstance.post<VideoStateRepairResponse>(
+          r(endpoints.runtime.videoStateRepair),
+          {
+            dry_run: dryRun,
+            ...(transcode ? {
+              transcode: { option: transcode.option, idempotency_key: transcode.idempotencyKey },
+              after_video_id: transcode.afterVideoId,
+              batch_size: 100
+            } : {})
+          }
+        )
+        await this.fetchOverview()
+        return data
+      } catch (err: unknown) {
+        const detail = axios.isAxiosError<unknown>(err)
+          ? axiosErrorField(err, 'error') || err.message
+          : unknownErrorMessage(err, 'Unbekannter Fehler.')
+        this.error = `Videozustände konnten nicht repariert werden: ${detail}`
+        return null
+      }
+    },
+
+    /** Annotation-safe repair; reports when operator re-import is unavoidable. */
     async reimportVideo(fileId: number) {
-      const file = this.overview.find(f => f.id === fileId);
+      const file = this.overview.find((f) => f.id === fileId)
       if (!file) {
-        this.error = `Video mit ID ${fileId} nicht gefunden.`;
-        return false;
+        this.error = `Video mit ID ${String(fileId)} nicht gefunden.`
+        return false
       }
 
       if (file.mediaType !== 'video') {
-        this.error = `Datei mit ID ${fileId} ist kein Video.`;
-        return false;
+        this.error = `Datei mit ID ${String(fileId)} ist kein Video.`
+        return false
+      }
+
+      if (isUploadJobActive(file)) {
+        this.startPolling(fileId)
+        return true
       }
 
       try {
-        console.log(`Re-importing video ${fileId}...`);
-        
+        const { data } = await axiosInstance.post<VideoStateRepairResponse>(
+          r(endpoints.runtime.videoStateRepairOne(fileId)),
+          { dry_run: false }
+        )
+        if (data.items.length !== 1) {
+          throw new Error('Die Reparaturantwort enthält keinen eindeutigen Videozustand.')
+        }
+        const item = data.items[0]
+        if (item.status === 'blocked') {
+          this.error = `Video ${String(fileId)} kann derzeit nicht repariert werden: Eine Medienoperation ist aktiv.`
+          return false
+        }
+        if (item.status === 'reimport_required') {
+          this.error = `Video ${String(fileId)} muss neu importiert werden (${item.missing.join(', ')}). Annotationen wurden nicht gelöscht.`
+          return false
+        }
+        await this.fetchOverview()
+        return true
+      } catch (err: unknown) {
+        runtimeLogger.error('video-state-repair-failed', err)
+        if (axios.isAxiosError<unknown>(err)) {
+          const errorMessage = axiosErrorField(err, 'error') || err.message
+          this.error = `Fehler beim Reparieren (${axiosStatus(err)}): ${errorMessage}`
+        } else {
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim Reparieren.')
+        }
+        return false
+      }
+    },
+
+    /**
+     * Re-import a PDF file to regenerate metadata
+     * Follows the same pattern as reimportVideo for consistency
+     */
+    async reimportPdf(fileId: number) {
+      const file = this.overview.find((f) => f.id === fileId)
+      if (!file) {
+        this.error = `PDF mit ID ${String(fileId)} nicht gefunden.`
+        return false
+      }
+
+      if (file.mediaType !== 'pdf') {
+        this.error = `Datei mit ID ${String(fileId)} ist kein PDF.`
+        return false
+      }
+
+      try {
+        runtimeLogger.debug('media-reimport-started', { fileType: 'pdf' })
+
         // Optimistic UI update - set to processing to show user feedback
-        file.anonymizationStatus = 'processing_anonymization';
-        file.metadataImported = false;
-        
-        // Trigger re-import via backend
-        const response = await axiosInstance.post(r(`video/${fileId}/reimport/`));
-        console.log(`Video re-import response:`, response.data);
-        
-        console.log(`Starting polling for re-imported video ${fileId}`);
-        this.startPolling(fileId);
-        
+        file.anonymizationStatus = 'processing_anonymization'
+        file.metadataImported = false
+
+        // Trigger re-import via backend using media framework endpoint
+        const response = await axiosInstance.post<PdfReimportResponse>(
+          r(endpoints.media.pdfReimport(fileId))
+        )
+        runtimeLogger.info('media-reimport-accepted', { fileType: 'pdf' })
+
+        runtimeLogger.debug('media-reimport-poll-started', { fileType: 'pdf' })
+        this.startPolling(fileId)
+
         // Check if re-import was successful
-        if (response.data && response.data.sensitive_meta_created) {
-          console.log(`Video ${fileId} re-imported successfully with metadata`);
+        if (response.data.sensitiveMetaCreated ?? response.data.sensitive_meta_created) {
+          runtimeLogger.info('media-reimport-metadata-ready', { fileType: 'pdf' })
         } else {
-          console.log(`Video ${fileId} re-imported but metadata may be incomplete`);
+          runtimeLogger.warn('media-reimport-metadata-incomplete', { fileType: 'pdf' })
         }
-        
-        return true;
-      } catch (err: any) {
-        console.error(`Error re-importing video ${fileId}:`, err);
-        
+
+        return true
+      } catch (err: unknown) {
+        runtimeLogger.error('media-reimport-failed', err, { fileType: 'pdf' })
+
         // Revert optimistic update
-        file.anonymizationStatus = 'failed';
-        file.metadataImported = false;
-        
-        if (axios.isAxiosError(err)) {
-          const errorMessage = err.response?.data?.error || err.message;
-          this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${errorMessage}`;
+        file.anonymizationStatus = 'failed'
+        file.metadataImported = false
+
+        if (axios.isAxiosError<unknown>(err)) {
+          const errorMessage = axiosErrorField(err, 'error') || err.message
+          this.error = `Fehler beim erneuten Importieren (${axiosStatus(err)}): ${errorMessage}`
         } else {
-          this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Importieren.';
+          this.error = unknownErrorMessage(err, 'Unbekannter Fehler beim erneuten Importieren.')
         }
-        return false;
+        return false
       }
     }
-
   }
-});
+})

@@ -1,0 +1,2 @@
+static/docs/*.html whitespace=-trailing-space
+static/docs/**/*.html whitespace=-trailing-space

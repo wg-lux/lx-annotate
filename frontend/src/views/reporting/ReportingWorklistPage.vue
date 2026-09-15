@@ -1,0 +1,186 @@
+<template>
+  <div class="d-flex flex-column gap-3">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0">Berichts-Arbeitsliste</h5>
+          <small class="text-muted">Neue Berichte starten oder bestehende Fälle fortsetzen.</small>
+        </div>
+        <div class="d-flex gap-2">
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="loading"
+            @click="loadReports"
+          >
+            Aktualisieren
+          </button>
+          <RouterLink
+            class="btn btn-primary btn-sm"
+            to="/reporting"
+          >
+            Neuen Bericht starten
+          </RouterLink>
+        </div>
+      </div>
+      <div class="card-body">
+        <div
+          v-if="errorMessage"
+          class="alert alert-danger py-2"
+        >
+          {{ errorMessage }}
+        </div>
+        <div class="row g-3 align-items-end mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Status</label>
+            <select
+              v-model="statusFilter"
+              class="form-select"
+            >
+              <option value="all">Alle</option>
+              <option value="draft">Entwurf</option>
+              <option value="final">Abgeschlossen</option>
+            </select>
+          </div>
+          <div class="col-md-8 text-md-end small text-muted">
+            {{ filteredItems.length }} von {{ items.length }} Berichten
+          </div>
+        </div>
+
+        <div
+          v-if="loading"
+          class="text-muted"
+        >
+          Lade Berichte...
+        </div>
+        <div
+          v-else-if="!filteredItems.length"
+          class="alert alert-info mb-0"
+        >
+          Keine Berichte für den gewählten Filter gefunden.
+        </div>
+        <div
+          v-else
+          class="table-responsive"
+        >
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Bericht</th>
+                <th>Status</th>
+                <th>Version</th>
+                <th>Aktualisiert</th>
+                <th class="text-end">Aktion</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in filteredItems"
+                :key="row.id"
+              >
+                <td>
+                  <div class="fw-semibold">{{ reportVersionLabel(row.version) }}</div>
+                  <details class="small text-muted">
+                    <summary>Technische Angaben</summary>
+                    <div>Berichtsreferenz: {{ row.id }}</div>
+                    <div>
+                      Untersuchungsreferenz: {{ patientExaminationId(row) ?? 'nicht verfügbar' }}
+                    </div>
+                  </details>
+                </td>
+                <td>
+                  <span
+                    class="badge"
+                    :class="statusBadgeClass(row.status)"
+                  >
+                    {{ reportStatusLabel(row.status) }}
+                  </span>
+                </td>
+                <td>{{ row.version ?? 'Nicht verfügbar' }}</td>
+                <td>{{ formatGermanReportTimestamp(row.updatedAt || row.createdAt) }}</td>
+                <td class="text-end">
+                  <RouterLink
+                    v-if="patientExaminationId(row)"
+                    class="btn btn-outline-dark btn-sm"
+                    :to="`/reporting/${patientExaminationId(row)}/report-editor`"
+                  >
+                    Öffnen
+                  </RouterLink>
+                  <span
+                    v-else
+                    class="text-muted small"
+                    >Kein Routing-Ziel</span
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import axiosInstance, { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
+import { reportingApiErrorMessage } from './reportingError'
+import { parseReportListPayload, type ReportListRow } from './reportListPayload'
+import {
+  formatGermanReportTimestamp,
+  reportStatusBadgeClass,
+  reportStatusLabel,
+  reportVersionLabel
+} from './reportingPresentation'
+
+const items = ref<ReportListRow[]>([])
+const loading = ref(false)
+const errorMessage = ref<string | null>(null)
+const statusFilter = ref<'all' | 'draft' | 'final'>('all')
+
+const filteredItems = computed(() =>
+  statusFilter.value === 'all'
+    ? items.value
+    : items.value.filter((row) => (row.status || '').toLowerCase() === statusFilter.value)
+)
+
+function patientExaminationId(row: ReportListRow): number | null {
+  if (typeof row.patientExaminationId === 'number') {
+    return row.patientExaminationId
+  }
+  if (typeof row.patientExaminationFk === 'number') {
+    return row.patientExaminationFk
+  }
+  if (typeof row.patientExamination === 'number') {
+    return row.patientExamination
+  }
+  if (row.patientExamination && typeof row.patientExamination === 'object') {
+    const nestedId = row.patientExamination.id
+    if (typeof nestedId === 'number') {
+      return nestedId
+    }
+  }
+  return null
+}
+
+function statusBadgeClass(status?: string | null): string {
+  return reportStatusBadgeClass(status)
+}
+
+async function loadReports() {
+  loading.value = true
+  errorMessage.value = null
+  try {
+    const response = await axiosInstance.get<unknown>(r(endpoints.report.patientExaminationReports))
+    items.value = parseReportListPayload(response.data)
+  } catch (e: unknown) {
+    errorMessage.value = reportingApiErrorMessage(e, 'Fehler beim Laden der Arbeitsliste.')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  await loadReports()
+})
+</script>

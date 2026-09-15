@@ -1,40 +1,50 @@
-import { defineStore } from 'pinia';
-import { computed, ref, type ComputedRef } from 'vue';
+import { defineStore } from 'pinia'
+import { computed, ref, type ComputedRef } from 'vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('media-type-store')
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
 
-export type MediaType = 'pdf' | 'video' | 'unknown';
+export type MediaScope = 'pdf' | 'video' | 'meta' | 'unknown'
+export type MediaKey = `${MediaScope}:${number}`
+export type MediaType = 'pdf' | 'video' | 'unknown'
 
-export interface MediaItem {
-  id: number;
-  mediaType: MediaType;
-  // For PDFs
-  pdfStreamUrl?: string;
-  pdfUrl?: string;
-  // For Videos  
-  videoUrl?: string;
-  // Common metadata
-  filename?: string;
-  fileSize?: number;
-  // reportMeta can contain additional media indicators
-  reportMeta?: {
-    pdfUrl?: string;
-    file?: string;
-    [key: string]: any;
-  };
-  // Processing state tracking
-  lastStatusCheck?: number;
-  isProcessingLocked?: boolean;
-  anonymizationStatus?: string;
+export type MediaItem = {
+  id: number
+  scope?: MediaScope
+  mediaType?: MediaType
+  filename?: string
+  rawStreamUrl?: string
+  processedStreamUrl?: string
 }
 
-export interface MediaTypeConfig {
-  icon: string;
-  badgeClass: string;
-  displayName: string;
-  supportedExtensions: string[];
+type MediaTypeConfig = {
+  icon: string
+  badgeClass: string
+  displayName: string
+  supportedExtensions: string[]
+}
+
+function makeKey(scope: MediaScope, id: number): MediaKey {
+  if (!Number.isSafeInteger(id) || id < 0) {
+    throw new TypeError('Media key requires a non-negative integer identifier')
+  }
+  const key = [scope, String(id)].join(':')
+  if (!isMediaKey(key)) {
+    throw new TypeError('Media key does not match the canonical format')
+  }
+  return key
+}
+
+function isMediaKey(value: string): value is MediaKey {
+  return /^(?:pdf|video|meta|unknown):\d+$/.test(value)
+}
+
+function isMediaType(value: unknown): value is MediaType {
+  return value === 'pdf' || value === 'video' || value === 'unknown'
 }
 
 /* ------------------------------------------------------------------ */
@@ -42,261 +52,282 @@ export interface MediaTypeConfig {
 /* ------------------------------------------------------------------ */
 
 export const useMediaTypeStore = defineStore('mediaType', () => {
-  
-  /* ---------------------------------------------------------------- */
-  /* State                                                            */
-  /* ---------------------------------------------------------------- */
-  
-  const currentItem = ref<MediaItem | null>(null);
-  
-  /* ---------------------------------------------------------------- */
-  /* Media Type Configuration                                         */
-  /* ---------------------------------------------------------------- */
-  
+  // Current “focused” item (usually set before navigating)
+  const currentItem = ref<MediaItem | null>(null)
+
+  // Registries
+  const typeByKey = ref<Map<MediaKey, MediaType>>(new Map())
+  const itemsByKey = ref<Map<MediaKey, MediaItem>>(new Map())
+
+  /* ----------------------------- Seeding --------------------------- */
+
+  // Call this once after fetchOverview() in the overview component
+  function seedTypesFromOverview(items: Array<{ id: number; mediaType?: string }>) {
+    for (const overviewItem of items) {
+      const rawMediaType = (overviewItem.mediaType ?? '').toLowerCase()
+      const mediaType: MediaType =
+        rawMediaType === 'pdf' ? 'pdf' : rawMediaType === 'video' ? 'video' : 'unknown'
+      if (mediaType !== 'unknown') {
+        rememberType(overviewItem.id, mediaType, mediaType)
+      }
+    }
+  }
+
+  /* ------------------------- Type registry ------------------------- */
+
+  function rememberType(id: number, type: MediaType, scope?: MediaScope) {
+    const mediaScope: MediaScope = scope ?? type
+    // allow storing by scope even if type is unknown (but don’t store an 'unknown' type value)
+    if (mediaScope === 'unknown') {
+      return
+    }
+
+    const key = makeKey(mediaScope, id)
+    // If type is unknown, don’t overwrite an existing concrete type
+    const existing = typeByKey.value.get(key)
+    const toStore: MediaType = type === 'unknown' ? (existing ?? 'unknown') : type
+    if (toStore === 'unknown') {
+      return
+    }
+
+    typeByKey.value.set(key, toStore)
+    try {
+      sessionStorage.setItem(`mediaType:${key}`, toStore)
+    } catch {
+      // Session persistence is optional; the in-memory registry remains authoritative.
+    }
+  }
+
+  function getType(id: number, scope?: MediaScope): MediaType {
+    if (scope) {
+      const key = makeKey(scope, id)
+      const mediaType = typeByKey.value.get(key)
+      if (mediaType) {
+        return mediaType
+      }
+      try {
+        const fromSession: unknown = sessionStorage.getItem(`mediaType:${key}`)
+        logger.debug('session-type-read', {
+          operation: 'read',
+          outcome: isMediaType(fromSession) ? 'accepted' : 'ignored'
+        })
+        if (isMediaType(fromSession)) {
+          typeByKey.value.set(key, fromSession)
+          return fromSession
+        }
+      } catch {
+        // Missing or inaccessible session storage falls back to an unknown media type.
+      }
+      return 'unknown'
+    } else {
+      return 'unknown'
+    }
+  }
+
+  function setCurrentByKey(scope: MediaScope, id: number) {
+    const type = getType(id, scope)
+    setCurrentItem({ id, scope, mediaType: type })
+    logger.debug('current-item-selected', {
+      operation: 'select',
+      mediaType: type
+    })
+    logger.debug('current-item-state-updated', { state: 'selected' })
+  }
+
+  function getAllTypes(id: number): MediaType[] {
+    const mediaTypes = new Set<MediaType>()
+    const scopes: MediaScope[] = ['video', 'pdf', 'meta']
+    for (const mediaScope of scopes) {
+      const mediaType = getType(id, mediaScope)
+      if (mediaType !== 'unknown') {
+        mediaTypes.add(mediaType)
+      }
+    }
+    return [...mediaTypes]
+  }
+
+  function resolveType(id: number, hint?: 'prefer-video' | 'prefer-pdf'): MediaType {
+    const types = getAllTypes(id)
+    if (types.length === 1) {
+      return types[0]
+    }
+    if (types.length > 1) {
+      if (hint === 'prefer-video' && types.includes('video')) {
+        return 'video'
+      }
+      if (hint === 'prefer-pdf' && types.includes('pdf')) {
+        return 'pdf'
+      }
+    }
+    return 'unknown'
+  }
+
+  /* ----------------------- Item/URL registry ----------------------- */
+
+  function setItem(scope: MediaScope, item: MediaItem) {
+    const key = makeKey(scope, item.id)
+    itemsByKey.value.set(key, { ...item, scope })
+  }
+
+  function getItem(scope: MediaScope, id: number): MediaItem | undefined {
+    const key = makeKey(scope, id)
+    return itemsByKey.value.get(key)
+  }
+
+  function getRawStreamUrl(scope: MediaScope, id: number): string | undefined {
+    return getItem(scope, id)?.rawStreamUrl
+  }
+
+  function getProcessedStreamUrl(scope: MediaScope, id: number): string | undefined {
+    return getItem(scope, id)?.processedStreamUrl
+  }
+
+  /* ---------------------------- Config ----------------------------- */
+
   const mediaTypeConfigs: Record<MediaType, MediaTypeConfig> = {
     pdf: {
-      icon: 'fas fa-file-pdf text-danger',
+      icon: 'ni ni-single-copy-04 text-danger',
       badgeClass: 'bg-danger',
       displayName: 'PDF',
       supportedExtensions: ['.pdf']
     },
     video: {
-      icon: 'fas fa-video text-primary', 
+      icon: 'ni ni-button-play text-primary',
       badgeClass: 'bg-primary',
       displayName: 'Video',
       supportedExtensions: ['.mp4', '.avi', '.mov', '.mkv', '.webm']
     },
     unknown: {
-      icon: 'fas fa-question-circle text-muted',
+      icon: 'ni ni-user-run text-muted',
       badgeClass: 'bg-secondary',
       displayName: 'Unbekannt',
       supportedExtensions: []
     }
-  };
+  }
 
-  /* ---------------------------------------------------------------- */
-  /* Computed Properties                                              */
-  /* ---------------------------------------------------------------- */
+  /* --------------------------- Computed ---------------------------- */
 
-  /**
-   * Determines the media type of the current item based on available properties
-   */
   const currentMediaType: ComputedRef<MediaType> = computed(() => {
-    if (!currentItem.value) return 'unknown';
-    
-    return detectMediaType(currentItem.value);
-  });
-
-  /**
-   * Whether current item is a PDF
-   */
-  const isPdf = computed(() => currentMediaType.value === 'pdf');
-
-  /**
-   * Whether current item is a video
-   */
-  const isVideo = computed(() => currentMediaType.value === 'video');
-
-  /**
-   * Whether current item has unknown media type
-   */
-  const isUnknown = computed(() => currentMediaType.value === 'unknown');
-
-  /**
-   * Get the appropriate source URL for the current media type
-   */
-  const currentMediaUrl = computed(() => {
-    if (!currentItem.value) return undefined;
-
-    if (isPdf.value) {
-      return getPdfUrl(currentItem.value);
+    const focusedItem = currentItem.value
+    if (!focusedItem) {
+      return 'unknown'
     }
-    
-    if (isVideo.value) {
-      return getVideoUrl(currentItem.value);
-    }
+    return detectMediaType(focusedItem)
+  })
 
-    return undefined;
-  });
+  const isPdf = computed(() => currentMediaType.value === 'pdf')
+  const isVideo = computed(() => currentMediaType.value === 'video')
+  const isUnknown = computed(() => currentMediaType.value === 'unknown')
 
-  /**
-   * Get the configuration for the current media type
-   */
-  const currentMediaConfig = computed(() => {
-    return mediaTypeConfigs[currentMediaType.value];
-  });
+  const currentMediaConfig = computed(() => mediaTypeConfigs[currentMediaType.value])
 
-  /* ---------------------------------------------------------------- */
-  /* Methods                                                          */
-  /* ---------------------------------------------------------------- */
+  /* ---------------------------- Methods ---------------------------- */
 
-  /**
-   * Detect media type from item properties with correct priority order
-   */
+  function mediaTypeFromFilename(filename: string | undefined): MediaType {
+    if (!filename) return 'unknown'
+    const extension = `.${filename.toLowerCase().split('.').pop() || ''}`
+    if (mediaTypeConfigs.video.supportedExtensions.includes(extension)) return 'video'
+    if (mediaTypeConfigs.pdf.supportedExtensions.includes(extension)) return 'pdf'
+    return 'unknown'
+  }
+
+  function mediaTypeFromScopedRegistry(item: MediaItem): MediaType {
+    if (!item.scope || item.scope === 'unknown') return 'unknown'
+    const resolved = getType(item.id, item.scope)
+    logger.debug('registry-type-resolved', {
+      operation: 'resolve',
+      mediaType: resolved
+    })
+    return resolved
+  }
+
+  // Keep this pure; no fetching or IO here.
   function detectMediaType(item: MediaItem): MediaType {
-    // 1. Explicit mediaType property check
     if (item.mediaType && item.mediaType !== 'unknown') {
-      return item.mediaType;
+      return item.mediaType
+    }
+    // 1) If scope is known, prefer the registry `(scope,id)`
+    const scoped = mediaTypeFromScopedRegistry(item)
+    if (scoped !== 'unknown') return scoped
+
+    // 2) Try explicit field
+
+    // 3) try by filename
+    const filenameType = mediaTypeFromFilename(item.filename)
+    if (filenameType !== 'unknown') return filenameType
+    // 3) Ambiguous registry lookup by id
+    const remembered = getType(item.id)
+    if (remembered !== 'unknown') {
+      return remembered
     }
 
-    // 2. Video indicators first (to fix the priority issue)
-    if (item.videoUrl || (item.reportMeta?.file && !item.reportMeta?.pdfUrl)) {
-      return 'video';
-    }
-
-    // 3. PDF indicators second
-    if (item.pdfStreamUrl || item.pdfUrl || item.reportMeta?.pdfUrl) {
-      return 'pdf';
-    }
-
-    // 4. Fallback by filename extension
-    if (item.filename) {
-      const extension = item.filename.toLowerCase().split('.').pop();
-      if (extension) {
-        // Check video extensions first
-        if (mediaTypeConfigs.video.supportedExtensions.some(ext => ext.includes(extension))) {
-          return 'video';
-        }
-        // Then check PDF extensions
-        if (mediaTypeConfigs.pdf.supportedExtensions.some(ext => ext.includes(extension))) {
-          return 'pdf';
-        }
-      }
-    }
-
-    return 'unknown';
+    return 'unknown'
   }
 
-  /**
-   * Get PDF URL with fallback priority
-   */
-  function getPdfUrl(item: MediaItem): string | undefined {
-    return item.pdfStreamUrl || item.pdfUrl || item.reportMeta?.pdfUrl;
-  }
-
-  /**
-   * Get video URL with fallback priority
-   */
-  function getVideoUrl(item: MediaItem): string | undefined {
-    return item.videoUrl || item.reportMeta?.file;
-  }
-
-  /**
-   * Set the current media item
-   */
   function setCurrentItem(item: MediaItem | null): void {
-    currentItem.value = item;
+    currentItem.value = item
   }
 
-  /**
-   * Update the current item's properties
-   */
   function updateCurrentItem(updates: Partial<MediaItem>): void {
     if (currentItem.value) {
-      currentItem.value = { ...currentItem.value, ...updates };
+      currentItem.value = { ...currentItem.value, ...updates }
     }
   }
 
-  /**
-   * Clear the current item
-   */
   function clearCurrentItem(): void {
-    currentItem.value = null;
+    currentItem.value = null
   }
 
-  /**
-   * Get media type configuration by type
-   */
   function getMediaTypeConfig(mediaType: MediaType): MediaTypeConfig {
-    return mediaTypeConfigs[mediaType];
+    return mediaTypeConfigs[mediaType]
   }
 
-  /**
-   * Check if file extension is supported by any media type
-   */
   function isSupportedExtension(filename: string): boolean {
-    const extension = `.${filename.toLowerCase().split('.').pop()}`;
-    return Object.values(mediaTypeConfigs).some(config => 
-      config.supportedExtensions.includes(extension)
-    );
+    const extension = `.${filename.toLowerCase().split('.').pop() || ''}`
+    return Object.values(mediaTypeConfigs).some((c) => c.supportedExtensions.includes(extension))
   }
 
-  // Legacy functions for compatibility (these should be removed in future)
+  // Legacy compatibility (icons/badges)
   function getMediaTypeIcon(mediaType: MediaType): string {
-    return mediaTypeConfigs[mediaType]?.icon || mediaTypeConfigs.unknown.icon;
+    return mediaTypeConfigs[mediaType].icon
   }
-
   function getMediaTypeBadgeClass(mediaType: MediaType): string {
-    return mediaTypeConfigs[mediaType]?.badgeClass || mediaTypeConfigs.unknown.badgeClass;
+    return mediaTypeConfigs[mediaType].badgeClass
   }
-
-  /* ---------------------------------------------------------------- */
-  /* Return Store Interface                                           */
-  /* ---------------------------------------------------------------- */
 
   return {
     // State
     currentItem,
-    
+
     // Computed
     currentMediaType,
     isPdf,
     isVideo,
     isUnknown,
-    currentMediaUrl,
     currentMediaConfig,
-    
-    // Methods
+
+    // Type registry
+    seedTypesFromOverview,
+    rememberType,
+    getType,
+    setCurrentByKey,
+    getAllTypes,
+    resolveType,
+
+    // Item registry
+    setItem,
+    getItem,
+    getRawStreamUrl,
+    getProcessedStreamUrl,
+
+    // Utils
     detectMediaType,
-    getPdfUrl,
-    getVideoUrl,
     setCurrentItem,
     updateCurrentItem,
     clearCurrentItem,
     getMediaTypeConfig,
     isSupportedExtension,
-    
-    // Legacy compatibility methods
     getMediaTypeIcon,
     getMediaTypeBadgeClass
-  };
-});
-
-/* ------------------------------------------------------------------ */
-/* Standalone Utility Functions                                      */
-/* ------------------------------------------------------------------ */
-
-/**
- * Standalone function to detect media type without store
- */
-export function detectMediaTypeStandalone(item: MediaItem): MediaType {
-  // Check for explicit mediaType property first
-  if (item.mediaType && item.mediaType !== 'unknown') {
-    return item.mediaType;
   }
-
-  // Check for video indicators first (corrected priority)
-  if (item.videoUrl || (item.reportMeta?.file && !item.reportMeta?.pdfUrl)) {
-    return 'video';
-  }
-
-  // Check for PDF indicators second
-  if (item.pdfStreamUrl || item.pdfUrl || item.reportMeta?.pdfUrl) {
-    return 'pdf';
-  }
-
-  return 'unknown';
-}
-
-/**
- * Standalone function to get appropriate CSS classes
- */
-export function getMediaTypeClasses(mediaType: MediaType): { icon: string; badge: string } {
-  const configs: Record<MediaType, { icon: string; badge: string }> = {
-    pdf: { icon: 'fas fa-file-pdf text-danger', badge: 'bg-danger' },
-    video: { icon: 'fas fa-video text-primary', badge: 'bg-primary' },
-    unknown: { icon: 'fas fa-question-circle text-muted', badge: 'bg-secondary' }
-  };
-  
-  return configs[mediaType];
-}
+})

@@ -1,0 +1,174 @@
+schema_version: '1.0'
+id: frontend_string_boundary_safety
+name: Frontend String Boundary Safety
+description: Ensure values rendered, logged, routed, serialized, or used as identifiers are converted
+  to strings explicitly and cannot degrade into ambiguous object representations.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-professionalism
+    changed_at: '2026-08-04T17:24:38.645465Z'
+    note: 'Completed 2026-08-04: both string-boundary inventories reduced from 135 to 0; strict baseline
+      pruned to 291; lint, both typechecks, 89 files/541 tests, and production build pass.'
+source_documents:
+- path: frontend/README.md
+  disposition: reference
+  note: Frontend quality-gate and strict-baseline guidance.
+definition_of_done:
+- id: reproducible_string_inventory
+  category: requirements
+  title: String-boundary scope and baseline are reproducible
+  acceptance:
+  - The inventory covers first-party TypeScript and Vue files under frontend/src, frontend/tests, and
+    frontend/cypress.
+  - Production, unit/integration-test, and Cypress findings are reported separately.
+  - The inventory includes restrict-template-expressions and no-base-to-string.
+  - Generated output, dependencies, coverage, and legacy frontend trees are excluded.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the documented unsuppressed ESLint Node API inventory and compare its scope and
+      rule totals with the checked-in strict baseline.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run lint:string-inventory => total 0; production 0; test 0; Cypress
+        0
+    - kind: document
+      reference: frontend/scripts/string-lint-inventory.mjs
+    note: 'Initial inventory: 135 findings across 53 files (107 production, 28 test, 0 Cypress). Final
+      Node API inventory: 0 findings for both string-boundary rules in every scope.'
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:24:08.382841Z'
+- id: validated_unknown_values
+  category: security
+  title: Unknown API values cannot silently stringify as objects
+  acceptance:
+  - Unknown response values are narrowed to supported scalar types before conversion.
+  - Invalid object, array, symbol, and function values fail validation or use an explicit domain fallback.
+  - API identifiers, filenames, paths, template names, schema versions, and clause values never become
+    implicit '[object Object]' strings.
+  - Negative tests cover malformed boundary values where a production parser changes.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review every no-base-to-string migration and run focused malformed-payload tests.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'anonymizationMetricsApi, reportTemplateBuilderApi, reportTemplatesApi: malformed object
+        tests pass'
+    - kind: review
+      reference: Reviewed all no-base-to-string call sites
+    note: All seven no-base-to-string findings removed. Builder text fields reject malformed objects;
+      metrics identifiers/schema versions and validator summaries use explicit tested domain fallbacks
+      and never emit [object Object].
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:24:09.891661Z'
+- id: explicit_ui_and_log_formatting
+  category: functionality
+  title: UI, route, error, and log strings use deliberate formatting
+  acceptance:
+  - Numeric interpolation uses explicit locale-neutral conversion unless the existing UX requires locale
+    formatting.
+  - Optional and union values are narrowed before interpolation so undefined, arrays, and objects cannot
+    leak into user-visible text or URLs.
+  - Existing units, precision, route semantics, filenames, and stable test selectors remain unchanged.
+  - Clinical workflow and anonymization status terminology remains unchanged.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review migrated production call sites and run their focused rendering, routing, and
+      serialization tests.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Delegated focused production verification: 28 files, 154 tests passed'
+    - kind: review
+      reference: Reviewed production UI, route, store, utility, and API conversions
+    note: All 107 production findings removed with explicit scalar formatting. Numeric precision, units,
+      filenames, identifiers, clinical/anonymization terminology, and existing routes are preserved; repeated
+      route parameters now fail safely to case setup.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:24:11.299589Z'
+- id: typed_test_fixtures
+  category: testing
+  title: Test fixtures model string boundaries explicitly
+  acceptance:
+  - Dynamic fixture keys, selectors, URLs, and assertion messages convert non-string values explicitly.
+  - Test-only conversions preserve production payload shape and do not weaken types or assertions.
+  - Application and component-test TypeScript configurations pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review migrated test helpers, run focused Vitest suites, and run both frontend type-check
+      commands.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Delegated test slice: 13 files, 134 tests passed'
+    - kind: command
+      reference: Both vue-tsc configurations exit 0
+    note: All 28 test findings removed using explicit fixture identifier, URL, selector, date, and message
+      conversions without weakening assertions or payload shapes.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:24:12.486828Z'
+- id: automated_string_gate
+  category: operations
+  title: Strict automation prevents implicit string regressions
+  acceptance:
+  - ESLint enforces restrict-template-expressions and no-base-to-string at error severity with type information.
+  - The checked-in suppression baseline contains no entries for either string-boundary rule.
+  - Normal lint is non-mutating and rejects new or stale findings.
+  - CI pairs strict lint with application/test type checking, unit tests, and the production build.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect effective ESLint configuration, prune the baseline, and run lint, both type
+      checks, the complete unit suite, and the production build.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: lint, both typechecks, 89-file/541-test suite, and production build exit 0
+    - kind: command
+      reference: npm run lint:string-inventory => 0
+    note: 'Both rules remain error-level under typed ESLint. Suppression baseline has zero string-rule
+      entries and pruned from 426 to 291 diagnostics across 69 files: 181 production, 110 test, 0 Cypress.'
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:24:13.896254Z'
+- id: contributor_guidance
+  category: documentation
+  title: Contributors have actionable string-boundary guidance
+  acceptance:
+  - Frontend documentation distinguishes explicit scalar formatting from validation of unknown values.
+  - Guidance prohibits relying on default object stringification for identifiers, routes, logs, or user-visible
+    content.
+  - The documented ratchet workflow preserves separate production, test, and Cypress counts.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review frontend README guidance against the implemented patterns and quality commands.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/README.md#string-boundaries
+    note: README now distinguishes explicit known-scalar formatting from validation of unknown values,
+      prohibits default object stringification, and documents separate scope inventory reporting.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:24:15.277707Z'
