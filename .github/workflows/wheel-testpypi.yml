@@ -26,6 +26,8 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "22"
+  # npm's OpenAPI exporter must use the environment installed by uv sync.
+  PYTHON: ${{ github.workspace }}/.venv/bin/python
   DJANGO_SETTINGS_MODULE: lx_annotate.settings.settings_test
 
 jobs:
@@ -114,7 +116,7 @@ jobs:
 
       - name: Run backend static checks
         run: |
-          uv run --no-sync mypy lx_annotate
+          uv run --no-sync mypy lx_annotate --show-traceback
           uv run --no-sync ruff check lx_annotate tests
           uv run --no-sync ruff format --check lx_annotate tests
 

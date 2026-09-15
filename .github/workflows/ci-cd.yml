@@ -17,6 +17,8 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "22"
+  # npm's OpenAPI exporter must use the environment installed by uv sync.
+  PYTHON: ${{ github.workspace }}/.venv/bin/python
   DJANGO_SETTINGS_MODULE: lx_annotate.settings.settings_test
   DJANGO_SETTINGS_MODULE_PRODUCTION: ${{ vars.DJANGO_SETTINGS_MODULE_PRODUCTION || 'lx_annotate.settings.settings_prod' }}
   DJANGO_ENV: ${{ vars.DJANGO_ENV || 'production' }}
@@ -32,7 +34,7 @@ env:
   DJANGO_DB_USER: ${{ vars.DJANGO_DB_USER || 'lx_annotate' }}
   DJANGO_DB_HOST: ${{ vars.DJANGO_DB_HOST || 'localhost' }}
   DJANGO_DB_PORT: ${{ vars.DJANGO_DB_PORT || '5432' }}
-  DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+  # settings_test supplies its isolated key; an empty secret overrides setdefault.
   DJANGO_DB_PASSWORD: ${{ secrets.DJANGO_DB_PASSWORD }}
   OIDC_RP_CLIENT_ID: ${{ vars.OIDC_RP_CLIENT_ID || 'lx-annotate-frontend' }}
   OIDC_RP_CLIENT_SECRET: ${{ secrets.OIDC_RP_CLIENT_SECRET }}
@@ -91,9 +93,22 @@ jobs:
 
       - name: Run backend static checks
         run: |
-          uv run --no-sync mypy lx_annotate
+          uv run --no-sync mypy lx_annotate --show-traceback
           uv run --no-sync ruff check lx_annotate tests
           uv run --no-sync ruff format --check lx_annotate tests
+
+      - name: Set up Node.js for API contract checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies for API contract checks
+        run: npm --prefix frontend ci
+
+      - name: Check generated API contracts against the backend
+        run: npm --prefix frontend run typegen:check
 
       - name: Run backend tests with coverage gate
         run: >-
@@ -131,7 +146,8 @@ jobs:
 
       - name: Run frontend type-check
         run: |
-          npm --prefix frontend run type-check
+          # API freshness is checked in backend-tests, which installs Django.
+          npm --prefix frontend run type-check:source
           npm --prefix frontend run type-check:component-tests
 
       - name: Run frontend lint

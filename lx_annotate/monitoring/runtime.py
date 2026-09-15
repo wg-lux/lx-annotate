@@ -5,7 +5,14 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from .contracts import MonitoringCheck, MonitoringConfiguration, StorageLocation
+from pydantic import JsonValue
+
+from .contracts import (
+    CheckStatus,
+    MonitoringCheck,
+    MonitoringConfiguration,
+    StorageLocation,
+)
 
 
 def storage_check(
@@ -19,7 +26,7 @@ def storage_check(
     writable = exists and os.access(
         location.path, os.W_OK | os.X_OK, effective_ids=True
     )
-    metadata = {
+    metadata: dict[str, JsonValue] = {
         "exists": exists,
         "readable": readable,
         "writable": writable,
@@ -29,7 +36,7 @@ def storage_check(
         "error_free_percent": config.disk_error_free_percent,
         "write_check": "permissions_and_mount_flags",
     }
-    status = "ok"
+    status: CheckStatus = "ok"
     summary = "Storage is accessible."
     if exists:
         usage = os.statvfs(location.path)
@@ -114,6 +121,7 @@ def service_checks(
         else {}
     )
     results: list[MonitoringCheck] = []
+    status: CheckStatus
     for service in config.services:
         state = observed.get(service.unit)
         if state is None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime
-from functools import lru_cache
+from functools import lru_cache, partial
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Callable
@@ -268,7 +268,7 @@ def build_monitoring_snapshot() -> MonitoringSnapshot:
             _guard(
                 f"storage.{location.key}",
                 now,
-                lambda location=location: storage_check(location, config, now),
+                partial(storage_check, location, config, now),
                 required=location.required,
             )
         )
@@ -294,9 +294,7 @@ def build_monitoring_snapshot() -> MonitoringSnapshot:
                     _guard(
                         f"processing.{source.key}",
                         now,
-                        lambda source=source: processing_check(
-                            connection, source, config, now
-                        ),
+                        partial(processing_check, connection, source, config, now),
                     )
                 )
     except Exception:

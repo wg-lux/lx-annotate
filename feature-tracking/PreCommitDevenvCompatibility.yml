@@ -1,7 +1,7 @@
 schema_version: '1.0'
 id: pre_commit_devenv_compatibility
 name: Pre-Commit Devenv Compatibility
-description: Keep pre-commit hooks usable after devenv recreates the Python environment.
+description: Keep pre-commit hooks and CI checks usable with their installed Python environments.
 owners:
 - lx-annotate maintainers
 production_critical: false
@@ -10,6 +10,50 @@ tracking:
   history: []
 source_documents: []
 definition_of_done:
+- id: ci_python_tooling
+  category: testing
+  title: CI static checks use compatible Python tooling and test settings
+  acceptance:
+  - CI passes the uv environment interpreter to npm API generation via PYTHON.
+  - The Node-only frontend job checks source types; backend-tests verifies API freshness.
+  - Test settings initialize without an empty CI DJANGO_SECRET_KEY overriding the test key.
+  - Only django-stubs supplies Django stubs for the configured mypy plugin.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review both GitHub workflows, npm scripts and locked typing dependencies; run frontend
+      type-check, mypy, Ruff and the affected backend tests.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm --prefix frontend run type-check: exit 0; API freshness, vue-tsc and ESLint passed
+        with PYTHON set to the installed interpreter'
+    - kind: command
+      reference: 'npm --prefix frontend run type-check:component-tests: exit 0'
+    - kind: command
+      reference: 'uv run --no-sync mypy lx_annotate --show-traceback: exit 0, no issues in 103 files'
+    - kind: command
+      reference: 'pytest tests/system/test_admin_monitoring.py tests/api/test_admin_monitoring_api.py
+        tests/api/test_video_transcode_jobs.py tests/services/test_video_transcode_worker.py
+        tests/system/test_config_unit.py tests/system/test_secretspec_environment_contract.py -q:
+        133 passed'
+    - kind: command
+      reference: 'pytest tests/system/test_config_unit.py tests/system/test_secretspec_environment_contract.py
+        tests/system/test_openapi_type_generation.py tests/system/test_release_evidence_workflow.py -q:
+        41 passed'
+    - kind: command
+      reference: 'ruff check lx_annotate tests: passed; ruff format --check lx_annotate tests: 222 files
+        already formatted; uv lock --check and workflow YAML/bootstrap-order validation: passed'
+    note: Local verification used the existing devenv interpreter, with DJANGO_SECRET_KEY unset and
+      DJANGO_SECRET_KEY_FILE empty to isolate the machine's configured secret-file handle. Removed
+      django-types and reinstalled the locked django-stubs 6.0.5 to repair overlapping installed files.
+      Fixed exposed type annotations, bound monitoring callbacks with functools.partial, and explicitly
+      re-exported REPORTING_LLM. Existing schema-export warnings remain visible. Hosted GitHub Actions
+      and the full backend coverage suite were not run; this is not deployment approval.
+    assessed_by: codex-ci-tooling-20260915
+    assessed_at: '2026-09-15T12:09:23Z'
 - id: dependency_sync
   category: requirements
   title: Shell installs locked development dependencies

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
-    from django.contrib.auth.models import AbstractBaseUser
+    from django.contrib.auth.models import User
     from endoreg_db.models import VideoFile
 
 from django.conf import settings
@@ -137,7 +137,7 @@ def _dispatch(job_id: UUID) -> None:
 
 
 def _submit_video_transcode(
-    *, video: VideoFile, actor: AbstractBaseUser, option: str, idempotency_key: UUID
+    *, video: VideoFile, actor: User, option: str, idempotency_key: UUID
 ) -> tuple[VideoTranscodeJob, bool]:
     if option not in OPTIONS:
         raise TranscodeSubmissionError("invalid_transcode_option", 400)
@@ -177,7 +177,7 @@ def _submit_video_transcode(
 
 
 def submit_video_transcode(
-    *, video: VideoFile, actor: AbstractBaseUser, option: str, idempotency_key: UUID
+    *, video: VideoFile, actor: User, option: str, idempotency_key: UUID
 ) -> tuple[VideoTranscodeJob, bool]:
     try:
         return _submit_video_transcode(

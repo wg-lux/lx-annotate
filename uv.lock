@@ -943,18 +943,6 @@ wheels = [
 ]
 
 [[package]]
-name = "django-types"
-version = "0.24.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "types-psycopg2" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/d7/7b/8e05b8631fa7de84038d4f24fa57e983107aff889a6d88a9c40a21e15d1c/django_types-0.24.0.tar.gz", hash = "sha256:af903de8b9ee963b7594459a7a20cb8eaaab176ae2b3244ecaa089e0c570b0d1", size = 208426, upload-time = "2026-04-22T22:19:01.999Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/ab/f5c37ecc08c396df62579246597796697b58253c8b30206870e8d0f644d0/django_types-0.24.0-py3-none-any.whl", hash = "sha256:ddb478ca733e0dde5475118dd59ab340156980f9659fd92de2083326ae96100a", size = 379436, upload-time = "2026-04-22T22:19:03.368Z" },
-]
-
-[[package]]
 name = "django-vite"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1912,7 +1900,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "1.2.7"
+version = "1.2.8"
 source = { editable = "." }
 dependencies = [
     { name = "asgiref" },
@@ -1957,7 +1945,6 @@ dev = [
     { name = "black" },
     { name = "build" },
     { name = "django-stubs" },
-    { name = "django-types" },
     { name = "djangorestframework-types" },
     { name = "flake8" },
     { name = "furo" },
@@ -2006,7 +1993,6 @@ requires-dist = [
     { name = "django-modeltranslation", specifier = ">=0.19.16" },
     { name = "django-ninja", specifier = "==1.5.3" },
     { name = "django-stubs", marker = "extra == 'dev'", specifier = ">=5.2.8" },
-    { name = "django-types", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "django-vite", specifier = ">=3.0.6" },
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
@@ -5008,15 +4994,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a7/a7/e6aecc4b4eb59598829a3b5076a93aff291b4fdaa2ded25efc4e1f4d219c/typer_slim-0.24.0.tar.gz", hash = "sha256:f0ed36127183f52ae6ced2ecb2521789995992c521a46083bfcdbb652d22ad34", size = 4776, upload-time = "2026-02-16T22:08:51.2Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/24/5480c20380dfd18cf33d14784096dca45a24eae6102e91d49a718d3b6855/typer_slim-0.24.0-py3-none-any.whl", hash = "sha256:d5d7ee1ee2834d5020c7c616ed5e0d0f29b9a4b1dd283bdebae198ec09778d0e", size = 3394, upload-time = "2026-02-16T22:08:49.92Z" },
-]
-
-[[package]]
-name = "types-psycopg2"
-version = "2.9.21.20260724"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d8/29/09ca8f0ad16105193deabcaf8256059e361e9e37ff24551efd9c739e240b/types_psycopg2-2.9.21.20260724.tar.gz", hash = "sha256:db31031c37de823a2b21c787cb84832174fdda2a99a8b1af648206f19cc32f8c", size = 27644, upload-time = "2026-07-24T04:57:36.61Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/90/1e77eb76030bb5feb249ecb41cd7647c6ae831ec7bd2b61a61beecac4029/types_psycopg2-2.9.21.20260724-py3-none-any.whl", hash = "sha256:4f87890dd06cea99e3bb0536330ffc2a7320e69059dc1ee0e2c884ef2718f2b4", size = 24964, upload-time = "2026-07-24T04:57:35.703Z" },
 ]
 
 [[package]]

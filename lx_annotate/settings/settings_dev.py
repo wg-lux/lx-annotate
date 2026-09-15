@@ -19,7 +19,6 @@ from .settings_base import (
     MEDIA_ROOT,
     MEDIA_URL,
     MIDDLEWARE,
-    REPORTING_LLM,
     REST_FRAMEWORK,
     ROOT_URLCONF,
     SECRET_KEY,
@@ -30,6 +29,7 @@ from .settings_base import (
     STORAGES,
     TEMPLATES,
 )
+from .settings_base import REPORTING_LLM as REPORTING_LLM
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
