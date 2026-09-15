@@ -1,0 +1,97 @@
+schema_version: '1.0'
+id: latest_release_tracking
+name: Latest Published Release Tracking
+description: Report the latest published stable lx-annotate GitHub release in every CI/CD run.
+owners:
+- lx-annotate maintainers
+production_critical: false
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: release_summary
+  category: requirements
+  title: CI reports the latest published release
+  acceptance:
+  - Query GitHub's latest-release endpoint for the current repository with contents read permission.
+  - Show the release tag as the version, a clickable release link and publication timestamp in the run summary.
+  - Report no stable release when the endpoint returns 404 and repository access succeeds.
+  - Other API failures fail the reporting job visibly.
+  - Do not create releases, tags, version changes, dependency updates or deployment actions.
+  required: true
+  verification:
+    kind: manual
+    instructions: Validate workflow YAML and embedded JavaScript syntax; inspect read-only behavior and
+      independent job routing. Confirm the release summary in a hosted CI/CD run after merge.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: Workflow YAML, independent read-only job configuration and embedded JavaScript syntax
+        validated successfully with PyYAML and node --check.
+    note: Implemented in .github/workflows/ci-cd.yml for existing push, pull request and manual triggers.
+      Local syntax and configuration checks passed; the hosted GitHub Actions summary remains unverified.
+    assessed_by: codex-ci-tooling-20260915
+    assessed_at: '2026-09-15T12:51:38Z'
+- id: summary_rendering
+  category: functionality
+  title: Hosted CI displays the release summary
+  acceptance:
+  - The hosted run summary displays the release version and working link.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect a hosted CI/CD run after merge.
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+- id: workflow_validation
+  category: testing
+  title: Workflow syntax is valid
+  acceptance:
+  - Workflow YAML and embedded JavaScript parse successfully.
+  required: true
+  verification:
+    kind: manual
+    instructions: Parse the workflow with PyYAML and validate the script body using node --check.
+    timeout_seconds: 60
+  assessment:
+    status: not_assessed
+- id: read_only_access
+  category: security
+  title: Reporting uses read-only repository access
+  acceptance:
+  - The reporting job requests only contents read permission and executes no repository checkout.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect the latest-release job permissions and API calls.
+    timeout_seconds: 60
+  assessment:
+    status: not_assessed
+- id: independent_reporting
+  category: operations
+  title: Reporting is independent of build and deployment jobs
+  acceptance:
+  - Existing jobs do not depend on latest-release; lookup errors remain visible in its job status.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect job dependencies and API error handling.
+    timeout_seconds: 60
+  assessment:
+    status: not_assessed
+- id: scope_documented
+  category: documentation
+  title: Reporting scope and verification limits are recorded
+  acceptance:
+  - This YAML records triggers, stable-release semantics and hosted verification status.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review this tracking file against the workflow.
+    timeout_seconds: 60
+  assessment:
+    status: not_assessed

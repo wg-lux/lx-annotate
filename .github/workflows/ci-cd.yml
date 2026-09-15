@@ -61,6 +61,41 @@ env:
   VITE_KEYCLOAK_CLIENT_ID: ${{ vars.VITE_KEYCLOAK_CLIENT_ID || 'lx-annotate-frontend' }}
 
 jobs:
+  latest-release:
+    name: Latest Published Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Report latest published release
+        uses: actions/github-script@v9
+        with:
+          script: |
+            let release;
+            try {
+              ({ data: release } = await github.rest.repos.getLatestRelease(context.repo));
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              // Confirm repository access before treating 404 as no stable release.
+              await github.rest.repos.get(context.repo);
+              core.info('No published stable release is available.');
+              await core.summary
+                .addHeading('Latest published lx-annotate release')
+                .addRaw('No published stable release is available.', true)
+                .write();
+              return;
+            }
+
+            core.info(`Latest published release: ${release.tag_name} — ${release.html_url}`);
+            await core.summary
+              .addHeading('Latest published lx-annotate release')
+              .addLink(release.tag_name, release.html_url)
+              .addBreak()
+              .addRaw(`Published: ${release.published_at}`, true)
+              .write();
+
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest

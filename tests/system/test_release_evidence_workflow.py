@@ -102,3 +102,45 @@ def test_clean_checkout_installs_dependencies_before_generated_staticfiles() -> 
                     ):
                         assert install_index < index
                         assert command.strip().startswith("uv run --no-sync ")
+
+
+def test_tag_release_requires_successful_build_and_artifact_install() -> None:
+    workflow = yaml.safe_load(_workflow_text())
+    # PyYAML's YAML 1.1 loader reads the GitHub Actions "on" key as True.
+    assert workflow[True]["push"]["tags"] == ["v*"]
+    jobs = workflow["jobs"]
+    release = jobs["github-release"]
+    assert set(release["needs"]) == {"build-distribution", "test-artifact-install"}
+    assert "always()" not in release["if"]
+    assert "github.event_name == 'push'" in release["if"]
+    assert "startsWith(github.ref, 'refs/tags/v')" in release["if"]
+    assert release["permissions"] == {"contents": "write"}
+    assert all("checkout" not in step.get("uses", "") for step in release["steps"])
+    assert "github-release" in jobs["publish-pypi"]["needs"]
+    assert jobs["publish-pypi"]["if"] == release["if"]
+    assert jobs["publish-pypi"]["environment"] == "pypi"
+    assert jobs["publish-pypi"]["permissions"]["id-token"] == "write"
+
+
+def test_release_validation_and_publication_preserve_tested_tag() -> None:
+    jobs = yaml.safe_load(_workflow_text())["jobs"]
+    version_step = next(
+        step
+        for step in jobs["build-distribution"]["steps"]
+        if step.get("id") == "version"
+    )
+    assert "github.ref_type == 'tag'" in version_step["env"]["RELEASE_TAG"]
+    assert 'release_tag != f"v{base_version}"' in version_step["run"]
+    assert "re.fullmatch" in version_step["run"]
+    script = jobs["github-release"]["steps"][0]["with"]["script"]
+    assert "object.sha !== context.sha" in script
+    assert "github.rest.git.getTag" in script
+    assert script.index("github.rest.repos.getReleaseByTag") < script.index(
+        "github.rest.repos.createRelease"
+    )
+    assert "error.status !== 404 || context.eventName !== 'push'" in script
+    assert "target_commitish: context.sha" in script
+    assert "generate_release_notes: true" in script
+    assert "release.draft || release.prerelease" in script
+    assert "updateRef" not in script
+    assert "updateRelease" not in script
