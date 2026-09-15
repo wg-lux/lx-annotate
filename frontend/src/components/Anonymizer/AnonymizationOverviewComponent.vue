@@ -9,7 +9,7 @@
             data-test="repair-all-video-states"
             :disabled="isRefreshing || isRepairingVideoStates"
             title="Repariert ableitbare Datenbankzustände, ohne Annotationen zu löschen"
-            @click="repairAllVideoStates"
+            @click="repairAllVideoStates()"
           >
             {{ repairButtonLabel }}
           </button>
@@ -28,6 +28,15 @@
       </div>
 
       <div class="card-body">
+        <OverviewStorageSummary />
+        <OverviewTranscodePanel
+          :repairing="isRepairingVideoStates"
+          :refresh-token="transcodeRefreshToken"
+          @repair="repairAllVideoStates"
+        />
+        <p v-if="cancellationError" class="alert alert-warning" role="alert">
+          {{ cancellationError }}
+        </p>
         <div
           v-if="videoStateRepairMessage"
           class="alert alert-info"
@@ -182,21 +191,22 @@
             <tbody>
               <AnonymizationOverviewRow
                 v-for="file in availableFiles"
-                :key="`${file.mediaType}-${file.id}`"
+                :key="getFileKey(file)"
                 :file="file"
-                :processing="isProcessing(file.id)"
-                :retry-processing="processingFiles.has(file.id)"
-                :ready-for-validation="isReadyForValidation(file.id)"
+                :processing="isProcessing(file)"
+                :retry-processing="processingFiles.has(getFileKey(file))"
+                :ready-for-validation="file.anonymizationStatus === 'done_processing_anonymization'"
                 :icon-class="mediaStore.getMediaTypeIcon(file.mediaType)"
                 :media-type-badge-class="mediaStore.getMediaTypeBadgeClass(file.mediaType)"
                 @retry-import="retryUploadJob"
-                @repair-video="reimportVideo($event.id)"
-                @reimport-pdf="reimportPdf($event.id)"
-                @start-anonymization="startAnonymization($event.id)"
+                @cancel-import="cancelImport"
+                @repair-video="reimportVideo"
+                @reimport-pdf="reimportPdf"
+                @start-anonymization="startAnonymization"
                 @correct="correctFile"
                 @dismiss-import="dismissImport"
-                @delete="deleteFile($event.id)"
-                @validate="validateFile($event.id, $event.mediaType)"
+                @delete="deleteFile"
+                @validate="validateFile"
               />
             </tbody>
           </table>
@@ -279,15 +289,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore'
 import { useMediaTypeStore, type MediaItem } from '@/stores/mediaTypeStore'
 import { usePollingProtection } from '@/composables/usePollingProtection'
 import { useMediaManagement } from '@/api/mediaManagement'
+import { cancelAnonymizationImport, type ImportCancellationResponse, type TranscodeOption } from '@/api/anonymizationOperations'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 import AnonymizationOverviewRow from './AnonymizationOverviewRow.vue'
+import OverviewStorageSummary from './OverviewStorageSummary.vue'
+import OverviewTranscodePanel from './OverviewTranscodePanel.vue'
 import {
+  canCancelImport,
+  isAnonymizationProcessing,
+  isImportInterrupted,
   getFileDisplayName,
   getOriginalFileDeletionState,
   type OriginalFileDeletionState
@@ -309,11 +325,20 @@ const toMediaItem = (file: FileItem): MediaItem => ({
   filename: file.filename
 })
 
+const getFileKey = (file: FileItem): string => {
+  if (file.quarantineId) return `quarantine:${file.quarantineId}`
+  if (file.importOnly && file.uploadJob) return `import:${file.uploadJob.id}`
+  return `${file.mediaType}:${String(file.id)}`
+}
+
 // Local state
 const isRefreshing = ref(false)
 const isRepairingVideoStates = ref(false)
 const videoStateRepairMessage = ref('')
-const processingFiles = ref<Set<number>>(new Set())
+const transcodeRefreshToken = ref(0)
+let bulkTranscodeAttempt: { option: TranscodeOption; idempotencyKey: string; afterVideoId: number } | null = null
+const processingFiles = ref<Set<string>>(new Set())
+const cancellationError = ref('')
 const monitoringRefreshHandle = ref<ReturnType<typeof setTimeout> | null>(null)
 const tableScrollElement = ref<HTMLElement | null>(null)
 const overviewTableElement = ref<HTMLTableElement | null>(null)
@@ -323,10 +348,25 @@ const hasHorizontalOverflow = ref(false)
 const resourceTypeFilter = ref<'all' | FileItem['mediaType']>('all')
 const physicalStorageStateFilter = ref<'all' | OriginalFileDeletionState>('all')
 let tableResizeObserver: ResizeObserver | null = null
+let isMounted = false
+const isComponentMounted = () => isMounted
+let overviewRefresh: Promise<void> | null = null
+let monitoringRefreshFailed = false
 const MONITORING_REFRESH_INTERVAL_MS = 15000
 
 // Computed properties
 const overviewFiles = computed(() => anonymizationStore.overview)
+const ambiguousDeletionIds = computed(() => {
+  const mediaTypesById = new Map<number, FileItem['mediaType']>()
+  const ambiguousIds = new Set<number>()
+  for (const file of overviewFiles.value) {
+    if (file.importOnly || file.quarantined) continue
+    const existingType = mediaTypesById.get(file.id)
+    if (existingType && existingType !== file.mediaType) ambiguousIds.add(file.id)
+    mediaTypesById.set(file.id, file.mediaType)
+  }
+  return ambiguousIds
+})
 const availableFiles = computed(() =>
   overviewFiles.value.filter((file) => {
     const matchesResourceType =
@@ -372,31 +412,82 @@ const syncTableScroll = () => {
   }
 }
 
-const refreshOverview = async () => {
+const refreshOverview = (): Promise<void> => {
+  if (!isComponentMounted()) return Promise.resolve()
+  if (overviewRefresh) return overviewRefresh
   isRefreshing.value = true
-  try {
-    await anonymizationStore.fetchOverview()
-    mediaStore.seedTypesFromOverview(anonymizationStore.overview)
-    await nextTick()
-    updateStickyScrollbar()
-  } finally {
-    isRefreshing.value = false
+  overviewRefresh = (async () => {
+    try {
+      await anonymizationStore.fetchOverview()
+      monitoringRefreshFailed = Boolean(anonymizationStore.error)
+      if (!isComponentMounted()) return
+      mediaStore.seedTypesFromOverview(anonymizationStore.overview)
+      await nextTick()
+      if (isComponentMounted()) updateStickyScrollbar()
+    } catch (refreshError: unknown) {
+      monitoringRefreshFailed = true
+      runtimeLogger.error('monitoring-refresh-failed', refreshError)
+    } finally {
+      overviewRefresh = null
+      isRefreshing.value = false
+      scheduleMonitoringRefresh()
+    }
+  })()
+  return overviewRefresh
+}
+
+const repairWithTranscodes = async (option: TranscodeOption) => {
+  if (bulkTranscodeAttempt?.option !== option) {
+    bulkTranscodeAttempt = { option, idempotencyKey: crypto.randomUUID(), afterVideoId: 0 }
+  }
+  const attempt = bulkTranscodeAttempt
+  let queued = 0
+  let existing = 0
+  let rejected = 0
+  while (isComponentMounted()) {
+    const result = await anonymizationStore.repairAllVideoStates(false, { ...attempt })
+    if (!isComponentMounted() || !result) return
+    const submissions = result.transcodes
+    if (!submissions) {
+      videoStateRepairMessage.value = 'Der Server hat keine Transkodierungsaufträge bestätigt. Bitte den Serverstand prüfen.'
+      return
+    }
+    queued += submissions.queued
+    existing += submissions.existing
+    rejected += submissions.rejected
+    videoStateRepairMessage.value = `${String(queued)} Transkodierungen eingereiht, ${String(existing)} vorhandene Aufträge, ${String(rejected)} abgelehnt. Annotationen und Importquellen bleiben erhalten.`
+    transcodeRefreshToken.value += 1
+    const nextCursor = submissions.nextAfterVideoId
+    if (nextCursor === null) {
+      bulkTranscodeAttempt = null
+      return
+    }
+    if (!Number.isSafeInteger(nextCursor) || nextCursor <= attempt.afterVideoId) {
+      videoStateRepairMessage.value += ' Ungültiger Fortsetzungspunkt; Sammelauftrag wurde angehalten.'
+      return
+    }
+    attempt.afterVideoId = nextCursor
   }
 }
 
-const repairAllVideoStates = async () => {
+const repairAllVideoStates = async (option?: TranscodeOption) => {
+  if (isRepairingVideoStates.value) return
   isRepairingVideoStates.value = true
   videoStateRepairMessage.value = ''
   try {
+    if (option) {
+      await repairWithTranscodes(option)
+      return
+    }
     const result = await anonymizationStore.repairAllVideoStates(false)
-    if (!result) {
+    if (!isComponentMounted() || !result) {
       return
     }
     const mustReimport = result.items
       .filter((item) => item.status === 'reimport_required')
       .map((item) => `ID ${String(item.videoId)}${item.filename ? ` (${item.filename})` : ''}`)
     videoStateRepairMessage.value =
-      `${String(result.summary.repaired)} repariert, ${String(result.summary.consistent)} bereits konsistent. ` +
+      `${String(result.summary.repaired)} repariert, ${String(result.summary.consistent)} bereits konsistent, ${String(result.summary.blocked ?? 0)} blockiert. ` +
       (mustReimport.length
         ? `Neuimport erforderlich: ${mustReimport.join(', ')}. Annotationen wurden nicht gelöscht.`
         : 'Kein Neuimport erforderlich. Annotationen wurden nicht gelöscht.')
@@ -405,18 +496,12 @@ const repairAllVideoStates = async () => {
   }
 }
 
-const startAnonymization = async (fileId: number) => {
-  // Find the file to determine media type
-  const file = availableFiles.value.find((f) => f.id === fileId)
-  if (!file) {
-    runtimeLogger.warn('anonymization-file-missing')
-    return
-  }
-
-  const mediaType = file.mediaType === 'video' ? 'video' : 'pdf'
+const startAnonymization = async (file: FileItem) => {
+  const mediaType = file.mediaType
+  if (mediaType === 'unknown' || file.importOnly || file.quarantined) return
 
   // Use polling protection for start anonymization
-  const result = await pollingProtection.startAnonymizationSafeWithProtection(fileId, mediaType)
+  const result = await pollingProtection.startAnonymizationSafeWithProtection(file.id, mediaType)
 
   if (result) {
     // Refresh overview to get updated status
@@ -437,34 +522,16 @@ const correctFile = (file: FileItem) => {
   })
 }
 
-const isReadyForValidation = (fileId: number) => {
-  // Check if the file is ready for validation
-  const file = availableFiles.value.find((f) => f.id === fileId)
-  if (!file) {
-    return false
-  }
-
-  // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'done_processing_anonymization'
-}
-
-const validateFile = async (fileId: number, mediaType: string) => {
-  processingFiles.value.add(fileId)
-  if (!fileId) {
-    runtimeLogger.warn('validation-file-missing')
-    return
-  }
+const validateFile = async (file: FileItem) => {
+  if (!file.id || file.mediaType === 'unknown' || file.importOnly || file.quarantined) return
+  const fileId = file.id
+  const mediaType = file.mediaType
+  processingFiles.value.add(getFileKey(file))
 
   try {
     const result = await anonymizationStore.setCurrentForValidation(fileId, mediaType)
 
     if (result) {
-      // 🔧 use BOTH id and mediaType here to avoid choosing the wrong file when ids are the same (different media types)
-      const file = availableFiles.value.find((f) => f.id === fileId && f.mediaType === mediaType)
-      if (!file) {
-        runtimeLogger.warn('validation-file-type-mismatch')
-        return
-      }
       mediaStore.setCurrentItem(toMediaItem(file))
       const kind = file.mediaType
 
@@ -494,12 +561,13 @@ const validateFile = async (fileId: number, mediaType: string) => {
   } catch (error) {
     runtimeLogger.error('validation-navigation-failed', error)
   } finally {
-    processingFiles.value.delete(fileId)
+    processingFiles.value.delete(getFileKey(file))
   }
 }
 
-const reimportVideo = async (fileId: number) => {
-  processingFiles.value.add(fileId)
+const reimportVideo = async (file: FileItem) => {
+  const fileId = file.id
+  processingFiles.value.add(getFileKey(file))
   try {
     const success = await anonymizationStore.reimportVideo(fileId)
     if (success) {
@@ -511,12 +579,13 @@ const reimportVideo = async (fileId: number) => {
       runtimeLogger.warn('video-state-repair-rejected')
     }
   } finally {
-    processingFiles.value.delete(fileId)
+    processingFiles.value.delete(getFileKey(file))
   }
 }
 
-const reimportPdf = async (fileId: number) => {
-  processingFiles.value.add(fileId)
+const reimportPdf = async (file: FileItem) => {
+  const fileId = file.id
+  processingFiles.value.add(getFileKey(file))
   try {
     // Use the dedicated PDF reimport endpoint from the anonymization store
     const success = await anonymizationStore.reimportPdf(fileId)
@@ -530,7 +599,39 @@ const reimportPdf = async (fileId: number) => {
   } catch (error) {
     runtimeLogger.error('media-reimport-failed', error, { fileType: 'pdf' })
   } finally {
-    processingFiles.value.delete(fileId)
+    processingFiles.value.delete(getFileKey(file))
+  }
+}
+
+const applyCancellationAcknowledgment = (jobId: string, result: ImportCancellationResponse) => {
+  if (result.uploadJob.id !== jobId) throw new Error('Cancellation response identity mismatch')
+  for (const item of overviewFiles.value) {
+    if (item.uploadJob?.id === jobId) item.uploadJob = result.uploadJob
+  }
+}
+
+const cancelImport = async (file: FileItem) => {
+  const job = file.uploadJob
+  const operationKey = getFileKey(file)
+  if (!job || !canCancelImport(file) ||
+      processingFiles.value.has(operationKey)) return
+  const jobId = job.id
+  processingFiles.value.add(operationKey)
+  cancellationError.value = ''
+  try {
+    const result = await cancelAnonymizationImport(jobId)
+    if (!isComponentMounted()) return
+    // Apply only the server acknowledgment, including cancel_requested while a
+    // running worker is still finishing its current safe processing scope.
+    applyCancellationAcknowledgment(jobId, result)
+    await refreshOverview()
+  } catch (error: unknown) {
+    if (!isComponentMounted()) return
+    cancellationError.value = 'Abbruch konnte nicht bestätigt werden. Bitte den aktuellen Importstatus prüfen.'
+    runtimeLogger.error('import-cancellation-unconfirmed', error)
+    await refreshOverview()
+  } finally {
+    processingFiles.value.delete(operationKey)
   }
 }
 
@@ -538,12 +639,12 @@ const retryUploadJob = async (file: FileItem) => {
   if (!file.uploadJob) {
     return
   }
-  processingFiles.value.add(file.id)
+  processingFiles.value.add(getFileKey(file))
   try {
     await anonymizationStore.retryUploadJob(file.uploadJob.id)
     scheduleMonitoringRefresh()
   } finally {
-    processingFiles.value.delete(file.id)
+    processingFiles.value.delete(getFileKey(file))
   }
 }
 
@@ -558,19 +659,19 @@ const dismissImport = async (file: FileItem) => {
   ) {
     return
   }
-  processingFiles.value.add(file.id)
+  processingFiles.value.add(getFileKey(file))
   try {
     await anonymizationStore.dismissUploadJob(file.uploadJob.id)
   } finally {
-    processingFiles.value.delete(file.id)
+    processingFiles.value.delete(getFileKey(file))
   }
 }
 
-const deleteFile = async (fileId: number) => {
-  // Find the file for confirmation
-  const file = availableFiles.value.find((f) => f.id === fileId)
-  if (!file) {
-    runtimeLogger.warn('deletion-file-missing')
+const deleteFile = async (file: FileItem) => {
+  const fileId = file.id
+  if (ambiguousDeletionIds.value.has(fileId)) {
+    anonymizationStore.error =
+      'Löschen nicht möglich: Die Backend-API kann Video und PDF mit dieser ID nicht eindeutig zuordnen.'
     return
   }
 
@@ -582,7 +683,7 @@ const deleteFile = async (fileId: number) => {
     return
   }
 
-  processingFiles.value.add(fileId)
+  processingFiles.value.add(getFileKey(file))
   try {
     // Use the media management API to delete the file
     const result = await mediaManagement.deleteMediaFile(fileId)
@@ -596,37 +697,29 @@ const deleteFile = async (fileId: number) => {
   } catch (error) {
     runtimeLogger.error('media-deletion-failed', error, { fileType: file.mediaType })
   } finally {
-    processingFiles.value.delete(fileId)
+    processingFiles.value.delete(getFileKey(file))
   }
 }
 
-const isProcessing = (fileId: number) => {
-  // Find the file to determine media type
-  const file = availableFiles.value.find((f) => f.id === fileId)
-  if (!file) {
-    return false
-  }
-
-  const mediaType = mediaStore.detectMediaType(file)
-
-  // Check both local processing and polling protection
-  // Handle unknown media type by falling back to local processing check only
-  if (mediaType === 'unknown') {
-    return processingFiles.value.has(fileId)
+const isProcessing = (file: FileItem) => {
+  const mediaType = file.mediaType
+  const locallyProcessing = processingFiles.value.has(getFileKey(file))
+  if (mediaType === 'unknown' || file.importOnly || file.quarantined) {
+    return locallyProcessing || isUploadJobActive(file)
   }
 
   return (
-    processingFiles.value.has(fileId) ||
+    locallyProcessing ||
     isUploadJobActive(file) ||
     isHlsMaterializationActive(file) ||
-    anonymizationStore.isVideoReimportQueued(fileId) ||
-    !pollingProtection.canProcessMedia.value(fileId, mediaType)
+    (mediaType === 'video' && anonymizationStore.isVideoReimportQueued(file.id)) ||
+    !pollingProtection.canProcessMedia.value(file.id, mediaType)
   )
 }
 
 const isUploadJobActive = (file: FileItem) => {
   const status = (file.uploadJob?.status || '').toLowerCase()
-  return status === 'pending' || status === 'processing' || status === 'retrying'
+  return status === 'pending' || status === 'processing' || status === 'retrying' || status === 'cancel_requested'
 }
 
 const isHlsMaterializationActive = (file: FileItem) =>
@@ -636,21 +729,29 @@ const isHlsMaterializationActive = (file: FileItem) =>
   )
 
 const hasActiveMonitoringState = () =>
-  overviewFiles.value.some((file) => isUploadJobActive(file) || isHlsMaterializationActive(file))
+  overviewFiles.value.some((file) => isUploadJobActive(file) || isHlsMaterializationActive(file) ||
+    (file.uploadJob?.status !== 'cancelled' && isAnonymizationProcessing(file)))
 
 const scheduleMonitoringRefresh = () => {
-  if (!hasActiveMonitoringState() || monitoringRefreshHandle.value) {
+  if (!isComponentMounted() || overviewRefresh || monitoringRefreshHandle.value) {
+    return
+  }
+  if (!hasActiveMonitoringState() && !monitoringRefreshFailed) {
     return
   }
   monitoringRefreshHandle.value = setTimeout(() => {
     monitoringRefreshHandle.value = null
     void refreshOverview()
-      .then(scheduleMonitoringRefresh)
-      .catch((refreshError: unknown) => {
-        runtimeLogger.error('monitoring-refresh-failed', refreshError)
-      })
   }, MONITORING_REFRESH_INTERVAL_MS)
 }
+
+watch(hasActiveMonitoringState, (active) => {
+  if (active) scheduleMonitoringRefresh()
+  else if (!monitoringRefreshFailed && monitoringRefreshHandle.value) {
+    clearTimeout(monitoringRefreshHandle.value)
+    monitoringRefreshHandle.value = null
+  }
+})
 
 const getTotalByStatus = (status: string) => {
   const statusMap: Partial<Record<string, string[]>> = {
@@ -661,16 +762,18 @@ const getTotalByStatus = (status: string) => {
   }
 
   const relevantStatuses = statusMap[status] || [status]
-  return availableFiles.value.filter((file) => relevantStatuses.includes(file.anonymizationStatus))
+  return availableFiles.value.filter((file) => !isImportInterrupted(file) && relevantStatuses.includes(file.anonymizationStatus))
     .length
 }
 
 // Lifecycle
 onMounted(async () => {
+  isMounted = true
   // Fetch overview data
-  await anonymizationStore.fetchOverview()
-  mediaStore.seedTypesFromOverview(anonymizationStore.overview)
+  await refreshOverview()
+  if (!isComponentMounted()) return
   await nextTick()
+  if (!isComponentMounted()) return
   updateStickyScrollbar()
   if (typeof ResizeObserver !== 'undefined') {
     tableResizeObserver = new ResizeObserver(updateStickyScrollbar)
@@ -685,26 +788,13 @@ onMounted(async () => {
     count: anonymizationStore.overview.length
   })
 
-  // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
-  const processingStatuses = [
-    'processing_anonymization',
-    'extracting_frames',
-    'predicting_segments'
-  ]
-
-  anonymizationStore.overview.forEach((file: FileItem) => {
-    if (processingStatuses.includes(file.anonymizationStatus)) {
-      runtimeLogger.debug('processing-file-poll-started', { fileType: file.mediaType })
-      anonymizationStore.startPolling(file.id)
-    } else {
-      runtimeLogger.debug('processing-file-poll-skipped', { fileType: file.mediaType })
-    }
-  })
-
+  // The aggregate API covers both media types and import-only UUIDs. Avoid
+  // starting one numeric-ID status request loop for every visible resource.
   scheduleMonitoringRefresh()
 })
 
 onUnmounted(() => {
+  isMounted = false
   tableResizeObserver?.disconnect()
   tableResizeObserver = null
   if (monitoringRefreshHandle.value) {

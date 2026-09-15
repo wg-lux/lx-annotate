@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
@@ -14,23 +13,14 @@ from lx_annotate.operational_support import (
     optional_path,
     render_operational_event,
 )
+from lx_annotate_assets import check_root
 
 
 def validate_static_assets(static_root: Path) -> None:
-    manifest_path = static_root / ".vite" / "manifest.json"
-    if not manifest_path.is_file():
-        raise CommandError(f"Vite manifest is missing: {manifest_path}")
     try:
-        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise CommandError(f"Vite manifest is invalid: {manifest_path}: {exc}") from exc
-    entry = payload.get("src/main.ts") if isinstance(payload, dict) else None
-    entry_file = entry.get("file") if isinstance(entry, dict) else None
-    if not isinstance(entry_file, str) or not entry_file:
-        raise CommandError("Vite manifest has no src/main.ts file mapping")
-    asset_path = static_root / entry_file
-    if not asset_path.is_file():
-        raise CommandError(f"Vite manifest references a missing asset: {asset_path}")
+        check_root(static_root)
+    except (OSError, ValueError) as exc:
+        raise CommandError("Vite static asset validation failed") from exc
 
 
 class Command(BaseCommand):

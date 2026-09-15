@@ -146,6 +146,7 @@ def test_keycloak_authenticate_returns_user_tuple(monkeypatch):
         SimpleNamespace(
             decode=lambda *_args, **_kwargs: {
                 "preferred_username": "tester",
+                "groups": [],
                 "realm_access": {"roles": ["clinician"]},
             }
         ),
@@ -167,6 +168,49 @@ def test_keycloak_authenticate_returns_user_tuple(monkeypatch):
     assert user.username == "tester"
     fake_user.groups.set.assert_called_once()
     synchronize_centers.assert_called_once_with(user=fake_user, group_paths=())
+
+
+def test_keycloak_authenticate_rejects_missing_groups_before_identity_sync(monkeypatch):
+    import endoreg_db.authz.auth as keycloak_auth_mod
+
+    auth = keycloak_auth_mod.KeycloakJWTAuthentication()
+    monkeypatch.setattr(auth, "_init", lambda: None)
+    monkeypatch.setattr(
+        auth,
+        "_jwks_client",
+        SimpleNamespace(
+            get_signing_key_from_jwt=Mock(return_value=SimpleNamespace(key="pem"))
+        ),
+    )
+    monkeypatch.setattr(auth, "_aud", "client-id")
+    monkeypatch.setattr(auth, "_iss", "https://issuer.example/realm")
+    monkeypatch.setattr(
+        keycloak_auth_mod.jwt,
+        "decode",
+        Mock(
+            return_value={
+                "preferred_username": "tester",
+                "realm_access": {"roles": ["clinician"]},
+            }
+        ),
+    )
+    get_or_create_user = Mock()
+    monkeypatch.setattr(
+        keycloak_auth_mod,
+        "User",
+        SimpleNamespace(objects=SimpleNamespace(get_or_create=get_or_create_user)),
+    )
+    synchronize_centers = Mock()
+    monkeypatch.setattr(
+        keycloak_auth_mod, "synchronize_user_center_groups", synchronize_centers
+    )
+
+    req = SimpleNamespace(META={"HTTP_AUTHORIZATION": "Bearer tok123"})
+    with pytest.raises(AuthenticationFailed, match="Keycloak groups claim is missing"):
+        auth.authenticate(req)
+
+    get_or_create_user.assert_not_called()
+    synchronize_centers.assert_not_called()
 
 
 def test_keycloak_authenticate_raises_on_validation_error(monkeypatch):

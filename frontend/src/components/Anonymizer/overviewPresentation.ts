@@ -2,6 +2,12 @@ import type { FileItem, UploadJobOverview } from '@/stores/anonymizationStore'
 
 export type OriginalFileDeletionState = 'deleted' | 'present' | 'quarantined' | 'unknown'
 
+export const isAnonymizationProcessing = (file: FileItem): boolean =>
+  ['processing_anonymization', 'extracting_frames', 'predicting_segments'].includes(file.anonymizationStatus)
+
+export const isImportInterrupted = (file: FileItem): boolean =>
+  file.uploadJob?.status === 'cancelled' && isAnonymizationProcessing(file)
+
 const documentTypeLabels: Record<string, string> = {
   report: 'Befund',
   report_draft: 'Befund-Entwurf',
@@ -91,6 +97,8 @@ export const getUploadJobStatusBadgeClass = (status: string) => {
     pending: 'bg-secondary',
     processing: 'bg-warning',
     retrying: 'bg-info text-dark',
+    cancel_requested: 'bg-warning text-dark',
+    cancelled: 'bg-secondary',
     anonymized: 'bg-success',
     quarantined: 'bg-warning text-dark',
     error: 'bg-danger',
@@ -104,6 +112,8 @@ export const getUploadJobStatusText = (status: string) => {
     pending: 'Import wartet',
     processing: 'Import läuft',
     retrying: 'Import wird erneut versucht',
+    cancel_requested: 'Abbruch angefordert',
+    cancelled: 'Import abgebrochen',
     anonymized: 'Import abgeschlossen',
     quarantined: 'In Quarantäne',
     error: 'Importfehler',
@@ -130,6 +140,13 @@ export const getUploadJobNotice = (file: FileItem) => {
     return ''
   }
 
+  if (file.uploadJob.status === 'cancel_requested') {
+    return 'Abbruch angefordert. Der Import stoppt am nächsten sicheren Verarbeitungsschritt; die Quelle bleibt erhalten.'
+  }
+  if (file.uploadJob.status === 'cancelled') {
+    return 'Import abgebrochen. Die Quelle und bereits veröffentlichte gültige Medien bleiben erhalten.'
+  }
+
   if (isDuplicateKeyImportError(file)) {
     return DUPLICATE_IMPORT_NOTICE
   }
@@ -154,9 +171,10 @@ export const getUploadJobNoticeClass = (file: FileItem) => {
   if (isDuplicateKeyImportError(file)) {
     return 'text-muted'
   }
-  if (file.uploadJob?.status === 'retrying') {
+  if (file.uploadJob?.status === 'retrying' || file.uploadJob?.status === 'cancel_requested') {
     return 'text-warning'
   }
+  if (file.uploadJob?.status === 'cancelled') return 'text-muted'
   return 'text-danger'
 }
 
@@ -351,6 +369,7 @@ const canUseImportAction = (file: FileItem, action: 'safe_reimport' | 'delete') 
 }
 
 export type OverviewActionIntent =
+  | 'cancel-import'
   | 'retry-import'
   | 'repair-video'
   | 'reimport-pdf'
@@ -358,6 +377,12 @@ export type OverviewActionIntent =
   | 'correct'
   | 'dismiss-import'
   | 'delete'
+
+export const canCancelImport = (file: FileItem): boolean => Boolean(
+  !file.quarantined && file.mediaType === 'video' &&
+  file.uploadJob?.allowedActions.includes('cancel') &&
+  ['pending', 'processing', 'retrying'].includes(file.uploadJob.status)
+)
 
 interface OverviewAction {
   intent: OverviewActionIntent
@@ -399,6 +424,14 @@ const showDismissImport = (file: FileItem) =>
 
 export const getOverviewActions = (file: FileItem): OverviewAction[] => {
   const actions: OverviewAction[] = [
+    {
+      intent: 'cancel-import',
+      visible: canCancelImport(file),
+      label: 'Import abbrechen',
+      buttonClass: 'btn btn-outline-danger',
+      testSelector: 'cancel-upload-job-button',
+      title: 'Import am nächsten sicheren Verarbeitungsschritt stoppen; Quelle erhalten'
+    },
     {
       intent: 'retry-import',
       visible: showRetryImport(file),

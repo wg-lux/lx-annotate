@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -15,6 +16,75 @@ from rest_framework.views import APIView
 from tests.hub_payload_helpers import create_hub_sensitive_meta
 
 pytestmark = pytest.mark.django_db
+
+
+def test_cancellation_explicitly_rejects_unsupported_backend(
+    client, operator, monkeypatch
+):
+    from lx_annotate.views import anonymization_overview
+
+    monkeypatch.setattr(anonymization_overview, "backend_overview", SimpleNamespace())
+    response = client.post(f"/api/anonymization/upload-jobs/{uuid4()}/cancel/")
+    assert response.status_code == 503
+    assert response.json()["code"] == "import_cancellation_unavailable"
+
+
+def test_cancellation_requires_write_permission_even_with_legacy_backend(
+    client, operator
+):
+    user, _ = operator
+    user.groups.clear()
+    user.groups.add(Group.objects.get_or_create(name="data:read")[0])
+    response = client.post(f"/api/anonymization/upload-jobs/{uuid4()}/cancel/")
+    assert response.status_code == 403
+
+
+@pytest.mark.skipif(
+    not hasattr(UploadJob.Status, "CANCELLED"),
+    reason="Requires the backend source with durable import cancellation.",
+)
+@pytest.mark.parametrize(
+    "initial_status,expected_status,expected_http",
+    [
+        ("pending", "cancelled", 200),
+        ("processing", "cancel_requested", 202),
+    ],
+)
+def test_mounted_cancellation_preserves_source_and_overview_visibility(
+    client, operator, master_key, initial_status, expected_status, expected_http
+):
+    _, center = operator
+    job = UploadJob.objects.create(
+        source_center=center,
+        status=initial_status,
+        content_type="video/mp4",
+        original_filename="interrupted.mp4",
+        file=ContentFile(b"encrypted retained source", name="interrupted.mp4"),
+    )
+    if initial_status == "processing":
+        from endoreg_db.services.hub.upload_job_import_lease import (
+            acquire_upload_job_import_lease,
+        )
+
+        acquire_upload_job_import_lease(
+            upload_job_id=str(job.pk), owner="mounted-active-worker"
+        )
+    response = client.post(f"/api/anonymization/upload-jobs/{job.pk}/cancel/")
+    assert response.status_code == expected_http
+    assert response.json()["upload_job"]["status"] == expected_status
+    job.refresh_from_db()
+    assert job.status == expected_status
+    assert job.file.storage.exists(job.file.name)
+    overview = client.get("/api/anonymization/items/overview/")
+    assert overview.status_code == 200
+    row = next(
+        item
+        for item in overview.json()
+        if item.get("upload_job", {}).get("id") == str(job.pk)
+    )
+    assert row["upload_job"]["status"] == expected_status
+    assert row["import_only"] is True
+    assert "cancel" not in row["upload_job"]["allowed_actions"]
 
 
 @pytest.fixture
@@ -248,5 +318,5 @@ def test_processed_repair_preserves_approval_and_other_center_jobs(
     assert bool(video.state.anonymized) is (not dry_run)
     for job in jobs:
         job.refresh_from_db()
-    assert jobs[0].status == ("error" if dry_run else "anonymized")
-    assert jobs[1].status == "error"
+        assert job.status == "error"
+        assert job.error_code == "processing_failed"

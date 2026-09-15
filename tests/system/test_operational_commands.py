@@ -40,13 +40,13 @@ def test_runtime_acceptance_validates_manifest_target(tmp_path: Path) -> None:
     asset.parent.mkdir(parents=True)
     asset.write_text("console.log('ok')", encoding="utf-8")
     manifest.write_text(
-        json.dumps({"src/main.ts": {"file": "assets/main.js"}}),
+        json.dumps({"src/main.ts": {"file": "assets/main.js", "isEntry": True}}),
         encoding="utf-8",
     )
 
     validate_static_assets(static_root)
     asset.unlink()
-    with pytest.raises(CommandError, match="missing asset"):
+    with pytest.raises(CommandError, match="static asset validation failed"):
         validate_static_assets(static_root)
 
 

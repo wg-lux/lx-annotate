@@ -537,3 +537,16 @@ def dispatch_pending_storage_publications_task(_task) -> int:
     for publication_id in publication_ids:
         publish_storage_artifact_task.delay(str(publication_id))
     return len(publication_ids)
+
+
+@shared_task(
+    name="lx_annotate.run_video_transcode_job",
+    bind=True,
+    acks_late=True,
+    reject_on_worker_lost=True,
+    track_started=True,
+)
+def run_video_transcode_job_task(_task, job_id: str) -> str:
+    from .services.video_transcode_jobs import execute_video_transcode
+
+    return execute_video_transcode(job_id)

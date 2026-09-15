@@ -184,7 +184,13 @@ jobs:
         run: npm --prefix frontend run build
 
       - name: Verify Vite manifest
-        run: test -f staticfiles/.vite/manifest.json
+        run: python lx_annotate_assets/__init__.py --root staticfiles
+
+      - name: Test static asset packaging contract
+        run: >-
+          uv run --no-sync --no-project --with pytest --with 'hatchling>=1.29.0' --with editables
+          python -m pytest -q -c /dev/null --noconftest -p no:cacheprovider
+          tests/system/test_static_assets_contract.py
 
       - name: Build hatchling distribution
         run: uv run python -m build

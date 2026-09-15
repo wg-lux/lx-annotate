@@ -125,11 +125,7 @@ stdenvNoCC.mkDerivation {
         mkdir -p "$out/share/lx-annotate/features"
         cp -r ${featureSpecifications}/share/lx-annotate/features/. \
           "$out/share/lx-annotate/features/"
-        vite_entry_file="$(LX_ANNOTATE_STATIC_ROOT="$static_root" ${python.interpreter} -c 'import json, os, sys; from pathlib import Path; static_root = Path(os.environ["LX_ANNOTATE_STATIC_ROOT"]); manifest_path = static_root / ".vite" / "manifest.json"; sys.exit(f"missing Vite manifest: {manifest_path}") if not manifest_path.is_file() else None; manifest = json.loads(manifest_path.read_text(encoding="utf-8")); entry = manifest.get("src/main.ts"); sys.exit("Vite manifest is missing the src/main.ts entry") if not isinstance(entry, dict) else None; entry_file = entry.get("file"); sys.exit("Vite manifest src/main.ts entry is missing its file mapping") if not entry_file else None; print(entry_file)')"
-        if [ ! -f "$static_root/$vite_entry_file" ]; then
-          echo "Vite manifest src/main.ts points to a missing asset: $static_root/$vite_entry_file" >&2
-          exit 1
-        fi
+        ${python.interpreter} "$app_dir/lx_annotate_assets/__init__.py" --root "$static_root"
 
         writePythonEntrypoint() {
           local executable="$1"
@@ -163,6 +159,7 @@ stdenvNoCC.mkDerivation {
         writeCliEntrypoint lx-annotate-provision-hub-nodes provision_hub_nodes
         writeCliEntrypoint lx-annotate-storage-relief storage_relief
         writeCliEntrypoint lx-annotate-acceptance acceptance
+        writePythonEntrypoint lx-annotate-check-static lx_annotate_assets main
         writePythonEntrypoint lx-dtypes-kb-registry lx_dtypes.scripts.kb_registry main
 
         wrapRuntimeEntrypoint() {
@@ -176,6 +173,7 @@ stdenvNoCC.mkDerivation {
         }
 
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-web" "$out/bin/lx-annotate-web"
+        wrapRuntimeEntrypoint "$out/libexec/lx-annotate-check-static" "$out/bin/lx-annotate-check-static"
         ln -s lx-annotate-web "$out/bin/lx-annotate-server"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-manage" "$out/bin/lx-annotate-manage"
         wrapRuntimeEntrypoint "$out/libexec/lx-annotate-migrate" "$out/bin/lx-annotate-migrate"

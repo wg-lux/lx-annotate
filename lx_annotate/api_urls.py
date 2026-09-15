@@ -20,7 +20,9 @@ from lx_annotate.views.anonymization_overview import (
     LifecycleAnonymizationOverviewView,
     LifecycleUploadJobDismissView,
     LifecycleUploadJobRetryView,
+    lifecycle_upload_job_cancel,
 )
+from lx_annotate.views.anonymization_storage import anonymization_storage
 from lx_annotate.views.application_settings import primary_annotation_settings_detail
 from lx_annotate.views.frame_annotation import BoundedDecodedFrameStreamView
 from lx_annotate.views.hub_export import (
@@ -35,8 +37,29 @@ from lx_annotate.views.quarantine import quarantine_overview
 from lx_annotate.views.report_llm import report_llm_generate, report_llm_status
 from lx_annotate.views.study_export import study_export_options, study_export_xlsx
 from lx_annotate.views.video_state_repair import VideoStateRepairView
+from lx_annotate.views.video_transcode_jobs import VideoTranscodeJobsView
 
 urlpatterns = [
+    path(
+        "media/videos/transcode-jobs/",
+        VideoTranscodeJobsView.as_view(),
+        name="video-transcode-job-overview",
+    ),
+    path(
+        "media/videos/<int:pk>/transcode-jobs/",
+        VideoTranscodeJobsView.as_view(),
+        name="video-transcode-jobs",
+    ),
+    path(
+        "anonymization/upload-jobs/<uuid:job_id>/cancel/",
+        lifecycle_upload_job_cancel,
+        name="anonymization_upload_job_cancel",
+    ),
+    path(
+        "anonymization/storage/",
+        anonymization_storage,
+        name="anonymization-storage",
+    ),
     path(
         "settings/application/ai_datasets/<int:dataset_id>/split_plans/",
         dataset_split_plans,

@@ -2,7 +2,8 @@
 
 LX-Annotate exposes two independently owned Django Ninja APIs:
 
-- `/endoreg-api/` contains persistence-backed report routes from `endoreg_db`.
+- `/endoreg-api/` contains every documented route mounted by
+  `endoreg_db.urls`: Django Ninja report routes and Django REST Framework routes.
 - `/dtypes-api/` contains terminology, knowledge-base, and report-template routes from `lx_dtypes`.
 
 Run `npm --prefix frontend run typegen` from the repository root to export both
@@ -27,10 +28,10 @@ The exporter uses Django's test settings for schema introspection only. It does
 not start a server, connect to production, or embed deployment secrets. OpenAPI
 files are persisted through the project's atomic filesystem wrapper.
 
-This workflow covers Django Ninja operations. Most media, anonymization, and
-administration routes are Django REST Framework routes; they remain covered by
-the resolver and API contract tests and must not be assumed to exist in these
-Ninja-generated modules.
+The endoreg exporter combines Django Ninja and Django REST Framework schemas.
+DRF endpoints without declared serializer metadata are still represented as
+operations, but their request or response bodies may be unspecified until the
+endpoint declares those contracts explicitly.
 
 Only parameters and request schemas declared in Django Ninja endpoint
 signatures appear in OpenAPI. The current persistence-backed report mutation

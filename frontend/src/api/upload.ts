@@ -12,7 +12,22 @@ export interface UploadRequestOptions {
   idempotencyKey?: string
 }
 
-export type UploadStatus = 'pending' | 'processing' | 'anonymized' | 'error' | 'lost'
+export type UploadStatus =
+  | 'pending'
+  | 'processing'
+  | 'retrying'
+  | 'cancel_requested'
+  | 'cancelled'
+  | 'anonymized'
+  | 'error'
+  | 'lost'
+
+export class UploadCancelledError extends Error {
+  constructor() {
+    super('Upload was cancelled')
+    this.name = 'UploadCancelledError'
+  }
+}
 
 export interface UploadReportLlmJobResult {
   pdfId?: number
@@ -63,6 +78,9 @@ function isUploadStatus(value: unknown): value is UploadStatus {
   return (
     value === 'pending' ||
     value === 'processing' ||
+    value === 'retrying' ||
+    value === 'cancel_requested' ||
+    value === 'cancelled' ||
     value === 'anonymized' ||
     value === 'error' ||
     value === 'lost'
@@ -281,6 +299,9 @@ function normalizeUploadPollingOptions(
 }
 
 function resolveTerminalUploadStatus(status: UploadStatusResponse): UploadStatusResponse | null {
+  if (status.status === 'cancelled') {
+    throw new UploadCancelledError()
+  }
   if (status.status === 'anonymized') {
     return status
   }

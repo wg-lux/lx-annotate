@@ -108,7 +108,7 @@ describe('anonymizationStore video reimport', () => {
     store.overview = [buildVideoFile()]
     await expect(store.reimportVideo(42)).resolves.toBe(true)
 
-    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/42/repair/', { dryRun: false })
+    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/42/repair/', { dry_run: false })
   })
 
   it('reports required re-import without changing annotation state', async () => {
@@ -128,6 +128,15 @@ describe('anonymizationStore video reimport', () => {
     expect(file.anonymizationStatus).toBe('failed')
     expect(file.annotationStatus).toBe('validated')
     expect(store.error).toContain('muss neu importiert werden')
+  })
+
+  it('does not report a blocked repair as a successful reimport', async () => {
+    hoisted.post.mockResolvedValue({ data: { items: [{ status: 'blocked', missing: ['active_transcode'] }] } })
+    const store = useAnonymizationStore()
+    store.overview = [buildVideoFile()]
+    await expect(store.reimportVideo(42)).resolves.toBe(false)
+    expect(store.error).toContain('kann derzeit nicht repariert werden')
+    expect(hoisted.get).not.toHaveBeenCalled()
   })
 
   it('does not post reimport while the upload job is still active', async () => {
@@ -163,7 +172,21 @@ describe('anonymizationStore video reimport', () => {
     const store = useAnonymizationStore()
     const result = await store.repairAllVideoStates()
 
-    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/repair/', { dryRun: false })
+    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/repair/', { dry_run: false })
     expect(result?.annotationsPreserved).toBe(true)
   })
+  it.each(['replace_processed'] as const)('posts a bounded %s repair batch using the API contract', async (option) => {
+    hoisted.post.mockResolvedValue({ data: { annotationsPreserved: true } })
+    hoisted.get.mockResolvedValue({ data: [] })
+    const store = useAnonymizationStore()
+    const idempotencyKey = 'f1f224a8-43d4-486e-b3ef-fbbed852be26'
+    await store.repairAllVideoStates(false, { option, idempotencyKey, afterVideoId: 100 })
+    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/repair/', {
+      dry_run: false,
+      transcode: { option, idempotency_key: idempotencyKey },
+      after_video_id: 100,
+      batch_size: 100
+    })
+  })
+
 })

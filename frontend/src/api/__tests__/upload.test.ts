@@ -25,7 +25,12 @@ vi.mock('@/api/axiosInstance', () => ({
   endoregApi: (path: string) => `/endoreg/${path}`
 }))
 
-import { pollUploadStatus, resolveUploadedReportId, uploadFiles } from '@/api/upload'
+import {
+  pollUploadStatus,
+  resolveUploadedReportId,
+  UploadCancelledError,
+  uploadFiles
+} from '@/api/upload'
 
 describe('upload API', () => {
   beforeEach(() => {
@@ -105,6 +110,54 @@ describe('upload API', () => {
       pollUploadStatus('/status/upload-2', { pollIntervalMs: 0, maxAttempts: 5 })
     ).rejects.toThrow(errorDetail)
     expect(hoisted.axios.get).toHaveBeenCalledTimes(1)
+  })
+
+  it('continues monitoring retries and cancellation requests until cancellation is confirmed', async () => {
+    const states: UploadStatusResponse[] = [
+      { status: 'retrying' },
+      { status: 'cancel_requested' },
+      { status: 'cancelled', detail: 'Stale processing detail' }
+    ]
+    states.forEach((state) => hoisted.axios.get.mockResolvedValueOnce({ data: state }))
+    const onProgress = vi.fn<(state: UploadStatusResponse) => void>()
+
+    await expect(
+      pollUploadStatus('/status/upload-cancel', {
+        pollIntervalMs: 0,
+        maxAttempts: 5,
+        onProgress
+      })
+    ).rejects.toMatchObject({
+      name: 'UploadCancelledError',
+      message: 'Upload was cancelled'
+    })
+    expect(hoisted.axios.get).toHaveBeenCalledTimes(3)
+    expect(onProgress.mock.calls.map(([state]) => state.status)).toEqual([
+      'retrying',
+      'cancel_requested',
+      'cancelled'
+    ])
+  })
+
+  it('rejects cancellation immediately even when the response includes a report id', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: {
+        status: 'cancelled',
+        reportLlmJob: { status: 'success', reportId: 73, result: { pdfId: 73 } }
+      }
+    })
+    await expect(
+      pollUploadStatus('/status/upload-cancel', { pollIntervalMs: 0, maxAttempts: 5 })
+    ).rejects.toBeInstanceOf(UploadCancelledError)
+    expect(hoisted.axios.get).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps cancellation requested nonterminal until confirmation or the polling limit', async () => {
+    hoisted.axios.get.mockResolvedValue({ data: { status: 'cancel_requested' } })
+    await expect(
+      pollUploadStatus('/status/upload-cancel', { pollIntervalMs: 0, maxAttempts: 2 })
+    ).rejects.toThrow('Upload timeout - maximum polling attempts reached')
+    expect(hoisted.axios.get).toHaveBeenCalledTimes(2)
   })
 
   it('honors an AbortSignal before issuing another status request', async () => {

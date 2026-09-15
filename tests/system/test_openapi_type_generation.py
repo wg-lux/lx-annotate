@@ -9,7 +9,12 @@ from pathlib import Path
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from drf_spectacular.generators import SchemaGenerator
+from endoreg_db.urls import ninja_api
+from endoreg_db.urls import urlpatterns as endoreg_urlpatterns
 from endoreg_db.utils.file_operations import atomic_write_file
+
+from lx_annotate.management.commands.export_openapi import API_DEFINITIONS
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_ROOT = REPOSITORY_ROOT / "frontend"
@@ -50,6 +55,29 @@ def test_offline_export_is_deterministic_and_keeps_api_ownership(
         "SegmentFrameSelectorResponseSchema" in endoreg_schema["components"]["schemas"]
     )
     assert "SaveReportTemplateRequest" in dtypes_schema["components"]["schemas"]
+
+
+def test_endoreg_export_covers_ninja_and_drf_urlpatterns(tmp_path: Path) -> None:
+    output_dir = tmp_path / "openapi"
+    _export(output_dir)
+    exported_schema = json.loads((output_dir / "endoreg-api.json").read_text())
+
+    path_prefix = API_DEFINITIONS["endoreg-api"][0]
+    ninja_schema = ninja_api.get_openapi_schema(path_prefix=path_prefix)
+    drf_schema = SchemaGenerator(patterns=endoreg_urlpatterns).get_schema(
+        request=None,
+        public=True,
+    )
+    expected_paths = set(ninja_schema["paths"])
+    expected_paths.update(f"{path_prefix}{path}" for path in drf_schema["paths"])
+
+    assert set(exported_schema["paths"]) == expected_paths
+    for path, path_item in ninja_schema["paths"].items():
+        assert exported_schema["paths"][path] == json.loads(json.dumps(path_item))
+    for path, path_item in drf_schema["paths"].items():
+        assert exported_schema["paths"][f"{path_prefix}{path}"] == json.loads(
+            json.dumps(path_item)
+        )
 
 
 def test_check_rejects_a_stale_generated_artifact(tmp_path: Path) -> None:

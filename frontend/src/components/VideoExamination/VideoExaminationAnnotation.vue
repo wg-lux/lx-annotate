@@ -384,8 +384,139 @@
                   v-if="selectedVideoId && isSelectedVideoViewable"
                   class="timeline-wrapper mt-3"
                 >
+                <!-- Timeline Controls -->
+                <div
+                  v-if="selectedVideoId && isSelectedVideoViewable"
+                  class="timeline-controls mt-4"
+                >
+                  <div class="d-flex align-items-center gap-3">
+                    <div
+                      v-if="segmentSourceMode === 'prediction'"
+                      class="alert alert-warning py-2 px-3 mb-0"
+                    >
+                      KI-Segmente können hier korrigiert werden. Beim Speichern werden die
+                      Korrekturen als manuelle Annotation übernommen; die ursprüngliche
+                      KI-Vorhersage bleibt erhalten.
+                    </div>
+                    <div class="d-flex align-items-center">
+                      <label class="form-label mb-0 me-2">Neues Label setzen:</label>
+                      <select
+                        ref="labelSelectRef"
+                        v-model="selectedLabelType"
+                        class="form-select form-select-sm control-select"
+                        data-cy="label-select"
+                        :disabled="!canMutateSelectedSegments"
+                        @change="onLabelSelect"
+                        @focus="isLabelSelectActive = true"
+                        @blur="isLabelSelectActive = false"
+                      >
+                        <option value="">Label auswählen...</option>
+                        <option
+                          v-for="label in timelineLabels"
+                          :key="label.id"
+                          :value="label.name"
+                        >
+                          {{ getTranslationForLabel(label.name) }}
+                        </option>
+                      </select>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                      <button
+                        v-if="!isMarkingLabel"
+                        class="btn btn-success btn-sm control-button"
+                        :disabled="!canStartLabeling"
+                        data-cy="start-label-button"
+                        @click="startLabelMarking"
+                      >
+                        <i class="ni ni-single-copy-04"></i>
+                        Label-Start setzen
+                      </button>
+
+                      <button
+                        v-if="isMarkingLabel"
+                        class="btn btn-warning btn-sm control-button"
+                        data-cy="finish-label-button"
+                        @click="finishLabelMarking"
+                      >
+                        <i class="ni ni-button-play"></i>
+                        Label-Ende setzen
+                      </button>
+
+                      <button
+                        v-if="isMarkingLabel"
+                        class="btn btn-outline-secondary btn-sm control-button"
+                        @click="cancelLabelMarking"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+
+                    <div class="ms-3 text-muted">
+                      <p
+                        v-if="videoStore.draftSegment && videoStore.draftSegment.startTime !== null"
+                        class="mb-0"
+                      >
+                        Aktueller Label Start: {{ draftSegmentPresentation.start }}
+                      </p>
+                      Zeit: {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+                    </div>
+                  </div>
+
+                  <!-- Draft-Info während Label-Erstellung -->
+                  <div
+                    v-if="videoStore.draftSegment"
+                    class="alert alert-info mt-2 mb-0"
+                  >
+                    <small>
+                      <i
+                        class="ni ni-user-run align-middle me-1"
+                        style="font-size: 16px"
+                      ></i>
+                      Label "{{ draftSegmentPresentation.label }}"
+                      <span v-if="videoStore.draftSegment.endTime">
+                        von {{ draftSegmentPresentation.start }} bis
+                        {{ draftSegmentPresentation.end }}
+                      </span>
+                      <span v-else>
+                        startet bei {{ draftSegmentPresentation.start }} - Ende beim nächsten Klick
+                      </span>
+                    </small>
+                  </div>
+                  <Timeline
+                    :height="timelinePanelHeight"
+                    :video="{ duration: duration || 1 }"
+                    :segments="timelineSegmentsForSelectedVideo"
+                    :labels="timelineLabels"
+                    :current-time="currentTime"
+                    :is-playing="isPlaying"
+                    :active-segment-id="selectedSegmentId"
+                    :show-waveform="false"
+                    :selection-mode="canMutateSelectedSegments"
+                    @seek="handleTimelineSeek"
+                    @play-pause="handlePlayPause"
+                    @segment-select="handleSegmentSelect"
+                    @segment-label-change="handleSegmentLabelChange"
+                    @segment-resize="handleSegmentResize"
+                    @segment-move="handleSegmentMove"
+                    @segment-create="handleCreateSegment"
+                    @segment-delete="handleSegmentDelete"
+                    @time-selection="handleTimeSelection"
+                  />
+                  <div
+                    class="timeline-height-handle"
+                    role="separator"
+                    tabindex="0"
+                    aria-label="Timeline-Höhe ändern"
+                    aria-orientation="horizontal"
+                    :aria-valuemin="MIN_TIMELINE_HEIGHT"
+                    :aria-valuemax="MAX_TIMELINE_HEIGHT"
+                    :aria-valuenow="timelinePanelHeight"
+                    @pointerdown="startTimelineResize"
+                    @keydown="handleTimelineResizeKey"
+                  />
                   <fieldset class="border rounded p-2 mb-2">
-                    <legend class="float-none w-auto fs-6">Segment-Warteschlange</legend>
+                    <legend class="float-none w-auto fs-6">Springe zu Nächstem/Vorherigem Segment</legend>
                     <div class="d-flex flex-wrap gap-3 mb-2">
                       <label
                         v-for="label in timelineLabels"
@@ -426,38 +557,6 @@
                       >
                     </div>
                   </fieldset>
-                  <Timeline
-                    :height="timelinePanelHeight"
-                    :video="{ duration: duration || 1 }"
-                    :segments="timelineSegmentsForSelectedVideo"
-                    :labels="timelineLabels"
-                    :current-time="currentTime"
-                    :is-playing="isPlaying"
-                    :active-segment-id="selectedSegmentId"
-                    :show-waveform="false"
-                    :selection-mode="canMutateSelectedSegments"
-                    @seek="handleTimelineSeek"
-                    @play-pause="handlePlayPause"
-                    @segment-select="handleSegmentSelect"
-                    @segment-label-change="handleSegmentLabelChange"
-                    @segment-resize="handleSegmentResize"
-                    @segment-move="handleSegmentMove"
-                    @segment-create="handleCreateSegment"
-                    @segment-delete="handleSegmentDelete"
-                    @time-selection="handleTimeSelection"
-                  />
-                  <div
-                    class="timeline-height-handle"
-                    role="separator"
-                    tabindex="0"
-                    aria-label="Timeline-Höhe ändern"
-                    aria-orientation="horizontal"
-                    :aria-valuemin="MIN_TIMELINE_HEIGHT"
-                    :aria-valuemax="MAX_TIMELINE_HEIGHT"
-                    :aria-valuenow="timelinePanelHeight"
-                    @pointerdown="startTimelineResize"
-                    @keydown="handleTimelineResizeKey"
-                  />
                   <details
                     class="mt-2 text-muted shortcuts-details"
                     style="font-size: 0.85rem"
@@ -579,105 +678,7 @@
                   </div>
                 </div>
 
-                <!-- Timeline Controls -->
-                <div
-                  v-if="selectedVideoId && isSelectedVideoViewable"
-                  class="timeline-controls mt-4"
-                >
-                  <div class="d-flex align-items-center gap-3">
-                    <div
-                      v-if="segmentSourceMode === 'prediction'"
-                      class="alert alert-warning py-2 px-3 mb-0"
-                    >
-                      KI-Segmente können hier korrigiert werden. Beim Speichern werden die
-                      Korrekturen als manuelle Annotation übernommen; die ursprüngliche
-                      KI-Vorhersage bleibt erhalten.
-                    </div>
-                    <div class="d-flex align-items-center">
-                      <label class="form-label mb-0 me-2">Neues Label setzen:</label>
-                      <select
-                        ref="labelSelectRef"
-                        v-model="selectedLabelType"
-                        class="form-select form-select-sm control-select"
-                        data-cy="label-select"
-                        :disabled="!canMutateSelectedSegments"
-                        @change="onLabelSelect"
-                        @focus="isLabelSelectActive = true"
-                        @blur="isLabelSelectActive = false"
-                      >
-                        <option value="">Label auswählen...</option>
-                        <option
-                          v-for="label in timelineLabels"
-                          :key="label.id"
-                          :value="label.name"
-                        >
-                          {{ getTranslationForLabel(label.name) }}
-                        </option>
-                      </select>
-                    </div>
 
-                    <div class="d-flex align-items-center gap-2">
-                      <button
-                        v-if="!isMarkingLabel"
-                        class="btn btn-success btn-sm control-button"
-                        :disabled="!canStartLabeling"
-                        data-cy="start-label-button"
-                        @click="startLabelMarking"
-                      >
-                        <i class="ni ni-single-copy-04"></i>
-                        Label-Start setzen
-                      </button>
-
-                      <button
-                        v-if="isMarkingLabel"
-                        class="btn btn-warning btn-sm control-button"
-                        data-cy="finish-label-button"
-                        @click="finishLabelMarking"
-                      >
-                        <i class="ni ni-button-play"></i>
-                        Label-Ende setzen
-                      </button>
-
-                      <button
-                        v-if="isMarkingLabel"
-                        class="btn btn-outline-secondary btn-sm control-button"
-                        @click="cancelLabelMarking"
-                      >
-                        Abbrechen
-                      </button>
-                    </div>
-
-                    <div class="ms-3 text-muted">
-                      <p
-                        v-if="videoStore.draftSegment && videoStore.draftSegment.startTime !== null"
-                        class="mb-0"
-                      >
-                        Aktueller Label Start: {{ draftSegmentPresentation.start }}
-                      </p>
-                      Zeit: {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
-                    </div>
-                  </div>
-
-                  <!-- Draft-Info während Label-Erstellung -->
-                  <div
-                    v-if="videoStore.draftSegment"
-                    class="alert alert-info mt-2 mb-0"
-                  >
-                    <small>
-                      <i
-                        class="ni ni-user-run align-middle me-1"
-                        style="font-size: 16px"
-                      ></i>
-                      Label "{{ draftSegmentPresentation.label }}"
-                      <span v-if="videoStore.draftSegment.endTime">
-                        von {{ draftSegmentPresentation.start }} bis
-                        {{ draftSegmentPresentation.end }}
-                      </span>
-                      <span v-else>
-                        startet bei {{ draftSegmentPresentation.start }} - Ende beim nächsten Klick
-                      </span>
-                    </small>
-                  </div>
                 </div>
               </div>
             </Teleport>

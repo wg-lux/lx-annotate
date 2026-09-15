@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from typing import Any, cast
+from uuid import UUID
 
+from django.http import HttpRequest, HttpResponse
 from endoreg_db.models import RawPdfFile, UploadJob, VideoFile
 from endoreg_db.serializers.misc.file_overview import (
     overview_upload_job_retry_summary,
@@ -13,12 +15,16 @@ from endoreg_db.services.hub.import_monitoring import (
     can_dismiss_upload_job,
     dismissed_upload_job_filter,
 )
+from endoreg_db.views.anonymization import overview as backend_overview
 from endoreg_db.views.anonymization.overview import (
     AnonymizationOverviewView,
     UploadJobDismissView,
     UploadJobRetryView,
 )
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from lx_annotate.permissions import LifecyclePolicyPermission
 
@@ -29,6 +35,30 @@ class LifecycleUploadJobRetryView(UploadJobRetryView):
 
 class LifecycleUploadJobDismissView(UploadJobDismissView):
     permission_classes = [IsAuthenticated, LifecyclePolicyPermission]
+
+
+class _CancellationUnavailableView(APIView):
+    def post(self, request: Request, job_id: UUID) -> Response:
+        del request, job_id
+        return Response(
+            {
+                "code": "import_cancellation_unavailable",
+                "detail": "The installed backend does not support import cancellation.",
+            },
+            status=503,
+        )
+
+
+def lifecycle_upload_job_cancel(request: HttpRequest, job_id: UUID) -> HttpResponse:
+    # Older installed backends never advertise the cancel action. Reject direct
+    # requests explicitly while keeping the existing overview usable during an
+    # independently versioned dependency upgrade.
+    backend_view = getattr(
+        backend_overview, "UploadJobCancelView", _CancellationUnavailableView
+    )
+    return backend_view.as_view(
+        permission_classes=[IsAuthenticated, LifecyclePolicyPermission]
+    )(request, job_id=job_id)
 
 
 class LifecycleAnonymizationOverviewView(AnonymizationOverviewView):
@@ -60,6 +90,8 @@ class LifecycleAnonymizationOverviewView(AnonymizationOverviewView):
                     UploadJob.Status.RETRYING,
                     UploadJob.Status.ERROR,
                     UploadJob.Status.LOST,
+                    "cancel_requested",
+                    "cancelled",
                 ]
             )
             .exclude(pk__in=attached_job_ids)
@@ -72,7 +104,7 @@ class LifecycleAnonymizationOverviewView(AnonymizationOverviewView):
         used_ids = {int(item.pk) for item in items}
         rows: list[dict[str, object]] = []
         for upload_job in retry_jobs:
-            synthetic_id = -(upload_job.id.int % 2_000_000_000 + 1)
+            synthetic_id = -(int(upload_job.id.int) % 2_000_000_000 + 1)
             while synthetic_id in used_ids:
                 synthetic_id -= 1
             used_ids.add(synthetic_id)
@@ -90,7 +122,10 @@ class LifecycleAnonymizationOverviewView(AnonymizationOverviewView):
                             UploadJob.Status.PENDING,
                             UploadJob.Status.PROCESSING,
                             UploadJob.Status.RETRYING,
+                            "cancel_requested",
                         }
+                        else "not_started"
+                        if upload_job.status == "cancelled"
                         else "failed"
                     ),
                     "annotation_status": "",

@@ -34,10 +34,30 @@ Vite manifest must exist at:
 - Dev: `lx_annotate/settings/settings_dev.py` reads `BASE_DIR/staticfiles/.vite/manifest.json`
 - Prod: `lx_annotate/settings/settings_prod.py` reads `STATIC_ROOT/.vite/manifest.json`
 
-4. Runtime startup guard:
-`devenv/management.nix` validates:
-- manifest exists at `"$static_root/.vite/manifest.json"`
-- `src/main.ts` entry resolves to a file that exists at `"$static_root/$entry_file"`
+4. Shared release and acceptance guard:
+`lx_annotate_assets` validates the `src/main.ts` entry point, every manifest
+file/CSS/asset reference, and all static and dynamic import targets. Referenced
+files must be readable and nonempty. Absolute paths, traversal, and symlinks
+escaping the static root are rejected. It never creates or repairs assets.
+
+The package uses only the Python standard library and does not import
+`lx_annotate`, Celery, Django, settings, or secrets. This keeps discovery output
+independent of application startup logging.
+
+Use the installed command:
+
+```bash
+lx-annotate-check-static --installed
+lx-annotate-check-static --root /var/lib/lx-annotate/staticfiles
+lx-annotate-check-static --wheel dist/lx_annotate-<version>-py3-none-any.whl
+```
+
+`--installed` discovers assets from wheel distribution metadata and prints only
+the validated directory. Use `--root` for a Nix collected static tree. Root and
+wheel checks produce no stdout on success; failures return nonzero and write a
+diagnostic without manifest contents to stderr. From a checkout, use
+`python lx_annotate_assets/__init__.py --root staticfiles` without installing
+application dependencies.
 
 ## Deployment Flow
 
@@ -51,11 +71,37 @@ Vite manifest must exist at:
 `make package`
 
 `make package` forces a frontend rebuild, checks that committed frontend artifacts
-did not drift, publishes Sphinx HTML into `static/docs` and `staticfiles/docs`,
-and then fails if `staticfiles/.vite/manifest.json` is empty, invalid JSON,
-missing the `src/main.ts` entry, or points at a missing asset. This prevents
-stale or broken frontend artifacts from reaching wheel or sdist packaging and
-ensures the frontend `/documentation` page can load the packaged docs bundle.
+did not drift, and publishes Sphinx HTML into `static/docs` and `staticfiles/docs`.
+Make, CI, the Nix package build, and `runtime_acceptance` share the same validator.
+
+The [Hatch build hook](https://hatch.pypa.io/dev/plugins/build-hook/custom/)
+also validates the source static tree before wheel/sdist builds and checks the
+finished wheel archive. This covers direct `python -m build` invocations and
+wheels rebuilt from an sdist. Editable development installs skip the release
+gate because they can precede frontend compilation. A failed build must not be
+published, even if its output directory contains a rejected artifact.
+
+These checks establish static asset integrity and readability, not Django
+readiness, TLS reachability, or database migration compatibility. Validate the
+installed tree as the service user before copying it into the served directory.
+
+## Regression Tests
+
+Run the dependency-free checker and packaging tests, as CI does:
+
+```bash
+uv run --no-sync --no-project --with pytest --with 'hatchling>=1.29.0' --with editables \
+  python -m pytest -q -c /dev/null --noconftest -p no:cacheprovider \
+  tests/system/test_static_assets_contract.py
+```
+
+The tests cover invalid manifests and paths, missing/empty assets, source and
+finished-wheel rejection, sdist-to-wheel rebuilding, editable development installs,
+and an installed console command running without application dependencies.
+Packaging tests require Hatchling and are explicitly skipped if it is absent
+from an ordinary application test environment. Run the command above for full
+coverage. Runtime acceptance integration is covered by
+`tests/system/test_operational_commands.py`.
 
 ## Why `emptyOutDir` Is Disabled
 

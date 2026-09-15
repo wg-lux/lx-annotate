@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
+from drf_spectacular.generators import SchemaGenerator
+from endoreg_db.urls import urlpatterns as endoreg_urlpatterns
 from endoreg_db.utils.file_operations import atomic_write_file, ensure_directory
 
 API_DEFINITIONS = {
@@ -31,10 +33,50 @@ def _load_api(module_name: str, attribute_name: str) -> Any:
     return getattr(module, attribute_name)
 
 
+def _merge_endoreg_schemas(
+    ninja_schema: dict[str, Any], drf_schema: dict[str, Any]
+) -> dict[str, Any]:
+    """Combine the Ninja and DRF operations mounted below ``/endoreg-api/``."""
+    schema = dict(ninja_schema)
+    path_prefix = API_DEFINITIONS["endoreg-api"][0]
+    ninja_paths = dict(ninja_schema.get("paths", {}))
+    drf_paths = {
+        f"{path_prefix}{path}": path_item
+        for path, path_item in drf_schema.get("paths", {}).items()
+    }
+    duplicate_paths = set(ninja_paths).intersection(drf_paths)
+    if duplicate_paths:
+        raise CommandError(
+            "Django Ninja and DRF expose duplicate Endoreg API paths: "
+            + ", ".join(sorted(duplicate_paths))
+        )
+    schema["paths"] = ninja_paths | drf_paths
+
+    ninja_components = dict(ninja_schema.get("components", {}))
+    drf_components = dict(drf_schema.get("components", {}))
+    ninja_schemas = dict(ninja_components.get("schemas", {}))
+    drf_schemas = dict(drf_components.get("schemas", {}))
+    duplicate_schemas = set(ninja_schemas).intersection(drf_schemas)
+    if duplicate_schemas:
+        raise CommandError(
+            "Django Ninja and DRF expose duplicate Endoreg schema names: "
+            + ", ".join(sorted(duplicate_schemas))
+        )
+    ninja_components["schemas"] = ninja_schemas | drf_schemas
+    schema["components"] = ninja_components
+    return schema
+
+
 def _schema_bytes(api_name: str) -> bytes:
     path_prefix, module_name, attribute_name = API_DEFINITIONS[api_name]
     api = _load_api(module_name, attribute_name)
     schema = api.get_openapi_schema(path_prefix=path_prefix)
+    if api_name == "endoreg-api":
+        drf_schema = SchemaGenerator(patterns=endoreg_urlpatterns).get_schema(
+            request=None,
+            public=True,
+        )
+        schema = _merge_endoreg_schemas(schema, drf_schema)
     payload = json.dumps(
         schema,
         ensure_ascii=False,

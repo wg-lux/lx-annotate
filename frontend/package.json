@@ -1,6 +1,6 @@
 {
   "name": "lx-annotate",
-  "version": "1.2.5",
+  "version": "1.2.7",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,10 @@
     "preview": "vite preview",
     "test:unit": "vitest",
     "build-only": "vite build",
-    "typegen": "DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test ../.devenv/state/venv/bin/python ../manage.py export_openapi --output-dir openapi --typescript-output-dir src/types/generated",
-    "typegen:check": "if [ -f ../manage.py ]; then DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test ../.devenv/state/venv/bin/python ../manage.py export_openapi --output-dir openapi --typescript-output-dir src/types/generated --check; else echo 'Skipping OpenAPI freshness check: backend sources are unavailable in the isolated frontend package build.'; fi",
-    "type-check": "npm run typegen:check && vue-tsc --build --force && eslint . --max-warnings 0",
+    "typegen": "DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test ../.devenv/state/venv/bin/python ../manage.py export_openapi --output-dir ../openapi && DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test ../.devenv/state/venv/bin/python ../manage.py export_openapi --output-dir openapi --typescript-output-dir src/types/generated",
+    "typegen:check": "if [ -f ../manage.py ]; then DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test ../.devenv/state/venv/bin/python ../manage.py export_openapi --output-dir ../openapi --check && DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test ../.devenv/state/venv/bin/python ../manage.py export_openapi --output-dir openapi --typescript-output-dir src/types/generated --check; else echo 'Skipping OpenAPI freshness check: backend sources are unavailable in the isolated frontend package build.'; fi",
+    "type-check": "npm run typegen:check && npm run type-check:source",
+    "type-check:source": "vue-tsc --build --force && eslint . --max-warnings 0",
     "type-check:component-tests": "vue-tsc --noEmit -p tsconfig.component-tests.json",
     "vue-mess-detector": "npx vue-mess-detector analyze --exclude=.devenv",
     "lint": "eslint . --max-warnings 0",

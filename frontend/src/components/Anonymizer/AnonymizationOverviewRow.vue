@@ -60,7 +60,7 @@
           :data-test="action.testSelector"
           :title="action.title"
           :aria-label="action.ariaLabel"
-          :disabled="action.intent === 'retry-import' ? retryProcessing : processing"
+          :disabled="action.intent === 'retry-import' || action.intent === 'cancel-import' ? retryProcessing : processing"
           @click="emit(action.intent, file)"
         >
           <i
@@ -72,7 +72,7 @@
 
         <!-- Processing indicator -->
         <button
-          v-if="file.anonymizationStatus === 'processing_anonymization'"
+          v-if="file.anonymizationStatus === 'processing_anonymization' && !isImportInterrupted(file)"
           class="btn btn-outline-info"
           disabled
         >
@@ -80,7 +80,7 @@
           Anonymisierung...
         </button>
         <button
-          v-if="file.anonymizationStatus === 'extracting_frames'"
+          v-if="file.anonymizationStatus === 'extracting_frames' && !isImportInterrupted(file)"
           class="btn btn-outline-info"
           disabled
         >
@@ -102,6 +102,11 @@
         >
           {{ getUploadJobStatusText(file.uploadJob.status) }}
         </span>
+        <progress
+          v-if="['pending', 'processing', 'retrying', 'cancel_requested'].includes(file.uploadJob.status)"
+          class="job-progress d-block mt-1"
+          :aria-label="`${getFileDisplayName(file)}: ${getUploadJobStatusText(file.uploadJob.status)}`"
+        ></progress>
         <div
           v-if="getUploadJobOriginLabel(file.uploadJob)"
           class="small text-muted mt-1 upload-job-text"
@@ -153,6 +158,11 @@
             {{ getHlsArtifactKindText(materialization.artifactKind) }}:
             {{ getHlsStatusText(materialization.status) }}
           </span>
+          <progress
+            v-if="['queued', 'materializing'].includes(materialization.status)"
+            class="job-progress d-block mt-1"
+            :aria-label="`${getFileDisplayName(file)}: HLS ${getHlsArtifactKindText(materialization.artifactKind)} – ${getHlsStatusText(materialization.status)}`"
+          ></progress>
           <div class="small text-muted upload-job-text">
             Aktualisiert: {{ formatDate(materialization.updatedAt) }}
           </div>
@@ -178,6 +188,10 @@
         class="text-muted"
         >-</span
       >
+      <span
+        v-else-if="isImportInterrupted(file)"
+        class="badge bg-warning text-dark"
+      >Verarbeitung unterbrochen</span>
       <span
         v-else
         :class="getStatusBadgeClass(file.anonymizationStatus)"
@@ -262,6 +276,7 @@
 import { computed } from 'vue'
 import type { FileItem } from '@/stores/anonymizationStore'
 import {
+  isImportInterrupted,
   getOverviewActions,
   type OverviewActionIntent,
   formatDate,
@@ -329,6 +344,13 @@ const actions = computed(() => getOverviewActions(props.file))
   width: 17rem;
   min-width: 0;
   max-width: 17rem;
+}
+
+.job-progress {
+  width: 100%;
+  max-width: 17rem;
+  height: 0.75rem;
+  accent-color: var(--bs-info, #0dcaf0);
 }
 
 .upload-job-summary .small,

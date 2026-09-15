@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "lx-annotate"
 
-version = "1.2.5"
+version = "1.2.7"
 description = "This webapp provides a frontend interface for pseudonymizing and annotating data and applying AI predictions."
 authors = [
     { name = "Max Hild", email = "hild_m@ukw.de"},
@@ -52,7 +52,7 @@ dependencies = [
     "daphne>=4.2.1",
     "psycopg[binary,pool]>=3.2.12",
     "mozilla-django-oidc>=4.0.1",
-    "endoreg-db==1.2.7",
+    "endoreg-db==1.2.8",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
     "sops>=1.18",
@@ -60,13 +60,14 @@ dependencies = [
     "cryptography>=45.0.0",
     "django-linear-migrations>=2.19.0",
     "redis>=5.0.3,<6.5",
-    "lx-dtypes==0.3.2",
+    "lx-dtypes>=0.3.2",
     "pre-commit[dev]>=4.6.1",
     "pylint-django>=2.8.0",
     "asgiref>=3.12.1",
 ]
 
 [project.scripts]
+lx-annotate-check-static = "lx_annotate_assets:main"
 lx-annotate-web = "lx_annotate.cli:web"
 lx-annotate-server = "lx_annotate.cli:web"
 lx-annotate-manage = "lx_annotate.cli:manage"
@@ -87,12 +88,17 @@ include = [
   "/README.md",
   "/manage.py",
   "/lx_annotate/**/*.py",
+  "/lx_annotate_assets/**/*.py",
+  "/hatch_build.py",
   "/lx_annotate/templates/**/*.html",
   "/staticfiles/**/*",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["lx_annotate"]
+packages = ["lx_annotate", "lx_annotate_assets"]
+
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
 
 [tool.hatch.build.targets.wheel.force-include]
 "staticfiles" = "lx_annotate/staticfiles"
@@ -102,6 +108,8 @@ include = [
   "/README.md",
   "/manage.py",
   "/lx_annotate",
+  "/lx_annotate_assets",
+  "/hatch_build.py",
   "/staticfiles",
   "/uv.lock",
 ]

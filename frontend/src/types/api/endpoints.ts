@@ -125,6 +125,8 @@ export const endpoints = {
 
   anonymization: {
     itemsOverview: 'anonymization/items/overview/',
+    storage: 'anonymization/storage/',
+    cancelUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${pathId(jobId)}/cancel/`,
     retryUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${jobId}/retry/`,
     dismissUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${jobId}/dismiss/`,
     documentTypesDropdown: 'anonymization/document-types/dropdown/',
@@ -150,6 +152,8 @@ export const endpoints = {
       `media/sensitive-media-id/${pathId(pk)}/${mediaType}/`,
 
     videos: 'media/videos/',
+    videoTranscodeJobs: (pk: Id) => `media/videos/${pathId(pk)}/transcode-jobs/`,
+    videoTranscodeJobsOverview: 'media/videos/transcode-jobs/',
     videoDetail: (pk: Id) => `media/videos/${pathId(pk)}/details/`,
     videoStream: (pk: Id) => `media/videos/${pathId(pk)}/stream/`,
     videoHlsPlaylist: (pk: Id) => `media/videos/${pathId(pk)}/hls/playlist/`,

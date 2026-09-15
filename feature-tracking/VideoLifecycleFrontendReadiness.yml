@@ -16,6 +16,153 @@ source_documents:
   disposition: reference
   note: Test and contract verification boundaries.
 definition_of_done:
+- id: api_first_overview_operations
+  category: functionality
+  title: Overview capacity and media operations reflect authoritative API state
+  acceptance:
+  - The overview displays an authenticated filesystem-capacity observation with total, used,
+    available and system-reserved bytes, explicit filesystem scope and observation time.
+    Table filtering and partial raw-file byte sums never masquerade as general storage usage.
+  - Permission denial and unavailable capacity remain explicit; failed refresh removes stale
+    capacity. Storage reads are bounded and disclose neither protected paths nor media contents.
+  - Active import and HLS stages have accessible indeterminate progress unless the backend
+    supplies measured progress with a meaningful denominator. Terminal states stop progress.
+  - Overview requests coalesce, discover newly active work, recover after request failures,
+    and cannot restart polling after the component is disposed.
+  - Import interruption is a persisted, center-authorized cancellation request by upload-job UUID.
+    The UI distinguishes requested cancellation from acknowledged cancellation. Cooperative worker
+    checkpoints, completion races and redelivery preserve encrypted sources and valid published media.
+  - Transcode artifact semantics are explicitly chosen before enabling a web action. Durable
+    jobs serialize incompatible media operations, preserve temporal annotation integrity, and
+    expose real stages and measured terminal byte savings without guaranteeing a target size.
+  - Operators can shrink the processed derivative, individually or in bounded, idempotent batches
+    from video state repair. HLS provides playback; no additional full-video playback copy can be
+    submitted. Raw media and annotation timing are preserved.
+  - The current job model and migrated field choices expose only replacement transcoding.
+    The backend model has no optimized-playback fields. The undeployed copy schema and its
+    compatibility code are removed directly, without adding a retirement migration.
+  - Replacement cleanup is durably recorded and retried before another generation is encoded.
+    Failed cleanup never claims reclaimed bytes or permits repeated attempts to accumulate artifacts.
+    Previous canonical generations retire only after the replacement and HLS are verified.
+  - State repair preserves failed upload diagnostics and never treats historical HLS or file
+    existence as proof of a successful replacement import or permission to delete a source.
+  - Transcode decryption failures fail closed, plaintext scope remains restrictive, and a
+    post-publication cleanup failure never deletes the currently referenced published artifact.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run mounted capacity API and overview client/component tests, cancellation
+      worker/authorization/race tests, and encrypted transcode publication/concurrency tests.
+      Review the dependency versions and perform browser acceptance only after the safe
+      transcode contract and artifact semantics are settled.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: '2026-09-15 undeployed-copy revert, codex-api-overview-20260914: original migration
+        0009 and current job model expose replacement only; no 0010 retirement migration.
+        Historical-copy frontend types, parsing and labels removed. Updated frontend lane:
+        76 passed; app/component Vue typing and ESLint passed. Earlier compatibility evidence
+        below describes the superseded implementation.'
+    - kind: test
+      reference: '2026-09-15 final simplified application lane: 66 API, bulk-repair, worker and
+        initial-migration/model schema tests passed in 8.65s, including real FFmpeg/HLS replacement
+        cleanup and explicit rejection of older backends with a copy-mode default. Focused Pyright
+        0 errors/0 warnings and Ruff passed. Both app/backend migration drift checks report no changes.
+        Backend fresh-graph, canonical playback selector and writer-entry lane: 14 passed;
+        simplified backend transcode/cleanup/management lane: 37 passed.'
+    - kind: code
+      reference: lx_annotate/views/anonymization_storage.py; frontend/src/api/anonymizationOperations.ts;
+        frontend/src/components/Anonymizer/OverviewStorageSummary.vue
+    - kind: code
+      reference: frontend/src/components/Anonymizer/AnonymizationOverviewComponent.vue;
+        frontend/src/components/Anonymizer/AnonymizationOverviewRow.vue
+    - kind: review
+      reference: /home/admin/endoreg-db/endoreg_db/services/video_processed_transcode.py;
+        /home/admin/endoreg-db/endoreg_db/utils/storage/files.py;
+        /home/admin/endoreg-db/endoreg_db/services/video_files/_io.py
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/services/hub/upload_job_cancellation.py;
+        /home/admin/endoreg-db/endoreg_db/migrations/0079_upload_job_cancellation.py;
+        /home/admin/lx-data-models/lx_dtypes/models/contracts/anonymization_overview.py
+    - kind: code
+      reference: lx_annotate/services/video_transcode_jobs.py; lx_annotate/views/video_transcode_jobs.py;
+        lx_annotate/migrations/0009_videotranscodejob.py; lx_annotate/views/video_state_repair.py;
+        frontend/src/components/Anonymizer/OverviewTranscodePanel.vue
+    - kind: test
+      reference: '2026-09-15 replacement-only frontend: 76 focused Vitest tests passed; app and
+        component-test Vue typing, focused ESLint and diff checks passed. Submission types and
+        server capability parsing reject playback_copy; historical job responses remain readable.'
+    - kind: test
+      reference: '2026-09-15 replacement-only API/worker/repair: final combined source-overlay lane
+        68 passed in 5.77s, including real FFmpeg/HLS using the canonical storage directory.
+        It verifies encrypted replacement
+        and physical old-master deletion. Cleanup exceptions report transcode_cleanup_pending with
+        no claimed savings. Cleanup UI/stage follow-up: 11 panel tests passed. Focused API typing,
+        Ruff and diff checks passed.'
+    - kind: test
+      reference: '2026-09-15 owning-backend cleanup: encrypted transcode/reaper/management 39 passed,
+        HLS cleanup 44 passed, import finalization admission 30 passed, reanonymization/writer-entry
+        17 passed. These local checks do not establish deployed or PostgreSQL acceptance.'
+    - kind: review
+      reference: '/home/admin/.local/state/lx-annotate-diagnostics/gc-02-20260914T142435Z/report.yml:
+        deployed derivative codec/pixel-format mismatches, wrapped OCR soft deadline and stale
+        import heartbeat, historical HLS generation mismatch, and failed sources without proven
+        replacement. These observations do not prove source corruption or authorize deletion.
+        No live host action was performed.'
+    - kind: test
+      reference: '2026-09-14 follow-up: 55 frontend tests passed for overview bulk integration
+        and reimport store; separate panel/API lane 20 passed. Scoped ESLint and app/component
+        Vue type checks passed. Mounted repair/lifecycle source-overlay lane 44 passed; focused Pyright and Ruff
+        passed. Recoverable import heartbeat DatabaseError propagation regression lane 40 passed
+        in the owning source; the deployed stale-heartbeat root cause remains unproven.'
+    - kind: test
+      reference: '2026-09-14 follow-up: 50 mounted transcode API/worker tests passed, including
+        actual encrypted FFmpeg/HLS execution for both modes and immediate publication fencing
+        on heartbeat failure. Source-overlay service/view Pyright and Ruff passed. Migration drift
+        check with migrations explicitly enabled passed for lx-annotate and endoreg-db.'
+    - kind: test
+      reference: '2026-09-14 follow-up: installed-backend storage/lifecycle compatibility lane
+        77 passed, 2 source-only cancellation cases skipped (covered by the passing source lane).
+        Owning-backend transcode/gate/playback/command lane 46 passed; HLS service/stream lane
+        66 passed; artifact writer entry/storage lane 17 passed; updated gate/anonymization lane
+        41 passed; existing finalization unit lane 10 passed with a writer-boundary stub (real
+        admission covered by the entry/gate lanes). Gate cases overlap between cohorts. These
+        are isolated SQLite checks, not PostgreSQL concurrency acceptance.'
+    - kind: test
+      reference: '2026-09-14: overview/storage/API/store/upload-caller frontend lane 94 passed; component-test
+        vue-tsc passed and focused ESLint passed. Source-overlay mounted lifecycle tests 29 passed;
+        storage API and existing mount/monitoring tests 67 passed. Transcode cleanup lane 6 passed
+        in isolated SQLite; focused Pyright and Ruff passed.'
+    - kind: test
+      reference: '2026-09-14: installed-wheel mounted lifecycle compatibility lane 27 passed,
+        2 cancellation-source-only cases skipped; those cases pass in the source-overlay lane.
+        Full owning-backend Pyright is not green in the shared development typing environment;
+        focused modified cancellation and transcode services pass.'
+    - kind: test
+      reference: '2026-09-14: owning-backend SQLite cancellation, lease, watcher, monitoring,
+        anonymization and finalization integration lane 100 passed with 2 dependency warnings.
+        Includes 25 cancellation/API/staging-cleanup cases. Canonical lx-dtypes cancellation
+        contract lane 47 passed; targeted strict Pyright and Ruff passed. Migration drift check
+        reported no changes. PostgreSQL concurrency and deployed browser acceptance remain open.'
+    note: Capacity, truthful stage progress, serialized polling and UUID-scoped cooperative
+      cancellation are implemented locally. Cancellation requires the reviewed endoreg-db and
+      lx-dtypes source changes plus the new migration; the currently pinned published backend
+      does not advertise cancellation and direct requests explicitly return unavailable.
+      Processed replacement and bounded bulk submission during state repair are implemented
+      locally; HLS is the playback copy. The undeployed full-video copy model, migration fields,
+      and compatibility paths are removed. Encrypted candidate staging, exclusive media leases, generation checks and short
+      pointer-publication transactions protect the existing artifact and annotation timeline.
+      HLS publication retains the old generation until the replacement is ready. Published-artifact
+      cleanup failures remain explicit and preserve the referenced output. Transcoding requires
+      the corresponding endoreg-db source and migration 0080 plus lx-annotate migration 0009;
+      unsupported installed dependencies fail explicitly with 503. Encoding uses the existing
+      balanced profile and preserves FPS; it does not promise a particular size reduction.
+      No production operation or readiness approval is claimed. SQLite checks do not establish
+      PostgreSQL concurrency acceptance, and the gc-02 OCR timeout still requires runtime diagnosis.
+    assessed_by: codex-api-overview-20260914
+    assessed_at: '2026-09-14T15:33:14Z'
 - id: truthful_import_and_reimport
   category: requirements
   title: Import and reimport retain truthful state and visible recovery

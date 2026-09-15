@@ -14,11 +14,59 @@ tracking:
     changed_at: '2026-08-25T13:05:07.993892Z'
     note: Added focused API contract pre-commit hook; canonical suite and actual pre-commit invocation
       pass with 9 tests.
+  - action: reopened
+    changed_by: codex-root-api-coverage
+    changed_at: '2026-09-15T09:13:51.836455Z'
+    note: Extend the pre-commit API gate with an explicit OpenAPI artifact freshness hook.
+  - action: done
+    changed_by: codex-root-api-coverage
+    changed_at: '2026-09-15T09:17:19.231551Z'
+    note: Explicit OpenAPI artifact freshness and non-duplicating frontend source hooks pass through pre-commit.
+  - action: reopened
+    changed_by: codex-root-api-coverage
+    changed_at: '2026-09-15T09:19:11.762085Z'
+    note: Final consistency review found the repository-level schema copy was not covered by the frontend-only
+      freshness command.
+  - action: done
+    changed_by: codex-root-api-coverage
+    changed_at: '2026-09-15T09:24:34.528481Z'
+    note: Pre-commit now verifies synchronized repository/frontend OpenAPI schemas and generated TypeScript;
+      the separate frontend source check passes.
 source_documents:
 - path: docs/guides/openapi-type-generation.md
   disposition: reference
   note: Documents generated API contracts and their verification workflow.
 definition_of_done:
+- id: openapi_generation_hook
+  category: operations
+  title: Pre-commit verifies generated OpenAPI artifacts
+  acceptance:
+  - A dedicated pre-commit hook runs the canonical OpenAPI freshness command.
+  - The freshness command checks both openapi/endoreg-api.json and the frontend OpenAPI and TypeScript
+    artifacts.
+  - Frontend source checking does not repeat OpenAPI generation in the same pre-commit run.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pre-commit
+    - run
+    - openapi-generation
+    - --all-files
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run openapi-generation --all-files: Passed (root and frontend artifacts)'
+    - kind: command
+      reference: 'cmp openapi/endoreg-api.json frontend/openapi/endoreg-api.json: identical'
+    - kind: command
+      reference: 'devenv shell -- npm --prefix frontend run type-check:source: Passed'
+    note: The dedicated hook runs the canonical freshness check for both repository and frontend schemas
+      plus generated TypeScript; frontend source checking remains split to avoid rerunning generation.
+    assessed_by: codex-root-api-coverage
+    assessed_at: '2026-09-15T09:24:26.733846Z'
 - id: focused_hook
   category: operations
   title: Pre-commit invokes the focused API contract test
@@ -38,9 +86,10 @@ definition_of_done:
     evidence:
     - kind: command
       reference: 'pre-commit run api-contracts --all-files: Passed'
-    note: Explicit local hook invokes the canonical API contract suite before the broader tests.
-    assessed_by: codex-precommit-api-20260825
-    assessed_at: '2026-08-25T13:04:22.890693Z'
+    note: Existing focused API contract hook remains configured; the feature was reopened only to add
+      the separate OpenAPI freshness hook.
+    assessed_by: codex-root-api-coverage
+    assessed_at: '2026-09-15T09:17:13.078245Z'
 - id: contract_suite
   category: testing
   title: API contract regressions pass

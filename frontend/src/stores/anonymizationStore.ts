@@ -5,6 +5,7 @@ import axios, { type AxiosError } from 'axios'
 import { ref } from 'vue'
 import { endpoints } from '@/types/api/endpoints'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import type { TranscodeOption, VideoTranscodeJob } from '@/api/anonymizationOperations'
 
 const runtimeLogger = createRuntimeLogger('anonymization-store')
 
@@ -13,7 +14,7 @@ const runtimeLogger = createRuntimeLogger('anonymization-store')
 /* ------------------------------------------------------------------ */
 
 export type UploadJobMonitoringStatus =
-  'pending' | 'processing' | 'retrying' | 'anonymized' | 'error' | 'lost'
+  'pending' | 'processing' | 'retrying' | 'cancel_requested' | 'cancelled' | 'anonymized' | 'error' | 'lost'
 export type UploadJobIngestMode = 'api' | 'watcher'
 export type UploadJobCleanupStatus = 'pending' | 'eligible' | 'deleting' | 'completed' | 'skipped'
 export type ImportErrorCode =
@@ -43,7 +44,7 @@ export interface ApiUploadJobOverview {
   originalFilename: string
   sourceFilePersisted: boolean
   cleanupStatus: UploadJobCleanupStatus
-  allowedActions: Array<'safe_reimport' | 'delete'>
+  allowedActions: Array<'safe_reimport' | 'delete' | 'cancel'>
   errorCode: ImportErrorCode
   errorDetail: string
   retryable: boolean
@@ -111,6 +112,10 @@ export interface FileItem {
   canDismissImport?: boolean
 }
 
+function isOverviewPollingTerminal(file: FileItem, stopStatuses: ReadonlySet<string>): boolean {
+  return stopStatuses.has(file.anonymizationStatus) || file.uploadJob?.status === 'cancelled'
+}
+
 export interface QuarantineFileItem {
   id: string
   directoryKey: string
@@ -137,16 +142,29 @@ export interface QuarantineOverviewResponse {
 export interface VideoStateRepairResponse {
   dryRun: boolean
   count: number
-  summary: Record<'repaired' | 'consistent' | 'reimport_required', number>
+  summary: Record<'repaired' | 'consistent' | 'reimport_required', number> & { blocked?: number }
   items: Array<{
     videoId: number
     filename: string
-    status: 'repaired' | 'consistent' | 'reimport_required'
+    status: 'repaired' | 'consistent' | 'reimport_required' | 'blocked'
     changes: string[]
     missing: string[]
     annotationsPreserved: true
   }>
   annotationsPreserved: true
+  transcodes?: {
+    count: number
+    queued: number
+    existing: number
+    rejected: number
+    nextAfterVideoId: number | null
+    items: Array<{
+      videoId: number
+      status: 'queued' | 'existing' | 'rejected'
+      job?: VideoTranscodeJob
+      errorCode?: string
+    }>
+  }
 }
 
 export interface AnonymizationState {
@@ -564,7 +582,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
         for (const fileOverview of overviewData) {
           if (
-            stopStatuses.has(fileOverview.anonymizationStatus) &&
+            isOverviewPollingTerminal(fileOverview, stopStatuses) &&
             this.pollingHandles[fileOverview.id] !== undefined
           ) {
             this.stopPolling(fileOverview.id)
@@ -722,6 +740,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             { params: { kind: kindParam } }
           )
 
+          if (this.pollingHandles[id] === undefined) return
           if (applyStatusUpdate(data)) return
           nextDelayMs = statusPollIntervalMs(id)
         } catch (err) {
@@ -827,12 +846,22 @@ export const useAnonymizationStore = defineStore('anonymization', {
       await this.fetchOverview()
     },
 
-    async repairAllVideoStates(dryRun = false): Promise<VideoStateRepairResponse | null> {
+    async repairAllVideoStates(
+      dryRun = false,
+      transcode?: { option: TranscodeOption; idempotencyKey: string; afterVideoId: number }
+    ): Promise<VideoStateRepairResponse | null> {
       this.error = null
       try {
         const { data } = await axiosInstance.post<VideoStateRepairResponse>(
           r(endpoints.runtime.videoStateRepair),
-          { dryRun }
+          {
+            dry_run: dryRun,
+            ...(transcode ? {
+              transcode: { option: transcode.option, idempotency_key: transcode.idempotencyKey },
+              after_video_id: transcode.afterVideoId,
+              batch_size: 100
+            } : {})
+          }
         )
         await this.fetchOverview()
         return data
@@ -866,12 +895,16 @@ export const useAnonymizationStore = defineStore('anonymization', {
       try {
         const { data } = await axiosInstance.post<VideoStateRepairResponse>(
           r(endpoints.runtime.videoStateRepairOne(fileId)),
-          { dryRun: false }
+          { dry_run: false }
         )
         if (data.items.length !== 1) {
           throw new Error('Die Reparaturantwort enthält keinen eindeutigen Videozustand.')
         }
         const item = data.items[0]
+        if (item.status === 'blocked') {
+          this.error = `Video ${String(fileId)} kann derzeit nicht repariert werden: Eine Medienoperation ist aktiv.`
+          return false
+        }
         if (item.status === 'reimport_required') {
           this.error = `Video ${String(fileId)} muss neu importiert werden (${item.missing.join(', ')}). Annotationen wurden nicht gelöscht.`
           return false

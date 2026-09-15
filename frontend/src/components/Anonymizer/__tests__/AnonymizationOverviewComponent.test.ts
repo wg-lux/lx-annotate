@@ -1,8 +1,17 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 
 import AnonymizationOverviewComponent from '../AnonymizationOverviewComponent.vue'
+import OverviewTranscodePanel from '../OverviewTranscodePanel.vue'
+
+vi.mock('../OverviewStorageSummary.vue', () => ({
+  default: { template: '<div data-test="storage-summary-stub" />' }
+}))
+
+vi.mock('../OverviewTranscodePanel.vue', () => ({
+  default: { name: 'OverviewTranscodePanel', props: ['repairing', 'refreshToken'], emits: ['repair'], template: '<div />' }
+}))
 
 const VIDEO_FILE_ID = 17
 const PDF_FILE_ID = 23
@@ -11,6 +20,9 @@ const UPLOAD_MAX_RETRIES = 3
 const STICKY_SCROLL_OFFSET = 120
 const TABLE_SCROLL_OFFSET = 240
 
+enableAutoUnmount(afterEach)
+afterEach(() => vi.useRealTimers())
+
 const hoisted = vi.hoisted(() => ({
   anonymizationStoreRef: {
     current: {} as {
@@ -18,6 +30,7 @@ const hoisted = vi.hoisted(() => ({
       loading: boolean
       overview: Array<Record<string, unknown>>
       fetchOverview: ReturnType<typeof vi.fn>
+      repairAllVideoStates: ReturnType<typeof vi.fn>
       retryUploadJob: ReturnType<typeof vi.fn>
       dismissUploadJob: ReturnType<typeof vi.fn>
       setCurrentForValidation: ReturnType<typeof vi.fn>
@@ -44,7 +57,13 @@ const hoisted = vi.hoisted(() => ({
       clearAllLocalLocks: ReturnType<typeof vi.fn>
     }
   },
-  routerPush: vi.fn()
+  routerPush: vi.fn(),
+  cancelImport: vi.fn(),
+  deleteMediaFile: vi.fn()
+}))
+
+vi.mock('@/api/anonymizationOperations', () => ({
+  cancelAnonymizationImport: hoisted.cancelImport
 }))
 
 vi.mock('vue-router', () => ({
@@ -73,7 +92,7 @@ vi.mock('@/composables/usePollingProtection', () => ({
 
 vi.mock('@/api/mediaManagement', () => ({
   useMediaManagement: () => ({
-    deleteMediaFile: vi.fn()
+    deleteMediaFile: hoisted.deleteMediaFile
   })
 }))
 
@@ -196,6 +215,7 @@ describe('AnonymizationOverviewComponent', () => {
       loading: false,
       overview: [buildVideoFile()],
       fetchOverview: vi.fn().mockResolvedValue(undefined),
+      repairAllVideoStates: vi.fn().mockResolvedValue(null),
       retryUploadJob: vi.fn().mockResolvedValue(true),
       dismissUploadJob: vi.fn().mockResolvedValue(true),
       setCurrentForValidation: vi.fn().mockResolvedValue(true),
@@ -223,12 +243,306 @@ describe('AnonymizationOverviewComponent', () => {
     }
   })
 
+  it.each(['replace_processed'] as const)('submits all repair pages with stable identity for %s', async (option) => {
+    const store = hoisted.anonymizationStoreRef.current
+    store.repairAllVideoStates
+      .mockResolvedValueOnce({ transcodes: { queued: 2, existing: 1, rejected: 0, nextAfterVideoId: 100 } })
+      .mockResolvedValueOnce({ transcodes: { queued: 1, existing: 0, rejected: 2, nextAfterVideoId: null } })
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    wrapper.getComponent(OverviewTranscodePanel).vm.$emit('repair', option)
+    await flushPromises()
+    expect(store.repairAllVideoStates).toHaveBeenCalledTimes(2)
+    const first = store.repairAllVideoStates.mock.calls[0][1] as { idempotencyKey: string }
+    expect(first.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/)
+    expect(store.repairAllVideoStates).toHaveBeenNthCalledWith(1, false, { option, idempotencyKey: first.idempotencyKey, afterVideoId: 0 })
+    expect(store.repairAllVideoStates).toHaveBeenNthCalledWith(2, false, { option, idempotencyKey: first.idempotencyKey, afterVideoId: 100 })
+    expect(wrapper.text()).toContain('3 Transkodierungen eingereiht, 1 vorhandene Aufträge, 2 abgelehnt')
+    expect(wrapper.getComponent(OverviewTranscodePanel).props('refreshToken')).toBe(2)
+  })
+
+  it('retries an unconfirmed page with the same idempotency key and cursor', async () => {
+    const store = hoisted.anonymizationStoreRef.current
+    store.repairAllVideoStates
+      .mockResolvedValueOnce({ transcodes: { queued: 1, existing: 0, rejected: 0, nextAfterVideoId: 100 } })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ transcodes: { queued: 0, existing: 1, rejected: 0, nextAfterVideoId: null } })
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    const panel = wrapper.getComponent(OverviewTranscodePanel)
+    panel.vm.$emit('repair', 'replace_processed')
+    await flushPromises()
+    panel.vm.$emit('repair', 'replace_processed')
+    await flushPromises()
+    expect(store.repairAllVideoStates).toHaveBeenCalledTimes(3)
+    expect(store.repairAllVideoStates.mock.calls[2]).toEqual(store.repairAllVideoStates.mock.calls[1])
+  })
+
+  it('does not submit another page after leaving during bulk repair', async () => {
+    const store = hoisted.anonymizationStoreRef.current
+    let finish!: (value: unknown) => void
+    store.repairAllVideoStates.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    const panel = wrapper.getComponent(OverviewTranscodePanel)
+    panel.vm.$emit('repair', 'replace_processed')
+    panel.vm.$emit('repair', 'replace_processed')
+    await flushPromises()
+    expect(store.repairAllVideoStates).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    finish({ transcodes: { queued: 1, existing: 0, rejected: 0, nextAfterVideoId: 100 } })
+    await flushPromises()
+    expect(store.repairAllVideoStates).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([0, undefined])('stops on an invalid continuation cursor %s', async (cursor) => {
+    hoisted.anonymizationStoreRef.current.repairAllVideoStates.mockResolvedValue({
+      transcodes: { queued: 1, existing: 0, rejected: 0, nextAfterVideoId: cursor }
+    })
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    wrapper.getComponent(OverviewTranscodePanel).vm.$emit('repair', 'replace_processed')
+    await flushPromises()
+    expect(hoisted.anonymizationStoreRef.current.repairAllVideoStates).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('Ungültiger Fortsetzungspunkt')
+  })
+
+  it('reports blocked repairs separately from successful repairs', async () => {
+    hoisted.anonymizationStoreRef.current.repairAllVideoStates.mockResolvedValue({
+      summary: { repaired: 1, consistent: 2, blocked: 3 }, items: []
+    })
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    await wrapper.get('[data-test="repair-all-video-states"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('1 repariert, 2 bereits konsistent, 3 blockiert')
+  })
+
+  it('cancels by import UUID and displays requested until the worker acknowledges', async () => {
+    vi.useFakeTimers()
+    const job = buildUploadJob({ id: 'job-cancel-target', status: 'processing', allowedActions: ['cancel'] })
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({ uploadJob: job }),
+      buildPdfFile({ id: VIDEO_FILE_ID, uploadJob: { id: 'other-job', status: 'processing' } })
+    ]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    hoisted.cancelImport.mockResolvedValueOnce({
+      uploadJob: { ...job, status: 'cancel_requested', allowedActions: [] },
+      cancellationRequested: true, sourcePreserved: true
+    })
+    await wrapper.get('[data-test="cancel-upload-job-button"]').trigger('click')
+    await flushPromises()
+    expect(hoisted.cancelImport).toHaveBeenCalledWith('job-cancel-target')
+    expect(wrapper.text()).toContain('Abbruch angefordert')
+    expect(wrapper.find('[data-test="cancel-upload-job-button"]').exists()).toBe(false)
+    expect(hoisted.anonymizationStoreRef.current.overview[1].uploadJob).toMatchObject({ id: 'other-job', status: 'processing' })
+    const fetches = hoisted.anonymizationStoreRef.current.fetchOverview.mock.calls.length
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(hoisted.anonymizationStoreRef.current.fetchOverview).toHaveBeenCalledTimes(fetches + 1)
+  })
+
+  it('does not duplicate pending cancellation and exposes an unconfirmed request failure', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [buildVideoFile({
+      uploadJob: { id: 'pending-cancel', status: 'processing', allowedActions: ['cancel'] }
+    })]
+    let rejectRequest: ((reason: Error) => void) | undefined
+    hoisted.cancelImport.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectRequest = reject }))
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    const button = wrapper.get('[data-test="cancel-upload-job-button"]')
+    await button.trigger('click')
+    await button.trigger('click')
+    expect(hoisted.cancelImport).toHaveBeenCalledTimes(1)
+    rejectRequest?.(new Error('timeout'))
+    await flushPromises()
+    expect(wrapper.text()).toContain('Abbruch konnte nicht bestätigt werden')
+    expect(wrapper.text()).not.toContain('Import abgebrochen')
+  })
+
+  it('ignores a cancellation response after leaving the overview', async () => {
+    const job = buildUploadJob({ id: 'leaving-cancel', status: 'processing', allowedActions: ['cancel'] })
+    hoisted.anonymizationStoreRef.current.overview = [buildVideoFile({ uploadJob: job })]
+    let resolveRequest: ((value: unknown) => void) | undefined
+    hoisted.cancelImport.mockReturnValueOnce(new Promise((resolve) => { resolveRequest = resolve }))
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    await wrapper.get('[data-test="cancel-upload-job-button"]').trigger('click')
+    wrapper.unmount()
+    resolveRequest?.({ uploadJob: { ...job, status: 'cancelled', allowedActions: [] }, cancellationRequested: true, sourcePreserved: true })
+    await flushPromises()
+    expect(hoisted.anonymizationStoreRef.current.overview[0].uploadJob).toMatchObject({ status: 'processing' })
+    expect(hoisted.anonymizationStoreRef.current.fetchOverview).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not restart processing for a worker-confirmed cancelled import', async () => {
+    vi.useFakeTimers()
+    hoisted.anonymizationStoreRef.current.overview = [buildVideoFile({
+      anonymizationStatus: 'processing_anonymization',
+      uploadJob: { id: 'cancelled-import', status: 'cancelled', allowedActions: [] }
+    })]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Verarbeitung unterbrochen')
+    expect(wrapper.find('progress').exists()).toBe(false)
+    expect(hoisted.anonymizationStoreRef.current.startPolling).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(45000)
+    expect(hoisted.anonymizationStoreRef.current.fetchOverview).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses one aggregate refresh loop for active media and import-only rows', async () => {
+    vi.useFakeTimers()
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({ anonymizationStatus: 'processing_anonymization' }),
+      buildVideoFile({ id: IMPORT_ONLY_FILE_ID, importOnly: true, uploadJob: { status: 'processing' } })
+    ]
+    mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    expect(hoisted.anonymizationStoreRef.current.startPolling).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(hoisted.anonymizationStoreRef.current.fetchOverview).toHaveBeenCalledTimes(2)
+  })
+
   it('renders the video file id next to the filename', async () => {
     const wrapper = mount(AnonymizationOverviewComponent)
     await flushPromises()
 
     expect(wrapper.text()).toContain('study-video.mp4')
     expect(wrapper.text()).toContain('Video-ID: 17')
+  })
+
+  it('starts the exact PDF when a video shares its numeric id', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({ anonymizationStatus: 'not_started' }),
+      buildPdfFile({ id: VIDEO_FILE_ID, anonymizationStatus: 'not_started' })
+    ]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    const pdfRow = wrapper.get('tbody tr:nth-child(2)')
+    const startButton = pdfRow.get('button.btn-outline-primary')
+    await startButton.trigger('click')
+    await flushPromises()
+    expect(hoisted.pollingProtectionRef.current.startAnonymizationSafeWithProtection)
+      .toHaveBeenCalledWith(VIDEO_FILE_ID, 'pdf')
+    expect(hoisted.pollingProtectionRef.current.canProcessMedia.value)
+      .toHaveBeenCalledWith(VIDEO_FILE_ID, 'pdf')
+  })
+
+  it('keeps PDF validation and local processing independent from a video with the same id', async () => {
+    const store = hoisted.anonymizationStoreRef.current
+    store.overview = [
+      buildVideoFile({ anonymizationStatus: 'not_started' }),
+      buildPdfFile({ id: VIDEO_FILE_ID, anonymizationStatus: 'done_processing_anonymization' })
+    ]
+    let finishValidation!: (result: boolean) => void
+    store.setCurrentForValidation.mockImplementationOnce(() => new Promise<boolean>((resolve) => {
+      finishValidation = resolve
+    }))
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    const videoRow = wrapper.get('tbody tr:nth-child(1)')
+    const pdfRow = wrapper.get('tbody tr:nth-child(2)')
+    const validate = pdfRow.get('.validation-action-column button')
+    expect(validate.attributes('disabled')).toBeUndefined()
+    await validate.trigger('click')
+    expect(store.setCurrentForValidation).toHaveBeenCalledWith(VIDEO_FILE_ID, 'pdf')
+    expect(videoRow.get('[data-test="delete-file-button"]').attributes('disabled')).toBeUndefined()
+    expect(pdfRow.get('[data-test="delete-file-button"]').attributes('disabled')).toBeDefined()
+    finishValidation(true)
+    await flushPromises()
+    expect(hoisted.routerPush).toHaveBeenCalledWith({
+      name: 'AnonymisierungValidierung',
+      query: { fileId: String(VIDEO_FILE_ID), mediaType: 'pdf' }
+    })
+  })
+
+  it('blocks ambiguous numeric deletion even when the conflicting row is filtered out', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile(), buildPdfFile({ id: VIDEO_FILE_ID })
+    ]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    await wrapper.get('[data-test="anonymization-resource-type-filter"]').setValue('pdf')
+    await wrapper.get('[data-test="delete-file-button"]').trigger('click')
+    expect(hoisted.deleteMediaFile).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('nicht eindeutig zuordnen')
+  })
+
+  it('starts monitoring when an active import appears after initial load', async () => {
+    vi.useFakeTimers()
+    mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    const store = hoisted.anonymizationStoreRef.current
+    store.overview = [buildVideoFile({ uploadJob: buildUploadJob({ status: 'processing' }) })]
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(store.fetchOverview).toHaveBeenCalledTimes(2)
+    store.overview = [buildVideoFile()]
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(store.fetchOverview).toHaveBeenCalledTimes(2)
+  })
+
+  it('serializes manual and monitoring refresh requests', async () => {
+    vi.useFakeTimers()
+    const store = hoisted.anonymizationStoreRef.current
+    store.overview = [buildVideoFile({ uploadJob: buildUploadJob({ status: 'processing' }) })]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    let finishRefresh!: () => void
+    store.fetchOverview.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishRefresh = resolve
+    }))
+    await wrapper.find('button.btn-outline-primary').trigger('click')
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(store.fetchOverview).toHaveBeenCalledTimes(2)
+    finishRefresh()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(store.fetchOverview).toHaveBeenCalledTimes(3)
+  })
+
+  it.each(['rejected', 'reported'])('retries a %s initial refresh failure', async (failure) => {
+    vi.useFakeTimers()
+    const store = hoisted.anonymizationStoreRef.current
+    store.overview = []
+    if (failure === 'rejected') store.fetchOverview.mockRejectedValueOnce(new Error('Unavailable'))
+    else store.fetchOverview.mockImplementationOnce(() => {
+      store.error = 'Unavailable'
+      return Promise.resolve([])
+    })
+    store.fetchOverview.mockImplementationOnce(() => {
+      store.error = null
+      return Promise.resolve([])
+    })
+    mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(store.fetchOverview).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(store.fetchOverview).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not restart monitoring or per-file polling after unmount during initial refresh', async () => {
+    vi.useFakeTimers()
+    const store = hoisted.anonymizationStoreRef.current
+    store.overview = [buildVideoFile({
+      anonymizationStatus: 'processing_anonymization',
+      uploadJob: buildUploadJob({ status: 'processing' })
+    })]
+    let finishRefresh!: () => void
+    store.fetchOverview.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishRefresh = resolve
+    }))
+    const wrapper = mount(AnonymizationOverviewComponent)
+    wrapper.unmount()
+    finishRefresh()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(store.fetchOverview).toHaveBeenCalledTimes(1)
+    expect(store.startPolling).not.toHaveBeenCalled()
+    expect(hoisted.mediaStoreRef.current.seedTypesFromOverview).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('keeps media type in correction identity when a PDF and video share an id', async () => {
